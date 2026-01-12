@@ -99,11 +99,23 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Handles input when card info navigation is active.
+        /// Only responds to plain Arrow Up/Down without modifiers.
+        /// Alt+Arrow is reserved for battlefield row navigation.
         /// Returns true if input was handled.
         /// </summary>
         public bool HandleInput()
         {
             if (!_isActive || _currentCard == null) return false;
+
+            // Check for modifier keys - don't handle if any modifier is pressed
+            bool hasModifier = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt) ||
+                               Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ||
+                               Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+
+            if (hasModifier)
+            {
+                return false; // Let other navigators handle modified arrow keys
+            }
 
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {

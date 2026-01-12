@@ -31,6 +31,7 @@ namespace MTGAAccessibility.Core.Services
         private HighlightNavigator _highlightNavigator;
         private DiscardNavigator _discardNavigator;
         private CombatNavigator _combatNavigator;
+        private BattlefieldNavigator _battlefieldNavigator;
         private DuelAnnouncer _duelAnnouncer;
 
         public override string NavigatorId => "Duel";
@@ -44,6 +45,7 @@ namespace MTGAAccessibility.Core.Services
         public TargetNavigator TargetNavigator => _targetNavigator;
         public HighlightNavigator HighlightNavigator => _highlightNavigator;
         public DiscardNavigator DiscardNavigator => _discardNavigator;
+        public BattlefieldNavigator BattlefieldNavigator => _battlefieldNavigator;
         public DuelAnnouncer DuelAnnouncer => _duelAnnouncer;
 
         public DuelNavigator(IAnnouncementService announcer) : base(announcer)
@@ -54,6 +56,7 @@ namespace MTGAAccessibility.Core.Services
             _discardNavigator = new DiscardNavigator(announcer, _zoneNavigator);
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
+            _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
 
             // Connect DuelAnnouncer to TargetNavigator for event handling
             _duelAnnouncer.SetTargetNavigator(_targetNavigator);
@@ -66,6 +69,9 @@ namespace MTGAAccessibility.Core.Services
 
             // Connect ZoneNavigator to CombatNavigator for attacker state announcements
             _zoneNavigator.SetCombatNavigator(_combatNavigator);
+
+            // Connect BattlefieldNavigator to CombatNavigator for combat state announcements
+            _battlefieldNavigator.SetCombatNavigator(_combatNavigator);
         }
 
         /// <summary>
@@ -106,6 +112,7 @@ namespace MTGAAccessibility.Core.Services
                 _zoneNavigator.Deactivate();
                 _targetNavigator.ExitTargetMode();
                 _highlightNavigator.Deactivate();
+                _battlefieldNavigator.Deactivate();
                 _duelAnnouncer.Deactivate();
             }
 
@@ -129,7 +136,10 @@ namespace MTGAAccessibility.Core.Services
             _zoneNavigator.Activate();
             _zoneNavigator.LogZoneSummary();
 
-            // 2. Activate highlight navigator for Tab cycling through playable cards
+            // 2. Activate battlefield navigator for row-based navigation
+            _battlefieldNavigator.Activate();
+
+            // 3. Activate highlight navigator for Tab cycling through playable cards
             _highlightNavigator.Activate();
 
             // 3. Activate duel announcer with local player ID
@@ -264,8 +274,9 @@ namespace MTGAAccessibility.Core.Services
 
             return $"Duel started. {handCards} cards in hand. " +
                    $"Tab cycles playable cards. " +
-                   $"C for hand, B for battlefield, G for graveyard, X for exile, S for stack. " +
-                   $"Arrows navigate cards in zone.";
+                   $"C for hand. B for your creatures, A for your lands, R for your non-creatures. " +
+                   $"Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. " +
+                   $"Alt plus up or down switches battlefield rows.";
         }
 
         protected override bool OnElementActivated(int index, GameObject element)
@@ -288,7 +299,7 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Handles zone navigation, target selection, and playable card cycling input.
-        /// Priority: TargetNavigator > DiscardNavigator > CombatNavigator > HighlightNavigator > ZoneNavigator > base
+        /// Priority: TargetNavigator > DiscardNavigator > CombatNavigator > HighlightNavigator > BattlefieldNavigator > ZoneNavigator > base
         /// </summary>
         protected override bool HandleCustomInput()
         {
@@ -310,7 +321,11 @@ namespace MTGAAccessibility.Core.Services
             if (_highlightNavigator.HandleInput())
                 return true;
 
-            // Delegate zone input handling to ZoneNavigator
+            // Battlefield navigation (A/R/B shortcuts and row-based navigation)
+            if (_battlefieldNavigator.HandleInput())
+                return true;
+
+            // Delegate zone input handling to ZoneNavigator (C, G, X, S shortcuts)
             if (_zoneNavigator.HandleInput())
                 return true;
 

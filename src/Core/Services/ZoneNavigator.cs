@@ -123,11 +123,7 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.B))
-            {
-                NavigateToZone(ZoneType.Battlefield);
-                return true;
-            }
+            // B shortcut handled by BattlefieldNavigator (row-based navigation)
 
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
