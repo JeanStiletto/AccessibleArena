@@ -1,0 +1,10 @@
+viele extra Klassen für einzel screens
+erkennt einzelscreens gerade an bestimmter anzahl von Elementen? 
+help button funktioniert nicht
+Register button wird nicht angezeigt? 
+ den download screen implementieren, space für download fortschritt, vergleichen mit warteschlangenscreen 
+eventtrigggernavigation  file bereinigen, von totem code, von nicht funktionierenden Methoden, von log und Debugging Funktionen. 
+ npe screen ist immer noch irgendwie hesslich
+unschöner Ansatz mit dem wrten 2 secunden auf verschwundene Buttons
+
+		

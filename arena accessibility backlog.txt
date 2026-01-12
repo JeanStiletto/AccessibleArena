@@ -1,0 +1,34 @@
+ help button funktioniert nicht
+Register button wird nicht angezeigt? 
+ den download screen implementieren, space für download fortschritt, vergleichen mit warteschlangenscreen 
+eventtrigggernavigation  file bereinigen, von totem code, von nicht funktionierenden Methoden, von log und Debugging Funktionen. 
+ npe screen ist immer noch irgendwie hesslich
+unschöner Ansatz mit dem wrten 2 secunden auf verschwundene Buttons
+wird karten spielen gerade zu sehr auf von Hand zu battle  field bezogen?
+Schlachtfeld ordentlich unterteilen, Kreaturen, nichtkreaturen, mana, reihenwechsel mit altpfeiltasten, anspringen der einzelnen reihen mit kurztaste shift kurztaste.
+b geht damit immer zu meinen kreature, vielleicht konfigurierbar machen, wo man hinwill? 
+duel anouncements improven, redet immer wenn der größte krach herrscht?, zählt turns fbei jedem wechsel hoch, nur bei jedem zweiten  
+raffen wie kämpfen eigentlich funktioniert
+ nicht auf der Hand befindliche karten aktivieren
+den ganzen ui registrierungsansatz hinterfragen
+Card ids ändern sich wenn sie die Zone wechseln? 
+ prüfen ob all die Navigator lassen für das duel efficient sind, code teilen der ausgelagert werden knnte
+checken ob automatisches erkennen von Buttons verbessert werden kann 
+Option en einbauen, für nicht selectd Status anzeigen, für hilsmessages ansagen
+prebattle screen entfernen und schaun, ob dabei irgendwas kaputtgeht?
+
+rolle von eventtriggernavigator checken, Funktionen für rewards etc evtl. auslagern. 
+ Special Navigatoren updaten, wenn menus gut funtkionieren, vorallem die spcialbildschirme vom ersten spielstart
+
+
+
+todo für die uni: 
+Dokumentation refaktoring
+githup einrichten. 
+plan für die battle Zone implementation machen. 
+
+
+credit: 
+für alle verwendeten Tools, claude, nvda, tolk, mellon, ilcpt etc. 
+für den Disco discord für Ermutigung, life tipps, entusiasmus und pionirarbeit. 
+an hs Access für das etablieren sehr guter Konventionen, denen ich folgen konnte 

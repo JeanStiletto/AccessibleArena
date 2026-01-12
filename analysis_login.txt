@@ -1,0 +1,497 @@
+﻿MTGA Assembly-CSharp.dll Analysis - Login/Auth/Menu Related Classes
+Generated: 01/08/2026 14:59:42
+Total matched: 47
+============================================================
+
+CLASS: DuelSceneLayersController
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+----------------------------------------
+
+CLASS: DuelSceneLayersController+ChooseTargetsData
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: DuelSceneLayersController+DuelSceneLayersStage
+  Base: Enum
+  Public: False
+----------------------------------------
+
+CLASS: DuelSceneLayersController+TargetChosenData
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: DuelSceneLayersController+ZoomData
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.AccountManager
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    AccountManager Instance
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+----------------------------------------
+
+CLASS: HasbroGo.AgeGateMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void AgeGateCheck()
+----------------------------------------
+
+CLASS: HasbroGo.AgeGateMenu+<>c__DisplayClass4_0
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.ChallengeMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void Init(String displayName)
+    Void UpdateDisplayName(String playerName)
+    Void ResetChallengeMenu()
+    Void HandleChallengeSendData(ChallengeSendData message)
+    Void HandleChallengeConfirmData(ChallengeConfirmData message)
+----------------------------------------
+
+CLASS: HasbroGo.ChangeSocialPresencePanel
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void ShowBusyPresenceButton(Boolean show)
+    Void SetPresenceButtonClicked(String newPlatformStatusString)
+----------------------------------------
+
+CLASS: HasbroGo.CodeRedeemMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void RedeemCode()
+----------------------------------------
+
+CLASS: HasbroGo.ExamplesMainMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void CopyDisplayNameToClipboard()
+----------------------------------------
+
+CLASS: HasbroGo.FriendTile+BlockUnblockPanelWillShow
+  Base: MulticastDelegate
+  Public: False
+  Properties:
+    MethodInfo Method
+    Object Target
+  Methods:
+    Void Invoke()
+    IAsyncResult BeginInvoke(AsyncCallback callback, Object object)
+    Void EndInvoke(IAsyncResult result)
+----------------------------------------
+
+CLASS: HasbroGo.HasbroGoSDKManager
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    HasbroGoSDKManager Instance
+     HasbroGoSdk
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+----------------------------------------
+
+CLASS: HasbroGo.HasbroGoSDKManager+ShutDown
+  Base: MulticastDelegate
+  Public: False
+  Properties:
+    MethodInfo Method
+    Object Target
+  Methods:
+    Void Invoke()
+    IAsyncResult BeginInvoke(AsyncCallback callback, Object object)
+    Void EndInvoke(IAsyncResult result)
+----------------------------------------
+
+CLASS: HasbroGo.LoginMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void OnEnable()
+    Void OnDisable()
+    Void LoginButtonClicked()
+    Void LogoutButtonClicked()
+    Void GoogleLogin()
+    Void AppleLogin()
+    Void SendEventTest()
+----------------------------------------
+
+CLASS: HasbroGo.LoginMenu+<LoginButtonClicked>d__11
+  Base: ValueType
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.LoginMenu+<LogoutButtonClicked>d__12
+  Base: ValueType
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.OAuthLoginMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void PerformRegistrationOAuth()
+    Void PerformAuthorizationOAuth()
+----------------------------------------
+
+CLASS: HasbroGo.RegistrationMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void RegisterAccount()
+----------------------------------------
+
+CLASS: HasbroGo.RegistrationMenu+<>c__DisplayClass8_0
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.SceneLoader
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void LoadScene(String sceneName)
+----------------------------------------
+
+CLASS: HasbroGo.SelectableTabNavigation
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void OnSelectableSelected(Selectable selectable)
+----------------------------------------
+
+CLASS: HasbroGo.SendFriendRequestPanel
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void SendFriendRequestButtonClicked()
+----------------------------------------
+
+CLASS: HasbroGo.SocialManager
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    SocialManager Instance
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void BlockFriend(String accountId)
+----------------------------------------
+
+CLASS: HasbroGo.SocialManager+<AutoRefreshUserPresence>d__86
+  Base: ValueType
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.SocialManager+FriendAction
+  Base: Enum
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.SocialManager+PresenceAction
+  Base: Enum
+  Public: False
+----------------------------------------
+
+CLASS: HasbroGo.SocialMenu
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void OnEnable()
+    Void OnDisable()
+    Void LateUpdate()
+    Void OpenSocialPanelButtonClicked()
+    Void CloseSocialPanelButtonClicked()
+    Void OpenSendFriendRequestPanelButtonClicked()
+    Void CloseSendFriendRequestPanelButtonClicked()
+    Void ToggleChangePresencePanelButtonClicked()
+    Void OpenChallengeButtonClicked()
+----------------------------------------
+
+CLASS: HasbroGo.SocialPanel
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+  Methods:
+    Void UpdateDisplayName(String _displayName)
+----------------------------------------
+
+CLASS: HasbroGo.WizWandsManager
+  Base: MonoBehaviour
+  Public: True
+  Properties:
+    WizWandsManager Instance
+    CancellationToken destroyCancellationToken
+    Boolean useGUILayout
+    Boolean enabled
+    Boolean isActiveAndEnabled
+    Transform transform
+    GameObject gameObject
+    String tag
+    String name
+    HideFlags hideFlags
+----------------------------------------
+
+CLASS: NetworkMessagingHarnessLauncher+<TryLoginAndConnectToFrontDoor>d__3
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: NetworkMessagingHarnessRequestPanel+<>c
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: NetworkMessagingHarnessRequestPanel+<>c__13`2
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: NetworkMessagingHarnessRequestPanel+<>c__DisplayClass15_0`5
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: NetworkMessagingHarnessRequestPanel+<GetFrontDoorConnectionCoroutine>d__7
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: NetworkMessagingHarnessRequestPanel+<MeasuredCoroutine>d__17`5
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: NetworkMessagingHarnessRequestPanel+<MeasuredCoroutineIterations>d__16`5
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.ByteArraySize
+  Base: Object
+  Public: True
+  Methods:
+    Int32 SizeInBytes(Byte[] value)
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.IByteSizer`1
+  Base: 
+  Public: True
+  Methods:
+    Int32 SizeInBytes(T value)
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.MessageResults
+  Base: Object
+  Public: True
+  Methods:
+    Void AddIteration(MessageResults iteration)
+    String ToString()
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.NetworkMessagingHarnessLoginPanel+<>c
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.NetworkMessagingHarnessLoginPanel+<>c__DisplayClass10_0
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.NetworkMessagingHarnessLoginPanel+<AttemptLoginCoroutine>d__10
+  Base: Object
+  Public: False
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.SerializationFormat
+  Base: Enum
+  Public: True
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.TestMessageType
+  Base: Enum
+  Public: True
+----------------------------------------
+
+CLASS: Test.Scenes.NetworkMessagingHarness.UTF8StringSize
+  Base: Object
+  Public: True
+  Methods:
+    Int32 SizeInBytes(String value)
+----------------------------------------
+

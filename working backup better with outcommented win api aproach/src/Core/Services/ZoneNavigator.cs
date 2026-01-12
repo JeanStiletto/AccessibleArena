@@ -1,0 +1,524 @@
+using UnityEngine;
+using UnityEngine.EventSystems;
+using MelonLoader;
+using MTGAAccessibility.Core.Interfaces;
+using MTGAAccessibility.Core.Models;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+
+namespace MTGAAccessibility.Core.Services
+{
+    /// <summary>
+    /// Handles navigation through game zones and cards within zones.
+    /// Zone shortcuts: C (Hand), B (Battlefield), G (Graveyard), X (Exile), S (Stack)
+    /// Opponent zones: Shift+G (Opponent Graveyard), Shift+X (Opponent Exile)
+    /// Card navigation: Left/Right arrows to move between cards in current zone.
+    ///
+    /// Zone holder names discovered from game code analysis:
+    /// - LocalHand_Desktop_16x9, OpponentHand_Desktop_16x9
+    /// - BattlefieldCardHolder
+    /// - LocalGraveyard, OpponentGraveyard
+    /// - ExileCardHolder, StackCardHolder_Desktop_16x9
+    /// - LocalLibrary, OpponentLibrary, CommandCardHolder
+    /// </summary>
+    public class ZoneNavigator
+    {
+        private readonly IAnnouncementService _announcer;
+
+        private Dictionary<ZoneType, ZoneInfo> _zones = new Dictionary<ZoneType, ZoneInfo>();
+        private ZoneType _currentZone = ZoneType.Hand;
+        private int _cardIndexInZone = 0;
+        private bool _isActive;
+
+        // Known zone holder names from game code (discovered via log analysis)
+        private static readonly Dictionary<string, ZoneType> ZoneHolderPatterns = new Dictionary<string, ZoneType>
+        {
+            { "LocalHand", ZoneType.Hand },
+            { "BattlefieldCardHolder", ZoneType.Battlefield },
+            { "LocalGraveyard", ZoneType.Graveyard },
+            { "ExileCardHolder", ZoneType.Exile },
+            { "StackCardHolder", ZoneType.Stack },
+            { "LocalLibrary", ZoneType.Library },
+            { "CommandCardHolder", ZoneType.Command },
+            { "OpponentHand", ZoneType.OpponentHand },
+            { "OpponentGraveyard", ZoneType.OpponentGraveyard },
+            { "OpponentLibrary", ZoneType.OpponentLibrary },
+            { "OpponentExile", ZoneType.OpponentExile }
+        };
+
+        public bool IsActive => _isActive;
+        public ZoneType CurrentZone => _currentZone;
+        public int CardCount => _zones.ContainsKey(_currentZone) ? _zones[_currentZone].Cards.Count : 0;
+        public int HandCardCount => _zones.ContainsKey(ZoneType.Hand) ? _zones[ZoneType.Hand].Cards.Count : 0;
+
+        // Reference to TargetNavigator for entering targeting mode after playing cards
+        private TargetNavigator _targetNavigator;
+
+        public ZoneNavigator(IAnnouncementService announcer)
+        {
+            _announcer = announcer;
+        }
+
+        /// <summary>
+        /// Sets the TargetNavigator reference for targeting mode after card plays.
+        /// </summary>
+        public void SetTargetNavigator(TargetNavigator navigator)
+        {
+            _targetNavigator = navigator;
+        }
+
+        /// <summary>
+        /// Activates zone navigation and discovers all zones.
+        /// </summary>
+        public void Activate()
+        {
+            _isActive = true;
+            DiscoverZones();
+        }
+
+        /// <summary>
+        /// Deactivates zone navigation.
+        /// </summary>
+        public void Deactivate()
+        {
+            _isActive = false;
+            _zones.Clear();
+        }
+
+        /// <summary>
+        /// Handles zone navigation input.
+        /// Returns true if input was consumed.
+        /// </summary>
+        public bool HandleInput()
+        {
+            if (!_isActive) return false;
+
+            // Zone shortcuts
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                NavigateToZone(ZoneType.Hand);
+                return true;
+            }
+
+            if (Input.GetKeyDown(KeyCode.B))
+            {
+                NavigateToZone(ZoneType.Battlefield);
+                return true;
+            }
+
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                if (shift)
+                    NavigateToZone(ZoneType.OpponentGraveyard);
+                else
+                    NavigateToZone(ZoneType.Graveyard);
+                return true;
+            }
+
+            if (Input.GetKeyDown(KeyCode.X))
+            {
+                if (shift)
+                    NavigateToZone(ZoneType.OpponentExile);
+                else
+                    NavigateToZone(ZoneType.Exile);
+                return true;
+            }
+
+            if (Input.GetKeyDown(KeyCode.S))
+            {
+                NavigateToZone(ZoneType.Stack);
+                return true;
+            }
+
+            // Left/Right arrows for navigating cards within current zone
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                ClearEventSystemSelection();
+                if (HasCardsInCurrentZone())
+                {
+                    PreviousCard();
+                }
+                return true;
+            }
+
+            if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                ClearEventSystemSelection();
+                if (HasCardsInCurrentZone())
+                {
+                    NextCard();
+                }
+                return true;
+            }
+
+            // Enter key - play/activate current card
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                if (HasCardsInCurrentZone())
+                {
+                    ActivateCurrentCard();
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Discovers all zone holders and their cards.
+        /// </summary>
+        public void DiscoverZones()
+        {
+            _zones.Clear();
+            MelonLogger.Msg("[ZoneNavigator] Discovering zones...");
+
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                string name = go.name;
+
+                foreach (var pattern in ZoneHolderPatterns)
+                {
+                    if (name.Contains(pattern.Key))
+                    {
+                        var zoneType = pattern.Value;
+                        if (!_zones.ContainsKey(zoneType))
+                        {
+                            var zoneInfo = new ZoneInfo
+                            {
+                                Type = zoneType,
+                                Holder = go,
+                                ZoneId = ParseZoneId(name),
+                                OwnerId = ParseOwnerId(name)
+                            };
+
+                            DiscoverCardsInZone(zoneInfo);
+                            _zones[zoneType] = zoneInfo;
+                            MelonLogger.Msg($"[ZoneNavigator] Zone: {zoneType} - {name} - {zoneInfo.Cards.Count} cards");
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Discovers cards within a zone holder.
+        /// </summary>
+        private void DiscoverCardsInZone(ZoneInfo zone)
+        {
+            zone.Cards.Clear();
+
+            if (zone.Holder == null) return;
+
+            foreach (Transform child in zone.Holder.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy)
+                    continue;
+
+                var go = child.gameObject;
+
+                if (IsCardObject(go))
+                {
+                    if (!zone.Cards.Any(c => c.transform.IsChildOf(go.transform) || go.transform.IsChildOf(c.transform)))
+                    {
+                        zone.Cards.Add(go);
+                    }
+                }
+            }
+
+            // Sort cards by position (left to right)
+            zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+        }
+
+        /// <summary>
+        /// Checks if a GameObject is a card using game code patterns.
+        /// </summary>
+        private bool IsCardObject(GameObject go)
+        {
+            string name = go.name;
+
+            // CDC # pattern for duel scene cards
+            if (name.StartsWith("CDC #") || name.Contains("CDC #"))
+                return true;
+
+            if (name.Contains("CardAnchor"))
+                return true;
+
+            foreach (var component in go.GetComponents<MonoBehaviour>())
+            {
+                if (component == null) continue;
+                string typeName = component.GetType().Name;
+
+                if (typeName == "CDCMetaCardView" ||
+                    typeName == "CardView" ||
+                    typeName == "DuelCardView" ||
+                    typeName == "Meta_CDC" ||
+                    typeName.Contains("CardView"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Navigates to a specific zone and announces it.
+        /// </summary>
+        public void NavigateToZone(ZoneType zone)
+        {
+            DiscoverZones();
+
+            if (!_zones.ContainsKey(zone))
+            {
+                _announcer.Announce($"{GetZoneName(zone)} not found", AnnouncementPriority.High);
+                return;
+            }
+
+            _currentZone = zone;
+            _cardIndexInZone = 0;
+
+            var zoneInfo = _zones[zone];
+            int cardCount = zoneInfo.Cards.Count;
+
+            if (cardCount == 0)
+            {
+                _announcer.Announce($"{GetZoneName(zone)}, empty", AnnouncementPriority.High);
+            }
+            else
+            {
+                _announcer.Announce($"{GetZoneName(zone)}, {cardCount} card{(cardCount != 1 ? "s" : "")}", AnnouncementPriority.High);
+                AnnounceCurrentCard();
+            }
+        }
+
+        /// <summary>
+        /// Moves to the next card in the current zone.
+        /// Stops at the right border (last card) without wrapping.
+        /// </summary>
+        public void NextCard()
+        {
+            if (!_zones.ContainsKey(_currentZone)) return;
+
+            var zoneInfo = _zones[_currentZone];
+            if (zoneInfo.Cards.Count == 0) return;
+
+            if (_cardIndexInZone < zoneInfo.Cards.Count - 1)
+            {
+                _cardIndexInZone++;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _announcer.AnnounceInterrupt("End of zone");
+            }
+        }
+
+        /// <summary>
+        /// Moves to the previous card in the current zone.
+        /// Stops at the left border (first card) without wrapping.
+        /// </summary>
+        public void PreviousCard()
+        {
+            if (!_zones.ContainsKey(_currentZone)) return;
+
+            var zoneInfo = _zones[_currentZone];
+            if (zoneInfo.Cards.Count == 0) return;
+
+            if (_cardIndexInZone > 0)
+            {
+                _cardIndexInZone--;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _announcer.AnnounceInterrupt("Beginning of zone");
+            }
+        }
+
+        /// <summary>
+        /// Gets the current card in the current zone.
+        /// </summary>
+        public GameObject GetCurrentCard()
+        {
+            if (!_zones.ContainsKey(_currentZone)) return null;
+
+            var zoneInfo = _zones[_currentZone];
+            if (_cardIndexInZone >= zoneInfo.Cards.Count) return null;
+
+            return zoneInfo.Cards[_cardIndexInZone];
+        }
+
+        /// <summary>
+        /// Activates (plays/casts) the current card.
+        /// For hand cards: Two-click approach (click card, then click screen center).
+        /// For other zones: simulates click.
+        /// </summary>
+        public void ActivateCurrentCard()
+        {
+            var card = GetCurrentCard();
+
+            if (card == null)
+            {
+                _announcer.Announce("No card selected", AnnouncementPriority.High);
+                return;
+            }
+
+            string cardName = CardDetector.GetCardName(card);
+            MelonLogger.Msg($"[ZoneNavigator] Activating card: {cardName} ({card.name}) in zone {_currentZone}");
+
+            // For hand cards, use the two-click approach (like sighted players)
+            if (_currentZone == ZoneType.Hand)
+            {
+                MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from hand via two-click");
+
+                // Two-click is async, result comes via callback
+                // Pass TargetNavigator so targeting mode is entered after the card is played
+                UIActivator.PlayCardViaTwoClick(card, (success, message) =>
+                {
+                    if (success)
+                    {
+                        // Don't announce "Played" here - targeting mode will announce if needed
+                        MelonLogger.Msg($"[ZoneNavigator] Card play succeeded");
+                    }
+                    else
+                    {
+                        _announcer.Announce($"Could not play {cardName}", AnnouncementPriority.High);
+                        MelonLogger.Msg($"[ZoneNavigator] Card play failed: {message}");
+                    }
+                }, _targetNavigator);
+            }
+            else
+            {
+                // For other zones (battlefield, etc.), use click
+                var result = UIActivator.SimulatePointerClick(card);
+
+                if (result.Success)
+                {
+                    _announcer.Announce($"Activated {cardName}", AnnouncementPriority.Normal);
+                }
+                else
+                {
+                    _announcer.Announce($"Cannot activate {cardName}", AnnouncementPriority.High);
+                    MelonLogger.Msg($"[ZoneNavigator] Card activation failed: {result.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Logs a summary of discovered zones.
+        /// </summary>
+        public void LogZoneSummary()
+        {
+            MelonLogger.Msg("[ZoneNavigator] --- Zone Summary ---");
+            foreach (var zone in _zones.Values.OrderBy(z => z.Type.ToString()))
+            {
+                MelonLogger.Msg($"[ZoneNavigator]   {zone.Type}: {zone.Cards.Count} cards (ZoneId: #{zone.ZoneId})");
+            }
+        }
+
+        private void AnnounceCurrentCard()
+        {
+            if (!_zones.ContainsKey(_currentZone)) return;
+
+            var zoneInfo = _zones[_currentZone];
+            if (_cardIndexInZone >= zoneInfo.Cards.Count) return;
+
+            var card = zoneInfo.Cards[_cardIndexInZone];
+            string cardName = CardDetector.GetCardName(card);
+            int position = _cardIndexInZone + 1;
+            int total = zoneInfo.Cards.Count;
+
+            _announcer.Announce($"{cardName}, {position} of {total}", AnnouncementPriority.Normal);
+
+            // Prepare card info navigation
+            var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+            if (cardNavigator != null && CardDetector.IsCard(card))
+            {
+                cardNavigator.PrepareForCard(card);
+            }
+        }
+
+        private bool HasCardsInCurrentZone()
+        {
+            if (!_zones.ContainsKey(_currentZone)) return false;
+            return _zones[_currentZone].Cards.Count > 0;
+        }
+
+        private void ClearEventSystemSelection()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
+            {
+                eventSystem.SetSelectedGameObject(null);
+            }
+        }
+
+        private string GetZoneName(ZoneType zone)
+        {
+            switch (zone)
+            {
+                case ZoneType.Hand: return "Your hand";
+                case ZoneType.Battlefield: return "Battlefield";
+                case ZoneType.Graveyard: return "Your graveyard";
+                case ZoneType.Exile: return "Exile";
+                case ZoneType.Stack: return "Stack";
+                case ZoneType.Library: return "Your library";
+                case ZoneType.Command: return "Command zone";
+                case ZoneType.OpponentHand: return "Opponent's hand";
+                case ZoneType.OpponentGraveyard: return "Opponent's graveyard";
+                case ZoneType.OpponentLibrary: return "Opponent's library";
+                case ZoneType.OpponentExile: return "Opponent's exile";
+                default: return zone.ToString();
+            }
+        }
+
+        private int ParseZoneId(string name)
+        {
+            var match = Regex.Match(name, @"ZoneId:\s*#(\d+)");
+            return match.Success ? int.Parse(match.Groups[1].Value) : 0;
+        }
+
+        private int ParseOwnerId(string name)
+        {
+            var match = Regex.Match(name, @"OwnerId:\s*#(\d+)");
+            return match.Success ? int.Parse(match.Groups[1].Value) : 0;
+        }
+    }
+
+    /// <summary>
+    /// Types of zones in the duel scene.
+    /// </summary>
+    public enum ZoneType
+    {
+        Hand,
+        Battlefield,
+        Graveyard,
+        Exile,
+        Stack,
+        Library,
+        Command,
+        OpponentHand,
+        OpponentGraveyard,
+        OpponentLibrary,
+        OpponentExile
+    }
+
+    /// <summary>
+    /// Information about a zone including its cards.
+    /// </summary>
+    public class ZoneInfo
+    {
+        public ZoneType Type { get; set; }
+        public GameObject Holder { get; set; }
+        public int ZoneId { get; set; }
+        public int OwnerId { get; set; }
+        public List<GameObject> Cards { get; set; } = new List<GameObject>();
+    }
+}
