@@ -170,6 +170,64 @@ The main menu uses a different architecture than DuelScene. Key classes in `Core
 
 See `docs/MENU_NAVIGATION.md` for detailed documentation.
 
+### PlayBlade Architecture (Play/Bot Match Screens)
+
+When clicking Play or Bot Match on the HomePage, the PlayBlade system opens:
+
+**PlayBladeController** - Controls the sliding blade panel
+- Property: `PlayBladeVisualState` (enum: Hidden, Events, DirectChallenge, FriendChallenge)
+- Property: `IsDeckSelected` - Whether a deck is selected
+- Lives inside `HomePageContentController`
+
+**Blade Views** (inherit from BladeContentView)
+- `EventBladeContentView` - Shows game modes (Ranked, Play, Brawl)
+- `FindMatchBladeContentView` - Shows deck selection and match finding
+- `LastPlayedBladeContentView` - Quick replay last mode
+
+**HomePageContentController blade properties:**
+- `IsEventBladeActive` - Event blade is showing
+- `IsDirectChallengeBladeActive` - Direct challenge is showing
+- `ChallengeBladeController` - Reference to PlayBladeController
+
+**Key Flow:**
+1. Click Play → `PlayBladeVisualState` changes to Events
+2. `FindMatchBladeContentView.Show()` called
+3. Deck selection UI appears (NOT via DeckSelectBlade.Show())
+4. User selects deck → `IsDeckSelected` = true
+5. Click Find Match → Game starts matchmaking
+
+**Important Discovery:** The deck selection in PlayBlade does NOT use `DeckSelectBlade.Show()`.
+The deck list is embedded directly in the blade views. This is why DeckSelectBlade patches
+don't fire when using Play button - only when using dedicated deck manager.
+
+### Deck Entry Structure (MetaDeckView)
+
+Each deck entry in selection lists uses `MetaDeckView`:
+
+**Properties:**
+- `TMP_InputField NameText` - Editable deck name field
+- `TMP_Text DescriptionText` - Description text
+- `CustomButton Button` - Main selection button
+- `Boolean IsValid` - Whether deck is valid for format
+- `Boolean IsCraftable` - Whether missing cards can be crafted
+
+**Callbacks (via DeckFolderView/DeckViewSelector):**
+- `onDeckSelected` - Single click selects deck
+- `onDeckDoubleClicked` - Double click (starts game in some contexts)
+- `onDeckNameEndEdit` - When renaming is finished
+
+**UI Hierarchy:**
+```
+DeckView_Base(Clone)
+└── UI (CustomButton) ← Main selection button (Enter)
+    └── TextBox ← Name edit area (Shift+Enter)
+```
+
+Both elements share the same `TMP_InputField` for the deck name. The mod pairs these
+elements and provides separate keyboard shortcuts:
+- **Enter** - Activates UI (select deck)
+- **Shift+Enter** - Activates TextBox (edit deck name)
+
 ## Input System
 
 ### Game's Built-in Keybinds (DO NOT OVERRIDE)
@@ -185,6 +243,7 @@ Your Zones (Battle): C (Hand/Cards), B (Battlefield), G (Graveyard), X (Exile), 
 Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
 Information: T (Turn/phase), L (Life totals), A (Your Mana), Shift+A (Opponent Mana)
 Card Details: Arrow Up/Down when focused on a card
+Deck Selection: Shift+Enter to edit deck name (Enter to select deck)
 Global: F1 (Help), F2 (Context info), Ctrl+R (Repeat last)
 
 ### Keyboard Manager Architecture
@@ -541,12 +600,19 @@ Elements are stored in a single list using the `NavigableElement` struct:
 ```csharp
 protected struct NavigableElement
 {
-    public GameObject GameObject;  // The UI element
-    public string Label;           // Announcement text
-    public CarouselInfo Carousel;  // Arrow key navigation info (optional)
+    public GameObject GameObject;       // The UI element
+    public string Label;                // Announcement text
+    public CarouselInfo Carousel;       // Arrow key navigation info (optional)
+    public GameObject AlternateActionObject; // Secondary action (e.g., edit button for decks)
 }
 ```
 Access via `_elements[index].GameObject`, `_elements[index].Label`, etc.
+
+**Alternate Actions (Shift+Enter):**
+Some elements have a secondary action accessible via Shift+Enter. For example:
+- Deck entries: Enter selects deck, Shift+Enter edits deck name
+- The alternate action object is stored in `AlternateActionObject` field
+- `ActivateAlternateAction()` is called when Shift+Enter is pressed
 
 ### BaseNavigator Features
 - **Common input handling**: Tab/Shift+Tab/Enter/Space built-in
@@ -639,6 +705,21 @@ DeckSelectBlade:
 - `Hide()` - Fires when deck selection closes
 - `IsShowing` setter - Backup detection
 
+PlayBladeController:
+- `PlayBladeVisualState` setter - Fires when play blade state changes (Hidden/Events/DirectChallenge/FriendChallenge)
+- `IsDeckSelected` setter - Fires when deck selection state changes
+
+HomePageContentController:
+- `IsEventBladeActive` setter - Fires when event blade opens/closes
+- `IsDirectChallengeBladeActive` setter - Fires when direct challenge blade opens/closes
+
+BladeContentView (base class):
+- `Show()` - Fires when any blade view shows (EventBlade, FindMatchBlade, etc.)
+- `Hide()` - Fires when any blade view hides
+
+EventBladeContentView:
+- `Show()` / `Hide()` - Specific patches for event blade
+
 **Key Architecture - Harmony Flag Approach:**
 
 The critical insight: Harmony events are 100% reliable (method was definitely called),
@@ -651,18 +732,28 @@ but our reflection-based panel detection during rescan was unreliable. Solution:
 
 2. During element discovery, `IsInForegroundPanel()` checks these flags:
    ```csharp
-   bool overlayActive = _foregroundPanel != null || _settingsOverlayActive || _deckSelectOverlayActive;
+   bool overlayActive = _foregroundPanel != null || _settingsOverlayActive || _deckSelectOverlayActive || _playBladeActive;
    if (!overlayActive) return true;  // No overlay, show all elements
    return !IsInBackgroundPanel(obj); // Filter out NavBar, HomePage elements
    ```
 
 3. This ensures background elements are filtered even before the content panel is detected.
 
+**PlayBlade Filtering Logic:**
+
+When `_playBladeActive` is true, `IsInBackgroundPanel()` uses special logic:
+- Elements inside "Blade", "PlayBlade", "FindMatch", "EventBlade" hierarchies are NOT filtered
+- Elements inside "HomePage", "HomeContent" but NOT inside a Blade ARE filtered
+- This shows only the blade's deck selection elements, hiding the HomePage buttons behind it
+
 **Discovered Controller Types (via DiscoverPanelTypes()):**
 - `NavContentController` - Base class, lifecycle methods patched
-- `HomePageContentController` - Inherits from NavContentController
+- `HomePageContentController` - Inherits from NavContentController, blade state setters patched
 - `SettingsMenu` - Open/Close methods + IsOpen setter patched
 - `DeckSelectBlade` - Show/Hide methods + IsShowing setter patched
+- `PlayBladeController` - PlayBladeVisualState + IsDeckSelected setters patched
+- `BladeContentView` - Base class for blade views, Show/Hide patched
+- `EventBladeContentView` - Show/Hide patched
 - `ConstructedDeckSelectController` - IsOpen getter only (no setter to patch)
 - `DeckManagerController` - IsOpen getter only
 

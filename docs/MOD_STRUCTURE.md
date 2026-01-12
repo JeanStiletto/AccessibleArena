@@ -101,7 +101,20 @@ C:\Users\fabia\arena\
 - [x] SettingsMenu.IsOpen setter - Backup detection
 - [x] DeckSelectBlade.Show/Hide - Patched (Show takes EventContext, DeckFormat, Action)
 - [x] DeckSelectBlade.IsShowing setter - Backup detection
+- [x] PlayBladeController.PlayBladeVisualState setter - Detects play blade state changes
+- [x] PlayBladeController.IsDeckSelected setter - Detects deck selection
+- [x] HomePageContentController.IsEventBladeActive setter - Detects event blade
+- [x] HomePageContentController.IsDirectChallengeBladeActive setter - Detects direct challenge
+- [x] BladeContentView.Show/Hide - Base class for all blade views
+- [x] EventBladeContentView.Show/Hide - Specific event blade detection
 - [x] Harmony flag approach - Overlay flags set immediately on Harmony events for reliable filtering
+
+### PlayBlade/Deck Selection
+- [x] PlayBlade detection - `_playBladeActive` flag set by Harmony patches
+- [x] Blade element filtering - Shows blade elements, hides HomePage background
+- [x] Deck name extraction - `TryGetDeckName()` extracts from TMP_InputField
+- [x] Deck entry pairing - UI (select) and TextBox (edit) paired per deck
+- [x] Alternate actions - Shift+Enter to edit deck name, Enter to select
 
 ### UI Utilities
 - [x] UIElementClassifier - Element role detection and filtering

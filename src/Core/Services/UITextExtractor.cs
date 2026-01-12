@@ -59,6 +59,13 @@ namespace MTGAAccessibility.Core.Services
             if (gameObject == null)
                 return string.Empty;
 
+            // Check if this is a deck entry (MetaDeckView) - look for parent with input field containing deck name
+            string deckName = TryGetDeckName(gameObject);
+            if (!string.IsNullOrEmpty(deckName))
+            {
+                return deckName;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -130,6 +137,76 @@ namespace MTGAAccessibility.Core.Services
 
             // Fallback to GameObject name (cleaned up)
             return CleanObjectName(gameObject.name);
+        }
+
+        /// <summary>
+        /// Tries to extract a deck name from a deck entry element (MetaDeckView).
+        /// Deck entries have a TMP_InputField with the actual deck name, but buttons
+        /// show "Enter deck name..." placeholder. This method finds the real name.
+        /// </summary>
+        private static string TryGetDeckName(GameObject gameObject)
+        {
+            // Skip elements that are clearly not deck entries
+            string objName = gameObject.name.ToLower();
+            if (objName.Contains("folder") ||
+                objName.Contains("toggle") ||
+                objName.Contains("bot") ||
+                objName.Contains("match") ||
+                objName.Contains("avatar") ||
+                objName.Contains("scrollbar"))
+            {
+                return null;
+            }
+
+            // Walk up the hierarchy looking for deck entry indicators
+            Transform current = gameObject.transform;
+            int maxLevels = 3; // Only go up 3 levels - deck entries are compact
+
+            while (current != null && maxLevels > 0)
+            {
+                string name = current.gameObject.name;
+
+                // Skip if we hit a container that's too high up (not a single deck entry)
+                if (name.Contains("Content") ||
+                    name.Contains("Viewport") ||
+                    name.Contains("Scroll") ||
+                    name.Contains("Folder"))
+                {
+                    return null; // Went too far up, not a deck entry
+                }
+
+                // Check for deck entry patterns - must be specific
+                // Blade_ListItem_Base is the individual deck entry container
+                if (name.Contains("Blade_ListItem") ||
+                    name.Contains("DeckListItem") ||
+                    (name.Contains("DeckView") && !name.Contains("Selector") && !name.Contains("Folder")))
+                {
+                    // Found a deck entry container - look for TMP_InputField with actual text
+                    var inputFields = current.GetComponentsInChildren<TMP_InputField>(true);
+                    foreach (var inputField in inputFields)
+                    {
+                        // Get the actual text value, not placeholder
+                        string deckText = inputField.text;
+                        if (!string.IsNullOrWhiteSpace(deckText))
+                        {
+                            // Remove zero-width spaces
+                            deckText = deckText.Replace("\u200B", "").Trim();
+                            if (!string.IsNullOrWhiteSpace(deckText) && deckText.Length > 1)
+                            {
+                                return $"{deckText}, deck";
+                            }
+                        }
+                    }
+
+                    // No valid deck name found in this entry
+                    return null;
+                }
+
+                current = current.parent;
+                maxLevels--;
+            }
+
+            return null;
         }
 
         /// <summary>

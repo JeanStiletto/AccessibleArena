@@ -44,6 +44,15 @@ namespace MTGAAccessibility.Patches
                 // Try to patch ConstructedDeckSelectController (deck selection panel)
                 PatchDeckSelectController(harmony);
 
+                // Try to patch PlayBladeController (play mode selection)
+                PatchPlayBladeController(harmony);
+
+                // Try to patch HomePageContentController blade states
+                PatchHomePageBladeStates(harmony);
+
+                // Try to patch BladeContentView base class (Events, FindMatch, LastPlayed blades)
+                PatchBladeContentView(harmony);
+
                 _patchApplied = true;
                 MelonLogger.Msg("[PanelStatePatch] Harmony patches applied successfully");
 
@@ -155,7 +164,7 @@ namespace MTGAAccessibility.Patches
         {
             MelonLogger.Msg("[PanelStatePatch] === Discovering potential panel controller types ===");
 
-            var keywords = new[] { "Deck", "Selection", "Picker", "Panel", "Controller", "Modal", "Dialog", "Overlay", "Screen" };
+            var keywords = new[] { "Deck", "Selection", "Picker", "Panel", "Controller", "Modal", "Dialog", "Overlay", "Screen", "Blade", "PlayBlade" };
 
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
@@ -373,6 +382,225 @@ namespace MTGAAccessibility.Patches
             }
         }
 
+        private static void PatchPlayBladeController(HarmonyLib.Harmony harmony)
+        {
+            var playBladeType = FindType("PlayBladeController");
+            if (playBladeType == null)
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find PlayBladeController type");
+                return;
+            }
+
+            MelonLogger.Msg($"[PanelStatePatch] Found PlayBladeController: {playBladeType.FullName}");
+
+            // Patch PlayBladeVisualState setter - this changes when play blade opens/closes
+            var visualStateSetter = playBladeType.GetProperty("PlayBladeVisualState",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetSetMethod(true);
+
+            if (visualStateSetter != null)
+            {
+                try
+                {
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(PlayBladeVisualStatePostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(visualStateSetter, postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched PlayBladeController.PlayBladeVisualState setter");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch PlayBladeController.PlayBladeVisualState setter: {ex.Message}");
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find PlayBladeController.PlayBladeVisualState setter");
+            }
+
+            // Also patch IsDeckSelected setter
+            var isDeckSelectedSetter = playBladeType.GetProperty("IsDeckSelected",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetSetMethod(true);
+
+            if (isDeckSelectedSetter != null)
+            {
+                try
+                {
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(PlayBladeIsDeckSelectedPostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(isDeckSelectedSetter, postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched PlayBladeController.IsDeckSelected setter");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch PlayBladeController.IsDeckSelected setter: {ex.Message}");
+                }
+            }
+        }
+
+        private static void PatchHomePageBladeStates(HarmonyLib.Harmony harmony)
+        {
+            var homePageType = FindType("HomePageContentController");
+            if (homePageType == null)
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController type");
+                return;
+            }
+
+            MelonLogger.Msg($"[PanelStatePatch] Found HomePageContentController: {homePageType.FullName}");
+
+            // Patch IsEventBladeActive setter
+            var isEventBladeActiveSetter = homePageType.GetProperty("IsEventBladeActive",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetSetMethod(true);
+
+            if (isEventBladeActiveSetter != null)
+            {
+                try
+                {
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(IsEventBladeActivePostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(isEventBladeActiveSetter, postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched HomePageContentController.IsEventBladeActive setter");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch HomePageContentController.IsEventBladeActive setter: {ex.Message}");
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.IsEventBladeActive setter");
+            }
+
+            // Patch IsDirectChallengeBladeActive setter
+            var isDirectChallengeBladeActiveSetter = homePageType.GetProperty("IsDirectChallengeBladeActive",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetSetMethod(true);
+
+            if (isDirectChallengeBladeActiveSetter != null)
+            {
+                try
+                {
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(IsDirectChallengeBladeActivePostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(isDirectChallengeBladeActiveSetter, postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched HomePageContentController.IsDirectChallengeBladeActive setter");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch HomePageContentController.IsDirectChallengeBladeActive setter: {ex.Message}");
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.IsDirectChallengeBladeActive setter");
+            }
+        }
+
+        private static void PatchBladeContentView(HarmonyLib.Harmony harmony)
+        {
+            // Try to patch the base BladeContentView class for Show/Hide
+            var bladeContentViewType = FindType("Wizards.Mtga.PlayBlade.BladeContentView");
+            if (bladeContentViewType == null)
+            {
+                bladeContentViewType = FindType("BladeContentView");
+            }
+
+            if (bladeContentViewType != null)
+            {
+                MelonLogger.Msg($"[PanelStatePatch] Found BladeContentView: {bladeContentViewType.FullName}");
+
+                var showMethod = bladeContentViewType.GetMethod("Show",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (showMethod != null)
+                {
+                    try
+                    {
+                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(BladeContentViewShowPostfix),
+                            BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(showMethod, postfix: new HarmonyMethod(postfix));
+                        MelonLogger.Msg("[PanelStatePatch] Patched BladeContentView.Show()");
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch BladeContentView.Show: {ex.Message}");
+                    }
+                }
+
+                var hideMethod = bladeContentViewType.GetMethod("Hide",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (hideMethod != null)
+                {
+                    try
+                    {
+                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(BladeContentViewHidePostfix),
+                            BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(hideMethod, postfix: new HarmonyMethod(postfix));
+                        MelonLogger.Msg("[PanelStatePatch] Patched BladeContentView.Hide()");
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch BladeContentView.Hide: {ex.Message}");
+                    }
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find BladeContentView type");
+            }
+
+            // Also try to patch EventBladeContentView directly (has Show/Hide)
+            var eventBladeType = FindType("Wizards.Mtga.PlayBlade.EventBladeContentView");
+            if (eventBladeType == null)
+            {
+                eventBladeType = FindType("EventBladeContentView");
+            }
+
+            if (eventBladeType != null)
+            {
+                MelonLogger.Msg($"[PanelStatePatch] Found EventBladeContentView: {eventBladeType.FullName}");
+
+                var showMethod = eventBladeType.GetMethod("Show",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (showMethod != null)
+                {
+                    try
+                    {
+                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(EventBladeShowPostfix),
+                            BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(showMethod, postfix: new HarmonyMethod(postfix));
+                        MelonLogger.Msg("[PanelStatePatch] Patched EventBladeContentView.Show()");
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch EventBladeContentView.Show: {ex.Message}");
+                    }
+                }
+
+                var hideMethod = eventBladeType.GetMethod("Hide",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (hideMethod != null)
+                {
+                    try
+                    {
+                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(EventBladeHidePostfix),
+                            BindingFlags.Static | BindingFlags.Public);
+                        harmony.Patch(hideMethod, postfix: new HarmonyMethod(postfix));
+                        MelonLogger.Msg("[PanelStatePatch] Patched EventBladeContentView.Hide()");
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch EventBladeContentView.Hide: {ex.Message}");
+                    }
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find EventBladeContentView type");
+            }
+        }
+
         private static void LogTypeMembers(Type type)
         {
             MelonLogger.Msg($"[PanelStatePatch] Methods on {type.Name}:");
@@ -584,6 +812,117 @@ namespace MTGAAccessibility.Patches
             catch (Exception ex)
             {
                 MelonLogger.Warning($"[PanelStatePatch] Error in DeckSelectIsShowingPostfix: {ex.Message}");
+            }
+        }
+
+        public static void PlayBladeVisualStatePostfix(object __instance, object value)
+        {
+            try
+            {
+                // value is PlayBladeVisualStates enum (Hidden=0, Events=1, DirectChallenge=2, FriendChallenge=3)
+                var stateValue = Convert.ToInt32(value);
+                var stateName = value?.ToString() ?? "Unknown";
+                bool isOpen = stateValue != 0; // 0 = Hidden
+
+                MelonLogger.Msg($"[PanelStatePatch] PlayBladeController.PlayBladeVisualState = {stateName} (isOpen: {isOpen})");
+                OnPanelStateChanged?.Invoke(__instance, isOpen, $"PlayBlade:{stateName}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in PlayBladeVisualStatePostfix: {ex.Message}");
+            }
+        }
+
+        public static void PlayBladeIsDeckSelectedPostfix(object __instance, bool value)
+        {
+            try
+            {
+                MelonLogger.Msg($"[PanelStatePatch] PlayBladeController.IsDeckSelected = {value}");
+                OnPanelStateChanged?.Invoke(__instance, value, "PlayBlade:DeckSelected");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in PlayBladeIsDeckSelectedPostfix: {ex.Message}");
+            }
+        }
+
+        public static void IsEventBladeActivePostfix(object __instance, bool value)
+        {
+            try
+            {
+                MelonLogger.Msg($"[PanelStatePatch] HomePageContentController.IsEventBladeActive = {value}");
+                OnPanelStateChanged?.Invoke(__instance, value, "EventBlade");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in IsEventBladeActivePostfix: {ex.Message}");
+            }
+        }
+
+        public static void IsDirectChallengeBladeActivePostfix(object __instance, bool value)
+        {
+            try
+            {
+                MelonLogger.Msg($"[PanelStatePatch] HomePageContentController.IsDirectChallengeBladeActive = {value}");
+                OnPanelStateChanged?.Invoke(__instance, value, "DirectChallengeBlade");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in IsDirectChallengeBladeActivePostfix: {ex.Message}");
+            }
+        }
+
+        public static void BladeContentViewShowPostfix(object __instance)
+        {
+            try
+            {
+                var typeName = __instance?.GetType().Name ?? "Unknown";
+                MelonLogger.Msg($"[PanelStatePatch] BladeContentView.Show: {typeName}");
+                OnPanelStateChanged?.Invoke(__instance, true, $"Blade:{typeName}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in BladeContentViewShowPostfix: {ex.Message}");
+            }
+        }
+
+        public static void BladeContentViewHidePostfix(object __instance)
+        {
+            try
+            {
+                var typeName = __instance?.GetType().Name ?? "Unknown";
+                MelonLogger.Msg($"[PanelStatePatch] BladeContentView.Hide: {typeName}");
+                OnPanelStateChanged?.Invoke(__instance, false, $"Blade:{typeName}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in BladeContentViewHidePostfix: {ex.Message}");
+            }
+        }
+
+        public static void EventBladeShowPostfix(object __instance)
+        {
+            try
+            {
+                MelonLogger.Msg("[PanelStatePatch] EventBladeContentView.Show");
+                OnPanelStateChanged?.Invoke(__instance, true, "EventBladeContentView");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in EventBladeShowPostfix: {ex.Message}");
+            }
+        }
+
+        public static void EventBladeHidePostfix(object __instance)
+        {
+            try
+            {
+                MelonLogger.Msg("[PanelStatePatch] EventBladeContentView.Hide");
+                OnPanelStateChanged?.Invoke(__instance, false, "EventBladeContentView");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in EventBladeHidePostfix: {ex.Message}");
             }
         }
     }

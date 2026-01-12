@@ -129,6 +129,7 @@ namespace MTGAAccessibility.Core.Services
             _foregroundPanel = null; // Clear panel filter on scene change
             _settingsOverlayActive = false;
             _deckSelectOverlayActive = false;
+            _playBladeActive = false;
 
             if (_isActive)
             {
@@ -151,6 +152,7 @@ namespace MTGAAccessibility.Core.Services
             _postActivationRescanDelay = 0f;
             _settingsOverlayActive = false;
             _deckSelectOverlayActive = false;
+            _playBladeActive = false;
         }
 
         /// <summary>
@@ -464,7 +466,7 @@ namespace MTGAAccessibility.Core.Services
         private bool IsInForegroundPanel(GameObject obj)
         {
             // Check if any overlay is active (either detected via panel or via Harmony flag)
-            bool overlayActive = _foregroundPanel != null || _settingsOverlayActive || _deckSelectOverlayActive;
+            bool overlayActive = _foregroundPanel != null || _settingsOverlayActive || _deckSelectOverlayActive || _playBladeActive;
 
             if (!overlayActive)
                 return true; // No overlay active, show all
@@ -481,28 +483,55 @@ namespace MTGAAccessibility.Core.Services
         private bool IsInBackgroundPanel(GameObject obj)
         {
             Transform current = obj.transform;
+            bool isInsideHomePage = false;
+            bool isInsideBlade = false;
+
             while (current != null)
             {
                 string name = current.gameObject.name;
 
-                // Known background panel indicators - be specific to avoid filtering overlays
+                // Check if element is inside a Blade (PlayBlade, EventBlade, FindMatchBlade, etc.)
+                // These should NOT be filtered even when inside HomePage
+                if (name.Contains("Blade") ||
+                    name.Contains("PlayBlade") ||
+                    name.Contains("FindMatch") ||
+                    name.Contains("EventBlade"))
+                {
+                    isInsideBlade = true;
+                }
+
+                // Known background panel indicators
                 // HomePage and its content - the main menu content area
                 if (name.Contains("HomePage") ||
                     name.Contains("HomeContent") ||
                     name.Contains("Home_Desktop"))
                 {
-                    return true;
+                    isInsideHomePage = true;
                 }
 
-                // NavBar elements but NOT if we're in Settings (NavBar contains Nav_Settings)
-                // Only filter NavBar if it's clearly the navigation bar itself
+                // NavBar elements - always background
                 if (name == "NavBar" || name.StartsWith("NavBar_"))
                 {
-                    return true;
+                    // NavBar is always background unless we're in a blade inside it
+                    if (!isInsideBlade)
+                        return true;
                 }
 
                 current = current.parent;
             }
+
+            // If PlayBlade is active and element is inside a Blade, don't filter it
+            if (_playBladeActive && isInsideBlade)
+            {
+                return false; // Not background - show this element
+            }
+
+            // If inside HomePage but not inside a Blade, it's background
+            if (isInsideHomePage && !isInsideBlade)
+            {
+                return true; // Background - filter this element
+            }
+
             return false;
         }
 
@@ -864,9 +893,53 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // Process deck entries: pair main buttons with their TextBox edit buttons
+            // Each deck entry has UI (CustomButton for selection) and TextBox (for editing name)
+            var deckElements = discoveredElements.Where(x => x.classification.Label.Contains(", deck")).ToList();
+            var deckPairs = new Dictionary<Transform, (GameObject mainButton, GameObject editButton)>();
+
+            foreach (var (obj, classification, _) in deckElements)
+            {
+                // Find the DeckView_Base parent to group elements by deck entry
+                Transform deckViewParent = FindDeckViewParent(obj.transform);
+                if (deckViewParent == null) continue;
+
+                if (!deckPairs.ContainsKey(deckViewParent))
+                {
+                    deckPairs[deckViewParent] = (null, null);
+                }
+
+                var pair = deckPairs[deckViewParent];
+
+                // UI element (CustomButton) is the main selection button
+                // TextBox element is for editing the deck name
+                if (obj.name == "UI")
+                {
+                    deckPairs[deckViewParent] = (obj, pair.editButton);
+                }
+                else if (obj.name == "TextBox")
+                {
+                    deckPairs[deckViewParent] = (pair.mainButton, obj);
+                }
+            }
+
+            // Build set of TextBox objects to skip (they'll be added as alternate actions)
+            var textBoxesToSkip = new HashSet<GameObject>(deckPairs.Values
+                .Where(p => p.editButton != null)
+                .Select(p => p.editButton));
+
+            // Map main deck buttons to their edit buttons for alternate action
+            var deckEditButtons = deckPairs
+                .Where(p => p.Value.mainButton != null && p.Value.editButton != null)
+                .ToDictionary(p => p.Value.mainButton, p => p.Value.editButton);
+
             // Sort by position and add elements with proper labels
             foreach (var (obj, classification, _) in discoveredElements.OrderBy(x => x.sortOrder))
             {
+                // Skip TextBox elements - they're added as alternate actions on their main button
+                if (textBoxesToSkip.Contains(obj))
+                    continue;
+
                 string announcement = BuildAnnouncement(classification);
 
                 // Build carousel info if this element supports arrow navigation
@@ -879,7 +952,14 @@ namespace MTGAAccessibility.Core.Services
                     }
                     : default;
 
-                AddElement(obj, announcement, carouselInfo);
+                // Check if this deck button has an associated edit button
+                GameObject alternateAction = null;
+                if (deckEditButtons.TryGetValue(obj, out var editButton))
+                {
+                    alternateAction = editButton;
+                }
+
+                AddElement(obj, announcement, carouselInfo, alternateAction);
             }
 
             MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
@@ -894,6 +974,29 @@ namespace MTGAAccessibility.Core.Services
                 return classification.Label;
 
             return $"{classification.Label}, {classification.RoleLabel}";
+        }
+
+        /// <summary>
+        /// Find the DeckView_Base parent for a deck entry element.
+        /// Used to group UI and TextBox elements that belong to the same deck.
+        /// </summary>
+        private Transform FindDeckViewParent(Transform element)
+        {
+            Transform current = element;
+            int maxLevels = 5;
+
+            while (current != null && maxLevels > 0)
+            {
+                if (current.name.Contains("DeckView_Base") ||
+                    current.name.Contains("Blade_ListItem"))
+                {
+                    return current;
+                }
+                current = current.parent;
+                maxLevels--;
+            }
+
+            return null;
         }
 
         protected string GetGameObjectPath(GameObject obj)
@@ -998,6 +1101,49 @@ namespace MTGAAccessibility.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Deck select overlay closed (from Harmony)");
                 }
             }
+            // Handle PlayBlade and related blade views
+            else if (panelTypeName.Contains("PlayBlade") || panelTypeName.Contains("Blade:"))
+            {
+                if (isOpen)
+                {
+                    _activePanels.Add($"PlayBlade:External:{panelTypeName}");
+                    _playBladeActive = true;
+                    MelonLogger.Msg($"[{NavigatorId}] Play blade opened (from Harmony): {panelTypeName}");
+                }
+                else
+                {
+                    // Only close if it's the main PlayBlade closing (Hidden state)
+                    // Sub-blade changes (Events -> DirectChallenge) shouldn't close
+                    if (panelTypeName.Contains("Hidden") || panelTypeName.Contains("Hide"))
+                    {
+                        _activePanels.RemoveWhere(p => p.StartsWith("PlayBlade:"));
+                        _playBladeActive = false;
+                        _foregroundPanel = null;
+                        MelonLogger.Msg($"[{NavigatorId}] Play blade closed (from Harmony): {panelTypeName}");
+                    }
+                    else
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Play blade state change (not closing): {panelTypeName}");
+                    }
+                }
+            }
+            // Handle EventBlade and DirectChallengeBlade from HomePageContentController
+            else if (panelTypeName.Contains("EventBlade") || panelTypeName.Contains("DirectChallengeBlade"))
+            {
+                if (isOpen)
+                {
+                    _activePanels.Add($"EventBlade:External:{panelTypeName}");
+                    _playBladeActive = true;
+                    MelonLogger.Msg($"[{NavigatorId}] Event/Challenge blade opened (from Harmony): {panelTypeName}");
+                }
+                else
+                {
+                    _activePanels.RemoveWhere(p => p.Contains("EventBlade:") || p.Contains("ChallengeBlade:"));
+                    _playBladeActive = false;
+                    _foregroundPanel = null;
+                    MelonLogger.Msg($"[{NavigatorId}] Event/Challenge blade closed (from Harmony): {panelTypeName}");
+                }
+            }
 
             // Trigger rescan when any panel opens or closes
             TriggerRescan();
@@ -1007,5 +1153,6 @@ namespace MTGAAccessibility.Core.Services
         // Used by IsInForegroundPanel when _foregroundPanel hasn't been found yet
         private bool _settingsOverlayActive = false;
         private bool _deckSelectOverlayActive = false;
+        private bool _playBladeActive = false;
     }
 }

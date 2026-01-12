@@ -30,6 +30,8 @@ namespace MTGAAccessibility.Core.Services
             public GameObject GameObject { get; set; }
             public string Label { get; set; }
             public CarouselInfo Carousel { get; set; }
+            /// <summary>Optional alternate action object (e.g., edit button for deck entries, activated with Shift+Enter)</summary>
+            public GameObject AlternateActionObject { get; set; }
         }
 
         /// <summary>
@@ -258,10 +260,39 @@ namespace MTGAAccessibility.Core.Services
             // Activation
             bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
             bool spacePressed = AcceptSpaceKey && Input.GetKeyDown(KeyCode.Space);
+            bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
             if (enterPressed || spacePressed)
             {
-                ActivateCurrentElement();
+                if (shiftHeld && enterPressed)
+                {
+                    // Shift+Enter activates alternate action (e.g., edit deck name)
+                    ActivateAlternateAction();
+                }
+                else
+                {
+                    ActivateCurrentElement();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Activate the alternate action for the current element (e.g., edit deck name).
+        /// Called when Shift+Enter is pressed.
+        /// </summary>
+        protected virtual void ActivateAlternateAction()
+        {
+            if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
+
+            var element = _elements[_currentIndex];
+            if (element.AlternateActionObject != null && element.AlternateActionObject.activeInHierarchy)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Activating alternate action: {element.AlternateActionObject.name}");
+                UIActivator.Activate(element.AlternateActionObject);
+            }
+            else
+            {
+                _announcer.Announce("No alternate action available", AnnouncementPriority.Normal);
             }
         }
 
@@ -397,11 +428,17 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>Add an element with a label (prevents duplicates)</summary>
         protected void AddElement(GameObject element, string label)
         {
-            AddElement(element, label, default);
+            AddElement(element, label, default, null);
         }
 
         /// <summary>Add an element with a label and optional carousel info (prevents duplicates)</summary>
         protected void AddElement(GameObject element, string label, CarouselInfo carouselInfo)
+        {
+            AddElement(element, label, carouselInfo, null);
+        }
+
+        /// <summary>Add an element with label, carousel info, and optional alternate action (prevents duplicates)</summary>
+        protected void AddElement(GameObject element, string label, CarouselInfo carouselInfo, GameObject alternateAction)
         {
             if (element == null) return;
 
@@ -417,9 +454,12 @@ namespace MTGAAccessibility.Core.Services
             {
                 GameObject = element,
                 Label = label,
-                Carousel = carouselInfo
+                Carousel = carouselInfo,
+                AlternateActionObject = alternateAction
             });
-            MelonLogger.Msg($"[{NavigatorId}] Added (ID:{instanceId}): {label}");
+
+            string altInfo = alternateAction != null ? $" [Alt: {alternateAction.name}]" : "";
+            MelonLogger.Msg($"[{NavigatorId}] Added (ID:{instanceId}): {label}{altInfo}");
         }
 
         /// <summary>Add a button, auto-extracting label from text</summary>

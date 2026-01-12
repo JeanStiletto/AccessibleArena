@@ -300,6 +300,20 @@ Scene: HomePage (content area, loads ~6 seconds after NavBar)
     ├── Objectives panel (quest progress)
     └── Social Corner Icon
 
+PlayBlade (slides in when Play/Bot Match clicked)
+└── PlayBladeController
+    ├── PlayBladeVisualState (Hidden/Events/DirectChallenge/FriendChallenge)
+    ├── EventBladeContentView - Game modes (Ranked, Play, Brawl)
+    ├── FindMatchBladeContentView - Deck selection + Find Match
+    │   ├── Deck folder toggles (My Decks, Starter Decks)
+    │   └── Deck entries (DeckView_Base with UI button + TextBox)
+    └── LastPlayedBladeContentView - Quick replay
+
+Deck Entry Structure (MetaDeckView):
+└── DeckView_Base(Clone)
+    └── UI (CustomButton) ← Select deck (Enter)
+        └── TextBox ← Edit name (Shift+Enter)
+
 Overlay: SettingsMenu (modal)
 ├── Controller: SettingsMenu_Desktop_16x9(Clone)
 └── Content panel: "Content - MainMenu" (where buttons actually are)
@@ -397,6 +411,65 @@ dotnet build "C:\Users\fabia\arena\src\MTGAAccessibility.csproj"
 # Deploy mod (game must be closed)
 Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\MTGAAccessibility.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\MTGAAccessibility.dll' -Force
 ```
+
+---
+
+## PlayBlade Navigation
+
+### Overview
+
+The PlayBlade is the sliding panel that appears when clicking Play or Bot Match on the HomePage.
+It contains game mode selection and deck selection.
+
+### Key Learnings
+
+**Play and Bot Match are separate buttons with different behavior:**
+- **Play button** → Opens PlayBlade with Events/game mode selection → Then deck selection
+- **Bot Match button** → Calls `Coroutine_PlayBotGame` → Opens deck selection directly
+
+However, both eventually show `FindMatchBladeContentView` for deck selection.
+
+**Deck selection in PlayBlade does NOT use DeckSelectBlade.Show():**
+The deck list is embedded directly in the blade views. This is why the existing
+`DeckSelectBlade` patches don't fire when using the Play button.
+
+### Harmony Patches Required
+
+To properly detect PlayBlade state changes, these patches were added:
+- `PlayBladeController.PlayBladeVisualState` setter
+- `PlayBladeController.IsDeckSelected` setter
+- `HomePageContentController.IsEventBladeActive` setter
+- `HomePageContentController.IsDirectChallengeBladeActive` setter
+- `BladeContentView.Show/Hide` (base class)
+- `EventBladeContentView.Show/Hide`
+
+### Element Filtering
+
+When PlayBlade is active (`_playBladeActive = true`):
+- Elements inside Blade hierarchies are shown
+- Elements inside HomePage but outside Blades are hidden
+- This prevents duplicate buttons (e.g., two "Bot Match" buttons)
+
+### Deck Entry Handling
+
+Each deck entry has two interactive elements:
+1. **UI** (CustomButton) - Main selection, parent: `DeckView_Base(Clone)`
+2. **TextBox** - Edit name area, child of UI
+
+The mod pairs these elements:
+- Only UI is added to navigation list
+- TextBox stored as `AlternateActionObject`
+- **Enter** activates UI (select deck)
+- **Shift+Enter** activates TextBox (edit deck name)
+
+### Deck Name Extraction
+
+Deck names are stored in `TMP_InputField.text` but the visual placeholder shows
+"Enter deck name...". The `TryGetDeckName()` method:
+1. Walks up hierarchy to find `DeckView_Base` or `Blade_ListItem`
+2. Gets `TMP_InputField` children
+3. Reads `.text` property (not placeholder)
+4. Returns actual deck name with ", deck" suffix
 
 ---
 
