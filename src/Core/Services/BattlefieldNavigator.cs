@@ -245,66 +245,56 @@ namespace MTGAAccessibility.Core.Services
             bool isCreature = false;
             bool isLand = false;
 
-            // Try to get card data from DuelScene_CDC component
-            var cdcComponent = GetDuelSceneCDC(card);
-            if (cdcComponent != null)
+            // Try to get card data from DuelScene_CDC component using shared utility
+            var cdcComponent = CardDetector.GetDuelSceneCDC(card);
+            var model = CardDetector.GetCardModel(cdcComponent);
+            if (model != null)
             {
                 try
                 {
-                    var cdcType = cdcComponent.GetType();
+                    var modelType = model.GetType();
 
-                    // Get the Model property which contains CardData
-                    var modelProp = cdcType.GetProperty("Model");
-                    if (modelProp != null)
+                    // Get ownership from ControllerNum (returns "Opponent" or "Player")
+                    var controllerProp = modelType.GetProperty("ControllerNum");
+                    if (controllerProp != null)
                     {
-                        var model = modelProp.GetValue(cdcComponent);
-                        if (model != null)
+                        var controller = controllerProp.GetValue(model);
+                        isOpponent = controller?.ToString() == "Opponent";
+                    }
+
+                    // Check IsBasicLand and IsLandButNotBasic for land detection
+                    var isBasicLandProp = modelType.GetProperty("IsBasicLand");
+                    var isLandNotBasicProp = modelType.GetProperty("IsLandButNotBasic");
+                    if (isBasicLandProp != null)
+                    {
+                        isLand = (bool)isBasicLandProp.GetValue(model);
+                    }
+                    if (!isLand && isLandNotBasicProp != null)
+                    {
+                        isLand = (bool)isLandNotBasicProp.GetValue(model);
+                    }
+
+                    // Get CardTypes list to check for Creature
+                    var cardTypesProp = modelType.GetProperty("CardTypes");
+                    if (cardTypesProp != null)
+                    {
+                        var cardTypes = cardTypesProp.GetValue(model);
+                        if (cardTypes != null)
                         {
-                            var modelType = model.GetType();
-
-                            // Get ownership from ControllerNum (returns "Opponent" or "Player")
-                            var controllerProp = modelType.GetProperty("ControllerNum");
-                            if (controllerProp != null)
+                            // Enumerate the list to check for creature/land type
+                            var enumerable = cardTypes as System.Collections.IEnumerable;
+                            if (enumerable != null)
                             {
-                                var controller = controllerProp.GetValue(model);
-                                isOpponent = controller?.ToString() == "Opponent";
-                            }
-
-                            // Check IsBasicLand and IsLandButNotBasic for land detection
-                            var isBasicLandProp = modelType.GetProperty("IsBasicLand");
-                            var isLandNotBasicProp = modelType.GetProperty("IsLandButNotBasic");
-                            if (isBasicLandProp != null)
-                            {
-                                isLand = (bool)isBasicLandProp.GetValue(model);
-                            }
-                            if (!isLand && isLandNotBasicProp != null)
-                            {
-                                isLand = (bool)isLandNotBasicProp.GetValue(model);
-                            }
-
-                            // Get CardTypes list to check for Creature
-                            var cardTypesProp = modelType.GetProperty("CardTypes");
-                            if (cardTypesProp != null)
-                            {
-                                var cardTypes = cardTypesProp.GetValue(model);
-                                if (cardTypes != null)
+                                foreach (var cardType in enumerable)
                                 {
-                                    // Enumerate the list to check for creature/land type
-                                    var enumerable = cardTypes as System.Collections.IEnumerable;
-                                    if (enumerable != null)
+                                    string typeStr = cardType.ToString();
+                                    if (typeStr == "Creature" || typeStr.Contains("Creature"))
                                     {
-                                        foreach (var cardType in enumerable)
-                                        {
-                                            string typeStr = cardType.ToString();
-                                            if (typeStr == "Creature" || typeStr.Contains("Creature"))
-                                            {
-                                                isCreature = true;
-                                            }
-                                            if (typeStr == "Land" || typeStr.Contains("Land"))
-                                            {
-                                                isLand = true;
-                                            }
-                                        }
+                                        isCreature = true;
+                                    }
+                                    if (typeStr == "Land" || typeStr.Contains("Land"))
+                                    {
+                                        isLand = true;
                                     }
                                 }
                             }
@@ -339,21 +329,6 @@ namespace MTGAAccessibility.Core.Services
 
             MelonLogger.Msg($"[BattlefieldNavigator] Card: {cardName}, IsCreature: {isCreature}, IsLand: {isLand}, IsOpponent: {isOpponent} -> {row}");
             return row;
-        }
-
-        /// <summary>
-        /// Gets the DuelScene_CDC component from a card GameObject.
-        /// </summary>
-        private Component GetDuelSceneCDC(GameObject card)
-        {
-            foreach (var component in card.GetComponents<Component>())
-            {
-                if (component != null && component.GetType().Name == "DuelScene_CDC")
-                {
-                    return component;
-                }
-            }
-            return null;
         }
 
         /// <summary>

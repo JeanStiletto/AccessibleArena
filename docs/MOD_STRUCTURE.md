@@ -133,7 +133,10 @@ C:\Users\fabia\arena\
 - [x] CardInfoNavigator - Arrow up/down through card details
 - [x] Automatic card navigation - No Enter required, just Tab to card and use arrows
 - [x] Lazy loading - Card info only extracted on first arrow press (performance)
-- [x] Mana cost parsing (sprite tags to readable text)
+- [x] Mana cost parsing (sprite tags to readable text for UI, ManaQuantity[] for Model)
+- [x] Model-based extraction - Uses game's internal Model data for battlefield cards
+- [x] UI fallback - Falls back to TMP_Text extraction for Meta scene cards (rewards, deck building)
+- [ ] Rules text from Model - Abilities array parsing not yet implemented (future enhancement)
 
 ### Zone System (Duel)
 - [x] ZoneNavigator - Separate service for zone navigation
@@ -327,6 +330,66 @@ Patched controllers: NavContentController, SettingsMenu, DeckSelectBlade
 See `docs/BEST_PRACTICES.md` "Panel State Detection (Harmony Patches)" section for full technical details.
 
 ## Recent Changes
+
+### January 2026 - Model-Based Card Info Extraction (CardDetector Refactor)
+
+**Problem:** Battlefield cards in "compacted" state have hidden/empty TMP_Text elements, causing
+card info navigation (Arrow Up/Down) to fail for these cards.
+
+**Solution:** CardDetector now extracts card info from the game's internal Model data (via
+DuelScene_CDC component) instead of relying solely on UI text extraction.
+
+**Implementation Details:**
+
+1. **Name Lookup via GrpId**
+   - Model stores card database ID as `GrpId` (not `TitleId` which is a localization key)
+   - Uses `CardTitleProvider.GetCardTitle(grpId, false, null)` from `GameManager.CardDatabase`
+   - Caches provider reference for performance
+
+2. **Mana Cost via PrintedCastingCost**
+   - Model has `PrintedCastingCost` as `ManaQuantity[]` array
+   - Each `ManaQuantity` represents ONE mana symbol with properties:
+     - `Color` (ManaColor enum: White, Blue, Black, Red, Green)
+     - `IsGeneric` (bool for colorless mana)
+     - `IsPhyrexian`, `Hybrid`, `AltColor` for special mana
+   - Generic mana counted and shown as number (e.g., "2")
+   - Colored mana listed individually (e.g., "2, White, Blue")
+
+3. **Type Line from Model**
+   - Built from `Supertypes` + `CardTypes` + `Subtypes` arrays
+   - Each is an array of enum values (e.g., `Basic`, `Land`, `Plains`)
+   - Format: "Basic Land - Plains"
+
+4. **Power/Toughness from Model**
+   - `Power` and `Toughness` properties (StringBackedInt type)
+   - Direct ToString() conversion
+
+5. **Fallback Strategy**
+   - `ExtractCardInfo()` tries Model extraction first
+   - Falls back to UI text extraction if Model fails (no CDC component)
+   - Meta scene cards (rewards, deck building) use UI extraction
+
+**Shared Utilities Added to CardDetector:**
+- `GetDuelSceneCDC(GameObject)` - Gets DuelScene_CDC component
+- `GetCardModel(Component)` - Gets Model object from CDC
+- `GetNameFromGrpId(uint)` - Looks up card name via CardTitleProvider
+- `ParseManaQuantityArray(IEnumerable)` - Parses mana cost array
+
+**BattlefieldNavigator Updated:**
+- Now uses `CardDetector.GetDuelSceneCDC()` instead of local duplicate method
+
+**TO TEST:**
+- Rules text and flavor text display for expanded cards (UI fallback)
+- Verify all card info blocks work in different contexts
+
+**FUTURE ENHANCEMENT:**
+- Parse `Abilities` array from Model to show rules text for compacted battlefield cards
+- Model has `AllAbilities`, `IntrinsicAbilities`, `PrintingAbilities` arrays
+- Would require parsing `AbilityPrintingData` objects
+
+**Files Changed:**
+- `src/Core/Services/CardDetector.cs` - Major refactor with Model extraction
+- `src/Core/Services/BattlefieldNavigator.cs` - Use shared CardDetector utilities
 
 ### January 2026 - UIActivator CustomButton Fix
 
