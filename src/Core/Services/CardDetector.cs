@@ -24,6 +24,7 @@ namespace MTGAAccessibility.Core.Services
         private static Type _cachedModelType = null;
         private static readonly Dictionary<string, PropertyInfo> _modelPropertyCache = new Dictionary<string, PropertyInfo>();
         private static bool _modelPropertiesLogged = false;
+        private static bool _abilityPropertiesLogged = false;
 
         // Cache for IdNameProvider lookup
         private static object _idNameProvider = null;
@@ -151,6 +152,12 @@ namespace MTGAAccessibility.Core.Services
             _idNameProvider = null;
             _getNameMethod = null;
             _idNameProviderSearched = false;
+            // Reset ability logging so we log again on scene change
+            _abilityPropertiesLogged = false;
+            // Reset ability text provider on scene change
+            _abilityTextProvider = null;
+            _getAbilityTextMethod = null;
+            _abilityTextProviderSearched = false;
         }
 
         #region DuelScene Model Access
@@ -483,6 +490,237 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Logs all properties available on an AbilityPrintingData object for discovery.
+        /// Only logs once per session to avoid log spam.
+        /// </summary>
+        public static void LogAbilityProperties(object ability)
+        {
+            if (_abilityPropertiesLogged || ability == null) return;
+            _abilityPropertiesLogged = true;
+
+            var abilityType = ability.GetType();
+            MelonLogger.Msg($"[CardDetector] === ABILITY TYPE: {abilityType.FullName} ===");
+
+            // Log properties
+            var properties = abilityType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var prop in properties)
+            {
+                try
+                {
+                    var value = prop.GetValue(ability);
+                    string valueStr = value?.ToString() ?? "null";
+                    if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
+                    MelonLogger.Msg($"[CardDetector] Ability Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg($"[CardDetector] Ability Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
+                }
+            }
+
+            // Also log methods that might return text
+            var methods = abilityType.GetMethods(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var method in methods)
+            {
+                // Only log parameterless methods that return string
+                if (method.GetParameters().Length == 0 && method.ReturnType == typeof(string))
+                {
+                    try
+                    {
+                        var result = method.Invoke(ability, null);
+                        string resultStr = result?.ToString() ?? "null";
+                        if (resultStr.Length > 100) resultStr = resultStr.Substring(0, 100) + "...";
+                        MelonLogger.Msg($"[CardDetector] Ability Method: {method.Name}() = {resultStr}");
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Msg($"[CardDetector] Ability Method: {method.Name}() = [Error: {ex.Message}]");
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[CardDetector] === END ABILITY PROPERTIES ===");
+        }
+
+        /// <summary>
+        /// Tries to extract text from an ability object by checking common property/method names.
+        /// Returns null if no text could be extracted.
+        /// </summary>
+        private static string GetAbilityText(object ability, Type abilityType, uint cardGrpId, uint abilityId, uint[] abilityIds, uint cardTitleId)
+        {
+            // First try to look up via AbilityTextProvider with full card context
+            var text = GetAbilityTextFromProvider(cardGrpId, abilityId, abilityIds, cardTitleId);
+            if (!string.IsNullOrEmpty(text))
+                return text;
+
+            // Try common property names for ability text
+            string[] propertyNames = { "Text", "RulesText", "AbilityText", "TextContent", "Description" };
+            foreach (var propName in propertyNames)
+            {
+                var prop = abilityType.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
+                if (prop != null)
+                {
+                    try
+                    {
+                        var value = prop.GetValue(ability);
+                        if (value != null)
+                        {
+                            string propText = value.ToString();
+                            if (!string.IsNullOrEmpty(propText))
+                                return propText;
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // Try GetText() method (ICardTextEntry interface)
+            var getTextMethod = abilityType.GetMethod("GetText", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+            if (getTextMethod != null && getTextMethod.ReturnType == typeof(string))
+            {
+                try
+                {
+                    var result = getTextMethod.Invoke(ability, null);
+                    if (result != null)
+                    {
+                        string methodText = result.ToString();
+                        if (!string.IsNullOrEmpty(methodText))
+                            return methodText;
+                    }
+                }
+                catch { }
+            }
+
+            return null;
+        }
+
+        // Cache for ability text provider
+        private static object _abilityTextProvider = null;
+        private static MethodInfo _getAbilityTextMethod = null;
+        private static bool _abilityTextProviderSearched = false;
+
+        /// <summary>
+        /// Tries to get ability text using the AbilityTextProvider with full card context.
+        /// Method signature: GetAbilityTextByCardAbilityGrpId(cardGrpId, abilityGrpId, abilityIds, cardTitleId, overrideLanguageCode, formatted)
+        /// </summary>
+        private static string GetAbilityTextFromProvider(uint cardGrpId, uint abilityId, uint[] abilityIds, uint cardTitleId)
+        {
+            // First try to find the ability text provider if we haven't already
+            if (!_abilityTextProviderSearched)
+            {
+                _abilityTextProviderSearched = true;
+                FindAbilityTextProvider();
+            }
+
+            if (_getAbilityTextMethod == null || _abilityTextProvider == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                // GetAbilityTextByCardAbilityGrpId(UInt32 cardGrpId, UInt32 abilityGrpId, IEnumerable<uint> abilityIds, UInt32 cardTitleId, String overrideLanguageCode, Boolean formatted)
+                var parameters = _getAbilityTextMethod.GetParameters();
+                object result = null;
+
+                if (parameters.Length == 6)
+                {
+                    // Full signature
+                    IEnumerable<uint> abilityIdsList = abilityIds ?? Array.Empty<uint>();
+                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] {
+                        cardGrpId,
+                        abilityId,
+                        abilityIdsList,
+                        cardTitleId,
+                        null,   // overrideLanguageCode
+                        false   // formatted
+                    });
+                }
+                else if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(uint))
+                {
+                    // Fallback for simpler method signatures
+                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] { abilityId });
+                }
+
+                string text = result?.ToString();
+                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.Contains("Unknown"))
+                {
+                    MelonLogger.Msg($"[CardDetector] Ability {abilityId} -> {text}");
+                    return text;
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardDetector] Error looking up ability {abilityId}: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Searches for the ability text provider in the game.
+        /// </summary>
+        private static void FindAbilityTextProvider()
+        {
+            MelonLogger.Msg("[CardDetector] Searching for ability text provider...");
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                var type = mb.GetType();
+                if (type.Name == "GameManager")
+                {
+                    // Try CardDatabase -> AbilityTextProvider
+                    var cardDbProp = type.GetProperty("CardDatabase");
+                    if (cardDbProp != null)
+                    {
+                        var cardDb = cardDbProp.GetValue(mb);
+                        if (cardDb != null)
+                        {
+                            var cardDbType = cardDb.GetType();
+
+                            // List all properties on CardDatabase to find text providers
+                            foreach (var prop in cardDbType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                            {
+                                if (prop.Name.Contains("Text") || prop.Name.Contains("Ability"))
+                                {
+                                    MelonLogger.Msg($"[CardDetector] CardDatabase.{prop.Name} ({prop.PropertyType.Name})");
+
+                                    var provider = prop.GetValue(cardDb);
+                                    if (provider != null)
+                                    {
+                                        var providerType = provider.GetType();
+                                        foreach (var m in providerType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                                        {
+                                            if (m.DeclaringType == typeof(object)) continue;
+                                            var paramStr = string.Join(", ", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                                            MelonLogger.Msg($"[CardDetector]   {m.Name}({paramStr}) -> {m.ReturnType.Name}");
+
+                                            // Look for methods that take uint and return string
+                                            if (m.ReturnType == typeof(string))
+                                            {
+                                                var mParams = m.GetParameters();
+                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
+                                                {
+                                                    _abilityTextProvider = provider;
+                                                    _getAbilityTextMethod = m;
+                                                    MelonLogger.Msg($"[CardDetector] Using {prop.Name}.{m.Name} for ability text lookup");
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+
+            MelonLogger.Msg("[CardDetector] No ability text provider found");
+        }
+
+        /// <summary>
         /// Gets a cached PropertyInfo for performance.
         /// </summary>
         private static PropertyInfo GetCachedProperty(Type modelType, string propertyName)
@@ -627,6 +865,45 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Extracts the actual value from a StringBackedInt object.
+        /// StringBackedInt has: RawText (for "*" etc), Value (int), DefinedValue (nullable int)
+        /// </summary>
+        private static string GetStringBackedIntValue(object stringBackedInt)
+        {
+            if (stringBackedInt == null) return null;
+
+            var type = stringBackedInt.GetType();
+
+            // First try RawText - this handles variable P/T like "*"
+            var rawTextProp = type.GetProperty("RawText", BindingFlags.Public | BindingFlags.Instance);
+            if (rawTextProp != null)
+            {
+                try
+                {
+                    var rawText = rawTextProp.GetValue(stringBackedInt)?.ToString();
+                    if (!string.IsNullOrEmpty(rawText))
+                        return rawText;
+                }
+                catch { }
+            }
+
+            // Then try Value - the numeric value
+            var valueProp = type.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+            if (valueProp != null)
+            {
+                try
+                {
+                    var val = valueProp.GetValue(stringBackedInt);
+                    if (val != null)
+                        return val.ToString();
+                }
+                catch { }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Extracts card information from the game's internal Model data.
         /// This works for battlefield cards that may have hidden/compacted UI text.
         /// Returns null if Model data is not available (e.g., Meta scene cards).
@@ -720,23 +997,89 @@ namespace MTGAAccessibility.Core.Services
                         info.TypeLine += " - " + string.Join(" ", subtypeList);
                 }
 
-                // Power and Toughness - StringBackedInt has a ToString()
-                var power = GetModelPropertyValue(model, modelType, "Power");
-                var toughness = GetModelPropertyValue(model, modelType, "Toughness");
-                if (power != null && toughness != null)
+                // Power and Toughness - only for creatures (check if CardTypes contains Creature)
+                bool isCreature = false;
+                var cardTypesForPT = GetModelPropertyValue(model, modelType, "CardTypes");
+                if (cardTypesForPT is IEnumerable cardTypesEnumPT)
                 {
-                    string powerStr = power.ToString();
-                    string toughStr = toughness.ToString();
-                    // Only show P/T if they're meaningful (not empty StringBackedInt)
-                    if (!string.IsNullOrEmpty(powerStr) && !string.IsNullOrEmpty(toughStr) &&
-                        powerStr != "StringBackedInt" && toughStr != "StringBackedInt")
+                    foreach (var ct in cardTypesEnumPT)
                     {
-                        info.PowerToughness = $"{powerStr}/{toughStr}";
+                        if (ct != null && ct.ToString().Contains("Creature"))
+                        {
+                            isCreature = true;
+                            break;
+                        }
                     }
                 }
 
-                // Rules Text - not directly available, would need to parse abilities
-                // Leave empty for now - UI fallback will get it if available
+                if (isCreature)
+                {
+                    var power = GetModelPropertyValue(model, modelType, "Power");
+                    var toughness = GetModelPropertyValue(model, modelType, "Toughness");
+                    if (power != null && toughness != null)
+                    {
+                        string powerStr = GetStringBackedIntValue(power);
+                        string toughStr = GetStringBackedIntValue(toughness);
+                        if (powerStr != null && toughStr != null)
+                        {
+                            info.PowerToughness = $"{powerStr}/{toughStr}";
+                        }
+                    }
+                }
+
+                // Rules Text - parse from Abilities array
+                // Get card context needed for ability text lookup
+                uint cardGrpId = 0;
+                uint cardTitleId = 0;
+                var grpIdVal = GetModelPropertyValue(model, modelType, "GrpId");
+                if (grpIdVal is uint gid) cardGrpId = gid;
+                var titleIdVal = GetModelPropertyValue(model, modelType, "TitleId");
+                if (titleIdVal is uint tid) cardTitleId = tid;
+
+                // Get all ability IDs for the lookup
+                var abilityIdsVal = GetModelPropertyValue(model, modelType, "AbilityIds");
+                uint[] abilityIds = null;
+                if (abilityIdsVal is IEnumerable<uint> aidEnum)
+                    abilityIds = aidEnum.ToArray();
+                else if (abilityIdsVal is uint[] aidArray)
+                    abilityIds = aidArray;
+
+                var abilities = GetModelPropertyValue(model, modelType, "Abilities");
+                if (abilities is IEnumerable abilityEnum)
+                {
+                    var rulesLines = new List<string>();
+                    foreach (var ability in abilityEnum)
+                    {
+                        if (ability == null) continue;
+
+                        // Log ability properties for discovery (only once)
+                        LogAbilityProperties(ability);
+
+                        var abilityType = ability.GetType();
+
+                        // Get the ability's Id for the lookup
+                        uint abilityId = 0;
+                        var abilityIdProp = abilityType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+                        if (abilityIdProp != null)
+                        {
+                            var idVal = abilityIdProp.GetValue(ability);
+                            if (idVal is uint aid) abilityId = aid;
+                        }
+
+                        // Try to get text from the ability with card context
+                        var textValue = GetAbilityText(ability, abilityType, cardGrpId, abilityId, abilityIds, cardTitleId);
+                        if (!string.IsNullOrEmpty(textValue))
+                        {
+                            rulesLines.Add(textValue);
+                        }
+                    }
+
+                    if (rulesLines.Count > 0)
+                    {
+                        info.RulesText = string.Join(" ", rulesLines);
+                        MelonLogger.Msg($"[CardDetector] Extracted rules text: {info.RulesText}");
+                    }
+                }
 
                 // Flavor Text - not on Model
                 // Artist - not on Model

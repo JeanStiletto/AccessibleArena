@@ -361,10 +361,19 @@ DuelScene_CDC component) instead of relying solely on UI text extraction.
    - Format: "Basic Land - Plains"
 
 4. **Power/Toughness from Model**
-   - `Power` and `Toughness` properties (StringBackedInt type)
-   - Direct ToString() conversion
+   - `Power` and `Toughness` properties use `StringBackedInt` type
+   - `StringBackedInt` has `RawText` (for variable P/T like "*") and `Value` (numeric)
+   - Only extracted for creatures (cards with "Creature" in CardTypes)
+   - Handles animated lands, vehicles, creature-lands automatically
 
-5. **Fallback Strategy**
+5. **Rules Text via AbilityTextProvider**
+   - Model has `Abilities` array of `AbilityPrintingData` objects
+   - Each ability has `Id` (uint) for lookup and `TextId` for localization
+   - Uses `GameManager.CardDatabase.AbilityTextProvider.GetAbilityTextByCardAbilityGrpId()`
+   - Method signature: `(cardGrpId, abilityId, abilityIds[], cardTitleId, languageCode, formatted)`
+   - Extracts readable rules text for all abilities on the card
+
+6. **Fallback Strategy**
    - `ExtractCardInfo()` tries Model extraction first
    - Falls back to UI text extraction if Model fails (no CDC component)
    - Meta scene cards (rewards, deck building) use UI extraction
@@ -374,22 +383,15 @@ DuelScene_CDC component) instead of relying solely on UI text extraction.
 - `GetCardModel(Component)` - Gets Model object from CDC
 - `GetNameFromGrpId(uint)` - Looks up card name via CardTitleProvider
 - `ParseManaQuantityArray(IEnumerable)` - Parses mana cost array
+- `GetStringBackedIntValue(object)` - Extracts value from StringBackedInt (P/T)
+- `GetAbilityTextFromProvider(...)` - Looks up ability text via AbilityTextProvider
+- `FindAbilityTextProvider()` - Locates AbilityTextProvider in GameManager.CardDatabase
 
 **BattlefieldNavigator Updated:**
 - Now uses `CardDetector.GetDuelSceneCDC()` instead of local duplicate method
 
-**TO TEST:**
-- Rules text and flavor text display for expanded cards (UI fallback)
-- Verify all card info blocks work in different contexts
-
-**FUTURE ENHANCEMENT:**
-- Parse `Abilities` array from Model to show rules text for compacted battlefield cards
-- Model has `AllAbilities`, `IntrinsicAbilities`, `PrintingAbilities` arrays
-- Would require parsing `AbilityPrintingData` objects
-
 **Files Changed:**
-- `src/Core/Services/CardDetector.cs` - Major refactor with Model extraction
-- `src/Core/Services/BattlefieldNavigator.cs` - Use shared CardDetector utilities
+- `src/Core/Services/CardDetector.cs` - Major refactor with Model extraction and ability text
 
 ### January 2026 - UIActivator CustomButton Fix
 
