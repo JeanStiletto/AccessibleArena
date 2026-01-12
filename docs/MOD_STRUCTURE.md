@@ -218,10 +218,25 @@ C:\Users\fabia\arena\
 2. Second F/Space: Confirms attackers (button shows "X Attackers")
 
 **Declare Blockers Phase:**
-- [x] Space key handling - Attempts to click confirm/done button
-- [x] Button detection - Looks for "Done", "Confirm", "Block", "OK" in button text
+- [x] F key handling - Clicks "X Blocker" or "Next" button (confirm blocks)
+- [x] Shift+F key handling - Clicks "No Blocks" or "Cancel Blocks" button
+- [x] Space key handling - Same as F (confirm blocks)
+- [x] Button detection - Primary button matches "Blocker", "Next", "Done", "Confirm", "OK" (excludes "No Blocks")
+- [x] No block button detection - Secondary button matches "No " or "Cancel"
 - [x] Blocker state announcements - Cards announce ", blocking" or ", not blocking"
-- [ ] **Blocker state detection (WIP)** - Looking for `CombatIcon_BlockerFrame` or similar indicator
+- [x] **Attacker announcements during blockers** - Enemy attackers announce ", attacking"
+- [x] **Blocker state detection** - Checks for active `IsBlocking` child (not just presence of BlockerFrame)
+- [x] **Blocker selection tracking** - Tracks selected blockers via `SelectedHighlightBattlefield` + `CombatIcon_BlockerFrame`
+- [x] **Combined P/T announcements** - Announces "X/Y blocking" when selection changes
+
+**Blocker Selection System:**
+- `IsCreatureSelectedAsBlocker(card)` - Checks for both `CombatIcon_BlockerFrame` AND `SelectedHighlightBattlefield` active
+- `FindSelectedBlockers()` - Returns all CDC cards currently selected as blockers
+- `GetPowerToughness(card)` - Extracts P/T from card using `CardDetector.ExtractCardInfo()`
+- `CalculateCombinedStats(blockers)` - Sums power and toughness across all selected blockers
+- `UpdateBlockerSelection()` - Called each frame, detects selection changes, announces combined stats
+- Tracking uses `HashSet<int>` of instance IDs to detect changes efficiently
+- Resets tracking when entering/exiting blockers phase
 
 **Debug Logging (Temporary):**
 - Attacker debug: Logs relevant children (Combat, Attack, Select, Declare, Lob, Tap, Is)
@@ -232,7 +247,7 @@ C:\Users\fabia\arena\
 
 ### Combat Navigator
 - **Attacker detection incorrect**: `CombatIcon_AttackerFrame` appears on all creatures that CAN attack, not just those declared as attackers. Need to find the indicator that distinguishes "selected/declared as attacker" from "can attack but not selected".
-- **Blocker detection unverified**: Looking for `CombatIcon_BlockerFrame` but not yet confirmed from logs.
+- **Blocker selection after targeting**: There may be strange interactions after selecting a target for blocks. Needs further testing.
 
 ### DiscardNavigator
 - **Log flooding fixed**: Removed per-frame logging from `GetSubmitButtonInfo()` that was flooding logs when "Submit X" pattern matched.
@@ -425,3 +440,46 @@ Or manually:
 - `src/Core/Services/GeneralMenuNavigator.cs` - Fixed ExcludedScenes to use correct scene names
 - `src/Core/Services/BaseNavigator.cs` - Fixed Unity null check in GetElementAnnouncement
 - `CLAUDE.md` - Updated shortcuts documentation
+
+### January 2026 - Declare Blockers Phase Implementation
+
+**New Features:**
+
+1. **Blocker Shortcuts (F/Shift+F)**
+   - F or Space: Clicks "X Blocker" or "Next" button to confirm blocks
+   - Shift+F: Clicks "No Blocks" or "Cancel Blocks" button
+
+2. **Improved Button Detection**
+   - Primary button matches: "Blocker", "Next", "Done", "Confirm", "OK"
+   - Explicitly skips buttons containing "No " to avoid matching "No Blocks"
+   - Secondary button for no blocks matches: "No " or "Cancel"
+
+3. **Fixed Blocker State Detection**
+   - `IsCreatureBlocking()` now checks for active `IsBlocking` child
+   - Previously incorrectly checked for `CombatIcon_BlockerFrame` (always present on potential blockers)
+
+4. **Enemy Attacker Announcements During Blockers**
+   - `GetCombatStateText()` now checks `IsCreatureAttacking()` during blockers phase
+   - Enemy attackers announce ", attacking" so player knows what they're blocking
+
+5. **Blocker Selection Tracking with Combined P/T**
+   - Tracks creatures selected as blockers via `SelectedHighlightBattlefield` + `CombatIcon_BlockerFrame`
+   - Calculates combined power/toughness of all selected blockers
+   - Announces "X/Y blocking" whenever selection changes (add/remove blocker)
+   - Uses `HashSet<int>` of instance IDs for efficient change detection
+   - Resets tracking when entering/exiting blockers phase
+
+**New Methods in CombatNavigator.cs:**
+- `IsCreatureSelectedAsBlocker(card)` - Checks for selection highlight + blocker frame
+- `FindSelectedBlockers()` - Returns all currently selected blocker cards
+- `GetPowerToughness(card)` - Extracts P/T using `CardDetector.ExtractCardInfo()`
+- `CalculateCombinedStats(blockers)` - Sums power and toughness
+- `UpdateBlockerSelection()` - Called each frame, detects changes, announces stats
+- `TryClickNoBlockButton()` - Clicks "No Blocks" or "Cancel Blocks" button
+
+**Fields Added:**
+- `_previousSelectedBlockerIds` - HashSet for tracking selection state
+- `_wasInBlockersPhase` - Bool to detect phase transitions
+
+**Files Changed:**
+- `src/Core/Services/CombatNavigator.cs` - Full blockers phase implementation

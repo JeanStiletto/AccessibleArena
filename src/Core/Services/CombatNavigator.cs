@@ -4,6 +4,7 @@ using TMPro;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 using MTGAAccessibility.Core.Models;
+using System.Collections.Generic;
 
 namespace MTGAAccessibility.Core.Services
 {
@@ -14,8 +15,9 @@ namespace MTGAAccessibility.Core.Services
     /// - Shift+F presses "No Attacks" button
     /// - Announces attacker selection state when navigating battlefield cards
     /// During Declare Blockers phase:
-    /// - Space presses "Done" or confirm button
-    /// - Announces blocker selection state when navigating battlefield cards
+    /// - Space or F presses confirm button (X Blocker / Next)
+    /// - Shift+F presses "No Blocks" or "Cancel Blocks" button
+    /// - Tracks selected blockers and announces combined power/toughness
     /// </summary>
     public class CombatNavigator
     {
@@ -24,6 +26,12 @@ namespace MTGAAccessibility.Core.Services
 
         // Debug flag for logging card children
         private bool _debugBlockerCards = true;
+
+        // Track selected blockers by instance ID for change detection
+        private HashSet<int> _previousSelectedBlockerIds = new HashSet<int>();
+
+        // Track if we were in blockers phase last frame (to reset on phase change)
+        private bool _wasInBlockersPhase = false;
 
         public CombatNavigator(IAnnouncementService announcer, DuelAnnouncer duelAnnouncer)
         {
@@ -97,7 +105,7 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Checks if a creature is currently assigned as a blocker.
-        /// Looks for blocker indicator (to be determined from debug logging).
+        /// Looks for the active "IsBlocking" child within the card hierarchy.
         /// </summary>
         public bool IsCreatureBlocking(GameObject card)
         {
@@ -108,17 +116,164 @@ namespace MTGAAccessibility.Core.Services
                 if (!child.gameObject.activeInHierarchy)
                     continue;
 
-                // Look for blocker indicators - patterns to be refined based on debug output
-                // Likely similar to CombatIcon_AttackerFrame but for blockers
-                if (child.name.Contains("CombatIcon_BlockerFrame") ||
-                    child.name.Contains("BlockerIcon") ||
-                    child.name.Contains("Blocking"))
+                // "IsBlocking" child activates when the creature is assigned as a blocker
+                if (child.name == "IsBlocking")
                 {
                     return true;
                 }
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Checks if a creature is currently selected (highlighted) as a potential blocker.
+        /// This is different from IsCreatureBlocking - selected means the player clicked on it
+        /// but hasn't yet assigned it to block a specific attacker.
+        /// </summary>
+        public bool IsCreatureSelectedAsBlocker(GameObject card)
+        {
+            if (card == null) return false;
+
+            // A creature is selected as a blocker if it has both:
+            // 1. CombatIcon_BlockerFrame (can block)
+            // 2. SelectedHighlightBattlefield (currently selected)
+            bool hasBlockerFrame = false;
+            bool hasSelectedHighlight = false;
+
+            foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
+            {
+                if (!child.gameObject.activeInHierarchy)
+                    continue;
+
+                if (child.name.Contains("CombatIcon_BlockerFrame"))
+                    hasBlockerFrame = true;
+
+                if (child.name.Contains("SelectedHighlightBattlefield"))
+                    hasSelectedHighlight = true;
+            }
+
+            return hasBlockerFrame && hasSelectedHighlight;
+        }
+
+        /// <summary>
+        /// Finds all creatures currently selected as blockers.
+        /// Returns a list of card GameObjects that have both blocker frame and selection highlight.
+        /// </summary>
+        private List<GameObject> FindSelectedBlockers()
+        {
+            var selectedBlockers = new List<GameObject>();
+
+            // Find all CDC objects (cards) on the battlefield
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                // Only check CDC (card) objects
+                if (!go.name.StartsWith("CDC "))
+                    continue;
+
+                if (IsCreatureSelectedAsBlocker(go))
+                {
+                    selectedBlockers.Add(go);
+                }
+            }
+
+            return selectedBlockers;
+        }
+
+        /// <summary>
+        /// Parses power and toughness from a card.
+        /// Returns (power, toughness) or (0, 0) if not a creature or can't parse.
+        /// </summary>
+        private (int power, int toughness) GetPowerToughness(GameObject card)
+        {
+            if (card == null) return (0, 0);
+
+            var info = CardDetector.ExtractCardInfo(card);
+            if (string.IsNullOrEmpty(info.PowerToughness))
+                return (0, 0);
+
+            // Parse "X/Y" format
+            var parts = info.PowerToughness.Split('/');
+            if (parts.Length != 2)
+                return (0, 0);
+
+            if (int.TryParse(parts[0].Trim(), out int power) &&
+                int.TryParse(parts[1].Trim(), out int toughness))
+            {
+                return (power, toughness);
+            }
+
+            return (0, 0);
+        }
+
+        /// <summary>
+        /// Calculates combined power and toughness for a list of blockers.
+        /// </summary>
+        private (int totalPower, int totalToughness) CalculateCombinedStats(List<GameObject> blockers)
+        {
+            int totalPower = 0;
+            int totalToughness = 0;
+
+            foreach (var blocker in blockers)
+            {
+                var (power, toughness) = GetPowerToughness(blocker);
+                totalPower += power;
+                totalToughness += toughness;
+            }
+
+            return (totalPower, totalToughness);
+        }
+
+        /// <summary>
+        /// Updates blocker selection tracking and announces changes.
+        /// Should be called each frame during declare blockers phase.
+        /// </summary>
+        public void UpdateBlockerSelection()
+        {
+            bool isInBlockersPhase = _duelAnnouncer.IsInDeclareBlockersPhase;
+
+            // Reset tracking when entering/exiting blockers phase
+            if (isInBlockersPhase != _wasInBlockersPhase)
+            {
+                _previousSelectedBlockerIds.Clear();
+                _wasInBlockersPhase = isInBlockersPhase;
+            }
+
+            // Only track during blockers phase
+            if (!isInBlockersPhase)
+                return;
+
+            // Get current selection
+            var currentBlockers = FindSelectedBlockers();
+            var currentIds = new HashSet<int>();
+            foreach (var blocker in currentBlockers)
+            {
+                currentIds.Add(blocker.GetInstanceID());
+            }
+
+            // Check if selection changed
+            if (!currentIds.SetEquals(_previousSelectedBlockerIds))
+            {
+                // Selection changed - announce new combined stats
+                if (currentBlockers.Count > 0)
+                {
+                    var (totalPower, totalToughness) = CalculateCombinedStats(currentBlockers);
+                    string announcement = $"{totalPower}/{totalToughness} blocking";
+                    MelonLogger.Msg($"[CombatNavigator] Blocker selection changed: {currentBlockers.Count} blockers, {announcement}");
+                    _announcer.Announce(announcement, AnnouncementPriority.High);
+                }
+                else
+                {
+                    MelonLogger.Msg("[CombatNavigator] Blocker selection cleared");
+                    // Optionally announce "no blockers selected"
+                }
+
+                // Update tracking
+                _previousSelectedBlockerIds = currentIds;
+            }
         }
 
         /// <summary>
@@ -136,7 +291,7 @@ namespace MTGAAccessibility.Core.Services
                     return ", not attacking";
             }
 
-            // Declare Blockers phase - show blocking state and debug log
+            // Declare Blockers phase - show blocking state for your creatures, attacking state for enemy attackers
             if (_duelAnnouncer.IsInDeclareBlockersPhase)
             {
                 // Debug: Log card children to find blocker indicator
@@ -145,6 +300,11 @@ namespace MTGAAccessibility.Core.Services
                     LogCardChildrenForBlocker(card);
                 }
 
+                // Check if this is an attacking creature (enemy attacker)
+                if (IsCreatureAttacking(card))
+                    return ", attacking";
+
+                // Otherwise check blocking state for your potential blockers
                 if (IsCreatureBlocking(card))
                     return ", blocking";
                 else
@@ -175,6 +335,9 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         public bool HandleInput()
         {
+            // Track blocker selection changes and announce combined P/T
+            UpdateBlockerSelection();
+
             // Handle Declare Attackers phase
             if (_duelAnnouncer.IsInDeclareAttackersPhase)
             {
@@ -195,8 +358,16 @@ namespace MTGAAccessibility.Core.Services
             // Handle Declare Blockers phase
             if (_duelAnnouncer.IsInDeclareBlockersPhase)
             {
-                // Debug: Log available buttons when Space is pressed
-                if (Input.GetKeyDown(KeyCode.Space))
+                // Shift+F - press the no blocks / cancel blocks button (check first before F alone)
+                if (Input.GetKeyDown(KeyCode.F) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                {
+                    LogBlockerPhaseButtons();
+                    return TryClickNoBlockButton();
+                }
+
+                // Space or F (without Shift) - press the confirm blocks button (X Blocker / Next)
+                if (Input.GetKeyDown(KeyCode.Space) ||
+                    (Input.GetKeyDown(KeyCode.F) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
                 {
                     LogBlockerPhaseButtons();
                     return TryClickBlockerConfirmButton();
@@ -229,6 +400,7 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Finds and clicks the confirm/done button during declare blockers.
+        /// Matches "X Blocker" or "Next" but NOT "No Blocks".
         /// Returns true if button was found and clicked.
         /// </summary>
         private bool TryClickBlockerConfirmButton()
@@ -247,9 +419,14 @@ namespace MTGAAccessibility.Core.Services
                 if (string.IsNullOrEmpty(buttonText))
                     continue;
 
-                // Look for confirm/done type buttons (not "Opponent's Turn")
-                if (buttonText.Contains("Done") || buttonText.Contains("Confirm") ||
-                    buttonText.Contains("Block") || buttonText.Contains("OK"))
+                // Skip "No Blocks" - that's handled by TryClickNoBlockButton
+                if (buttonText.Contains("No "))
+                    continue;
+
+                // Look for confirm type buttons: "X Blocker", "Next", "Done", "Confirm", "OK"
+                // But NOT "Opponent's Turn"
+                if (buttonText.Contains("Blocker") || buttonText.Contains("Next") ||
+                    buttonText.Contains("Done") || buttonText.Contains("Confirm") || buttonText.Contains("OK"))
                 {
                     MelonLogger.Msg($"[CombatNavigator] Clicking blocker confirm button: {buttonText}");
                     var result = UIActivator.SimulatePointerClick(selectable.gameObject);
@@ -262,6 +439,70 @@ namespace MTGAAccessibility.Core.Services
             }
 
             MelonLogger.Msg("[CombatNavigator] No blocker confirm button found");
+            return false;
+        }
+
+        /// <summary>
+        /// Finds and clicks the "No Blocks" or "Cancel Blocks" button.
+        /// Returns true if button was found and clicked.
+        /// </summary>
+        private bool TryClickNoBlockButton()
+        {
+            // First check secondary button for "No Blocks" or "Cancel Blocks"
+            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
+            {
+                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
+                    continue;
+
+                string name = selectable.gameObject.name;
+                if (!name.Contains("PromptButton_Secondary"))
+                    continue;
+
+                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
+                if (string.IsNullOrEmpty(buttonText))
+                    continue;
+
+                // Match "No Blocks" or "Cancel Blocks"
+                if (buttonText.Contains("No ") || buttonText.Contains("Cancel"))
+                {
+                    MelonLogger.Msg($"[CombatNavigator] Clicking no block button: {buttonText}");
+                    var result = UIActivator.SimulatePointerClick(selectable.gameObject);
+                    if (result.Success)
+                    {
+                        _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+                        return true;
+                    }
+                }
+            }
+
+            // Also check primary button for "No Blocks" (initial state)
+            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
+            {
+                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
+                    continue;
+
+                string name = selectable.gameObject.name;
+                if (!name.Contains("PromptButton_Primary"))
+                    continue;
+
+                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
+                if (string.IsNullOrEmpty(buttonText))
+                    continue;
+
+                // Match "No Blocks" on primary button
+                if (buttonText.Contains("No Blocks"))
+                {
+                    MelonLogger.Msg($"[CombatNavigator] Clicking no block button (primary): {buttonText}");
+                    var result = UIActivator.SimulatePointerClick(selectable.gameObject);
+                    if (result.Success)
+                    {
+                        _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+                        return true;
+                    }
+                }
+            }
+
+            MelonLogger.Msg("[CombatNavigator] No 'No Blocks' or 'Cancel Blocks' button found");
             return false;
         }
 

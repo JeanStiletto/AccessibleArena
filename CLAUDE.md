@@ -75,8 +75,10 @@ Info: T (Turn), L (Life), A (Mana), Shift+A (Opponent Mana)
 Card Details: Arrow Up/Down when focused on a card
 Carousel: Arrow Left/Right when focused on a carousel element (e.g., promotional banners)
 Combat (Declare Attackers): F (All Attack / X Attack), Shift+F (No Attacks), Space (All Attack / X Attack)
+Combat (Declare Blockers): F (Confirm Blocks / Next), Shift+F (No Blocks / Cancel Blocks), Space (Confirm Blocks / Next)
 Global: F1 (Help), F2 (Context), Ctrl+R (Repeat)
 
 Do NOT override: Tab, Enter, Space, Escape, Alt
 Note: Arrow keys used contextually (cards, carousels) - don't override globally
-Note: F key used contextually during declare attackers phase for combat
+Note: F key used contextually during combat phases (attackers/blockers)
+Note: During blockers phase, selecting creatures announces combined P/T (e.g., "4/6 blocking")
