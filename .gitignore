@@ -16,3 +16,6 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 nul
+
+# Manual backups (local only)
+working */
