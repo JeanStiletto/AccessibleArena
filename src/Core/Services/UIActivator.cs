@@ -99,6 +99,7 @@ namespace MTGAAccessibility.Core.Services
             {
                 toggle.isOn = !toggle.isOn;
                 string state = toggle.isOn ? "Checked" : "Unchecked";
+                Log($"Toggled {element.name} to {state}");
                 return new ActivationResult(true, state, ActivationType.Toggle);
             }
 
@@ -128,15 +129,30 @@ namespace MTGAAccessibility.Core.Services
                 return SimulatePointerClick(clickableTarget);
             }
 
-            // Try CustomButton onClick via reflection
-            // Some CustomButtons (like HomeBanner) don't respond reliably to pointer events on first click
+            // For CustomButtons: Try pointer simulation FIRST
+            // The actual game logic (tab switching, deck selection, etc.) responds to pointer events,
+            // not to the onClick UnityEvent. onClick might only handle secondary effects like sounds.
+            bool hasCustomButton = HasCustomButtonComponent(element);
+            if (hasCustomButton)
+            {
+                Log($"CustomButton detected, trying pointer simulation first");
+                var pointerResult = SimulatePointerClick(element);
+
+                // Also try onClick reflection as additional handler
+                // Some buttons (like HomeBanner) register handlers on onClick in addition to pointer events
+                TryInvokeCustomButtonOnClick(element);
+
+                return pointerResult;
+            }
+
+            // For non-CustomButton elements, try onClick reflection then pointer fallback
             var customButtonResult = TryInvokeCustomButtonOnClick(element);
             if (customButtonResult.Success)
             {
                 return customButtonResult;
             }
 
-            // Fallback: Pointer event simulation on original element
+            // Final fallback: Pointer event simulation
             return SimulatePointerClick(element);
         }
 
@@ -156,11 +172,26 @@ namespace MTGAAccessibility.Core.Services
 
             Log($"Simulating pointer events on: {element.name}");
 
+            // Set as selected object in EventSystem - some UI elements require this
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(element);
+                Log($"Set EventSystem selected object to: {element.name}");
+            }
+
             // Full click sequence
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerEnterHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
+
+            // Also try Submit event - this is what Unity uses for Enter key activation
+            if (eventSystem != null)
+            {
+                var baseEventData = new BaseEventData(eventSystem);
+                ExecuteEvents.Execute(element, baseEventData, ExecuteEvents.submitHandler);
+            }
 
             // Also try on immediate children
             foreach (Transform child in element.transform)
@@ -533,6 +564,20 @@ namespace MTGAAccessibility.Core.Services
                     return true;
             }
 
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a GameObject has a CustomButton component.
+        /// Used to determine activation strategy - CustomButtons need pointer events first.
+        /// </summary>
+        private static bool HasCustomButtonComponent(GameObject obj)
+        {
+            foreach (var mb in obj.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "CustomButton")
+                    return true;
+            }
             return false;
         }
 

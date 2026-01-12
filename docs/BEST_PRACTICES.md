@@ -200,6 +200,37 @@ When clicking Play or Bot Match on the HomePage, the PlayBlade system opens:
 The deck list is embedded directly in the blade views. This is why DeckSelectBlade patches
 don't fire when using Play button - only when using dedicated deck manager.
 
+### Deck Selection Status (January 2026 Investigation)
+
+**What Works:**
+- Play button → Opens PlayBlade correctly
+- Tab navigation → Cycles through elements
+- Mode tabs (Play/Ranked/Brawl) → Produce sounds when clicked (activation works partially)
+- Find Match button → Shows tooltip about AI opponent
+- EventSystem selection → Decks ARE being selected (`SetSelectedGameObject` works)
+
+**Current Issue - Deck Selection:**
+Clicking on a deck entry sends all activation events but the game doesn't respond:
+- Pointer events sent (enter, down, up, click)
+- Submit event sent
+- EventSystem shows deck as selected
+- BUT `IsDeckSelected` Harmony patch never fires
+
+**Possible Causes (Under Investigation):**
+1. **Starter Decks May Need Cloning** - Tooltip mentions "cloning a deck". Starter decks
+   might be read-only templates that must be copied to "My Decks" before use.
+2. **Deck Folders:**
+   - "My Decks" - User's playable decks (often empty/unchecked)
+   - "Starter Decks" - Pre-built template decks (valid for format)
+   - "Invalid Decks" - Decks not valid for current format
+3. **Activation May Need Mouse** - Some UI elements might check actual mouse position
+   rather than event data position.
+
+**Next Steps:**
+- Test with mouse to confirm if deck selection works at all
+- Investigate if starter decks need to be cloned via Decks menu first
+- Check if "My Decks" folder needs populated decks
+
 ### Deck Entry Structure (MetaDeckView)
 
 Each deck entry in selection lists uses `MetaDeckView`:
@@ -266,26 +297,48 @@ if (toggle == null)
 
 ### CustomButton Pattern
 - Game uses `CustomButton` component (not Unity's standard `Button`)
-- CustomButton responds to pointer events but NOT `onClick.Invoke()`
-- Use `UIActivator.Activate()` which handles this automatically
+- CustomButton has TWO activation mechanisms:
+  1. `_onClick` UnityEvent field - Secondary effects (sounds, animations)
+  2. `IPointerClickHandler` - Primary game logic (state changes, navigation)
+- Use `UIActivator.Activate()` which handles both automatically
 
-**Known Issue - Multiple Presses Required:**
-Some CustomButtons (like HomeBanner buttons in Play menu) may require multiple Enter presses
-to activate. This is because `UIActivator.Activate()` falls through to `SimulatePointerClick()`
-for CustomButtons, which sends pointer enter/down/up/click events. This approach may not work
-reliably for all CustomButton variants.
+**Critical Discovery (January 2026):**
+CustomButton's `_onClick` UnityEvent is NOT where the main game logic lives. The actual
+functionality (tab switching, deck selection, button actions) is implemented in
+`IPointerClickHandler.OnPointerClick()`. Invoking only `_onClick` via reflection produces
+sounds but doesn't trigger state changes.
 
-**Potential Future Fix:**
-If activation becomes unreliable, consider adding direct CustomButton onClick invocation via
-reflection (similar to the fallback in `SimulateScreenCenterClick()`):
+**Current UIActivator Strategy for CustomButtons:**
+1. Detect CustomButton component via `HasCustomButtonComponent()`
+2. Set element as selected in EventSystem (`SetSelectedGameObject`)
+3. Send pointer events (enter, down, up, click)
+4. Send Submit event (keyboard Enter activation)
+5. Also invoke `_onClick` via reflection for secondary effects
+
+**Activation Sequence in `SimulatePointerClick()`:**
 ```csharp
-var customButton = GetCustomButton(element);
-var onClickField = customButton.GetType().GetField("onClick", BindingFlags...);
-var onClick = onClickField.GetValue(customButton);
-onClick.GetType().GetMethod("Invoke").Invoke(onClick, null);
+// 1. Select in EventSystem
+eventSystem.SetSelectedGameObject(element);
+
+// 2. Pointer event sequence
+ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerEnterHandler);
+ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerDownHandler);
+ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
+ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
+
+// 3. Submit event (keyboard activation)
+ExecuteEvents.Execute(element, baseEventData, ExecuteEvents.submitHandler);
+
+// 4. Direct IPointerClickHandler invocation
+foreach (var handler in element.GetComponents<IPointerClickHandler>())
+    handler.OnPointerClick(pointer);
 ```
-This is NOT currently implemented in `UIActivator.Activate()` because pointer simulation
-works for most buttons. Add it if consistent issues arise with specific button types.
+
+**Why onClick Reflection Alone Doesn't Work:**
+- Tabs (Play/Ranked/Brawl): onClick plays sound, but IPointerClickHandler changes mode
+- Deck buttons: onClick may be empty, IPointerClickHandler handles selection
+- The Harmony patches for `PlayBladeVisualState` and `IsDeckSelected` only fire when
+  the actual pointer handlers execute, not when onClick is invoked
 
 ### StyledButton Pattern
 - Used for prompt buttons (Continue, Cancel) in pre-battle and duel screens
@@ -316,7 +369,24 @@ var result = UIActivator.Activate(element);
 // result.Success, result.Message, result.Type
 ```
 
-Handles: Button, Toggle, TMP_InputField, InputField, CustomButton (via pointer simulation)
+**Activation Order (in `Activate()`):**
+1. TMP_InputField → ActivateInputField()
+2. InputField → Select()
+3. Toggle → toggle.isOn = !toggle.isOn
+4. Button → onClick.Invoke()
+5. Child Button → onClick.Invoke()
+6. Clickable in hierarchy → SimulatePointerClick on child
+7. **CustomButton → SimulatePointerClick + TryInvokeCustomButtonOnClick**
+8. Fallback → SimulatePointerClick
+
+**SimulatePointerClick() sequence (updated January 2026):**
+1. SetSelectedGameObject in EventSystem
+2. Pointer events: enter → down → up → click
+3. Submit event (keyboard Enter)
+4. Click on immediate children
+5. Direct IPointerClickHandler invocation
+
+Handles: Button, Toggle, TMP_InputField, InputField, CustomButton (via pointer simulation + onClick)
 
 **Card Playing from Hand:**
 ```csharp
