@@ -201,14 +201,21 @@ C:\Users\fabia\arena\
 - [x] Integration with ZoneNavigator - `GetCombatStateText()` adds combat state to card announcements
 
 **Declare Attackers Phase:**
-- [x] Space key handling - Clicks "All Attack" or "X Attack" button
+- [x] F key handling - Clicks "All Attack" or "X Attackers" button (same as Space)
+- [x] Shift+F key handling - Clicks "No Attacks" button to skip attacking
+- [x] Space key handling - Clicks "All Attack" or "X Attackers" button (redundant with F)
 - [x] Button detection - Finds `PromptButton_Primary` with text containing "Attack"
+- [x] No Attack button detection - Finds `PromptButton_Secondary` with text containing "No"
 - [x] Opponent turn filtering - Ignores "Opponent's Turn" button text
 - [x] Blocker state announcements - Cards announce ", blocking" or ", not blocking" (working)
 - [ ] **Attacker state detection (WIP)** - Need to distinguish "can attack" vs "declared as attacker"
   - `CombatIcon_AttackerFrame(Clone)` appears on creatures that CAN attack
   - `IsAttacking` child may indicate actual declared state (needs verification)
   - Current detection shows all attackable creatures as "attacking"
+
+**Note:** Game requires two presses to complete attack declaration:
+1. First F/Space: Selects attackers (button shows "All Attack")
+2. Second F/Space: Confirms attackers (button shows "X Attackers")
 
 **Declare Blockers Phase:**
 - [x] Space key handling - Attempts to click confirm/done button
@@ -393,3 +400,28 @@ Or manually:
 
 **Files Changed:**
 - `src/Core/Services/GeneralMenuNavigator.cs` - Content panel filtering and Backspace navigation
+
+### January 2026 - Combat Shortcuts (F/Shift+F) and Bug Fixes
+
+**New Combat Shortcuts:**
+- F key: Press "All Attack" / "X Attackers" button during declare attackers phase
+- Shift+F key: Press "No Attacks" button to skip attacking
+- Space key: Same as F (kept for redundancy/user preference)
+
+**Bug Fixes:**
+
+1. **GeneralMenuNavigator not deactivating for DuelScene**
+   - Problem: `ExcludedScenes` contained `"Duel"` but actual scene name is `"DuelScene"`
+   - Fix: Updated to `"DuelScene"`, `"DraftScene"`, `"SealedScene"`
+   - Result: DuelNavigator now properly activates when entering a duel
+
+2. **NullReferenceException in BaseNavigator.GetElementAnnouncement**
+   - Problem: Unity destroyed objects bypass C# `?.` null-conditional operator
+   - Fix: Changed to explicit `if (navElement.GameObject != null)` check before `GetComponent`
+   - Result: No more crashes when UI elements are destroyed during navigation
+
+**Files Changed:**
+- `src/Core/Services/CombatNavigator.cs` - Added F and Shift+F key handling, added `TryClickNoAttackButton()` and `FindNoAttackButton()` methods
+- `src/Core/Services/GeneralMenuNavigator.cs` - Fixed ExcludedScenes to use correct scene names
+- `src/Core/Services/BaseNavigator.cs` - Fixed Unity null check in GetElementAnnouncement
+- `CLAUDE.md` - Updated shortcuts documentation

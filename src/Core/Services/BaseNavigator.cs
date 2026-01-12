@@ -102,12 +102,15 @@ namespace MTGAAccessibility.Core.Services
             var navElement = _elements[index];
             string label = navElement.Label;
 
-            // Add state info for toggles
-            var toggle = navElement.GameObject?.GetComponent<Toggle>();
-            if (toggle != null)
+            // Add state info for toggles (use explicit Unity null check for destroyed objects)
+            if (navElement.GameObject != null)
             {
-                string state = toggle.isOn ? "checked" : "unchecked";
-                label = $"{label}, checkbox, {state}";
+                var toggle = navElement.GameObject.GetComponent<Toggle>();
+                if (toggle != null)
+                {
+                    string state = toggle.isOn ? "checked" : "unchecked";
+                    label = $"{label}, checkbox, {state}";
+                }
             }
 
             return $"{index + 1} of {_elements.Count}: {label}";

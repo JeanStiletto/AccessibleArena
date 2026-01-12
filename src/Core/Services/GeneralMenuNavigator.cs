@@ -20,7 +20,7 @@ namespace MTGAAccessibility.Core.Services
         // Scenes where this navigator should NOT activate (handled by other navigators)
         private static readonly HashSet<string> ExcludedScenes = new HashSet<string>
         {
-            "Bootstrap", "AssetPrep", "Login", "Duel", "Draft", "Sealed"
+            "Bootstrap", "AssetPrep", "Login", "DuelScene", "DraftScene", "SealedScene"
         };
 
         // Minimum CustomButtons needed to consider this a menu

@@ -10,7 +10,8 @@ namespace MTGAAccessibility.Core.Services
     /// <summary>
     /// Handles combat phase navigation.
     /// During Declare Attackers phase:
-    /// - Space presses "All Attack" or "X Attack" button (not "No Attacks")
+    /// - Space or F presses "All Attack" or "X Attack" button
+    /// - Shift+F presses "No Attacks" button
     /// - Announces attacker selection state when navigating battlefield cards
     /// During Declare Blockers phase:
     /// - Space presses "Done" or confirm button
@@ -177,7 +178,15 @@ namespace MTGAAccessibility.Core.Services
             // Handle Declare Attackers phase
             if (_duelAnnouncer.IsInDeclareAttackersPhase)
             {
-                if (Input.GetKeyDown(KeyCode.Space))
+                // Shift+F - press the no attacks button (check first before F alone)
+                if (Input.GetKeyDown(KeyCode.F) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                {
+                    return TryClickNoAttackButton();
+                }
+
+                // Space or F (without Shift) - press the attack button (All Attack / X Attack)
+                if (Input.GetKeyDown(KeyCode.Space) ||
+                    (Input.GetKeyDown(KeyCode.F) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
                 {
                     return TryClickAttackButton();
                 }
@@ -286,6 +295,35 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Finds and clicks the "No Attacks" button.
+        /// Returns true if button was found and clicked.
+        /// </summary>
+        private bool TryClickNoAttackButton()
+        {
+            var buttonInfo = FindNoAttackButton();
+            if (buttonInfo == null)
+            {
+                MelonLogger.Msg("[CombatNavigator] No 'No Attacks' button found");
+                return false;
+            }
+
+            var (button, text) = buttonInfo.Value;
+            MelonLogger.Msg($"[CombatNavigator] Clicking no attack button: {text}");
+
+            var result = UIActivator.SimulatePointerClick(button);
+            if (result.Success)
+            {
+                _announcer.Announce(text, AnnouncementPriority.Normal);
+                return true;
+            }
+            else
+            {
+                _announcer.Announce("Could not activate no attack button", AnnouncementPriority.High);
+                return true; // Still consume the input
+            }
+        }
+
+        /// <summary>
         /// Finds the attack button (PromptButton_Primary with "Attack" in text).
         /// Returns null if not found or if it's opponent's turn.
         /// </summary>
@@ -311,6 +349,38 @@ namespace MTGAAccessibility.Core.Services
                 if (buttonText.Contains("Attack"))
                 {
                     MelonLogger.Msg($"[CombatNavigator] Found attack button: {name} with text '{buttonText}'");
+                    return (selectable.gameObject, buttonText);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds the "No Attacks" button (PromptButton_Secondary with "No" in text).
+        /// Returns null if not found.
+        /// </summary>
+        private (GameObject button, string text)? FindNoAttackButton()
+        {
+            // Look for PromptButton_Secondary with text containing "No"
+            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
+            {
+                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
+                    continue;
+
+                string name = selectable.gameObject.name;
+                if (!name.Contains("PromptButton_Secondary"))
+                    continue;
+
+                // Get the button text
+                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
+                if (string.IsNullOrEmpty(buttonText))
+                    continue;
+
+                // Check if it contains "No" (e.g., "No Attacks", "No Attack")
+                if (buttonText.Contains("No"))
+                {
+                    MelonLogger.Msg($"[CombatNavigator] Found no attack button: {name} with text '{buttonText}'");
                     return (selectable.gameObject, buttonText);
                 }
             }

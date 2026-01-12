@@ -74,7 +74,9 @@ Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
 Info: T (Turn), L (Life), A (Mana), Shift+A (Opponent Mana)
 Card Details: Arrow Up/Down when focused on a card
 Carousel: Arrow Left/Right when focused on a carousel element (e.g., promotional banners)
+Combat (Declare Attackers): F (All Attack / X Attack), Shift+F (No Attacks), Space (All Attack / X Attack)
 Global: F1 (Help), F2 (Context), Ctrl+R (Repeat)
 
-Do NOT override: Tab, Enter, Space, Escape, F, Alt
+Do NOT override: Tab, Enter, Space, Escape, Alt
 Note: Arrow keys used contextually (cards, carousels) - don't override globally
+Note: F key used contextually during declare attackers phase for combat
