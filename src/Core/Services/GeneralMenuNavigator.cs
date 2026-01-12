@@ -563,7 +563,9 @@ namespace MTGAAccessibility.Core.Services
             _postActivationRescanDelay = 0f;
 
             MelonLogger.Msg($"[{NavigatorId}] Rescanning elements after panel change");
-            _hasLoggedUIOnce = false;
+
+            // Log UI elements during rescan to help debug component differences
+            LogAvailableUIElements();
 
             // Clear and rediscover
             _elements.Clear();
@@ -758,7 +760,29 @@ namespace MTGAAccessibility.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Found {customButtons.Count} CustomButtons:");
             foreach (var (obj, text, path) in customButtons.OrderBy(x => x.path).Take(40))
             {
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - '{text}'");
+                // Get detailed component info for analysis
+                bool hasActualText = UITextExtractor.HasActualText(obj);
+                var componentTypes = obj.GetComponents<Component>()
+                    .Where(c => c != null)
+                    .Select(c => c.GetType().Name)
+                    .ToList();
+                string components = string.Join(", ", componentTypes);
+
+                // Get size from RectTransform
+                string sizeInfo = "";
+                var rectTransform = obj.GetComponent<RectTransform>();
+                if (rectTransform != null)
+                {
+                    sizeInfo = $" | Size: {rectTransform.sizeDelta.x:F0}x{rectTransform.sizeDelta.y:F0}";
+                }
+
+                // Check for Image components
+                bool hasImage = obj.GetComponent<Image>() != null || obj.GetComponent<RawImage>() != null;
+                bool hasTextChild = obj.GetComponentInChildren<TMPro.TMP_Text>() != null;
+
+                MelonLogger.Msg($"[{NavigatorId}]   {path}");
+                MelonLogger.Msg($"[{NavigatorId}]     Text: '{text}' | HasActualText: {hasActualText} | HasImage: {hasImage} | HasTextChild: {hasTextChild}{sizeInfo}");
+                MelonLogger.Msg($"[{NavigatorId}]     Components: {components}");
             }
 
             // Find EventTriggers

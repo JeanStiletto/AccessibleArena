@@ -766,6 +766,67 @@ When `_playBladeActive` is true, `IsInBackgroundPanel()` uses special logic:
 5. **Find elements by path:** More reliable than name search
 6. **Log all components:** On problematic elements to understand structure
 
+## UI Element Filtering (UIElementClassifier)
+
+The `UIElementClassifier` filters out non-navigable elements to keep the navigation clean.
+
+### Filtering Methods
+
+**1. Game Properties (`IsHiddenByGameProperties`)**
+- CustomButton.Interactable = false
+- CustomButton.IsHidden() = true
+- CanvasGroup.alpha < 0.1
+- CanvasGroup.interactable = false
+- Decorative graphical elements (see below)
+
+**2. Name Patterns (`IsFilteredByNamePattern`)**
+- `blocker` - Modal click blockers
+- `navpip`, `pip_` - Carousel dots
+- `dismiss` - Dismiss buttons
+- `button_base`, `buttonbase` - Internal button bases
+- `fade` (except nav) - Fade overlays
+- `hitbox`, `backer` (without text) - Hitboxes
+- `socialcorner` - Social corner icon
+- `new`, `indicator` - Badge indicators
+- `viewport`, `content` - Scroll containers
+- `gradient` (except nav) - Decorative gradients
+- Nav controls inside carousels - Handled by parent
+
+**3. Text Content (`IsFilteredByTextContent`)**
+- `new`, `tooltip information`, `text text text` - Placeholder text
+- Numeric-only text in mail/notification elements - Badge counts
+
+**4. Decorative Graphical Elements (`IsDecorativeGraphicalElement`)**
+Filters elements that are purely graphical with no meaningful content:
+
+```csharp
+// Element is filtered if ALL conditions are true:
+- HasActualText: false      // No text content
+- HasImage: false           // No Image/RawImage component
+- HasTextChild: false       // No TMP_Text children
+- Size < 10x10 pixels       // Zero or very small size
+```
+
+**Examples filtered:**
+- Avatar bust select buttons (deck list portraits)
+- Objective graphics placeholders
+- Decorative icons without function
+
+**Examples NOT filtered (have meaningful size):**
+- `nav wild card` button (80x75)
+- `social corner icon` button (100x100)
+
+This approach distinguishes between:
+- **Decorative elements**: No content, zero size → Filter
+- **Functional icon buttons**: No text but have size → Keep
+
+### Adding New Filters
+
+To filter a new type of element, choose the appropriate method:
+1. **Name-based**: Add to `IsFilteredByNamePattern()` for consistent naming patterns
+2. **Component-based**: Add to `IsHiddenByGameProperties()` for specific component checks
+3. **Content-based**: Add to `IsFilteredByTextContent()` for text patterns
+
 ## Common Gotchas
 
 - MelonGame attribute is case sensitive: `"Wizards Of The Coast"`

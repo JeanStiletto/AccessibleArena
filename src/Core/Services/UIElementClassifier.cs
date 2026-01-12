@@ -413,7 +413,44 @@ namespace MTGAAccessibility.Core.Services
             if (!IsVisibleViaCanvasGroup(obj))
                 return true;
 
+            // Filter decorative/graphical elements with no content and zero size
+            if (IsDecorativeGraphicalElement(obj))
+                return true;
+
             return false;
+        }
+
+        /// <summary>
+        /// Check if element is a decorative/graphical element with no meaningful content.
+        /// Filters elements that have: no actual text, no image, no text children, and zero/tiny size.
+        /// Examples: avatar bust portraits, objective graphics, decorative icons.
+        /// Functional icon buttons (like wildcard, social) have actual size and are not filtered.
+        /// </summary>
+        private static bool IsDecorativeGraphicalElement(GameObject obj)
+        {
+            // Must have no actual text content
+            if (UITextExtractor.HasActualText(obj))
+                return false;
+
+            // Must have no Image component
+            if (obj.GetComponent<Image>() != null || obj.GetComponent<RawImage>() != null)
+                return false;
+
+            // Must have no text children
+            if (obj.GetComponentInChildren<TMP_Text>() != null)
+                return false;
+
+            // Must have zero or very small size (< 10 pixels in both dimensions)
+            var rectTransform = obj.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                Vector2 size = rectTransform.sizeDelta;
+                if (size.x > 10 || size.y > 10)
+                    return false; // Has meaningful size, keep it
+            }
+
+            // All conditions met - this is a decorative element
+            return true;
         }
 
         /// <summary>
