@@ -115,6 +115,13 @@ C:\Users\fabia\arena\
 - [x] Deck name extraction - `TryGetDeckName()` extracts from TMP_InputField
 - [x] Deck entry pairing - UI (select) and TextBox (edit) paired per deck
 - [x] Alternate actions - Shift+Enter to edit deck name, Enter to select
+- [x] Play button activation - Opens PlayBlade correctly
+- [x] Find Match button - Activates and shows tooltip
+- [x] Mode tabs (Play/Ranked/Brawl) - Produce activation sounds
+- [~] **Deck selection - PARTIALLY WORKING** (January 2026)
+  - EventSystem selects deck correctly
+  - Pointer events sent but `IsDeckSelected` not triggered
+  - May require starter deck cloning first (see BEST_PRACTICES.md)
 
 ### UI Utilities
 - [x] UIElementClassifier - Element role detection and filtering
@@ -296,3 +303,93 @@ Detects menu panel state changes (open/close) via Harmony patches for reliable o
 Patched controllers: NavContentController, SettingsMenu, DeckSelectBlade
 
 See `docs/BEST_PRACTICES.md` "Panel State Detection (Harmony Patches)" section for full technical details.
+
+## Recent Changes
+
+### January 2026 - UIActivator CustomButton Fix
+
+**Problem:** Play menu buttons (tabs, deck selection) weren't triggering game state changes.
+Clicking produced sounds but didn't actually switch modes or select decks.
+
+**Root Cause:** UIActivator was using `_onClick` reflection FIRST for CustomButtons. The
+`_onClick` UnityEvent only handles secondary effects (sounds). The actual game logic lives
+in `IPointerClickHandler.OnPointerClick()`.
+
+**Changes to `UIActivator.cs`:**
+1. Added `HasCustomButtonComponent()` helper method
+2. For CustomButtons: Now tries pointer simulation FIRST, then onClick reflection
+3. Added `EventSystem.SetSelectedGameObject()` before sending pointer events
+4. Added Submit event (`ExecuteEvents.submitHandler`) for keyboard activation
+5. Added logging for Toggle activation
+
+**Current Status:**
+- Play/Find Match buttons work correctly
+- Mode tabs produce sounds (partial activation)
+- Deck selection sends all events but game doesn't respond
+- Investigation suggests starter decks may need cloning first
+
+**Files Changed:**
+- `src/Core/Services/UIActivator.cs` - Activation strategy reordered
+- `docs/BEST_PRACTICES.md` - CustomButton pattern documented
+- `docs/MOD_STRUCTURE.md` - Status updated
+
+### January 2026 - Content Panel NavBar Filtering & Backspace Navigation (UNTESTED)
+
+**Status: UNTESTED - May need to be reverted if issues occur**
+
+**Problem:** When navigating to menu pages (Decks, Profile, Store, Learn, etc.), the NavBar
+buttons (Home, Profile, Packs, Store, Mastery, etc.) were included in Tab navigation, making
+it tedious to navigate through page-specific content.
+
+**Solution Part 1 - Consolidated Content Panel Filtering:**
+
+Previously had separate flags for different panel types:
+- `_settingsOverlayActive` - Settings menu
+- `_deckSelectOverlayActive` - Deck selection during play
+- `_playBladeActive` - Play blade (kept separate - has special logic)
+- `_deckManagerActive` - Decks page only
+
+Consolidated into two flags:
+- `_playBladeActive` - Play blade only (kept separate due to special blade-inside filtering)
+- `_contentPanelActive` - ALL content panels that should filter NavBar
+
+Content panels now handled by `_contentPanelActive`:
+- `DeckManagerController` - Decks page
+- `ProfileContentController` - Profile page
+- `ContentController_StoreCarousel` - Store page
+- `LearnToPlayControllerV2` - Learn to Play page
+- `WrapperDeckBuilder` - Deck builder (editing a deck)
+- `MasteryContentController` - Mastery page
+- `AchievementsContentController` - Achievements page
+- `PackOpeningController` - Pack opening
+- `SettingsMenu` - Settings overlay
+- `DeckSelectBlade` - Deck selection during play
+
+**Solution Part 2 - Backspace to Home Navigation:**
+
+Since NavBar buttons are filtered out, added Backspace key to navigate back to Home:
+- When `_contentPanelActive` is true and Backspace is pressed
+- Finds Home button directly in scene at `NavBar_Desktop_16x9(Clone)/Base/Nav_Home`
+- Activates it to return to main menu
+- Announces "Returning to Home"
+
+**Key Code Changes in `GeneralMenuNavigator.cs`:**
+1. Removed `_settingsOverlayActive` and `_deckSelectOverlayActive` flags
+2. Renamed `_deckManagerActive` to `_contentPanelActive`
+3. Updated `OnPanelStateChangedExternal()` to detect all content panel types
+4. Updated `IsInForegroundPanel()` overlay check to use consolidated flags
+5. Added `HandleCustomInput()` override for Backspace key
+6. Added `NavigateToHome()` method to find and activate Home button
+
+**How to Revert if Issues Occur:**
+```bash
+git revert HEAD
+```
+Or manually:
+1. Restore separate flags: `_settingsOverlayActive`, `_deckSelectOverlayActive`, `_deckManagerActive`
+2. Remove `_contentPanelActive` and its handlers
+3. Remove `HandleCustomInput()` and `NavigateToHome()` methods
+4. Restore individual panel handling in `OnPanelStateChangedExternal()`
+
+**Files Changed:**
+- `src/Core/Services/GeneralMenuNavigator.cs` - Content panel filtering and Backspace navigation

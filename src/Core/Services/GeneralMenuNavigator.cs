@@ -127,9 +127,8 @@ namespace MTGAAccessibility.Core.Services
             _activationDelay = ACTIVATION_DELAY_SECONDS;
             _activePanels.Clear();
             _foregroundPanel = null; // Clear panel filter on scene change
-            _settingsOverlayActive = false;
-            _deckSelectOverlayActive = false;
             _playBladeActive = false;
+            _contentPanelActive = false;
 
             if (_isActive)
             {
@@ -150,9 +149,8 @@ namespace MTGAAccessibility.Core.Services
             _foregroundPanel = null;
             _activePanels.Clear();
             _postActivationRescanDelay = 0f;
-            _settingsOverlayActive = false;
-            _deckSelectOverlayActive = false;
             _playBladeActive = false;
+            _contentPanelActive = false;
         }
 
         /// <summary>
@@ -210,6 +208,68 @@ namespace MTGAAccessibility.Core.Services
 
             // Call base Update for normal navigation handling
             base.Update();
+        }
+
+        /// <summary>
+        /// Handle custom input keys. Backspace navigates back to Home when in a content panel.
+        /// </summary>
+        protected override bool HandleCustomInput()
+        {
+            // Backspace: Navigate back to Home (main menu)
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                if (_contentPanelActive)
+                {
+                    return NavigateToHome();
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Find and activate the Home button to return to the main menu.
+        /// The Home button may be filtered out of navigation but is still in the scene.
+        /// </summary>
+        private bool NavigateToHome()
+        {
+            // Find NavBar and its Home button
+            var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)");
+            if (navBar == null)
+            {
+                navBar = GameObject.Find("NavBar");
+            }
+
+            if (navBar == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] NavBar not found for Home navigation");
+                _announcer.Announce("Cannot navigate to Home", Models.AnnouncementPriority.High);
+                return true;
+            }
+
+            // Find Nav_Home button
+            var homeButtonTransform = navBar.transform.Find("Base/Nav_Home");
+            GameObject homeButton = homeButtonTransform?.gameObject;
+            if (homeButton == null)
+            {
+                // Try alternative paths
+                homeButton = FindChildByName(navBar.transform, "Nav_Home");
+            }
+
+            if (homeButton == null || !homeButton.activeInHierarchy)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Home button not found or inactive");
+                _announcer.Announce("Home button not available", Models.AnnouncementPriority.High);
+                return true;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Navigating to Home via Backspace");
+            _announcer.Announce("Returning to Home", Models.AnnouncementPriority.High);
+
+            // Activate the Home button
+            UIActivator.Activate(homeButton);
+
+            return true;
         }
 
         /// <summary>
@@ -466,7 +526,8 @@ namespace MTGAAccessibility.Core.Services
         private bool IsInForegroundPanel(GameObject obj)
         {
             // Check if any overlay is active (either detected via panel or via Harmony flag)
-            bool overlayActive = _foregroundPanel != null || _settingsOverlayActive || _deckSelectOverlayActive || _playBladeActive;
+            // _playBladeActive kept separate due to special blade-inside filtering logic
+            bool overlayActive = _foregroundPanel != null || _playBladeActive || _contentPanelActive;
 
             if (!overlayActive)
                 return true; // No overlay active, show all
@@ -1090,42 +1151,37 @@ namespace MTGAAccessibility.Core.Services
 
             // Handle known overlay types immediately - don't wait for panel detection
             // This ensures filtering is set up before rescan happens
-            if (panelTypeName.Contains("SettingsMenu"))
+
+            // Content panels and overlays that should filter NavBar (not HomePageContentController)
+            // Includes: menu pages, settings, deck selection, deck builder, etc.
+            bool isContentPanel = panelTypeName.Contains("DeckManagerController") ||
+                                  panelTypeName.Contains("ProfileContentController") ||
+                                  panelTypeName.Contains("ContentController_StoreCarousel") ||
+                                  panelTypeName.Contains("LearnToPlayController") ||
+                                  panelTypeName.Contains("WrapperDeckBuilder") ||
+                                  panelTypeName.Contains("MasteryContentController") ||
+                                  panelTypeName.Contains("AchievementsContentController") ||
+                                  panelTypeName.Contains("PackOpeningController") ||
+                                  panelTypeName.Contains("SettingsMenu") ||
+                                  panelTypeName.Contains("DeckSelectBlade");
+
+            if (isContentPanel)
             {
                 if (isOpen)
                 {
-                    // Settings opened - mark that we're in settings overlay mode
-                    // The actual content panel will be found during rescan
-                    _activePanels.Add("SettingsMenu:External");
-                    _settingsOverlayActive = true;
-                    MelonLogger.Msg($"[{NavigatorId}] Settings overlay opened (from Harmony)");
+                    _activePanels.Add($"ContentPanel:{panelTypeName}");
+                    _contentPanelActive = true;
+                    MelonLogger.Msg($"[{NavigatorId}] Content panel opened: {panelTypeName} (from Harmony)");
                 }
                 else
                 {
-                    // Settings closed
-                    _activePanels.Remove("SettingsMenu:External");
-                    _settingsOverlayActive = false;
+                    _activePanels.RemoveWhere(p => p.StartsWith("ContentPanel:"));
+                    _contentPanelActive = false;
                     _foregroundPanel = null;
-                    MelonLogger.Msg($"[{NavigatorId}] Settings overlay closed (from Harmony)");
+                    MelonLogger.Msg($"[{NavigatorId}] Content panel closed: {panelTypeName} (from Harmony)");
                 }
             }
-            else if (panelTypeName.Contains("DeckSelectBlade"))
-            {
-                if (isOpen)
-                {
-                    _activePanels.Add("DeckSelectBlade:External");
-                    _deckSelectOverlayActive = true;
-                    MelonLogger.Msg($"[{NavigatorId}] Deck select overlay opened (from Harmony)");
-                }
-                else
-                {
-                    _activePanels.Remove("DeckSelectBlade:External");
-                    _deckSelectOverlayActive = false;
-                    _foregroundPanel = null;
-                    MelonLogger.Msg($"[{NavigatorId}] Deck select overlay closed (from Harmony)");
-                }
-            }
-            // Handle PlayBlade and related blade views
+            // Handle PlayBlade and related blade views (kept separate due to special blade-inside logic)
             else if (panelTypeName.Contains("PlayBlade") || panelTypeName.Contains("Blade:"))
             {
                 if (isOpen)
@@ -1175,8 +1231,7 @@ namespace MTGAAccessibility.Core.Services
 
         // Flags set by Harmony events to indicate overlay is active
         // Used by IsInForegroundPanel when _foregroundPanel hasn't been found yet
-        private bool _settingsOverlayActive = false;
-        private bool _deckSelectOverlayActive = false;
-        private bool _playBladeActive = false;
+        private bool _playBladeActive = false; // PlayBlade kept separate due to special blade-inside filtering logic
+        private bool _contentPanelActive = false; // Any content panel/overlay that should filter NavBar
     }
 }
