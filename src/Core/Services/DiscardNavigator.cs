@@ -33,10 +33,61 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Checks if discard/selection mode is active by looking for "Submit X" button.
+        /// Also checks that we're NOT in targeting mode (cards with HotHighlight).
         /// </summary>
         public bool IsDiscardModeActive()
         {
-            return GetSubmitButtonInfo() != null;
+            if (GetSubmitButtonInfo() == null)
+                return false;
+
+            // If there are valid targets on the battlefield (HotHighlight),
+            // we're in targeting mode, not discard mode
+            if (HasValidTargetsOnBattlefield())
+            {
+                MelonLogger.Msg("[DiscardNavigator] Submit button found but valid targets exist - yielding to targeting mode");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Checks if any cards on the battlefield have HotHighlight (indicating targeting mode).
+        /// </summary>
+        private bool HasValidTargetsOnBattlefield()
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                // Check if it's on the battlefield
+                Transform current = go.transform;
+                bool onBattlefield = false;
+                while (current != null)
+                {
+                    if (current.name.Contains("BattlefieldCardHolder"))
+                    {
+                        onBattlefield = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+
+                if (!onBattlefield)
+                    continue;
+
+                // Check for HotHighlight child (indicates valid target)
+                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.gameObject.activeInHierarchy && child.name.Contains("HotHighlight"))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

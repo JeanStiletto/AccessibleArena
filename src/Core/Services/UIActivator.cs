@@ -624,15 +624,14 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Checks if the game is waiting for target selection.
-        /// Detection methods:
-        /// 1. "Submit X" button visible (e.g., "Submit 0", "Submit 1")
-        /// 2. "Cancel" button on a PromptButton_Secondary (indicates pending action)
+        /// Detection: Looks for "Submit X" button (e.g., "Submit 0", "Submit 1").
+        /// Note: Cancel button alone is not reliable - can appear for other purposes.
         /// </summary>
         private static bool IsTargetingModeActive()
         {
             // Pattern matches "Submit" followed by optional space and a number
+            // This is the reliable indicator of discard/selection mode
             var submitPattern = new Regex(@"^Submit\s*\d+$", RegexOptions.IgnoreCase);
-            bool foundCancelButton = false;
 
             // Check TMP_Text components (used by StyledButton)
             foreach (var tmpText in GameObject.FindObjectsOfType<TMP_Text>())
@@ -660,22 +659,6 @@ namespace MTGAAccessibility.Core.Services
                     }
                 }
 
-                // Check for Cancel button on secondary prompt (indicates pending action)
-                if (text.Equals("Cancel", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    var parent = tmpText.transform.parent;
-                    while (parent != null)
-                    {
-                        string parentName = parent.name;
-                        if (parentName.Contains("PromptButton_Secondary"))
-                        {
-                            Log($"Found Cancel button on secondary prompt: {parentName}");
-                            foundCancelButton = true;
-                            break;
-                        }
-                        parent = parent.parent;
-                    }
-                }
             }
 
             // Also check legacy Text components
@@ -703,30 +686,11 @@ namespace MTGAAccessibility.Core.Services
                     }
                 }
 
-                if (text.Equals("Cancel", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    var parent = uiText.transform.parent;
-                    while (parent != null)
-                    {
-                        string parentName = parent.name;
-                        if (parentName.Contains("PromptButton_Secondary"))
-                        {
-                            Log($"Found Cancel button on secondary prompt: {parentName}");
-                            foundCancelButton = true;
-                            break;
-                        }
-                        parent = parent.parent;
-                    }
-                }
             }
 
-            // Cancel button on secondary prompt indicates targeting/pending action
-            if (foundCancelButton)
-            {
-                Log("Targeting mode detected via Cancel button");
-                return true;
-            }
-
+            // Note: Cancel button alone is NOT a reliable indicator - there can be Cancel buttons
+            // for other purposes (Cancel Attacks, etc.). Only the "Submit X" pattern reliably
+            // indicates discard/selection mode.
             return false;
         }
 

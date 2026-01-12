@@ -577,6 +577,142 @@ if (_zoneNavigator.HandleInput())       // Then zone navigation
     return true;
 ```
 
+### Mode Interactions and Auto-Detection (January 2026)
+
+The duel scene has multiple "modes" that affect input handling. Understanding their interactions is critical for debugging.
+
+**Modes:**
+1. **Targeting Mode** (TargetNavigator) - Selecting targets for spells/abilities
+2. **Discard Mode** (DiscardNavigator) - Selecting cards to discard
+3. **Combat Phase** (CombatNavigator) - Declare attackers/blockers
+4. **Normal Mode** - Default zone navigation
+
+**Input Priority in DuelNavigator.HandleCustomInput():**
+```
+1. TargetNavigator    → Tab/Enter/Escape during targeting
+2. DiscardNavigator   → Enter/Space during discard mode
+3. CombatNavigator    → F/Space during declare attackers/blockers
+4. HighlightNavigator → Tab to cycle playable cards
+5. BattlefieldNavigator → A/R/B shortcuts, row navigation
+6. ZoneNavigator      → C/G/X/S shortcuts, Left/Right in zones
+```
+
+**HotHighlight - Shared Visual Indicator:**
+The game uses `HotHighlight` child objects for MULTIPLE purposes:
+- Valid spell targets (targeting mode)
+- Playable cards (highlight mode)
+- Creatures that can attack (declare attackers)
+- Creatures that can block (declare blockers)
+
+**CRITICAL: We cannot visually distinguish these!** This is why phase detection is essential.
+
+**Auto-Detection Logic (DuelNavigator):**
+
+*Entering Targeting Mode:*
+```csharp
+// Only auto-enter when NOT in combat phase
+bool inCombatPhase = IsInDeclareAttackersPhase || IsInDeclareBlockersPhase;
+if (!_targetNavigator.IsTargeting && !inCombatPhase && HasValidTargetsOnBattlefield())
+{
+    _targetNavigator.EnterTargetMode();
+}
+```
+- Checks for HotHighlight on battlefield/stack cards
+- EXCLUDES combat phases (HotHighlight = attackers/blockers there)
+- During combat, UIActivator explicitly calls EnterTargetMode() for instants
+
+*Exiting Targeting Mode:*
+```csharp
+// Auto-exit when:
+// 1. No more HotHighlight (spell resolved)
+// 2. Combat started without spell on stack
+if (_targetNavigator.IsTargeting)
+{
+    if (!hasValidTargets)
+        _targetNavigator.ExitTargetMode(); // Spell resolved
+    else if (inCombatPhase && _zoneNavigator.StackCardCount == 0)
+        _targetNavigator.ExitTargetMode(); // Combat, no spell
+}
+```
+- Game event `PlayerSubmittedTargetsEventTranslator` is unreliable
+- Fallback: check if HotHighlight disappeared or combat started
+
+**DiscardNavigator Detection:**
+```csharp
+public bool IsDiscardModeActive()
+{
+    if (GetSubmitButtonInfo() == null)  // No "Submit X" button
+        return false;
+    if (HasValidTargetsOnBattlefield()) // HotHighlight = targeting, not discard
+        return false;
+    return true;
+}
+```
+- Looks for "Submit X" button (e.g., "Submit 0", "Submit 1")
+- Yields to targeting mode if HotHighlight exists
+- NOTE: Cancel button alone is NOT reliable (appears in combat too)
+
+**Combat Phase Detection:**
+```csharp
+// In DuelAnnouncer
+public bool IsInDeclareAttackersPhase { get; private set; }
+public bool IsInDeclareBlockersPhase { get; private set; }
+```
+- Set via `ToggleCombatUXEvent` and phase tracking
+- Used to suppress targeting auto-detection during combat
+
+**BattlefieldNavigator Zone Coordination:**
+```csharp
+// Only handle Left/Right if in battlefield zone
+bool inBattlefield = _zoneNavigator.CurrentZone == ZoneType.Battlefield;
+if (!alt && inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow)) { ... }
+
+// A/R/B shortcuts set zone to Battlefield
+if (Input.GetKeyDown(KeyCode.B))
+{
+    _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+    NavigateToRow(BattlefieldRow.PlayerCreatures);
+}
+```
+- Prevents stealing Left/Right from other zones (hand, graveyard)
+- Zone state shared via `ZoneNavigator.SetCurrentZone()`
+
+**Targeting Mode During Combat (Instant Spells):**
+When playing an instant during combat:
+1. User presses Enter on instant in hand
+2. UIActivator plays the card
+3. UIActivator calls `targetNavigator.EnterTargetMode()` if targeting needed
+4. Auto-detection is SKIPPED (inCombatPhase = true)
+5. After target selected, auto-exit detects "no more HotHighlight"
+
+**Common Bug Patterns:**
+
+1. **Targeting mode doesn't exit:**
+   - Check if `PlayerSubmittedTargetsEventTranslator` fired
+   - Check if HotHighlight still exists
+   - Add auto-exit fallback
+
+2. **Targeting activates during combat:**
+   - Check `inCombatPhase` flag
+   - Verify `IsInDeclareAttackersPhase`/`IsInDeclareBlockersPhase`
+
+3. **Can't play cards (stuck in mode):**
+   - Check which navigator is consuming Enter key
+   - Check targeting/discard mode flags
+   - Look for leftover Submit/Cancel buttons
+
+4. **Left/Right stolen by battlefield:**
+   - Check `ZoneNavigator.CurrentZone`
+   - Verify zone shortcuts update zone state
+
+**Debug Logging to Add:**
+```csharp
+MelonLogger.Msg($"[Mode] targeting={_targetNavigator.IsTargeting}, " +
+    $"discard={_discardNavigator.IsDiscardModeActive()}, " +
+    $"combat={inCombatPhase}, hotHighlight={hasValidTargets}, " +
+    $"stack={_zoneNavigator.StackCardCount}");
+```
+
 ### ZoneNavigator
 Handles zone navigation in DuelScene. Separate service following same pattern as CardInfoNavigator.
 

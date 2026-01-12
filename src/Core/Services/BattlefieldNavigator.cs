@@ -28,6 +28,9 @@ namespace MTGAAccessibility.Core.Services
         // Reference to CombatNavigator for attacker/blocker state announcements
         private CombatNavigator _combatNavigator;
 
+        // Reference to TargetNavigator for targeting mode row navigation
+        private TargetNavigator _targetNavigator;
+
         // Row order from top (enemy side) to bottom (player side) for Alt+Up/Down navigation
         private static readonly BattlefieldRow[] RowOrder = {
             BattlefieldRow.EnemyLands,
@@ -59,6 +62,14 @@ namespace MTGAAccessibility.Core.Services
         public void SetCombatNavigator(CombatNavigator navigator)
         {
             _combatNavigator = navigator;
+        }
+
+        /// <summary>
+        /// Sets the TargetNavigator reference for targeting mode row navigation.
+        /// </summary>
+        public void SetTargetNavigator(TargetNavigator navigator)
+        {
+            _targetNavigator = navigator;
         }
 
         /// <summary>
@@ -96,6 +107,7 @@ namespace MTGAAccessibility.Core.Services
             // Row shortcuts: A for lands
             if (Input.GetKeyDown(KeyCode.A))
             {
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
                 if (shift)
                     NavigateToRow(BattlefieldRow.EnemyLands);
                 else
@@ -106,6 +118,7 @@ namespace MTGAAccessibility.Core.Services
             // Row shortcuts: R for non-creatures (artifacts, enchantments, planeswalkers)
             if (Input.GetKeyDown(KeyCode.R))
             {
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
                 if (shift)
                     NavigateToRow(BattlefieldRow.EnemyNonCreatures);
                 else
@@ -116,6 +129,7 @@ namespace MTGAAccessibility.Core.Services
             // Row shortcuts: B for creatures
             if (Input.GetKeyDown(KeyCode.B))
             {
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
                 if (shift)
                     NavigateToRow(BattlefieldRow.EnemyCreatures);
                 else
@@ -123,36 +137,72 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Row switching with Alt+Up/Down
-            if (alt && Input.GetKeyDown(KeyCode.UpArrow))
+            // Check if in targeting mode - special handling for battlefield inspection
+            bool isTargeting = _targetNavigator?.IsTargeting == true;
+            bool inBattlefield = _zoneNavigator.CurrentZone == ZoneType.Battlefield;
+
+            // In targeting mode: Alt+Up/Down for row navigation, but Left/Right/Enter are NOT captured
+            if (isTargeting)
+            {
+                if (alt && Input.GetKeyDown(KeyCode.UpArrow))
+                {
+                    // If not in battlefield yet, default to PlayerCreatures
+                    if (!inBattlefield)
+                    {
+                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                        _currentRow = BattlefieldRow.PlayerCreatures;
+                        DiscoverAndCategorizeCards();
+                    }
+                    PreviousRow();
+                    return true;
+                }
+
+                if (alt && Input.GetKeyDown(KeyCode.DownArrow))
+                {
+                    // If not in battlefield yet, default to PlayerCreatures
+                    if (!inBattlefield)
+                    {
+                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                        _currentRow = BattlefieldRow.PlayerCreatures;
+                        DiscoverAndCategorizeCards();
+                    }
+                    NextRow();
+                    return true;
+                }
+
+                // Don't capture Left/Right/Enter during targeting - let other zones handle them
+                return false;
+            }
+
+            // Row switching with Alt+Up/Down (only when already in battlefield)
+            if (inBattlefield && alt && Input.GetKeyDown(KeyCode.UpArrow))
             {
                 PreviousRow();
                 return true;
             }
 
-            if (alt && Input.GetKeyDown(KeyCode.DownArrow))
+            if (inBattlefield && alt && Input.GetKeyDown(KeyCode.DownArrow))
             {
                 NextRow();
                 return true;
             }
 
-            // Card navigation within row (Left/Right without Alt)
-            if (!alt && Input.GetKeyDown(KeyCode.LeftArrow))
+            if (!alt && inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 ClearEventSystemSelection();
                 PreviousCard();
                 return true;
             }
 
-            if (!alt && Input.GetKeyDown(KeyCode.RightArrow))
+            if (!alt && inBattlefield && Input.GetKeyDown(KeyCode.RightArrow))
             {
                 ClearEventSystemSelection();
                 NextCard();
                 return true;
             }
 
-            // Enter to activate card
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            // Enter to activate card (only when in battlefield)
+            if (inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 ActivateCurrentCard();
                 return true;

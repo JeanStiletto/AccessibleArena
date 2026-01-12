@@ -72,6 +72,9 @@ namespace MTGAAccessibility.Core.Services
 
             // Connect BattlefieldNavigator to CombatNavigator for combat state announcements
             _battlefieldNavigator.SetCombatNavigator(_combatNavigator);
+
+            // Connect BattlefieldNavigator to TargetNavigator for targeting mode row navigation
+            _battlefieldNavigator.SetTargetNavigator(_targetNavigator);
         }
 
         /// <summary>
@@ -303,6 +306,44 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         protected override bool HandleCustomInput()
         {
+            // Auto-detect targeting mode: if valid targets exist but we're not in targeting mode yet
+            // ONLY auto-enter when NOT in combat phase - during combat, HotHighlight is for attackers/blockers
+            // not spell targets. If a spell needs targeting during combat, UIActivator will call EnterTargetMode.
+            bool inCombatPhase = _duelAnnouncer.IsInDeclareAttackersPhase || _duelAnnouncer.IsInDeclareBlockersPhase;
+            bool hasValidTargets = HasValidTargetsOnBattlefield();
+
+            if (!_targetNavigator.IsTargeting && !inCombatPhase && hasValidTargets)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Auto-detected targeting mode - entering");
+                _targetNavigator.EnterTargetMode();
+            }
+
+            // Auto-exit targeting mode when:
+            // 1. No more valid targets (spell resolved, HotHighlight gone)
+            // 2. Combat phase started without a spell on stack (targeting was for previous spell)
+            if (_targetNavigator.IsTargeting)
+            {
+                bool shouldExit = false;
+                string exitReason = "";
+
+                if (!hasValidTargets)
+                {
+                    shouldExit = true;
+                    exitReason = "no more valid targets";
+                }
+                else if (inCombatPhase && _zoneNavigator.StackCardCount == 0)
+                {
+                    shouldExit = true;
+                    exitReason = "combat phase without spell on stack";
+                }
+
+                if (shouldExit)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Auto-exiting targeting mode - {exitReason}");
+                    _targetNavigator.ExitTargetMode();
+                }
+            }
+
             // First, let TargetNavigator handle input if in targeting mode
             // This allows Tab to cycle targets during spell targeting
             if (_targetNavigator.HandleInput())
@@ -450,6 +491,45 @@ namespace MTGAAccessibility.Core.Services
             name = System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
             name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", " ");
             return name;
+        }
+
+        /// <summary>
+        /// Checks if any cards on the battlefield have HotHighlight (indicating targeting mode).
+        /// </summary>
+        private bool HasValidTargetsOnBattlefield()
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                // Check if it's on the battlefield or stack
+                Transform current = go.transform;
+                bool inTargetZone = false;
+                while (current != null)
+                {
+                    if (current.name.Contains("BattlefieldCardHolder") || current.name.Contains("StackCardHolder"))
+                    {
+                        inTargetZone = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+
+                if (!inTargetZone)
+                    continue;
+
+                // Check for HotHighlight child (indicates valid target)
+                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.gameObject.activeInHierarchy && child.name.Contains("HotHighlight"))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         #endregion

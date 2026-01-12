@@ -51,6 +51,15 @@ namespace MTGAAccessibility.Core.Services
         public ZoneType CurrentZone => _currentZone;
         public int CardCount => _zones.ContainsKey(_currentZone) ? _zones[_currentZone].Cards.Count : 0;
         public int HandCardCount => _zones.ContainsKey(ZoneType.Hand) ? _zones[ZoneType.Hand].Cards.Count : 0;
+        public int StackCardCount => _zones.ContainsKey(ZoneType.Stack) ? _zones[ZoneType.Stack].Cards.Count : 0;
+
+        /// <summary>
+        /// Sets the current zone without full navigation (used by BattlefieldNavigator).
+        /// </summary>
+        public void SetCurrentZone(ZoneType zone)
+        {
+            _currentZone = zone;
+        }
 
         // Reference to TargetNavigator for entering targeting mode after playing cards
         private TargetNavigator _targetNavigator;
