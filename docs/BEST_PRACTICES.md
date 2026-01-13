@@ -142,10 +142,26 @@ bool isOpponent = zoneStr.Contains("Opponent");
 
 The main menu uses a different architecture than DuelScene. Key classes in `Core.Meta.MainNavigation`:
 
+**Important:** There is ONE main menu screen with dynamic content, not two separate menus.
+The "Home" button and "Return to Arena" button both navigate within the same system -
+Home activates `HomePageContentController`, while Return to Arena dismisses the current overlay.
+
 **NavContentController** - Base class for all menu screens (MonoBehaviour)
 - Properties: `NavContentType`, `IsOpen`, `IsReadyToShow`, `SkipScreen`
 - Methods: `BeginOpen()`, `BeginClose()`, `FinishOpen()`, `FinishClose()`, `Activate(bool)`
-- Implementations: `HomePageContentController`, `ProfileContentController`, `AchievementsContentController`, etc.
+- Note: `NavContentType` enum is not exposed - detection must use type name reflection
+
+**NavContentController Implementations (complete list):**
+- `HomePageContentController` - Main home screen with Play, Bot Match, carousel, Color Challenge
+- `DeckManagerController` - Deck building/management
+- `ProfileContentController` - Player profile
+- `ContentController_StoreCarousel` - Store page
+- `MasteryContentController` - Mastery tree progression
+- `AchievementsContentController` - Achievements/rewards
+- `LearnToPlayControllerV2` - Tutorial content
+- `PackOpeningController` - Pack opening animations
+- `CampaignGraphContentController` - Color Challenge menu
+- `WrapperDeckBuilder` - Deck builder/editor
 
 **SettingsMenu / SettingsMenuHost** - Settings panel management
 - `IsOpen` property/method to check if settings is active
@@ -163,12 +179,50 @@ The main menu uses a different architecture than DuelScene. Key classes in `Core
 **Button Types in Menus:**
 - `CustomButton` - MTGA's custom component (most menu buttons, NOT Unity Selectable)
 - `Button` - Unity standard (some overlay elements)
-- `EventTrigger` - Special interactive elements
+- `EventTrigger` - Special interactive elements (including "Return to Arena" button)
 
 **Input Priority (highest to lowest):**
 1. Debug, 2. SystemMessage, 3. SettingsMenu, 4. DuelScene, 5. Wrapper, 6. NPE
 
 See `docs/MENU_NAVIGATION.md` for detailed documentation.
+
+### NavBar Structure
+
+The NavBar is a persistent UI bar that remains visible across all menu screens.
+
+**GameObject:** `NavBar_Desktop_16x9(Clone)`
+
+**Key Elements:**
+- `Base/Nav_Home` - Home button (CustomButton)
+- `Base/Nav_Profile` - Profile button
+- `Base/Nav_Decks` - Decks button
+- `Base/Nav_Packs` - Packs button
+- `Base/Nav_Store` - Store button
+- `Base/Nav_Mastery` - Mastery button
+- `Nav_Achievements` - Achievements (appears after HomePage loads)
+- `Nav_WildCard`, `Nav_Coins`, `Nav_Gems` - Resource counters
+- `MainButtonOutline` - "Return to Arena" button (EventTrigger, NOT CustomButton)
+
+**Navigation Flow:**
+1. NavBar loads first (~13 elements)
+2. Content controller loads after (~6 seconds for HomePage)
+3. Clicking NavBar buttons swaps the active content controller
+4. Overlays (Settings, PlayBlade) float on top of content
+
+**Screen Detection (in GeneralMenuNavigator):**
+The mod detects the current screen by:
+1. Checking for overlay states (Settings, PlayBlade)
+2. Finding active content controller via `IsOpen`/`IsReadyToShow` reflection
+3. Checking for carousel/Color Challenge visibility on HomePage
+4. Announcing context-specific screen names
+
+### Carousel Detection
+
+The promotional carousel on HomePage can be detected by these elements:
+- `NavGradient_Previous` / `NavGradient_Next` - Navigation arrows
+- `WelcomeBundle` - Welcome bundle promotional content
+- `EventBlade_Item` - Event blade items
+- Elements with `CarouselInfo.HasArrowNavigation = true`
 
 ### PlayBlade Architecture (Play/Bot Match Screens)
 
@@ -1075,9 +1129,13 @@ but our reflection-based panel detection during rescan was unreliable. Solution:
 **PlayBlade Filtering Logic:**
 
 When `_playBladeActive` is true, `IsInBackgroundPanel()` uses special logic:
-- Elements inside "Blade", "PlayBlade", "FindMatch", "EventBlade" hierarchies are NOT filtered
+- Elements inside "Blade", "PlayBlade", "FindMatch", "EventBlade", "CampaignGraph" hierarchies are NOT filtered
 - Elements inside "HomePage", "HomeContent" but NOT inside a Blade ARE filtered
 - This shows only the blade's deck selection elements, hiding the HomePage buttons behind it
+
+**CampaignGraph (Color Challenge) - Added January 2026:**
+- `CampaignGraph` added to non-background list for Color Challenge panel support
+- NOTE: This is potentially overspecific - may need generalization later
 
 **Discovered Controller Types (via DiscoverPanelTypes()):**
 - `NavContentController` - Base class, lifecycle methods patched
@@ -1112,6 +1170,14 @@ The `UIElementClassifier` filters out non-navigable elements to keep the navigat
 - CanvasGroup.interactable = false
 - Decorative graphical elements (see below)
 
+**CanvasGroup Visibility - Structural Container Exception (January 2026):**
+Parent CanvasGroups named "CanvasGroup..." (e.g., "CanvasGroup - Overlay") are skipped during
+visibility checks. MTGA uses these as structural containers with alpha=0, but their children
+are still visible. Without this exception, buttons like "Return to Arena" would be incorrectly
+filtered.
+- NOTE: This is a broad exception - may show elements that shouldn't be visible. May need
+  tightening if unwanted elements appear.
+
 **2. Name Patterns (`IsFilteredByNamePattern`)**
 - `blocker` - Modal click blockers
 - `navpip`, `pip_` - Carousel dots
@@ -1124,6 +1190,8 @@ The `UIElementClassifier` filters out non-navigable elements to keep the navigat
 - `viewport`, `content` - Scroll containers
 - `gradient` (except nav) - Decorative gradients
 - Nav controls inside carousels - Handled by parent
+- `BUTTONS` (exact match) - Container EventTriggers wrapping actual buttons (Color Challenge)
+- `Button_NPE` (exact match) - NPE overlay buttons that duplicate blade list items
 
 **3. Text Content (`IsFilteredByTextContent`)**
 - `new`, `tooltip information`, `text text text` - Placeholder text
@@ -1159,6 +1227,41 @@ To filter a new type of element, choose the appropriate method:
 1. **Name-based**: Add to `IsFilteredByNamePattern()` for consistent naming patterns
 2. **Component-based**: Add to `IsHiddenByGameProperties()` for specific component checks
 3. **Content-based**: Add to `IsFilteredByTextContent()` for text patterns
+
+## Sibling Label Detection (UITextExtractor)
+
+**Added January 2026:**
+
+When an element has no text of its own, `UITextExtractor.GetText()` checks sibling elements for
+labels via `TryGetSiblingLabel()`. This handles UI patterns where a button's label comes from
+a sibling element.
+
+**Example - Color Challenge buttons:**
+- Button element has no text
+- Sibling element "INFO" contains the color name ("White", "Blue", etc.)
+- `TryGetSiblingLabel()` returns the sibling's text
+
+**Skipped siblings:**
+- MASK, SHADOW, DIVIDER, BACKGROUND, INDICATION - decorative elements
+
+**NOTE:** This is a general feature that applies to all elements, not just Color Challenge.
+May extract unintended sibling text in some cases.
+
+## Color Challenge Panel (TODO - INCOMPLETE)
+
+**Current State (January 2026):**
+- `CampaignGraphContentController` recognized as content panel (filters NavBar)
+- Auto-expand blade when Color Challenge opens (0.8s delay in `AutoExpandBlade()`)
+- Color buttons show correct labels via sibling label detection
+- "Return to Arena" button visible (general back button, appears in all menus)
+
+**Known Issues / Future Work:**
+- Auto-expand logic is specific to `CampaignGraphContentController` - may need generalization
+- Blade auto-expand might not be needed if panel detection improves
+- "Return to Arena" visibility fix (CanvasGroup skip) is broad - may show unwanted elements
+- Sub-menu after clicking a color needs verification that all buttons work correctly
+- May need to detect specific Color Challenge match-start button vs navigation buttons
+- Debug logging for MainButtonOutline still in code - should be removed after testing
 
 ## Common Gotchas
 

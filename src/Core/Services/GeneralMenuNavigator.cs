@@ -55,6 +55,10 @@ namespace MTGAAccessibility.Core.Services
         private const float POST_ACTIVATION_RESCAN_DELAY = 1.0f; // Check 1 second after activation
         private int _elementCountAtActivation = 0;
 
+        // Auto-expand blade for certain panels (e.g., Color Challenge)
+        private float _bladeAutoExpandDelay = 0f;
+        private const float BLADE_AUTO_EXPAND_DELAY = 0.8f; // Wait for UI to load before expanding
+
         // Force rescan flag - bypasses debounce when set (used for toggle activations)
         private bool _forceRescan = false;
 
@@ -102,18 +106,53 @@ namespace MTGAAccessibility.Core.Services
 
         protected virtual string GetMenuScreenName()
         {
-            // Check if Settings menu is open
+            // Check if Settings menu is open (highest priority overlay)
             if (IsInSettingsMenu)
             {
                 return "Settings";
             }
 
+            // Check for PlayBlade state (deck selection, play mode)
+            var playBladeState = GetPlayBladeStateName();
+            if (!string.IsNullOrEmpty(playBladeState))
+            {
+                return playBladeState;
+            }
+
+            // Detect active content controller
+            _activeContentController = DetectActiveContentController();
+
+            if (!string.IsNullOrEmpty(_activeContentController))
+            {
+                string baseName = GetContentControllerDisplayName(_activeContentController);
+
+                // For Home screen, add context about what's visible
+                if (_activeContentController == "HomePageContentController")
+                {
+                    bool hasCarousel = HasVisibleCarousel();
+                    bool hasColorChallenge = HasColorChallengeVisible();
+
+                    if (hasCarousel && hasColorChallenge)
+                        return "Home";
+                    else if (hasCarousel)
+                        return "Home with Events";
+                    else if (hasColorChallenge)
+                        return "Home with Color Challenge";
+                    else
+                        return "Home";
+                }
+
+                return baseName;
+            }
+
+            // Fall back to detected menu type from button patterns
             if (!string.IsNullOrEmpty(_detectedMenuType))
                 return _detectedMenuType;
 
+            // Last resort: use scene name
             return _currentScene switch
             {
-                "HomePage" => "Main Menu",
+                "HomePage" => "Home",
                 "NavBar" => "Navigation Bar",
                 "Store" => "Store",
                 "Collection" => "Collection",
@@ -132,7 +171,9 @@ namespace MTGAAccessibility.Core.Services
             _activePanels.Clear();
             _foregroundPanel = null; // Clear panel filter on scene change
             _playBladeActive = false;
+            _playBladeState = null;
             _contentPanelActive = false;
+            _activeContentController = null;
 
             if (_isActive)
             {
@@ -154,7 +195,9 @@ namespace MTGAAccessibility.Core.Services
             _activePanels.Clear();
             _postActivationRescanDelay = 0f;
             _playBladeActive = false;
+            _playBladeState = null;
             _contentPanelActive = false;
+            _activeContentController = null;
         }
 
         /// <summary>
@@ -179,6 +222,16 @@ namespace MTGAAccessibility.Core.Services
                     PerformRescan();
                 }
                 // Don't return early - still process input during rescan delay
+            }
+
+            // Handle blade auto-expand for panels like Color Challenge
+            if (_bladeAutoExpandDelay > 0)
+            {
+                _bladeAutoExpandDelay -= Time.deltaTime;
+                if (_bladeAutoExpandDelay <= 0)
+                {
+                    AutoExpandBlade();
+                }
             }
 
             // One-time check after activation to detect unknown panels/overlays
@@ -556,11 +609,13 @@ namespace MTGAAccessibility.Core.Services
                 string name = current.gameObject.name;
 
                 // Check if element is inside a Blade (PlayBlade, EventBlade, FindMatchBlade, etc.)
+                // or CampaignGraph area (Color Challenge)
                 // These should NOT be filtered even when inside HomePage
                 if (name.Contains("Blade") ||
                     name.Contains("PlayBlade") ||
                     name.Contains("FindMatch") ||
-                    name.Contains("EventBlade"))
+                    name.Contains("EventBlade") ||
+                    name.Contains("CampaignGraph"))
                 {
                     isInsideBlade = true;
                 }
@@ -872,8 +927,37 @@ namespace MTGAAccessibility.Core.Services
                 bool hasImage = obj.GetComponent<Image>() != null || obj.GetComponent<RawImage>() != null;
                 bool hasTextChild = obj.GetComponentInChildren<TMPro.TMP_Text>() != null;
 
+                // Get sprite name if this is a Color Challenge button
+                string spriteInfo = "";
+                if (path.Contains("ColorMastery") || path.Contains("PlayBlade_Item"))
+                {
+                    var image = obj.GetComponent<Image>();
+                    if (image != null && image.sprite != null)
+                    {
+                        spriteInfo = $" | Sprite: {image.sprite.name}";
+                    }
+                    // Also check parent for color info
+                    var parent = obj.transform.parent;
+                    if (parent != null)
+                    {
+                        spriteInfo += $" | Parent: {parent.name}";
+                        // Check siblings for text
+                        foreach (Transform sibling in parent)
+                        {
+                            if (sibling.gameObject != obj)
+                            {
+                                var sibText = UITextExtractor.GetText(sibling.gameObject);
+                                if (!string.IsNullOrEmpty(sibText) && sibText.Length > 1)
+                                {
+                                    spriteInfo += $" | Sibling[{sibling.name}]: {sibText}";
+                                }
+                            }
+                        }
+                    }
+                }
+
                 MelonLogger.Msg($"[{NavigatorId}]   {path}");
-                MelonLogger.Msg($"[{NavigatorId}]     Text: '{text}' | HasActualText: {hasActualText} | HasImage: {hasImage} | HasTextChild: {hasTextChild}{sizeInfo}");
+                MelonLogger.Msg($"[{NavigatorId}]     Text: '{text}' | HasActualText: {hasActualText} | HasImage: {hasImage} | HasTextChild: {hasTextChild}{sizeInfo}{spriteInfo}");
                 MelonLogger.Msg($"[{NavigatorId}]     Components: {components}");
             }
 
@@ -1210,7 +1294,8 @@ namespace MTGAAccessibility.Core.Services
                                   panelTypeName.Contains("AchievementsContentController") ||
                                   panelTypeName.Contains("PackOpeningController") ||
                                   panelTypeName.Contains("SettingsMenu") ||
-                                  panelTypeName.Contains("DeckSelectBlade");
+                                  panelTypeName.Contains("DeckSelectBlade") ||
+                                  panelTypeName.Contains("CampaignGraphContentController");
 
             if (isContentPanel)
             {
@@ -1219,6 +1304,14 @@ namespace MTGAAccessibility.Core.Services
                     _activePanels.Add($"ContentPanel:{panelTypeName}");
                     _contentPanelActive = true;
                     MelonLogger.Msg($"[{NavigatorId}] Content panel opened: {panelTypeName} (from Harmony)");
+
+                    // Auto-expand blade for CampaignGraphContentController (Color Challenge menu)
+                    // The blade starts collapsed, requiring an extra click - auto-expand for better UX
+                    if (panelTypeName.Contains("CampaignGraphContentController"))
+                    {
+                        _bladeAutoExpandDelay = BLADE_AUTO_EXPAND_DELAY;
+                        MelonLogger.Msg($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
+                    }
                 }
                 else
                 {
@@ -1235,6 +1328,8 @@ namespace MTGAAccessibility.Core.Services
                 {
                     _activePanels.Add($"PlayBlade:External:{panelTypeName}");
                     _playBladeActive = true;
+                    // Track the state for screen name detection (e.g., "PlayBlade:Events")
+                    _playBladeState = panelTypeName;
                     MelonLogger.Msg($"[{NavigatorId}] Play blade opened (from Harmony): {panelTypeName}");
                 }
                 else
@@ -1245,11 +1340,14 @@ namespace MTGAAccessibility.Core.Services
                     {
                         _activePanels.RemoveWhere(p => p.StartsWith("PlayBlade:"));
                         _playBladeActive = false;
+                        _playBladeState = null;
                         _foregroundPanel = null;
                         MelonLogger.Msg($"[{NavigatorId}] Play blade closed (from Harmony): {panelTypeName}");
                     }
                     else
                     {
+                        // Update state but keep blade active (state transition)
+                        _playBladeState = panelTypeName;
                         MelonLogger.Msg($"[{NavigatorId}] Play blade state change (not closing): {panelTypeName}");
                     }
                 }
@@ -1261,12 +1359,15 @@ namespace MTGAAccessibility.Core.Services
                 {
                     _activePanels.Add($"EventBlade:External:{panelTypeName}");
                     _playBladeActive = true;
+                    // Track for screen name - translate to PlayBlade state format
+                    _playBladeState = panelTypeName.Contains("DirectChallenge") ? "PlayBlade:DirectChallenge" : "PlayBlade:Events";
                     MelonLogger.Msg($"[{NavigatorId}] Event/Challenge blade opened (from Harmony): {panelTypeName}");
                 }
                 else
                 {
                     _activePanels.RemoveWhere(p => p.Contains("EventBlade:") || p.Contains("ChallengeBlade:"));
                     _playBladeActive = false;
+                    _playBladeState = null;
                     _foregroundPanel = null;
                     MelonLogger.Msg($"[{NavigatorId}] Event/Challenge blade closed (from Harmony): {panelTypeName}");
                 }
@@ -1276,9 +1377,229 @@ namespace MTGAAccessibility.Core.Services
             TriggerRescan();
         }
 
+        /// <summary>
+        /// Auto-expand the play blade when it's in collapsed state.
+        /// Used for panels like Color Challenge where the blade starts collapsed.
+        /// </summary>
+        private void AutoExpandBlade()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Attempting blade auto-expand");
+
+            // Find the blade expand button (Btn_BladeIsClosed or its arrow child)
+            GameObject bladeButton = null;
+
+            // First try to find the arrow button (more reliable)
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name != "CustomButton") continue;
+
+                string name = mb.gameObject.name;
+                if (name.Contains("BladeHoverClosed") || name.Contains("Btn_BladeIsClosed"))
+                {
+                    bladeButton = mb.gameObject;
+                    MelonLogger.Msg($"[{NavigatorId}] Found blade expand button: {name}");
+                    break;
+                }
+            }
+
+            if (bladeButton != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Auto-expanding blade via {bladeButton.name}");
+                _announcer.Announce("Opening color challenges", Models.AnnouncementPriority.High);
+                UIActivator.Activate(bladeButton);
+
+                // Schedule a rescan after the blade opens
+                TriggerRescan();
+            }
+            else
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Could not find blade expand button");
+            }
+        }
+
         // Flags set by Harmony events to indicate overlay is active
         // Used by IsInForegroundPanel when _foregroundPanel hasn't been found yet
         private bool _playBladeActive = false; // PlayBlade kept separate due to special blade-inside filtering logic
         private bool _contentPanelActive = false; // Any content panel/overlay that should filter NavBar
+
+        // Active content controller tracking for screen name detection
+        private string _activeContentController = null;
+        private string _playBladeState = null; // Hidden, Events, DirectChallenge, FriendChallenge
+
+        #region Screen Detection Helpers
+
+        /// <summary>
+        /// Detect which content controller is currently active.
+        /// Returns the type name of the active controller, or null if none detected.
+        /// </summary>
+        private string DetectActiveContentController()
+        {
+            // Check for specific content controllers by looking for their IsOpen state
+            var contentControllerTypes = new[]
+            {
+                "HomePageContentController",
+                "DeckManagerController",
+                "ProfileContentController",
+                "ContentController_StoreCarousel",
+                "MasteryContentController",
+                "AchievementsContentController",
+                "LearnToPlayControllerV2",
+                "PackOpeningController",
+                "CampaignGraphContentController",
+                "WrapperDeckBuilder"
+            };
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+
+                var type = mb.GetType();
+                string typeName = type.Name;
+
+                if (!contentControllerTypes.Contains(typeName)) continue;
+
+                // Check IsOpen property
+                var isOpenProp = type.GetProperty("IsOpen",
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                if (isOpenProp != null && isOpenProp.PropertyType == typeof(bool))
+                {
+                    try
+                    {
+                        bool isOpen = (bool)isOpenProp.GetValue(mb);
+                        if (isOpen)
+                        {
+                            // Also check IsReadyToShow if available
+                            var isReadyProp = type.GetProperty("IsReadyToShow",
+                                System.Reflection.BindingFlags.Public |
+                                System.Reflection.BindingFlags.NonPublic |
+                                System.Reflection.BindingFlags.Instance);
+
+                            if (isReadyProp != null && isReadyProp.PropertyType == typeof(bool))
+                            {
+                                bool isReady = (bool)isReadyProp.GetValue(mb);
+                                if (!isReady) continue; // Skip if not ready yet
+                            }
+
+                            return typeName;
+                        }
+                    }
+                    catch { /* Ignore reflection errors */ }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Check if the promotional carousel is visible on the home screen.
+        /// </summary>
+        private bool HasVisibleCarousel()
+        {
+            // Look for carousel navigation elements (Previous/Next buttons)
+            var carouselPatterns = new[] { "Carousel", "NavGradient_Previous", "NavGradient_Next", "WelcomeBundle", "EventBlade_Item" };
+
+            foreach (var pattern in carouselPatterns)
+            {
+                var obj = GameObject.Find(pattern);
+                if (obj != null && obj.activeInHierarchy)
+                {
+                    return true;
+                }
+            }
+
+            // Also check for carousel by finding nav controls in the elements
+            foreach (var element in _elements)
+            {
+                if (element.Carousel.HasArrowNavigation)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if Color Challenge content is visible.
+        /// </summary>
+        private bool HasColorChallengeVisible()
+        {
+            // Check for CampaignGraph content controller being open
+            if (_activeContentController == "CampaignGraphContentController")
+                return true;
+
+            // Also check for Color Challenge buttons directly
+            var colorChallengePatterns = new[] { "ColorMastery", "CampaignGraph", "Color Challenge" };
+
+            foreach (var pattern in colorChallengePatterns)
+            {
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                    if (mb.GetType().Name != "CustomButton") continue;
+
+                    if (mb.gameObject.name.Contains(pattern) ||
+                        GetGameObjectPath(mb.gameObject).Contains(pattern))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get a human-readable name for the current PlayBlade state.
+        /// </summary>
+        private string GetPlayBladeStateName()
+        {
+            if (!_playBladeActive || string.IsNullOrEmpty(_playBladeState))
+                return null;
+
+            // Extract state from "PlayBlade:Events" format
+            if (_playBladeState.Contains(":"))
+            {
+                var parts = _playBladeState.Split(':');
+                if (parts.Length >= 2)
+                {
+                    return parts[1] switch
+                    {
+                        "Events" => "Play Mode Selection",
+                        "DirectChallenge" => "Direct Challenge",
+                        "FriendChallenge" => "Friend Challenge",
+                        "DeckSelected" => "Deck Selected",
+                        _ => parts[1]
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Map content controller type name to user-friendly screen name.
+        /// </summary>
+        private string GetContentControllerDisplayName(string controllerTypeName)
+        {
+            return controllerTypeName switch
+            {
+                "HomePageContentController" => "Home",
+                "DeckManagerController" => "Decks",
+                "ProfileContentController" => "Profile",
+                "ContentController_StoreCarousel" => "Store",
+                "MasteryContentController" => "Mastery",
+                "AchievementsContentController" => "Achievements",
+                "LearnToPlayControllerV2" => "Learn to Play",
+                "PackOpeningController" => "Pack Opening",
+                "CampaignGraphContentController" => "Color Challenge",
+                "WrapperDeckBuilder" => "Deck Builder",
+                _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
+            };
+        }
+
+        #endregion
     }
 }
