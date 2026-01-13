@@ -348,22 +348,22 @@ namespace MTGAAccessibility.Core.Services
 
         private static string GetToggleText(Toggle toggle)
         {
-            string state = toggle.isOn ? "checked" : "unchecked";
-
+            // Only return the label text - UIElementClassifier handles adding "checkbox, checked/unchecked"
             // Try to find associated label
             var label = toggle.GetComponentInChildren<TMP_Text>();
             if (label != null && !string.IsNullOrWhiteSpace(label.text))
             {
-                return $"{CleanText(label.text)}, checkbox, {state}";
+                return CleanText(label.text);
             }
 
             var legacyLabel = toggle.GetComponentInChildren<Text>();
             if (legacyLabel != null && !string.IsNullOrWhiteSpace(legacyLabel.text))
             {
-                return $"{CleanText(legacyLabel.text)}, checkbox, {state}";
+                return CleanText(legacyLabel.text);
             }
 
-            return $"checkbox, {state}";
+            // Return empty - UIElementClassifier will use object name as fallback
+            return string.Empty;
         }
 
         private static string GetDropdownText(TMP_Dropdown dropdown)

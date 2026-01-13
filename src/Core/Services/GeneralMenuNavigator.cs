@@ -1112,11 +1112,27 @@ namespace MTGAAccessibility.Core.Services
 
         protected override bool OnElementActivated(int index, GameObject element)
         {
+            // Store Selectable count BEFORE activation to detect changes caused by the activation
+            _elementCountAtActivation = CountActiveSelectables();
+
+            // Check if this is a Toggle (checkbox) - we'll force rescan for these
+            bool isToggle = element.GetComponent<Toggle>() != null;
+
             // Use UIActivator for CustomButtons
             var result = UIActivator.Activate(element);
             _announcer.Announce(result.Message, Models.AnnouncementPriority.Normal);
 
-            // Always schedule a post-activation check to detect panel changes
+            // For Toggle activations (checkboxes), force a rescan after a delay
+            // This handles deck folder filtering where Selectable count may not change
+            // but the visible decks do change
+            if (isToggle)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {POST_ACTIVATION_RESCAN_DELAY}s");
+                TriggerRescan();
+                return true;
+            }
+
+            // For non-toggle elements, schedule a post-activation check to detect panel changes
             // This generalized approach works for all menus, not just Settings:
             // - Settings submenus (Gameplay, Graphics, Audio)
             // - Deck selection panel
@@ -1125,9 +1141,8 @@ namespace MTGAAccessibility.Core.Services
             // - New panels opening (sets _foregroundPanel)
             // - Panels closing (clears _foregroundPanel if no overlay remains)
             // - Panel transitions within overlays (updates _foregroundPanel to new content)
-            _elementCountAtActivation = CountActiveSelectables();
             _postActivationRescanDelay = POST_ACTIVATION_RESCAN_DELAY;
-            MelonLogger.Msg($"[{NavigatorId}] Scheduled post-activation check in {POST_ACTIVATION_RESCAN_DELAY}s (current Selectables: {_elementCountAtActivation})");
+            MelonLogger.Msg($"[{NavigatorId}] Scheduled post-activation check in {POST_ACTIVATION_RESCAN_DELAY}s (pre-activation Selectables: {_elementCountAtActivation})");
 
             return true;
         }

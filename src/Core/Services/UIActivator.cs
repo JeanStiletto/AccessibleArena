@@ -97,10 +97,37 @@ namespace MTGAAccessibility.Core.Services
             var toggle = element.GetComponent<Toggle>();
             if (toggle != null)
             {
-                toggle.isOn = !toggle.isOn;
-                string state = toggle.isOn ? "Checked" : "Unchecked";
-                Log($"Toggled {element.name} to {state}");
-                return new ActivationResult(true, state, ActivationType.Toggle);
+                // Check if this toggle also has CustomButton (like deck folder toggles)
+                bool toggleHasCustomButton = HasCustomButtonComponent(element);
+                if (toggleHasCustomButton)
+                {
+                    // For Toggle+CustomButton combo:
+                    // 1. Toggle.OnPointerClick - changes state
+                    // 2. CustomButton onClick - triggers game filtering logic
+                    bool oldState = toggle.isOn;
+                    Log($"Toggle with CustomButton: current state {oldState}");
+
+                    // Step 1: Toggle the checkbox state
+                    var pointer = CreatePointerEventData(element);
+                    ((IPointerClickHandler)toggle).OnPointerClick(pointer);
+
+                    bool newState = toggle.isOn;
+                    string state = newState ? "Checked" : "Unchecked";
+                    Log($"Toggle state after click: {oldState} -> {newState} ({state})");
+
+                    // Step 2: Trigger CustomButton to run game filtering logic
+                    TryInvokeCustomButtonOnClick(element);
+
+                    return new ActivationResult(true, state, ActivationType.Toggle);
+                }
+                else
+                {
+                    // Simple toggle without CustomButton - just flip the state
+                    toggle.isOn = !toggle.isOn;
+                    string state = toggle.isOn ? "Checked" : "Unchecked";
+                    Log($"Toggled {element.name} to {state}");
+                    return new ActivationResult(true, state, ActivationType.Toggle);
+                }
             }
 
             // Try Button
@@ -200,6 +227,8 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Try IPointerClickHandler components directly
+            // NOTE: ExecuteEvents.Execute(pointerClickHandler) doesn't reliably reach Toggle
+            // So we need to invoke Toggle directly here
             var clickHandlers = element.GetComponents<IPointerClickHandler>();
             foreach (var handler in clickHandlers)
             {

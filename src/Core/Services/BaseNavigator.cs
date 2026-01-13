@@ -102,14 +102,19 @@ namespace MTGAAccessibility.Core.Services
             var navElement = _elements[index];
             string label = navElement.Label;
 
-            // Add state info for toggles (use explicit Unity null check for destroyed objects)
+            // Update state for toggles - replace cached state with current state
+            // Label already contains "checkbox, checked/unchecked" from classifier
             if (navElement.GameObject != null)
             {
                 var toggle = navElement.GameObject.GetComponent<Toggle>();
-                if (toggle != null)
+                if (toggle != null && label.Contains("checkbox"))
                 {
-                    string state = toggle.isOn ? "checked" : "unchecked";
-                    label = $"{label}, checkbox, {state}";
+                    // Replace the cached state with current state
+                    string currentState = toggle.isOn ? "checked" : "unchecked";
+                    label = System.Text.RegularExpressions.Regex.Replace(
+                        label,
+                        @"checkbox, (checked|unchecked)",
+                        $"checkbox, {currentState}");
                 }
             }
 
@@ -367,7 +372,7 @@ namespace MTGAAccessibility.Core.Services
             var element = _elements[_currentIndex].GameObject;
             if (element == null) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] Activating: {element.name}");
+            MelonLogger.Msg($"[{NavigatorId}] Activating: {element.name} (ID:{element.GetInstanceID()}, Label:{_elements[_currentIndex].Label})");
 
             // Check if this is a card - delegate to CardInfoNavigator
             if (SupportsCardNavigation && CardDetector.IsCard(element))
