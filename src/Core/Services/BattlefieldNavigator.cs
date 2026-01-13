@@ -13,7 +13,7 @@ namespace MTGAAccessibility.Core.Services
     /// Handles battlefield navigation organized into 6 logical rows by card type and ownership.
     /// Row shortcuts: A (Your Lands), R (Your Non-creatures), B (Your Creatures)
     ///                Shift+A (Enemy Lands), Shift+R (Enemy Non-creatures), Shift+B (Enemy Creatures)
-    /// Navigation: Left/Right arrows within row, Alt+Up/Down to switch rows.
+    /// Navigation: Left/Right arrows within row, Shift+Up/Down to switch rows.
     /// </summary>
     public class BattlefieldNavigator
     {
@@ -31,7 +31,7 @@ namespace MTGAAccessibility.Core.Services
         // Reference to TargetNavigator for targeting mode row navigation
         private TargetNavigator _targetNavigator;
 
-        // Row order from top (enemy side) to bottom (player side) for Alt+Up/Down navigation
+        // Row order from top (enemy side) to bottom (player side) for Shift+Up/Down navigation
         private static readonly BattlefieldRow[] RowOrder = {
             BattlefieldRow.EnemyLands,
             BattlefieldRow.EnemyNonCreatures,
@@ -102,7 +102,6 @@ namespace MTGAAccessibility.Core.Services
             if (!_isActive) return false;
 
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
 
             // Row shortcuts: A for lands
             if (Input.GetKeyDown(KeyCode.A))
@@ -141,10 +140,10 @@ namespace MTGAAccessibility.Core.Services
             bool isTargeting = _targetNavigator?.IsTargeting == true;
             bool inBattlefield = _zoneNavigator.CurrentZone == ZoneType.Battlefield;
 
-            // In targeting mode: Alt+Up/Down for row navigation, but Left/Right/Enter are NOT captured
+            // In targeting mode: Shift+Up/Down for row navigation, but Left/Right/Enter are NOT captured
             if (isTargeting)
             {
-                if (alt && Input.GetKeyDown(KeyCode.UpArrow))
+                if (shift && Input.GetKeyDown(KeyCode.UpArrow))
                 {
                     // If not in battlefield yet, default to PlayerCreatures
                     if (!inBattlefield)
@@ -157,7 +156,7 @@ namespace MTGAAccessibility.Core.Services
                     return true;
                 }
 
-                if (alt && Input.GetKeyDown(KeyCode.DownArrow))
+                if (shift && Input.GetKeyDown(KeyCode.DownArrow))
                 {
                     // If not in battlefield yet, default to PlayerCreatures
                     if (!inBattlefield)
@@ -174,27 +173,27 @@ namespace MTGAAccessibility.Core.Services
                 return false;
             }
 
-            // Row switching with Alt+Up/Down (only when already in battlefield)
-            if (inBattlefield && alt && Input.GetKeyDown(KeyCode.UpArrow))
+            // Row switching with Shift+Up/Down (only when already in battlefield)
+            if (inBattlefield && shift && Input.GetKeyDown(KeyCode.UpArrow))
             {
                 PreviousRow();
                 return true;
             }
 
-            if (inBattlefield && alt && Input.GetKeyDown(KeyCode.DownArrow))
+            if (inBattlefield && shift && Input.GetKeyDown(KeyCode.DownArrow))
             {
                 NextRow();
                 return true;
             }
 
-            if (!alt && inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow))
+            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 ClearEventSystemSelection();
                 PreviousCard();
                 return true;
             }
 
-            if (!alt && inBattlefield && Input.GetKeyDown(KeyCode.RightArrow))
+            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.RightArrow))
             {
                 ClearEventSystemSelection();
                 NextCard();
@@ -419,7 +418,7 @@ namespace MTGAAccessibility.Core.Services
             if (cards.Count == 0)
             {
                 _announcer.Announce($"{GetRowName(row)}, empty", AnnouncementPriority.High);
-                // Still set the row so Alt+Up/Down work from here
+                // Still set the row so Shift+Up/Down work from here
                 _currentRow = row;
                 _currentIndex = 0;
                 return;
@@ -433,7 +432,7 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Moves to the next row (towards player side / Alt+Down).
+        /// Moves to the next row (towards player side / Shift+Down).
         /// Skips empty rows.
         /// </summary>
         private void NextRow()
@@ -459,7 +458,7 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Moves to the previous row (towards enemy side / Alt+Up).
+        /// Moves to the previous row (towards enemy side / Shift+Up).
         /// Skips empty rows.
         /// </summary>
         private void PreviousRow()

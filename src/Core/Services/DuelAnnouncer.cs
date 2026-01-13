@@ -459,24 +459,41 @@ namespace MTGAAccessibility.Core.Services
             yield return null;
             yield return null;
 
-            string cardName = GetTopStackCardName();
+            GameObject stackCard = GetTopStackCard();
 
-            if (!string.IsNullOrEmpty(cardName))
+            if (stackCard != null)
             {
-                _announcer.Announce($"Cast {cardName}", AnnouncementPriority.High);
+                _announcer.Announce(BuildCastAnnouncement(stackCard), AnnouncementPriority.High);
             }
             else
             {
                 yield return new WaitForSeconds(0.2f);
-                cardName = GetTopStackCardName();
+                stackCard = GetTopStackCard();
 
-                _announcer.Announce(
-                    !string.IsNullOrEmpty(cardName) ? $"Cast {cardName}" : "Spell cast",
-                    AnnouncementPriority.High);
+                if (stackCard != null)
+                    _announcer.Announce(BuildCastAnnouncement(stackCard), AnnouncementPriority.High);
+                else
+                    _announcer.Announce("Spell cast", AnnouncementPriority.High);
             }
         }
 
-        private string GetTopStackCardName()
+        private string BuildCastAnnouncement(GameObject cardObj)
+        {
+            var info = CardDetector.ExtractCardInfo(cardObj);
+            var parts = new List<string>();
+
+            parts.Add($"Cast {info.Name ?? "unknown spell"}");
+
+            if (!string.IsNullOrEmpty(info.PowerToughness))
+                parts.Add(info.PowerToughness);
+
+            if (!string.IsNullOrEmpty(info.RulesText))
+                parts.Add(info.RulesText);
+
+            return string.Join(", ", parts);
+        }
+
+        private GameObject GetTopStackCard()
         {
             try
             {
@@ -491,7 +508,7 @@ namespace MTGAAccessibility.Core.Services
                             if (child == null || !child.gameObject.activeInHierarchy) continue;
 
                             if (child.name.Contains("CDC #"))
-                                return CardDetector.GetCardName(child.gameObject);
+                                return child.gameObject;
                         }
                     }
                 }

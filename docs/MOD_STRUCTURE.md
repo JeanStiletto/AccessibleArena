@@ -159,7 +159,7 @@ C:\Users\fabia\arena\
 - [x] Turn announcements - "Turn X. Your turn" / "Turn X. Opponent's turn"
 - [x] Card draw announcements - "Drew X card(s)" / "Opponent drew X card(s)"
 - [x] Spell resolution - "Spell resolved" when stack empties
-- [x] Stack announcements - "Cast [card name]" when spell goes on stack (delayed detection)
+- [x] Stack announcements - "Cast [name], [P/T], [rules]" when spell goes on stack (full card info)
 - [x] Zone change tracking - Tracks card counts per zone to detect changes
 - [x] Spell resolve tracking - `_lastSpellResolvedTime` set on stack decrease
 - [x] Phase announcements - Main phases, combat steps (declare attackers/blockers, damage, end combat)
@@ -190,18 +190,26 @@ C:\Users\fabia\arena\
 - [x] Submit button detection - Detects "Submit X" button to identify discard mode
 - [x] Required count parsing - Parses "Discard a card" or "Discard X cards" from prompt
 - [x] Entry announcement - Announces "Discard X card(s)" when mode detected
-- [x] Selection state in announcements - Cards announce "selected for discard" or "not selected"
+- [x] Selection state in announcements - Cards announce "selected for discard" when selected (silent otherwise)
 - [x] Enter to toggle - Clicks card to select/deselect for discard
 - [x] Selection count announcement - Announces "X cards selected" after toggle (0.2s delay)
 - [x] Space to submit - Validates count matches required, submits or announces error
 - [x] Integration with DuelNavigator - Priority: TargetNavigator > DiscardNavigator > HighlightNavigator
 - [x] Integration with ZoneNavigator - Adds selection state to card announcements
 
-### Combat Navigator System (Work in Progress)
+### Combat Navigator System (Complete)
 - [x] CombatNavigator service - Handles declare attackers/blockers phases
 - [x] Phase tracking in DuelAnnouncer - `IsInDeclareAttackersPhase`, `IsInDeclareBlockersPhase` properties
 - [x] Integration with DuelNavigator - Priority: TargetNavigator > DiscardNavigator > CombatNavigator > HighlightNavigator
 - [x] Integration with ZoneNavigator - `GetCombatStateText()` adds combat state to card announcements
+
+**Combat State Detection:**
+Cards announce their current state based on active UI indicators:
+- "attacking" - `IsAttacking` child is active (creature declared as attacker)
+- "blocking" - `IsBlocking` child is active (creature assigned to block)
+- "selected to block" - Has `CombatIcon_BlockerFrame` + `SelectedHighlightBattlefield` (clicked, not yet assigned)
+- "can block" - Has `CombatIcon_BlockerFrame` only (during declare blockers phase)
+- "tapped" - Has `TappedIcon` (shown for non-attackers only, since attackers are always tapped)
 
 **Declare Attackers Phase:**
 - [x] F key handling - Clicks "All Attack" or "X Attackers" button (same as Space)
@@ -210,11 +218,7 @@ C:\Users\fabia\arena\
 - [x] Button detection - Finds `PromptButton_Primary` with text containing "Attack"
 - [x] No Attack button detection - Finds `PromptButton_Secondary` with text containing "No"
 - [x] Opponent turn filtering - Ignores "Opponent's Turn" button text
-- [x] Blocker state announcements - Cards announce ", blocking" or ", not blocking" (working)
-- [ ] **Attacker state detection (WIP)** - Need to distinguish "can attack" vs "declared as attacker"
-  - `CombatIcon_AttackerFrame(Clone)` appears on creatures that CAN attack
-  - `IsAttacking` child may indicate actual declared state (needs verification)
-  - Current detection shows all attackable creatures as "attacking"
+- [x] Attacker state detection - `IsAttacking` child indicates declared attacker state
 
 **Note:** Game requires two presses to complete attack declaration:
 1. First F/Space: Selects attackers (button shows "All Attack")
@@ -226,7 +230,7 @@ C:\Users\fabia\arena\
 - [x] Space key handling - Same as F (confirm blocks)
 - [x] Button detection - Primary button matches "Blocker", "Next", "Done", "Confirm", "OK" (excludes "No Blocks")
 - [x] No block button detection - Secondary button matches "No " or "Cancel"
-- [x] Blocker state announcements - Cards announce ", blocking" or ", not blocking"
+- [x] **Full blocker state announcements** - "can block", "selected to block", "blocking" (see Combat State Detection above)
 - [x] **Attacker announcements during blockers** - Enemy attackers announce ", attacking"
 - [x] **Blocker state detection** - Checks for active `IsBlocking` child (not just presence of BlockerFrame)
 - [x] **Blocker selection tracking** - Tracks selected blockers via `SelectedHighlightBattlefield` + `CombatIcon_BlockerFrame`
@@ -241,15 +245,9 @@ C:\Users\fabia\arena\
 - Tracking uses `HashSet<int>` of instance IDs to detect changes efficiently
 - Resets tracking when entering/exiting blockers phase
 
-**Debug Logging (Temporary):**
-- Attacker debug: Logs relevant children (Combat, Attack, Select, Declare, Lob, Tap, Is)
-- Blocker debug: Logs all card children during declare blockers phase
-- Button logging: Logs available buttons when Space pressed in blockers phase
-
 ## Known Issues
 
 ### Combat Navigator
-- **Attacker detection incorrect**: `CombatIcon_AttackerFrame` appears on all creatures that CAN attack, not just those declared as attackers. Need to find the indicator that distinguishes "selected/declared as attacker" from "can attack but not selected".
 - **Blocker selection after targeting**: There may be strange interactions after selecting a target for blocks. Needs further testing.
 
 ### DiscardNavigator
@@ -258,15 +256,7 @@ C:\Users\fabia\arena\
 ### Card Playing
 - **Rapid Enter presses**: Multiple rapid Enter presses can trigger card play sequence multiple times, potentially causing issues if game enters targeting mode.
 
-### Debug Logging
-- CombatNavigator has temporary debug logging enabled for attacker/blocker detection development. Should be removed once detection patterns are finalized.
-
 ## Next Steps
-
-### Immediate - Combat System
-1. **Fix attacker state detection** - Find correct indicator for "declared as attacker" (possibly `IsAttacking` child being active, or different indicator)
-2. **Verify blocker detection** - Check logs during declare blockers to find blocker indicator
-3. Remove debug logging once detection is finalized
 
 ### Immediate - Gameplay
 1. Add life total announcements (L shortcut)
@@ -548,3 +538,64 @@ Or manually:
 
 **Files Changed:**
 - `src/Core/Services/CombatNavigator.cs` - Full blockers phase implementation
+
+### January 2026 - Improved Announcements and Navigation
+
+**1. Removed Negative State Announcements**
+
+Previously, cards announced "not selected", "not attacking", "not blocking" which cluttered screen reader output with useless information. Now only active states are announced:
+- Cards only say "selected for discard" when selected, silent otherwise
+- Creatures only announce combat states when active (attacking, blocking, etc.)
+
+**Files Changed:**
+- `src/Core/Services/DiscardNavigator.cs` - Removed "not selected" announcement
+- `src/Core/Services/CombatNavigator.cs` - Removed "not attacking" and "not blocking" announcements
+
+**2. Battlefield Row Navigation Changed to Shift+Arrow**
+
+Changed battlefield row switching from Alt+Up/Down to Shift+Up/Down for consistency with other Shift-modified shortcuts (Shift+A/B/R for enemy rows).
+
+**Shortcuts Updated:**
+- Shift+Up: Previous row (towards enemy side)
+- Shift+Down: Next row (towards player side)
+- Left/Right: Navigate within row (unchanged)
+
+**Files Changed:**
+- `src/Core/Services/BattlefieldNavigator.cs` - Changed key detection from Alt to Shift
+- `CLAUDE.md` - Updated shortcut documentation
+
+**3. Enhanced Cast Announcements**
+
+When spells are cast, announcements now include full card information:
+- Card name
+- Power/toughness (for creatures)
+- Rules text
+
+Example: "Cast Lightning Bolt, Lightning Bolt deals 3 damage to any target"
+
+**Implementation:**
+- `GetTopStackCard()` - Returns the top stack card GameObject (renamed from `GetTopStackCardName()`)
+- `BuildCastAnnouncement(card)` - Extracts full info via `CardDetector.ExtractCardInfo()`
+
+**Files Changed:**
+- `src/Core/Services/DuelAnnouncer.cs` - Enhanced stack card announcements
+
+**4. Complete Combat State Detection**
+
+Replaced phase-specific hardcoded checks with universal state indicator detection. Cards now properly announce all combat-relevant states:
+
+| State | Indicator | When Shown |
+|-------|-----------|------------|
+| "attacking" | `IsAttacking` child active | Creature declared as attacker |
+| "blocking" | `IsBlocking` child active | Creature assigned to block |
+| "selected to block" | `CombatIcon_BlockerFrame` + `SelectedHighlightBattlefield` | Creature clicked but not assigned |
+| "can block" | `CombatIcon_BlockerFrame` only | During declare blockers phase |
+| "tapped" | `TappedIcon` active | Non-attacking tapped creatures |
+
+**Implementation:**
+- `GetCombatStateText(card)` completely rewritten to scan for UI indicators
+- Detects states by checking for specific active child GameObjects
+- No longer relies on phase-specific logic for state detection
+
+**Files Changed:**
+- `src/Core/Services/CombatNavigator.cs` - Rewrote `GetCombatStateText()` method

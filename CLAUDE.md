@@ -73,7 +73,7 @@ Your Zones: C (Hand/Cards), G (Graveyard), X (Exile), S (Stack)
 Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
 Battlefield (Your side): B (Creatures), A (Lands), R (Non-creatures)
 Battlefield (Enemy side): Shift+B (Creatures), Shift+A (Lands), Shift+R (Non-creatures)
-Battlefield Navigation: Alt+Up (Previous row), Alt+Down (Next row), Left/Right (Within row)
+Battlefield Navigation: Shift+Up (Previous row), Shift+Down (Next row), Left/Right (Within row)
 Info: T (Turn), L (Life)
 Card Details: Arrow Up/Down when focused on a card
 Carousel: Arrow Left/Right when focused on a carousel element (e.g., promotional banners)
@@ -83,7 +83,7 @@ Main Phase: Space (Next / To Combat / Pass - clicks primary button)
 Global: F1 (Help), F2 (Context), Ctrl+R (Repeat)
 
 Do NOT override: Tab, Enter, Escape
-Note: Alt+Arrow keys used for battlefield row switching
+Note: Shift+Up/Down used for battlefield row switching
 Note: Left/Right arrows used contextually (cards, carousels, battlefield rows)
 Note: F key used contextually during combat phases (attackers/blockers)
 Note: Space used contextually during duels (main phase pass, combat confirmations)

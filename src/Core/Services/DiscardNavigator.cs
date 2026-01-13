@@ -183,8 +183,8 @@ namespace MTGAAccessibility.Core.Services
 
             if (IsCardSelectedForDiscard(card))
                 return ", selected for discard";
-            else
-                return ", not selected";
+
+            return "";
         }
 
         /// <summary>

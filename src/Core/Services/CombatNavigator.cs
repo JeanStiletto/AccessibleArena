@@ -277,41 +277,65 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Gets text to append to card announcement indicating combat state.
-        /// Works for both declare attackers and declare blockers phases.
+        /// Gets text to append to card announcement indicating active states.
+        /// Scans for state indicators and reports them directly.
         /// </summary>
         public string GetCombatStateText(GameObject card)
         {
-            // Declare Attackers phase - show attacking state
-            if (_duelAnnouncer.IsInDeclareAttackersPhase)
+            if (card == null) return "";
+
+            var states = new List<string>();
+            bool hasAttackerFrame = false;
+            bool hasBlockerFrame = false;
+            bool isSelected = false;
+            bool isTapped = false;
+            bool isAttacking = false;
+            bool isBlocking = false;
+
+            foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                if (IsCreatureAttacking(card))
-                    return ", attacking";
-                else
-                    return ", not attacking";
+                if (!child.gameObject.activeInHierarchy)
+                    continue;
+
+                // Check for specific state indicators
+                if (child.name == "IsAttacking")
+                    isAttacking = true;
+                if (child.name == "IsBlocking")
+                    isBlocking = true;
+
+                // Track combat frames
+                if (child.name.Contains("CombatIcon_AttackerFrame"))
+                    hasAttackerFrame = true;
+                if (child.name.Contains("CombatIcon_BlockerFrame"))
+                    hasBlockerFrame = true;
+
+                // Track selection and tapped state
+                if (child.name.Contains("SelectedHighlightBattlefield"))
+                    isSelected = true;
+                if (child.name.Contains("TappedIcon"))
+                    isTapped = true;
             }
 
-            // Declare Blockers phase - show blocking state for your creatures, attacking state for enemy attackers
-            if (_duelAnnouncer.IsInDeclareBlockersPhase)
-            {
-                // Debug: Log card children to find blocker indicator
-                if (_debugBlockerCards)
-                {
-                    LogCardChildrenForBlocker(card);
-                }
+            // Attacking state
+            if (isAttacking)
+                states.Add("attacking");
 
-                // Check if this is an attacking creature (enemy attacker)
-                if (IsCreatureAttacking(card))
-                    return ", attacking";
+            // Blocking states (priority: is blocking > selected to block > can block)
+            if (isBlocking)
+                states.Add("blocking");
+            else if (hasBlockerFrame && isSelected)
+                states.Add("selected to block");
+            else if (hasBlockerFrame && _duelAnnouncer.IsInDeclareBlockersPhase)
+                states.Add("can block");
 
-                // Otherwise check blocking state for your potential blockers
-                if (IsCreatureBlocking(card))
-                    return ", blocking";
-                else
-                    return ", not blocking";
-            }
+            // Show tapped state only if not attacking (attackers are always tapped)
+            if (isTapped && !isAttacking)
+                states.Add("tapped");
 
-            return "";
+            if (states.Count == 0)
+                return "";
+
+            return ", " + string.Join(", ", states);
         }
 
         /// <summary>
