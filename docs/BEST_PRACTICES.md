@@ -429,25 +429,48 @@ Removes: zero-width spaces (`\u200B`), rich text tags, normalizes whitespace.
 `GetElementType()` returns "item" when no specific type is detected. This is the default fallback - check for it if you need to handle unknown elements specially.
 
 ### CardDetector
-Universal card detection (cached for performance):
+Card detection utilities (cached for performance). Delegates to CardModelProvider for model access:
 ```csharp
+// Detection (CardDetector's core responsibility)
 bool isCard = CardDetector.IsCard(element);
 GameObject root = CardDetector.GetCardRoot(element);
+bool hasTargets = CardDetector.HasValidTargetsOnBattlefield();
+CardDetector.ClearCache(); // Call on scene change (clears both caches)
+
+// Card info extraction (delegates to CardModelProvider, falls back to UI)
 CardInfo info = CardDetector.ExtractCardInfo(element);
 List<CardInfoBlock> blocks = CardDetector.GetInfoBlocks(element);
-CardDetector.ClearCache(); // Call on scene change
 
-// Check for valid targets on battlefield/stack (HotHighlight detection)
-bool hasTargets = CardDetector.HasValidTargetsOnBattlefield();
-
-// Card categorization (efficient single Model lookup)
+// Card categorization (delegates to CardModelProvider)
 var (isCreature, isLand, isOpponent) = CardDetector.GetCardCategory(card);
-
-// Convenience methods (use GetCardCategory when checking multiple properties)
 bool creature = CardDetector.IsCreatureCard(card);
 bool land = CardDetector.IsLandCard(card);
 bool opponent = CardDetector.IsOpponentCard(card);
 ```
+
+### CardModelProvider
+Direct access to card Model data. Use when you already have a card and need its properties:
+```csharp
+// Component access
+Component cdc = CardModelProvider.GetDuelSceneCDC(card);
+object model = CardModelProvider.GetCardModel(cdc);
+
+// Card info from Model (DuelScene cards only)
+CardInfo? info = CardModelProvider.ExtractCardInfoFromModel(card);
+
+// Card categorization (efficient single Model lookup)
+var (isCreature, isLand, isOpponent) = CardModelProvider.GetCardCategory(card);
+bool creature = CardModelProvider.IsCreatureCard(card);
+bool land = CardModelProvider.IsLandCard(card);
+bool opponent = CardModelProvider.IsOpponentCard(card);
+
+// Name lookup from database
+string name = CardModelProvider.GetNameFromGrpId(grpId);
+```
+
+**When to use which:**
+- **CardDetector**: When you need to check if something IS a card, or need UI fallback
+- **CardModelProvider**: When you already know it's a card and only need Model data
 
 **Detection Priority** (fast to slow):
 1. Object name patterns: CardAnchor, NPERewardPrefab_IndividualCard, MetaCardView, CDC #

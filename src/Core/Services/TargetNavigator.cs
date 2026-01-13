@@ -179,6 +179,13 @@ namespace MTGAAccessibility.Core.Services
             string announcement = $"{target.GetAnnouncement()}, {ownerInfo}{target.Type}, {position} of {total}";
 
             _announcer.Announce(announcement, AnnouncementPriority.Normal);
+
+            // Prepare CardInfoNavigator for arrow key navigation on this target
+            var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+            if (cardNavigator != null && target.GameObject != null)
+            {
+                cardNavigator.PrepareForCard(target.GameObject, ZoneType.Battlefield);
+            }
         }
 
         /// <summary>
