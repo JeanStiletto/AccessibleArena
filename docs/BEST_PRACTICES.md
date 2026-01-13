@@ -525,6 +525,88 @@ Announces game events via Harmony patch on `UXEventQueue.EnqueuePending()`.
 - Phase announcements: Main phases, combat steps (declare attackers/blockers, damage)
 - Combat announcements: "Combat begins", "Attacker declared", "Attacker removed"
 - Opponent plays: "Opponent played a card" (hand count decrease detection)
+- Combat damage: "[Card] deals [N] to [target]" (see Combat Damage Announcements below)
+
+**Combat Damage Announcements (January 2026):**
+
+Combat damage is announced via `CombatFrame` events which contain `DamageBranch` objects.
+
+*Announcement Queue Fix:*
+Changed `AnnouncementService` to only interrupt for `Immediate` priority. Previously, `High` priority announcements would interrupt each other, causing rapid damage events to overwrite. Now Tolk's internal queue handles sequencing for all non-Immediate announcements.
+
+*Event Structure:*
+```
+CombatFrame
+├── OpponentDamageDealt (int) - Total unblocked damage to opponent (YOUR damage to them)
+├── DamageType (enum) - Combat, Spell, etc.
+├── _branches (List<DamageBranch>) - Individual damage events
+│   └── DamageBranch
+│       ├── _damageEvent (UXEventDamageDealt)
+│       │   ├── Source (MtgEntity) - Creature dealing damage
+│       │   ├── Target (MtgEntity) - Creature or Player
+│       │   └── Amount (int) - Damage amount
+│       ├── _nextBranch (DamageBranch or null) - Chained damage (e.g., blocker's return damage)
+│       └── BranchDepth (int) - Number of damage events in chain
+└── _runningBranches (List<DamageBranch>) - Always empty in testing
+```
+
+*Damage Chain (_nextBranch):*
+When creatures trade damage in combat, the structure can be:
+- `_damageEvent`: Attacker's damage to blocker
+- `_nextBranch._damageEvent`: Blocker's damage back to attacker
+
+The code follows `_nextBranch` chain to extract all damage and groups them together for announcement:
+- Single damage: "Cat deals 3 to opponent"
+- Trade damage: "Cat deals 3 to Bear, Bear deals 2 to Cat"
+
+**KNOWN LIMITATION:** Blocker's return damage is NOT reliably included in `_nextBranch`.
+The game client inconsistently populates this field. Sometimes `_nextBranch=null` even when
+the blocker dealt damage. This appears to be a game client behavior we cannot control.
+
+*Potential Future Solutions:*
+1. Track damage via `UpdateCardModelUXEvent` when creatures get damage markers
+2. Infer blocker damage from combat state (attacker P/T vs blocker P/T)
+3. Accept limitation - attacker damage is always announced, blocker damage sometimes missing
+
+*Key Fields in UXEventDamageDealt:*
+- `Source`: MtgEntity with `InstanceId` and `GrpId` properties
+- `Target`: Either `"Player: 1 (LocalPlayer)"`, `"Player: 2 (Opponent)"`, or MtgEntity with GrpId
+- `Amount`: Integer damage amount
+
+*Target Detection Logic:*
+```csharp
+var targetStr = target.ToString();
+if (targetStr.Contains("LocalPlayer"))
+    targetName = "you";
+else if (targetStr.Contains("Opponent"))
+    targetName = "opponent";
+else
+    targetName = CardModelProvider.GetNameFromGrpId(target.GrpId);
+```
+
+*Announcement Examples:*
+- Creature to player: "Shrine Keeper deals 2 to you"
+- Creature to opponent: "Shrine Keeper deals 4 to opponent"
+- Creature to creature: "Shrine Keeper deals 3 to Nimble Pilferer"
+- Combat trade (when _nextBranch exists): "Shrine Keeper deals 3 to Pilferer, Pilferer deals 2 to Shrine Keeper"
+
+*OpponentDamageDealt Field:*
+This tracks YOUR total unblocked damage to the opponent. It is NOT damage dealt BY the opponent.
+When opponent attacks you, `OpponentDamageDealt=0`. Damage to you must be extracted from branches.
+
+*InvolvedIds Pattern:*
+The `InvolvedIds` list in DamageBranch contains: `[SourceInstanceId, TargetId]`
+- Player IDs: 1 = LocalPlayer, 2 = Opponent
+- Card IDs: InstanceId of the card
+
+**Life Change Events (LifeTotalUpdateUXEvent):**
+
+*Correct Field Names:*
+- `AffectedId` (uint) - NOT "PlayerId"
+- `Change` (property, int) - Life change amount (positive=gain, negative=loss)
+- `_avatar` - Avatar object, can check `.ToString()` for "Player #1" to determine local player
+
+*Note:* There is no `NewLifeTotal` field. Announcements format: "You lost 3 life" / "Opponent gained 4 life"
 
 **Privacy Protection:**
 - NEVER reveals opponent's hidden info (hand contents, library)

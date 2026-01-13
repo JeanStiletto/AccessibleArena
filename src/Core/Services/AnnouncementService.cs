@@ -20,7 +20,8 @@ namespace MTGAAccessibility.Core.Services
 
             _lastAnnouncement = message;
 
-            bool interrupt = priority >= AnnouncementPriority.High;
+            // Only Immediate priority interrupts - let Tolk queue everything else
+            bool interrupt = priority == AnnouncementPriority.Immediate;
             ScreenReaderOutput.Speak(message, interrupt);
         }
 
