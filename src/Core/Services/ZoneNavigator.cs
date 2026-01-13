@@ -442,11 +442,11 @@ namespace MTGAAccessibility.Core.Services
 
             _announcer.Announce($"{cardName}{selectionState}{combatState}, {position} of {total}", AnnouncementPriority.Normal);
 
-            // Prepare card info navigation
+            // Prepare card info navigation with zone context
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
             if (cardNavigator != null && CardDetector.IsCard(card))
             {
-                cardNavigator.PrepareForCard(card);
+                cardNavigator.PrepareForCard(card, _currentZone);
             }
         }
 

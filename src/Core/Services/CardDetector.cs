@@ -1211,19 +1211,20 @@ namespace MTGAAccessibility.Core.Services
 
             var parts = new List<string> { info.Name };
 
-            if (!string.IsNullOrEmpty(info.TypeLine))
-                parts.Add(info.TypeLine);
-
             if (!string.IsNullOrEmpty(info.PowerToughness))
                 parts.Add(info.PowerToughness);
+
+            if (!string.IsNullOrEmpty(info.TypeLine))
+                parts.Add(info.TypeLine);
 
             return string.Join(", ", parts);
         }
 
         /// <summary>
         /// Builds a list of navigable info blocks for a card.
+        /// Order varies by zone: battlefield puts mana cost after rules text.
         /// </summary>
-        public static List<CardInfoBlock> GetInfoBlocks(GameObject cardObj)
+        public static List<CardInfoBlock> GetInfoBlocks(GameObject cardObj, ZoneType zone = ZoneType.Hand)
         {
             var blocks = new List<CardInfoBlock>();
             var info = ExtractCardInfo(cardObj);
@@ -1231,17 +1232,24 @@ namespace MTGAAccessibility.Core.Services
             if (!string.IsNullOrEmpty(info.Name))
                 blocks.Add(new CardInfoBlock("Name", info.Name));
 
-            if (!string.IsNullOrEmpty(info.ManaCost))
-                blocks.Add(new CardInfoBlock("Mana Cost", info.ManaCost));
+            // Battlefield: mana cost comes after rules (less important when card is in play)
+            bool isBattlefield = zone == ZoneType.Battlefield;
 
-            if (!string.IsNullOrEmpty(info.TypeLine))
-                blocks.Add(new CardInfoBlock("Type", info.TypeLine));
+            if (!isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
+                blocks.Add(new CardInfoBlock("Mana Cost", info.ManaCost));
 
             if (!string.IsNullOrEmpty(info.PowerToughness))
                 blocks.Add(new CardInfoBlock("Power and Toughness", info.PowerToughness));
 
+            if (!string.IsNullOrEmpty(info.TypeLine))
+                blocks.Add(new CardInfoBlock("Type", info.TypeLine));
+
             if (!string.IsNullOrEmpty(info.RulesText))
                 blocks.Add(new CardInfoBlock("Rules", info.RulesText));
+
+            // Battlefield: mana cost after rules
+            if (isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
+                blocks.Add(new CardInfoBlock("Mana Cost", info.ManaCost));
 
             if (!string.IsNullOrEmpty(info.FlavorText))
                 blocks.Add(new CardInfoBlock("Flavor", info.FlavorText));

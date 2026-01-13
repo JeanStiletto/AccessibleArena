@@ -467,10 +467,17 @@ MTGAAccessibilityMod.Instance.ActivateCardDetails(element);
 
 **Preparing for a card (used by navigators):**
 ```csharp
+// Default (Hand zone)
 MTGAAccessibilityMod.Instance.CardNavigator.PrepareForCard(element);
+// With explicit zone
+MTGAAccessibilityMod.Instance.CardNavigator.PrepareForCard(element, ZoneType.Battlefield);
 ```
 
-Info block order: Name, Mana Cost, Type, Power/Toughness, Rules, Flavor, Artist
+**Info block order varies by zone:**
+- Hand/Stack/Other: Name, Mana Cost, Power/Toughness, Type, Rules, Flavor, Artist
+- Battlefield: Name, Power/Toughness, Type, Rules, Mana Cost, Flavor, Artist
+
+On battlefield, mana cost is less important (card already in play), so it's shown after rules text.
 
 ## Duel Services
 

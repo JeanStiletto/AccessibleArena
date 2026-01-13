@@ -591,7 +591,7 @@ namespace MTGAAccessibility.Core.Services
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
             if (cardNavigator != null && CardDetector.IsCard(card))
             {
-                cardNavigator.PrepareForCard(card);
+                cardNavigator.PrepareForCard(card, ZoneType.Battlefield);
             }
         }
 

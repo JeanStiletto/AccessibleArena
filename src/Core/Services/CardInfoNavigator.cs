@@ -21,6 +21,7 @@ namespace MTGAAccessibility.Core.Services
         private int _currentBlockIndex = -1;
         private bool _isActive;
         private bool _blocksLoaded;
+        private ZoneType _currentZone = ZoneType.Hand;
 
         public bool IsActive => _isActive;
         public GameObject CurrentCard => _currentCard;
@@ -34,7 +35,7 @@ namespace MTGAAccessibility.Core.Services
         /// Prepares card navigation for the given card without extracting info yet.
         /// Call this when focus changes to a card. Info is loaded lazily on first arrow press.
         /// </summary>
-        public void PrepareForCard(GameObject cardElement)
+        public void PrepareForCard(GameObject cardElement, ZoneType zone = ZoneType.Hand)
         {
             if (cardElement == null)
             {
@@ -42,30 +43,32 @@ namespace MTGAAccessibility.Core.Services
                 return;
             }
 
-            // If same card, keep current state
-            if (_currentCard == cardElement)
+            // If same card and same zone, keep current state
+            if (_currentCard == cardElement && _currentZone == zone)
                 return;
 
             // New card - prepare but don't load blocks yet
             _currentCard = cardElement;
+            _currentZone = zone;
             _isActive = true;
             _blocksLoaded = false;
             _blocks.Clear();
             _currentBlockIndex = -1;
 
-            MelonLogger.Msg($"[CardInfo] Prepared for card: {cardElement.name}");
+            MelonLogger.Msg($"[CardInfo] Prepared for card: {cardElement.name} in zone: {zone}");
         }
 
         /// <summary>
         /// Activates card info navigation for the given card GameObject.
         /// Returns true if the card has navigable info blocks.
+        /// Uses the zone set by PrepareForCard, or defaults to Hand.
         /// </summary>
         public bool ActivateForCard(GameObject cardElement)
         {
             if (cardElement == null) return false;
 
-            // Use CardDetector to get info blocks
-            _blocks = CardDetector.GetInfoBlocks(cardElement);
+            // Use CardDetector to get info blocks with current zone context
+            _blocks = CardDetector.GetInfoBlocks(cardElement, _currentZone);
             _currentCard = cardElement;
             _currentBlockIndex = 0;
             _blocksLoaded = true;
@@ -157,7 +160,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_currentCard == null) return false;
 
-            _blocks = CardDetector.GetInfoBlocks(_currentCard);
+            _blocks = CardDetector.GetInfoBlocks(_currentCard, _currentZone);
             _blocksLoaded = true;
 
             if (_blocks.Count == 0)

@@ -204,8 +204,23 @@ namespace MTGAAccessibility.Core.Services
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
             if (cardNavigator != null)
             {
-                cardNavigator.PrepareForCard(card.GameObject);
+                var zoneType = StringToZoneType(card.Zone);
+                cardNavigator.PrepareForCard(card.GameObject, zoneType);
             }
+        }
+
+        /// <summary>
+        /// Converts zone string to ZoneType enum.
+        /// </summary>
+        private ZoneType StringToZoneType(string zone)
+        {
+            return zone switch
+            {
+                "Hand" => ZoneType.Hand,
+                "Battlefield" => ZoneType.Battlefield,
+                "Stack" => ZoneType.Stack,
+                _ => ZoneType.Hand
+            };
         }
 
         /// <summary>
