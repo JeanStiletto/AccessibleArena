@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 using System.Collections.Generic;
@@ -53,6 +54,9 @@ namespace MTGAAccessibility.Core.Services
         private float _postActivationRescanDelay = 0f;
         private const float POST_ACTIVATION_RESCAN_DELAY = 1.0f; // Check 1 second after activation
         private int _elementCountAtActivation = 0;
+
+        // Force rescan flag - bypasses debounce when set (used for toggle activations)
+        private bool _forceRescan = false;
 
         // Threshold for Selectable count change to trigger rescan.
         // Value of 0 means any change triggers rescan - needed because some panels
@@ -599,9 +603,14 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Schedule a rescan after a short delay to let UI settle
         /// </summary>
-        private void TriggerRescan()
+        /// <param name="force">If true, bypasses the debounce check (used for toggle activations)</param>
+        private void TriggerRescan(bool force = false)
         {
             _rescanDelay = RESCAN_DELAY_SECONDS;
+            if (force)
+            {
+                _forceRescan = true;
+            }
         }
 
         /// <summary>
@@ -609,14 +618,15 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private void PerformRescan()
         {
-            // Debounce: skip if we just rescanned recently
+            // Debounce: skip if we just rescanned recently (unless forced)
             float currentTime = Time.time;
-            if (currentTime - _lastRescanTime < RESCAN_DEBOUNCE_SECONDS)
+            if (!_forceRescan && currentTime - _lastRescanTime < RESCAN_DEBOUNCE_SECONDS)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Skipping rescan - debounce active");
                 return;
             }
             _lastRescanTime = currentTime;
+            _forceRescan = false; // Reset force flag
 
             // Cancel any pending post-activation check since we're rescanning now.
             // This prevents double rescans when both Harmony patch and post-activation
@@ -624,6 +634,13 @@ namespace MTGAAccessibility.Core.Services
             _postActivationRescanDelay = 0f;
 
             MelonLogger.Msg($"[{NavigatorId}] Rescanning elements after panel change");
+
+            // Remember the navigator's current selection before clearing
+            GameObject previousSelection = null;
+            if (_currentIndex >= 0 && _currentIndex < _elements.Count)
+            {
+                previousSelection = _elements[_currentIndex].GameObject;
+            }
 
             // Log UI elements during rescan to help debug component differences
             LogAvailableUIElements();
@@ -633,6 +650,20 @@ namespace MTGAAccessibility.Core.Services
             _currentIndex = 0;
 
             DiscoverElements();
+
+            // Try to find the previously selected object in the new element list
+            if (previousSelection != null)
+            {
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == previousSelection)
+                    {
+                        _currentIndex = i;
+                        MelonLogger.Msg($"[{NavigatorId}] Preserved selection at index {i}: {previousSelection.name}");
+                        break;
+                    }
+                }
+            }
 
             // Update menu type based on new state
             _detectedMenuType = DetectMenuType();
@@ -1125,10 +1156,11 @@ namespace MTGAAccessibility.Core.Services
             // For Toggle activations (checkboxes), force a rescan after a delay
             // This handles deck folder filtering where Selectable count may not change
             // but the visible decks do change
+            // Use force=true to bypass debounce since user explicitly toggled a filter
             if (isToggle)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {POST_ACTIVATION_RESCAN_DELAY}s");
-                TriggerRescan();
+                MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {RESCAN_DELAY_SECONDS}s (bypassing debounce)");
+                TriggerRescan(force: true);
                 return true;
             }
 

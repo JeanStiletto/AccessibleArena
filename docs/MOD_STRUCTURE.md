@@ -597,3 +597,54 @@ Replaced phase-specific hardcoded checks with universal state indicator detectio
 
 **Files Changed:**
 - `src/Core/Services/CombatNavigator.cs` - Rewrote `GetCombatStateText()` method
+
+### January 2026 - Menu Navigation Fixes (Checkbox & Position Preservation)
+
+**Problem 1: Checkbox toggle rescans were being skipped**
+
+When toggling deck folder checkboxes (My Decks, Starter Decks, etc.), the rescan to update
+the deck list was sometimes skipped due to debounce. The debounce (1.0s) would skip rescans
+if another rescan happened recently (e.g., from opening the blade).
+
+**Solution:** Added `force` parameter to `TriggerRescan()` that bypasses the debounce check.
+Toggle activations now call `TriggerRescan(force: true)` to ensure the rescan always happens.
+
+**Problem 2: Position reset after rescan**
+
+After any rescan, the navigator's position would reset to the first element instead of
+staying on the element the user was on.
+
+**Root Cause:** The position preservation code was using `EventSystem.current?.currentSelectedGameObject`
+to remember the selection, but the EventSystem selection isn't synced with the navigator's
+internal `_currentIndex`. This resulted in finding the wrong element (or no element) after rescan.
+
+**Solution:** Changed to use `_elements[_currentIndex].GameObject` - the navigator's own
+tracked position - to remember which element the user was on before the rescan.
+
+**Implementation Details:**
+
+```csharp
+// In GeneralMenuNavigator.TriggerRescan():
+private void TriggerRescan(bool force = false)
+{
+    _rescanDelay = RESCAN_DELAY_SECONDS;
+    if (force)
+    {
+        _forceRescan = true;  // Bypasses debounce in PerformRescan()
+    }
+}
+
+// In GeneralMenuNavigator.PerformRescan():
+// Remember navigator's current selection (not EventSystem's)
+GameObject previousSelection = null;
+if (_currentIndex >= 0 && _currentIndex < _elements.Count)
+{
+    previousSelection = _elements[_currentIndex].GameObject;
+}
+// ... after rediscovering elements ...
+// Find and restore position
+```
+
+**Files Changed:**
+- `src/Core/Services/GeneralMenuNavigator.cs` - Added `_forceRescan` flag, updated `TriggerRescan()`
+  with force parameter, fixed position preservation to use navigator's `_currentIndex`
