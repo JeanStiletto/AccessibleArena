@@ -330,7 +330,7 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Handles input during combat phases.
+        /// Handles input during combat phases and main phase pass/next.
         /// Returns true if input was consumed.
         /// </summary>
         public bool HandleInput()
@@ -374,6 +374,52 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // Handle main phase / non-combat: Space presses primary button (Next, To Combat, Pass, etc.)
+            if (!_duelAnnouncer.IsInDeclareAttackersPhase && !_duelAnnouncer.IsInDeclareBlockersPhase)
+            {
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    return TryClickPrimaryButton();
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Finds and clicks the primary prompt button (Next, To Combat, Pass, Done, etc.).
+        /// Used during main phase to pass priority or move to combat.
+        /// Returns true if button was found and clicked.
+        /// </summary>
+        private bool TryClickPrimaryButton()
+        {
+            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
+            {
+                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
+                    continue;
+
+                string name = selectable.gameObject.name;
+                if (!name.Contains("PromptButton_Primary"))
+                    continue;
+
+                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
+                if (string.IsNullOrEmpty(buttonText))
+                    continue;
+
+                // Skip "Opponent's Turn" - nothing to do
+                if (buttonText.Contains("Opponent"))
+                    continue;
+
+                MelonLogger.Msg($"[CombatNavigator] Clicking primary button: {buttonText}");
+                var result = UIActivator.SimulatePointerClick(selectable.gameObject);
+                if (result.Success)
+                {
+                    _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+                    return true;
+                }
+            }
+
+            MelonLogger.Msg("[CombatNavigator] No primary button found");
             return false;
         }
 
