@@ -439,6 +439,14 @@ CardDetector.ClearCache(); // Call on scene change
 
 // Check for valid targets on battlefield/stack (HotHighlight detection)
 bool hasTargets = CardDetector.HasValidTargetsOnBattlefield();
+
+// Card categorization (efficient single Model lookup)
+var (isCreature, isLand, isOpponent) = CardDetector.GetCardCategory(card);
+
+// Convenience methods (use GetCardCategory when checking multiple properties)
+bool creature = CardDetector.IsCreatureCard(card);
+bool land = CardDetector.IsLandCard(card);
+bool opponent = CardDetector.IsOpponentCard(card);
 ```
 
 **Detection Priority** (fast to slow):

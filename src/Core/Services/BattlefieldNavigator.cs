@@ -150,7 +150,6 @@ namespace MTGAAccessibility.Core.Services
                     {
                         _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
                         _currentRow = BattlefieldRow.PlayerCreatures;
-                        DiscoverAndCategorizeCards();
                     }
                     PreviousRow();
                     return true;
@@ -163,7 +162,6 @@ namespace MTGAAccessibility.Core.Services
                     {
                         _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
                         _currentRow = BattlefieldRow.PlayerCreatures;
-                        DiscoverAndCategorizeCards();
                     }
                     NextRow();
                     return true;
@@ -285,81 +283,12 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Determines which row a card belongs to based on type and ownership.
-        /// Uses the game's CardData Model for accurate type detection.
+        /// Uses CardDetector.GetCardCategory for efficient single-lookup detection.
         /// </summary>
         private BattlefieldRow CategorizeCard(GameObject card)
         {
             string cardName = CardDetector.GetCardName(card);
-            bool isOpponent = false;
-            bool isCreature = false;
-            bool isLand = false;
-
-            // Try to get card data from DuelScene_CDC component using shared utility
-            var cdcComponent = CardDetector.GetDuelSceneCDC(card);
-            var model = CardDetector.GetCardModel(cdcComponent);
-            if (model != null)
-            {
-                try
-                {
-                    var modelType = model.GetType();
-
-                    // Get ownership from ControllerNum (returns "Opponent" or "Player")
-                    var controllerProp = modelType.GetProperty("ControllerNum");
-                    if (controllerProp != null)
-                    {
-                        var controller = controllerProp.GetValue(model);
-                        isOpponent = controller?.ToString() == "Opponent";
-                    }
-
-                    // Check IsBasicLand and IsLandButNotBasic for land detection
-                    var isBasicLandProp = modelType.GetProperty("IsBasicLand");
-                    var isLandNotBasicProp = modelType.GetProperty("IsLandButNotBasic");
-                    if (isBasicLandProp != null)
-                    {
-                        isLand = (bool)isBasicLandProp.GetValue(model);
-                    }
-                    if (!isLand && isLandNotBasicProp != null)
-                    {
-                        isLand = (bool)isLandNotBasicProp.GetValue(model);
-                    }
-
-                    // Get CardTypes list to check for Creature
-                    var cardTypesProp = modelType.GetProperty("CardTypes");
-                    if (cardTypesProp != null)
-                    {
-                        var cardTypes = cardTypesProp.GetValue(model);
-                        if (cardTypes != null)
-                        {
-                            // Enumerate the list to check for creature/land type
-                            var enumerable = cardTypes as System.Collections.IEnumerable;
-                            if (enumerable != null)
-                            {
-                                foreach (var cardType in enumerable)
-                                {
-                                    string typeStr = cardType.ToString();
-                                    if (typeStr == "Creature" || typeStr.Contains("Creature"))
-                                    {
-                                        isCreature = true;
-                                    }
-                                    if (typeStr == "Land" || typeStr.Contains("Land"))
-                                    {
-                                        isLand = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Msg($"[BattlefieldNavigator] Error reading card data: {ex.Message}");
-                }
-            }
-            else
-            {
-                // Fallback to screen position for ownership
-                isOpponent = IsOpponentCard(card);
-            }
+            var (isCreature, isLand, isOpponent) = CardDetector.GetCardCategory(card);
 
             // Determine row based on type and ownership
             BattlefieldRow row;
@@ -378,33 +307,6 @@ namespace MTGAAccessibility.Core.Services
 
             MelonLogger.Msg($"[BattlefieldNavigator] Card: {cardName}, IsCreature: {isCreature}, IsLand: {isLand}, IsOpponent: {isOpponent} -> {row}");
             return row;
-        }
-
-        /// <summary>
-        /// Determines if a card belongs to the opponent based on parent hierarchy or screen position.
-        /// </summary>
-        private bool IsOpponentCard(GameObject cardObj)
-        {
-            Transform current = cardObj.transform;
-            while (current != null)
-            {
-                string name = current.name.ToLower();
-                if (name.Contains("opponent"))
-                    return true;
-                if (name.Contains("local") || name.Contains("player1"))
-                    return false;
-
-                current = current.parent;
-            }
-
-            // Fallback: check screen position (top 60% = opponent)
-            Vector3 screenPos = Camera.main?.WorldToScreenPoint(cardObj.transform.position) ?? Vector3.zero;
-            if (screenPos != Vector3.zero)
-            {
-                return screenPos.y > Screen.height * 0.6f;
-            }
-
-            return false;
         }
 
         /// <summary>

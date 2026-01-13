@@ -271,7 +271,7 @@ namespace MTGAAccessibility.Core.Services
                     Name = name,
                     InstanceId = (uint)cardObj.GetInstanceID(),
                     Type = CardTargetType.Permanent,
-                    IsOpponent = IsOpponentCard(cardObj),
+                    IsOpponent = CardDetector.IsOpponentCard(cardObj),
                     Details = ""
                 };
             }
@@ -285,7 +285,7 @@ namespace MTGAAccessibility.Core.Services
                 Name = cardInfo.Name,
                 InstanceId = (uint)cardObj.GetInstanceID(),
                 Type = targetType,
-                IsOpponent = IsOpponentCard(cardObj),
+                IsOpponent = CardDetector.IsOpponentCard(cardObj),
                 Details = details
             };
         }
@@ -309,30 +309,6 @@ namespace MTGAAccessibility.Core.Services
                 return CardTargetType.Land;
 
             return CardTargetType.Permanent;
-        }
-
-        private bool IsOpponentCard(GameObject cardObj)
-        {
-            Transform current = cardObj.transform;
-            while (current != null)
-            {
-                string name = current.name.ToLower();
-                if (name.Contains("opponent"))
-                    return true;
-                if (name.Contains("local") || name.Contains("player1"))
-                    return false;
-
-                current = current.parent;
-            }
-
-            // Fallback: check screen position
-            Vector3 screenPos = Camera.main?.WorldToScreenPoint(cardObj.transform.position) ?? Vector3.zero;
-            if (screenPos != Vector3.zero)
-            {
-                return screenPos.y > Screen.height * 0.6f;
-            }
-
-            return false;
         }
     }
 }

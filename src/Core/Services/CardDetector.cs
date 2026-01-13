@@ -1202,25 +1202,6 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Gets a summary of the card (name + type + P/T if creature).
-        /// </summary>
-        public static string GetCardSummary(GameObject cardObj)
-        {
-            var info = ExtractCardInfo(cardObj);
-            if (!info.IsValid) return "Unknown card";
-
-            var parts = new List<string> { info.Name };
-
-            if (!string.IsNullOrEmpty(info.PowerToughness))
-                parts.Add(info.PowerToughness);
-
-            if (!string.IsNullOrEmpty(info.TypeLine))
-                parts.Add(info.TypeLine);
-
-            return string.Join(", ", parts);
-        }
-
-        /// <summary>
         /// Builds a list of navigable info blocks for a card.
         /// Order varies by zone: battlefield puts mana cost after rules text.
         /// </summary>
@@ -1364,6 +1345,143 @@ namespace MTGAAccessibility.Core.Services
 
             return false;
         }
+
+        #region Card Categorization Helpers
+
+        /// <summary>
+        /// Gets card category info (creature, land, opponent) in a single Model lookup.
+        /// More efficient than calling IsCreatureCard/IsLandCard/IsOpponentCard separately.
+        /// </summary>
+        public static (bool isCreature, bool isLand, bool isOpponent) GetCardCategory(GameObject card)
+        {
+            if (card == null) return (false, false, false);
+
+            bool isCreature = false;
+            bool isLand = false;
+            bool isOpponent = false;
+
+            var cdcComponent = GetDuelSceneCDC(card);
+            if (cdcComponent != null)
+            {
+                var model = GetCardModel(cdcComponent);
+                if (model != null)
+                {
+                    try
+                    {
+                        var modelType = model.GetType();
+
+                        // Check ownership from ControllerNum
+                        var controllerProp = modelType.GetProperty("ControllerNum");
+                        if (controllerProp != null)
+                        {
+                            var controller = controllerProp.GetValue(model);
+                            isOpponent = controller?.ToString() == "Opponent";
+                        }
+
+                        // Check IsBasicLand property
+                        var isBasicLandProp = modelType.GetProperty("IsBasicLand");
+                        if (isBasicLandProp != null && (bool)isBasicLandProp.GetValue(model))
+                            isLand = true;
+
+                        // Check IsLandButNotBasic property
+                        if (!isLand)
+                        {
+                            var isLandNotBasicProp = modelType.GetProperty("IsLandButNotBasic");
+                            if (isLandNotBasicProp != null && (bool)isLandNotBasicProp.GetValue(model))
+                                isLand = true;
+                        }
+
+                        // Check CardTypes for Creature and Land
+                        var cardTypesProp = modelType.GetProperty("CardTypes");
+                        if (cardTypesProp != null)
+                        {
+                            var cardTypes = cardTypesProp.GetValue(model) as IEnumerable;
+                            if (cardTypes != null)
+                            {
+                                foreach (var cardType in cardTypes)
+                                {
+                                    string typeStr = cardType?.ToString() ?? "";
+                                    if (typeStr == "Creature" || typeStr.Contains("Creature"))
+                                        isCreature = true;
+                                    if (typeStr == "Land" || typeStr.Contains("Land"))
+                                        isLand = true;
+                                }
+                            }
+                        }
+
+                        return (isCreature, isLand, isOpponent);
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Msg($"[CardDetector] Error in GetCardCategory: {ex.Message}");
+                    }
+                }
+            }
+
+            // Fallback for ownership if Model not available
+            isOpponent = IsOpponentCardFallback(card);
+            return (isCreature, isLand, isOpponent);
+        }
+
+        /// <summary>
+        /// Checks if a card is a creature based on its CardTypes from the Model.
+        /// For single checks only - use GetCardCategory() when checking multiple properties.
+        /// </summary>
+        public static bool IsCreatureCard(GameObject card)
+        {
+            return GetCardCategory(card).isCreature;
+        }
+
+        /// <summary>
+        /// Checks if a card is a land based on its CardTypes or IsBasicLand/IsLandButNotBasic from the Model.
+        /// For single checks only - use GetCardCategory() when checking multiple properties.
+        /// </summary>
+        public static bool IsLandCard(GameObject card)
+        {
+            return GetCardCategory(card).isLand;
+        }
+
+        /// <summary>
+        /// Checks if a card belongs to the opponent.
+        /// For single checks only - use GetCardCategory() when checking multiple properties.
+        /// </summary>
+        public static bool IsOpponentCard(GameObject card)
+        {
+            return GetCardCategory(card).isOpponent;
+        }
+
+        /// <summary>
+        /// Fallback method to determine opponent ownership via hierarchy/position.
+        /// Used when Model is not available.
+        /// </summary>
+        private static bool IsOpponentCardFallback(GameObject card)
+        {
+            if (card == null) return false;
+
+            // Check parent hierarchy for ownership indicators
+            Transform current = card.transform;
+            while (current != null)
+            {
+                string name = current.name.ToLower();
+                if (name.Contains("opponent"))
+                    return true;
+                if (name.Contains("local") || name.Contains("player1"))
+                    return false;
+
+                current = current.parent;
+            }
+
+            // Final fallback: Check screen position (top 60% = opponent)
+            Vector3 screenPos = Camera.main?.WorldToScreenPoint(card.transform.position) ?? Vector3.zero;
+            if (screenPos != Vector3.zero)
+            {
+                return screenPos.y > Screen.height * 0.6f;
+            }
+
+            return false;
+        }
+
+        #endregion
     }
 
     /// <summary>
