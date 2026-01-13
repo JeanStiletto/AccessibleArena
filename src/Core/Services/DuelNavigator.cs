@@ -145,21 +145,21 @@ namespace MTGAAccessibility.Core.Services
             // 3. Activate highlight navigator for Tab cycling through playable cards
             _highlightNavigator.Activate();
 
-            // 3. Activate duel announcer with local player ID
+            // 4. Activate duel announcer with local player ID
             // We detect local player by finding LocalHand zone and getting its OwnerId
             uint localPlayerId = DetectLocalPlayerId();
             _duelAnnouncer.Activate(localPlayerId);
 
-            // 2. Find all Selectables (StyledButton, Button, Toggle, etc.)
+            // 5. Find all Selectables (StyledButton, Button, Toggle, etc.)
             DiscoverSelectables(addedObjects);
 
-            // 3. Find all CustomButtons
+            // 6. Find all CustomButtons
             DiscoverCustomButtons(addedObjects);
 
-            // 4. Find all EventTriggers (skip non-useful ones like "Stop")
+            // 7. Find all EventTriggers (skip non-useful ones like "Stop")
             DiscoverEventTriggers(addedObjects);
 
-            // 5. Find specific duel elements by name patterns
+            // 8. Find specific duel elements by name patterns
             DiscoverDuelSpecificElements(addedObjects);
 
             MelonLogger.Msg($"[{NavigatorId}] === DUEL UI DISCOVERY END - Found {_elements.Count} elements ===");
@@ -310,7 +310,7 @@ namespace MTGAAccessibility.Core.Services
             // ONLY auto-enter when NOT in combat phase - during combat, HotHighlight is for attackers/blockers
             // not spell targets. If a spell needs targeting during combat, UIActivator will call EnterTargetMode.
             bool inCombatPhase = _duelAnnouncer.IsInDeclareAttackersPhase || _duelAnnouncer.IsInDeclareBlockersPhase;
-            bool hasValidTargets = HasValidTargetsOnBattlefield();
+            bool hasValidTargets = CardDetector.HasValidTargetsOnBattlefield();
 
             if (!_targetNavigator.IsTargeting && !inCombatPhase && hasValidTargets)
             {
@@ -491,45 +491,6 @@ namespace MTGAAccessibility.Core.Services
             name = System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
             name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", " ");
             return name;
-        }
-
-        /// <summary>
-        /// Checks if any cards on the battlefield have HotHighlight (indicating targeting mode).
-        /// </summary>
-        private bool HasValidTargetsOnBattlefield()
-        {
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                // Check if it's on the battlefield or stack
-                Transform current = go.transform;
-                bool inTargetZone = false;
-                while (current != null)
-                {
-                    if (current.name.Contains("BattlefieldCardHolder") || current.name.Contains("StackCardHolder"))
-                    {
-                        inTargetZone = true;
-                        break;
-                    }
-                    current = current.parent;
-                }
-
-                if (!inTargetZone)
-                    continue;
-
-                // Check for HotHighlight child (indicates valid target)
-                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
-                {
-                    if (child.gameObject.activeInHierarchy && child.name.Contains("HotHighlight"))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
         }
 
         #endregion

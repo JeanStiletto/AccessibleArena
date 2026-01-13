@@ -24,8 +24,8 @@ namespace MTGAAccessibility.Core.Services
         private readonly IAnnouncementService _announcer;
         private readonly DuelAnnouncer _duelAnnouncer;
 
-        // Debug flag for logging card children
-        private bool _debugBlockerCards = true;
+        // Debug flag for logging card children (set to true for debugging)
+        private bool _debugBlockerCards = false;
 
         // Track selected blockers by instance ID for change detection
         private HashSet<int> _previousSelectedBlockerIds = new HashSet<int>();
@@ -39,8 +39,8 @@ namespace MTGAAccessibility.Core.Services
             _duelAnnouncer = duelAnnouncer;
         }
 
-        // Debug flag for logging attacker card children
-        private bool _debugAttackerCards = true;
+        // Debug flag for logging attacker card children (set to true for debugging)
+        private bool _debugAttackerCards = false;
 
         /// <summary>
         /// Checks if a creature is currently selected/declared as an attacker.

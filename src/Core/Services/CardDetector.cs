@@ -1316,6 +1316,46 @@ namespace MTGAAccessibility.Core.Services
             text = text.Trim();
             return string.IsNullOrEmpty(text) ? null : text;
         }
+
+        /// <summary>
+        /// Checks if any cards on the battlefield or stack have HotHighlight (indicating targeting mode).
+        /// Used to detect when the game is waiting for target selection.
+        /// </summary>
+        public static bool HasValidTargetsOnBattlefield()
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                // Check if it's on the battlefield or stack
+                Transform current = go.transform;
+                bool inTargetZone = false;
+                while (current != null)
+                {
+                    if (current.name.Contains("BattlefieldCardHolder") || current.name.Contains("StackCardHolder"))
+                    {
+                        inTargetZone = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+
+                if (!inTargetZone)
+                    continue;
+
+                // Check for HotHighlight child (indicates valid target)
+                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.gameObject.activeInHierarchy && child.name.Contains("HotHighlight"))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
     }
 
     /// <summary>

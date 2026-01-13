@@ -436,12 +436,19 @@ GameObject root = CardDetector.GetCardRoot(element);
 CardInfo info = CardDetector.ExtractCardInfo(element);
 List<CardInfoBlock> blocks = CardDetector.GetInfoBlocks(element);
 CardDetector.ClearCache(); // Call on scene change
+
+// Check for valid targets on battlefield/stack (HotHighlight detection)
+bool hasTargets = CardDetector.HasValidTargetsOnBattlefield();
 ```
 
 **Detection Priority** (fast to slow):
 1. Object name patterns: CardAnchor, NPERewardPrefab_IndividualCard, MetaCardView, CDC #
 2. Parent name patterns (one level up)
 3. Component names: BoosterMetaCardView, RewardDisplayCard, Meta_CDC, CardView
+
+**Target Detection:**
+`HasValidTargetsOnBattlefield()` scans battlefield and stack for cards with active `HotHighlight` children.
+Used by DuelNavigator and DiscardNavigator to detect targeting mode vs other game states.
 
 ### CardInfoNavigator
 Handles Arrow Up/Down navigation through card info blocks.

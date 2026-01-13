@@ -250,7 +250,7 @@ namespace MTGAAccessibility.Core.Services
 
                 var go = child.gameObject;
 
-                if (IsCardObject(go))
+                if (CardDetector.IsCard(go))
                 {
                     if (!zone.Cards.Any(c => c.transform.IsChildOf(go.transform) || go.transform.IsChildOf(c.transform)))
                     {
@@ -261,38 +261,6 @@ namespace MTGAAccessibility.Core.Services
 
             // Sort cards by position (left to right)
             zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
-        }
-
-        /// <summary>
-        /// Checks if a GameObject is a card using game code patterns.
-        /// </summary>
-        private bool IsCardObject(GameObject go)
-        {
-            string name = go.name;
-
-            // CDC # pattern for duel scene cards
-            if (name.StartsWith("CDC #") || name.Contains("CDC #"))
-                return true;
-
-            if (name.Contains("CardAnchor"))
-                return true;
-
-            foreach (var component in go.GetComponents<MonoBehaviour>())
-            {
-                if (component == null) continue;
-                string typeName = component.GetType().Name;
-
-                if (typeName == "CDCMetaCardView" ||
-                    typeName == "CardView" ||
-                    typeName == "DuelCardView" ||
-                    typeName == "Meta_CDC" ||
-                    typeName.Contains("CardView"))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>
