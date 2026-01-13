@@ -67,19 +67,7 @@ Only one navigator can be active. UIFocusTracker runs as fallback when no naviga
 
 ## DuelScene
 
-DuelScene contains two navigators that activate in sequence.
-
-### Pre-Battle Screen
-**Navigator:** `PreBattleNavigator`
-
-Shows player vs opponent with deck info before match starts.
-
-Elements:
-- `PromptButton_Primary` - "Continue to battle" button
-- `PromptButton_Secondary` - "Cancel" button
-- `Nav_Settings` - Settings button
-
-Detection: Activates when `PromptButton_Secondary` contains "Cancel" text.
+The game auto-transitions from the VS screen to active gameplay without requiring user input.
 
 ### Duel Gameplay
 **Navigator:** `DuelNavigator` + `ZoneNavigator`
@@ -121,7 +109,7 @@ Components: `CDCMetaCardView`, `CardView`, `DuelCardView`
 Arrow keys trigger Unity's built-in navigation, cycling focus between UI buttons.
 Fix: Clear `EventSystem.currentSelectedGameObject` before handling arrows.
 
-Detection: Activates after PreBattle when `PromptButton_Primary` shows duel-related text
+Detection: Activates when `PromptButton_Primary` shows duel-related text
 (End, Main, Pass, Resolve, Combat, Attack, Block, Done) or Stop EventTriggers exist.
 
 ### Duel Sub-Navigators

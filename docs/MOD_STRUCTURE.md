@@ -49,7 +49,6 @@ C:\Users\fabia\arena\
         WelcomeGateNavigator.cs      - Welcome/login choice screen
         LoginPanelNavigator.cs       - Email/password login screen
         CodeOfConductNavigator.cs    - Terms/consent checkboxes screen
-        PreBattleNavigator.cs        - Pre-battle VS screen (DuelScene)
         DuelNavigator.cs             - Duel gameplay screen (delegates to ZoneNavigator)
         EventTriggerNavigator.cs     - NPE rewards, pack opening, card reveal
         OverlayNavigator.cs          - Modal overlays (What's New, announcements)
@@ -87,7 +86,6 @@ C:\Users\fabia\arena\
 - [x] WelcomeGateNavigator - Login/Register choice screen
 - [x] LoginPanelNavigator - Email/password entry
 - [x] CodeOfConductNavigator - Terms/consent checkboxes
-- [x] PreBattleNavigator - Pre-battle VS screen
 - [x] DuelNavigator - Duel gameplay (zone navigation working)
 - [x] EventTriggerNavigator - NPE rewards, pack opening
 - [~] OverlayNavigator - Modal overlays (What's New carousel) - basic implementation

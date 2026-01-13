@@ -162,11 +162,10 @@ Navigators are checked in priority order (highest first):
 1. WelcomeGate (100) - Login choice screen
 2. LoginPanel (90) - Email/password entry
 3. Overlay (85) - Modal popups
-4. PreBattle (80) - VS screen before duel
-5. Duel (70) - In-game combat
-6. CodeOfConduct (50) - Terms/consent screens
-7. GeneralMenu (15) - Fallback menu navigator
-8. EventTrigger (10) - Fallback for non-Selectable screens
+4. Duel (70) - In-game combat
+5. CodeOfConduct (50) - Terms/consent screens
+6. GeneralMenu (15) - Fallback menu navigator
+7. EventTrigger (10) - Fallback for non-Selectable screens
 
 **Key insight:** Higher priority navigators should have very specific detection. Lower priority navigators act as fallbacks.
 

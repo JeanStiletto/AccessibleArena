@@ -82,7 +82,7 @@ namespace MTGAAccessibility
                 new WelcomeGateNavigator(_announcer),
                 new LoginPanelNavigator(_announcer),
                 new OverlayNavigator(_announcer),
-                new PreBattleNavigator(_announcer),
+                // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),
                 new CodeOfConductNavigator(_announcer),
                 new GeneralMenuNavigator(_announcer),
@@ -235,14 +235,9 @@ namespace MTGAAccessibility
             // Notify navigator manager of scene change
             _navigatorManager?.OnSceneChanged(sceneName);
 
-            // Both PreBattle and Duel navigators activate on DuelScene
-            // PreBattle handles the VS screen (Continue/Cancel), Duel handles actual gameplay
-            // PreBattle has higher priority (80) so it activates first
+            // DuelNavigator activates on DuelScene - game auto-transitions to duel
             if (sceneName == "DuelScene")
             {
-                var preBattleNav = _navigatorManager?.GetNavigator<PreBattleNavigator>();
-                preBattleNav?.OnDuelSceneLoaded();
-
                 var duelNav = _navigatorManager?.GetNavigator<DuelNavigator>();
                 duelNav?.OnDuelSceneLoaded();
             }
