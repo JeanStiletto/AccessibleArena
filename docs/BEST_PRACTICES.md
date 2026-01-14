@@ -614,9 +614,70 @@ Announces game events via Harmony patch on `UXEventQueue.EnqueuePending()`.
 - Spell resolution: "Spell resolved" (when stack empties)
 - Stack announcements: "Cast [card name]" when spell goes on stack
 - Phase announcements: Main phases, combat steps (declare attackers/blockers, damage)
-- Combat announcements: "Combat begins", "Attacker declared", "Attacker removed"
+- Combat announcements: "Combat begins", "[Name] [P/T] attacking", "Attacker removed"
+- Attacker count: "X attackers" when leaving declare attackers phase (summary)
 - Opponent plays: "Opponent played a card" (hand count decrease detection)
 - Combat damage: "[Card] deals [N] to [target]" (see Combat Damage Announcements below)
+
+**Individual Attacker Announcements (January 2026):**
+
+Each creature declared as an attacker is announced individually with name and power/toughness.
+This matches the visual feedback sighted players see when creatures are tapped to attack.
+
+*Implementation:*
+- Triggered by `AttackLobUXEvent` for each attacking creature
+- Uses `_attackerId` field to get the creature's InstanceId
+- Looks up card name via `FindCardNameByInstanceId()` and P/T via `GetCardPowerToughnessByInstanceId()`
+
+*Example Announcements:*
+- "Goblin Bruiser 3/3 attacking"
+- "Serra Angel 4/4 attacking"
+
+**Attacker Count Summary (January 2026):**
+
+When the declare attackers phase ends, a summary count is announced before the next phase.
+This gives an overview when multiple attackers were declared.
+
+*Implementation:*
+- Detected in `BuildPhaseChangeAnnouncement()` when `_currentStep` was "DeclareAttack" and new step differs
+- Uses `CountAttackingCreatures()` which scans for cards with active "IsAttacking" child indicator
+
+*Example Announcements:*
+- "2 attackers. Declare blockers" (transitioning to blockers phase)
+- "1 attacker. Declare blockers"
+
+**Blocker Phase Announcements (January 2026):**
+
+The `CombatNavigator` tracks blocker selection and assignment during the declare blockers phase.
+
+*Two States Tracked:*
+1. **Selected blockers** - Creatures clicked as potential blockers (have `SelectedHighlightBattlefield` + `CombatIcon_BlockerFrame`)
+2. **Assigned blockers** - Creatures confirmed to block an attacker (have `IsBlocking` indicator active)
+
+*Announcements:*
+- When selecting potential blockers: "3/4 blocking" (combined power/toughness)
+- When assigning blockers to attackers: "Spiritual Guardian assigned"
+- Multiple blockers assigned: "Spiritual Guardian, Llanowar Elves assigned"
+
+*Blocking Workflow:*
+1. Click a potential blocker → "X/Y blocking" (combined P/T of selected blockers)
+2. Click an attacker to assign the blocker(s) → "[Name] assigned"
+3. Repeat for other blockers/attackers
+4. Press Space or F to confirm all blocks
+
+*Tracking Reset:*
+- Selected blocker tracking clears when blockers are assigned (IsBlocking activates)
+- Both trackers reset when entering/exiting the declare blockers phase
+- This prevents the P/T announcement from persisting after assignment
+
+*Key Methods in CombatNavigator:*
+```csharp
+UpdateBlockerSelection()      // Called each frame, tracks both states
+FindSelectedBlockers()        // Finds creatures with selection highlight + blocker frame
+FindAssignedBlockers()        // Finds creatures with IsBlocking active
+IsCreatureSelectedAsBlocker() // Checks selection highlight + blocker frame
+IsCreatureBlocking()          // Checks for active IsBlocking child
+```
 
 **Combat Damage Announcements (January 2026):**
 
@@ -692,12 +753,18 @@ The `InvolvedIds` list in DamageBranch contains: `[SourceInstanceId, TargetId]`
 
 **Life Change Events (LifeTotalUpdateUXEvent):**
 
+*Status:* Working (January 2026) - needs broader testing with various life gain/loss sources.
+
 *Correct Field Names:*
 - `AffectedId` (uint) - NOT "PlayerId"
 - `Change` (property, int) - Life change amount (positive=gain, negative=loss)
 - `_avatar` - Avatar object, can check `.ToString()` for "Player #1" to determine local player
 
-*Note:* There is no `NewLifeTotal` field. Announcements format: "You lost 3 life" / "Opponent gained 4 life"
+*Example Announcements:*
+- "You lost 3 life"
+- "Opponent gained 4 life"
+
+*Note:* There is no `NewLifeTotal` field.
 
 **Privacy Protection:**
 - NEVER reveals opponent's hidden info (hand contents, library)

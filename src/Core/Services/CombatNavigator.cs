@@ -30,6 +30,9 @@ namespace MTGAAccessibility.Core.Services
         // Track selected blockers by instance ID for change detection
         private HashSet<int> _previousSelectedBlockerIds = new HashSet<int>();
 
+        // Track assigned blockers (IsBlocking) by instance ID for change detection
+        private HashSet<int> _previousAssignedBlockerIds = new HashSet<int>();
+
         // Track if we were in blockers phase last frame (to reset on phase change)
         private bool _wasInBlockersPhase = false;
 
@@ -184,6 +187,31 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Finds all creatures currently assigned as blockers.
+        /// Returns a list of card GameObjects that have the IsBlocking indicator active.
+        /// </summary>
+        private List<GameObject> FindAssignedBlockers()
+        {
+            var assignedBlockers = new List<GameObject>();
+
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                if (!go.name.StartsWith("CDC "))
+                    continue;
+
+                if (IsCreatureBlocking(go))
+                {
+                    assignedBlockers.Add(go);
+                }
+            }
+
+            return assignedBlockers;
+        }
+
+        /// <summary>
         /// Parses power and toughness from a card.
         /// Returns (power, toughness) or (0, 0) if not a creature or can't parse.
         /// </summary>
@@ -230,6 +258,7 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Updates blocker selection tracking and announces changes.
         /// Should be called each frame during declare blockers phase.
+        /// Tracks both selected blockers (potential) and assigned blockers (confirmed).
         /// </summary>
         public void UpdateBlockerSelection()
         {
@@ -239,40 +268,98 @@ namespace MTGAAccessibility.Core.Services
             if (isInBlockersPhase != _wasInBlockersPhase)
             {
                 _previousSelectedBlockerIds.Clear();
+                _previousAssignedBlockerIds.Clear();
                 _wasInBlockersPhase = isInBlockersPhase;
+                MelonLogger.Msg($"[CombatNavigator] Blockers phase changed: {isInBlockersPhase}, tracking reset");
             }
 
             // Only track during blockers phase
             if (!isInBlockersPhase)
                 return;
 
-            // Get current selection
-            var currentBlockers = FindSelectedBlockers();
-            var currentIds = new HashSet<int>();
-            foreach (var blocker in currentBlockers)
+            // Get current assigned blockers (IsBlocking active)
+            var currentAssigned = FindAssignedBlockers();
+            var currentAssignedIds = new HashSet<int>();
+            foreach (var blocker in currentAssigned)
             {
-                currentIds.Add(blocker.GetInstanceID());
+                currentAssignedIds.Add(blocker.GetInstanceID());
+            }
+
+            // Check if assigned blockers changed (blocker was assigned to an attacker)
+            if (!currentAssignedIds.SetEquals(_previousAssignedBlockerIds))
+            {
+                // Find newly assigned blockers
+                var newlyAssigned = new List<GameObject>();
+                foreach (var blocker in currentAssigned)
+                {
+                    if (!_previousAssignedBlockerIds.Contains(blocker.GetInstanceID()))
+                    {
+                        newlyAssigned.Add(blocker);
+                    }
+                }
+
+                // Announce newly assigned blockers
+                if (newlyAssigned.Count > 0)
+                {
+                    string blockerNames = "";
+                    foreach (var blocker in newlyAssigned)
+                    {
+                        var info = CardDetector.ExtractCardInfo(blocker);
+                        if (!string.IsNullOrEmpty(blockerNames)) blockerNames += ", ";
+                        blockerNames += info.Name ?? "creature";
+                    }
+                    string announcement = $"{blockerNames} assigned";
+                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count} - {blockerNames}");
+                    _announcer.Announce(announcement, AnnouncementPriority.High);
+
+                    // Clear selected tracking since these blockers are now assigned
+                    _previousSelectedBlockerIds.Clear();
+                }
+
+                // Update assigned tracking
+                _previousAssignedBlockerIds = currentAssignedIds;
+            }
+
+            // Get current selected blockers (not yet assigned)
+            var currentSelected = FindSelectedBlockers();
+            var currentSelectedIds = new HashSet<int>();
+            foreach (var blocker in currentSelected)
+            {
+                // Only track if not already assigned
+                if (!currentAssignedIds.Contains(blocker.GetInstanceID()))
+                {
+                    currentSelectedIds.Add(blocker.GetInstanceID());
+                }
             }
 
             // Check if selection changed
-            if (!currentIds.SetEquals(_previousSelectedBlockerIds))
+            if (!currentSelectedIds.SetEquals(_previousSelectedBlockerIds))
             {
-                // Selection changed - announce new combined stats
-                if (currentBlockers.Count > 0)
+                // Get the blockers that are selected but not assigned
+                var selectedNotAssigned = new List<GameObject>();
+                foreach (var blocker in currentSelected)
                 {
-                    var (totalPower, totalToughness) = CalculateCombinedStats(currentBlockers);
+                    if (!currentAssignedIds.Contains(blocker.GetInstanceID()))
+                    {
+                        selectedNotAssigned.Add(blocker);
+                    }
+                }
+
+                // Selection changed - announce new combined stats
+                if (selectedNotAssigned.Count > 0)
+                {
+                    var (totalPower, totalToughness) = CalculateCombinedStats(selectedNotAssigned);
                     string announcement = $"{totalPower}/{totalToughness} blocking";
-                    MelonLogger.Msg($"[CombatNavigator] Blocker selection changed: {currentBlockers.Count} blockers, {announcement}");
+                    MelonLogger.Msg($"[CombatNavigator] Blocker selection changed: {selectedNotAssigned.Count} blockers, {announcement}");
                     _announcer.Announce(announcement, AnnouncementPriority.High);
                 }
-                else
+                else if (_previousSelectedBlockerIds.Count > 0)
                 {
                     MelonLogger.Msg("[CombatNavigator] Blocker selection cleared");
-                    // Optionally announce "no blockers selected"
                 }
 
                 // Update tracking
-                _previousSelectedBlockerIds = currentIds;
+                _previousSelectedBlockerIds = currentSelectedIds;
             }
         }
 

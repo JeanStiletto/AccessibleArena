@@ -650,30 +650,75 @@ namespace MTGAAccessibility.Core.Services
                 var stepField = type.GetField("<Step>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance);
                 string step = stepField?.GetValue(uxEvent)?.ToString();
 
+                // Check if we're leaving Declare Attackers phase - announce attacker count
+                string attackerAnnouncement = null;
+                if (_currentStep == "DeclareAttack" && step != "DeclareAttack")
+                {
+                    int attackerCount = CountAttackingCreatures();
+                    if (attackerCount > 0)
+                    {
+                        attackerAnnouncement = $"{attackerCount} attacker{(attackerCount != 1 ? "s" : "")}";
+                        MelonLogger.Msg($"[DuelAnnouncer] Leaving declare attackers: {attackerAnnouncement}");
+                    }
+                }
+
                 // Track current phase/step for combat navigation
                 _currentPhase = phase;
                 _currentStep = step;
 
-                if (phase == "Main1") return "First main phase";
-                if (phase == "Main2") return "Second main phase";
-
-                if (phase == "Combat")
+                string phaseAnnouncement = null;
+                if (phase == "Main1") phaseAnnouncement = "First main phase";
+                else if (phase == "Main2") phaseAnnouncement = "Second main phase";
+                else if (phase == "Combat")
                 {
-                    if (step == "DeclareAttack") return "Declare attackers";
-                    if (step == "DeclareBlock") return "Declare blockers";
-                    if (step == "CombatDamage") return "Combat damage";
-                    if (step == "EndCombat") return "End of combat";
-                    if (step == "None") return "Combat phase";
+                    if (step == "DeclareAttack") phaseAnnouncement = "Declare attackers";
+                    else if (step == "DeclareBlock") phaseAnnouncement = "Declare blockers";
+                    else if (step == "CombatDamage") phaseAnnouncement = "Combat damage";
+                    else if (step == "EndCombat") phaseAnnouncement = "End of combat";
+                    else if (step == "None") phaseAnnouncement = "Combat phase";
                 }
+                else if (phase == "Ending" && step == "End") phaseAnnouncement = "End step";
 
-                if (phase == "Ending" && step == "End") return "End step";
-
-                return null;
+                // Combine attacker count with phase announcement
+                if (attackerAnnouncement != null && phaseAnnouncement != null)
+                    return $"{attackerAnnouncement}. {phaseAnnouncement}";
+                if (attackerAnnouncement != null)
+                    return attackerAnnouncement;
+                return phaseAnnouncement;
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Counts creatures currently declared as attackers.
+        /// Looks for cards with active "IsAttacking" child indicator.
+        /// </summary>
+        private int CountAttackingCreatures()
+        {
+            int count = 0;
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                // Only check CDC (card) objects
+                if (!go.name.StartsWith("CDC "))
+                    continue;
+
+                // Check if this card has an active "IsAttacking" indicator
+                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.gameObject.activeInHierarchy && child.name == "IsAttacking")
+                    {
+                        count++;
+                        break;
+                    }
+                }
+            }
+            return count;
         }
 
         private string BuildRevealAnnouncement(object uxEvent)
@@ -738,7 +783,16 @@ namespace MTGAAccessibility.Core.Services
                     return null;
                 }
 
-                if (typeName == "AttackLobUXEvent") return "Attacker declared";
+                if (typeName == "AttackLobUXEvent")
+                {
+                    // Debug: Log all fields once to discover available data
+                    if (!_attackLobFieldsLogged)
+                    {
+                        _attackLobFieldsLogged = true;
+                        LogEventFields(uxEvent, "AttackLobUXEvent");
+                    }
+                    return BuildAttackerDeclaredAnnouncement(uxEvent);
+                }
                 if (typeName == "AttackDecrementUXEvent") return "Attacker removed";
 
                 return null;
@@ -747,6 +801,96 @@ namespace MTGAAccessibility.Core.Services
             {
                 return null;
             }
+        }
+
+        // Track if we've logged AttackLobUXEvent fields (one-time debug)
+        private static bool _attackLobFieldsLogged = false;
+
+        private string BuildAttackerDeclaredAnnouncement(object uxEvent)
+        {
+            try
+            {
+                // Get attacker InstanceId from _attackerId field
+                var attackerId = GetFieldValue<uint>(uxEvent, "_attackerId");
+
+                string cardName = null;
+                string powerToughness = null;
+
+                // Look up card by InstanceId
+                if (attackerId != 0)
+                {
+                    cardName = FindCardNameByInstanceId(attackerId);
+
+                    // Get P/T from the card model
+                    var (power, toughness) = GetCardPowerToughnessByInstanceId(attackerId);
+                    if (power >= 0 && toughness >= 0)
+                    {
+                        powerToughness = $"{power}/{toughness}";
+                    }
+                }
+
+                // Build announcement
+                if (!string.IsNullOrEmpty(cardName))
+                {
+                    if (!string.IsNullOrEmpty(powerToughness))
+                        return $"{cardName} {powerToughness} attacking";
+                    return $"{cardName} attacking";
+                }
+
+                return "Attacker declared";
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error building attacker announcement: {ex.Message}");
+                return "Attacker declared";
+            }
+        }
+
+        private (int power, int toughness) GetCardPowerToughnessByInstanceId(uint instanceId)
+        {
+            if (instanceId == 0) return (-1, -1);
+
+            try
+            {
+                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                {
+                    if (go == null || !go.activeInHierarchy) continue;
+                    if (!go.name.StartsWith("CDC ")) continue;
+
+                    var cdcComponent = CardModelProvider.GetDuelSceneCDC(go);
+                    if (cdcComponent == null) continue;
+
+                    var model = CardModelProvider.GetCardModel(cdcComponent);
+                    if (model == null) continue;
+
+                    var modelType = model.GetType();
+                    var instanceIdProp = modelType.GetProperty("InstanceId");
+                    if (instanceIdProp == null) continue;
+
+                    var cardInstanceId = instanceIdProp.GetValue(model);
+                    if (!(cardInstanceId is uint cid) || cid != instanceId) continue;
+
+                    // Found the card, get P/T
+                    var powerProp = modelType.GetProperty("Power");
+                    var toughnessProp = modelType.GetProperty("Toughness");
+
+                    if (powerProp != null && toughnessProp != null)
+                    {
+                        var power = powerProp.GetValue(model);
+                        var toughness = toughnessProp.GetValue(model);
+
+                        if (power is int p && toughness is int t)
+                            return (p, t);
+                    }
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error getting P/T by InstanceId: {ex.Message}");
+            }
+
+            return (-1, -1);
         }
 
         private string HandleTargetSelectionEvent(object uxEvent)

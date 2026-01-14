@@ -40,6 +40,8 @@ Detailed documentation in `docs/`:
 - **SCREENS.md** - Special screen handling reference
 - **old/** - Archived analysis files
 
+**IGNORE:** `arena accessibility backlog.txt` - outdated, do not use for documentation
+
 ## Quick Reference
 
 ### Game Location
@@ -88,3 +90,6 @@ Note: Left/Right arrows used contextually (cards, carousels, battlefield rows)
 Note: F key used contextually during combat phases (attackers/blockers)
 Note: Space used contextually during duels (main phase pass, combat confirmations)
 Note: During blockers phase, selecting creatures announces combined P/T (e.g., "4/6 blocking")
+Note: Each attacker announced with name and P/T (e.g., "Goblin Bruiser 3/3 attacking")
+Note: Attacker count summary when phase ends (e.g., "2 attackers. Declare blockers")
+Note: When assigning blocker to attacker, announces assignment (e.g., "Spiritual Guardian assigned")
