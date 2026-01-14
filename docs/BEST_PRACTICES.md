@@ -209,12 +209,25 @@ The NavBar is a persistent UI bar that remains visible across all menu screens.
 3. Clicking NavBar buttons swaps the active content controller
 4. Overlays (Settings, PlayBlade) float on top of content
 
-**Screen Detection (in GeneralMenuNavigator):**
-The mod detects the current screen by:
-1. Checking for overlay states (Settings, PlayBlade)
-2. Finding active content controller via `IsOpen`/`IsReadyToShow` reflection
-3. Checking for carousel/Color Challenge visibility on HomePage
-4. Announcing context-specific screen names
+**Screen Detection and Element Filtering (in GeneralMenuNavigator):**
+
+The mod uses content controller detection for both screen identification and element filtering:
+
+1. **Content Controller Detection** (`DetectActiveContentController`)
+   - Finds the active NavContentController via `IsOpen`/`IsReadyToShow` reflection
+   - Stores both the controller type name and its GameObject
+   - Called at the start of `DiscoverElements()` to ensure filtering is correct
+
+2. **Element Filtering** (`IsInForegroundPanel`)
+   - Settings overlay: Show only Settings panel elements
+   - HomePage without PlayBlade: Show HomePage content + NavBar
+   - HomePage with PlayBlade: Show only blade elements (hide carousel, NavBar)
+   - Other controllers (Decks, Store, Profile, etc.): Show only that controller's elements (hide NavBar)
+
+3. **Screen Name Announcement**
+   - Maps controller type to friendly name (e.g., "DeckManagerController" → "Decks")
+   - HomePage adds context (carousel, Color Challenge visibility)
+   - PlayBlade states map to "Play Mode Selection", "Direct Challenge", etc.
 
 ### Carousel Detection
 

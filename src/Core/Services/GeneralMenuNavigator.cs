@@ -172,8 +172,9 @@ namespace MTGAAccessibility.Core.Services
             _foregroundPanel = null; // Clear panel filter on scene change
             _playBladeActive = false;
             _playBladeState = null;
-            _contentPanelActive = false;
             _activeContentController = null;
+            _activeControllerGameObject = null;
+            _navBarGameObject = null; // Clear cached NavBar on scene change
 
             if (_isActive)
             {
@@ -196,8 +197,8 @@ namespace MTGAAccessibility.Core.Services
             _postActivationRescanDelay = 0f;
             _playBladeActive = false;
             _playBladeState = null;
-            _contentPanelActive = false;
             _activeContentController = null;
+            _activeControllerGameObject = null;
         }
 
         /// <summary>
@@ -273,9 +274,12 @@ namespace MTGAAccessibility.Core.Services
         protected override bool HandleCustomInput()
         {
             // Backspace: Navigate back to Home (main menu)
+            // Active when in any content panel other than HomePage
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                if (_contentPanelActive)
+                bool isInContentPanel = !string.IsNullOrEmpty(_activeContentController) &&
+                                        _activeContentController != "HomePageContentController";
+                if (isInContentPanel)
                 {
                     return NavigateToHome();
                 }
@@ -575,81 +579,84 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Check if element should be shown based on current overlay state.
-        /// Uses inverse filtering: when in overlay, exclude background elements rather than
-        /// requiring elements to be children of a specific panel.
-        /// This is more robust because overlay content can be anywhere in hierarchy.
+        /// Check if element should be shown based on current panel state.
+        /// Uses the active content controller to determine visibility.
         /// </summary>
         private bool IsInForegroundPanel(GameObject obj)
         {
-            // Check if any overlay is active (either detected via panel or via Harmony flag)
-            // _playBladeActive kept separate due to special blade-inside filtering logic
-            bool overlayActive = _foregroundPanel != null || _playBladeActive || _contentPanelActive;
+            // Settings overlay takes highest priority - only show Settings elements
+            if (_foregroundPanel != null && IsInSettingsMenu)
+            {
+                return IsChildOf(obj, _foregroundPanel);
+            }
 
-            if (!overlayActive)
-                return true; // No overlay active, show all
+            // If no active controller detected, show all elements
+            if (_activeControllerGameObject == null)
+                return true;
 
-            // When overlay is active, use inverse filtering:
-            // Exclude elements from known background contexts
-            return !IsInBackgroundPanel(obj);
+            // Special case: HomePage with PlayBlade active
+            // Only show blade elements, hide carousel/other HomePage content and NavBar
+            if (_activeContentController == "HomePageContentController" && _playBladeActive)
+            {
+                return IsInsideBlade(obj);
+            }
+
+            // HomePage without PlayBlade: show HomePage content + NavBar
+            if (_activeContentController == "HomePageContentController")
+            {
+                if (IsChildOf(obj, _activeControllerGameObject))
+                    return true;
+                if (_navBarGameObject != null && IsChildOf(obj, _navBarGameObject))
+                    return true;
+                return false;
+            }
+
+            // Any other content controller (Decks, Store, Profile, etc.):
+            // Show ONLY that controller's elements, hide NavBar
+            return IsChildOf(obj, _activeControllerGameObject);
         }
 
         /// <summary>
-        /// Check if element belongs to a known background panel that should be hidden
-        /// when an overlay is active.
+        /// Check if a GameObject is a child of (or the same as) a parent GameObject.
         /// </summary>
-        private bool IsInBackgroundPanel(GameObject obj)
+        private bool IsChildOf(GameObject child, GameObject parent)
+        {
+            if (child == null || parent == null)
+                return false;
+
+            Transform current = child.transform;
+            Transform parentTransform = parent.transform;
+
+            while (current != null)
+            {
+                if (current == parentTransform)
+                    return true;
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside a Blade (PlayBlade, EventBlade, FindMatchBlade, etc.)
+        /// Used for filtering HomePage when PlayBlade is active.
+        /// </summary>
+        private bool IsInsideBlade(GameObject obj)
         {
             Transform current = obj.transform;
-            bool isInsideHomePage = false;
-            bool isInsideBlade = false;
 
             while (current != null)
             {
                 string name = current.gameObject.name;
 
-                // Check if element is inside a Blade (PlayBlade, EventBlade, FindMatchBlade, etc.)
-                // or CampaignGraph area (Color Challenge)
-                // These should NOT be filtered even when inside HomePage
                 if (name.Contains("Blade") ||
-                    name.Contains("PlayBlade") ||
                     name.Contains("FindMatch") ||
-                    name.Contains("EventBlade") ||
                     name.Contains("CampaignGraph"))
                 {
-                    isInsideBlade = true;
-                }
-
-                // Known background panel indicators
-                // HomePage and its content - the main menu content area
-                if (name.Contains("HomePage") ||
-                    name.Contains("HomeContent") ||
-                    name.Contains("Home_Desktop"))
-                {
-                    isInsideHomePage = true;
-                }
-
-                // NavBar elements - always background
-                if (name == "NavBar" || name.StartsWith("NavBar_"))
-                {
-                    // NavBar is always background unless we're in a blade inside it
-                    if (!isInsideBlade)
-                        return true;
+                    return true;
                 }
 
                 current = current.parent;
-            }
-
-            // If PlayBlade is active and element is inside a Blade, don't filter it
-            if (_playBladeActive && isInsideBlade)
-            {
-                return false; // Not background - show this element
-            }
-
-            // If inside HomePage but not inside a Blade, it's background
-            if (isInsideHomePage && !isInsideBlade)
-            {
-                return true; // Background - filter this element
             }
 
             return false;
@@ -688,7 +695,9 @@ namespace MTGAAccessibility.Core.Services
             // check detect the same panel change.
             _postActivationRescanDelay = 0f;
 
-            MelonLogger.Msg($"[{NavigatorId}] Rescanning elements after panel change");
+            // Detect active controller BEFORE discovering elements so filtering works correctly
+            _activeContentController = DetectActiveContentController();
+            MelonLogger.Msg($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
 
             // Remember the navigator's current selection before clearing
             GameObject previousSelection = null;
@@ -988,13 +997,20 @@ namespace MTGAAccessibility.Core.Services
 
         protected override void DiscoverElements()
         {
+            // Detect active controller first so filtering works correctly
+            _activeContentController = DetectActiveContentController();
+
             var addedObjects = new HashSet<GameObject>();
             var discoveredElements = new List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)>();
 
-            // Log panel filter state (validation done in CheckForPanelChanges)
+            // Log panel filter state
             if (_foregroundPanel != null)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Filtering to panel: {_foregroundPanel.name}");
+            }
+            else if (_activeControllerGameObject != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Filtering to controller: {_activeContentController}");
             }
 
             // Find all CustomButtons
@@ -1283,8 +1299,8 @@ namespace MTGAAccessibility.Core.Services
             // Handle known overlay types immediately - don't wait for panel detection
             // This ensures filtering is set up before rescan happens
 
-            // Content panels and overlays that should filter NavBar (not HomePageContentController)
-            // Includes: menu pages, settings, deck selection, deck builder, etc.
+            // Content panels and overlays (not HomePageContentController)
+            // Used to trigger rescans when these panels open/close
             bool isContentPanel = panelTypeName.Contains("DeckManagerController") ||
                                   panelTypeName.Contains("ProfileContentController") ||
                                   panelTypeName.Contains("ContentController_StoreCarousel") ||
@@ -1302,7 +1318,6 @@ namespace MTGAAccessibility.Core.Services
                 if (isOpen)
                 {
                     _activePanels.Add($"ContentPanel:{panelTypeName}");
-                    _contentPanelActive = true;
                     MelonLogger.Msg($"[{NavigatorId}] Content panel opened: {panelTypeName} (from Harmony)");
 
                     // Auto-expand blade for CampaignGraphContentController (Color Challenge menu)
@@ -1316,7 +1331,6 @@ namespace MTGAAccessibility.Core.Services
                 else
                 {
                     _activePanels.RemoveWhere(p => p.StartsWith("ContentPanel:"));
-                    _contentPanelActive = false;
                     _foregroundPanel = null;
                     MelonLogger.Msg($"[{NavigatorId}] Content panel closed: {panelTypeName} (from Harmony)");
                 }
@@ -1418,13 +1432,14 @@ namespace MTGAAccessibility.Core.Services
             }
         }
 
-        // Flags set by Harmony events to indicate overlay is active
-        // Used by IsInForegroundPanel when _foregroundPanel hasn't been found yet
-        private bool _playBladeActive = false; // PlayBlade kept separate due to special blade-inside filtering logic
-        private bool _contentPanelActive = false; // Any content panel/overlay that should filter NavBar
+        // Flag set by Harmony events to indicate PlayBlade is active
+        // Used by IsInForegroundPanel for special HomePage + blade filtering
+        private bool _playBladeActive = false;
 
-        // Active content controller tracking for screen name detection
+        // Active content controller tracking for screen name detection and element filtering
         private string _activeContentController = null;
+        private GameObject _activeControllerGameObject = null; // GameObject of the active content controller
+        private GameObject _navBarGameObject = null; // Cached NavBar reference
         private string _playBladeState = null; // Hidden, Events, DirectChallenge, FriendChallenge
 
         #region Screen Detection Helpers
@@ -1432,6 +1447,7 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Detect which content controller is currently active.
         /// Returns the type name of the active controller, or null if none detected.
+        /// Also updates _activeControllerGameObject with the controller's GameObject.
         /// </summary>
         private string DetectActiveContentController()
         {
@@ -1449,6 +1465,14 @@ namespace MTGAAccessibility.Core.Services
                 "CampaignGraphContentController",
                 "WrapperDeckBuilder"
             };
+
+            // Also cache NavBar if not already cached
+            if (_navBarGameObject == null)
+            {
+                _navBarGameObject = GameObject.Find("NavBar_Desktop_16x9(Clone)");
+                if (_navBarGameObject == null)
+                    _navBarGameObject = GameObject.Find("NavBar");
+            }
 
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
@@ -1484,6 +1508,8 @@ namespace MTGAAccessibility.Core.Services
                                 if (!isReady) continue; // Skip if not ready yet
                             }
 
+                            // Store the GameObject for element filtering
+                            _activeControllerGameObject = mb.gameObject;
                             return typeName;
                         }
                     }
@@ -1491,6 +1517,7 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            _activeControllerGameObject = null;
             return null;
         }
 
