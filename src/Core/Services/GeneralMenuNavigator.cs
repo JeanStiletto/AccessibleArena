@@ -18,6 +18,8 @@ namespace MTGAAccessibility.Core.Services
     /// </summary>
     public class GeneralMenuNavigator : BaseNavigator
     {
+        #region Configuration Constants
+
         // Scenes where this navigator should NOT activate (handled by other navigators)
         private static readonly HashSet<string> ExcludedScenes = new HashSet<string>
         {
@@ -27,45 +29,86 @@ namespace MTGAAccessibility.Core.Services
         // Minimum CustomButtons needed to consider this a menu
         private const int MinButtonsForMenu = 2;
 
-        // Types to check for open state (game's internal menu controllers)
+        // Base menu controller types for panel state detection
         private static readonly string[] MenuControllerTypes = new[]
         {
-            "NavContentController",      // Base class for all menu screens
-            "SettingsMenu",              // Settings panel
-            "SettingsMenuHost",          // Settings host
-            "PopupBase"                  // Modal popups
+            "NavContentController",
+            "SettingsMenu",
+            "SettingsMenuHost",
+            "PopupBase"
         };
+
+        // Content controller types for screen detection and element filtering
+        private static readonly string[] ContentControllerTypes = new[]
+        {
+            "HomePageContentController",
+            "DeckManagerController",
+            "ProfileContentController",
+            "ContentController_StoreCarousel",
+            "MasteryContentController",
+            "AchievementsContentController",
+            "LearnToPlayControllerV2",
+            "PackOpeningController",
+            "CampaignGraphContentController",
+            "WrapperDeckBuilder"
+        };
+
+        // Settings submenu panel names
+        private static readonly string[] SettingsPanelNames = new[]
+        {
+            "Content - MainMenu",
+            "Content - Gameplay",
+            "Content - Graphics",
+            "Content - Audio"
+        };
+
+        // Blade container name patterns (used for element filtering when blade is active)
+        private static readonly string[] BladePatterns = new[]
+        {
+            "Blade",
+            "FindMatch",
+            "CampaignGraph"
+        };
+
+        #endregion
+
+        #region Timing Constants
+
+        private const float ActivationDelaySeconds = 0.5f;
+        private const float RescanDelaySeconds = 0.5f;
+        private const float RescanDebounceSeconds = 1.0f;
+        private const float PostActivationRescanDelay = 1.0f;
+        private const float BladeAutoExpandDelay = 0.8f;
+
+        #endregion
+
+        #region State Fields
 
         protected string _currentScene;
         protected string _detectedMenuType;
         private bool _hasLoggedUIOnce;
         private float _activationDelay;
-        private const float ACTIVATION_DELAY_SECONDS = 0.5f; // Wait for UI to settle
 
         // Panel state tracking
         private HashSet<string> _activePanels = new HashSet<string>();
-        private GameObject _foregroundPanel = null; // The topmost panel to filter elements
-        private float _rescanDelay = 0f;
-        private const float RESCAN_DELAY_SECONDS = 0.5f; // Wait for panel UI to load
-        private float _lastRescanTime = 0f;
-        private const float RESCAN_DEBOUNCE_SECONDS = 1.0f; // Don't rescan again within this time
+        private GameObject _foregroundPanel;
+        private float _rescanDelay;
+        private float _lastRescanTime;
+        private float _postActivationRescanDelay;
+        private int _elementCountAtActivation;
+        private float _bladeAutoExpandDelay;
+        private bool _forceRescan;
 
-        // One-time rescan after activation to catch late-loading elements (e.g., HomePage)
-        private float _postActivationRescanDelay = 0f;
-        private const float POST_ACTIVATION_RESCAN_DELAY = 1.0f; // Check 1 second after activation
-        private int _elementCountAtActivation = 0;
+        // Active content controller tracking
+        private string _activeContentController;
+        private GameObject _activeControllerGameObject;
+        private GameObject _navBarGameObject;
 
-        // Auto-expand blade for certain panels (e.g., Color Challenge)
-        private float _bladeAutoExpandDelay = 0f;
-        private const float BLADE_AUTO_EXPAND_DELAY = 0.8f; // Wait for UI to load before expanding
+        // Blade state tracking
+        private bool _playBladeActive;
+        private string _playBladeState;
 
-        // Force rescan flag - bypasses debounce when set (used for toggle activations)
-        private bool _forceRescan = false;
-
-        // Threshold for Selectable count change to trigger rescan.
-        // Value of 0 means any change triggers rescan - needed because some panels
-        // (like deck selection) only change count by 1 and don't trigger Harmony patches.
-        private const int SELECTABLE_COUNT_CHANGE_THRESHOLD = 0;
+        #endregion
 
         public override string NavigatorId => "GeneralMenu";
         public override string ScreenName => GetMenuScreenName();
@@ -75,30 +118,26 @@ namespace MTGAAccessibility.Core.Services
         private GameObject _settingsContentPanel;
 
         /// <summary>
-        /// Check if Settings menu is currently open. Also caches the panel reference.
-        /// Checks for any Settings content panel (MainMenu, Gameplay, Graphics, Audio, etc.)
+        /// Check if Settings menu is currently open and update the cached panel reference.
         /// </summary>
-        protected bool IsInSettingsMenu
+        /// <returns>True if Settings is open, false otherwise</returns>
+        protected bool CheckSettingsMenuOpen()
         {
-            get
+            foreach (var panelName in SettingsPanelNames)
             {
-                // Check for any Settings content panel (main menu or submenus)
-                string[] settingsPanels = { "Content - MainMenu", "Content - Gameplay", "Content - Graphics", "Content - Audio" };
-                foreach (var panelName in settingsPanels)
+                var panel = GameObject.Find(panelName);
+                if (panel != null && panel.activeInHierarchy)
                 {
-                    var panel = GameObject.Find(panelName);
-                    if (panel != null && panel.activeInHierarchy)
-                    {
-                        _settingsContentPanel = panel;
-                        return true;
-                    }
+                    _settingsContentPanel = panel;
+                    return true;
                 }
-                return false;
             }
+            _settingsContentPanel = null;
+            return false;
         }
 
         /// <summary>
-        /// Get the cached Settings content panel (call IsInSettingsMenu first to refresh)
+        /// Cached Settings content panel. Updated by CheckSettingsMenuOpen().
         /// </summary>
         protected GameObject SettingsContentPanel => _settingsContentPanel;
 
@@ -107,7 +146,7 @@ namespace MTGAAccessibility.Core.Services
         protected virtual string GetMenuScreenName()
         {
             // Check if Settings menu is open (highest priority overlay)
-            if (IsInSettingsMenu)
+            if (CheckSettingsMenuOpen())
             {
                 return "Settings";
             }
@@ -167,7 +206,7 @@ namespace MTGAAccessibility.Core.Services
         {
             _currentScene = sceneName;
             _hasLoggedUIOnce = false;
-            _activationDelay = ACTIVATION_DELAY_SECONDS;
+            _activationDelay = ActivationDelaySeconds;
             _activePanels.Clear();
             _foregroundPanel = null; // Clear panel filter on scene change
             _playBladeActive = false;
@@ -209,7 +248,7 @@ namespace MTGAAccessibility.Core.Services
             base.OnActivated();
             // Schedule a one-time check for late-loading elements (e.g., HomePage loads after NavBar)
             _elementCountAtActivation = _elements.Count;
-            _postActivationRescanDelay = POST_ACTIVATION_RESCAN_DELAY;
+            _postActivationRescanDelay = PostActivationRescanDelay;
         }
 
         public override void Update()
@@ -255,9 +294,9 @@ namespace MTGAAccessibility.Core.Services
                         int currentCount = CountActiveSelectables();
                         int difference = System.Math.Abs(currentCount - _elementCountAtActivation);
                         MelonLogger.Msg($"[{NavigatorId}] Selectable count: {_elementCountAtActivation} -> {currentCount} (diff: {difference})");
-                        if (difference > SELECTABLE_COUNT_CHANGE_THRESHOLD)
+                        if (difference > 0)
                         {
-                            MelonLogger.Msg($"[{NavigatorId}] Selectable count changed significantly (>{SELECTABLE_COUNT_CHANGE_THRESHOLD}), rescanning");
+                            MelonLogger.Msg($"[{NavigatorId}] Selectable count changed ({difference}), rescanning");
                             PerformRescan();
                         }
                     }
@@ -346,7 +385,7 @@ namespace MTGAAccessibility.Core.Services
                 {
                     // Panel deactivated - check if there's a new content panel (submenu navigation)
                     // or if the overlay actually closed
-                    if (IsInSettingsMenu)
+                    if (CheckSettingsMenuOpen())
                     {
                         // Navigated to a different Settings submenu
                         MelonLogger.Msg($"[{NavigatorId}] Settings content panel changed: {_foregroundPanel.name} -> {SettingsContentPanel?.name}");
@@ -448,7 +487,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Check if Settings menu is open (uses cached property)
-            bool settingsMenuOpen = IsInSettingsMenu;
+            bool settingsMenuOpen = CheckSettingsMenuOpen();
 
             // PASS 2: Build panel list with priority filtering
             foreach (var (mb, typeName) in openControllers)
@@ -585,7 +624,7 @@ namespace MTGAAccessibility.Core.Services
         private bool IsInForegroundPanel(GameObject obj)
         {
             // Settings overlay takes highest priority - only show Settings elements
-            if (_foregroundPanel != null && IsInSettingsMenu)
+            if (_foregroundPanel != null && CheckSettingsMenuOpen())
             {
                 return IsChildOf(obj, _foregroundPanel);
             }
@@ -649,11 +688,10 @@ namespace MTGAAccessibility.Core.Services
             {
                 string name = current.gameObject.name;
 
-                if (name.Contains("Blade") ||
-                    name.Contains("FindMatch") ||
-                    name.Contains("CampaignGraph"))
+                foreach (var pattern in BladePatterns)
                 {
-                    return true;
+                    if (name.Contains(pattern))
+                        return true;
                 }
 
                 current = current.parent;
@@ -668,7 +706,7 @@ namespace MTGAAccessibility.Core.Services
         /// <param name="force">If true, bypasses the debounce check (used for toggle activations)</param>
         private void TriggerRescan(bool force = false)
         {
-            _rescanDelay = RESCAN_DELAY_SECONDS;
+            _rescanDelay = RescanDelaySeconds;
             if (force)
             {
                 _forceRescan = true;
@@ -682,7 +720,7 @@ namespace MTGAAccessibility.Core.Services
         {
             // Debounce: skip if we just rescanned recently (unless forced)
             float currentTime = Time.time;
-            if (!_forceRescan && currentTime - _lastRescanTime < RESCAN_DEBOUNCE_SECONDS)
+            if (!_forceRescan && currentTime - _lastRescanTime < RescanDebounceSeconds)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Skipping rescan - debounce active");
                 return;
@@ -1013,100 +1051,53 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Filtering to controller: {_activeContentController}");
             }
 
-            // Find all CustomButtons
+            // Helper to process and classify a UI element
+            void TryAddElement(GameObject obj)
+            {
+                if (obj == null || !obj.activeInHierarchy) return;
+                if (addedObjects.Contains(obj)) return;
+                if (!IsInForegroundPanel(obj)) return;
+
+                var classification = UIElementClassifier.Classify(obj);
+                if (classification.IsNavigable && classification.ShouldAnnounce)
+                {
+                    var pos = obj.transform.position;
+                    float sortOrder = -pos.y * 1000 + pos.x;
+                    discoveredElements.Add((obj, classification, sortOrder));
+                    addedObjects.Add(obj);
+                }
+            }
+
+            // Find CustomButtons (MTGA's primary button component)
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name != "CustomButton") continue;
-                if (addedObjects.Contains(mb.gameObject)) continue;
-
-                // Filter by foreground panel if one is active
-                if (!IsInForegroundPanel(mb.gameObject)) continue;
-
-                var classification = UIElementClassifier.Classify(mb.gameObject);
-                if (classification.IsNavigable && classification.ShouldAnnounce)
-                {
-                    var pos = mb.transform.position;
-                    float sortOrder = -pos.y * 1000 + pos.x;
-                    discoveredElements.Add((mb.gameObject, classification, sortOrder));
-                    addedObjects.Add(mb.gameObject);
-                }
+                if (mb != null && mb.GetType().Name == "CustomButton")
+                    TryAddElement(mb.gameObject);
             }
 
-            // Find standard Buttons
+            // Find standard Unity UI elements
             foreach (var btn in GameObject.FindObjectsOfType<Button>())
             {
-                if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
-                if (addedObjects.Contains(btn.gameObject)) continue;
-
-                // Filter by foreground panel if one is active
-                if (!IsInForegroundPanel(btn.gameObject)) continue;
-
-                var classification = UIElementClassifier.Classify(btn.gameObject);
-                if (classification.IsNavigable && classification.ShouldAnnounce)
-                {
-                    var pos = btn.transform.position;
-                    float sortOrder = -pos.y * 1000 + pos.x;
-                    discoveredElements.Add((btn.gameObject, classification, sortOrder));
-                    addedObjects.Add(btn.gameObject);
-                }
+                if (btn != null && btn.interactable)
+                    TryAddElement(btn.gameObject);
             }
 
-            // Find EventTrigger elements
-            foreach (var trigger in GameObject.FindObjectsOfType<UnityEngine.EventSystems.EventTrigger>())
+            foreach (var trigger in GameObject.FindObjectsOfType<EventTrigger>())
             {
-                if (trigger == null || !trigger.gameObject.activeInHierarchy) continue;
-                if (addedObjects.Contains(trigger.gameObject)) continue;
-
-                // Filter by foreground panel if one is active
-                if (!IsInForegroundPanel(trigger.gameObject)) continue;
-
-                var classification = UIElementClassifier.Classify(trigger.gameObject);
-                if (classification.IsNavigable && classification.ShouldAnnounce)
-                {
-                    var pos = trigger.transform.position;
-                    float sortOrder = -pos.y * 1000 + pos.x;
-                    discoveredElements.Add((trigger.gameObject, classification, sortOrder));
-                    addedObjects.Add(trigger.gameObject);
-                }
+                if (trigger != null)
+                    TryAddElement(trigger.gameObject);
             }
 
-            // Find Toggle elements (e.g., Settings checkboxes in Gameplay/Audio menus)
             foreach (var toggle in GameObject.FindObjectsOfType<Toggle>())
             {
-                if (toggle == null || !toggle.gameObject.activeInHierarchy || !toggle.interactable) continue;
-                if (addedObjects.Contains(toggle.gameObject)) continue;
-
-                // Filter by foreground panel if one is active
-                if (!IsInForegroundPanel(toggle.gameObject)) continue;
-
-                var classification = UIElementClassifier.Classify(toggle.gameObject);
-                if (classification.IsNavigable && classification.ShouldAnnounce)
-                {
-                    var pos = toggle.transform.position;
-                    float sortOrder = -pos.y * 1000 + pos.x;
-                    discoveredElements.Add((toggle.gameObject, classification, sortOrder));
-                    addedObjects.Add(toggle.gameObject);
-                }
+                if (toggle != null && toggle.interactable)
+                    TryAddElement(toggle.gameObject);
             }
 
-            // Find Slider elements (e.g., Audio volume sliders)
             foreach (var slider in GameObject.FindObjectsOfType<Slider>())
             {
-                if (slider == null || !slider.gameObject.activeInHierarchy || !slider.interactable) continue;
-                if (addedObjects.Contains(slider.gameObject)) continue;
-
-                // Filter by foreground panel if one is active
-                if (!IsInForegroundPanel(slider.gameObject)) continue;
-
-                var classification = UIElementClassifier.Classify(slider.gameObject);
-                if (classification.IsNavigable && classification.ShouldAnnounce)
-                {
-                    var pos = slider.transform.position;
-                    float sortOrder = -pos.y * 1000 + pos.x;
-                    discoveredElements.Add((slider.gameObject, classification, sortOrder));
-                    addedObjects.Add(slider.gameObject);
-                }
+                if (slider != null && slider.interactable)
+                    TryAddElement(slider.gameObject);
             }
 
             // Process deck entries: pair main buttons with their TextBox edit buttons
@@ -1259,7 +1250,7 @@ namespace MTGAAccessibility.Core.Services
             // Use force=true to bypass debounce since user explicitly toggled a filter
             if (isToggle)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {RESCAN_DELAY_SECONDS}s (bypassing debounce)");
+                MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
                 TriggerRescan(force: true);
                 return true;
             }
@@ -1273,8 +1264,8 @@ namespace MTGAAccessibility.Core.Services
             // - New panels opening (sets _foregroundPanel)
             // - Panels closing (clears _foregroundPanel if no overlay remains)
             // - Panel transitions within overlays (updates _foregroundPanel to new content)
-            _postActivationRescanDelay = POST_ACTIVATION_RESCAN_DELAY;
-            MelonLogger.Msg($"[{NavigatorId}] Scheduled post-activation check in {POST_ACTIVATION_RESCAN_DELAY}s (pre-activation Selectables: {_elementCountAtActivation})");
+            _postActivationRescanDelay = PostActivationRescanDelay;
+            MelonLogger.Msg($"[{NavigatorId}] Scheduled post-activation check in {PostActivationRescanDelay}s (pre-activation Selectables: {_elementCountAtActivation})");
 
             return true;
         }
@@ -1296,99 +1287,117 @@ namespace MTGAAccessibility.Core.Services
                 return;
             }
 
-            // Handle known overlay types immediately - don't wait for panel detection
-            // This ensures filtering is set up before rescan happens
-
-            // Content panels and overlays (not HomePageContentController)
-            // Used to trigger rescans when these panels open/close
-            bool isContentPanel = panelTypeName.Contains("DeckManagerController") ||
-                                  panelTypeName.Contains("ProfileContentController") ||
-                                  panelTypeName.Contains("ContentController_StoreCarousel") ||
-                                  panelTypeName.Contains("LearnToPlayController") ||
-                                  panelTypeName.Contains("WrapperDeckBuilder") ||
-                                  panelTypeName.Contains("MasteryContentController") ||
-                                  panelTypeName.Contains("AchievementsContentController") ||
-                                  panelTypeName.Contains("PackOpeningController") ||
-                                  panelTypeName.Contains("SettingsMenu") ||
-                                  panelTypeName.Contains("DeckSelectBlade") ||
-                                  panelTypeName.Contains("CampaignGraphContentController");
-
-            if (isContentPanel)
+            // Route to appropriate handler based on panel type
+            if (IsContentPanelType(panelTypeName))
             {
-                if (isOpen)
-                {
-                    _activePanels.Add($"ContentPanel:{panelTypeName}");
-                    MelonLogger.Msg($"[{NavigatorId}] Content panel opened: {panelTypeName} (from Harmony)");
-
-                    // Auto-expand blade for CampaignGraphContentController (Color Challenge menu)
-                    // The blade starts collapsed, requiring an extra click - auto-expand for better UX
-                    if (panelTypeName.Contains("CampaignGraphContentController"))
-                    {
-                        _bladeAutoExpandDelay = BLADE_AUTO_EXPAND_DELAY;
-                        MelonLogger.Msg($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
-                    }
-                }
-                else
-                {
-                    _activePanels.RemoveWhere(p => p.StartsWith("ContentPanel:"));
-                    _foregroundPanel = null;
-                    MelonLogger.Msg($"[{NavigatorId}] Content panel closed: {panelTypeName} (from Harmony)");
-                }
+                HandleContentPanelChange(panelTypeName, isOpen);
             }
-            // Handle PlayBlade and related blade views (kept separate due to special blade-inside logic)
-            else if (panelTypeName.Contains("PlayBlade") || panelTypeName.Contains("Blade:"))
+            else if (IsBladeType(panelTypeName))
             {
-                if (isOpen)
-                {
-                    _activePanels.Add($"PlayBlade:External:{panelTypeName}");
-                    _playBladeActive = true;
-                    // Track the state for screen name detection (e.g., "PlayBlade:Events")
-                    _playBladeState = panelTypeName;
-                    MelonLogger.Msg($"[{NavigatorId}] Play blade opened (from Harmony): {panelTypeName}");
-                }
-                else
-                {
-                    // Only close if it's the main PlayBlade closing (Hidden state)
-                    // Sub-blade changes (Events -> DirectChallenge) shouldn't close
-                    if (panelTypeName.Contains("Hidden") || panelTypeName.Contains("Hide"))
-                    {
-                        _activePanels.RemoveWhere(p => p.StartsWith("PlayBlade:"));
-                        _playBladeActive = false;
-                        _playBladeState = null;
-                        _foregroundPanel = null;
-                        MelonLogger.Msg($"[{NavigatorId}] Play blade closed (from Harmony): {panelTypeName}");
-                    }
-                    else
-                    {
-                        // Update state but keep blade active (state transition)
-                        _playBladeState = panelTypeName;
-                        MelonLogger.Msg($"[{NavigatorId}] Play blade state change (not closing): {panelTypeName}");
-                    }
-                }
-            }
-            // Handle EventBlade and DirectChallengeBlade from HomePageContentController
-            else if (panelTypeName.Contains("EventBlade") || panelTypeName.Contains("DirectChallengeBlade"))
-            {
-                if (isOpen)
-                {
-                    _activePanels.Add($"EventBlade:External:{panelTypeName}");
-                    _playBladeActive = true;
-                    // Track for screen name - translate to PlayBlade state format
-                    _playBladeState = panelTypeName.Contains("DirectChallenge") ? "PlayBlade:DirectChallenge" : "PlayBlade:Events";
-                    MelonLogger.Msg($"[{NavigatorId}] Event/Challenge blade opened (from Harmony): {panelTypeName}");
-                }
-                else
-                {
-                    _activePanels.RemoveWhere(p => p.Contains("EventBlade:") || p.Contains("ChallengeBlade:"));
-                    _playBladeActive = false;
-                    _playBladeState = null;
-                    _foregroundPanel = null;
-                    MelonLogger.Msg($"[{NavigatorId}] Event/Challenge blade closed (from Harmony): {panelTypeName}");
-                }
+                HandleBladeChange(panelTypeName, isOpen);
             }
 
             // Trigger rescan when any panel opens or closes
             TriggerRescan();
+        }
+
+        /// <summary>
+        /// Check if the panel type is a content panel (non-HomePage content controllers, Settings, etc.)
+        /// </summary>
+        private bool IsContentPanelType(string panelTypeName)
+        {
+            // Check against known content controller types (excluding HomePage)
+            foreach (var controllerType in ContentControllerTypes)
+            {
+                if (controllerType != "HomePageContentController" && panelTypeName.Contains(controllerType))
+                    return true;
+            }
+
+            // Additional panel types not in ContentControllerTypes
+            return panelTypeName.Contains("SettingsMenu") ||
+                   panelTypeName.Contains("DeckSelectBlade");
+        }
+
+        /// <summary>
+        /// Check if the panel type is a blade (PlayBlade, EventBlade, etc.)
+        /// </summary>
+        private bool IsBladeType(string panelTypeName)
+        {
+            return panelTypeName.Contains("PlayBlade") ||
+                   panelTypeName.Contains("Blade:") ||
+                   panelTypeName.Contains("EventBlade") ||
+                   panelTypeName.Contains("DirectChallengeBlade");
+        }
+
+        /// <summary>
+        /// Handle content panel open/close events.
+        /// </summary>
+        private void HandleContentPanelChange(string panelTypeName, bool isOpen)
+        {
+            if (isOpen)
+            {
+                _activePanels.Add($"ContentPanel:{panelTypeName}");
+                MelonLogger.Msg($"[{NavigatorId}] Content panel opened: {panelTypeName}");
+
+                // Auto-expand blade for Color Challenge menu
+                if (panelTypeName.Contains("CampaignGraphContentController"))
+                {
+                    _bladeAutoExpandDelay = BladeAutoExpandDelay;
+                    MelonLogger.Msg($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
+                }
+            }
+            else
+            {
+                _activePanels.RemoveWhere(p => p.StartsWith("ContentPanel:"));
+                _foregroundPanel = null;
+                MelonLogger.Msg($"[{NavigatorId}] Content panel closed: {panelTypeName}");
+            }
+        }
+
+        /// <summary>
+        /// Handle blade open/close/state change events.
+        /// </summary>
+        private void HandleBladeChange(string panelTypeName, bool isOpen)
+        {
+            if (isOpen)
+            {
+                string panelKey = panelTypeName.Contains("EventBlade") || panelTypeName.Contains("DirectChallenge")
+                    ? $"EventBlade:External:{panelTypeName}"
+                    : $"PlayBlade:External:{panelTypeName}";
+
+                _activePanels.Add(panelKey);
+                _playBladeActive = true;
+
+                // Determine screen name state
+                if (panelTypeName.Contains("DirectChallenge"))
+                    _playBladeState = "PlayBlade:DirectChallenge";
+                else if (panelTypeName.Contains("EventBlade"))
+                    _playBladeState = "PlayBlade:Events";
+                else
+                    _playBladeState = panelTypeName;
+
+                MelonLogger.Msg($"[{NavigatorId}] Blade opened: {panelTypeName}");
+            }
+            else
+            {
+                // Only fully close if it's a Hide/Hidden state, otherwise it's a state transition
+                bool isClosing = panelTypeName.Contains("Hidden") || panelTypeName.Contains("Hide");
+
+                if (isClosing)
+                {
+                    _activePanels.RemoveWhere(p => p.Contains("Blade:"));
+                    _playBladeActive = false;
+                    _playBladeState = null;
+                    _foregroundPanel = null;
+                    MelonLogger.Msg($"[{NavigatorId}] Blade closed: {panelTypeName}");
+                }
+                else
+                {
+                    // State transition within blade - keep blade active
+                    _playBladeState = panelTypeName;
+                    MelonLogger.Msg($"[{NavigatorId}] Blade state change: {panelTypeName}");
+                }
+            }
         }
 
         /// <summary>
@@ -1432,16 +1441,6 @@ namespace MTGAAccessibility.Core.Services
             }
         }
 
-        // Flag set by Harmony events to indicate PlayBlade is active
-        // Used by IsInForegroundPanel for special HomePage + blade filtering
-        private bool _playBladeActive = false;
-
-        // Active content controller tracking for screen name detection and element filtering
-        private string _activeContentController = null;
-        private GameObject _activeControllerGameObject = null; // GameObject of the active content controller
-        private GameObject _navBarGameObject = null; // Cached NavBar reference
-        private string _playBladeState = null; // Hidden, Events, DirectChallenge, FriendChallenge
-
         #region Screen Detection Helpers
 
         /// <summary>
@@ -1451,22 +1450,7 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private string DetectActiveContentController()
         {
-            // Check for specific content controllers by looking for their IsOpen state
-            var contentControllerTypes = new[]
-            {
-                "HomePageContentController",
-                "DeckManagerController",
-                "ProfileContentController",
-                "ContentController_StoreCarousel",
-                "MasteryContentController",
-                "AchievementsContentController",
-                "LearnToPlayControllerV2",
-                "PackOpeningController",
-                "CampaignGraphContentController",
-                "WrapperDeckBuilder"
-            };
-
-            // Also cache NavBar if not already cached
+            // Cache NavBar if not already cached
             if (_navBarGameObject == null)
             {
                 _navBarGameObject = GameObject.Find("NavBar_Desktop_16x9(Clone)");
@@ -1481,7 +1465,7 @@ namespace MTGAAccessibility.Core.Services
                 var type = mb.GetType();
                 string typeName = type.Name;
 
-                if (!contentControllerTypes.Contains(typeName)) continue;
+                if (!ContentControllerTypes.Contains(typeName)) continue;
 
                 // Check IsOpen property
                 var isOpenProp = type.GetProperty("IsOpen",
