@@ -166,6 +166,8 @@ namespace MTGAAccessibility.Core.Services
                     return HandleZoneTransferGroup(uxEvent);
                 case DuelEventType.CombatFrame:
                     return HandleCombatFrame(uxEvent);
+                case DuelEventType.MultistepEffect:
+                    return HandleMultistepEffect(uxEvent);
                 default:
                     return null;
             }
@@ -1113,6 +1115,150 @@ namespace MTGAAccessibility.Core.Services
             }
         }
 
+        // Track if we've logged multistep effect fields (once for discovery)
+        private static bool _multistepEffectFieldsLogged = false;
+
+        /// <summary>
+        /// Tracks if a library manipulation browser (scry, surveil, etc.) is active.
+        /// Set to true when MultistepEffectStartedUXEvent fires.
+        /// </summary>
+        public bool IsLibraryBrowserActive { get; private set; }
+
+        /// <summary>
+        /// Info about the current library manipulation effect.
+        /// </summary>
+        public string CurrentEffectType { get; private set; }
+        public int CurrentEffectCount { get; private set; }
+
+        private string HandleMultistepEffect(object uxEvent)
+        {
+            try
+            {
+                // Log fields for discovery (once)
+                if (!_multistepEffectFieldsLogged)
+                {
+                    _multistepEffectFieldsLogged = true;
+                    LogEventFields(uxEvent, "MULTISTEP EFFECT");
+                }
+
+                // Extract effect information using correct property names from logs:
+                // - AbilityCategory (AbilitySubCategory enum): Scry, Surveil, etc.
+                // - Affector (MtgCardInstance): source card
+                // - Affected (MtgPlayer): target player
+                var abilityCategory = GetFieldValue<object>(uxEvent, "AbilityCategory");
+                var affector = GetFieldValue<object>(uxEvent, "Affector");
+                var affected = GetFieldValue<object>(uxEvent, "Affected");
+
+                string effectName = abilityCategory?.ToString() ?? "unknown";
+                MelonLogger.Msg($"[DuelAnnouncer] MultistepEffect: AbilityCategory={effectName}, Affector={affector}, Affected={affected}");
+
+                // Determine effect type and description
+                string effectDescription;
+                CurrentEffectType = effectName;
+
+                switch (effectName.ToLower())
+                {
+                    case "scry":
+                        effectDescription = "Scry";
+                        break;
+                    case "surveil":
+                        effectDescription = "Surveil";
+                        break;
+                    case "look":
+                    case "lookat":
+                        effectDescription = "Look at top card";
+                        break;
+                    case "mill":
+                        effectDescription = "Mill";
+                        break;
+                    default:
+                        effectDescription = effectName;
+                        break;
+                }
+
+                IsLibraryBrowserActive = true;
+
+                // Get card name from affector if available
+                string cardName = null;
+                if (affector != null)
+                {
+                    // Try to get GrpId from the affector's Printing property
+                    var printingProp = affector.GetType().GetProperty("Printing");
+                    if (printingProp != null)
+                    {
+                        var printing = printingProp.GetValue(affector);
+                        if (printing != null)
+                        {
+                            var grpIdProp = printing.GetType().GetProperty("GrpId");
+                            if (grpIdProp != null)
+                            {
+                                var grpId = grpIdProp.GetValue(printing);
+                                if (grpId is uint gid && gid != 0)
+                                {
+                                    cardName = CardModelProvider.GetNameFromGrpId(gid);
+                                }
+                                else if (grpId is int gidInt && gidInt != 0)
+                                {
+                                    cardName = CardModelProvider.GetNameFromGrpId((uint)gidInt);
+                                }
+                            }
+                        }
+                    }
+
+                    // Fallback: try direct GrpId on affector
+                    if (string.IsNullOrEmpty(cardName))
+                    {
+                        var directGrpId = GetFieldValue<uint>(affector, "GrpId");
+                        if (directGrpId != 0)
+                        {
+                            cardName = CardModelProvider.GetNameFromGrpId(directGrpId);
+                        }
+                    }
+                }
+
+                // Build announcement based on effect type
+                string announcement;
+                if (effectName.ToLower() == "scry")
+                {
+                    announcement = $"{effectDescription}. Tab to see card, Enter to keep on top, Space to put on bottom";
+                }
+                else if (effectName.ToLower() == "surveil")
+                {
+                    announcement = $"{effectDescription}. Tab to see card, Enter to keep on top, Space to put in graveyard";
+                }
+                else
+                {
+                    announcement = $"{effectDescription}. Tab to navigate, Enter to select";
+                }
+
+                if (!string.IsNullOrEmpty(cardName))
+                {
+                    MelonLogger.Msg($"[DuelAnnouncer] Library browser active: {effectDescription} from {cardName}");
+                }
+                else
+                {
+                    MelonLogger.Msg($"[DuelAnnouncer] Library browser active: {effectDescription}");
+                }
+
+                return announcement;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error handling multistep effect: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Called when library browser is closed (effect resolved).
+        /// </summary>
+        public void OnLibraryBrowserClosed()
+        {
+            IsLibraryBrowserActive = false;
+            CurrentEffectType = null;
+            CurrentEffectCount = 0;
+        }
+
         // Simple class to hold damage info extracted from a damage event
         private class DamageInfo
         {
@@ -1499,6 +1645,9 @@ namespace MTGAAccessibility.Core.Services
                 // Combat events
                 { "CombatFrame", DuelEventType.CombatFrame },
 
+                // Multistep effects (scry, surveil, library manipulation)
+                { "MultistepEffectStartedUXEvent", DuelEventType.MultistepEffect },
+
                 // Ignored events
                 { "WaitForSecondsUXEvent", DuelEventType.Ignored },
                 { "CallbackUXEvent", DuelEventType.Ignored },
@@ -1544,6 +1693,7 @@ namespace MTGAAccessibility.Core.Services
         ResolutionEnded,
         CardModelUpdate,
         ZoneTransferGroup,
-        CombatFrame
+        CombatFrame,
+        MultistepEffect
     }
 }

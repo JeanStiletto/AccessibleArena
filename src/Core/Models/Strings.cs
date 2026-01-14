@@ -124,5 +124,23 @@ namespace MTGAAccessibility.Core.Models
             string.IsNullOrEmpty(state)
                 ? $"{cardName}, {position} of {total}"
                 : $"{cardName}{state}, {position} of {total}";
+
+        // ===========================================
+        // BROWSER (Scry, Surveil, Mulligan, etc.)
+        // ===========================================
+        public const string NoCards = "No cards";
+        public const string NoButtonSelected = "No button selected";
+        public const string CouldNotTogglePosition = "Could not toggle position";
+        public const string Selected = "selected";
+        public const string Confirmed = "Confirmed";
+        public const string Cancelled = "Cancelled";
+        public const string NoConfirmButton = "No confirm button found";
+        public const string KeepOnTop = "keep on top";
+        public const string PutOnBottom = "put on bottom";
+        public static string CouldNotClick(string label) => $"Could not click {label}";
+        public static string BrowserCards(int count, string browserName) =>
+            $"{browserName}. {count} {(count == 1 ? "card" : "cards")}. Tab to navigate, Enter to select";
+        public static string BrowserOptions(string browserName) =>
+            $"{browserName}. Tab to navigate options";
     }
 }

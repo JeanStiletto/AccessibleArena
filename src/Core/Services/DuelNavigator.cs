@@ -32,6 +32,7 @@ namespace MTGAAccessibility.Core.Services
         private DiscardNavigator _discardNavigator;
         private CombatNavigator _combatNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
+        private BrowserNavigator _browserNavigator;
         private DuelAnnouncer _duelAnnouncer;
 
         public override string NavigatorId => "Duel";
@@ -46,6 +47,7 @@ namespace MTGAAccessibility.Core.Services
         public HighlightNavigator HighlightNavigator => _highlightNavigator;
         public DiscardNavigator DiscardNavigator => _discardNavigator;
         public BattlefieldNavigator BattlefieldNavigator => _battlefieldNavigator;
+        public BrowserNavigator BrowserNavigator => _browserNavigator;
         public DuelAnnouncer DuelAnnouncer => _duelAnnouncer;
 
         public DuelNavigator(IAnnouncementService announcer) : base(announcer)
@@ -54,6 +56,7 @@ namespace MTGAAccessibility.Core.Services
             _targetNavigator = new TargetNavigator(announcer, _zoneNavigator);
             _highlightNavigator = new HighlightNavigator(announcer, _zoneNavigator);
             _discardNavigator = new DiscardNavigator(announcer, _zoneNavigator);
+            _browserNavigator = new BrowserNavigator(announcer);
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
             _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
@@ -341,7 +344,13 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
-            // First, let TargetNavigator handle input if in targeting mode
+            // First, check for browser UI (scry, mulligan, damage assignment, etc.)
+            // Browsers take highest priority as they represent modal interactions
+            _browserNavigator.Update();
+            if (_browserNavigator.HandleInput())
+                return true;
+
+            // Next, let TargetNavigator handle input if in targeting mode
             // This allows Tab to cycle targets during spell targeting
             if (_targetNavigator.HandleInput())
                 return true;

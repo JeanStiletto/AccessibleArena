@@ -39,6 +39,7 @@ C:\Users\fabia\arena\
         HighlightNavigator.cs    - Tab cycling through playable/highlighted cards
         DiscardNavigator.cs      - Discard selection when forced to discard
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
+        BrowserNavigator.cs      - Library manipulation browsers (scry, surveil, mulligan)
 
         # Navigator Infrastructure
         BaseNavigator.cs         - Abstract base for screen navigators
@@ -245,6 +246,27 @@ Cards announce their current state based on active UI indicators:
 - `UpdateBlockerSelection()` - Called each frame, detects selection changes, announces combined stats
 - Tracking uses `HashSet<int>` of instance IDs to detect changes efficiently
 - Resets tracking when entering/exiting blockers phase
+
+### Browser Navigator System (In Progress)
+- [x] BrowserNavigator service - Unified handler for browser-style UIs
+- [x] Browser scaffold detection - Finds `BrowserScaffold_*` GameObjects (Scry, Surveil, etc.)
+- [x] Card holder detection - `BrowserCardHolder_Default` (keep) and `BrowserCardHolder_ViewDismiss` (dismiss)
+- [x] Tab navigation - Cycles through cards in browser
+- [x] Card state announcements - "keep on top" or "put on bottom" based on holder
+- [x] Integration with DuelNavigator - BrowserNavigator.Update() and HandleInput() called
+- [x] Integration with DuelAnnouncer - `MultistepEffectStartedUXEvent` triggers browser entry announcement
+- [ ] Enter to toggle position - API discovery in progress (card doesn't move between holders yet)
+- [ ] Space to confirm - Clicks primary button to submit choice
+- [ ] Surveil testing - Same UI pattern as scry, needs verification
+- [ ] Mulligan browser - Different structure, needs implementation
+
+**Browser Types Supported:**
+- Scry - View top card(s), choose keep on top or put on bottom
+- Surveil - Similar to scry, dismissed cards go to graveyard
+- (Future) Mulligan, OrderCards, SelectCards, AssignDamage, etc.
+
+**Current State:**
+Browser detection and card navigation work. Toggle mechanism (Enter key) is under investigation - the game's CardBrowserCardHolder API needs to be discovered to properly move cards between holders.
 
 ## Known Issues
 
@@ -692,3 +714,35 @@ been removed from all navigators. Only failure announcements are kept ("Cannot a
 - `src/Contexts/Login/LoginContext.cs` - Uses Strings
 - `docs/BEST_PRACTICES.md` - Added Centralized Strings section with usage guidelines
 - `docs/MOD_STRUCTURE.md` - Updated project layout, added this changelog entry
+
+### January 2026 - Browser Navigator for Library Manipulation (In Progress)
+
+**Goal:** Make scry, surveil, and similar library manipulation effects accessible.
+
+**New File - `BrowserNavigator.cs`:**
+Unified navigator for browser-style UIs that appear during library manipulation effects.
+
+**How It Works:**
+1. `DuelAnnouncer` detects `MultistepEffectStartedUXEvent` with `AbilityCategory` (Scry, Surveil, etc.)
+2. `BrowserNavigator.Update()` finds active `BrowserScaffold_*` GameObjects
+3. Cards are discovered in `BrowserCardHolder_Default` (keep on top) and `BrowserCardHolder_ViewDismiss` (put on bottom)
+4. Tab navigates between cards, announcing name and current position state
+5. Enter should toggle card between holders (in progress)
+6. Space confirms the choice
+
+**UI Structure Discovered:**
+- `BrowserScaffold_Scry_Desktop_16x9(Clone)` - Main container
+- `BrowserCardHolder_Default` - Cards to keep on top of library
+- `BrowserCardHolder_ViewDismiss` - Cards to put on bottom
+- `CardBrowserCardHolder` component - Game's card holder logic
+- `PromptButton_Primary` / `PromptButton_Secondary` - Confirm/cancel buttons
+
+**Current Status:**
+- Detection and navigation work
+- Toggle mechanism needs API discovery (next testing session will log `CardBrowserCardHolder` methods)
+
+**Files Changed:**
+- `src/Core/Services/BrowserNavigator.cs` - NEW: Browser navigation
+- `src/Core/Services/DuelNavigator.cs` - Integration with BrowserNavigator
+- `src/Core/Services/DuelAnnouncer.cs` - MultistepEffectStartedUXEvent handling, IsLibraryBrowserActive flag
+- `src/Core/Models/Strings.cs` - Added browser-related strings
