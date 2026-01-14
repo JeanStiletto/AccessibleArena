@@ -878,6 +878,11 @@ The game uses `HotHighlight` child objects to visually indicate valid targets:
 - Non-targets: `Highlights - Default(Clone)` with no HotHighlight child
 - The spell on stack has `_GlowColor` green glow (NOT the targeting indicator)
 
+**Tab Cycling Announcements:**
+Uses `AnnouncementPriority.High` to bypass the duplicate announcement check. This ensures:
+- Single target: Pressing Tab always re-announces the target
+- Multiple targets: Normal cycling behavior with guaranteed announcements
+
 **Integration (via UIActivator):**
 ```csharp
 // UIActivator.PlayCardViaTwoClick checks for targeting mode after playing
@@ -898,6 +903,15 @@ foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
 }
 ```
 
+**Battlefield Row Navigation During Targeting:**
+While in targeting mode, you can still inspect battlefield rows:
+- Shift+B/A/R: Navigate to player/enemy battlefield rows
+- Shift+Up/Down: Switch between rows
+- Left/Right: Navigate within the current row (shows only that row's cards)
+- Tab: Returns to target cycling
+
+This allows reviewing the battlefield before selecting a target, without Tab cycling jumping to unrelated targets.
+
 ### HighlightNavigator
 Handles Tab cycling through playable/highlighted cards during normal gameplay. Replaces the default Tab behavior that cycles through UI buttons.
 
@@ -906,10 +920,15 @@ The game uses `HotHighlight` child objects to visually indicate playable cards (
 
 **User Flow:**
 1. During your turn, press Tab
-2. "Card Name, in hand, 1 of 3 playable" announced
+2. "Card Name, in hand, 1 of 3" announced
 3. Tab/Shift+Tab cycles through all playable cards
 4. Enter plays/activates the current card
 5. Selection resets after activation
+
+**Tab Cycling Announcements:**
+Uses `AnnouncementPriority.High` to bypass the duplicate announcement check. This ensures:
+- Single card: Pressing Tab always re-announces the card (even if same message)
+- Multiple cards: Normal cycling behavior with guaranteed announcements
 
 **Input Priority (in DuelNavigator):**
 ```

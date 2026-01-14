@@ -174,6 +174,8 @@ C:\Users\fabia\arena\
 - [x] Submit button detection - Detects "Submit X" or "Cancel" button to enter targeting mode
 - [x] **HotHighlight detection** - Valid targets have active `HotHighlightBattlefield(Clone)` child
 - [x] Tab targeting for targeted spells - **Working** (uses HotHighlight detection)
+- [x] High priority announcements - Always announces on Tab (bypasses duplicate check for single-target case)
+- [x] Battlefield row navigation during targeting - Left/Right navigate within current row (Shift+B/etc to switch rows)
 
 ### Highlight Navigator System (Working)
 - [x] HighlightNavigator service - Tab cycles playable cards outside targeting mode
@@ -182,6 +184,7 @@ C:\Users\fabia\arena\
 - [x] Tab/Shift+Tab cycling - Cycles through all playable cards (hand + battlefield)
 - [x] Enter to play - Activates currently highlighted card
 - [x] Replaces default Tab behavior - No more cycling through useless UI buttons
+- [x] High priority announcements - Always announces on Tab (bypasses duplicate check for single-card case)
 
 ### Discard Navigator System (Working)
 - [x] DiscardNavigator service - Handles forced discard selection

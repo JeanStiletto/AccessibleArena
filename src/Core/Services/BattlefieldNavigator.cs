@@ -167,8 +167,8 @@ namespace MTGAAccessibility.Core.Services
                     return true;
                 }
 
-                // Don't capture Left/Right/Enter during targeting - let other zones handle them
-                return false;
+                // Left/Right falls through to normal row navigation below
+                // Enter is skipped during targeting (TargetNavigator handles it)
             }
 
             // Row switching with Shift+Up/Down (only when already in battlefield)
@@ -198,8 +198,8 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Enter to activate card (only when in battlefield)
-            if (inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            // Enter to activate card (only when in battlefield, not during targeting)
+            if (!isTargeting && inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 ActivateCurrentCard();
                 return true;

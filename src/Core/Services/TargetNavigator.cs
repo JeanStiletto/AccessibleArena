@@ -178,7 +178,8 @@ namespace MTGAAccessibility.Core.Services
             string ownerInfo = target.IsOpponent ? "opponent's " : "";
             string announcement = $"{target.GetAnnouncement()}, {ownerInfo}{target.Type}, {position} of {total}";
 
-            _announcer.Announce(announcement, AnnouncementPriority.Normal);
+            // Use High priority to bypass duplicate check - user explicitly pressed Tab
+            _announcer.Announce(announcement, AnnouncementPriority.High);
 
             // Prepare CardInfoNavigator for arrow key navigation on this target
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;

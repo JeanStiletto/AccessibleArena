@@ -6,6 +6,7 @@ namespace MTGAAccessibility.Core.Interfaces
     {
         void Announce(string message, AnnouncementPriority priority = AnnouncementPriority.Normal);
         void AnnounceInterrupt(string message);
+        void RepeatLastAnnouncement();
         void Silence();
         void SetEnabled(bool enabled);
         bool IsEnabled { get; }

@@ -192,9 +192,10 @@ namespace MTGAAccessibility.Core.Services
             int total = _highlightedCards.Count;
 
             string zoneInfo = GetZoneDisplayName(card.Zone);
-            string announcement = $"{card.Name}, {zoneInfo}, {position} of {total} playable";
+            string announcement = $"{card.Name}, {zoneInfo}, {position} of {total}";
 
-            _announcer.Announce(announcement, AnnouncementPriority.Normal);
+            // Use High priority to bypass duplicate check - user explicitly pressed Tab
+            _announcer.Announce(announcement, AnnouncementPriority.High);
 
             // Prepare card for detailed navigation with arrow keys
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
