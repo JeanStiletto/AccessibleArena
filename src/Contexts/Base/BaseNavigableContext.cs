@@ -99,7 +99,7 @@ namespace MTGAAccessibility.Contexts.Base
         {
             if (ParentContext != null)
             {
-                Announcer.Announce("Back");
+                Announcer.Announce(Core.Models.Strings.Back);
             }
         }
 

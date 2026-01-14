@@ -319,7 +319,7 @@ namespace MTGAAccessibility.Core.Services
             var cards = _rows[row];
             if (cards.Count == 0)
             {
-                _announcer.Announce($"{GetRowName(row)}, empty", AnnouncementPriority.High);
+                _announcer.Announce(Strings.RowEmptyShort(GetRowName(row)), AnnouncementPriority.High);
                 // Still set the row so Shift+Up/Down work from here
                 _currentRow = row;
                 _currentIndex = 0;
@@ -329,7 +329,7 @@ namespace MTGAAccessibility.Core.Services
             _currentRow = row;
             _currentIndex = 0;
 
-            _announcer.Announce($"{GetRowName(row)}, {cards.Count} card{(cards.Count != 1 ? "s" : "")}", AnnouncementPriority.High);
+            _announcer.Announce(Strings.RowWithCount(GetRowName(row), cards.Count), AnnouncementPriority.High);
             AnnounceCurrentCard();
         }
 
@@ -350,13 +350,13 @@ namespace MTGAAccessibility.Core.Services
                 {
                     _currentRow = RowOrder[i];
                     _currentIndex = 0;
-                    _announcer.Announce($"{GetRowName(_currentRow)}, {_rows[_currentRow].Count} card{(_rows[_currentRow].Count != 1 ? "s" : "")}", AnnouncementPriority.High);
+                    _announcer.Announce(Strings.RowWithCount(GetRowName(_currentRow), _rows[_currentRow].Count), AnnouncementPriority.High);
                     AnnounceCurrentCard();
                     return;
                 }
             }
 
-            _announcer.AnnounceInterrupt("End of battlefield");
+            _announcer.AnnounceInterrupt(Strings.EndOfBattlefield);
         }
 
         /// <summary>
@@ -376,13 +376,13 @@ namespace MTGAAccessibility.Core.Services
                 {
                     _currentRow = RowOrder[i];
                     _currentIndex = 0;
-                    _announcer.Announce($"{GetRowName(_currentRow)}, {_rows[_currentRow].Count} card{(_rows[_currentRow].Count != 1 ? "s" : "")}", AnnouncementPriority.High);
+                    _announcer.Announce(Strings.RowWithCount(GetRowName(_currentRow), _rows[_currentRow].Count), AnnouncementPriority.High);
                     AnnounceCurrentCard();
                     return;
                 }
             }
 
-            _announcer.AnnounceInterrupt("Beginning of battlefield");
+            _announcer.AnnounceInterrupt(Strings.BeginningOfBattlefield);
         }
 
         /// <summary>
@@ -393,7 +393,7 @@ namespace MTGAAccessibility.Core.Services
             var cards = _rows[_currentRow];
             if (cards.Count == 0)
             {
-                _announcer.AnnounceInterrupt($"{GetRowName(_currentRow)} is empty");
+                _announcer.AnnounceInterrupt(Strings.RowEmpty(GetRowName(_currentRow)));
                 return;
             }
 
@@ -404,7 +404,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt("End of row");
+                _announcer.AnnounceInterrupt(Strings.EndOfRow);
             }
         }
 
@@ -416,7 +416,7 @@ namespace MTGAAccessibility.Core.Services
             var cards = _rows[_currentRow];
             if (cards.Count == 0)
             {
-                _announcer.AnnounceInterrupt($"{GetRowName(_currentRow)} is empty");
+                _announcer.AnnounceInterrupt(Strings.RowEmpty(GetRowName(_currentRow)));
                 return;
             }
 
@@ -427,7 +427,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt("Beginning of row");
+                _announcer.AnnounceInterrupt(Strings.BeginningOfRow);
             }
         }
 
@@ -450,7 +450,7 @@ namespace MTGAAccessibility.Core.Services
 
             if (card == null)
             {
-                _announcer.Announce("No card selected", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.High);
                 return;
             }
 
@@ -459,13 +459,9 @@ namespace MTGAAccessibility.Core.Services
 
             var result = UIActivator.SimulatePointerClick(card);
 
-            if (result.Success)
+            if (!result.Success)
             {
-                _announcer.Announce($"Activated {cardName}", AnnouncementPriority.Normal);
-            }
-            else
-            {
-                _announcer.Announce($"Cannot activate {cardName}", AnnouncementPriority.High);
+                _announcer.Announce(Strings.CannotActivate(cardName), AnnouncementPriority.High);
                 MelonLogger.Msg($"[BattlefieldNavigator] Card activation failed: {result.Message}");
             }
         }

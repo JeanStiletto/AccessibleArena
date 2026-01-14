@@ -300,7 +300,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.Announce("No alternate action available", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
             }
         }
 
@@ -320,7 +320,7 @@ namespace MTGAAccessibility.Core.Services
             GameObject control = isNext ? info.NextControl : info.PreviousControl;
             if (control == null || !control.activeInHierarchy)
             {
-                _announcer.Announce(isNext ? "No next item" : "No previous item", AnnouncementPriority.Normal);
+                _announcer.Announce(isNext ? Strings.NoNextItem : Strings.NoPreviousItem, AnnouncementPriority.Normal);
                 return true;
             }
 

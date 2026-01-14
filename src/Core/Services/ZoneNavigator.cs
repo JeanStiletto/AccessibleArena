@@ -272,7 +272,7 @@ namespace MTGAAccessibility.Core.Services
 
             if (!_zones.ContainsKey(zone))
             {
-                _announcer.Announce($"{GetZoneName(zone)} not found", AnnouncementPriority.High);
+                _announcer.Announce(Strings.ZoneNotFound(GetZoneName(zone)), AnnouncementPriority.High);
                 return;
             }
 
@@ -284,11 +284,11 @@ namespace MTGAAccessibility.Core.Services
 
             if (cardCount == 0)
             {
-                _announcer.Announce($"{GetZoneName(zone)}, empty", AnnouncementPriority.High);
+                _announcer.Announce(Strings.ZoneEmpty(GetZoneName(zone)), AnnouncementPriority.High);
             }
             else
             {
-                _announcer.Announce($"{GetZoneName(zone)}, {cardCount} card{(cardCount != 1 ? "s" : "")}", AnnouncementPriority.High);
+                _announcer.Announce(Strings.ZoneWithCount(GetZoneName(zone), cardCount), AnnouncementPriority.High);
                 AnnounceCurrentCard();
             }
         }
@@ -311,7 +311,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt("End of zone");
+                _announcer.AnnounceInterrupt(Strings.EndOfZone);
             }
         }
 
@@ -333,7 +333,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt("Beginning of zone");
+                _announcer.AnnounceInterrupt(Strings.BeginningOfZone);
             }
         }
 
@@ -361,7 +361,7 @@ namespace MTGAAccessibility.Core.Services
 
             if (card == null)
             {
-                _announcer.Announce("No card selected", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.High);
                 return;
             }
 
@@ -384,7 +384,7 @@ namespace MTGAAccessibility.Core.Services
                     }
                     else
                     {
-                        _announcer.Announce($"Could not play {cardName}", AnnouncementPriority.High);
+                        _announcer.Announce(Strings.CouldNotPlay(cardName), AnnouncementPriority.High);
                         MelonLogger.Msg($"[ZoneNavigator] Card play failed: {message}");
                     }
                 }, _targetNavigator);
@@ -394,13 +394,9 @@ namespace MTGAAccessibility.Core.Services
                 // For other zones (battlefield, etc.), use click
                 var result = UIActivator.SimulatePointerClick(card);
 
-                if (result.Success)
+                if (!result.Success)
                 {
-                    _announcer.Announce($"Activated {cardName}", AnnouncementPriority.Normal);
-                }
-                else
-                {
-                    _announcer.Announce($"Cannot activate {cardName}", AnnouncementPriority.High);
+                    _announcer.Announce(Strings.CannotActivate(cardName), AnnouncementPriority.High);
                     MelonLogger.Msg($"[ZoneNavigator] Card activation failed: {result.Message}");
                 }
             }

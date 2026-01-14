@@ -45,41 +45,41 @@ namespace MTGAAccessibility.Contexts.MainMenu
 
         private void OnPlaySelect()
         {
-            Announcer.Announce("Opening play modes...");
+            Announcer.Announce(Core.Models.Strings.OpeningPlayModes);
             _contextManager.SetContext(GameContext.GameModeSelection);
         }
 
         private void OnDecksSelect()
         {
-            Announcer.Announce("Opening deck manager...");
+            Announcer.Announce(Core.Models.Strings.OpeningDeckManager);
             _contextManager.SetContext(GameContext.DeckBuilder);
         }
 
         private void OnStoreSelect()
         {
-            Announcer.Announce("Opening store...");
+            Announcer.Announce(Core.Models.Strings.OpeningStore);
             _contextManager.SetContext(GameContext.Shop);
         }
 
         private void OnMasterySelect()
         {
-            Announcer.Announce("Opening mastery...");
+            Announcer.Announce(Core.Models.Strings.OpeningMastery);
         }
 
         private void OnProfileSelect()
         {
-            Announcer.Announce("Opening profile...");
+            Announcer.Announce(Core.Models.Strings.OpeningProfile);
         }
 
         private void OnSettingsSelect()
         {
-            Announcer.Announce("Opening settings...");
+            Announcer.Announce(Core.Models.Strings.OpeningSettings);
             _contextManager.SetContext(GameContext.Settings);
         }
 
         private void OnQuitSelect()
         {
-            Announcer.Announce("Quitting game...");
+            Announcer.Announce(Core.Models.Strings.QuittingGame);
         }
     }
 }

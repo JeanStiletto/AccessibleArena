@@ -248,7 +248,7 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
-            _announcer.Announce("No terms content found", AnnouncementPriority.Normal);
+            _announcer.Announce(Strings.NoTermsContentFound, AnnouncementPriority.Normal);
         }
     }
 }

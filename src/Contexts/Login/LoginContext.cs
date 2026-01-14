@@ -155,22 +155,22 @@ namespace MTGAAccessibility.Contexts.Login
 
         private void OnBirthYearSelected()
         {
-            Announcer.Announce("Birth year field. Use arrow keys to select year.");
+            Announcer.Announce(Core.Models.Strings.BirthYearField);
         }
 
         private void OnBirthMonthSelected()
         {
-            Announcer.Announce("Birth month field. Use arrow keys to select month.");
+            Announcer.Announce(Core.Models.Strings.BirthMonthField);
         }
 
         private void OnBirthDaySelected()
         {
-            Announcer.Announce("Birth day field. Use arrow keys to select day.");
+            Announcer.Announce(Core.Models.Strings.BirthDayField);
         }
 
         private void OnCountrySelected()
         {
-            Announcer.Announce("Country field. Use arrow keys to select country.");
+            Announcer.Announce(Core.Models.Strings.CountryField);
         }
 
         private void OnAgeGateContinue()
@@ -180,32 +180,32 @@ namespace MTGAAccessibility.Contexts.Login
 
         private void OnEmailFieldSelected()
         {
-            Announcer.Announce("Email field. Type your email address.");
+            Announcer.Announce(Core.Models.Strings.EmailField);
         }
 
         private void OnPasswordFieldSelected()
         {
-            Announcer.Announce("Password field. Type your password.");
+            Announcer.Announce(Core.Models.Strings.PasswordField);
         }
 
         private void OnConfirmPasswordSelected()
         {
-            Announcer.Announce("Confirm password field. Retype your password.");
+            Announcer.Announce(Core.Models.Strings.ConfirmPasswordField);
         }
 
         private void OnAcceptTermsSelected()
         {
-            Announcer.Announce("Accept terms checkbox. Press Enter to toggle.");
+            Announcer.Announce(Core.Models.Strings.AcceptTermsCheckbox);
         }
 
         private void OnSubmitLogin()
         {
-            Announcer.Announce("Logging in...");
+            Announcer.Announce(Core.Models.Strings.LoggingIn);
         }
 
         private void OnSubmitRegistration()
         {
-            Announcer.Announce("Creating account...");
+            Announcer.Announce(Core.Models.Strings.CreatingAccount);
         }
 
         private void OnForgotPasswordSelected()
@@ -215,12 +215,12 @@ namespace MTGAAccessibility.Contexts.Login
 
         private void OnSubmitPasswordReset()
         {
-            Announcer.Announce("Submitting password reset request...");
+            Announcer.Announce(Core.Models.Strings.SubmittingPasswordReset);
         }
 
         private void OnQueuePositionAnnounce()
         {
-            Announcer.Announce("Checking queue position...");
+            Announcer.Announce(Core.Models.Strings.CheckingQueuePosition);
         }
 
         private void OnCancelQueue()
@@ -230,7 +230,7 @@ namespace MTGAAccessibility.Contexts.Login
 
         private void OnSupportWebsite()
         {
-            Announcer.Announce("Opening support website...");
+            Announcer.Announce(Core.Models.Strings.OpeningSupportWebsite);
         }
 
         private void OnBackToWelcome()

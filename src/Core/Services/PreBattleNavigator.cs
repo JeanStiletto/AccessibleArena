@@ -155,7 +155,6 @@ namespace MTGAAccessibility.Core.Services
             // StyledButton responds to pointer events, not onClick
             MelonLogger.Msg($"[{NavigatorId}] Using pointer click for: {element.name}");
             UIActivator.SimulatePointerClick(element);
-            _announcer.Announce("Activated", AnnouncementPriority.Normal);
 
             // Start waiting for transition
             _activationTime = Time.time;

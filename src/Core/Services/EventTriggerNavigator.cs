@@ -141,7 +141,6 @@ namespace MTGAAccessibility.Core.Services
             {
                 GameObject clickTarget = FindClickTarget(element) ?? element;
                 HandleSpecialNPEElement(clickTarget, isChest, isDeckBox);
-                _announcer.Announce($"{label} activated", AnnouncementPriority.Normal);
                 SchedulePostClickScan();
                 return true;
             }
@@ -150,7 +149,6 @@ namespace MTGAAccessibility.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Using screen center click for: {element.name}");
                 UIActivator.SimulateScreenCenterClick();
-                _announcer.Announce($"{label} activated", AnnouncementPriority.Normal);
                 SchedulePostClickScan();
                 return true;
             }

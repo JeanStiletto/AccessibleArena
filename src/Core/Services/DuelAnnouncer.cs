@@ -1359,7 +1359,7 @@ namespace MTGAAccessibility.Core.Services
                 if (stackCard != null)
                     _announcer.Announce(BuildCastAnnouncement(stackCard), AnnouncementPriority.High);
                 else
-                    _announcer.Announce("Spell cast", AnnouncementPriority.High);
+                    _announcer.Announce(Strings.SpellCast, AnnouncementPriority.High);
             }
         }
 

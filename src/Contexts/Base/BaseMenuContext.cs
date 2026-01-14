@@ -14,12 +14,12 @@ namespace MTGAAccessibility.Contexts.Base
         {
             if (CurrentItem is MenuItem menuItem && menuItem.IsEnabled)
             {
-                Announcer.Announce($"Activating {menuItem.Name}");
+                Announcer.Announce(Strings.Activating(menuItem.Name));
                 menuItem.Execute();
             }
             else if (CurrentItem != null && !CurrentItem.IsEnabled)
             {
-                Announcer.Announce("Item is disabled");
+                Announcer.Announce(Strings.ItemDisabled);
             }
         }
 

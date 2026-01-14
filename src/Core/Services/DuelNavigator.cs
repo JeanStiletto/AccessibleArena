@@ -291,9 +291,6 @@ namespace MTGAAccessibility.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Using pointer click for: {name}");
                 UIActivator.SimulatePointerClick(element);
-
-                string label = GetButtonText(element, CleanName(name));
-                _announcer.Announce($"{label} activated", AnnouncementPriority.Normal);
                 return true;
             }
 

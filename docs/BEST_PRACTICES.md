@@ -436,6 +436,84 @@ foreach (var handler in element.GetComponents<IPointerClickHandler>())
 - Navigation is handled by custom Navigator classes (EventTriggerNavigator, etc.)
 - Card navigation preparation must happen in navigators, not via focus events
 
+## Centralized Strings (Localization-Ready)
+
+All user-facing announcement strings are centralized in `Core/Models/Strings.cs`. This enables future localization and ensures consistency.
+
+### Using Strings
+
+**Always use the Strings class for announcements:**
+```csharp
+// Static strings (constants)
+_announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.High);
+_announcer.Announce(Strings.EndOfZone, AnnouncementPriority.Normal);
+
+// Dynamic strings (methods)
+_announcer.Announce(Strings.CannotActivate(cardName), AnnouncementPriority.High);
+_announcer.Announce(Strings.ZoneWithCount(zoneName, count), AnnouncementPriority.High);
+```
+
+**Never hardcode announcement strings:**
+```csharp
+// BAD - hardcoded string
+_announcer.Announce("No card selected", AnnouncementPriority.High);
+
+// GOOD - centralized string
+_announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.High);
+```
+
+### String Categories in Strings.cs
+
+- **General/System** - ModLoaded, Back, NoSelection, NoAlternateAction, etc.
+- **Activation** - CannotActivate(), CouldNotPlay(), NoCardSelected
+- **Menu Navigation** - OpeningPlayModes, ReturningHome, etc.
+- **Login/Account** - Field prompts, action confirmations
+- **Battlefield Navigation** - Row announcements, boundaries
+- **Zone Navigation** - Zone announcements, boundaries
+- **Targeting** - Target selection messages
+- **Combat** - Attack/block button errors
+- **Card Actions** - NoPlayableCards, SpellCast
+- **Discard** - Selection counts, submission messages
+- **Card Info** - Navigation boundaries
+
+### Adding New Strings
+
+1. Add the string to the appropriate category in `Strings.cs`
+2. Use a constant for static strings, a method for dynamic strings with parameters
+3. Use the new string in your code via `Strings.YourNewString`
+
+**Example - Adding a static string:**
+```csharp
+// In Strings.cs
+public const string NewFeatureMessage = "New feature activated";
+
+// In your code
+_announcer.Announce(Strings.NewFeatureMessage, AnnouncementPriority.Normal);
+```
+
+**Example - Adding a dynamic string:**
+```csharp
+// In Strings.cs
+public static string DamageDealt(string source, int amount, string target) =>
+    $"{source} deals {amount} to {target}";
+
+// In your code
+_announcer.Announce(Strings.DamageDealt("Lightning Bolt", 3, "opponent"), AnnouncementPriority.High);
+```
+
+### Activation Announcements
+
+**Do NOT announce successful activations** - they are informational clutter. Only announce failures:
+
+```csharp
+var result = UIActivator.SimulatePointerClick(card);
+if (!result.Success)
+{
+    _announcer.Announce(Strings.CannotActivate(cardName), AnnouncementPriority.High);
+}
+// No announcement on success - the game's response is the feedback
+```
+
 ## General Utilities
 
 These utilities are used throughout the mod for UI interaction, text extraction, and card detection.

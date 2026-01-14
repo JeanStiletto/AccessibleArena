@@ -61,7 +61,7 @@ namespace MTGAAccessibility.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
             {
-                _announcer.Announce("No selection", Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Models.Strings.NoSelection, Models.AnnouncementPriority.Normal);
                 return;
             }
 

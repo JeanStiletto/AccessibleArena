@@ -16,7 +16,7 @@ C:\Users\fabia\arena\
         IScreenNavigator.cs      - Screen navigator interface (NEW)
         ...
 
-      Models\                    - GameContext, AnnouncementPriority, etc.
+      Models\                    - GameContext, AnnouncementPriority, Strings (localization), etc.
 
       Models\
         TargetInfo.cs            - Target data model and CardTargetType enum
@@ -648,3 +648,44 @@ if (_currentIndex >= 0 && _currentIndex < _elements.Count)
 **Files Changed:**
 - `src/Core/Services/GeneralMenuNavigator.cs` - Added `_forceRescan` flag, updated `TriggerRescan()`
   with force parameter, fixed position preservation to use navigator's `_currentIndex`
+
+### January 2026 - Centralized Announcement Strings (Localization-Ready)
+
+**Problem:** Announcement strings were hardcoded throughout the codebase in 16+ files, making
+future localization impossible and causing inconsistent messaging.
+
+**Solution:** Created `Core/Models/Strings.cs` to centralize all user-facing announcement text.
+
+**New File - `Strings.cs`:**
+- Static class with constants for static strings
+- Methods for dynamic strings with parameters
+- Organized by category (General, Activation, Menu, Login, Battlefield, Zone, Targeting, Combat, etc.)
+
+**Additional Change - Removed "Activated" Announcements:**
+Successful activation announcements ("Activated {name}") were informational clutter. These have
+been removed from all navigators. Only failure announcements are kept ("Cannot activate {name}").
+
+**Files Changed:**
+- `src/Core/Models/Strings.cs` - NEW: Centralized announcement strings
+- `src/Core/Services/BattlefieldNavigator.cs` - Uses Strings, removed success announcements
+- `src/Core/Services/ZoneNavigator.cs` - Uses Strings, removed success announcements
+- `src/Core/Services/HighlightNavigator.cs` - Uses Strings, removed success announcements
+- `src/Core/Services/TargetNavigator.cs` - Uses Strings
+- `src/Core/Services/CombatNavigator.cs` - Uses Strings
+- `src/Core/Services/DiscardNavigator.cs` - Uses Strings
+- `src/Core/Services/CardInfoNavigator.cs` - Uses Strings
+- `src/Core/Services/BaseNavigator.cs` - Uses Strings
+- `src/Core/Services/GeneralMenuNavigator.cs` - Uses Strings
+- `src/Core/Services/EventTriggerNavigator.cs` - Uses Strings, removed success announcements
+- `src/Core/Services/PreBattleNavigator.cs` - Uses Strings, removed success announcements
+- `src/Core/Services/DuelNavigator.cs` - Removed success announcements
+- `src/Core/Services/CodeOfConductNavigator.cs` - Uses Strings
+- `src/Core/Services/UIFocusTracker.cs` - Uses Strings
+- `src/Core/Services/DuelAnnouncer.cs` - Uses Strings
+- `src/MTGAAccessibilityMod.cs` - Uses Strings
+- `src/Contexts/Base/BaseMenuContext.cs` - Uses Strings
+- `src/Contexts/Base/BaseNavigableContext.cs` - Uses Strings
+- `src/Contexts/MainMenu/MainMenuContext.cs` - Uses Strings
+- `src/Contexts/Login/LoginContext.cs` - Uses Strings
+- `docs/BEST_PRACTICES.md` - Added Centralized Strings section with usage guidelines
+- `docs/MOD_STRUCTURE.md` - Updated project layout, added this changelog entry

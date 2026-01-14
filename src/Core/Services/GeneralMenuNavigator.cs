@@ -343,7 +343,7 @@ namespace MTGAAccessibility.Core.Services
             if (navBar == null)
             {
                 MelonLogger.Msg($"[{NavigatorId}] NavBar not found for Home navigation");
-                _announcer.Announce("Cannot navigate to Home", Models.AnnouncementPriority.High);
+                _announcer.Announce(Models.Strings.CannotNavigateHome, Models.AnnouncementPriority.High);
                 return true;
             }
 
@@ -359,12 +359,12 @@ namespace MTGAAccessibility.Core.Services
             if (homeButton == null || !homeButton.activeInHierarchy)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Home button not found or inactive");
-                _announcer.Announce("Home button not available", Models.AnnouncementPriority.High);
+                _announcer.Announce(Models.Strings.HomeNotAvailable, Models.AnnouncementPriority.High);
                 return true;
             }
 
             MelonLogger.Msg($"[{NavigatorId}] Navigating to Home via Backspace");
-            _announcer.Announce("Returning to Home", Models.AnnouncementPriority.High);
+            _announcer.Announce(Models.Strings.ReturningHome, Models.AnnouncementPriority.High);
 
             // Activate the Home button
             UIActivator.Activate(homeButton);
@@ -1502,7 +1502,7 @@ namespace MTGAAccessibility.Core.Services
             if (bladeButton != null)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Auto-expanding blade via {bladeButton.name}");
-                _announcer.Announce("Opening color challenges", Models.AnnouncementPriority.High);
+                _announcer.Announce(Models.Strings.OpeningColorChallenges, Models.AnnouncementPriority.High);
                 UIActivator.Activate(bladeButton);
 
                 // Schedule a rescan after the blade opens

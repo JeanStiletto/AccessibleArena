@@ -58,7 +58,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt("Select a target. No valid targets found.");
+                _announcer.AnnounceInterrupt(Strings.SelectTargetNoValid);
                 MelonLogger.Warning("[TargetNavigator] No valid targets discovered");
             }
         }
@@ -113,7 +113,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_validTargets.Count == 0)
             {
-                _announcer.Announce("No valid targets", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoValidTargets, AnnouncementPriority.High);
                 return;
             }
 
@@ -125,7 +125,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_validTargets.Count == 0)
             {
-                _announcer.Announce("No valid targets", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoValidTargets, AnnouncementPriority.High);
                 return;
             }
 
@@ -140,7 +140,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_currentIndex < 0 || _currentIndex >= _validTargets.Count)
             {
-                _announcer.Announce("No target selected", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoTargetSelected, AnnouncementPriority.High);
                 return;
             }
 
@@ -151,11 +151,11 @@ namespace MTGAAccessibility.Core.Services
 
             if (result.Success)
             {
-                _announcer.Announce($"Targeted {target.Name}", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.Targeted(target.Name), AnnouncementPriority.Normal);
             }
             else
             {
-                _announcer.Announce($"Could not target {target.Name}", AnnouncementPriority.High);
+                _announcer.Announce(Strings.CouldNotTarget(target.Name), AnnouncementPriority.High);
                 MelonLogger.Warning($"[TargetNavigator] Click failed: {result.Message}");
             }
         }
@@ -163,7 +163,7 @@ namespace MTGAAccessibility.Core.Services
         public void CancelTargeting()
         {
             MelonLogger.Msg("[TargetNavigator] Cancelling targeting");
-            _announcer.Announce("Targeting cancelled", AnnouncementPriority.Normal);
+            _announcer.Announce(Strings.TargetingCancelled, AnnouncementPriority.Normal);
             ExitTargetMode();
         }
 

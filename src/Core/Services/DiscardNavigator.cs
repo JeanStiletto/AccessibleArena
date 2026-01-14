@@ -203,8 +203,7 @@ namespace MTGAAccessibility.Core.Services
             if (_requiredCount == null)
             {
                 _requiredCount = GetRequiredDiscardCount() ?? 0;
-                string cardWord = _requiredCount == 1 ? "card" : "cards";
-                _announcer.Announce($"Discard {_requiredCount} {cardWord}", AnnouncementPriority.High);
+                _announcer.Announce(Strings.DiscardCount(_requiredCount.Value), AnnouncementPriority.High);
             }
 
             // Enter - toggle card selection
@@ -232,7 +231,7 @@ namespace MTGAAccessibility.Core.Services
             var card = _zoneNavigator.GetCurrentCard();
             if (card == null)
             {
-                _announcer.Announce("No card selected", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.High);
                 return;
             }
 
@@ -248,7 +247,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.Announce($"Could not select {cardName}", AnnouncementPriority.High);
+                _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
             }
         }
 
@@ -264,18 +263,7 @@ namespace MTGAAccessibility.Core.Services
             if (info != null)
             {
                 int count = info.Value.count;
-                if (count == 0)
-                {
-                    _announcer.Announce("0 cards selected", AnnouncementPriority.Normal);
-                }
-                else if (count == 1)
-                {
-                    _announcer.Announce("1 card selected", AnnouncementPriority.Normal);
-                }
-                else
-                {
-                    _announcer.Announce($"{count} cards selected", AnnouncementPriority.Normal);
-                }
+                _announcer.Announce(Strings.CardsSelected(count), AnnouncementPriority.Normal);
             }
         }
 
@@ -288,7 +276,7 @@ namespace MTGAAccessibility.Core.Services
             var info = GetSubmitButtonInfo();
             if (info == null)
             {
-                _announcer.Announce("No submit button found", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoSubmitButtonFound, AnnouncementPriority.High);
                 return;
             }
 
@@ -297,14 +285,14 @@ namespace MTGAAccessibility.Core.Services
 
             if (selected == 0)
             {
-                _announcer.Announce($"Need {required}, have 0 selected", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NeedHaveSelected(required, 0), AnnouncementPriority.High);
                 return;
             }
 
             // Check if selected matches required
             if (selected != required)
             {
-                _announcer.Announce($"Need {required}, have {selected} selected", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NeedHaveSelected(required, selected), AnnouncementPriority.High);
                 return;
             }
 
@@ -313,11 +301,11 @@ namespace MTGAAccessibility.Core.Services
             var result = UIActivator.SimulatePointerClick(info.Value.button);
             if (result.Success)
             {
-                _announcer.Announce($"Submitting {selected} cards for discard", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.SubmittingDiscard(selected), AnnouncementPriority.Normal);
             }
             else
             {
-                _announcer.Announce("Could not submit discard", AnnouncementPriority.High);
+                _announcer.Announce(Strings.CouldNotSubmitDiscard, AnnouncementPriority.High);
             }
         }
     }

@@ -51,7 +51,7 @@ namespace MTGAAccessibility
             _initialized = true;
 
             LoggerInstance.Msg("MTGA Accessibility Mod initialized");
-            _announcer.Announce("MTGA Accessibility Mod loaded", AnnouncementPriority.High);
+            _announcer.Announce(Strings.ModLoaded, AnnouncementPriority.High);
         }
 
         private void InitializeHarmonyPatches()

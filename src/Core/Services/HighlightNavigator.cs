@@ -73,7 +73,7 @@ namespace MTGAAccessibility.Core.Services
 
                 if (_highlightedCards.Count == 0)
                 {
-                    _announcer.Announce("No playable cards", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.NoPlayableCards, AnnouncementPriority.Normal);
                     return true;
                 }
 
@@ -106,7 +106,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_currentIndex < 0 || _currentIndex >= _highlightedCards.Count)
             {
-                _announcer.Announce("No card selected", AnnouncementPriority.High);
+                _announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.High);
                 return;
             }
 
@@ -125,7 +125,7 @@ namespace MTGAAccessibility.Core.Services
                     }
                     else
                     {
-                        _announcer.Announce($"Could not play {card.Name}", AnnouncementPriority.High);
+                        _announcer.Announce(Strings.CouldNotPlay(card.Name), AnnouncementPriority.High);
                         MelonLogger.Msg($"[HighlightNavigator] Card play failed: {message}");
                     }
                 }, null); // Don't pass TargetNavigator - targeting is handled separately
@@ -135,13 +135,9 @@ namespace MTGAAccessibility.Core.Services
                 // For battlefield cards (activated abilities), use click
                 var result = UIActivator.SimulatePointerClick(card.GameObject);
 
-                if (result.Success)
+                if (!result.Success)
                 {
-                    _announcer.Announce($"Activated {card.Name}", AnnouncementPriority.Normal);
-                }
-                else
-                {
-                    _announcer.Announce($"Cannot activate {card.Name}", AnnouncementPriority.High);
+                    _announcer.Announce(Strings.CannotActivate(card.Name), AnnouncementPriority.High);
                     MelonLogger.Msg($"[HighlightNavigator] Activation failed: {result.Message}");
                 }
             }
@@ -158,7 +154,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_highlightedCards.Count == 0)
             {
-                _announcer.Announce("No playable cards", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.NoPlayableCards, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -173,7 +169,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_highlightedCards.Count == 0)
             {
-                _announcer.Announce("No playable cards", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.NoPlayableCards, AnnouncementPriority.Normal);
                 return;
             }
 

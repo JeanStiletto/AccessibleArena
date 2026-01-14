@@ -1,6 +1,7 @@
 using UnityEngine;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
+using MTGAAccessibility.Core.Models;
 using System.Collections.Generic;
 
 namespace MTGAAccessibility.Core.Services
@@ -183,7 +184,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt("End of card");
+                _announcer.AnnounceInterrupt(Strings.EndOfCard);
             }
         }
 
@@ -196,7 +197,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt("Beginning of card");
+                _announcer.AnnounceInterrupt(Strings.BeginningOfCard);
             }
         }
 

@@ -687,7 +687,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.Announce("Could not activate attack button", AnnouncementPriority.High);
+                _announcer.Announce(Strings.CouldNotActivateAttackButton, AnnouncementPriority.High);
                 return true; // Still consume the input
             }
         }
@@ -716,7 +716,7 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                _announcer.Announce("Could not activate no attack button", AnnouncementPriority.High);
+                _announcer.Announce(Strings.CouldNotActivateNoAttackButton, AnnouncementPriority.High);
                 return true; // Still consume the input
             }
         }
