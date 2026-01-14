@@ -363,13 +363,9 @@ namespace MTGAAccessibility.Core.Services
 
         private static IEnumerator PlayCardCoroutine(GameObject card, System.Action<bool, string> callback, TargetNavigator targetNavigator)
         {
-            // Step 0: Check if card is a land (lands don't need targeting)
+            // Step 0: Check if card is a land (lands use simplified double-click, no screen center needed)
             var cardInfo = CardDetector.ExtractCardInfo(card);
             bool isLand = cardInfo.TypeLine?.ToLower().Contains("land") ?? false;
-            if (isLand)
-            {
-                Log($"Card is a land ({cardInfo.TypeLine}), will skip targeting mode");
-            }
 
             // Step 1: First click (select)
             Log("Step 1: First click (select)");
@@ -381,22 +377,22 @@ namespace MTGAAccessibility.Core.Services
                 yield break;
             }
 
-            // Step 2: Wait for selection to register
-            yield return new WaitForSeconds(0.2f);
+            // Brief wait for selection to register
+            yield return new WaitForSeconds(0.1f);
 
-            // Step 2.5: Check if we're in discard/selection mode BEFORE second click
+            // Step 1.5: Check if we're in discard/selection mode BEFORE second click
             // If "Submit X" button is showing, first click selected the card for discard
             // Second click would break the discard state, so abort here
             if (IsTargetingModeActive())
             {
-                Log("Step 2: Submit button detected - in discard/selection mode, not playing card");
+                Log("Submit button detected - in discard/selection mode, not playing card");
                 Log("First click selected card for discard. Use Submit button to confirm.");
                 callback?.Invoke(false, "Discard mode - card selected for discard");
                 yield break;
             }
 
-            // Step 3: Second click (pick up)
-            Log("Step 2: Second click (pick up)");
+            // Step 2: Second click (pick up for spells, or play for lands)
+            Log("Step 2: Second click (pick up/play)");
             var click2 = SimulatePointerClick(card);
             if (!click2.Success)
             {
@@ -405,10 +401,20 @@ namespace MTGAAccessibility.Core.Services
                 yield break;
             }
 
-            // Step 4: Wait for card to be held
+            // For lands: Double-click is enough to play them, no need to drag to center
+            // Exit immediately to avoid unnecessary clicks
+            if (isLand)
+            {
+                Log("Land played via double-click");
+                Log("=== CARD PLAY COMPLETE ===");
+                callback?.Invoke(true, "Land played");
+                yield break;
+            }
+
+            // For spells: Wait for card to be held, then drop at screen center
             yield return new WaitForSeconds(0.5f);
 
-            // Step 5: Click screen center via Unity events (confirm play)
+            // Step 3: Click screen center via Unity events (confirm play)
             // Unity events approach works after PC restart (Jan 2026).
             // If this stops working, check for overlapping overlays or mouse positioning
             // issues, and consider reactivating the WinAPI fallback below.
@@ -434,31 +440,24 @@ namespace MTGAAccessibility.Core.Services
             WinAPI.mouse_event(WinAPI.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
             */
 
-            // Step 6: Wait for game to process the play and UI to update
+            // Step 4: Wait for game to process the play and UI to update
             // Need enough time for targeting UI (Cancel/Submit buttons) to appear
             yield return new WaitForSeconds(0.6f);
 
-            // Step 7: Check if spell needs targeting by looking for "Submit X" button
+            // Step 5: Check if spell needs targeting by looking for "Submit X" button
             // The game shows "Submit 0", "Submit 1", etc. when waiting for target selection
             if (targetNavigator != null)
             {
-                if (isLand)
+                bool needsTargeting = IsTargetingModeActive();
+
+                if (needsTargeting)
                 {
-                    Log("Step 4: Land played, skipping targeting mode");
+                    Log("Submit button detected, entering targeting mode");
+                    targetNavigator.EnterTargetMode();
                 }
                 else
                 {
-                    bool needsTargeting = IsTargetingModeActive();
-
-                    if (needsTargeting)
-                    {
-                        Log("Step 4: Submit button detected, entering targeting mode");
-                        targetNavigator.EnterTargetMode();
-                    }
-                    else
-                    {
-                        Log("Step 4: No Submit button, spell completed");
-                    }
+                    Log("No Submit button, spell completed");
                 }
             }
 

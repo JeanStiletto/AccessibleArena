@@ -550,6 +550,19 @@ string name = CardModelProvider.GetNameFromGrpId(grpId);
 - **CardDetector**: When you need to check if something IS a card, or need UI fallback
 - **CardModelProvider**: When you already know it's a card and only need Model data
 
+**Mana Cost Parsing:**
+The Model's `PrintedCastingCost` is a `ManaQuantity[]` array. Each ManaQuantity has:
+- `Count` field (UInt32): How many mana of this type (e.g., 2 for {2})
+- `Colors` field (ManaColor[]): Color(s) of the mana
+- `IsGeneric` property: True for colorless/generic mana
+- `IsHybrid` property: True for hybrid mana (e.g., {W/U})
+- `IsPhyrexian` property: True for Phyrexian mana
+
+Example for {2}{U}{U}:
+- Entry 1: Count=2, IsGeneric=true → "2"
+- Entry 2: Count=2, Color=Blue → "Blue, Blue"
+- Result: "2, Blue, Blue"
+
 **Detection Priority** (fast to slow):
 1. Object name patterns: CardAnchor, NPERewardPrefab_IndividualCard, MetaCardView, CDC #
 2. Parent name patterns (one level up)

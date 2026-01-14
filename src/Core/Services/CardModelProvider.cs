@@ -676,7 +676,8 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Parses a ManaQuantity[] array into a readable mana cost string.
-        /// Each ManaQuantity represents ONE mana symbol.
+        /// Each ManaQuantity can represent one or more mana symbols.
+        /// Generic mana uses the Quantity property for the actual amount.
         /// </summary>
         private static string ParseManaQuantityArray(IEnumerable manaQuantities)
         {
@@ -688,6 +689,9 @@ namespace MTGAAccessibility.Core.Services
                 if (mq == null) continue;
 
                 var mqType = mq.GetType();
+
+                // Get the Count field (how many mana of this type)
+                var countField = mqType.GetField("Count", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
                 // Get properties: Color, IsGeneric, IsPhyrexian, Hybrid, AltColor
                 var colorProp = mqType.GetProperty("Color");
@@ -707,10 +711,21 @@ namespace MTGAAccessibility.Core.Services
 
                     string colorName = color?.ToString() ?? "Unknown";
 
+                    // Get the count from the Count field
+                    int count = 1;
+                    if (countField != null)
+                    {
+                        var countVal = countField.GetValue(mq);
+                        if (countVal is uint uintCount)
+                            count = (int)uintCount;
+                        else if (countVal is int intCount)
+                            count = intCount;
+                    }
+
                     if (isGeneric)
                     {
-                        // Generic/colorless mana - count them up
-                        genericCount++;
+                        // Generic/colorless mana - use the Count field value
+                        genericCount += count;
                     }
                     else
                     {
@@ -731,7 +746,11 @@ namespace MTGAAccessibility.Core.Services
                             symbol = $"Phyrexian {symbol}";
                         }
 
-                        symbols.Add(symbol);
+                        // Add symbol for each mana of this color (e.g., {UU} = Blue, Blue)
+                        for (int i = 0; i < count; i++)
+                        {
+                            symbols.Add(symbol);
+                        }
                     }
                 }
                 catch { }

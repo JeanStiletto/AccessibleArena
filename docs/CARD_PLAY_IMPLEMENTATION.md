@@ -7,35 +7,71 @@ Enable blind players to play cards from hand using keyboard (Enter key) instead 
 
 ## Solution (Working)
 
-### Double-Click + Center Click Approach
+### Lands vs Spells (January 2026)
 
-After extensive testing, the working approach mimics what sighted players do with a mouse:
+Card playing uses different approaches for lands and spells:
 
+**Lands (Simplified Double-Click)**
+1. **Click card** (selects it)
+2. **Wait 0.1s** (brief delay for selection)
+3. **Click card again** (plays the land immediately)
+4. **Exit** - no screen center click needed
+
+**Spells (Full Three-Step Process)**
 1. **Click card** (selects it internally)
-2. **Wait 0.2s** (game processes selection)
+2. **Wait 0.1s** (game processes selection)
 3. **Click card again** (picks it up, triggers focus change)
 4. **Wait 0.5s** (game enters "held" state, UI updates)
 5. **Click screen center** (confirms play) - **via Unity events**
+6. **Wait 0.6s** (game processes, targeting UI may appear)
+7. **Check targeting** (if Submit button appears, enter targeting mode)
+
+### Why Lands Use Simplified Approach
+
+Lands don't require the "pick up and drop at center" workflow that spells need. A simple double-click plays the land directly. This optimization:
+- Reduces unnecessary mouse clicks
+- Completes faster (avoids waits that could allow game auto-pass to trigger)
+- Is cleaner and more reliable for land plays
 
 ### Current Implementation (Unity Events - January 2026)
-
-The Unity events approach is currently active and working. After a PC restart, this simpler approach works reliably.
 
 ```csharp
 private static IEnumerator PlayCardCoroutine(GameObject card, Action<bool, string> callback)
 {
+    // Detect if card is a land
+    var cardInfo = CardDetector.ExtractCardInfo(card);
+    bool isLand = cardInfo.TypeLine?.ToLower().Contains("land") ?? false;
+
     // Step 1: First click (select)
     SimulatePointerClick(card);
-    yield return new WaitForSeconds(0.2f);
+    yield return new WaitForSeconds(0.1f);
 
-    // Step 2: Second click (pick up)
+    // Check for discard mode before second click
+    if (IsTargetingModeActive())
+    {
+        callback?.Invoke(false, "Discard mode");
+        yield break;
+    }
+
+    // Step 2: Second click (pick up for spells, play for lands)
     SimulatePointerClick(card);
+
+    // Lands: Double-click is enough, exit immediately
+    if (isLand)
+    {
+        callback?.Invoke(true, "Land played");
+        yield break;
+    }
+
+    // Spells: Continue with screen center click
     yield return new WaitForSeconds(0.5f);
 
-    // Step 3: Click screen center via Unity events (confirm)
     Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
     SimulateClickAtPosition(center);
 
+    yield return new WaitForSeconds(0.6f);
+
+    // Check for targeting mode...
     callback?.Invoke(true, "Card played");
 }
 ```
@@ -190,10 +226,12 @@ Mouse click sent
 
 ### Key Insights
 
-1. **Two clicks on the card are required** - First click selects, second click "picks up"
-2. **Focus change is the indicator** - When the card is truly "held", Unity's focus changes to the card
-3. **Game uses real mouse position** - `Input.mousePosition` not `PointerEventData.position`
-4. **Timing matters** - 0.2s between clicks, 0.5s before center click
+1. **Lands vs Spells differ** - Lands need only double-click; spells need pick-up + drop-at-center
+2. **Two clicks on the card are required** - First click selects, second click "picks up" (or plays for lands)
+3. **Focus change is the indicator** - When the card is truly "held", Unity's focus changes to the card
+4. **Game uses real mouse position** - `Input.mousePosition` not `PointerEventData.position`
+5. **Timing matters** - 0.1s between clicks, 0.5s before center click (spells only)
+6. **Minimize waits for lands** - Long waits can allow game auto-pass to trigger in certain modes
 
 ---
 
@@ -315,16 +353,25 @@ foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
 - **Non-target:** `Highlights - Default(Clone)` with no HotHighlight child
 - **Spell on stack:** Has `_GlowColor` green glow (NOT the targeting indicator)
 
-#### Land Detection
+#### Land Detection and Handling
 ```csharp
 // In UIActivator.PlayCardCoroutine
 var cardInfo = CardDetector.ExtractCardInfo(card);
 bool isLand = cardInfo.TypeLine?.ToLower().Contains("land") ?? false;
+
+// After double-click, lands exit immediately
 if (isLand)
 {
-    Log("Land played, skipping targeting mode");
+    Log("Land played via double-click");
+    callback?.Invoke(true, "Land played");
+    yield break;  // Skip screen center click and targeting check
 }
 ```
+
+Lands use a simplified flow because:
+- They don't need to be "dropped" at screen center like spells
+- Double-click is sufficient to play them
+- Exiting immediately avoids unnecessary waits and clicks
 
 ### Files
 
