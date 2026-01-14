@@ -19,3 +19,6 @@ nul
 
 # Manual backups (local only)
 working */
+
+# Outdated backlog
+arena accessibility backlog.txt
