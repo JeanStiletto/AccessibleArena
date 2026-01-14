@@ -650,6 +650,18 @@ namespace MTGAAccessibility.Core.Services
                 return false;
             }
 
+            // Special case: Color Challenge (CampaignGraphContentController)
+            if (_activeContentController == "CampaignGraphContentController")
+            {
+                if (IsChildOf(obj, _activeControllerGameObject))
+                    return true;
+                if (IsInsideBlade(obj))
+                    return true;
+                if (IsMainButton(obj))
+                    return true;
+                return false;
+            }
+
             // Any other content controller (Decks, Store, Profile, etc.):
             // Show ONLY that controller's elements, hide NavBar
             return IsChildOf(obj, _activeControllerGameObject);
@@ -701,9 +713,69 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Check if element is the HomePage's MainButton (Play button).
+        /// </summary>
+        private bool IsMainButton(GameObject obj)
+
+        {
+
+            if (obj == null) return false;
+
+            string name = obj.name;
+
+
+
+            // MainButtonOutline is the play button in Color Challenge mode
+
+            if (name == "MainButtonOutline")
+
+                return true;
+
+
+
+            // MainButton is the normal play button with MainButton component
+
+            if (name == "MainButton")
+
+            {
+
+                var components = obj.GetComponents<MonoBehaviour>();
+
+                foreach (var comp in components)
+
+                {
+
+                    if (comp != null && comp.GetType().Name == "MainButton")
+
+                        return true;
+
+                }
+
+            }
+
+            return false;
+
+        }
+
+        /// <summary>
         /// Schedule a rescan after a short delay to let UI settle
         /// </summary>
         /// <param name="force">If true, bypasses the debounce check (used for toggle activations)</param>
+        /// <summary>
+
+        /// Check if a type name is a CustomButton variant (CustomButton or CustomButtonWithTooltip).
+
+        /// </summary>
+
+        private static bool IsCustomButtonType(string typeName)
+
+        {
+
+            return typeName == "CustomButton" || typeName == "CustomButtonWithTooltip";
+
+        }
+
+
         private void TriggerRescan(bool force = false)
         {
             _rescanDelay = RescanDelaySeconds;
@@ -871,7 +943,7 @@ namespace MTGAAccessibility.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "CustomButton")
+                if (IsCustomButtonType(mb.GetType().Name))
                     count++;
             }
             return count;
@@ -919,7 +991,7 @@ namespace MTGAAccessibility.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name != "CustomButton") continue;
+                if (!IsCustomButtonType(mb.GetType().Name)) continue;
 
                 string objName = mb.gameObject.name;
                 string text = UITextExtractor.GetText(mb.gameObject);
@@ -944,7 +1016,7 @@ namespace MTGAAccessibility.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name != "CustomButton") continue;
+                if (!IsCustomButtonType(mb.GetType().Name)) continue;
 
                 string text = UITextExtractor.GetText(mb.gameObject);
                 string path = GetGameObjectPath(mb.gameObject);
@@ -1030,6 +1102,7 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}]   {btn.gameObject.name} - '{text ?? "(no text)"}'");
             }
 
+
             MelonLogger.Msg($"[{NavigatorId}] === END UI DUMP ===");
         }
 
@@ -1071,7 +1144,7 @@ namespace MTGAAccessibility.Core.Services
             // Find CustomButtons (MTGA's primary button component)
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
-                if (mb != null && mb.GetType().Name == "CustomButton")
+                if (mb != null && IsCustomButtonType(mb.GetType().Name))
                     TryAddElement(mb.gameObject);
             }
 
@@ -1415,7 +1488,7 @@ namespace MTGAAccessibility.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name != "CustomButton") continue;
+                if (!IsCustomButtonType(mb.GetType().Name)) continue;
 
                 string name = mb.gameObject.name;
                 if (name.Contains("BladeHoverClosed") || name.Contains("Btn_BladeIsClosed"))
@@ -1549,7 +1622,7 @@ namespace MTGAAccessibility.Core.Services
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
                     if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                    if (mb.GetType().Name != "CustomButton") continue;
+                    if (!IsCustomButtonType(mb.GetType().Name)) continue;
 
                     if (mb.gameObject.name.Contains(pattern) ||
                         GetGameObjectPath(mb.gameObject).Contains(pattern))

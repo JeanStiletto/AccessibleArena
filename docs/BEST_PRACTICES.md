@@ -178,8 +178,19 @@ Home activates `HomePageContentController`, while Return to Arena dismisses the 
 
 **Button Types in Menus:**
 - `CustomButton` - MTGA's custom component (most menu buttons, NOT Unity Selectable)
+- `CustomButtonWithTooltip` - Variant of CustomButton with tooltip support (e.g., Color Challenge Play button)
 - `Button` - Unity standard (some overlay elements)
 - `EventTrigger` - Special interactive elements (including "Return to Arena" button)
+
+**CustomButton Type Detection:**
+The mod uses `IsCustomButtonType(string typeName)` helper to detect both CustomButton variants:
+`csharp
+private static bool IsCustomButtonType(string typeName)
+{
+    return typeName == "CustomButton" || typeName == "CustomButtonWithTooltip";
+}
+`
+This is used throughout GeneralMenuNavigator for button discovery and filtering.
 
 **Input Priority (highest to lowest):**
 1. Debug, 2. SystemMessage, 3. SettingsMenu, 4. DuelScene, 5. Wrapper, 6. NPE
@@ -1260,21 +1271,39 @@ a sibling element.
 **NOTE:** This is a general feature that applies to all elements, not just Color Challenge.
 May extract unintended sibling text in some cases.
 
-## Color Challenge Panel (TODO - INCOMPLETE)
+## Color Challenge Panel (Working - January 2026)
 
-**Current State (January 2026):**
+**Current State:**
 - `CampaignGraphContentController` recognized as content panel (filters NavBar)
 - Auto-expand blade when Color Challenge opens (0.8s delay in `AutoExpandBlade()`)
-- Color buttons show correct labels via sibling label detection
-- "Return to Arena" button visible (general back button, appears in all menus)
+- Color buttons (White, Blue, Black, Red, Green) show correct labels via sibling label detection
+- Play button detected and functional (uses `CustomButtonWithTooltip` component)
+- "Return to Arena" button visible (general back button)
 
-**Known Issues / Future Work:**
-- Auto-expand logic is specific to `CampaignGraphContentController` - may need generalization
-- Blade auto-expand might not be needed if panel detection improves
-- "Return to Arena" visibility fix (CanvasGroup skip) is broad - may show unwanted elements
-- Sub-menu after clicking a color needs verification that all buttons work correctly
-- May need to detect specific Color Challenge match-start button vs navigation buttons
-- Debug logging for MainButtonOutline still in code - should be removed after testing
+**Key Implementation Details:**
+
+1. **Content Controller Filtering** (`IsInForegroundPanel`):
+   - Special case for `CampaignGraphContentController` to include:
+     - Elements inside the controller
+     - Elements inside the PlayBlade
+     - The MainButton/MainButtonOutline (Play button)
+
+2. **Play Button Detection** (`IsMainButton`):
+   - Detects both `MainButton` (normal play) and `MainButtonOutline` (back button)
+   - The Color Challenge Play button is at path:
+     `.../CampaignGraphMainButtonModule(Clone)/MainButton_Play`
+   - Uses `CustomButtonWithTooltip` component (not regular CustomButton)
+
+3. **Button Type Support**:
+   - Added `IsCustomButtonType()` helper to detect both CustomButton and CustomButtonWithTooltip
+   - This enables detection of the Play button which uses CustomButtonWithTooltip
+
+**User Flow:**
+1. Navigate to Color Challenge (via Play button on home screen)
+2. Tab through color options (White, Blue, Black, Red, Green)
+3. Press Enter to select a color - blade collapses
+4. Tab to find "Play" button and deck selection
+5. Press Enter on Play to start the match
 
 ## Common Gotchas
 
