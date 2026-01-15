@@ -59,6 +59,11 @@ namespace MTGAAccessibility.Core.Services
             if (gameObject == null)
                 return string.Empty;
 
+            // Check for special label overrides (buttons with misleading game labels)
+            string overrideLabel = GetLabelOverride(gameObject.name);
+            if (overrideLabel != null)
+                return overrideLabel;
+
             // Check if this is a deck entry (MetaDeckView) - look for parent with input field containing deck name
             string deckName = TryGetDeckName(gameObject);
             if (!string.IsNullOrEmpty(deckName))
@@ -135,8 +140,29 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // No text found on element itself - check siblings for label text
+            // This helps with UI patterns where buttons get labels from sibling elements
+            string siblingText = TryGetSiblingLabel(gameObject);
+            if (!string.IsNullOrEmpty(siblingText))
+            {
+                return siblingText;
+            }
+
             // Fallback to GameObject name (cleaned up)
             return CleanObjectName(gameObject.name);
+        }
+
+        /// <summary>
+        /// Returns a label override for elements with misleading game labels.
+        /// Used to provide better accessibility labels for buttons like the match end "Continue" button.
+        /// </summary>
+        private static string GetLabelOverride(string objectName)
+        {
+            // ExitMatchOverlayButton on MatchEndScene shows "View Battlefield" but actually continues to home
+            if (objectName == "ExitMatchOverlayButton")
+                return "Continue";
+
+            return null;
         }
 
         /// <summary>
@@ -204,6 +230,61 @@ namespace MTGAAccessibility.Core.Services
 
                 current = current.parent;
                 maxLevels--;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Tries to get a label from sibling elements when the element itself has no text.
+        /// This handles UI patterns where a button's label comes from a sibling element.
+        /// Example: Color Challenge buttons have an "INFO" sibling with the color name.
+        /// </summary>
+        private static string TryGetSiblingLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            var parent = gameObject.transform.parent;
+            if (parent == null) return null;
+
+            // Look through siblings for text content
+            foreach (Transform sibling in parent)
+            {
+                // Skip self
+                if (sibling.gameObject == gameObject) continue;
+
+                // Skip decorative/structural elements
+                string sibName = sibling.name.ToUpper();
+                if (sibName.Contains("MASK") ||
+                    sibName.Contains("SHADOW") ||
+                    sibName.Contains("DIVIDER") ||
+                    sibName.Contains("BACKGROUND") ||
+                    sibName.Contains("INDICATION"))
+                {
+                    continue;
+                }
+
+                // Try to get text from this sibling
+                var tmpText = sibling.GetComponentInChildren<TMP_Text>();
+                if (tmpText != null)
+                {
+                    string cleaned = CleanText(tmpText.text);
+                    // Must be meaningful text (not just single char or placeholder)
+                    if (!string.IsNullOrWhiteSpace(cleaned) && cleaned.Length > 1)
+                    {
+                        return cleaned;
+                    }
+                }
+
+                var legacyText = sibling.GetComponentInChildren<Text>();
+                if (legacyText != null)
+                {
+                    string cleaned = CleanText(legacyText.text);
+                    if (!string.IsNullOrWhiteSpace(cleaned) && cleaned.Length > 1)
+                    {
+                        return cleaned;
+                    }
+                }
             }
 
             return null;

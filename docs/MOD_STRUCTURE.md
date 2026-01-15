@@ -968,3 +968,52 @@ The player info zone now behaves like card zones:
 - `src/Core/Services/CombatNavigator.cs` - Emote panel button filtering
 - `src/Core/Services/DuelNavigator.cs` - Exposed PortraitNavigator property
 - `src/MTGAAccessibilityMod.cs` - Removed PrepareForCard override, added safe name helper
+
+### January 2026 - Victory Screen & Targeting Mode Fixes
+
+**Problem 1: Victory screen (MatchEndScene) cluttered with useless elements**
+
+After a match ends, the victory/defeat screen showed 23 elements including:
+- 16+ "Stop" buttons (timer auto-pass controls)
+- Two "View Battlefield" buttons with same label
+- Leftover duel elements (Pass Turn, Cancel Attacks, broken Ctrl button)
+- Navigation arrows from duel scene
+
+**Solution:**
+- Filter "Stop" and "Stop ..." buttons (e.g., "Stop Second Strike") in UIElementClassifier
+- Filter duel prompt elements (PromptButton_Primary/Secondary, EndTurnButton) when in MatchEndScene
+- Rename `ExitMatchOverlayButton` to "Continue" via UITextExtractor label override
+- Auto-focus Continue button by moving it to first position in GeneralMenuNavigator
+
+**Problem 2: Targeting mode triggered incorrectly for non-targeting abilities**
+
+Creatures with activated abilities (like Moorland Inquisitor's first strike) would trigger
+targeting mode even though the ability doesn't target. This happened because:
+- HotHighlight appears on cards with activatable abilities
+- UIActivator called `EnterTargetMode()` whenever it saw a Submit button
+- Auto-detection in DuelNavigator only checked for HotHighlight, not spell on stack
+
+**Solution:**
+- DuelNavigator auto-detection now requires both HotHighlight AND spell on stack
+- Removed `EnterTargetMode()` call from UIActivator - let DuelNavigator handle it
+- Throttled DiscardNavigator log spam (only logs "yielding to targeting mode" once)
+
+**Problem 3: Zone context not updated when Tab cycling through cards**
+
+When Tab cycling to a hand card, Left/Right arrows still navigated battlefield because
+ZoneNavigator.CurrentZone wasn't updated. Same issue in TargetNavigator.
+
+**Solution:**
+- HighlightNavigator now calls `SetCurrentZone()` when cycling to a card
+- TargetNavigator now sets EventSystem focus AND updates zone when cycling targets
+- NOTE: HighlightNavigator change might need reverting if keeping battlefield row state is preferred
+
+**Files Changed:**
+- `src/Core/Services/UIElementClassifier.cs` - MatchEndScene filtering, Stop button filtering
+- `src/Core/Services/UITextExtractor.cs` - Label override for ExitMatchOverlayButton
+- `src/Core/Services/GeneralMenuNavigator.cs` - Auto-focus Continue button on MatchEndScene
+- `src/Core/Services/DuelNavigator.cs` - Require spell on stack for targeting auto-detection
+- `src/Core/Services/UIActivator.cs` - Removed auto-EnterTargetMode call
+- `src/Core/Services/DiscardNavigator.cs` - Throttled log spam
+- `src/Core/Services/HighlightNavigator.cs` - Update zone context on Tab cycling
+- `src/Core/Services/TargetNavigator.cs` - Set focus and zone when cycling targets

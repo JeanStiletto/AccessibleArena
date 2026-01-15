@@ -10,7 +10,7 @@ namespace MTGAAccessibility.Core.Services
     /// <summary>
     /// Handles target selection during spells and abilities.
     /// When the game enters targeting mode, Tab cycles through valid targets.
-    /// Enter selects the current target, Escape cancels.
+    /// Enter selects the current target, Backspace cancels.
     /// </summary>
     public class TargetNavigator
     {
@@ -52,7 +52,7 @@ namespace MTGAAccessibility.Core.Services
             {
                 _currentIndex = 0;
                 string announcement = $"Select a target. {_validTargets.Count} valid target{(_validTargets.Count != 1 ? "s" : "")}. " +
-                                     "Press Tab to cycle, Enter to select, Escape to cancel.";
+                                     "Press Tab to cycle, Enter to select, Backspace to cancel.";
                 _announcer.AnnounceInterrupt(announcement);
                 AnnounceCurrentTarget();
             }
@@ -100,7 +100,7 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 CancelTargeting();
                 return true;
@@ -181,6 +181,20 @@ namespace MTGAAccessibility.Core.Services
             // Use High priority to bypass duplicate check - user explicitly pressed Tab
             _announcer.Announce(announcement, AnnouncementPriority.High);
 
+            // Set EventSystem focus to the target
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem != null && target.GameObject != null)
+            {
+                eventSystem.SetSelectedGameObject(target.GameObject);
+            }
+
+            // Update zone context so Left/Right arrows work for battlefield navigation
+            // NOTE: This might need adjustment - targets can be on battlefield or stack
+            if (target.Type != CardTargetType.Player)
+            {
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+            }
+
             // Prepare CardInfoNavigator for arrow key navigation on this target
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
             if (cardNavigator != null && target.GameObject != null)
@@ -236,6 +250,9 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // Also check for player targets (avatars with HotHighlight)
+            DiscoverPlayerTargets();
+
             // Sort: your permanents first, then opponent's, then players
             _validTargets = _validTargets
                 .OrderBy(t => t.IsOpponent ? 1 : 0)
@@ -244,6 +261,80 @@ namespace MTGAAccessibility.Core.Services
                 .ToList();
 
             MelonLogger.Msg($"[TargetNavigator] Found {_validTargets.Count} valid targets");
+        }
+
+        /// <summary>
+        /// Discovers player avatars as valid targets when they have HotHighlight.
+        /// </summary>
+        private void DiscoverPlayerTargets()
+        {
+            var localAvatar = FindPlayerAvatar(isOpponent: false);
+            if (localAvatar != null && HasTargetingHighlight(localAvatar))
+            {
+                _validTargets.Add(new TargetInfo
+                {
+                    GameObject = localAvatar,
+                    Name = Strings.You,
+                    InstanceId = (uint)localAvatar.GetInstanceID(),
+                    Type = CardTargetType.Player,
+                    IsOpponent = false,
+                    Details = ""
+                });
+                MelonLogger.Msg("[TargetNavigator] Added local player as valid target");
+            }
+
+            var opponentAvatar = FindPlayerAvatar(isOpponent: true);
+            if (opponentAvatar != null && HasTargetingHighlight(opponentAvatar))
+            {
+                _validTargets.Add(new TargetInfo
+                {
+                    GameObject = opponentAvatar,
+                    Name = Strings.Opponent,
+                    InstanceId = (uint)opponentAvatar.GetInstanceID(),
+                    Type = CardTargetType.Player,
+                    IsOpponent = true,
+                    Details = ""
+                });
+                MelonLogger.Msg("[TargetNavigator] Added opponent as valid target");
+            }
+        }
+
+        /// <summary>
+        /// Finds the player avatar container for targeting.
+        /// </summary>
+        private GameObject FindPlayerAvatar(bool isOpponent)
+        {
+            string containerName = isOpponent ? "Opponent" : "LocalPlayer";
+
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+
+                // Look for player portrait containers
+                if (go.name.Contains(containerName) &&
+                    (go.name.Contains("Portrait") || go.name.Contains("Avatar") || go.name.Contains("Player")))
+                {
+                    // Check if this has a HoverArea or Icon child (player portrait structure)
+                    var iconTransform = go.transform.Find("Icon");
+                    if (iconTransform != null)
+                    {
+                        var hoverArea = iconTransform.Find("HoverArea");
+                        if (hoverArea != null)
+                        {
+                            return hoverArea.gameObject;
+                        }
+                    }
+
+                    // Alternative: look for direct HoverArea
+                    var directHover = go.transform.Find("HoverArea");
+                    if (directHover != null)
+                    {
+                        return directHover.gameObject;
+                    }
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

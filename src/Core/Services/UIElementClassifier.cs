@@ -339,15 +339,23 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Check if element is visible via CanvasGroup
         /// </summary>
-        public static bool IsVisibleViaCanvasGroup(GameObject obj)
+        public static bool IsVisibleViaCanvasGroup(GameObject obj, bool debugLog = false)
         {
             // Check own CanvasGroup
             var canvasGroup = obj.GetComponent<CanvasGroup>();
             if (canvasGroup != null)
             {
                 // MTGA uses alpha < 0.1 for hidden elements (see docs/MENU_NAVIGATION.md)
-                if (canvasGroup.alpha < 0.1f) return false;
-                if (!canvasGroup.interactable) return false;
+                if (canvasGroup.alpha < 0.1f)
+                {
+                    if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup alpha={canvasGroup.alpha}");
+                    return false;
+                }
+                if (!canvasGroup.interactable)
+                {
+                    if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup interactable=false");
+                    return false;
+                }
             }
 
             // Check parent CanvasGroups
@@ -357,8 +365,23 @@ namespace MTGAAccessibility.Core.Services
                 var parentCG = parent.GetComponent<CanvasGroup>();
                 if (parentCG != null)
                 {
-                    if (parentCG.alpha < 0.1f) return false;
-                    if (!parentCG.interactable && !parentCG.ignoreParentGroups) return false;
+                    // Skip CanvasGroups that are named "CanvasGroup" - these are structural containers
+                    // not actual visibility controls (e.g., "CanvasGroup - Overlay" in CampaignGraph)
+                    bool isStructuralContainer = parent.name.StartsWith("CanvasGroup");
+
+                    if (!isStructuralContainer)
+                    {
+                        if (parentCG.alpha < 0.1f)
+                        {
+                            if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup alpha={parentCG.alpha}");
+                            return false;
+                        }
+                        if (!parentCG.interactable && !parentCG.ignoreParentGroups)
+                        {
+                            if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup interactable=false");
+                            return false;
+                        }
+                    }
                 }
                 parent = parent.parent;
             }
@@ -499,6 +522,64 @@ namespace MTGAAccessibility.Core.Services
             // Top/bottom fades (settings menu decorations)
             if (ContainsIgnoreCase(name, "topfade") || ContainsIgnoreCase(name, "bottomfade")) return true;
             if (ContainsIgnoreCase(name, "top_fade") || ContainsIgnoreCase(name, "bottom_fade")) return true;
+
+            // BUTTONS container elements (EventTriggers that wrap actual buttons)
+            // These appear in Color Challenge and similar screens as non-functional containers
+            if (EqualsIgnoreCase(name, "BUTTONS")) return true;
+
+            // Button_NPE overlay buttons (NPE = New Player Experience)
+            // These are graphical overlays on objectives that duplicate the actual blade list buttons
+            if (EqualsIgnoreCase(name, "Button_NPE")) return true;
+
+            // Stop buttons (timer controls in duel/match end screens)
+            // These are auto-pass timer controls, not meant for direct navigation
+            // Includes "Stop", "Stop Second Strike", and similar variants
+            if (EqualsIgnoreCase(name, "Stop") || name.StartsWith("Stop ", System.StringComparison.OrdinalIgnoreCase)) return true;
+
+            // Duel prompt buttons that appear in MatchEndScene (leftover from duel)
+            // These include "Pass Turn", "Cancel Attacks", broken "Ctrl" buttons
+            if (IsMatchEndScene() && IsDuelPromptElement(obj, name)) return true;
+
+            // Navigation arrows in MatchEndScene (leftover from duel)
+            if (IsMatchEndScene() && IsNavigationArrow(obj, name, null)) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if we're currently in the MatchEndScene (victory/defeat screen)
+        /// </summary>
+        private static bool IsMatchEndScene()
+        {
+            // Check for MatchEndScene-specific elements
+            var exitButton = GameObject.Find("ExitMatchOverlayButton");
+            var viewButton = GameObject.Find("ViewBattlefieldButton");
+            return (exitButton != null && exitButton.activeInHierarchy) ||
+                   (viewButton != null && viewButton.activeInHierarchy);
+        }
+
+        /// <summary>
+        /// Check if element is a duel prompt that shouldn't appear on MatchEndScene
+        /// </summary>
+        private static bool IsDuelPromptElement(GameObject obj, string name)
+        {
+            // Prompt buttons from duel
+            if (ContainsIgnoreCase(name, "PromptButton")) return true;
+
+            // End turn button container
+            if (ContainsIgnoreCase(name, "EndTurnButton")) return true;
+
+            // Button_Import inside EndTurnButton (the actual "Pass Turn" button)
+            if (EqualsIgnoreCase(name, "Button_Import"))
+            {
+                var parent = obj.transform.parent;
+                while (parent != null)
+                {
+                    if (ContainsIgnoreCase(parent.name, "EndTurnButton"))
+                        return true;
+                    parent = parent.parent;
+                }
+            }
 
             return false;
         }

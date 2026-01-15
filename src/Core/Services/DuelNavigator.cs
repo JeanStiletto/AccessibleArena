@@ -321,14 +321,17 @@ namespace MTGAAccessibility.Core.Services
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
 
             // Auto-detect targeting mode: if valid targets exist but we're not in targeting mode yet
-            // ONLY auto-enter when NOT in combat phase - during combat, HotHighlight is for attackers/blockers
-            // not spell targets. If a spell needs targeting during combat, UIActivator will call EnterTargetMode.
+            // ONLY auto-enter when:
+            // 1. NOT in combat phase - during combat, HotHighlight is for attackers/blockers
+            // 2. There's a spell on the stack - HotHighlight without stack spell means activated abilities
+            // If a spell needs targeting during combat, UIActivator will call EnterTargetMode.
             bool inCombatPhase = _duelAnnouncer.IsInDeclareAttackersPhase || _duelAnnouncer.IsInDeclareBlockersPhase;
             bool hasValidTargets = CardDetector.HasValidTargetsOnBattlefield();
+            bool hasSpellOnStack = _zoneNavigator.StackCardCount > 0;
 
-            if (!_targetNavigator.IsTargeting && !inCombatPhase && hasValidTargets)
+            if (!_targetNavigator.IsTargeting && !inCombatPhase && hasValidTargets && hasSpellOnStack)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Auto-detected targeting mode - entering");
+                MelonLogger.Msg($"[{NavigatorId}] Auto-detected targeting mode (spell on stack) - entering");
                 _targetNavigator.EnterTargetMode();
             }
 

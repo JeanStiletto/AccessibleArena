@@ -24,6 +24,7 @@ namespace MTGAAccessibility.Core.Services
         private static readonly Regex DiscardCountPattern = new Regex(@"Discard\s+(\d+)\s+cards?", RegexOptions.IgnoreCase);
         private static readonly Regex DiscardACardPattern = new Regex(@"Discard\s+a\s+card", RegexOptions.IgnoreCase);
         private int? _requiredCount = null; // Cached when entering discard mode
+        private bool _hasLoggedTargetYield = false; // Throttle log spam
 
         public DiscardNavigator(IAnnouncementService announcer, ZoneNavigator zoneNavigator)
         {
@@ -38,16 +39,25 @@ namespace MTGAAccessibility.Core.Services
         public bool IsDiscardModeActive()
         {
             if (GetSubmitButtonInfo() == null)
+            {
+                _hasLoggedTargetYield = false; // Reset throttle when Submit button gone
                 return false;
+            }
 
             // If there are valid targets on the battlefield (HotHighlight),
             // we're in targeting mode, not discard mode
             if (CardDetector.HasValidTargetsOnBattlefield())
             {
-                MelonLogger.Msg("[DiscardNavigator] Submit button found but valid targets exist - yielding to targeting mode");
+                // Only log once to avoid spam
+                if (!_hasLoggedTargetYield)
+                {
+                    MelonLogger.Msg("[DiscardNavigator] Submit button found but valid targets exist - yielding to targeting mode");
+                    _hasLoggedTargetYield = true;
+                }
                 return false;
             }
 
+            _hasLoggedTargetYield = false; // Reset when no targets
             return true;
         }
 

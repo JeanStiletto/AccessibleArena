@@ -281,16 +281,13 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // No UI raycast hit at this position
-            // For card dropping: the game processes clicks on the held card
-            // Send click events even without a raycast target
-            Log($"No raycast hit at {screenPosition}, sending global click");
+            // Don't send "global clicks" to EventSystem - this was causing MTGA to interpret
+            // them as "pass priority" during combat phases, leading to unwanted phase auto-skip.
+            // The game processes card drops based on Input.mousePosition (real cursor),
+            // which DuelNavigator centers when the duel starts. No additional click needed.
+            Log($"No raycast hit at {screenPosition}, skipping global click");
 
-            // Execute pointer events on the EventSystem itself
-            // This allows the game to process position-based input
-            ExecuteEvents.Execute(eventSystem.gameObject, pointer, ExecuteEvents.pointerDownHandler);
-            ExecuteEvents.Execute(eventSystem.gameObject, pointer, ExecuteEvents.pointerUpHandler);
-
-            return new ActivationResult(true, "Global click sent", ActivationType.PointerClick);
+            return new ActivationResult(true, "No UI target at position", ActivationType.Unknown);
         }
 
         /// <summary>
@@ -444,22 +441,9 @@ namespace MTGAAccessibility.Core.Services
             // Need enough time for targeting UI (Cancel/Submit buttons) to appear
             yield return new WaitForSeconds(0.6f);
 
-            // Step 5: Check if spell needs targeting by looking for "Submit X" button
-            // The game shows "Submit 0", "Submit 1", etc. when waiting for target selection
-            if (targetNavigator != null)
-            {
-                bool needsTargeting = IsTargetingModeActive();
-
-                if (needsTargeting)
-                {
-                    Log("Submit button detected, entering targeting mode");
-                    targetNavigator.EnterTargetMode();
-                }
-                else
-                {
-                    Log("No Submit button, spell completed");
-                }
-            }
+            // Note: Targeting mode is now handled by DuelNavigator's auto-detection
+            // which checks for spell on stack + HotHighlight targets.
+            // This avoids false positives from activated abilities that don't target.
 
             Log("=== CARD PLAY COMPLETE ===");
             callback?.Invoke(true, "Card played");

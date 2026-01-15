@@ -229,6 +229,13 @@ namespace MTGAAccessibility.Core.Services
                 eventSystem.SetSelectedGameObject(card.GameObject);
             }
 
+            // Update ZoneNavigator's CurrentZone to match the card's zone
+            // This ensures Left/Right arrows don't navigate battlefield when focused on hand card
+            // NOTE: This might need to be reverted for better UI experience - keeping battlefield
+            // row state while tabbing through hand cards could be useful for some workflows
+            var cardZoneType = StringToZoneType(card.Zone);
+            _zoneNavigator.SetCurrentZone(cardZoneType);
+
             // Prepare card for detailed navigation with arrow keys
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
             if (cardNavigator != null)

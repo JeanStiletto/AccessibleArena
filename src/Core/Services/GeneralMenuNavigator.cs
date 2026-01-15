@@ -1102,6 +1102,54 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}]   {btn.gameObject.name} - '{text ?? "(no text)"}'");
             }
 
+            // Find CustomToggle components (game-specific toggle type)
+            var customToggles = GameObject.FindObjectsOfType<MonoBehaviour>()
+                .Where(mb => mb != null && mb.gameObject.activeInHierarchy &&
+                       mb.GetType().Name.Contains("CustomToggle"))
+                .ToList();
+            MelonLogger.Msg($"[{NavigatorId}] Found {customToggles.Count} CustomToggle components:");
+            foreach (var ct in customToggles)
+            {
+                string text = UITextExtractor.GetText(ct.gameObject);
+                string path = GetGameObjectPath(ct.gameObject);
+                var toggle = ct.gameObject.GetComponent<Toggle>();
+                string toggleState = toggle != null ? (toggle.isOn ? "ON" : "OFF") : "no Toggle component";
+                MelonLogger.Msg($"[{NavigatorId}]   {path} - '{text ?? "(no text)"}' - {toggleState}");
+            }
+
+            // Find Scrollbars
+            var scrollbars = GameObject.FindObjectsOfType<Scrollbar>()
+                .Where(sb => sb != null && sb.gameObject.activeInHierarchy)
+                .ToList();
+            MelonLogger.Msg($"[{NavigatorId}] Found {scrollbars.Count} Scrollbars:");
+            foreach (var sb in scrollbars)
+            {
+                string path = GetGameObjectPath(sb.gameObject);
+                MelonLogger.Msg($"[{NavigatorId}]   {path} - value: {sb.value:F2}, size: {sb.size:F2}, interactable: {sb.interactable}");
+            }
+
+            // Find ScrollRect components
+            var scrollRects = GameObject.FindObjectsOfType<ScrollRect>()
+                .Where(sr => sr != null && sr.gameObject.activeInHierarchy)
+                .ToList();
+            MelonLogger.Msg($"[{NavigatorId}] Found {scrollRects.Count} ScrollRect components:");
+            foreach (var sr in scrollRects)
+            {
+                string path = GetGameObjectPath(sr.gameObject);
+                MelonLogger.Msg($"[{NavigatorId}]   {path} - vertical: {sr.vertical}, horizontal: {sr.horizontal}");
+            }
+
+            // Find standard Unity Toggles
+            var toggles = GameObject.FindObjectsOfType<Toggle>()
+                .Where(t => t != null && t.gameObject.activeInHierarchy)
+                .ToList();
+            MelonLogger.Msg($"[{NavigatorId}] Found {toggles.Count} standard Unity Toggles:");
+            foreach (var t in toggles)
+            {
+                string text = UITextExtractor.GetText(t.gameObject);
+                string path = GetGameObjectPath(t.gameObject);
+                MelonLogger.Msg($"[{NavigatorId}]   {path} - '{text ?? "(no text)"}' - {(t.isOn ? "ON" : "OFF")} - interactable: {t.interactable}");
+            }
 
             MelonLogger.Msg($"[{NavigatorId}] === END UI DUMP ===");
         }
@@ -1243,6 +1291,35 @@ namespace MTGAAccessibility.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
+
+            // On MatchEndScene, auto-focus the Continue button (ExitMatchOverlayButton)
+            AutoFocusContinueButton();
+        }
+
+        /// <summary>
+        /// Auto-focus the Continue button on MatchEndScene for better UX.
+        /// The Continue button should be the first thing focused after a match ends.
+        /// </summary>
+        private void AutoFocusContinueButton()
+        {
+            // Find the ExitMatchOverlayButton (Continue) in our elements
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].GameObject != null &&
+                    _elements[i].GameObject.name == "ExitMatchOverlayButton")
+                {
+                    // Move this element to the front by swapping with index 0
+                    if (i > 0)
+                    {
+                        var continueButton = _elements[i];
+                        _elements.RemoveAt(i);
+                        _elements.Insert(0, continueButton);
+                        MelonLogger.Msg($"[{NavigatorId}] Moved Continue button to first position");
+                    }
+                    _currentIndex = 0;
+                    break;
+                }
+            }
         }
 
         /// <summary>
@@ -1411,6 +1488,17 @@ namespace MTGAAccessibility.Core.Services
             {
                 _activePanels.Add($"ContentPanel:{panelTypeName}");
                 MelonLogger.Msg($"[{NavigatorId}] Content panel opened: {panelTypeName}");
+
+                // For SettingsMenu, set foreground panel to filter elements correctly
+                if (panelTypeName.Contains("SettingsMenu"))
+                {
+                    // Update cached Settings panel reference and set as foreground
+                    if (CheckSettingsMenuOpen() && SettingsContentPanel != null)
+                    {
+                        _foregroundPanel = SettingsContentPanel;
+                        MelonLogger.Msg($"[{NavigatorId}] Set foreground panel to Settings: {_foregroundPanel.name}");
+                    }
+                }
 
                 // Auto-expand blade for Color Challenge menu
                 if (panelTypeName.Contains("CampaignGraphContentController"))
