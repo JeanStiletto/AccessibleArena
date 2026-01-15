@@ -12,11 +12,11 @@ namespace MTGAAccessibility.Core.Services
     /// Handles combat phase navigation.
     /// During Declare Attackers phase:
     /// - Space or F presses "All Attack" or "X Attack" button
-    /// - Shift+F presses "No Attacks" button
+    /// - Backspace presses "No Attacks" button
     /// - Announces attacker selection state when navigating battlefield cards
     /// During Declare Blockers phase:
     /// - Space or F presses confirm button (X Blocker / Next)
-    /// - Shift+F presses "No Blocks" or "Cancel Blocks" button
+    /// - Backspace presses "No Blocks" or "Cancel Blocks" button
     /// - Tracks selected blockers and announces combined power/toughness
     /// </summary>
     public class CombatNavigator
@@ -452,15 +452,14 @@ namespace MTGAAccessibility.Core.Services
             // Handle Declare Attackers phase
             if (_duelAnnouncer.IsInDeclareAttackersPhase)
             {
-                // Shift+F - press the no attacks button (check first before F alone)
-                if (Input.GetKeyDown(KeyCode.F) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                // Backspace - press the no attacks button
+                if (Input.GetKeyDown(KeyCode.Backspace))
                 {
                     return TryClickNoAttackButton();
                 }
 
-                // Space or F (without Shift) - press the attack button (All Attack / X Attack)
-                if (Input.GetKeyDown(KeyCode.Space) ||
-                    (Input.GetKeyDown(KeyCode.F) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
+                // Space or F - press the attack button (All Attack / X Attack)
+                if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F))
                 {
                     return TryClickAttackButton();
                 }
@@ -469,16 +468,15 @@ namespace MTGAAccessibility.Core.Services
             // Handle Declare Blockers phase
             if (_duelAnnouncer.IsInDeclareBlockersPhase)
             {
-                // Shift+F - press the no blocks / cancel blocks button (check first before F alone)
-                if (Input.GetKeyDown(KeyCode.F) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                // Backspace - press the no blocks / cancel blocks button
+                if (Input.GetKeyDown(KeyCode.Backspace))
                 {
                     LogBlockerPhaseButtons();
                     return TryClickNoBlockButton();
                 }
 
-                // Space or F (without Shift) - press the confirm blocks button (X Blocker / Next)
-                if (Input.GetKeyDown(KeyCode.Space) ||
-                    (Input.GetKeyDown(KeyCode.F) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
+                // Space or F - press the confirm blocks button (X Blocker / Next)
+                if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F))
                 {
                     LogBlockerPhaseButtons();
                     return TryClickBlockerConfirmButton();
@@ -543,6 +541,10 @@ namespace MTGAAccessibility.Core.Services
             foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
             {
                 if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
+                    continue;
+
+                // Skip emote panel buttons
+                if (IsInEmotePanel(selectable.gameObject))
                     continue;
 
                 string name = selectable.gameObject.name;
@@ -784,6 +786,32 @@ namespace MTGAAccessibility.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Checks if a GameObject is part of the emote/communication panel UI.
+        /// Used to filter out emote buttons from combat button searches.
+        /// </summary>
+        private bool IsInEmotePanel(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int depth = 0;
+            while (current != null && depth < 8)
+            {
+                string name = current.name;
+                if (name.Contains("EmoteOptionsPanel") ||
+                    name.Contains("CommunicationOptionsPanel") ||
+                    name.Contains("EmoteView") ||
+                    name.Contains("NavArrow"))
+                {
+                    return true;
+                }
+                current = current.parent;
+                depth++;
+            }
+            return false;
         }
     }
 }

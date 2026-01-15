@@ -50,6 +50,7 @@ namespace MTGAAccessibility.Core.Services
         public BattlefieldNavigator BattlefieldNavigator => _battlefieldNavigator;
         public BrowserNavigator BrowserNavigator => _browserNavigator;
         public DuelAnnouncer DuelAnnouncer => _duelAnnouncer;
+        public PlayerPortraitNavigator PortraitNavigator => _portraitNavigator;
 
         public DuelNavigator(IAnnouncementService announcer) : base(announcer)
         {
@@ -381,14 +382,13 @@ namespace MTGAAccessibility.Core.Services
             if (_highlightNavigator.HandleInput())
                 return true;
 
-            // Battlefield navigation (A/R/B shortcuts and row-based navigation)
-            if (_battlefieldNavigator.HandleInput())
+            // Portrait/timer info (V key zone) - BEFORE battlefield so arrow keys
+            // work correctly when in player info zone
+            if (_portraitNavigator.HandleInput())
                 return true;
 
-            // Portrait/timer info (V key zone) - after HighlightNavigator so
-            // highlighted cards take priority, but still handles Enter for emotes
-            // when no card is highlighted
-            if (_portraitNavigator.HandleInput())
+            // Battlefield navigation (A/R/B shortcuts and row-based navigation)
+            if (_battlefieldNavigator.HandleInput())
                 return true;
 
             // Delegate zone input handling to ZoneNavigator (C, G, X, S shortcuts)

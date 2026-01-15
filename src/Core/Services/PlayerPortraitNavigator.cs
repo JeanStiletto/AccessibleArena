@@ -38,6 +38,10 @@ namespace MTGAAccessibility.Core.Services
         private MonoBehaviour _localMatchTimer;
         private MonoBehaviour _opponentMatchTimer;
 
+        // Focus management - store previous focus to restore on exit
+        private GameObject _previousFocus;
+        private GameObject _playerZoneFocusElement;
+
         public PlayerPortraitNavigator(IAnnouncementService announcer, TargetNavigator targetNavigator = null)
         {
             _announcer = announcer;
@@ -69,11 +73,58 @@ namespace MTGAAccessibility.Core.Services
         public bool IsInPlayerInfoZone => _navigationState != NavigationState.Inactive;
 
         /// <summary>
+        /// Called when UI focus changes. If focus moves to something outside the player zone,
+        /// automatically exit the player info zone to prevent consuming keys meant for other UI.
+        /// This makes player zone behave like card zones - leaving when focus moves elsewhere.
+        /// </summary>
+        public void OnFocusChanged(GameObject newFocus)
+        {
+            if (_navigationState == NavigationState.Inactive) return;
+            if (newFocus == null) return;
+
+            // Check if focus is still on player zone related elements
+            if (!IsPlayerZoneElement(newFocus))
+            {
+                MelonLogger.Msg($"[PlayerPortrait] Focus changed to '{newFocus.name}', auto-exiting player info zone");
+                ExitPlayerInfoZone();
+            }
+        }
+
+        /// <summary>
+        /// Checks if a GameObject is part of the player zone UI (portraits, emotes, timers).
+        /// </summary>
+        private bool IsPlayerZoneElement(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            // Check the object and its parents for player zone indicators
+            Transform current = obj.transform;
+            int depth = 0;
+            while (current != null && depth < 8)
+            {
+                string name = current.name;
+                if (name.Contains("MatchTimer") ||
+                    name.Contains("PlayerPortrait") ||
+                    name.Contains("EmoteOptionsPanel") ||
+                    name.Contains("CommunicationOptionsPanel") ||
+                    name.Contains("EmoteView") ||
+                    (name == "HoverArea" && current.parent != null &&
+                     (current.parent.name == "Icon" || current.parent.name.Contains("Timer"))))
+                {
+                    return true;
+                }
+                current = current.parent;
+                depth++;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Handles input for player info zone navigation.
         /// V = Enter player info zone
         /// L = Life totals (quick access)
         /// When in zone: Left/Right = switch player, Up/Down = cycle properties
-        /// Enter = emotes (local player only), Escape = exit zone
+        /// Enter = emotes (local player only), Backspace = exit zone
         /// </summary>
         public bool HandleInput()
         {
@@ -115,6 +166,19 @@ namespace MTGAAccessibility.Core.Services
         private void EnterPlayerInfoZone()
         {
             DiscoverTimerElements();
+
+            // Store current focus to restore on exit
+            _previousFocus = EventSystem.current?.currentSelectedGameObject;
+            MelonLogger.Msg($"[PlayerPortrait] Storing previous focus: {_previousFocus?.name ?? "null"}");
+
+            // Find and focus on the player zone element (local timer's HoverArea)
+            _playerZoneFocusElement = FindPlayerZoneFocusElement();
+            if (_playerZoneFocusElement != null)
+            {
+                EventSystem.current?.SetSelectedGameObject(_playerZoneFocusElement);
+                MelonLogger.Msg($"[PlayerPortrait] Set focus to: {_playerZoneFocusElement.name}");
+            }
+
             _navigationState = NavigationState.PlayerNavigation;
             _currentPlayerIndex = 0; // Start on local player
             _currentPropertyIndex = 0; // Start on Life
@@ -126,14 +190,46 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Exits the player info zone.
+        /// Exits the player info zone and restores previous focus.
         /// </summary>
         public void ExitPlayerInfoZone()
         {
             if (_navigationState == NavigationState.Inactive) return;
+
             _navigationState = NavigationState.Inactive;
             _emoteButtons.Clear();
+
+            // Restore previous focus
+            if (_previousFocus != null && _previousFocus) // Check both null and Unity destroyed
+            {
+                EventSystem.current?.SetSelectedGameObject(_previousFocus);
+                MelonLogger.Msg($"[PlayerPortrait] Restored focus to: {_previousFocus.name}");
+            }
+            _previousFocus = null;
+            _playerZoneFocusElement = null;
+
             MelonLogger.Msg("[PlayerPortrait] Exited player info zone");
+        }
+
+        /// <summary>
+        /// Finds the HoverArea element to focus on when entering player zone.
+        /// </summary>
+        private GameObject FindPlayerZoneFocusElement()
+        {
+            // Use local timer's HoverArea as the focus element
+            if (_localTimerObj != null)
+            {
+                var iconTransform = _localTimerObj.transform.Find("Icon");
+                if (iconTransform != null)
+                {
+                    var hoverArea = iconTransform.Find("HoverArea");
+                    if (hoverArea != null)
+                    {
+                        return hoverArea.gameObject;
+                    }
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -141,8 +237,18 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private bool HandlePlayerNavigation()
         {
-            // Escape exits zone
-            if (Input.GetKeyDown(KeyCode.Escape))
+            // Check if focus has moved away from player zone (e.g., Tab cycled to a card)
+            // This catches focus changes that happened during the same frame before OnFocusChanged fires
+            var currentFocus = EventSystem.current?.currentSelectedGameObject;
+            if (currentFocus != null && currentFocus && !IsPlayerZoneElement(currentFocus))
+            {
+                MelonLogger.Msg($"[PlayerPortrait] Focus moved to '{currentFocus.name}', exiting player zone");
+                ExitPlayerInfoZone();
+                return false; // Let other handlers process the key
+            }
+
+            // Backspace exits zone
+            if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 ExitPlayerInfoZone();
                 return true;
@@ -253,16 +359,17 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private bool HandleEmoteNavigation()
         {
-            // Backspace cancels emote menu
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            // Check if focus has moved away from player zone
+            var currentFocus = EventSystem.current?.currentSelectedGameObject;
+            if (currentFocus != null && currentFocus && !IsPlayerZoneElement(currentFocus))
             {
-                CloseEmoteWheel();
-                _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
-                return true;
+                MelonLogger.Msg($"[PlayerPortrait] Focus moved to '{currentFocus.name}', exiting emote navigation");
+                ExitPlayerInfoZone();
+                return false;
             }
 
-            // Escape also cancels
-            if (Input.GetKeyDown(KeyCode.Escape))
+            // Backspace cancels emote menu
+            if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 CloseEmoteWheel();
                 _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
@@ -622,22 +729,35 @@ namespace MTGAAccessibility.Core.Services
             {
                 if (!child.gameObject.activeInHierarchy) continue;
 
+                string childName = child.name;
                 string indent = new string(' ', depth * 2);
-                MelonLogger.Msg($"[PlayerPortrait] {indent}Child: {child.name}");
+                MelonLogger.Msg($"[PlayerPortrait] {indent}Child: {childName}");
+
+                // Skip navigation arrows and utility buttons - not actual emotes
+                if (childName.Contains("NavArrow") || childName == "Mute Container")
+                {
+                    MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Skipping (navigation/utility)");
+                    continue;
+                }
 
                 // Check for Button component
                 var button = child.GetComponent<UnityEngine.UI.Button>();
                 if (button != null)
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Has Button component!");
-                    _emoteButtons.Add(child.gameObject);
-                }
+                    // Only add if it has emote text or is in an EmoteView
+                    var text = ExtractEmoteNameFromTransform(child);
+                    bool hasEmoteText = !string.IsNullOrEmpty(text) && !text.Contains("NavArrow");
+                    bool isInEmoteView = IsChildOfEmoteView(child);
 
-                // Check for any clickable components
-                var eventTrigger = child.GetComponent<UnityEngine.EventSystems.EventTrigger>();
-                if (eventTrigger != null)
-                {
-                    MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Has EventTrigger!");
+                    if (hasEmoteText || isInEmoteView)
+                    {
+                        MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Adding emote button: '{text}'");
+                        _emoteButtons.Add(child.gameObject);
+                    }
+                    else
+                    {
+                        MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Skipping button (no emote text)");
+                    }
                 }
 
                 // Recurse into children
@@ -646,6 +766,39 @@ namespace MTGAAccessibility.Core.Services
                     SearchForEmoteButtons(child, depth + 1);
                 }
             }
+        }
+
+        /// <summary>
+        /// Checks if a transform is a child of an EmoteView element.
+        /// </summary>
+        private bool IsChildOfEmoteView(Transform t)
+        {
+            Transform current = t.parent;
+            int depth = 0;
+            while (current != null && depth < 5)
+            {
+                if (current.name.Contains("EmoteView"))
+                    return true;
+                current = current.parent;
+                depth++;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Extracts emote text from a transform without adding to list.
+        /// </summary>
+        private string ExtractEmoteNameFromTransform(Transform t)
+        {
+            var tmpComponents = t.GetComponentsInChildren<TextMeshProUGUI>();
+            foreach (var tmp in tmpComponents)
+            {
+                if (!string.IsNullOrEmpty(tmp.text))
+                {
+                    return tmp.text.Trim();
+                }
+            }
+            return null;
         }
 
         /// <summary>

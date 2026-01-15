@@ -438,6 +438,14 @@ namespace MTGAAccessibility.Core.Services
 
             _announcer.Announce($"{cardName}{selectionState}{combatState}, {position} of {total}", AnnouncementPriority.Normal);
 
+            // Set EventSystem focus to the card - this ensures other navigators
+            // (like PlayerPortrait) detect the focus change and exit their modes
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null && card != null)
+            {
+                eventSystem.SetSelectedGameObject(card);
+            }
+
             // Prepare card info navigation with zone context
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
             if (cardNavigator != null && CardDetector.IsCard(card))

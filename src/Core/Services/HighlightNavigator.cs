@@ -1,4 +1,7 @@
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using TMPro;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 using MTGAAccessibility.Core.Models;
@@ -73,7 +76,17 @@ namespace MTGAAccessibility.Core.Services
 
                 if (_highlightedCards.Count == 0)
                 {
-                    _announcer.Announce(Strings.NoPlayableCards, AnnouncementPriority.Normal);
+                    // Check if there's a primary button to pass priority
+                    string primaryButtonText = GetPrimaryButtonText();
+                    if (!string.IsNullOrEmpty(primaryButtonText))
+                    {
+                        // Use High priority to bypass duplicate check - user explicitly pressed Tab
+                        _announcer.Announce(primaryButtonText, AnnouncementPriority.High);
+                    }
+                    else
+                    {
+                        _announcer.Announce(Strings.NoPlayableCards, AnnouncementPriority.High);
+                    }
                     return true;
                 }
 
@@ -111,6 +124,17 @@ namespace MTGAAccessibility.Core.Services
             }
 
             var card = _highlightedCards[_currentIndex];
+
+            // Check if there's stack resolution pending - don't play new cards if so
+            // This prevents accidentally playing cards when the game is waiting for
+            // target selection or stack resolution
+            if (card.Zone == "Hand" && IsStackResolutionPending())
+            {
+                _announcer.Announce(Strings.ResolveStackFirst, AnnouncementPriority.High);
+                MelonLogger.Msg($"[HighlightNavigator] Blocked card play - stack resolution pending");
+                return;
+            }
+
             MelonLogger.Msg($"[HighlightNavigator] Activating: {card.Name} ({card.GameObject.name})");
 
             // Use UIActivator to play the card
@@ -196,6 +220,14 @@ namespace MTGAAccessibility.Core.Services
 
             // Use High priority to bypass duplicate check - user explicitly pressed Tab
             _announcer.Announce(announcement, AnnouncementPriority.High);
+
+            // Set EventSystem focus to the card - this ensures other navigators
+            // (like PlayerPortrait) detect the focus change and exit their modes
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null && card.GameObject != null)
+            {
+                eventSystem.SetSelectedGameObject(card.GameObject);
+            }
 
             // Prepare card for detailed navigation with arrow keys
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
@@ -366,6 +398,130 @@ namespace MTGAAccessibility.Core.Services
                 case "Stack": return "on stack";
                 default: return zone;
             }
+        }
+
+        /// <summary>
+        /// Checks if there's pending stack resolution that should take priority over playing new cards.
+        /// This prevents the mod from playing cards when the game is waiting for:
+        /// - Target selection for a spell on the stack
+        /// - Resolution confirmation (Resolve button showing)
+        /// </summary>
+        private bool IsStackResolutionPending()
+        {
+            // Check if stack has cards waiting
+            if (_zoneNavigator.StackCardCount > 0)
+            {
+                // Stack has cards - check if Resolve button is showing
+                if (HasResolveButton())
+                {
+                    MelonLogger.Msg("[HighlightNavigator] Stack resolution pending - Resolve button found");
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a "Resolve" button is currently visible.
+        /// This indicates the game is waiting for the player to resolve stack effects.
+        /// </summary>
+        private bool HasResolveButton()
+        {
+            // Check TMP_Text components (used by StyledButton)
+            foreach (var tmpText in GameObject.FindObjectsOfType<TMP_Text>())
+            {
+                if (tmpText == null || !tmpText.gameObject.activeInHierarchy)
+                    continue;
+
+                string text = tmpText.text?.Trim();
+                if (string.IsNullOrEmpty(text))
+                    continue;
+
+                // Check for "Resolve" button text
+                if (text.Equals("Resolve", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    // Verify it's on a button
+                    var parent = tmpText.transform.parent;
+                    while (parent != null)
+                    {
+                        string parentName = parent.name.ToLower();
+                        if (parentName.Contains("button") || parentName.Contains("prompt"))
+                        {
+                            return true;
+                        }
+                        parent = parent.parent;
+                    }
+                }
+            }
+
+            // Also check legacy Text components
+            foreach (var uiText in GameObject.FindObjectsOfType<Text>())
+            {
+                if (uiText == null || !uiText.gameObject.activeInHierarchy)
+                    continue;
+
+                string text = uiText.text?.Trim();
+                if (string.IsNullOrEmpty(text))
+                    continue;
+
+                if (text.Equals("Resolve", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var parent = uiText.transform.parent;
+                    while (parent != null)
+                    {
+                        string parentName = parent.name.ToLower();
+                        if (parentName.Contains("button") || parentName.Contains("prompt"))
+                        {
+                            return true;
+                        }
+                        parent = parent.parent;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the text of the primary prompt button if one exists.
+        /// This indicates the player can pass priority by pressing Space.
+        /// </summary>
+        private string GetPrimaryButtonText()
+        {
+            // Look for the primary prompt button
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+
+                // Check for primary prompt button by name pattern
+                if (!go.name.Contains("PromptButton_Primary")) continue;
+
+                // Get the TMP_Text component to extract button text
+                var tmpText = go.GetComponentInChildren<TMP_Text>();
+                if (tmpText != null)
+                {
+                    string text = tmpText.text?.Trim();
+                    // Filter out non-meaningful text like "Ctrl" (full control indicator)
+                    if (!string.IsNullOrEmpty(text) && text != "Ctrl")
+                    {
+                        return text;
+                    }
+                }
+
+                // Also check legacy Text component
+                var uiText = go.GetComponentInChildren<Text>();
+                if (uiText != null)
+                {
+                    string text = uiText.text?.Trim();
+                    if (!string.IsNullOrEmpty(text) && text != "Ctrl")
+                    {
+                        return text;
+                    }
+                }
+            }
+
+            return null;
         }
     }
 

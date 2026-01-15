@@ -95,7 +95,10 @@ namespace MTGAAccessibility
 
         private void HandleFocusChanged(UnityEngine.GameObject oldElement, UnityEngine.GameObject newElement)
         {
-            LoggerInstance.Msg($"[FocusChanged] Old: {oldElement?.name ?? "null"}, New: {newElement?.name ?? "null"}");
+            // Use safe name access - Unity destroyed objects are not null but throw on property access
+            string oldName = GetSafeGameObjectName(oldElement);
+            string newName = GetSafeGameObjectName(newElement);
+            LoggerInstance.Msg($"[FocusChanged] Old: {oldName}, New: {newName}");
 
             // If focus moved away from current card, deactivate card navigation
             if (_cardInfoNavigator.IsActive && _cardInfoNavigator.CurrentCard != newElement)
@@ -104,24 +107,17 @@ namespace MTGAAccessibility
                 _cardInfoNavigator.Deactivate();
             }
 
-            // Check if new element is a card (or inside a card)
-            if (newElement != null)
+            // Notify PlayerPortraitNavigator of focus change so it can exit if needed
+            var duelNav = _navigatorManager?.GetNavigator<DuelNavigator>();
+            if (duelNav?.PortraitNavigator != null && newElement != null && newElement)
             {
-                bool isCard = CardDetector.IsCard(newElement);
-                var cardRoot = CardDetector.GetCardRoot(newElement);
-                bool rootIsCard = cardRoot != null && CardDetector.IsCard(cardRoot);
-
-                LoggerInstance.Msg($"[FocusChanged] IsCard: {isCard}, CardRoot: {cardRoot?.name ?? "null"}, RootIsCard: {rootIsCard}");
-
-                // Use card root if the element itself isn't detected as card but is inside one
-                var cardElement = isCard ? newElement : (rootIsCard ? cardRoot : null);
-
-                if (cardElement != null)
-                {
-                    LoggerInstance.Msg($"[FocusChanged] Preparing for card: {cardElement.name}");
-                    _cardInfoNavigator.PrepareForCard(cardElement);
-                }
+                duelNav.PortraitNavigator.OnFocusChanged(newElement);
             }
+
+            // Note: We no longer call PrepareForCard here because navigators
+            // (ZoneNavigator, BattlefieldNavigator, HighlightNavigator) now set EventSystem focus
+            // and call PrepareForCard with the correct zone. Calling it here would overwrite
+            // the correct zone with the default (Hand).
         }
 
         /// <summary>
@@ -136,6 +132,23 @@ namespace MTGAAccessibility
             if (!CardDetector.IsCard(element)) return false;
 
             return _cardInfoNavigator.ActivateForCard(element);
+        }
+
+        /// <summary>
+        /// Safely gets a GameObject's name, handling destroyed Unity objects.
+        /// Unity destroyed objects are not null but throw on property access.
+        /// </summary>
+        private string GetSafeGameObjectName(UnityEngine.GameObject obj)
+        {
+            if (obj == null || !obj) return "null"; // Check both C# null and Unity destroyed
+            try
+            {
+                return obj.name;
+            }
+            catch
+            {
+                return "destroyed";
+            }
         }
 
         private void RegisterGlobalShortcuts()

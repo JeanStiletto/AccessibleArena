@@ -187,7 +187,8 @@ C:\Users\fabia\arena\
 - [x] Tab/Shift+Tab cycling - Cycles through all playable cards (hand + battlefield)
 - [x] Enter to play - Activates currently highlighted card
 - [x] Replaces default Tab behavior - No more cycling through useless UI buttons
-- [x] High priority announcements - Always announces on Tab (bypasses duplicate check for single-card case)
+- [x] High priority announcements - Always announces on Tab (bypasses duplicate check)
+- [x] Priority pass announcements - When no playable cards, announces primary button text (e.g., "Opponent's Turn", "Next") instead of generic "No playable cards"
 
 ### Discard Navigator System (Working)
 - [x] DiscardNavigator service - Handles forced discard selection
@@ -253,49 +254,94 @@ Cards announce their current state based on active UI indicators:
 - [x] PlayerPortraitNavigator service - V key enters player info zone
 - [x] State machine - Inactive, PlayerNavigation, EmoteNavigation states
 - [x] Player switching - Left/Right arrows switch between you and opponent
-- [x] Property cycling - Up/Down arrows cycle through: Life, Timer, Timeouts, Games Won
+- [x] Property cycling - Up/Down arrows cycle through: Life, Timer, Timeouts, Games Won, Rank
 - [x] Life includes username - "Username, X life" format
+- [x] Life totals from game state - Uses GameManager.CurrentGameState for accurate values
 - [x] Emote navigation entry - Enter on your portrait opens emote wheel
-- [x] Emote wheel discovery - Finds PhraseTransformPosition buttons
-- [x] Exit handling - Escape or Tab exits the zone
+- [x] Emote wheel discovery - Finds PhraseTransformPosition buttons (filters NavArrow buttons)
+- [x] Exit handling - Backspace exits the zone
 - [x] **Enter key blocking - WORKING** (January 2026)
   - KeyboardManagerPatch blocks Enter entirely in DuelScene
   - Game never sees Enter, so "Pass until response" never triggers
   - Our navigators handle all Enter presses
+- [x] **Input priority fix** (January 2026)
+  - PortraitNavigator now runs BEFORE BattlefieldNavigator
+  - Arrow keys work correctly when in player info zone
+- [x] **Focus-based zone management** (January 2026)
+  - Player zone now manages EventSystem focus like other zones
+  - On entry: stores previous focus, sets focus to HoverArea
+  - On exit: restores previous focus
+  - Auto-exits when focus moves to non-player-zone element
 
 **Player Info Zone Shortcuts:**
 - V: Enter player info zone (starts on your info)
 - Left/Right: Switch between you and opponent (preserves property index)
-- Up/Down: Cycle properties (Life, Timer, Timeouts, Games Won)
+- Up/Down: Cycle properties (Life, Timer, Timeouts, Games Won, Rank)
 - Enter: Open emote wheel (your portrait only)
-- Escape: Exit zone
-- Tab: Exit zone and let HighlightNavigator handle Tab
+- Backspace: Exit zone (restores previous focus)
+
+**Confirmed Working (January 2026):**
+- Life totals display correctly (not assumptions, reads from game state)
+- Arrow navigation works (Left/Right to switch players, Up/Down for properties)
+- Blocking Enter solves auto-skip problem
+- Focus management prevents key consumption when not in zone
 
 **Files:**
-- `src/Core/Services/PlayerPortraitNavigator.cs` - Main navigator
+- `src/Core/Services/PlayerPortraitNavigator.cs` - Main navigator with focus management
 - `src/Core/Services/InputManager.cs` - Key consumption infrastructure
 - `src/Patches/KeyboardManagerPatch.cs` - Harmony patch for game's KeyboardManager
 
-### Browser Navigator System (In Progress)
+### Browser Navigator System (Partially Working)
 - [x] BrowserNavigator service - Unified handler for browser-style UIs
 - [x] Browser scaffold detection - Finds `BrowserScaffold_*` GameObjects (Scry, Surveil, etc.)
 - [x] Card holder detection - `BrowserCardHolder_Default` (keep) and `BrowserCardHolder_ViewDismiss` (dismiss)
 - [x] Tab navigation - Cycles through cards in browser
-- [x] Card state announcements - "keep on top" or "put on bottom" based on holder
+- [x] Card state announcements - "keep on top" or "put on bottom" based on holder (only when buttons present)
 - [x] Integration with DuelNavigator - BrowserNavigator.Update() and HandleInput() called
 - [x] Integration with DuelAnnouncer - `MultistepEffectStartedUXEvent` triggers browser entry announcement
+- [x] Space to confirm - Clicks `PromptButton_Primary` (Keep, Done, etc.)
+- [~] Mulligan browser - Partially working (see details below)
 - [ ] Enter to toggle position - API discovery in progress (card doesn't move between holders yet)
-- [ ] Space to confirm - Clicks primary button to submit choice
 - [ ] Surveil testing - Same UI pattern as scry, needs verification
-- [ ] Mulligan browser - Different structure, needs implementation
 
 **Browser Types Supported:**
 - Scry - View top card(s), choose keep on top or put on bottom
 - Surveil - Similar to scry, dismissed cards go to graveyard
-- (Future) Mulligan, OrderCards, SelectCards, AssignDamage, etc.
+- Mulligan/Opening Hand - View starting hand, keep or mulligan (partially working)
+
+**Mulligan Implementation Status (January 2026):**
+
+Mulligan has two distinct UI flows depending on play/draw:
+
+1. **On the draw (opponent starts first):**
+   - `BrowserScaffold_OpeningHand` appears for opponent's hand view
+   - `BrowserScaffold_Mulligan` with `KeepButton`/`MulliganButton` for your decision
+   - Detection via `IsMulliganBrowserVisible()` checks for these buttons
+
+2. **On the play (you start first):**
+   - No scaffold detected, falls back to `CardBrowserCardHolder`
+   - Uses `PromptButton_Primary`/`PromptButton_Secondary` for actions
+   - Cards found but shown differently
+
+**Mulligan Phases:**
+- Phase 1: View 7 cards, decide Keep or Mulligan
+- Phase 2: Wait for opponent's decision
+- Phase 3 (London Mulligan): If mulliganed, select card(s) to put on bottom (1 per mulligan taken)
+
+**What Works:**
+- Tab cycles through opening hand cards
+- Cards announced without "keep on top" (viewing mode, no selection state)
+- Space clicks PromptButton_Primary (announces button label like "Keep" or "Opponent's Turn")
+- Browser exits properly when mulligan buttons disappear
+
+**Known Issues/Bugs:**
+- Some unspecified bugs reported during mulligan testing (need reproduction steps)
+- Card count varies (sometimes 1 card, sometimes 6-7) depending on phase
+- Button text varies based on game state ("Keep", "Opponent's Turn", "Done")
+- Phase 3 (putting cards back after mulligan) needs more testing
 
 **Current State:**
-Browser detection and card navigation work. Toggle mechanism (Enter key) is under investigation - the game's CardBrowserCardHolder API needs to be discovered to properly move cards between holders.
+Mulligan is partially working. Tab navigation and Space confirmation work. Some bugs remain that need specific reproduction steps to investigate.
 
 ## Known Issues
 
@@ -818,3 +864,107 @@ Unified navigator for browser-style UIs that appear during library manipulation 
 - `src/Core/Services/DuelNavigator.cs` - Integration with BrowserNavigator
 - `src/Core/Services/DuelAnnouncer.cs` - MultistepEffectStartedUXEvent handling, IsLibraryBrowserActive flag
 - `src/Core/Models/Strings.cs` - Added browser-related strings
+
+### January 2026 - Mulligan Browser and Player Info Zone Fixes
+
+**Mulligan/Opening Hand Browser:**
+
+1. **Different UI flows discovered:**
+   - On the draw: `BrowserScaffold_Mulligan` with `KeepButton`/`MulliganButton`
+   - On the play: Falls back to `CardBrowserCardHolder` with `PromptButton_Primary`/`Secondary`
+
+2. **Fixes implemented:**
+   - `IsMulliganBrowserVisible()` - Checks for mulligan buttons to detect active mulligan UI
+   - Browser type change detection - Re-enters browser when scaffold type changes
+   - `GetCardSelectionState()` - Returns null for Mulligan/OpeningHand browsers (no "keep on top" in viewing mode)
+   - `GetCardSelectionState()` - Returns null when no buttons present (viewing mode vs scry mode)
+   - `PromptButton_Primary`/`Secondary` fallback - Found when no other buttons detected
+   - `ClickConfirmButton()` - Now finds `PromptButton_Primary_Desktop_16x9(Clone)` by prefix match
+   - `RefreshBrowserButtons()` - Recovers when buttons are destroyed during UI updates
+   - Scaffold discovery logging - Logs components/properties to find better APIs
+
+3. **NullReferenceException fix:**
+   - Added null check in `AnnounceCurrentButton()` for destroyed buttons
+
+**Player Info Zone (V Key):**
+
+1. **Input priority fix:**
+   - Moved `PortraitNavigator.HandleInput()` BEFORE `BattlefieldNavigator.HandleInput()`
+   - Arrow keys now work correctly when in player info zone
+
+2. **Confirmed working:**
+   - Life totals display correctly from `GameManager.CurrentGameState`
+   - Enter key blocking solves auto-skip problem
+   - Left/Right arrows switch between players
+   - Up/Down arrows cycle properties
+
+**Files Changed:**
+- `src/Core/Services/BrowserNavigator.cs` - Mulligan detection, button fallbacks, null safety
+- `src/Core/Services/DuelNavigator.cs` - Input priority reordering
+- `src/Core/Models/Strings.cs` - Added `NoButtonsAvailable` string
+
+### January 2026 - Focus Management Overhaul (Zone Navigation Consistency)
+
+**Problem:** Player info zone (V key) was consuming keys even when focus had moved to other
+elements (cards, buttons). This caused left/right arrows to stay "stuck" in player zone,
+card info to display wrong zone context (Hand instead of Battlefield), and generally
+inconsistent behavior compared to other zones.
+
+**Root Cause:** Player info zone was a "virtual" overlay that didn't manage EventSystem focus.
+Other navigators (ZoneNavigator, BattlefieldNavigator, HighlightNavigator) also didn't set
+EventSystem focus when navigating to cards. This meant:
+1. Player zone state persisted even when game focus moved elsewhere
+2. Zone context for card info was lost when HandleFocusChanged overwrote it
+3. No consistent focus chain for detecting when user left a zone
+
+**Solution - Unified Focus Management:**
+
+All navigators now manage EventSystem focus consistently:
+
+1. **Player Zone Focus Management** (`PlayerPortraitNavigator.cs`)
+   - `EnterPlayerInfoZone()` stores previous focus and sets focus to HoverArea
+   - `ExitPlayerInfoZone()` restores the stored previous focus
+   - `HandlePlayerNavigation()` checks if focus has moved away before processing keys
+   - `OnFocusChanged()` auto-exits zone when focus moves to non-player element
+   - `IsPlayerZoneElement()` helper identifies player zone UI elements
+
+2. **Card Navigator Focus Management** (`ZoneNavigator.cs`, `BattlefieldNavigator.cs`, `HighlightNavigator.cs`)
+   - All `AnnounceCurrentCard()` methods now call `EventSystem.SetSelectedGameObject(card)`
+   - This triggers `OnFocusChanged` event, allowing other navigators to detect focus changes
+   - Zone context is preserved because navigators call `PrepareForCard(card, zone)` BEFORE focus change
+
+3. **HandleFocusChanged Cleanup** (`MTGAAccessibilityMod.cs`)
+   - Removed `PrepareForCard()` call that was overwriting zone context
+   - Navigators now handle card preparation with correct zone context
+   - Added `GetSafeGameObjectName()` helper for Unity destroyed object safety
+   - Added Unity destroyed object checks (`&& object`) throughout
+
+4. **Emote Button Filtering** (`PlayerPortraitNavigator.cs`)
+   - `SearchForEmoteButtons()` now skips NavArrow buttons and utility buttons
+   - Only actual emote buttons (with emote text) are added to navigation list
+
+5. **Combat Button Filtering** (`CombatNavigator.cs`)
+   - Added `IsInEmotePanel()` helper to detect emote panel buttons
+   - `LogBlockerPhaseButtons()` excludes emote panel buttons from debug output
+
+**How It Works Now:**
+
+The player info zone now behaves like card zones:
+1. Press V → focus moves to HoverArea, previous focus stored
+2. Navigate with arrows → virtual navigation within zone, focus stays on HoverArea
+3. Press Backspace → focus restored to previous element, zone exited
+4. Press C/G/B/Tab → other navigator sets focus to card, OnFocusChanged fires
+5. Player zone detects non-player focus → auto-exits, keys go to other handlers
+
+**Key Insight:** Focus changes are detected in two ways:
+1. `OnFocusChanged` event (next frame) - for most focus changes
+2. Direct focus check in `HandlePlayerNavigation()` (same frame) - catches Tab/key presses that change focus during input handling
+
+**Files Changed:**
+- `src/Core/Services/PlayerPortraitNavigator.cs` - Focus management, emote filtering
+- `src/Core/Services/ZoneNavigator.cs` - EventSystem focus on card navigation
+- `src/Core/Services/BattlefieldNavigator.cs` - EventSystem focus on card navigation
+- `src/Core/Services/HighlightNavigator.cs` - EventSystem focus on card navigation
+- `src/Core/Services/CombatNavigator.cs` - Emote panel button filtering
+- `src/Core/Services/DuelNavigator.cs` - Exposed PortraitNavigator property
+- `src/MTGAAccessibilityMod.cs` - Removed PrepareForCard override, added safe name helper
