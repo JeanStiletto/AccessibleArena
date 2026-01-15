@@ -359,25 +359,28 @@ When both systems read from the same physical keyboard:
 - Game's KeyboardManager also reads Return → triggers game action (e.g., "Pass until response")
 - Both happen in the same frame - no way to "consume" the key in Legacy Input
 
-**Current Solution - Harmony Patch Approach:**
-1. `InputManager.ConsumeKey(KeyCode)` marks a key as consumed for this frame
-2. `KeyboardManagerPatch` intercepts `MTGA.KeyboardManager.KeyboardManager.PublishKeyDown`
-3. If key is consumed, patch returns false to skip game's handler
+**Solution - Scene-Based Key Blocking (January 2026):**
+
+Instead of complex per-context key consumption, we use a simpler approach:
+
+1. `KeyboardManagerPatch` intercepts `MTGA.KeyboardManager.KeyboardManager.PublishKeyDown`
+2. **In DuelScene: Block Enter entirely** - Our mod handles ALL Enter presses
+3. **Other scenes: Per-key consumption** via `InputManager.ConsumeKey()` if needed
+
+This solves multiple problems at once:
+- **Auto-skip prevention**: Game can't trigger "Pass until response" because it never sees Enter
+- **Player info zone**: Enter opens emote wheel instead of passing priority
+- **Card playing**: Our navigators handle Enter, game doesn't interfere
 
 **Files:**
-- `InputManager.cs` - `ConsumeKey()`, `IsKeyConsumed()`, `GetEnterAndConsume()`
-- `Patches/KeyboardManagerPatch.cs` - Harmony prefix patch
+- `Patches/KeyboardManagerPatch.cs` - Harmony prefix patch with scene detection
+- `InputManager.cs` - `ConsumeKey()`, `IsKeyConsumed()` for other keys/scenes
 
-**Current Status (January 2026):**
-- Infrastructure is in place but Enter key consumption not fully working
-- Issue: Input handler priority - HighlightNavigator may process Enter before PlayerPortraitNavigator
-- Future: Consider full migration to InputSystem for consistent key handling
-
-**Migration Considerations:**
-If migrating all mod input to InputSystem:
-- Pros: Proper key consumption, consistent with game, no timing issues
-- Cons: Larger refactor, need to intercept game's InputActions
-- The game uses `Core.Code.Input.Generated.MTGAInput` with actions like `m_CustomInput_Accept`
+**Why NOT migrate to InputSystem:**
+- Current approach is simpler and works well
+- Full migration would require touching 16+ files
+- Mod-only elements (player info zone) can't benefit from InputSystem anyway
+- Risk of breaking existing working functionality
 
 ### Game's Built-in Keybinds (DO NOT OVERRIDE)
 - Arrow keys: Navigation

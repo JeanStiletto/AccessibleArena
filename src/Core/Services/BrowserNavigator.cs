@@ -534,8 +534,39 @@ namespace MTGAAccessibility.Core.Services
             if (_activeBrowser == null || _browserGameObject == null) return;
 
             // For scaffold-based browsers, search for BrowserCardHolder_Default
-            if (_activeBrowser is BrowserScaffoldInfo)
+            if (_activeBrowser is BrowserScaffoldInfo scaffoldInfo)
             {
+                // EXPERIMENTAL (January 2026): OpeningHand/mulligan browser card discovery
+                // For OpeningHand browser, also look in hand zone and browser scaffold children
+                // This needs more testing - cards may be in a different location than expected
+                bool isOpeningHand = scaffoldInfo.BrowserType == "OpeningHand";
+
+                if (isOpeningHand)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] EXPERIMENTAL: OpeningHand browser - searching in scaffold children and hand zone");
+
+                    // First, search within the browser scaffold itself for card containers
+                    SearchForCardsInContainer(_browserGameObject, "Scaffold");
+
+                    // Also search for any CardHolder or Hand containers
+                    foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                    {
+                        if (go == null || !go.activeInHierarchy) continue;
+
+                        // Look in LocalHand zone
+                        if (go.name.Contains("LocalHand"))
+                        {
+                            SearchForCardsInContainer(go, "LocalHand");
+                        }
+                        // Look for any card-related containers
+                        else if (go.name.Contains("CardHolder") || go.name.Contains("CardContainer") ||
+                                 go.name.Contains("CardSlot") || go.name.Contains("BrowserContent"))
+                        {
+                            SearchForCardsInContainer(go, go.name);
+                        }
+                    }
+                }
+
                 // Find BrowserCardHolder_Default which contains the scry card(s)
                 // Only use Default holder - ViewDismiss shows same card in different position
                 foreach (var go in GameObject.FindObjectsOfType<GameObject>())
@@ -676,6 +707,55 @@ namespace MTGAAccessibility.Core.Services
                     _browserButtons.Add(child.gameObject);
                     MelonLogger.Msg($"[BrowserNavigator] Found button: {name}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// EXPERIMENTAL: Searches for cards in a container and adds them to the browser cards list.
+        /// Added for OpeningHand/mulligan support - needs testing.
+        /// </summary>
+        private void SearchForCardsInContainer(GameObject container, string containerName)
+        {
+            int foundCount = 0;
+            foreach (Transform child in container.GetComponentsInChildren<Transform>(true))
+            {
+                if (!child.gameObject.activeInHierarchy) continue;
+                if (CardDetector.IsCard(child.gameObject))
+                {
+                    string cardName = CardDetector.GetCardName(child.gameObject);
+
+                    // Filter out unknown/invalid cards
+                    if (string.IsNullOrEmpty(cardName) ||
+                        cardName.Contains("Unknown") ||
+                        cardName.Contains("unknown"))
+                    {
+                        continue;
+                    }
+
+                    // Check for duplicates
+                    bool isDuplicate = false;
+                    foreach (var existingCard in _browserCards)
+                    {
+                        string existingName = CardDetector.GetCardName(existingCard);
+                        if (existingName == cardName)
+                        {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+
+                    if (!isDuplicate)
+                    {
+                        _browserCards.Add(child.gameObject);
+                        foundCount++;
+                        MelonLogger.Msg($"[BrowserNavigator] Found card in {containerName}: {child.name} -> {cardName}");
+                    }
+                }
+            }
+
+            if (foundCount > 0)
+            {
+                MelonLogger.Msg($"[BrowserNavigator] Container {containerName} had {foundCount} cards");
             }
         }
 
@@ -1306,6 +1386,13 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private void ClickConfirmButton()
         {
+            MelonLogger.Msg($"[BrowserNavigator] ClickConfirmButton called. Buttons count: {_browserButtons.Count}");
+            foreach (var b in _browserButtons)
+            {
+                var label = UITextExtractor.GetButtonText(b, b.name);
+                MelonLogger.Msg($"[BrowserNavigator]   Available button: {b.name} -> '{label}'");
+            }
+
             var confirmPatterns = new[] { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary" };
 
             foreach (var button in _browserButtons)
@@ -1315,7 +1402,8 @@ namespace MTGAAccessibility.Core.Services
                 {
                     if (name.Contains(pattern.ToLower()))
                     {
-                        MelonLogger.Msg($"[BrowserNavigator] Clicking confirm: {button.name}");
+                        var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
+                        MelonLogger.Msg($"[BrowserNavigator] Clicking confirm: {button.name} ('{buttonLabel}')");
                         var result = UIActivator.SimulatePointerClick(button);
                         if (result.Success)
                         {

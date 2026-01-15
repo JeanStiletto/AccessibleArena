@@ -249,7 +249,7 @@ Cards announce their current state based on active UI indicators:
 - Tracking uses `HashSet<int>` of instance IDs to detect changes efficiently
 - Resets tracking when entering/exiting blockers phase
 
-### Player Portrait Navigator System (In Progress)
+### Player Portrait Navigator System (Working)
 - [x] PlayerPortraitNavigator service - V key enters player info zone
 - [x] State machine - Inactive, PlayerNavigation, EmoteNavigation states
 - [x] Player switching - Left/Right arrows switch between you and opponent
@@ -258,11 +258,10 @@ Cards announce their current state based on active UI indicators:
 - [x] Emote navigation entry - Enter on your portrait opens emote wheel
 - [x] Emote wheel discovery - Finds PhraseTransformPosition buttons
 - [x] Exit handling - Escape or Tab exits the zone
-- [~] **Enter key blocking - PARTIALLY WORKING** (January 2026)
-  - InputManager.GetEnterAndConsume() marks key as consumed
-  - KeyboardManagerPatch attempts to block game's KeyboardManager
-  - Issue: HighlightNavigator may handle Enter before consumption happens
-  - Game's "Pass until response" still triggers in some cases
+- [x] **Enter key blocking - WORKING** (January 2026)
+  - KeyboardManagerPatch blocks Enter entirely in DuelScene
+  - Game never sees Enter, so "Pass until response" never triggers
+  - Our navigators handle all Enter presses
 
 **Player Info Zone Shortcuts:**
 - V: Enter player info zone (starts on your info)
@@ -385,36 +384,37 @@ New navigation zone for accessing player information during duels:
 - Enter opens emote wheel (your portrait only)
 - Escape or Tab exits the zone
 
-**Input System Investigation:**
+**Input System - Scene-Based Key Blocking:**
 
-Discovered MTGA uses two parallel input systems:
-
+MTGA uses two parallel input systems:
 1. **Legacy Input** (`UnityEngine.Input`) - Simple polling, used by our mod
 2. **New InputSystem** (`Unity.InputSystem`) - Event-driven, used by game via KeyboardManager
 
 **The Problem:**
-When mod handles Enter (e.g., in player info zone), the game's KeyboardManager also sees it and triggers "Pass until response" - causing unintended turn passes.
+When mod handles Enter, the game's KeyboardManager also sees it and triggers "Pass until response" - causing unintended turn passes and auto-skip issues.
 
-**Attempted Solution:**
-1. Added `InputManager.ConsumeKey()` to mark keys as "consumed" for the current frame
-2. Created `KeyboardManagerPatch.cs` - Harmony patch on `MTGA.KeyboardManager.KeyboardManager.PublishKeyDown`
-3. Patch checks `IsKeyConsumed()` and returns false to skip game's handler
+**Solution - Block Enter in DuelScene:**
+Instead of complex per-context key consumption, we use a simpler approach:
+- `KeyboardManagerPatch` blocks Enter ENTIRELY when in DuelScene
+- Our mod handles ALL Enter presses (card playing, targets, player info, etc.)
+- Game never sees Enter, so "Pass until response" never triggers
 
-**Current Status:**
-- Infrastructure is in place (InputManager consumption + Harmony patch)
-- Issue: Input handler priority - HighlightNavigator processes Enter before consumption
-- The input chain order in DuelNavigator determines who handles keys first
-- When player info zone is active, its Enter handler must run before HighlightNavigator
+This solves multiple problems at once:
+- Auto-skip prevention (game can't pass without us knowing)
+- Player info zone works correctly (Enter opens emotes, not pass priority)
+- Card playing works correctly (no double-handling)
+
+**Why NOT full InputSystem migration:**
+- Current approach is simpler and works well
+- Would require touching 16+ files
+- Mod-only elements (player info zone) can't benefit from InputSystem
+- Risk of breaking existing functionality
 
 **Files Added/Changed:**
-- `src/Core/Services/PlayerPortraitNavigator.cs` - NEW: Player info zone navigation
-- `src/Core/Services/InputManager.cs` - Extended with static consumption tracking
-- `src/Patches/KeyboardManagerPatch.cs` - NEW: Harmony patch for KeyboardManager
-- `src/Core/Services/DuelNavigator.cs` - Input handler ordering adjustments
+- `src/Core/Services/PlayerPortraitNavigator.cs` - Player info zone navigation
+- `src/Patches/KeyboardManagerPatch.cs` - Harmony patch with scene-based blocking
+- `src/Core/Services/InputManager.cs` - Per-key consumption for other scenes
 - `src/MTGAAccessibility.csproj` - Added Unity.InputSystem.dll reference
-
-**Future Consideration:**
-Full migration to InputSystem would provide proper key consumption but requires significant refactoring. The game's input actions are in `Core.Code.Input.Generated.MTGAInput`.
 
 ### January 2026 - Model-Based Card Info Extraction (CardDetector Refactor)
 
