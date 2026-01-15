@@ -242,6 +242,7 @@ namespace MTGAAccessibility.Core.Services
             if (cardRoot == null) cardRoot = cardObj;
 
             var texts = cardRoot.GetComponentsInChildren<TMPro.TMP_Text>(true);
+            string fallbackName = null; // For reward cards without "Title" element
 
             foreach (var text in texts)
             {
@@ -294,7 +295,25 @@ namespace MTGAAccessibility.Core.Services
                                 info.RulesText += " " + content;
                         }
                         break;
+
+                    default:
+                        // Fallback for reward cards: capture first meaningful text that looks like a card name
+                        // Skip numeric indicators like "+99", "x4", etc.
+                        if (fallbackName == null && content.Length > 2 &&
+                            !Regex.IsMatch(content, @"^[\+\-]?\d+$") &&  // Skip "+99", "99", "-5"
+                            !Regex.IsMatch(content, @"^x\d+$", RegexOptions.IgnoreCase) &&  // Skip "x4"
+                            !Regex.IsMatch(content, @"^\d+/\d+$"))  // Skip "2/3" (P/T)
+                        {
+                            fallbackName = content;
+                        }
+                        break;
                 }
+            }
+
+            // Use fallback name for reward cards if no Title was found
+            if (string.IsNullOrEmpty(info.Name) && !string.IsNullOrEmpty(fallbackName))
+            {
+                info.Name = fallbackName;
             }
 
             info.IsValid = !string.IsNullOrEmpty(info.Name);

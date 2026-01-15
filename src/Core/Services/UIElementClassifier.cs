@@ -113,7 +113,9 @@ namespace MTGAAccessibility.Core.Services
             if (CardDetector.IsCard(obj))
             {
                 result.Role = ElementRole.Card;
-                result.Label = text;
+                // Use CardDetector for proper card name extraction
+                // This handles reward cards where "+99" indicator might be first text found
+                result.Label = CardDetector.GetCardName(obj);
                 result.RoleLabel = "card";
                 result.IsNavigable = true;
                 result.ShouldAnnounce = true;
@@ -291,6 +293,15 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Check if element has MTGA's MainButton component (used for main action buttons like Play, Submit Deck)
+        /// </summary>
+        public static bool HasMainButtonComponent(GameObject obj)
+        {
+            var components = obj.GetComponents<MonoBehaviour>();
+            return components.Any(c => c != null && c.GetType().Name == "MainButton");
+        }
+
+        /// <summary>
         /// Check if CustomButton is interactable using game's internal property
         /// </summary>
         public static bool IsCustomButtonInteractable(GameObject obj)
@@ -351,7 +362,12 @@ namespace MTGAAccessibility.Core.Services
                     if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup alpha={canvasGroup.alpha}");
                     return false;
                 }
-                if (!canvasGroup.interactable)
+                // For interactable check, skip if this is a MainButton (action buttons like Submit Deck)
+                // These may have interactable=false temporarily but should still be visible for accessibility
+                // Also skip for elements with meaningful text content (not just icon buttons)
+                bool isMainButton = HasMainButtonComponent(obj);
+                bool hasMeaningfulContent = UITextExtractor.HasActualText(obj);
+                if (!canvasGroup.interactable && !isMainButton && !hasMeaningfulContent)
                 {
                     if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup interactable=false");
                     return false;
@@ -429,8 +445,15 @@ namespace MTGAAccessibility.Core.Services
         private static bool IsHiddenByGameProperties(GameObject obj)
         {
             // Check if CustomButton says it's not interactable or hidden
+            // But allow MainButton elements (like Submit Deck) and elements with actual text through
+            // They may be temporarily disabled but should still show for accessibility
             if (HasCustomButton(obj) && !IsCustomButtonInteractable(obj))
-                return true;
+            {
+                bool isMainButton = HasMainButtonComponent(obj);
+                bool hasMeaningfulContent = UITextExtractor.HasActualText(obj);
+                if (!isMainButton && !hasMeaningfulContent)
+                    return true;
+            }
 
             // Check if CanvasGroup says it's invisible or non-interactable
             if (!IsVisibleViaCanvasGroup(obj))

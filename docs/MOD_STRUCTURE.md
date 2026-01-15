@@ -969,6 +969,63 @@ The player info zone now behaves like card zones:
 - `src/Core/Services/DuelNavigator.cs` - Exposed PortraitNavigator property
 - `src/MTGAAccessibilityMod.cs` - Removed PrepareForCard override, added safe name helper
 
+### January 2026 - Menu Accessibility: Deck Selection & Rewards Screens (Partially Working)
+
+**Problem 1: Deck selection screen missing Submit Deck and View Deck buttons**
+
+When entering deck selection (e.g., Sparky's Challenge), the mod found deck entries but not
+the action buttons. OCR showed "Submit Deck" but mod didn't include it in navigation.
+
+**Root Cause:** Buttons with `CanvasGroup` or `CustomButton.Interactable = false` were filtered
+out. These buttons are temporarily disabled until a deck is selected, but should still be
+visible for accessibility.
+
+**Solution:**
+- `IsHiddenByGameProperties()` now allows elements with `MainButton` component or actual text
+  through even if `CustomButton.Interactable = false`
+- `IsVisibleViaCanvasGroup()` applies same exception for CanvasGroup filtering
+- Added `HasMainButtonComponent()` helper to detect MTGA's MainButton components
+
+**Problem 2: Reward cards showing as "+99" instead of card names**
+
+When claiming rewards, some cards were announced as "+99" (duplicate indicator) instead of
+their actual names like "Impassioned Orator".
+
+**Root Cause:** `UITextExtractor.GetText()` uses `GetComponentInChildren<TMP_Text>()` which
+returns the FIRST text found. For reward cards, the "+99" indicator came before the card name.
+
+**Solution:**
+- `UIElementClassifier.Classify()` now uses `CardDetector.GetCardName()` for card elements
+  instead of generic text extraction
+- `CardDetector.ExtractCardInfoFromUI()` now has fallback for reward cards: if no "Title"
+  element is found, captures first meaningful text that's NOT a numeric indicator
+- Skips patterns like "+99", "x4", "2/3" (P/T) when looking for fallback card name
+
+**Problem 3: No announcement when rewards/claim screen opens**
+
+The rewards overlay (`ContentController - Rewards_Desktop_16x9(Clone)`) didn't trigger panel
+state detection, so users didn't know when a claim screen was active.
+
+**Solution:**
+- Added fallback detection in `DetectActiveContentController()` for rewards overlay by
+  looking for the object by name pattern
+- Added display name mapping: "RewardsOverlay" → "Rewards"
+
+**New Content Controllers Added:**
+- `ConstructedDeckSelectController` → "Deck Selection"
+- `EventPageContentController` → "Event"
+- `RewardsOverlay` → "Rewards" (virtual name for overlay detection)
+
+**Status: PARTIALLY WORKING**
+- Deck selection screen now shows Submit Deck and View Deck buttons (needs testing)
+- Card name extraction for rewards improved (needs testing with various reward types)
+- Rewards screen detection added (needs testing)
+
+**Files Changed:**
+- `src/Core/Services/UIElementClassifier.cs` - MainButton/text exceptions for filtering, CardDetector for cards
+- `src/Core/Services/CardDetector.cs` - Fallback card name extraction for reward cards
+- `src/Core/Services/GeneralMenuNavigator.cs` - New content controllers, rewards overlay detection
+
 ### January 2026 - Victory Screen & Targeting Mode Fixes
 
 **Problem 1: Victory screen (MatchEndScene) cluttered with useless elements**

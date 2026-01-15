@@ -50,7 +50,9 @@ namespace MTGAAccessibility.Core.Services
             "LearnToPlayControllerV2",
             "PackOpeningController",
             "CampaignGraphContentController",
-            "WrapperDeckBuilder"
+            "WrapperDeckBuilder",
+            "ConstructedDeckSelectController",
+            "EventPageContentController"
         };
 
         // Settings submenu panel names
@@ -1662,6 +1664,15 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // Fallback: Check for rewards/claim overlay by object name pattern
+            // These popups use a different structure than type-based controllers
+            var rewardsObj = GameObject.Find("ContentController - Rewards_Desktop_16x9(Clone)");
+            if (rewardsObj != null && rewardsObj.activeInHierarchy)
+            {
+                _activeControllerGameObject = rewardsObj;
+                return "RewardsOverlay"; // Virtual controller name for display mapping
+            }
+
             _activeControllerGameObject = null;
             return null;
         }
@@ -1768,6 +1779,9 @@ namespace MTGAAccessibility.Core.Services
                 "PackOpeningController" => "Pack Opening",
                 "CampaignGraphContentController" => "Color Challenge",
                 "WrapperDeckBuilder" => "Deck Builder",
+                "ConstructedDeckSelectController" => "Deck Selection",
+                "EventPageContentController" => "Event",
+                "RewardsOverlay" => "Rewards",
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
             };
         }
