@@ -40,6 +40,7 @@ C:\Users\fabia\arena\
         DiscardNavigator.cs      - Discard selection when forced to discard
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
         BrowserNavigator.cs      - Library manipulation browsers (scry, surveil, mulligan)
+        PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
 
         # Navigator Infrastructure
         BaseNavigator.cs         - Abstract base for screen navigators
@@ -66,6 +67,7 @@ C:\Users\fabia\arena\
     Patches\
       UXEventQueuePatch.cs       - Harmony patch for duel game event interception
       PanelStatePatch.cs         - Harmony patch for menu panel state changes (partial success)
+      KeyboardManagerPatch.cs    - Harmony patch to block consumed keys from game
 
   libs\                          - Reference assemblies and Tolk DLLs
   docs\                          - Documentation
@@ -247,6 +249,34 @@ Cards announce their current state based on active UI indicators:
 - Tracking uses `HashSet<int>` of instance IDs to detect changes efficiently
 - Resets tracking when entering/exiting blockers phase
 
+### Player Portrait Navigator System (In Progress)
+- [x] PlayerPortraitNavigator service - V key enters player info zone
+- [x] State machine - Inactive, PlayerNavigation, EmoteNavigation states
+- [x] Player switching - Left/Right arrows switch between you and opponent
+- [x] Property cycling - Up/Down arrows cycle through: Life, Timer, Timeouts, Games Won
+- [x] Life includes username - "Username, X life" format
+- [x] Emote navigation entry - Enter on your portrait opens emote wheel
+- [x] Emote wheel discovery - Finds PhraseTransformPosition buttons
+- [x] Exit handling - Escape or Tab exits the zone
+- [~] **Enter key blocking - PARTIALLY WORKING** (January 2026)
+  - InputManager.GetEnterAndConsume() marks key as consumed
+  - KeyboardManagerPatch attempts to block game's KeyboardManager
+  - Issue: HighlightNavigator may handle Enter before consumption happens
+  - Game's "Pass until response" still triggers in some cases
+
+**Player Info Zone Shortcuts:**
+- V: Enter player info zone (starts on your info)
+- Left/Right: Switch between you and opponent (preserves property index)
+- Up/Down: Cycle properties (Life, Timer, Timeouts, Games Won)
+- Enter: Open emote wheel (your portrait only)
+- Escape: Exit zone
+- Tab: Exit zone and let HighlightNavigator handle Tab
+
+**Files:**
+- `src/Core/Services/PlayerPortraitNavigator.cs` - Main navigator
+- `src/Core/Services/InputManager.cs` - Key consumption infrastructure
+- `src/Patches/KeyboardManagerPatch.cs` - Harmony patch for game's KeyboardManager
+
 ### Browser Navigator System (In Progress)
 - [x] BrowserNavigator service - Unified handler for browser-style UIs
 - [x] Browser scaffold detection - Finds `BrowserScaffold_*` GameObjects (Scry, Surveil, etc.)
@@ -343,6 +373,48 @@ Patched controllers: NavContentController, SettingsMenu, DeckSelectBlade
 See `docs/BEST_PRACTICES.md` "Panel State Detection (Harmony Patches)" section for full technical details.
 
 ## Recent Changes
+
+### January 2026 - Player Info Zone and Input System Investigation
+
+**Player Info Zone (V Key):**
+
+New navigation zone for accessing player information during duels:
+- V key enters the zone, starting on your info
+- Left/Right switches between you and opponent
+- Up/Down cycles through properties: Life (with username), Timer, Timeouts, Games Won
+- Enter opens emote wheel (your portrait only)
+- Escape or Tab exits the zone
+
+**Input System Investigation:**
+
+Discovered MTGA uses two parallel input systems:
+
+1. **Legacy Input** (`UnityEngine.Input`) - Simple polling, used by our mod
+2. **New InputSystem** (`Unity.InputSystem`) - Event-driven, used by game via KeyboardManager
+
+**The Problem:**
+When mod handles Enter (e.g., in player info zone), the game's KeyboardManager also sees it and triggers "Pass until response" - causing unintended turn passes.
+
+**Attempted Solution:**
+1. Added `InputManager.ConsumeKey()` to mark keys as "consumed" for the current frame
+2. Created `KeyboardManagerPatch.cs` - Harmony patch on `MTGA.KeyboardManager.KeyboardManager.PublishKeyDown`
+3. Patch checks `IsKeyConsumed()` and returns false to skip game's handler
+
+**Current Status:**
+- Infrastructure is in place (InputManager consumption + Harmony patch)
+- Issue: Input handler priority - HighlightNavigator processes Enter before consumption
+- The input chain order in DuelNavigator determines who handles keys first
+- When player info zone is active, its Enter handler must run before HighlightNavigator
+
+**Files Added/Changed:**
+- `src/Core/Services/PlayerPortraitNavigator.cs` - NEW: Player info zone navigation
+- `src/Core/Services/InputManager.cs` - Extended with static consumption tracking
+- `src/Patches/KeyboardManagerPatch.cs` - NEW: Harmony patch for KeyboardManager
+- `src/Core/Services/DuelNavigator.cs` - Input handler ordering adjustments
+- `src/MTGAAccessibility.csproj` - Added Unity.InputSystem.dll reference
+
+**Future Consideration:**
+Full migration to InputSystem would provide proper key consumption but requires significant refactoring. The game's input actions are in `Core.Code.Input.Generated.MTGAInput`.
 
 ### January 2026 - Model-Based Card Info Extraction (CardDetector Refactor)
 

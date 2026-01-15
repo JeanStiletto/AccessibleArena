@@ -99,6 +99,7 @@ namespace MTGAAccessibility.Core.Models
         // ===========================================
         public const string NoPlayableCards = "No playable cards";
         public const string SpellCast = "Spell cast";
+        public const string ResolveStackFirst = "Resolve stack first. Press Space to resolve or Tab to select targets.";
 
         // ===========================================
         // DISCARD
@@ -124,6 +125,31 @@ namespace MTGAAccessibility.Core.Models
             string.IsNullOrEmpty(state)
                 ? $"{cardName}, {position} of {total}"
                 : $"{cardName}{state}, {position} of {total}";
+
+        // ===========================================
+        // PLAYER INFO ZONE
+        // ===========================================
+        public const string PlayerInfo = "Player info";
+        public const string You = "You";
+        public const string Opponent = "Opponent";
+        public const string EndOfProperties = "End of properties";
+        public const string PlayerType = "player";
+
+        // Property announcements
+        public static string Life(int amount) => $"{amount} life";
+        public const string LifeNotAvailable = "Life not available";
+        public static string Timer(string formatted) => formatted;
+        public const string TimerNotAvailable = "Timer not available";
+        public static string Timeouts(int count) => count == 1 ? "1 timeout" : $"{count} timeouts";
+        public static string GamesWon(int count) => count == 1 ? "1 game won" : $"{count} games won";
+        public const string WinsNotAvailable = "Wins not available";
+        public static string Rank(string rank) => rank;
+        public const string RankNotAvailable = "Rank not available";
+
+        // Emote menu
+        public const string Emotes = "Emotes";
+        public static string EmoteSent(string emoteName) => $"{emoteName} sent";
+        public const string EmotesNotAvailable = "Emotes not available";
 
         // ===========================================
         // BROWSER (Scry, Surveil, Mulligan, etc.)

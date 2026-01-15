@@ -187,6 +187,12 @@ namespace MTGAAccessibility
             helpText.Append("Shift plus G Graveyard. ");
             helpText.Append("Shift plus X Exile. ");
 
+            // Info shortcuts
+            helpText.Append("Info: ");
+            helpText.Append("L Life totals. ");
+            helpText.Append("T Turn and phase. ");
+            helpText.Append("V Player info zone. ");
+
             // Card navigation in zone
             helpText.Append("Cards in zone: ");
             helpText.Append("Left arrow Previous card. ");

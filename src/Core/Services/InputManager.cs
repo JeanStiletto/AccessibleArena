@@ -1,43 +1,85 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 
 namespace MTGAAccessibility.Core.Services
 {
     /// <summary>
-    /// Input manager that works alongside the game's existing KeyboardManager.
+    /// Input manager that handles keyboard input with the ability to consume/block
+    /// keys from reaching the game's KeyboardManager.
     ///
-    /// Game's built-in keybinds (DO NOT OVERRIDE):
-    /// - Arrow keys: Navigation (Up, Down, Left, Right)
-    /// - Tab / Shift+Tab: Next / Previous
-    /// - Enter / Space: Accept / Submit
-    /// - Escape: Cancel / Back
-    /// - F: Find
-    /// - Alt (hold): Alt view
-    ///
-    /// Our custom shortcuts (safe to use):
-    /// - C: Hand zone (Cards)
-    /// - B: Battlefield zone
-    /// - G: Graveyard zone
-    /// - X: Exile zone
-    /// - S: Stack zone
-    /// - T: Turn/phase info
-    /// - L: Life totals
-    /// - A: Your mana pool
-    /// - Shift+A: Opponent mana pool
-    /// - Shift+G: Opponent graveyard
-    /// - Shift+X: Opponent exile
-    /// - P: Pass priority
-    /// - F1: Help
-    /// - F2: Current context info
-    /// - Ctrl+R: Repeat last announcement
-    ///
-    /// The game uses MTGA.KeyboardManager for input handling.
-    /// We poll for our custom keys only and let the game handle navigation.
+    /// Key consumption: When the mod handles a key (e.g., Enter in player info zone),
+    /// we mark it as "consumed" so the KeyboardManagerPatch blocks it from the game.
+    /// This prevents unintended game actions like "pass priority" when pressing Enter.
     /// </summary>
     public class InputManager : IInputHandler
     {
+        // Static key consumption tracking - checked by KeyboardManagerPatch
+        private static HashSet<KeyCode> _consumedKeysThisFrame = new HashSet<KeyCode>();
+        private static int _lastConsumeFrame = -1;
+
+        /// <summary>
+        /// Marks a key as consumed this frame. The game's KeyboardManager will not
+        /// receive this key press (blocked by Harmony patch).
+        /// </summary>
+        public static void ConsumeKey(KeyCode key)
+        {
+            // Clear consumed keys if this is a new frame
+            int currentFrame = Time.frameCount;
+            if (currentFrame != _lastConsumeFrame)
+            {
+                _consumedKeysThisFrame.Clear();
+                _lastConsumeFrame = currentFrame;
+            }
+
+            _consumedKeysThisFrame.Add(key);
+            MelonLogger.Msg($"[InputManager] Consumed key: {key}");
+        }
+
+        /// <summary>
+        /// Checks if a key was consumed this frame by the mod.
+        /// Called by KeyboardManagerPatch to decide whether to block the key.
+        /// </summary>
+        public static bool IsKeyConsumed(KeyCode key)
+        {
+            // If we're on a different frame, nothing is consumed
+            if (Time.frameCount != _lastConsumeFrame)
+            {
+                return false;
+            }
+            return _consumedKeysThisFrame.Contains(key);
+        }
+
+        /// <summary>
+        /// Checks if a key is pressed AND consumes it so the game doesn't see it.
+        /// Use this instead of Input.GetKeyDown when you want to block the game.
+        /// </summary>
+        public static bool GetKeyDownAndConsume(KeyCode key)
+        {
+            if (Input.GetKeyDown(key))
+            {
+                ConsumeKey(key);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if Enter key is pressed and consumes it.
+        /// </summary>
+        public static bool GetEnterAndConsume()
+        {
+            bool pressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            if (pressed)
+            {
+                ConsumeKey(KeyCode.Return);
+                ConsumeKey(KeyCode.KeypadEnter);
+            }
+            return pressed;
+        }
+
         private readonly IShortcutRegistry _shortcuts;
         private readonly IContextManager _contextManager;
         private readonly IAnnouncementService _announcer;

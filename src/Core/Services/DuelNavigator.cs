@@ -33,6 +33,7 @@ namespace MTGAAccessibility.Core.Services
         private CombatNavigator _combatNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
         private BrowserNavigator _browserNavigator;
+        private PlayerPortraitNavigator _portraitNavigator;
         private DuelAnnouncer _duelAnnouncer;
 
         public override string NavigatorId => "Duel";
@@ -57,6 +58,7 @@ namespace MTGAAccessibility.Core.Services
             _highlightNavigator = new HighlightNavigator(announcer, _zoneNavigator);
             _discardNavigator = new DiscardNavigator(announcer, _zoneNavigator);
             _browserNavigator = new BrowserNavigator(announcer);
+            _portraitNavigator = new PlayerPortraitNavigator(announcer, _targetNavigator);
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
             _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
@@ -119,6 +121,7 @@ namespace MTGAAccessibility.Core.Services
                 _targetNavigator.ExitTargetMode();
                 _highlightNavigator.Deactivate();
                 _battlefieldNavigator.Deactivate();
+                _portraitNavigator.Deactivate();
                 _duelAnnouncer.Deactivate();
             }
 
@@ -164,6 +167,12 @@ namespace MTGAAccessibility.Core.Services
 
             // 8. Find specific duel elements by name patterns
             DiscoverDuelSpecificElements(addedObjects);
+
+            // 9. Activate portrait navigator for P key timer/portrait info
+            _portraitNavigator.Activate();
+
+            // 10. Explore player portrait elements (for accessibility development)
+            ExplorePlayerPortraits();
 
             MelonLogger.Msg($"[{NavigatorId}] === DUEL UI DISCOVERY END - Found {_elements.Count} elements ===");
         }
@@ -282,6 +291,7 @@ namespace MTGAAccessibility.Core.Services
                    $"Tab cycles playable cards. " +
                    $"C for hand. B for your creatures, A for your lands, R for your non-creatures. " +
                    $"Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. " +
+                   $"P for your timer, Shift plus P for opponent timer. " +
                    $"Alt plus up or down switches battlefield rows.";
         }
 
@@ -306,6 +316,9 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         protected override bool HandleCustomInput()
         {
+            // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
+            // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
+
             // Auto-detect targeting mode: if valid targets exist but we're not in targeting mode yet
             // ONLY auto-enter when NOT in combat phase - during combat, HotHighlight is for attackers/blockers
             // not spell targets. If a spell needs targeting during combat, UIActivator will call EnterTargetMode.
@@ -370,6 +383,12 @@ namespace MTGAAccessibility.Core.Services
 
             // Battlefield navigation (A/R/B shortcuts and row-based navigation)
             if (_battlefieldNavigator.HandleInput())
+                return true;
+
+            // Portrait/timer info (V key zone) - after HighlightNavigator so
+            // highlighted cards take priority, but still handles Enter for emotes
+            // when no card is highlighted
+            if (_portraitNavigator.HandleInput())
                 return true;
 
             // Delegate zone input handling to ZoneNavigator (C, G, X, S shortcuts)
@@ -497,6 +516,333 @@ namespace MTGAAccessibility.Core.Services
             name = System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
             name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", " ");
             return name;
+        }
+
+        /// <summary>
+        /// Explores player portrait UI elements to understand their structure.
+        /// This is for development/debugging to make portraits accessible.
+        /// </summary>
+        private void ExplorePlayerPortraits()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] === EXPLORING PLAYER PORTRAITS ===");
+
+            // 1. Find MatchTimer components and explore their data
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy)
+                    continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName == "MatchTimer")
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] [Portrait] Found MatchTimer: {mb.gameObject.name}");
+
+                    // Log all children recursively
+                    MelonLogger.Msg($"[{NavigatorId}] [Portrait]   Full hierarchy:");
+                    LogFullHierarchy(mb.gameObject, 4, "    ");
+
+                    // Try to get timer properties
+                    var type = mb.GetType();
+                    foreach (var prop in type.GetProperties())
+                    {
+                        try
+                        {
+                            var val = prop.GetValue(mb);
+                            MelonLogger.Msg($"[{NavigatorId}] [Portrait]   Property {prop.Name}: {val}");
+                        }
+                        catch { }
+                    }
+                }
+            }
+
+            // 2. Find Timer_Opponent and Timer_Player and explore full hierarchy
+            var timerNames = new[] { "Timer_Opponent", "Timer_Player" };
+            foreach (var timerName in timerNames)
+            {
+                var timerObj = GameObject.Find(timerName);
+                if (timerObj != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] [Portrait] Found {timerName}:");
+                    MelonLogger.Msg($"[{NavigatorId}] [Portrait]   Full hierarchy:");
+                    LogFullHierarchy(timerObj, 6, "    ");
+
+                    // Look for Text components in children
+                    var texts = timerObj.GetComponentsInChildren<UnityEngine.UI.Text>(true);
+                    foreach (var text in texts)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] [Portrait]   Text '{text.gameObject.name}': '{text.text}'");
+                    }
+                }
+            }
+
+            // 3. Search for Emotes container and children
+            var emotesObj = GameObject.Find("Emotes");
+            if (emotesObj != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] [Portrait] Found Emotes container:");
+                MelonLogger.Msg($"[{NavigatorId}] [Portrait]   Full hierarchy:");
+                LogFullHierarchy(emotesObj, 6, "    ");
+            }
+
+            // 4. Search for life-related text anywhere in scene
+            MelonLogger.Msg($"[{NavigatorId}] [Portrait] Searching for life/health text...");
+            foreach (var text in GameObject.FindObjectsOfType<UnityEngine.UI.Text>())
+            {
+                if (text == null || !text.gameObject.activeInHierarchy)
+                    continue;
+
+                string textContent = text.text?.Trim() ?? "";
+                string objName = text.gameObject.name.ToLower();
+
+                // Look for numeric values (could be life totals) or life-related names
+                if (objName.Contains("life") || objName.Contains("health") ||
+                    objName.Contains("point") || objName.Contains("damage") ||
+                    (textContent.Length > 0 && textContent.Length <= 3 && int.TryParse(textContent, out _)))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] [Portrait]   Found text '{text.gameObject.name}': '{textContent}' " +
+                        $"(parent: {text.transform.parent?.name ?? "none"})");
+                }
+            }
+
+            // 5. Search for TextMeshPro elements (game might use TMP instead of UI.Text)
+            MelonLogger.Msg($"[{NavigatorId}] [Portrait] Searching for TextMeshPro elements...");
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy)
+                    continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName.Contains("TextMesh") || typeName.Contains("TMP"))
+                {
+                    var textProp = mb.GetType().GetProperty("text");
+                    string textContent = "";
+                    if (textProp != null)
+                    {
+                        try { textContent = textProp.GetValue(mb)?.ToString() ?? ""; } catch { }
+                    }
+
+                    string objName = mb.gameObject.name.ToLower();
+                    string parentName = mb.transform.parent?.name ?? "none";
+
+                    // Log all TMP texts for now to see what's available
+                    if (parentName.ToLower().Contains("timer") || parentName.ToLower().Contains("player") ||
+                        objName.Contains("life") || objName.Contains("health") ||
+                        (textContent.Length > 0 && textContent.Length <= 3))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] [Portrait]   TMP '{mb.gameObject.name}': '{textContent}' " +
+                            $"(parent: {parentName}, type: {typeName})");
+                    }
+                }
+            }
+
+            // 6. Explore GameManager for player life data
+            ExploreGameManagerForLife();
+
+            // 7. Search for life counter UI elements on screen
+            ExploreLifeCounterUI();
+
+            MelonLogger.Msg($"[{NavigatorId}] === END PORTRAIT EXPLORATION ===");
+        }
+
+        private void ExploreGameManagerForLife()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] [Life] Searching for GameManager and player life data...");
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+
+                var type = mb.GetType();
+                string typeName = type.Name;
+
+                if (typeName == "GameManager")
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] [Life] Found GameManager: {mb.gameObject.name}");
+
+                    // Log all properties
+                    foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                    {
+                        try
+                        {
+                            var val = prop.GetValue(mb);
+                            var valStr = val?.ToString() ?? "null";
+                            if (valStr.Length > 100) valStr = valStr.Substring(0, 100) + "...";
+                            MelonLogger.Msg($"[{NavigatorId}] [Life]   Property {prop.Name} ({prop.PropertyType.Name}): {valStr}");
+
+                            // If it's Players or similar, dig deeper
+                            if (prop.Name.Contains("Player") || prop.Name.Contains("Life") || prop.Name.Contains("State"))
+                            {
+                                ExploreObjectForLife(val, prop.Name, 2);
+                            }
+                        }
+                        catch { }
+                    }
+
+                    // Also check fields
+                    foreach (var field in type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance))
+                    {
+                        if (field.Name.Contains("player") || field.Name.Contains("Player") ||
+                            field.Name.Contains("life") || field.Name.Contains("Life"))
+                        {
+                            try
+                            {
+                                var val = field.GetValue(mb);
+                                MelonLogger.Msg($"[{NavigatorId}] [Life]   Field {field.Name}: {val}");
+                                ExploreObjectForLife(val, field.Name, 2);
+                            }
+                            catch { }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        private void ExploreObjectForLife(object obj, string context, int maxDepth, int depth = 0)
+        {
+            if (obj == null || depth >= maxDepth) return;
+
+            var type = obj.GetType();
+            string indent = new string(' ', (depth + 1) * 2);
+
+            // Check if it's enumerable (like a list of players)
+            if (obj is System.Collections.IEnumerable enumerable && !(obj is string))
+            {
+                int index = 0;
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue;
+                    MelonLogger.Msg($"[{NavigatorId}] [Life] {indent}{context}[{index}]: {item}");
+                    ExploreObjectForLife(item, $"{context}[{index}]", maxDepth, depth + 1);
+                    index++;
+                    if (index >= 5) break; // Limit to first 5 items
+                }
+                return;
+            }
+
+            // Look for life-related properties
+            foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (prop.Name.Contains("Life") || prop.Name.Contains("Health") ||
+                    prop.Name.Contains("Player") || prop.Name.Contains("Id") ||
+                    prop.Name == "Name" || prop.Name == "DisplayName")
+                {
+                    try
+                    {
+                        var val = prop.GetValue(obj);
+                        MelonLogger.Msg($"[{NavigatorId}] [Life] {indent}{context}.{prop.Name}: {val}");
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        private void ExploreLifeCounterUI()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Searching for life counter UI elements...");
+
+            // Search for GameObjects with life-related names
+            string[] lifePatterns = { "Life", "Counter", "Score", "Health", "Point", "Total" };
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+
+                string name = go.name;
+                foreach (var pattern in lifePatterns)
+                {
+                    if (name.Contains(pattern))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Found '{pattern}' object: {name}");
+                        MelonLogger.Msg($"[{NavigatorId}] [LifeUI]   Path: {GetGameObjectPath(go)}");
+                        LogFullHierarchy(go, 3, "    ");
+
+                        // Check for text components
+                        var tmps = go.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);
+                        foreach (var tmp in tmps)
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] [LifeUI]   TMP: '{tmp.gameObject.name}' = '{tmp.text}'");
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Search all TextMeshPro for numeric values that could be life (10-40 range typically)
+            MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Searching for numeric TMP text (potential life totals)...");
+            foreach (var tmp in GameObject.FindObjectsOfType<TMPro.TextMeshProUGUI>())
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+
+                string text = tmp.text?.Trim() ?? "";
+                if (int.TryParse(text, out int num) && num >= 0 && num <= 99)
+                {
+                    string path = GetGameObjectPath(tmp.gameObject);
+                    MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Numeric TMP: '{tmp.gameObject.name}' = {num} (path: {path})");
+                }
+            }
+
+            // Search for components with "Life" or "Counter" in their type name
+            MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Searching for life-related components...");
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName.Contains("Life") || typeName.Contains("Counter") || typeName.Contains("Score") || typeName.Contains("Health"))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Found component: {typeName} on {mb.gameObject.name}");
+
+                    // Log its properties
+                    foreach (var prop in mb.GetType().GetProperties())
+                    {
+                        try
+                        {
+                            var val = prop.GetValue(mb);
+                            MelonLogger.Msg($"[{NavigatorId}] [LifeUI]   {prop.Name}: {val}");
+                        }
+                        catch { }
+                    }
+                }
+            }
+        }
+
+        private string GetGameObjectPath(GameObject go)
+        {
+            string path = go.name;
+            Transform parent = go.transform.parent;
+            int depth = 0;
+            while (parent != null && depth < 5)
+            {
+                path = parent.name + "/" + path;
+                parent = parent.parent;
+                depth++;
+            }
+            if (parent != null) path = ".../" + path;
+            return path;
+        }
+
+        private void LogFullHierarchy(GameObject obj, int maxDepth, string baseIndent, int currentDepth = 0)
+        {
+            if (currentDepth >= maxDepth) return;
+
+            string indent = baseIndent + new string(' ', currentDepth * 2);
+            foreach (Transform child in obj.transform)
+            {
+                var components = child.GetComponents<Component>();
+                var componentNames = components.Where(c => c != null).Select(c => c.GetType().Name);
+                MelonLogger.Msg($"[{NavigatorId}] [Portrait] {indent}- {child.name} [{string.Join(", ", componentNames)}]");
+                LogFullHierarchy(child.gameObject, maxDepth, baseIndent, currentDepth + 1);
+            }
+        }
+
+        private void LogComponents(GameObject obj, string indent)
+        {
+            var components = obj.GetComponents<Component>();
+            if (components.Length > 0)
+            {
+                var names = components.Where(c => c != null).Select(c => c.GetType().Name);
+                MelonLogger.Msg($"[{NavigatorId}] [Portrait] {indent}Components: {string.Join(", ", names)}");
+            }
         }
 
         #endregion

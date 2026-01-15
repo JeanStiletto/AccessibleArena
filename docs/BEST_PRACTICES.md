@@ -339,6 +339,46 @@ elements and provides separate keyboard shortcuts:
 
 ## Input System
 
+### Two Input Systems in MTGA
+
+MTGA uses TWO different input systems simultaneously:
+
+**1. Unity Legacy Input System (`UnityEngine.Input`)**
+- Used by: Our mod, simple key checks
+- API: `Input.GetKeyDown(KeyCode.X)`
+- Limitation: Cannot "consume" keys - all readers see the same input
+
+**2. Unity New InputSystem (`Unity.InputSystem`)**
+- Used by: MTGA's game logic via `MTGA.KeyboardManager.KeyboardManager`
+- API: InputActions, callbacks, event-driven
+- Features: Action maps, rebinding, proper consumption
+
+**The Problem:**
+When both systems read from the same physical keyboard:
+- Our mod reads `Input.GetKeyDown(KeyCode.Return)` → true
+- Game's KeyboardManager also reads Return → triggers game action (e.g., "Pass until response")
+- Both happen in the same frame - no way to "consume" the key in Legacy Input
+
+**Current Solution - Harmony Patch Approach:**
+1. `InputManager.ConsumeKey(KeyCode)` marks a key as consumed for this frame
+2. `KeyboardManagerPatch` intercepts `MTGA.KeyboardManager.KeyboardManager.PublishKeyDown`
+3. If key is consumed, patch returns false to skip game's handler
+
+**Files:**
+- `InputManager.cs` - `ConsumeKey()`, `IsKeyConsumed()`, `GetEnterAndConsume()`
+- `Patches/KeyboardManagerPatch.cs` - Harmony prefix patch
+
+**Current Status (January 2026):**
+- Infrastructure is in place but Enter key consumption not fully working
+- Issue: Input handler priority - HighlightNavigator may process Enter before PlayerPortraitNavigator
+- Future: Consider full migration to InputSystem for consistent key handling
+
+**Migration Considerations:**
+If migrating all mod input to InputSystem:
+- Pros: Proper key consumption, consistent with game, no timing issues
+- Cons: Larger refactor, need to intercept game's InputActions
+- The game uses `Core.Code.Input.Generated.MTGAInput` with actions like `m_CustomInput_Accept`
+
 ### Game's Built-in Keybinds (DO NOT OVERRIDE)
 - Arrow keys: Navigation
 - Tab / Shift+Tab: Next / Previous item
@@ -1093,6 +1133,44 @@ MelonLogger.Msg($"[Mode] targeting={_targetNavigator.IsTargeting}, " +
     $"discard={_discardNavigator.IsDiscardModeActive()}, " +
     $"combat={inCombatPhase}, hotHighlight={hasValidTargets}, " +
     $"stack={_zoneNavigator.StackCardCount}");
+```
+
+### PlayerPortraitNavigator
+Handles V key player info zone navigation. Provides access to player life, timer, timeouts, and emote wheel.
+
+**State Machine:**
+- `Inactive` - Not in player info zone
+- `PlayerNavigation` - Navigating between players and properties
+- `EmoteNavigation` - Navigating emote wheel (your portrait only)
+
+**User Flow:**
+1. Press V to enter player info zone (starts on your info)
+2. Up/Down cycles through properties (Life, Timer, Timeouts, Games Won)
+3. Left/Right switches between you and opponent (preserves property index)
+4. Enter opens emote wheel (your portrait only)
+5. Escape or Tab exits zone
+
+**Key Properties:**
+- `IsInPlayerInfoZone` - True when in any non-Inactive state
+- Used by DuelNavigator to give portrait navigator priority for Enter key
+
+**Input Priority Issue (Known Bug):**
+When player info zone is active, Enter key should be handled by PlayerPortraitNavigator.
+However, if HighlightNavigator runs first in the input chain, it may activate a highlighted card instead.
+
+**Current Workaround Attempts:**
+1. `InputManager.GetEnterAndConsume()` marks Enter as consumed
+2. `KeyboardManagerPatch` blocks consumed keys from game's KeyboardManager
+3. Input chain ordering in DuelNavigator
+
+**Integration:**
+```csharp
+// DuelNavigator creates PlayerPortraitNavigator
+_portraitNavigator = new PlayerPortraitNavigator(_announcer, _targetNavigator);
+
+// In HandleCustomInput, portrait navigator handles V and when active
+if (_portraitNavigator.HandleInput())
+    return true;
 ```
 
 ### ZoneNavigator
