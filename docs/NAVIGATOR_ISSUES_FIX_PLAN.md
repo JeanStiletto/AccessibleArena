@@ -4,26 +4,57 @@ This document captures all identified issues with the duel navigation system, in
 
 ---
 
-## Status Overview (Updated 2026-01-16 - Session 3 Complete)
+## Status Overview (Updated 2026-01-17 - Session 4 Complete)
 
 | Issue | Status | Notes |
 |-------|--------|-------|
 | 1.1 Targeting exit passive | **FIXED** | ExitTargetMode() added after target selection - tested with Shock |
-| 1.2 Enter key priority | PARTIALLY FIXED | Backspace handler exists, auto-exit added |
+| 1.2 Enter key priority | **FIXED** | Zone shortcuts (C/G/X/S) clear HotHighlightNavigator state |
 | 1.3 Zone state conflicts | **FIXED** | ZoneOwner enum added, ownership tracked in SetCurrentZone |
 | 1.4 Wrong zone for targets | **FIXED** | DetermineTargetZone() detects Stack, Graveyard, Exile, Hand |
 | 2.1 Two entry points | **FIXED** | TryEnterTargetMode unified method created |
 | 2.2 HotHighlight methods | **FIXED** | CardDetector.HasHotHighlight() used everywhere |
 | 2.3 Rescan loop | ADDRESSED | Uncommitted changes add attempt counter |
-| 2.4 Combat rapid transitions | NOT FIXED | |
-| 2.5 Deactivation cleanup | PARTIALLY FIXED | HighlightNavigator fixed, others pending |
+| 2.4 Combat rapid transitions | SKIPPED | Not needed - unified navigator has no auto-detect logic |
+| 2.5 Deactivation cleanup | **FIXED** | All navigators reset indices in Deactivate() |
 | 2.6 EventSystem conflicts | **FIXED** | All navigators use SetFocusedGameObject wrapper |
-| 3.1 Excessive rediscovery | NOT FIXED | |
+| 3.1 Excessive rediscovery | SKIPPED | Caching could cause stale data, not needed |
 | 3.2 Stack count timing | **FIXED** | GetFreshStackCount() for timing-sensitive checks |
-| 3.3 CardInfo mismatch | NOT FIXED | |
+| 3.3 CardInfo mismatch | **FIXED** | PrepareForCard logs card name for correlation |
 | 4.1 Targeting logging | **FIXED** | TryEnterTargetMode logs entry/exit with target count |
 | 4.2 Zone change logging | **FIXED** | SetCurrentZone logs zone + owner changes |
 | 4.3 Focus change logging | **FIXED** | SetFocusedGameObject wrapper logs all focus changes |
+
+### Session 4 Completed (2026-01-17)
+
+**Changes made:**
+
+1. **Issue 1.2 FIXED** - ZoneNavigator.cs, HotHighlightNavigator.cs, DuelNavigator.cs
+   - Added `ClearState()` method to HotHighlightNavigator
+   - ZoneNavigator calls `ClearState()` when zone shortcuts (C/G/X/S) are pressed
+   - Prevents stale highlight state from interfering with zone navigation
+
+2. **Issue 2.5 FIXED** - ZoneNavigator.cs, BattlefieldNavigator.cs
+   - ZoneNavigator.Deactivate() now resets `_cardIndexInZone` and `_zoneOwner`
+   - BattlefieldNavigator.Deactivate() now resets `_currentRow` and `_currentIndex`
+   - Prevents stale indices from persisting between duel sessions
+
+3. **Issue 3.3 FIXED** - CardInfoNavigator.cs
+   - PrepareForCard() now logs card name: `Prepared for 'Mountain' (CDC #160) in zone: Hand`
+   - Enables correlation between CardInfo and announcements in logs
+
+**Issues skipped (not needed with unified navigator):**
+
+- **Issue 2.4** - Combat phase debounce: The old auto-detect targeting logic that was affected by rapid phase changes has been removed. HotHighlightNavigator trusts the game's highlight system.
+- **Issue 3.1** - Zone discovery caching: Could cause stale data on fast navigation. Current implementation only discovers on explicit user input (C/G/X/S), which is acceptable.
+
+**Testing performed:**
+- Cast Shock, Tab to cycle targets, Enter to select - works
+- Zone navigation (C/G/X/S) - works
+- Battlefield navigation (A/B/R) - works
+- CardInfo logging shows card names in logs
+
+---
 
 ### Session 3 Completed (2026-01-16)
 

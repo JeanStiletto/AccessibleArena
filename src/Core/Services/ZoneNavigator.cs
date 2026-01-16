@@ -176,6 +176,9 @@ namespace MTGAAccessibility.Core.Services
         // Reference to CombatNavigator for attacker state announcements
         private CombatNavigator _combatNavigator;
 
+        // Reference to HotHighlightNavigator for clearing state on zone navigation
+        private HotHighlightNavigator _hotHighlightNavigator;
+
         public ZoneNavigator(IAnnouncementService announcer)
         {
             _announcer = announcer;
@@ -204,6 +207,14 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Sets the HotHighlightNavigator reference for clearing state on zone navigation.
+        /// </summary>
+        public void SetHotHighlightNavigator(HotHighlightNavigator navigator)
+        {
+            _hotHighlightNavigator = navigator;
+        }
+
+        /// <summary>
         /// Activates zone navigation and discovers all zones.
         /// </summary>
         public void Activate()
@@ -213,12 +224,14 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Deactivates zone navigation.
+        /// Deactivates zone navigation and resets all state.
         /// </summary>
         public void Deactivate()
         {
             _isActive = false;
             _zones.Clear();
+            _cardIndexInZone = 0;
+            _zoneOwner = ZoneOwner.None;
         }
 
         /// <summary>
@@ -229,9 +242,10 @@ namespace MTGAAccessibility.Core.Services
         {
             if (!_isActive) return false;
 
-            // Zone shortcuts
+            // Zone shortcuts - clear HotHighlightNavigator state for consistency
             if (Input.GetKeyDown(KeyCode.C))
             {
+                _hotHighlightNavigator?.ClearState();
                 NavigateToZone(ZoneType.Hand);
                 return true;
             }
@@ -242,6 +256,7 @@ namespace MTGAAccessibility.Core.Services
 
             if (Input.GetKeyDown(KeyCode.G))
             {
+                _hotHighlightNavigator?.ClearState();
                 if (shift)
                     NavigateToZone(ZoneType.OpponentGraveyard);
                 else
@@ -251,6 +266,7 @@ namespace MTGAAccessibility.Core.Services
 
             if (Input.GetKeyDown(KeyCode.X))
             {
+                _hotHighlightNavigator?.ClearState();
                 if (shift)
                     NavigateToZone(ZoneType.OpponentExile);
                 else
@@ -260,6 +276,7 @@ namespace MTGAAccessibility.Core.Services
 
             if (Input.GetKeyDown(KeyCode.S))
             {
+                _hotHighlightNavigator?.ClearState();
                 NavigateToZone(ZoneType.Stack);
                 return true;
             }

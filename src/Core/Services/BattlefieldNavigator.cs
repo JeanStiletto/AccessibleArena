@@ -81,7 +81,7 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Deactivates battlefield navigation.
+        /// Deactivates battlefield navigation and resets all state.
         /// </summary>
         public void Deactivate()
         {
@@ -90,6 +90,8 @@ namespace MTGAAccessibility.Core.Services
             {
                 row.Clear();
             }
+            _currentRow = BattlefieldRow.PlayerCreatures;
+            _currentIndex = 0;
         }
 
         /// <summary>

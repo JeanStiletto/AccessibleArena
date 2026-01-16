@@ -71,6 +71,20 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Clears any stale highlight state without deactivating.
+        /// Called when user navigates to a zone using shortcuts (C/G/X/S).
+        /// </summary>
+        public void ClearState()
+        {
+            if (_items.Count > 0)
+            {
+                MelonLogger.Msg("[HotHighlightNavigator] Clearing state due to zone navigation");
+                _items.Clear();
+                _currentIndex = -1;
+            }
+        }
+
+        /// <summary>
         /// Handles Tab/Enter/Backspace input for highlight navigation.
         /// Returns true if input was consumed.
         /// </summary>

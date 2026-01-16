@@ -88,6 +88,9 @@ namespace MTGAAccessibility.Core.Services
             // Connect BattlefieldNavigator to CombatNavigator for combat state announcements
             _battlefieldNavigator.SetCombatNavigator(_combatNavigator);
 
+            // Connect ZoneNavigator to HotHighlightNavigator for clearing state on zone navigation
+            _zoneNavigator.SetHotHighlightNavigator(_hotHighlightNavigator);
+
             // DEPRECATED connections (were for old TargetNavigator):
             // _duelAnnouncer.SetTargetNavigator() - Was used to auto-enter targeting mode on spell cast
             // _zoneNavigator.SetTargetNavigator() - Was used to enter targeting after card plays

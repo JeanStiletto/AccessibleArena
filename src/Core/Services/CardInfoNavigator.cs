@@ -56,7 +56,9 @@ namespace MTGAAccessibility.Core.Services
             _blocks.Clear();
             _currentBlockIndex = -1;
 
-            MelonLogger.Msg($"[CardInfo] Prepared for card: {cardElement.name} in zone: {zone}");
+            // Log card name for correlation with announcements
+            string cardName = CardDetector.GetCardName(cardElement);
+            MelonLogger.Msg($"[CardInfo] Prepared for '{cardName}' ({cardElement.name}) in zone: {zone}");
         }
 
         /// <summary>
