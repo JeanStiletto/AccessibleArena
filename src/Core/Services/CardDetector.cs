@@ -163,15 +163,39 @@ namespace MTGAAccessibility.Core.Services
                     continue;
 
                 // Check for HotHighlight child (indicates valid target)
-                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                if (HasHotHighlight(go))
                 {
-                    if (child.gameObject.activeInHierarchy && child.name.Contains("HotHighlight"))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
 
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a GameObject has an active HotHighlight child, indicating it's a valid target
+        /// or can be played/activated. This is the unified method - all callers should use this
+        /// instead of implementing their own check.
+        /// </summary>
+        /// <param name="obj">The GameObject to check (typically a card or player portrait)</param>
+        /// <returns>True if an active HotHighlight child exists</returns>
+        public static bool HasHotHighlight(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            foreach (Transform child in obj.GetComponentsInChildren<Transform>(true))
+            {
+                // Skip null and the object itself
+                if (child == null || child.gameObject == obj) continue;
+                // Skip inactive children
+                if (!child.gameObject.activeInHierarchy) continue;
+
+                // HotHighlight variants: HotHighlightBattlefield, HotHighlightHand, etc.
+                if (child.name.Contains("HotHighlight"))
+                {
+                    return true;
+                }
+            }
             return false;
         }
 

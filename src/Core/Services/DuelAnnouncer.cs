@@ -35,6 +35,7 @@ namespace MTGAAccessibility.Core.Services
 
         private uint _localPlayerId;
         private TargetNavigator _targetNavigator;
+        private ZoneNavigator _zoneNavigator;
         private DateTime _lastSpellResolvedTime = DateTime.MinValue;
 
         // Current combat phase tracking
@@ -63,6 +64,11 @@ namespace MTGAAccessibility.Core.Services
         public void SetTargetNavigator(TargetNavigator navigator)
         {
             _targetNavigator = navigator;
+        }
+
+        public void SetZoneNavigator(ZoneNavigator navigator)
+        {
+            _zoneNavigator = navigator;
         }
 
         public DuelAnnouncer(IAnnouncementService announcer)
@@ -899,7 +905,25 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_targetNavigator != null)
             {
-                _targetNavigator.EnterTargetMode();
+                // Only enter targeting mode if there's a spell on the stack.
+                // This prevents false targeting mode for mana abilities (like Ilysian Caryatid)
+                // and other activated abilities that require choices but don't target.
+                // Combat phase is no longer checked - if there's a spell on stack during combat,
+                // we should enter targeting mode for it.
+                // Use fresh stack count for timing-sensitive check (Issue 3.2 fix)
+                bool hasSpellOnStack = _zoneNavigator?.GetFreshStackCount() > 0;
+
+                if (hasSpellOnStack)
+                {
+                    MelonLogger.Msg("[DuelAnnouncer] TargetSelection event with spell on stack - entering targeting mode");
+                    // Use unified TryEnterTargetMode with requireValidTargets=false for event-based entry
+                    // (targets may not be visible yet when event fires)
+                    _targetNavigator.TryEnterTargetMode(requireValidTargets: false);
+                }
+                else
+                {
+                    MelonLogger.Msg($"[DuelAnnouncer] TargetSelection event ignored - no spell on stack (stackCount={_zoneNavigator?.GetFreshStackCount() ?? 0})");
+                }
                 return null;
             }
             return "Select a target";

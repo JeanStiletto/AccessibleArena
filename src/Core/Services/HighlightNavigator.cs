@@ -359,8 +359,8 @@ namespace MTGAAccessibility.Core.Services
                 // Check if it's a card
                 if (!CardDetector.IsCard(go)) continue;
 
-                // Check for HotHighlight (playable indicator)
-                if (!HasHotHighlight(go)) continue;
+                // Check for HotHighlight (playable indicator) - uses unified method
+                if (!CardDetector.HasHotHighlight(go)) continue;
 
                 // Avoid duplicates
                 int instanceId = go.GetInstanceID();
@@ -412,25 +412,6 @@ namespace MTGAAccessibility.Core.Services
             {
                 _currentIndex = _highlightedCards.Count > 0 ? 0 : -1;
             }
-        }
-
-        /// <summary>
-        /// Checks if a card has an active HotHighlight child, indicating it can be played/activated.
-        /// </summary>
-        private bool HasHotHighlight(GameObject card)
-        {
-            foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
-            {
-                if (child == null || child.gameObject == card) continue;
-                if (!child.gameObject.activeInHierarchy) continue;
-
-                // HotHighlight variants: HotHighlightBattlefield, HotHighlightHand, etc.
-                if (child.name.Contains("HotHighlight"))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         /// <summary>

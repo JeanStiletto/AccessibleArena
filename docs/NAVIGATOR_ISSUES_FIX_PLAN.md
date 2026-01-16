@@ -4,7 +4,7 @@ This document captures all identified issues with the duel navigation system, in
 
 ---
 
-## Status Overview (Updated 2026-01-16 - Session 2 Complete)
+## Status Overview (Updated 2026-01-16 - Session 3 Complete)
 
 | Issue | Status | Notes |
 |-------|--------|-------|
@@ -12,18 +12,52 @@ This document captures all identified issues with the duel navigation system, in
 | 1.2 Enter key priority | PARTIALLY FIXED | Backspace handler exists, auto-exit added |
 | 1.3 Zone state conflicts | **FIXED** | ZoneOwner enum added, ownership tracked in SetCurrentZone |
 | 1.4 Wrong zone for targets | **FIXED** | DetermineTargetZone() detects Stack, Graveyard, Exile, Hand |
-| 2.1 Two entry points | PARTIALLY FIXED | Both now check stack, but still separate |
-| 2.2 HotHighlight methods | NOT FIXED | Still 3 different implementations |
+| 2.1 Two entry points | **FIXED** | TryEnterTargetMode unified method created |
+| 2.2 HotHighlight methods | **FIXED** | CardDetector.HasHotHighlight() used everywhere |
 | 2.3 Rescan loop | ADDRESSED | Uncommitted changes add attempt counter |
 | 2.4 Combat rapid transitions | NOT FIXED | |
 | 2.5 Deactivation cleanup | PARTIALLY FIXED | HighlightNavigator fixed, others pending |
 | 2.6 EventSystem conflicts | **FIXED** | All navigators use SetFocusedGameObject wrapper |
 | 3.1 Excessive rediscovery | NOT FIXED | |
-| 3.2 Stack count timing | NOT FIXED | |
+| 3.2 Stack count timing | **FIXED** | GetFreshStackCount() for timing-sensitive checks |
 | 3.3 CardInfo mismatch | NOT FIXED | |
-| 4.1 Targeting logging | PARTIALLY FIXED | Some logging exists |
+| 4.1 Targeting logging | **FIXED** | TryEnterTargetMode logs entry/exit with target count |
 | 4.2 Zone change logging | **FIXED** | SetCurrentZone logs zone + owner changes |
 | 4.3 Focus change logging | **FIXED** | SetFocusedGameObject wrapper logs all focus changes |
+
+### Session 3 Completed (2026-01-16)
+
+**Changes made:**
+
+1. **Issue 2.2 FIXED** - CardDetector.cs
+   - Added `HasHotHighlight(GameObject obj)` static method
+   - Updated `HasValidTargetsOnBattlefield()` to use unified method
+   - Removed duplicate implementations from TargetNavigator and HighlightNavigator
+
+2. **Issue 2.1 FIXED** - TargetNavigator.cs
+   - Added `TryEnterTargetMode(bool requireValidTargets = true)` unified entry point
+   - Checks if already targeting, discovers targets, logs entry with target count
+   - DuelNavigator calls with `requireValidTargets: true` (auto-detect)
+   - DuelAnnouncer calls with `requireValidTargets: false` (event-based)
+
+3. **Issue 3.2 FIXED** - ZoneNavigator.cs
+   - Added `GetFreshStackCount()` method for timing-sensitive stack checks
+   - Directly scans scene for stack cards instead of using cached `_zones`
+   - DuelNavigator and DuelAnnouncer now use fresh count for targeting decisions
+
+4. **Combat targeting fix** - DuelNavigator.cs, DuelAnnouncer.cs
+   - Removed `!inCombatPhase` check from targeting mode entry
+   - Now enters targeting mode whenever spell on stack, regardless of combat phase
+   - Tested: Cast Shock during Declare Attackers, Tab cycles 3 targets, Enter selects
+
+**Testing performed:**
+- Cast Shock during Declare Attackers phase
+- Targeting mode auto-entered with 3 valid targets
+- Tab cycling worked correctly
+- Enter selected target, Shock resolved
+- Logs confirmed: `[TargetNavigator] TryEnterTargetMode: entered with 3 targets`
+
+---
 
 ### Session 2 Completed (2026-01-16)
 

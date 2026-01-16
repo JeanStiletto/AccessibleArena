@@ -35,8 +35,57 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Unified entry point for targeting mode. Performs all necessary checks before entering.
+        /// Use this instead of calling EnterTargetMode() directly from DuelNavigator or DuelAnnouncer.
+        /// </summary>
+        /// <param name="requireValidTargets">If true, won't enter targeting mode without valid targets.
+        /// Set to false when responding to game events where targets may not be visible yet.</param>
+        /// <returns>True if targeting mode was entered, false if conditions not met.</returns>
+        public bool TryEnterTargetMode(bool requireValidTargets = true)
+        {
+            // Don't re-enter if already targeting
+            if (_isTargeting)
+            {
+                MelonLogger.Msg("[TargetNavigator] TryEnterTargetMode: already in targeting mode");
+                return false;
+            }
+
+            // Discover valid targets first
+            DiscoverValidTargets();
+
+            // Check if we have valid targets (when required)
+            if (requireValidTargets && _validTargets.Count == 0)
+            {
+                MelonLogger.Msg("[TargetNavigator] TryEnterTargetMode: no valid targets found");
+                return false;
+            }
+
+            // Enter targeting mode
+            _isTargeting = true;
+
+            if (_validTargets.Count > 0)
+            {
+                _currentIndex = 0;
+                string announcement = $"Select a target. {_validTargets.Count} valid target{(_validTargets.Count != 1 ? "s" : "")}. " +
+                                     "Press Tab to cycle, Enter to select, Backspace to cancel.";
+                _announcer.AnnounceInterrupt(announcement);
+                AnnounceCurrentTarget();
+            }
+            else
+            {
+                // Event-based entry without visible targets yet - announce generic message
+                _announcer.AnnounceInterrupt(Strings.SelectTargetNoValid);
+                MelonLogger.Msg("[TargetNavigator] Entered targeting mode (event-based, no visible targets yet)");
+            }
+
+            MelonLogger.Msg($"[TargetNavigator] TryEnterTargetMode: entered with {_validTargets.Count} targets");
+            return true;
+        }
+
+        /// <summary>
         /// Called when the game enters targeting mode.
         /// Discovers valid targets and announces the mode.
+        /// NOTE: Prefer using TryEnterTargetMode() which performs additional checks.
         /// </summary>
         public void EnterTargetMode()
         {
@@ -297,8 +346,8 @@ namespace MTGAAccessibility.Core.Services
                 if (!inTargetZone) continue;
                 if (!CardDetector.IsCard(go)) continue;
 
-                // Check for HotHighlight - indicates valid target
-                if (HasTargetingHighlight(go))
+                // Check for HotHighlight - indicates valid target (uses unified method)
+                if (CardDetector.HasHotHighlight(go))
                 {
                     var target = CreateTargetFromCard(go);
                     if (target != null && !_validTargets.Any(t => t.InstanceId == target.InstanceId))
@@ -333,7 +382,7 @@ namespace MTGAAccessibility.Core.Services
             var (opponentTimer, opponentClickable) = FindPlayerMatchTimer(isOpponent: true);
 
             // Check local player - HotHighlight is on MatchTimer, click target is HoverArea/Icon
-            if (localTimer != null && localClickable != null && HasTargetingHighlight(localTimer))
+            if (localTimer != null && localClickable != null && CardDetector.HasHotHighlight(localTimer))
             {
                 _validTargets.Add(new TargetInfo
                 {
@@ -348,7 +397,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Check opponent - HotHighlight is on MatchTimer, click target is HoverArea/Icon
-            if (opponentTimer != null && opponentClickable != null && HasTargetingHighlight(opponentTimer))
+            if (opponentTimer != null && opponentClickable != null && CardDetector.HasHotHighlight(opponentTimer))
             {
                 _validTargets.Add(new TargetInfo
                 {
@@ -409,7 +458,7 @@ namespace MTGAAccessibility.Core.Services
 
                 if (!isPlayerObject) continue;
 
-                bool hasHighlight = HasTargetingHighlight(go);
+                bool hasHighlight = CardDetector.HasHotHighlight(go);
 
                 if (hasHighlight && foundWithHighlight == null)
                 {
@@ -444,24 +493,6 @@ namespace MTGAAccessibility.Core.Services
             }
 
             return (null, null);
-        }
-
-        /// <summary>
-        /// Checks if a card has an active HotHighlight child, indicating it's a valid target.
-        /// </summary>
-        private bool HasTargetingHighlight(GameObject card)
-        {
-            foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
-            {
-                if (child == null || child.gameObject == card) continue;
-                if (!child.gameObject.activeInHierarchy) continue;
-
-                if (child.name.Contains("HotHighlight"))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         private TargetInfo CreateTargetFromCard(GameObject cardObj)

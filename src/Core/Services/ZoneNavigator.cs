@@ -67,7 +67,44 @@ namespace MTGAAccessibility.Core.Services
         public ZoneOwner CurrentZoneOwner => _zoneOwner;
         public int CardCount => _zones.ContainsKey(_currentZone) ? _zones[_currentZone].Cards.Count : 0;
         public int HandCardCount => _zones.ContainsKey(ZoneType.Hand) ? _zones[ZoneType.Hand].Cards.Count : 0;
+        /// <summary>
+        /// Gets the cached stack card count. May be stale between DiscoverZones() calls.
+        /// For timing-sensitive checks, use GetFreshStackCount() instead.
+        /// </summary>
         public int StackCardCount => _zones.ContainsKey(ZoneType.Stack) ? _zones[ZoneType.Stack].Cards.Count : 0;
+
+        /// <summary>
+        /// Gets a fresh count of cards on the stack by directly scanning the scene.
+        /// Use this for timing-sensitive checks where the cached StackCardCount may be stale.
+        /// This is lightweight - only counts cards, doesn't discover full zone info.
+        /// </summary>
+        public int GetFreshStackCount()
+        {
+            int count = 0;
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy)
+                    continue;
+
+                // Check if this is the stack holder
+                if (!go.name.Contains("StackCardHolder"))
+                    continue;
+
+                // Count CDC (card) children
+                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child == null || !child.gameObject.activeInHierarchy)
+                        continue;
+
+                    if (child.name.Contains("CDC #"))
+                    {
+                        count++;
+                    }
+                }
+                break; // Only one stack holder
+            }
+            return count;
+        }
 
         /// <summary>
         /// Sets the EventSystem focus to a GameObject with logging.

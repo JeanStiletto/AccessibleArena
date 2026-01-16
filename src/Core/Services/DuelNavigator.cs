@@ -324,23 +324,23 @@ namespace MTGAAccessibility.Core.Services
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
 
             // Auto-detect targeting mode: if valid targets exist but we're not in targeting mode yet
-            // ONLY auto-enter when:
-            // 1. NOT in combat phase - during combat, HotHighlight is for attackers/blockers
-            // 2. There's a spell on the stack - HotHighlight without stack spell means activated abilities
-            // If a spell needs targeting during combat, UIActivator will call EnterTargetMode.
-            bool inCombatPhase = _duelAnnouncer.IsInDeclareAttackersPhase || _duelAnnouncer.IsInDeclareBlockersPhase;
+            // Enter when there's a spell on the stack - this is the key indicator that HotHighlight
+            // is for spell targeting, not combat selection or activated abilities.
+            // Combat phase is no longer checked - if there's a spell on stack during combat
+            // (like an instant), we should still enter targeting mode.
             bool hasValidTargets = CardDetector.HasValidTargetsOnBattlefield();
-            bool hasSpellOnStack = _zoneNavigator.StackCardCount > 0;
+            // Use fresh stack count for timing-sensitive auto-detect (Issue 3.2 fix)
+            bool hasSpellOnStack = _zoneNavigator.GetFreshStackCount() > 0;
 
-            if (!_targetNavigator.IsTargeting && !inCombatPhase && hasValidTargets && hasSpellOnStack)
+            if (!_targetNavigator.IsTargeting && hasValidTargets && hasSpellOnStack)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Auto-detected targeting mode (spell on stack) - entering");
-                _targetNavigator.EnterTargetMode();
+                // Use unified TryEnterTargetMode with requireValidTargets=true for auto-detect
+                _targetNavigator.TryEnterTargetMode(requireValidTargets: true);
             }
 
-            // Auto-exit targeting mode when:
-            // 1. No more valid targets (spell resolved, HotHighlight gone)
-            // 2. Combat phase started without a spell on stack (targeting was for previous spell)
+            // Auto-exit targeting mode when no more valid targets (spell resolved, HotHighlight gone)
+            // or when there's no spell on stack (targeting was for a spell that already resolved)
             if (_targetNavigator.IsTargeting)
             {
                 bool shouldExit = false;
@@ -351,10 +351,10 @@ namespace MTGAAccessibility.Core.Services
                     shouldExit = true;
                     exitReason = "no more valid targets";
                 }
-                else if (inCombatPhase && _zoneNavigator.StackCardCount == 0)
+                else if (!hasSpellOnStack)
                 {
                     shouldExit = true;
-                    exitReason = "combat phase without spell on stack";
+                    exitReason = "no spell on stack";
                 }
 
                 if (shouldExit)
