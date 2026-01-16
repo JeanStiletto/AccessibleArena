@@ -25,6 +25,11 @@ namespace MTGAAccessibility.Core.Services
         private List<HighlightedCard> _highlightedCards = new List<HighlightedCard>();
         private int _currentIndex = -1;
         private bool _isActive;
+        private bool _pendingRescan;
+        private float _rescanTime;
+        private int _rescanAttempts;
+        private const int MaxRescanAttempts = 5;
+        private const float RescanDelay = 0.3f; // 300ms between rescans
 
         public bool IsActive => _isActive;
         public int HighlightCount => _highlightedCards.Count;
@@ -56,6 +61,8 @@ namespace MTGAAccessibility.Core.Services
             _isActive = false;
             _highlightedCards.Clear();
             _currentIndex = -1;
+            _pendingRescan = false;
+            _rescanAttempts = 0;
             MelonLogger.Msg("[HighlightNavigator] Deactivated");
         }
 
@@ -67,9 +74,28 @@ namespace MTGAAccessibility.Core.Services
         {
             if (!_isActive) return false;
 
+            // Handle delayed rescan (for turn start timing issue)
+            if (_pendingRescan && Time.time >= _rescanTime)
+            {
+                _pendingRescan = false;
+                MelonLogger.Msg("[HighlightNavigator] Performing delayed rescan");
+                DiscoverHighlightedCards();
+
+                // If we now have hand cards, announce and select first one
+                if (_highlightedCards.Any(c => c.Zone == "Hand"))
+                {
+                    _currentIndex = 0; // Hand cards are sorted first
+                    AnnounceCurrentCard();
+                }
+            }
+
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+                // Reset rescan state on fresh Tab press (user-initiated discovery)
+                _rescanAttempts = 0;
+                _pendingRescan = false;
 
                 // Refresh highlighted cards on each Tab press
                 DiscoverHighlightedCards();
@@ -90,6 +116,16 @@ namespace MTGAAccessibility.Core.Services
                     return true;
                 }
 
+                // If only battlefield cards found and rescan is pending, don't navigate yet
+                // Wait for hand cards to appear (game timing issue after playing cards)
+                bool hasHandCards = _highlightedCards.Any(c => c.Zone == "Hand");
+                if (!hasHandCards && _pendingRescan)
+                {
+                    _announcer.Announce("Waiting for playable cards...", AnnouncementPriority.Normal);
+                    MelonLogger.Msg("[HighlightNavigator] Only battlefield cards, rescan pending - skipping navigation");
+                    return true;
+                }
+
                 if (shift)
                     PreviousCard();
                 else
@@ -101,6 +137,31 @@ namespace MTGAAccessibility.Core.Services
             // Handle Enter to play the currently highlighted card
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                // Block activation during pending rescan - user might be waiting for hand cards
+                if (_pendingRescan)
+                {
+                    MelonLogger.Msg("[HighlightNavigator] Enter blocked - rescan pending");
+                    return false; // Let other handlers deal with Enter
+                }
+
+                // First, check what's actually selected in EventSystem
+                // This handles the case where user navigated via zone keys (C, B, etc.)
+                // which updates EventSystem but not our _currentIndex
+                var eventSelected = EventSystem.current?.currentSelectedGameObject;
+                if (eventSelected != null)
+                {
+                    // Refresh the list to ensure we have current playable cards
+                    DiscoverHighlightedCards();
+
+                    // Try to find the EventSystem-selected card in our highlighted list
+                    int matchIndex = _highlightedCards.FindIndex(c => c.GameObject == eventSelected);
+                    if (matchIndex >= 0)
+                    {
+                        _currentIndex = matchIndex;
+                        MelonLogger.Msg($"[HighlightNavigator] Synced to EventSystem selection: index {matchIndex}");
+                    }
+                }
+
                 if (_currentIndex >= 0 && _currentIndex < _highlightedCards.Count)
                 {
                     ActivateCurrentCard();
@@ -223,10 +284,9 @@ namespace MTGAAccessibility.Core.Services
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
-            var eventSystem = EventSystem.current;
-            if (eventSystem != null && card.GameObject != null)
+            if (card.GameObject != null)
             {
-                eventSystem.SetSelectedGameObject(card.GameObject);
+                ZoneNavigator.SetFocusedGameObject(card.GameObject, "HighlightNavigator");
             }
 
             // Update ZoneNavigator's CurrentZone to match the card's zone
@@ -234,7 +294,7 @@ namespace MTGAAccessibility.Core.Services
             // NOTE: This might need to be reverted for better UI experience - keeping battlefield
             // row state while tabbing through hand cards could be useful for some workflows
             var cardZoneType = StringToZoneType(card.Zone);
-            _zoneNavigator.SetCurrentZone(cardZoneType);
+            _zoneNavigator.SetCurrentZone(cardZoneType, "HighlightNavigator");
 
             // Prepare card for detailed navigation with arrow keys
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
@@ -319,6 +379,31 @@ namespace MTGAAccessibility.Core.Services
                 .OrderBy(c => c.Zone == "Hand" ? 0 : 1)
                 .ThenBy(c => c.GameObject.transform.position.x)
                 .ToList();
+
+            // Check for turn start timing issue: battlefield cards highlighted but no hand cards
+            // Schedule a delayed rescan to let the game update hand highlights
+            bool hasHandCards = _highlightedCards.Any(c => c.Zone == "Hand");
+            bool hasBattlefieldCards = _highlightedCards.Any(c => c.Zone == "Battlefield");
+
+            if (hasHandCards)
+            {
+                // Found hand cards - reset rescan state
+                _rescanAttempts = 0;
+                _pendingRescan = false;
+            }
+            else if (hasBattlefieldCards && !_pendingRescan && _rescanAttempts < MaxRescanAttempts)
+            {
+                MelonLogger.Msg($"[HighlightNavigator] Only battlefield cards found, scheduling delayed rescan (attempt {_rescanAttempts + 1}/{MaxRescanAttempts})");
+                _pendingRescan = true;
+                _rescanAttempts++;
+                _rescanTime = Time.time + RescanDelay;
+            }
+            else if (_rescanAttempts >= MaxRescanAttempts && !hasHandCards)
+            {
+                // Max attempts reached, stop trying
+                MelonLogger.Msg("[HighlightNavigator] Max rescan attempts reached, proceeding with battlefield cards only");
+                _pendingRescan = false;
+            }
 
             MelonLogger.Msg($"[HighlightNavigator] Found {_highlightedCards.Count} playable cards");
 

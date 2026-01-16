@@ -54,10 +54,37 @@ namespace MTGAAccessibility.Core.Services
         public int StackCardCount => _zones.ContainsKey(ZoneType.Stack) ? _zones[ZoneType.Stack].Cards.Count : 0;
 
         /// <summary>
-        /// Sets the current zone without full navigation (used by BattlefieldNavigator).
+        /// Sets the EventSystem focus to a GameObject with logging.
+        /// All navigators should use this instead of direct EventSystem.SetSelectedGameObject calls.
         /// </summary>
-        public void SetCurrentZone(ZoneType zone)
+        /// <param name="gameObject">The GameObject to focus, or null to clear focus</param>
+        /// <param name="caller">Name of the calling class for debugging</param>
+        public static void SetFocusedGameObject(GameObject gameObject, string caller)
         {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null) return;
+
+            var current = eventSystem.currentSelectedGameObject;
+            if (current != gameObject)
+            {
+                string fromName = current != null ? current.name : "null";
+                string toName = gameObject != null ? gameObject.name : "null";
+                MelonLogger.Msg($"[Navigation] Focus change: {fromName} -> {toName} (by {caller})");
+            }
+            eventSystem.SetSelectedGameObject(gameObject);
+        }
+
+        /// <summary>
+        /// Sets the current zone without full navigation (used by BattlefieldNavigator, TargetNavigator, etc).
+        /// </summary>
+        /// <param name="zone">The zone to set</param>
+        /// <param name="caller">Optional caller name for debugging zone change tracking</param>
+        public void SetCurrentZone(ZoneType zone, string caller = null)
+        {
+            if (_currentZone != zone)
+            {
+                MelonLogger.Msg($"[ZoneNavigator] Zone change: {_currentZone} -> {zone}{(caller != null ? $" (by {caller})" : "")}");
+            }
             _currentZone = zone;
         }
 
@@ -276,7 +303,7 @@ namespace MTGAAccessibility.Core.Services
                 return;
             }
 
-            _currentZone = zone;
+            SetCurrentZone(zone, "NavigateToZone");
             _cardIndexInZone = 0;
 
             var zoneInfo = _zones[zone];
@@ -440,10 +467,9 @@ namespace MTGAAccessibility.Core.Services
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
-            var eventSystem = EventSystem.current;
-            if (eventSystem != null && card != null)
+            if (card != null)
             {
-                eventSystem.SetSelectedGameObject(card);
+                SetFocusedGameObject(card, "ZoneNavigator");
             }
 
             // Prepare card info navigation with zone context
@@ -465,7 +491,7 @@ namespace MTGAAccessibility.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
             {
-                eventSystem.SetSelectedGameObject(null);
+                SetFocusedGameObject(null, "ZoneNavigator.Clear");
             }
         }
 

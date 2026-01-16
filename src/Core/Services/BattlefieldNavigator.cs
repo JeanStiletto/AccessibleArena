@@ -106,7 +106,7 @@ namespace MTGAAccessibility.Core.Services
             // Row shortcuts: A for lands
             if (Input.GetKeyDown(KeyCode.A))
             {
-                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
                     NavigateToRow(BattlefieldRow.EnemyLands);
                 else
@@ -117,7 +117,7 @@ namespace MTGAAccessibility.Core.Services
             // Row shortcuts: R for non-creatures (artifacts, enchantments, planeswalkers)
             if (Input.GetKeyDown(KeyCode.R))
             {
-                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
                     NavigateToRow(BattlefieldRow.EnemyNonCreatures);
                 else
@@ -128,7 +128,7 @@ namespace MTGAAccessibility.Core.Services
             // Row shortcuts: B for creatures
             if (Input.GetKeyDown(KeyCode.B))
             {
-                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
                     NavigateToRow(BattlefieldRow.EnemyCreatures);
                 else
@@ -148,7 +148,7 @@ namespace MTGAAccessibility.Core.Services
                     // If not in battlefield yet, default to PlayerCreatures
                     if (!inBattlefield)
                     {
-                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                         _currentRow = BattlefieldRow.PlayerCreatures;
                     }
                     PreviousRow();
@@ -160,7 +160,7 @@ namespace MTGAAccessibility.Core.Services
                     // If not in battlefield yet, default to PlayerCreatures
                     if (!inBattlefield)
                     {
-                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                         _currentRow = BattlefieldRow.PlayerCreatures;
                     }
                     NextRow();
@@ -486,10 +486,9 @@ namespace MTGAAccessibility.Core.Services
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
-            var eventSystem = EventSystem.current;
-            if (eventSystem != null && card != null)
+            if (card != null)
             {
-                eventSystem.SetSelectedGameObject(card);
+                ZoneNavigator.SetFocusedGameObject(card, "BattlefieldNavigator");
             }
 
             // Prepare card info navigation (for Arrow Up/Down detail viewing)
@@ -508,7 +507,7 @@ namespace MTGAAccessibility.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
             {
-                eventSystem.SetSelectedGameObject(null);
+                ZoneNavigator.SetFocusedGameObject(null, "BattlefieldNavigator.Clear");
             }
         }
 

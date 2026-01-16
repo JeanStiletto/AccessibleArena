@@ -152,6 +152,13 @@ namespace MTGAAccessibility.Core.Services
             if (result.Success)
             {
                 _announcer.Announce(Strings.Targeted(target.Name), AnnouncementPriority.Normal);
+                MelonLogger.Msg($"[TargetNavigator] Target selected successfully, exiting targeting mode");
+                // NOTE: For multi-target spells, this exits after each target selection.
+                // The auto-detect in DuelNavigator should re-enter targeting mode if more
+                // targets are needed (hasValidTargets + hasSpellOnStack). This may cause
+                // a brief "gap" in announcements. If this is a problem, we need a way to
+                // distinguish targeting HotHighlight from activatable ability HotHighlight.
+                ExitTargetMode();
             }
             else
             {
@@ -182,17 +189,16 @@ namespace MTGAAccessibility.Core.Services
             _announcer.Announce(announcement, AnnouncementPriority.High);
 
             // Set EventSystem focus to the target
-            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-            if (eventSystem != null && target.GameObject != null)
+            if (target.GameObject != null)
             {
-                eventSystem.SetSelectedGameObject(target.GameObject);
+                ZoneNavigator.SetFocusedGameObject(target.GameObject, "TargetNavigator");
             }
 
             // Update zone context so Left/Right arrows work for battlefield navigation
             // NOTE: This might need adjustment - targets can be on battlefield or stack
             if (target.Type != CardTargetType.Player)
             {
-                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
+                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "TargetNavigator");
             }
 
             // Prepare CardInfoNavigator for arrow key navigation on this target
