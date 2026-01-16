@@ -117,9 +117,23 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Enter - activate current item
+            // Enter - activate current item (only if we still have zone ownership)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                // Check if we still have zone ownership - user may have navigated away
+                // using zone shortcuts (C, G, X, S) or battlefield shortcuts (A, B, R)
+                if (_zoneNavigator.CurrentZoneOwner != ZoneOwner.HighlightNavigator)
+                {
+                    // We lost ownership - clear stale state and let other handlers process Enter
+                    if (_items.Count > 0)
+                    {
+                        MelonLogger.Msg($"[HotHighlightNavigator] Clearing stale state - zone owner is {_zoneNavigator.CurrentZoneOwner}");
+                        _items.Clear();
+                        _currentIndex = -1;
+                    }
+                    return false;
+                }
+
                 if (_currentIndex >= 0 && _currentIndex < _items.Count)
                 {
                     ActivateCurrentItem();

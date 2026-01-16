@@ -468,14 +468,9 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
-            // Handle main phase / non-combat: Space presses primary button (Next, To Combat, Pass, etc.)
-            if (!_duelAnnouncer.IsInDeclareAttackersPhase && !_duelAnnouncer.IsInDeclareBlockersPhase)
-            {
-                if (Input.GetKeyDown(KeyCode.Space))
-                {
-                    return TryClickPrimaryButton();
-                }
-            }
+            // NOTE: Space during main phase is NOT handled here - the game handles it natively.
+            // Previously we clicked the primary button on Space, but this caused double-pass
+            // because both our click AND the game's native handler triggered.
 
             return false;
         }
