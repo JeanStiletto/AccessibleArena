@@ -905,28 +905,6 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Msg($"[PlayerPortrait] Found Timer_Opponent for timeouts");
         }
 
-        private void AnnounceLocalPlayerInfo()
-        {
-            if (_localTimerObj == null)
-            {
-                DiscoverTimerElements();
-            }
-
-            var info = GetPlayerInfo(_localTimerObj, _localMatchTimer, "Your");
-            _announcer.Announce(info, AnnouncementPriority.Normal);
-        }
-
-        private void AnnounceOpponentInfo()
-        {
-            if (_opponentTimerObj == null)
-            {
-                DiscoverTimerElements();
-            }
-
-            var info = GetPlayerInfo(_opponentTimerObj, _opponentMatchTimer, "Opponent");
-            _announcer.Announce(info, AnnouncementPriority.Normal);
-        }
-
         private void AnnounceLifeTotals()
         {
             var (localLife, opponentLife) = GetLifeTotals();

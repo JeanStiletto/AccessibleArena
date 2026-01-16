@@ -28,11 +28,6 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         public event Action<GameObject, GameObject> OnFocusChanged;
 
-        /// <summary>
-        /// Gets the currently focused element.
-        /// </summary>
-        public GameObject CurrentFocusedElement => _lastSelected;
-
         public UIFocusTracker(IAnnouncementService announcer)
         {
             _announcer = announcer;
@@ -51,32 +46,6 @@ namespace MTGAAccessibility.Core.Services
             }
 
             CheckFocusChange();
-        }
-
-        /// <summary>
-        /// Force re-announce the current selection.
-        /// </summary>
-        public void AnnounceCurrentSelection()
-        {
-            var eventSystem = EventSystem.current;
-            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
-            {
-                _announcer.Announce(Models.Strings.NoSelection, Models.AnnouncementPriority.Normal);
-                return;
-            }
-
-            string text = UITextExtractor.GetText(eventSystem.currentSelectedGameObject);
-            _lastAnnouncedText = text;
-            _announcer.AnnounceInterrupt(text);
-        }
-
-        /// <summary>
-        /// Clear tracking state (call when context changes).
-        /// </summary>
-        public void Reset()
-        {
-            _lastSelected = null;
-            _lastAnnouncedText = null;
         }
 
         #endregion

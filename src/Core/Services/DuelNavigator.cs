@@ -67,6 +67,9 @@ namespace MTGAAccessibility.Core.Services
             // Connect DuelAnnouncer to TargetNavigator for event handling
             _duelAnnouncer.SetTargetNavigator(_targetNavigator);
 
+            // Connect DuelAnnouncer to ZoneNavigator for stack checks in targeting mode
+            _duelAnnouncer.SetZoneNavigator(_zoneNavigator);
+
             // Connect ZoneNavigator to TargetNavigator for targeting mode after card plays
             _zoneNavigator.SetTargetNavigator(_targetNavigator);
 
@@ -835,16 +838,6 @@ namespace MTGAAccessibility.Core.Services
                 var componentNames = components.Where(c => c != null).Select(c => c.GetType().Name);
                 MelonLogger.Msg($"[{NavigatorId}] [Portrait] {indent}- {child.name} [{string.Join(", ", componentNames)}]");
                 LogFullHierarchy(child.gameObject, maxDepth, baseIndent, currentDepth + 1);
-            }
-        }
-
-        private void LogComponents(GameObject obj, string indent)
-        {
-            var components = obj.GetComponents<Component>();
-            if (components.Length > 0)
-            {
-                var names = components.Where(c => c != null).Select(c => c.GetType().Name);
-                MelonLogger.Msg($"[{NavigatorId}] [Portrait] {indent}Components: {string.Join(", ", names)}");
             }
         }
 

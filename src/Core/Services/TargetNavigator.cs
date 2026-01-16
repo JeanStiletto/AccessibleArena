@@ -265,17 +265,23 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Discovers player avatars as valid targets when they have HotHighlight.
+        /// Players use MatchTimer objects with structure: MatchTimer > Icon > HoverArea
+        /// HotHighlight appears on MatchTimer, but we click HoverArea/Icon to target.
         /// </summary>
         private void DiscoverPlayerTargets()
         {
-            var localAvatar = FindPlayerAvatar(isOpponent: false);
-            if (localAvatar != null && HasTargetingHighlight(localAvatar))
+            // Find MatchTimer objects for local player and opponent
+            var (localTimer, localClickable) = FindPlayerMatchTimer(isOpponent: false);
+            var (opponentTimer, opponentClickable) = FindPlayerMatchTimer(isOpponent: true);
+
+            // Check local player - HotHighlight is on MatchTimer, click target is HoverArea/Icon
+            if (localTimer != null && localClickable != null && HasTargetingHighlight(localTimer))
             {
                 _validTargets.Add(new TargetInfo
                 {
-                    GameObject = localAvatar,
+                    GameObject = localClickable,
                     Name = Strings.You,
-                    InstanceId = (uint)localAvatar.GetInstanceID(),
+                    InstanceId = (uint)localClickable.GetInstanceID(),
                     Type = CardTargetType.Player,
                     IsOpponent = false,
                     Details = ""
@@ -283,14 +289,14 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Msg("[TargetNavigator] Added local player as valid target");
             }
 
-            var opponentAvatar = FindPlayerAvatar(isOpponent: true);
-            if (opponentAvatar != null && HasTargetingHighlight(opponentAvatar))
+            // Check opponent - HotHighlight is on MatchTimer, click target is HoverArea/Icon
+            if (opponentTimer != null && opponentClickable != null && HasTargetingHighlight(opponentTimer))
             {
                 _validTargets.Add(new TargetInfo
                 {
-                    GameObject = opponentAvatar,
+                    GameObject = opponentClickable,
                     Name = Strings.Opponent,
-                    InstanceId = (uint)opponentAvatar.GetInstanceID(),
+                    InstanceId = (uint)opponentClickable.GetInstanceID(),
                     Type = CardTargetType.Player,
                     IsOpponent = true,
                     Details = ""
@@ -300,41 +306,86 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Finds the player avatar container for targeting.
+        /// Finds the player target for targeting spells.
+        /// Searches multiple player-related objects for HotHighlight:
+        /// - MatchTimer (LocalPlayerMatchTimer/OpponentMatchTimer)
+        /// - Player containers (LocalPlayer/Opponent under BattleFieldStaticElementsLayout)
+        /// - PlayerHpContainer, LifeFrameContainer, AvatarContainer
+        /// Returns (highlightRoot, clickableElement) - check HotHighlight on highlightRoot, click clickableElement.
+        /// Note: Color Challenge (tutorial) does not support player targeting.
         /// </summary>
-        private GameObject FindPlayerAvatar(bool isOpponent)
+        private (GameObject highlightRoot, GameObject clickable) FindPlayerMatchTimer(bool isOpponent)
         {
-            string containerName = isOpponent ? "Opponent" : "LocalPlayer";
+            string prefix = isOpponent ? "Opponent" : "LocalPlayer";
+            GameObject foundWithHighlight = null;
+            GameObject clickable = null;
 
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy) continue;
 
-                // Look for player portrait containers
-                if (go.name.Contains(containerName) &&
-                    (go.name.Contains("Portrait") || go.name.Contains("Avatar") || go.name.Contains("Player")))
+                string goName = go.name;
+
+                // Check various player-related objects
+                bool isPlayerObject = false;
+                bool isMatchTimer = false;
+
+                if (goName.Contains(prefix) && goName.Contains("MatchTimer"))
                 {
-                    // Check if this has a HoverArea or Icon child (player portrait structure)
+                    isPlayerObject = true;
+                    isMatchTimer = true;
+                }
+                else if (goName.Contains(prefix) && (goName.Contains("PlayerHp") || goName.Contains("LifeFrame") || goName.Contains("Avatar")))
+                {
+                    isPlayerObject = true;
+                }
+                // Also check for generic player containers in BattleFieldStaticElementsLayout
+                else if (goName == prefix || goName == (isOpponent ? "Opponent" : "LocalPlayer"))
+                {
+                    var parent = go.transform.parent;
+                    if (parent != null && (parent.name == "Base" || parent.name.Contains("BattleField")))
+                    {
+                        isPlayerObject = true;
+                    }
+                }
+
+                if (!isPlayerObject) continue;
+
+                bool hasHighlight = HasTargetingHighlight(go);
+
+                if (hasHighlight && foundWithHighlight == null)
+                {
+                    foundWithHighlight = go;
+                }
+
+                // For MatchTimer, try to get the clickable HoverArea
+                if (isMatchTimer && clickable == null)
+                {
                     var iconTransform = go.transform.Find("Icon");
                     if (iconTransform != null)
                     {
                         var hoverArea = iconTransform.Find("HoverArea");
-                        if (hoverArea != null)
-                        {
-                            return hoverArea.gameObject;
-                        }
+                        clickable = hoverArea != null ? hoverArea.gameObject : iconTransform.gameObject;
                     }
-
-                    // Alternative: look for direct HoverArea
-                    var directHover = go.transform.Find("HoverArea");
-                    if (directHover != null)
+                    else
                     {
-                        return directHover.gameObject;
+                        clickable = go;
                     }
+                }
+                // For other containers with highlight, use the container itself as clickable
+                else if (hasHighlight && clickable == null)
+                {
+                    clickable = go;
                 }
             }
 
-            return null;
+            // Return the object with highlight
+            if (foundWithHighlight != null)
+            {
+                return (foundWithHighlight, clickable ?? foundWithHighlight);
+            }
+
+            return (null, null);
         }
 
         /// <summary>

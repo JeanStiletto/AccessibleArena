@@ -130,8 +130,8 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Checks if any cards on the battlefield or stack have HotHighlight (indicating targeting mode).
-        /// Used to detect when the game is waiting for target selection.
+        /// Checks if any valid targets have HotHighlight (indicating targeting mode).
+        /// Scans battlefield, stack, AND player portraits for "any target" spells like Shock.
         /// </summary>
         public static bool HasValidTargetsOnBattlefield()
         {
@@ -139,6 +139,8 @@ namespace MTGAAccessibility.Core.Services
             {
                 if (go == null || !go.activeInHierarchy)
                     continue;
+
+                string name = go.name;
 
                 // Check if it's on the battlefield or stack
                 Transform current = go.transform;
@@ -153,7 +155,11 @@ namespace MTGAAccessibility.Core.Services
                     current = current.parent;
                 }
 
-                if (!inTargetZone)
+                // Also check player portrait areas (for "any target" spells)
+                bool isPlayerArea = name.Contains("MatchTimer") ||
+                                    (name.Contains("Player") && (name.Contains("Portrait") || name.Contains("Avatar")));
+
+                if (!inTargetZone && !isPlayerArea)
                     continue;
 
                 // Check for HotHighlight child (indicates valid target)

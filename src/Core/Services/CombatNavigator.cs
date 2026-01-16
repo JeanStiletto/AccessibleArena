@@ -426,21 +426,6 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Debug: Logs card children during declare blockers to find the blocker indicator.
-        /// </summary>
-        private void LogCardChildrenForBlocker(GameObject card)
-        {
-            if (card == null) return;
-
-            MelonLogger.Msg($"[CombatNavigator] === BLOCKER DEBUG: Children of {card.name} ===");
-            foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
-            {
-                string status = child.gameObject.activeInHierarchy ? "ACTIVE" : "inactive";
-                MelonLogger.Msg($"[CombatNavigator]   [{status}] {child.name}");
-            }
-        }
-
-        /// <summary>
         /// Handles input during combat phases and main phase pass/next.
         /// Returns true if input was consumed.
         /// </summary>
