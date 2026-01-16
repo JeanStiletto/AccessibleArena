@@ -194,19 +194,71 @@ namespace MTGAAccessibility.Core.Services
                 ZoneNavigator.SetFocusedGameObject(target.GameObject, "TargetNavigator");
             }
 
-            // Update zone context so Left/Right arrows work for battlefield navigation
-            // NOTE: This might need adjustment - targets can be on battlefield or stack
+            // Update zone context based on actual target location (not just assuming battlefield)
+            // This allows targets on stack, graveyard, exile to be properly identified
             if (target.Type != CardTargetType.Player)
             {
-                _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "TargetNavigator");
+                var targetZone = DetermineTargetZone(target);
+                _zoneNavigator.SetCurrentZone(targetZone, "TargetNavigator");
+
+                // Prepare CardInfoNavigator for arrow key navigation on this target
+                var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+                if (cardNavigator != null && target.GameObject != null)
+                {
+                    cardNavigator.PrepareForCard(target.GameObject, targetZone);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Determines the zone type from a target's parent hierarchy.
+        /// Checks for Stack, Graveyard, Exile, Hand before defaulting to Battlefield.
+        /// </summary>
+        private ZoneType DetermineTargetZone(TargetInfo target)
+        {
+            if (target.Type == CardTargetType.Player) return ZoneType.Battlefield; // Players don't have a zone
+
+            if (target.GameObject == null) return ZoneType.Battlefield; // Default fallback
+
+            // Check parent hierarchy for zone indicators
+            var current = target.GameObject.transform;
+            while (current != null)
+            {
+                var name = current.name;
+
+                // Check for specific zone patterns (order matters - more specific first)
+                if (name.Contains("StackCardHolder") || name.Contains("Stack"))
+                {
+                    MelonLogger.Msg($"[TargetNavigator] Target {target.Name} detected in Stack zone");
+                    return ZoneType.Stack;
+                }
+                if (name.Contains("LocalGraveyard") || name.Contains("OpponentGraveyard"))
+                {
+                    bool isOpponent = name.Contains("Opponent");
+                    MelonLogger.Msg($"[TargetNavigator] Target {target.Name} detected in {(isOpponent ? "Opponent " : "")}Graveyard zone");
+                    return isOpponent ? ZoneType.OpponentGraveyard : ZoneType.Graveyard;
+                }
+                if (name.Contains("ExileCardHolder") || name.Contains("Exile"))
+                {
+                    MelonLogger.Msg($"[TargetNavigator] Target {target.Name} detected in Exile zone");
+                    return ZoneType.Exile;
+                }
+                if (name.Contains("LocalHand") || name.Contains("Hand"))
+                {
+                    MelonLogger.Msg($"[TargetNavigator] Target {target.Name} detected in Hand zone");
+                    return ZoneType.Hand;
+                }
+                if (name.Contains("BattlefieldCardHolder") || name.Contains("Battlefield"))
+                {
+                    // Don't log battlefield - it's the expected default
+                    return ZoneType.Battlefield;
+                }
+
+                current = current.parent;
             }
 
-            // Prepare CardInfoNavigator for arrow key navigation on this target
-            var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
-            if (cardNavigator != null && target.GameObject != null)
-            {
-                cardNavigator.PrepareForCard(target.GameObject, ZoneType.Battlefield);
-            }
+            // Default to battlefield if no zone indicator found
+            return ZoneType.Battlefield;
         }
 
         /// <summary>

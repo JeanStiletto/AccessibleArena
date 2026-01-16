@@ -10,6 +10,20 @@ using System.Text.RegularExpressions;
 namespace MTGAAccessibility.Core.Services
 {
     /// <summary>
+    /// Tracks which navigator set the current zone.
+    /// Higher priority owners can override lower priority settings.
+    /// Priority order: TargetNavigator > HighlightNavigator > BattlefieldNavigator > ZoneNavigator
+    /// </summary>
+    public enum ZoneOwner
+    {
+        None,
+        ZoneNavigator,
+        BattlefieldNavigator,
+        HighlightNavigator,
+        TargetNavigator
+    }
+
+    /// <summary>
     /// Handles navigation through game zones and cards within zones.
     /// Zone shortcuts: C (Hand), B (Battlefield), G (Graveyard), X (Exile), S (Stack)
     /// Opponent zones: Shift+G (Opponent Graveyard), Shift+X (Opponent Exile)
@@ -28,6 +42,7 @@ namespace MTGAAccessibility.Core.Services
 
         private Dictionary<ZoneType, ZoneInfo> _zones = new Dictionary<ZoneType, ZoneInfo>();
         private ZoneType _currentZone = ZoneType.Hand;
+        private ZoneOwner _zoneOwner = ZoneOwner.None;
         private int _cardIndexInZone = 0;
         private bool _isActive;
 
@@ -49,6 +64,7 @@ namespace MTGAAccessibility.Core.Services
 
         public bool IsActive => _isActive;
         public ZoneType CurrentZone => _currentZone;
+        public ZoneOwner CurrentZoneOwner => _zoneOwner;
         public int CardCount => _zones.ContainsKey(_currentZone) ? _zones[_currentZone].Cards.Count : 0;
         public int HandCardCount => _zones.ContainsKey(ZoneType.Hand) ? _zones[ZoneType.Hand].Cards.Count : 0;
         public int StackCardCount => _zones.ContainsKey(ZoneType.Stack) ? _zones[ZoneType.Stack].Cards.Count : 0;
@@ -76,16 +92,39 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Sets the current zone without full navigation (used by BattlefieldNavigator, TargetNavigator, etc).
+        /// Tracks which navigator set the zone for debugging race conditions.
         /// </summary>
         /// <param name="zone">The zone to set</param>
         /// <param name="caller">Optional caller name for debugging zone change tracking</param>
         public void SetCurrentZone(ZoneType zone, string caller = null)
         {
-            if (_currentZone != zone)
+            // Determine zone owner from caller string
+            ZoneOwner newOwner = ParseZoneOwner(caller);
+
+            // Log if zone or owner changed
+            if (_currentZone != zone || _zoneOwner != newOwner)
             {
-                MelonLogger.Msg($"[ZoneNavigator] Zone change: {_currentZone} -> {zone}{(caller != null ? $" (by {caller})" : "")}");
+                string ownerChange = _zoneOwner != newOwner ? $", owner: {_zoneOwner} -> {newOwner}" : "";
+                MelonLogger.Msg($"[ZoneNavigator] Zone change: {_currentZone} -> {zone}{ownerChange}{(caller != null ? $" (by {caller})" : "")}");
             }
+
             _currentZone = zone;
+            _zoneOwner = newOwner;
+        }
+
+        /// <summary>
+        /// Parses the caller string to determine which navigator is setting the zone.
+        /// </summary>
+        private ZoneOwner ParseZoneOwner(string caller)
+        {
+            if (string.IsNullOrEmpty(caller)) return ZoneOwner.None;
+
+            if (caller.Contains("TargetNavigator")) return ZoneOwner.TargetNavigator;
+            if (caller.Contains("HighlightNavigator")) return ZoneOwner.HighlightNavigator;
+            if (caller.Contains("BattlefieldNavigator")) return ZoneOwner.BattlefieldNavigator;
+            if (caller.Contains("ZoneNavigator") || caller.Contains("NavigateToZone")) return ZoneOwner.ZoneNavigator;
+
+            return ZoneOwner.None;
         }
 
         // Reference to TargetNavigator for entering targeting mode after playing cards

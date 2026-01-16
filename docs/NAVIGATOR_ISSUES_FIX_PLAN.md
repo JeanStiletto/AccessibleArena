@@ -4,26 +4,53 @@ This document captures all identified issues with the duel navigation system, in
 
 ---
 
-## Status Overview (Updated 2026-01-16 - Session 1 Complete)
+## Status Overview (Updated 2026-01-16 - Session 2 Complete)
 
 | Issue | Status | Notes |
 |-------|--------|-------|
 | 1.1 Targeting exit passive | **FIXED** | ExitTargetMode() added after target selection - tested with Shock |
 | 1.2 Enter key priority | PARTIALLY FIXED | Backspace handler exists, auto-exit added |
-| 1.3 Zone state conflicts | **CREATED BY US** | Commit 651c3d8 unified focus but created conflicts |
-| 1.4 Wrong zone for targets | **CREATED BY US** | Commit 33deeb9 added with known limitation |
+| 1.3 Zone state conflicts | **FIXED** | ZoneOwner enum added, ownership tracked in SetCurrentZone |
+| 1.4 Wrong zone for targets | **FIXED** | DetermineTargetZone() detects Stack, Graveyard, Exile, Hand |
 | 2.1 Two entry points | PARTIALLY FIXED | Both now check stack, but still separate |
 | 2.2 HotHighlight methods | NOT FIXED | Still 3 different implementations |
 | 2.3 Rescan loop | ADDRESSED | Uncommitted changes add attempt counter |
 | 2.4 Combat rapid transitions | NOT FIXED | |
 | 2.5 Deactivation cleanup | PARTIALLY FIXED | HighlightNavigator fixed, others pending |
-| 2.6 EventSystem conflicts | **LOGGING ADDED** | SetFocusedGameObject wrapper with caller tracking |
+| 2.6 EventSystem conflicts | **FIXED** | All navigators use SetFocusedGameObject wrapper |
 | 3.1 Excessive rediscovery | NOT FIXED | |
 | 3.2 Stack count timing | NOT FIXED | |
 | 3.3 CardInfo mismatch | NOT FIXED | |
 | 4.1 Targeting logging | PARTIALLY FIXED | Some logging exists |
-| 4.2 Zone change logging | **FIXED** | SetCurrentZone now logs zone changes with caller name |
+| 4.2 Zone change logging | **FIXED** | SetCurrentZone logs zone + owner changes |
 | 4.3 Focus change logging | **FIXED** | SetFocusedGameObject wrapper logs all focus changes |
+
+### Session 2 Completed (2026-01-16)
+
+**Changes made:**
+1. **Issue 1.3 FIXED** - ZoneNavigator.cs
+   - Added `ZoneOwner` enum (None, ZoneNavigator, BattlefieldNavigator, HighlightNavigator, TargetNavigator)
+   - Added `_zoneOwner` field and `CurrentZoneOwner` property
+   - `SetCurrentZone()` now tracks owner and logs ownership changes
+   - `ParseZoneOwner()` method determines owner from caller string
+
+2. **Issue 1.4 FIXED** - TargetNavigator.cs:213-262
+   - Added `DetermineTargetZone()` method that checks parent hierarchy
+   - Detects Stack, Graveyard, OpponentGraveyard, Exile, Hand zones
+   - Logs when targets are in non-battlefield zones
+   - Updated `AnnounceCurrentTarget()` to use zone detection
+
+3. **Issue 2.6 VERIFIED** - Already fixed in Session 1
+   - ZoneNavigator, BattlefieldNavigator, TargetNavigator, HighlightNavigator all use wrapper
+   - No direct EventSystem.SetSelectedGameObject calls remain
+
+**Testing performed:**
+- Zone ownership tracking: Verified - logs show correct owner transitions (ZoneNavigator <-> BattlefieldNavigator)
+- Focus change logging: Verified - all navigators log focus changes with caller name
+- Mixed navigation (Tab, C, B keys): Working correctly
+- **UNTESTED:** Targeting spells on stack (Issue 1.4) - needs counterspell scenario to verify DetermineTargetZone()
+
+---
 
 ### Session 1 Completed (2026-01-16)
 
