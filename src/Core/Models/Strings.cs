@@ -23,6 +23,7 @@ namespace MTGAAccessibility.Core.Models
         public static string Activating(string name) => $"Activating {name}";
         public static string CannotActivate(string name) => $"Cannot activate {name}";
         public static string CouldNotPlay(string name) => $"Could not play {name}";
+        public static string NoAbilityAvailable(string name) => $"{name} has no activatable ability";
         public const string NoCardSelected = "No card selected";
 
         // ===========================================
@@ -156,6 +157,7 @@ namespace MTGAAccessibility.Core.Models
         // ===========================================
         public const string NoCards = "No cards";
         public const string NoButtonSelected = "No button selected";
+        public const string NoButtonsAvailable = "No buttons available";
         public const string CouldNotTogglePosition = "Could not toggle position";
         public const string Selected = "selected";
         public const string Confirmed = "Confirmed";
