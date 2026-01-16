@@ -2,6 +2,7 @@ using UnityEngine;
 using MelonLoader;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace MTGAAccessibility.Core.Services
@@ -197,6 +198,182 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC: Logs ALL GameObjects with HotHighlight across ALL zones.
+        /// Use this to verify if game correctly updates highlights when mode changes.
+        /// Call on Tab press to see what's highlighted in current game state.
+        /// </summary>
+        public static void LogAllHotHighlights()
+        {
+            MelonLogger.Msg("[HotHighlight DIAGNOSTIC] === SCANNING ALL ZONES FOR HOTHLIGHTS ===");
+
+            var highlightedItems = new List<(string zone, string name, string highlightType, string path)>();
+
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+
+                // Check if this object has HotHighlight
+                string highlightType = GetHotHighlightType(go);
+                if (highlightType == null) continue;
+
+                // Determine zone from parent hierarchy
+                string zone = DetectZone(go);
+                string cardName = GetQuickCardName(go);
+                string path = GetShortPath(go);
+
+                highlightedItems.Add((zone, cardName, highlightType, path));
+            }
+
+            // Group by zone and log
+            var byZone = highlightedItems.GroupBy(x => x.zone).OrderBy(g => g.Key);
+
+            int totalCount = highlightedItems.Count;
+            MelonLogger.Msg($"[HotHighlight DIAGNOSTIC] Found {totalCount} highlighted objects:");
+
+            foreach (var group in byZone)
+            {
+                MelonLogger.Msg($"[HotHighlight DIAGNOSTIC]   {group.Key}: {group.Count()} items");
+                foreach (var item in group)
+                {
+                    MelonLogger.Msg($"[HotHighlight DIAGNOSTIC]     - {item.name} ({item.highlightType}) @ {item.path}");
+                }
+            }
+
+            // Also check for player targets specifically
+            LogPlayerTargetHighlights();
+
+            MelonLogger.Msg("[HotHighlight DIAGNOSTIC] === END SCAN ===");
+        }
+
+        /// <summary>
+        /// Gets the specific HotHighlight type if present.
+        /// Returns the name like "HotHighlightBattlefield(Clone)" or null if none.
+        /// </summary>
+        public static string GetHotHighlightType(GameObject obj)
+        {
+            foreach (Transform child in obj.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || child.gameObject == obj) continue;
+                if (!child.gameObject.activeInHierarchy) continue;
+
+                if (child.name.Contains("HotHighlight"))
+                {
+                    return child.name; // Return full name like "HotHighlightBattlefield(Clone)"
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Detects zone from parent hierarchy for diagnostic logging.
+        /// </summary>
+        private static string DetectZone(GameObject obj)
+        {
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                string name = current.name;
+
+                if (name.Contains("LocalHand")) return "Hand (Local)";
+                if (name.Contains("OpponentHand")) return "Hand (Opponent)";
+                if (name.Contains("LocalGraveyard")) return "Graveyard (Local)";
+                if (name.Contains("OpponentGraveyard")) return "Graveyard (Opponent)";
+                if (name.Contains("ExileCardHolder")) return "Exile";
+                if (name.Contains("StackCardHolder")) return "Stack";
+                if (name.Contains("BattlefieldCardHolder")) return "Battlefield";
+                if (name.Contains("CommandCardHolder")) return "Command";
+                if (name.Contains("MatchTimer"))
+                {
+                    return name.Contains("Opponent") ? "Player (Opponent)" : "Player (Local)";
+                }
+
+                current = current.parent;
+            }
+            return "Unknown";
+        }
+
+        /// <summary>
+        /// Gets a quick card name without full model lookup.
+        /// </summary>
+        private static string GetQuickCardName(GameObject obj)
+        {
+            // Try CDC component first (fast)
+            var cdc = GetDuelSceneCDC(obj);
+            if (cdc != null)
+            {
+                var model = GetCardModel(cdc);
+                if (model != null)
+                {
+                    var nameProp = model.GetType().GetProperty("Name") ??
+                                   model.GetType().GetProperty("name");
+                    if (nameProp != null)
+                    {
+                        var name = nameProp.GetValue(model)?.ToString();
+                        if (!string.IsNullOrEmpty(name)) return name;
+                    }
+                }
+            }
+
+            // Fall back to object name
+            string objName = obj.name;
+            if (objName.Contains("CDC #")) return objName;
+            if (objName.Contains("MatchTimer"))
+            {
+                return objName.Contains("Opponent") ? "Opponent Player" : "Local Player";
+            }
+            return objName;
+        }
+
+        /// <summary>
+        /// Gets a short path for diagnostic logging.
+        /// </summary>
+        private static string GetShortPath(GameObject obj)
+        {
+            string path = obj.name;
+            Transform parent = obj.transform.parent;
+            int depth = 0;
+            while (parent != null && depth < 3)
+            {
+                path = parent.name + "/" + path;
+                parent = parent.parent;
+                depth++;
+            }
+            return path;
+        }
+
+        /// <summary>
+        /// Specifically checks and logs player portrait highlights.
+        /// </summary>
+        private static void LogPlayerTargetHighlights()
+        {
+            MelonLogger.Msg("[HotHighlight DIAGNOSTIC] Checking player portrait areas specifically:");
+
+            string[] playerPatterns = { "MatchTimer", "PlayerPortrait", "Avatar", "LifeFrame" };
+
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+
+                bool isPlayerArea = false;
+                foreach (var pattern in playerPatterns)
+                {
+                    if (go.name.Contains(pattern))
+                    {
+                        isPlayerArea = true;
+                        break;
+                    }
+                }
+
+                if (!isPlayerArea) continue;
+
+                bool hasHighlight = HasHotHighlight(go);
+                string highlightType = GetHotHighlightType(go) ?? "none";
+
+                MelonLogger.Msg($"[HotHighlight DIAGNOSTIC]   Player area '{go.name}': hasHighlight={hasHighlight}, type={highlightType}");
+            }
         }
 
         #endregion

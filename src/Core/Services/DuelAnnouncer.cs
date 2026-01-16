@@ -34,7 +34,9 @@ namespace MTGAAccessibility.Core.Services
         private const float DUPLICATE_THRESHOLD_SECONDS = 0.5f;
 
         private uint _localPlayerId;
-        private TargetNavigator _targetNavigator;
+        // DEPRECATED: TargetNavigator was used to auto-enter targeting mode on spell cast
+        // Now HotHighlightNavigator handles targeting via game's HotHighlight system
+        // private TargetNavigator _targetNavigator;
         private ZoneNavigator _zoneNavigator;
         private DateTime _lastSpellResolvedTime = DateTime.MinValue;
 
@@ -61,10 +63,11 @@ namespace MTGAAccessibility.Core.Services
             return (DateTime.Now - _lastSpellResolvedTime).TotalMilliseconds < withinMs;
         }
 
-        public void SetTargetNavigator(TargetNavigator navigator)
-        {
-            _targetNavigator = navigator;
-        }
+        // DEPRECATED: SetTargetNavigator was used to connect announcer to targeting system
+        // public void SetTargetNavigator(TargetNavigator navigator)
+        // {
+        //     _targetNavigator = navigator;
+        // }
 
         public void SetZoneNavigator(ZoneNavigator navigator)
         {
@@ -903,35 +906,25 @@ namespace MTGAAccessibility.Core.Services
 
         private string HandleTargetSelectionEvent(object uxEvent)
         {
-            if (_targetNavigator != null)
-            {
-                // Only enter targeting mode if there's a spell on the stack.
-                // This prevents false targeting mode for mana abilities (like Ilysian Caryatid)
-                // and other activated abilities that require choices but don't target.
-                // Combat phase is no longer checked - if there's a spell on stack during combat,
-                // we should enter targeting mode for it.
-                // Use fresh stack count for timing-sensitive check (Issue 3.2 fix)
-                bool hasSpellOnStack = _zoneNavigator?.GetFreshStackCount() > 0;
-
-                if (hasSpellOnStack)
-                {
-                    MelonLogger.Msg("[DuelAnnouncer] TargetSelection event with spell on stack - entering targeting mode");
-                    // Use unified TryEnterTargetMode with requireValidTargets=false for event-based entry
-                    // (targets may not be visible yet when event fires)
-                    _targetNavigator.TryEnterTargetMode(requireValidTargets: false);
-                }
-                else
-                {
-                    MelonLogger.Msg($"[DuelAnnouncer] TargetSelection event ignored - no spell on stack (stackCount={_zoneNavigator?.GetFreshStackCount() ?? 0})");
-                }
-                return null;
-            }
-            return "Select a target";
+            // DEPRECATED: Old targeting mode entry - now HotHighlightNavigator handles targeting
+            // via Tab cycling through highlighted targets. The game's HotHighlight system shows
+            // valid targets, and users Tab to cycle through them.
+            // if (_targetNavigator != null)
+            // {
+            //     bool hasSpellOnStack = _zoneNavigator?.GetFreshStackCount() > 0;
+            //     if (hasSpellOnStack)
+            //     {
+            //         _targetNavigator.TryEnterTargetMode(requireValidTargets: false);
+            //     }
+            //     return null;
+            // }
+            return null; // No announcement needed - Tab will discover targets
         }
 
         private string HandleTargetConfirmedEvent(object uxEvent)
         {
-            _targetNavigator?.ExitTargetMode();
+            // DEPRECATED: _targetNavigator?.ExitTargetMode();
+            // HotHighlightNavigator automatically discovers new highlight state on next Tab
             return null;
         }
 

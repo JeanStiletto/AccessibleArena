@@ -12,15 +12,15 @@ namespace MTGAAccessibility.Core.Services
     /// <summary>
     /// Tracks which navigator set the current zone.
     /// Higher priority owners can override lower priority settings.
-    /// Priority order: TargetNavigator > HighlightNavigator > BattlefieldNavigator > ZoneNavigator
+    /// Priority order: HotHighlightNavigator > BattlefieldNavigator > ZoneNavigator
     /// </summary>
     public enum ZoneOwner
     {
         None,
         ZoneNavigator,
         BattlefieldNavigator,
-        HighlightNavigator,
-        TargetNavigator
+        HighlightNavigator,      // Used by HotHighlightNavigator
+        // DEPRECATED: TargetNavigator - was separate, now unified into HotHighlightNavigator
     }
 
     /// <summary>
@@ -156,16 +156,19 @@ namespace MTGAAccessibility.Core.Services
         {
             if (string.IsNullOrEmpty(caller)) return ZoneOwner.None;
 
-            if (caller.Contains("TargetNavigator")) return ZoneOwner.TargetNavigator;
+            // HotHighlightNavigator uses HighlightNavigator owner for zone ownership
+            if (caller.Contains("HotHighlightNavigator")) return ZoneOwner.HighlightNavigator;
             if (caller.Contains("HighlightNavigator")) return ZoneOwner.HighlightNavigator;
+            // DEPRECATED: if (caller.Contains("TargetNavigator")) return ZoneOwner.TargetNavigator;
             if (caller.Contains("BattlefieldNavigator")) return ZoneOwner.BattlefieldNavigator;
             if (caller.Contains("ZoneNavigator") || caller.Contains("NavigateToZone")) return ZoneOwner.ZoneNavigator;
 
             return ZoneOwner.None;
         }
 
-        // Reference to TargetNavigator for entering targeting mode after playing cards
-        private TargetNavigator _targetNavigator;
+        // DEPRECATED: TargetNavigator was used to enter targeting mode after playing cards
+        // Now HotHighlightNavigator handles targeting via game's HotHighlight system
+        // private TargetNavigator _targetNavigator;
 
         // Reference to DiscardNavigator for selection state announcements
         private DiscardNavigator _discardNavigator;
@@ -178,13 +181,11 @@ namespace MTGAAccessibility.Core.Services
             _announcer = announcer;
         }
 
-        /// <summary>
-        /// Sets the TargetNavigator reference for targeting mode after card plays.
-        /// </summary>
-        public void SetTargetNavigator(TargetNavigator navigator)
-        {
-            _targetNavigator = navigator;
-        }
+        // DEPRECATED: SetTargetNavigator was used to enter targeting after card plays
+        // public void SetTargetNavigator(TargetNavigator navigator)
+        // {
+        //     _targetNavigator = navigator;
+        // }
 
         /// <summary>
         /// Sets the DiscardNavigator reference for selection state announcements.
@@ -477,12 +478,13 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from hand via two-click");
 
                 // Two-click is async, result comes via callback
-                // Pass TargetNavigator so targeting mode is entered after the card is played
+                // DEPRECATED: TargetNavigator was passed to enter targeting after card play
+                // Now HotHighlightNavigator discovers targets via game's HotHighlight system
                 UIActivator.PlayCardViaTwoClick(card, (success, message) =>
                 {
                     if (success)
                     {
-                        // Don't announce "Played" here - targeting mode will announce if needed
+                        // Don't announce "Played" here - targeting mode will be discovered via Tab
                         MelonLogger.Msg($"[ZoneNavigator] Card play succeeded");
                     }
                     else
@@ -490,7 +492,7 @@ namespace MTGAAccessibility.Core.Services
                         _announcer.Announce(Strings.CouldNotPlay(cardName), AnnouncementPriority.High);
                         MelonLogger.Msg($"[ZoneNavigator] Card play failed: {message}");
                     }
-                }, _targetNavigator);
+                }, null);
             }
             else
             {

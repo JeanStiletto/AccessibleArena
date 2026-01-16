@@ -28,8 +28,9 @@ namespace MTGAAccessibility.Core.Services
         // Reference to CombatNavigator for attacker/blocker state announcements
         private CombatNavigator _combatNavigator;
 
-        // Reference to TargetNavigator for targeting mode row navigation
-        private TargetNavigator _targetNavigator;
+        // DEPRECATED: TargetNavigator was used to check IsTargeting for row navigation behavior
+        // Now HotHighlightNavigator handles targeting - battlefield navigation is always available
+        // private TargetNavigator _targetNavigator;
 
         // Row order from top (enemy side) to bottom (player side) for Shift+Up/Down navigation
         private static readonly BattlefieldRow[] RowOrder = {
@@ -64,13 +65,11 @@ namespace MTGAAccessibility.Core.Services
             _combatNavigator = navigator;
         }
 
-        /// <summary>
-        /// Sets the TargetNavigator reference for targeting mode row navigation.
-        /// </summary>
-        public void SetTargetNavigator(TargetNavigator navigator)
-        {
-            _targetNavigator = navigator;
-        }
+        // DEPRECATED: SetTargetNavigator was used for targeting mode row navigation
+        // public void SetTargetNavigator(TargetNavigator navigator)
+        // {
+        //     _targetNavigator = navigator;
+        // }
 
         /// <summary>
         /// Activates battlefield navigation.
@@ -136,40 +135,10 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Check if in targeting mode - special handling for battlefield inspection
-            bool isTargeting = _targetNavigator?.IsTargeting == true;
+            // DEPRECATED: Old targeting mode special handling removed
+            // HotHighlightNavigator handles targeting via Tab - battlefield navigation always works
+            // bool isTargeting = _targetNavigator?.IsTargeting == true;
             bool inBattlefield = _zoneNavigator.CurrentZone == ZoneType.Battlefield;
-
-            // In targeting mode: Shift+Up/Down for row navigation, but Left/Right/Enter are NOT captured
-            if (isTargeting)
-            {
-                if (shift && Input.GetKeyDown(KeyCode.UpArrow))
-                {
-                    // If not in battlefield yet, default to PlayerCreatures
-                    if (!inBattlefield)
-                    {
-                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
-                        _currentRow = BattlefieldRow.PlayerCreatures;
-                    }
-                    PreviousRow();
-                    return true;
-                }
-
-                if (shift && Input.GetKeyDown(KeyCode.DownArrow))
-                {
-                    // If not in battlefield yet, default to PlayerCreatures
-                    if (!inBattlefield)
-                    {
-                        _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
-                        _currentRow = BattlefieldRow.PlayerCreatures;
-                    }
-                    NextRow();
-                    return true;
-                }
-
-                // Left/Right falls through to normal row navigation below
-                // Enter is skipped during targeting (TargetNavigator handles it)
-            }
 
             // Row switching with Shift+Up/Down (only when already in battlefield)
             if (inBattlefield && shift && Input.GetKeyDown(KeyCode.UpArrow))
@@ -198,8 +167,9 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Enter to activate card (only when in battlefield, not during targeting)
-            if (!isTargeting && inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            // Enter to activate card (only when in battlefield)
+            // Note: HotHighlightNavigator handles Enter for targets - this is for non-highlighted cards
+            if (inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 ActivateCurrentCard();
                 return true;

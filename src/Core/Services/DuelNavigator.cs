@@ -27,14 +27,22 @@ namespace MTGAAccessibility.Core.Services
         private bool _isWatching;
         private bool _hasCenteredMouse;
         private ZoneNavigator _zoneNavigator;
-        private TargetNavigator _targetNavigator;
-        private HighlightNavigator _highlightNavigator;
+        private HotHighlightNavigator _hotHighlightNavigator;  // Unified navigator for Tab cycling playable cards AND targets
         private DiscardNavigator _discardNavigator;
         private CombatNavigator _combatNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
         private BrowserNavigator _browserNavigator;
         private PlayerPortraitNavigator _portraitNavigator;
         private DuelAnnouncer _duelAnnouncer;
+
+        // DEPRECATED: Old separate navigators replaced by unified HotHighlightNavigator
+        // TargetNavigator - Handled Tab cycling through valid spell targets (creatures, players)
+        //                   Auto-entered when spell on stack had HotHighlight on battlefield
+        //                   Used separate _isTargeting flag and zone scanning
+        // HighlightNavigator - Handled Tab cycling through playable cards in hand
+        //                      Scanned LocalHand and BattlefieldCardHolder for HotHighlight
+        //                      Provided GetPrimaryButtonText() for game state when no cards playable
+        // Both moved to: src/Core/Services/old/
 
         public override string NavigatorId => "Duel";
         public override string ScreenName => "Duel";
@@ -44,34 +52,32 @@ namespace MTGAAccessibility.Core.Services
         protected override bool AcceptSpaceKey => false;
 
         public ZoneNavigator ZoneNavigator => _zoneNavigator;
-        public TargetNavigator TargetNavigator => _targetNavigator;
-        public HighlightNavigator HighlightNavigator => _highlightNavigator;
+        public HotHighlightNavigator HotHighlightNavigator => _hotHighlightNavigator;
         public DiscardNavigator DiscardNavigator => _discardNavigator;
         public BattlefieldNavigator BattlefieldNavigator => _battlefieldNavigator;
         public BrowserNavigator BrowserNavigator => _browserNavigator;
         public DuelAnnouncer DuelAnnouncer => _duelAnnouncer;
         public PlayerPortraitNavigator PortraitNavigator => _portraitNavigator;
+        // DEPRECATED: public TargetNavigator TargetNavigator => _targetNavigator;
+        // DEPRECATED: public HighlightNavigator HighlightNavigator => _highlightNavigator;
 
         public DuelNavigator(IAnnouncementService announcer) : base(announcer)
         {
             _zoneNavigator = new ZoneNavigator(announcer);
-            _targetNavigator = new TargetNavigator(announcer, _zoneNavigator);
-            _highlightNavigator = new HighlightNavigator(announcer, _zoneNavigator);
+
+            // Unified highlight navigator - handles Tab for both playable cards AND targets
+            // Trusts game's HotHighlight system to show correct items based on game state
+            _hotHighlightNavigator = new HotHighlightNavigator(announcer, _zoneNavigator);
+
             _discardNavigator = new DiscardNavigator(announcer, _zoneNavigator);
             _browserNavigator = new BrowserNavigator(announcer);
-            _portraitNavigator = new PlayerPortraitNavigator(announcer, _targetNavigator);
+            _portraitNavigator = new PlayerPortraitNavigator(announcer);
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
             _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
 
-            // Connect DuelAnnouncer to TargetNavigator for event handling
-            _duelAnnouncer.SetTargetNavigator(_targetNavigator);
-
-            // Connect DuelAnnouncer to ZoneNavigator for stack checks in targeting mode
+            // Connect DuelAnnouncer to ZoneNavigator for stack checks
             _duelAnnouncer.SetZoneNavigator(_zoneNavigator);
-
-            // Connect ZoneNavigator to TargetNavigator for targeting mode after card plays
-            _zoneNavigator.SetTargetNavigator(_targetNavigator);
 
             // Connect ZoneNavigator to DiscardNavigator for selection state announcements
             _zoneNavigator.SetDiscardNavigator(_discardNavigator);
@@ -82,8 +88,10 @@ namespace MTGAAccessibility.Core.Services
             // Connect BattlefieldNavigator to CombatNavigator for combat state announcements
             _battlefieldNavigator.SetCombatNavigator(_combatNavigator);
 
-            // Connect BattlefieldNavigator to TargetNavigator for targeting mode row navigation
-            _battlefieldNavigator.SetTargetNavigator(_targetNavigator);
+            // DEPRECATED connections (were for old TargetNavigator):
+            // _duelAnnouncer.SetTargetNavigator() - Was used to auto-enter targeting mode on spell cast
+            // _zoneNavigator.SetTargetNavigator() - Was used to enter targeting after card plays
+            // _battlefieldNavigator.SetTargetNavigator() - Was used for row navigation during targeting
         }
 
         /// <summary>
@@ -122,8 +130,7 @@ namespace MTGAAccessibility.Core.Services
                 _isWatching = false;
                 _hasCenteredMouse = false; // Reset for next duel
                 _zoneNavigator.Deactivate();
-                _targetNavigator.ExitTargetMode();
-                _highlightNavigator.Deactivate();
+                _hotHighlightNavigator.Deactivate();
                 _battlefieldNavigator.Deactivate();
                 _portraitNavigator.Deactivate();
                 _duelAnnouncer.Deactivate();
@@ -152,8 +159,8 @@ namespace MTGAAccessibility.Core.Services
             // 2. Activate battlefield navigator for row-based navigation
             _battlefieldNavigator.Activate();
 
-            // 3. Activate highlight navigator for Tab cycling through playable cards
-            _highlightNavigator.Activate();
+            // 3. Activate unified highlight navigator for Tab cycling (playable cards AND targets)
+            _hotHighlightNavigator.Activate();
 
             // 4. Activate duel announcer with local player ID
             // We detect local player by finding LocalHand zone and getting its OwnerId
@@ -316,63 +323,18 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Handles zone navigation, target selection, and playable card cycling input.
-        /// Priority: TargetNavigator > DiscardNavigator > CombatNavigator > HighlightNavigator > BattlefieldNavigator > ZoneNavigator > base
+        /// Uses unified HotHighlightNavigator for Tab/Enter on playable cards and targets.
+        /// Priority: Browser > Discard > Combat > HotHighlight > Portrait > Battlefield > Zone > base
         /// </summary>
         protected override bool HandleCustomInput()
         {
             // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
 
-            // Auto-detect targeting mode: if valid targets exist but we're not in targeting mode yet
-            // Enter when there's a spell on the stack - this is the key indicator that HotHighlight
-            // is for spell targeting, not combat selection or activated abilities.
-            // Combat phase is no longer checked - if there's a spell on stack during combat
-            // (like an instant), we should still enter targeting mode.
-            bool hasValidTargets = CardDetector.HasValidTargetsOnBattlefield();
-            // Use fresh stack count for timing-sensitive auto-detect (Issue 3.2 fix)
-            bool hasSpellOnStack = _zoneNavigator.GetFreshStackCount() > 0;
-
-            if (!_targetNavigator.IsTargeting && hasValidTargets && hasSpellOnStack)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Auto-detected targeting mode (spell on stack) - entering");
-                // Use unified TryEnterTargetMode with requireValidTargets=true for auto-detect
-                _targetNavigator.TryEnterTargetMode(requireValidTargets: true);
-            }
-
-            // Auto-exit targeting mode when no more valid targets (spell resolved, HotHighlight gone)
-            // or when there's no spell on stack (targeting was for a spell that already resolved)
-            if (_targetNavigator.IsTargeting)
-            {
-                bool shouldExit = false;
-                string exitReason = "";
-
-                if (!hasValidTargets)
-                {
-                    shouldExit = true;
-                    exitReason = "no more valid targets";
-                }
-                else if (!hasSpellOnStack)
-                {
-                    shouldExit = true;
-                    exitReason = "no spell on stack";
-                }
-
-                if (shouldExit)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Auto-exiting targeting mode - {exitReason}");
-                    _targetNavigator.ExitTargetMode();
-                }
-            }
-
             // First, check for browser UI (scry, mulligan, damage assignment, etc.)
             // Browsers take highest priority as they represent modal interactions
             _browserNavigator.Update();
             if (_browserNavigator.HandleInput())
-                return true;
-
-            // Next, let TargetNavigator handle input if in targeting mode
-            // This allows Tab to cycle targets during spell targeting
-            if (_targetNavigator.HandleInput())
                 return true;
 
             // Next, let DiscardNavigator handle Enter/Space during discard mode
@@ -383,9 +345,9 @@ namespace MTGAAccessibility.Core.Services
             if (_combatNavigator.HandleInput())
                 return true;
 
-            // Next, let HighlightNavigator handle Tab to cycle playable cards
-            // This replaces the default button-cycling Tab behavior
-            if (_highlightNavigator.HandleInput())
+            // NEW: Unified HotHighlightNavigator handles Tab/Enter for both playable cards and targets
+            // No auto-detect/auto-exit needed - we trust the game's highlight management
+            if (_hotHighlightNavigator.HandleInput())
                 return true;
 
             // Portrait/timer info (V key zone) - BEFORE battlefield so arrow keys

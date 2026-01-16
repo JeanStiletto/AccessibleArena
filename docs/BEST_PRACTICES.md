@@ -905,162 +905,120 @@ _duelAnnouncer.Activate(localPlayerId);
 DuelAnnouncer.Instance?.OnGameEvent(uxEvent);
 ```
 
-### TargetNavigator
-Handles target selection when playing spells that require targets. Detects valid targets via HotHighlight child objects.
+### HotHighlightNavigator (Unified - January 2026)
 
-**User Flow:**
-1. Play targeted spell from hand (Enter)
-2. "Select a target. N valid targets" announced
-3. Tab cycles through valid targets
-4. Enter selects current target
-5. Escape cancels targeting
+**REPLACED:** Separate `TargetNavigator` + `HighlightNavigator` unified into single `HotHighlightNavigator`.
+Old files moved to `src/Core/Services/old/` for reference/revert.
+
+**Key Discovery - Game Manages Highlights Correctly:**
+Through diagnostic logging, we verified the game's HotHighlight system correctly updates:
+- When targeting: Only valid targets have HotHighlight (hand cards LOSE highlight)
+- When not targeting: Only playable cards have HotHighlight (battlefield cards LOSE highlight)
+- No overlap - the game switches highlights when game state changes
+
+This means we can trust the game and scan ALL zones, letting the zone determine behavior.
+
+**User Flow (Unified):**
+1. Press Tab at any time
+2. Navigator discovers ALL items with HotHighlight across all zones
+3. Announcement based on zone:
+   - Hand: "Shock, in hand, 1 of 2"
+   - Battlefield: "Goblin, 2/2, opponent's Creature, 1 of 3"
+   - Stack: "Lightning Bolt, on stack, 1 of 2"
+   - Player: "Opponent, player, 3 of 3"
+4. Tab/Shift+Tab cycles through all highlighted items
+5. Enter activates (based on zone):
+   - Hand cards: Two-click to play
+   - Everything else: Single-click to select
+6. Backspace cancels (if targets highlighted)
+7. When no highlights: Announces primary button text ("Pass", "Resolve", "Next")
 
 **Key Discovery - HotHighlight Detection:**
-The game uses `HotHighlight` child objects to visually indicate valid targets:
-- Valid targets: `Highlights - Default(Clone)` → `HotHighlightBattlefield(Clone)` (ACTIVE)
-- Non-targets: `Highlights - Default(Clone)` with no HotHighlight child
-- The spell on stack has `_GlowColor` green glow (NOT the targeting indicator)
+The game uses `HotHighlight` child objects to visually indicate valid targets/playable cards:
+- `HotHighlightBattlefield(Clone)` - Targeting mode targets
+- `HotHighlightDefault(Clone)` - Playable cards in hand
+- The highlight TYPE tells us the context
 
-**Tab Cycling Announcements:**
-Uses `AnnouncementPriority.High` to bypass the duplicate announcement check. This ensures:
-- Single target: Pressing Tab always re-announces the target
-- Multiple targets: Normal cycling behavior with guaranteed announcements
-
-**Integration (via UIActivator):**
+**No Mode Tracking Needed:**
 ```csharp
-// UIActivator.PlayCardViaTwoClick checks for targeting mode after playing
-bool needsTargeting = IsTargetingModeActive(); // Checks for Submit/Cancel buttons
-if (needsTargeting)
-{
-    targetNavigator.EnterTargetMode();
-}
+// Old approach: Separate mode tracking
+if (_targetNavigator.IsTargeting) { ... }
+else if (_highlightNavigator.IsActive) { ... }
+
+// New approach: Zone determines behavior
+if (item.Zone == "Hand")
+    UIActivator.PlayCardViaTwoClick(...);  // Two-click to play
+else
+    UIActivator.SimulatePointerClick(...); // Single-click to select
 ```
-
-**Target Discovery:**
-```csharp
-// TargetNavigator.HasTargetingHighlight()
-foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
-{
-    if (child.gameObject.activeInHierarchy && child.name.Contains("HotHighlight"))
-        return true; // This card is a valid target
-}
-```
-
-**Battlefield Row Navigation During Targeting:**
-While in targeting mode, you can still inspect battlefield rows:
-- Shift+B/A/R: Navigate to player/enemy battlefield rows
-- Shift+Up/Down: Switch between rows
-- Left/Right: Navigate within the current row (shows only that row's cards)
-- Tab: Returns to target cycling
-
-This allows reviewing the battlefield before selecting a target, without Tab cycling jumping to unrelated targets.
-
-### HighlightNavigator
-Handles Tab cycling through playable/highlighted cards during normal gameplay. Replaces the default Tab behavior that cycles through UI buttons.
-
-**How It Works:**
-The game uses `HotHighlight` child objects to visually indicate playable cards (same system used for targeting). HighlightNavigator detects these and allows Tab navigation through them.
-
-**User Flow:**
-1. During your turn, press Tab
-2. "Card Name, in hand, 1 of 3" announced
-3. Tab/Shift+Tab cycles through all playable cards
-4. Enter plays/activates the current card
-5. Selection resets after activation
-
-**Tab Cycling Announcements:**
-Uses `AnnouncementPriority.High` to bypass the duplicate announcement check. This ensures:
-- Single card: Pressing Tab always re-announces the card (even if same message)
-- Multiple cards: Normal cycling behavior with guaranteed announcements
 
 **Input Priority (in DuelNavigator):**
 ```
-TargetNavigator    → Tab during targeting mode (spell targets)
-HighlightNavigator → Tab during normal play (playable cards)
-ZoneNavigator      → Zone shortcuts (C/B/G/X/S) and arrows
-Base behavior      → Fallback (rarely reached)
+HotHighlightNavigator → Tab/Enter/Backspace for highlights
+BattlefieldNavigator  → A/R/B shortcuts, row navigation
+ZoneNavigator         → C/G/X/S shortcuts, Left/Right in zones
 ```
 
-**Key Methods:**
-```csharp
-highlightNavigator.Activate();              // Enable on duel start
-highlightNavigator.Deactivate();            // Disable on scene change
-highlightNavigator.HandleInput();           // Process Tab/Enter
-```
+**Battlefield Row Navigation:**
+Still works during targeting - battlefield navigation is independent of highlight navigation.
 
-**Detection Logic:**
-Uses same HotHighlight detection as TargetNavigator (see "Key Discovery - HotHighlight Detection" above).
+**Known Bug - Activatable Creatures Priority:**
+The game sometimes highlights only activatable creatures (like mana creatures) even when playable
+lands are in hand. This appears to be game behavior - it wants you to tap mana first. After
+activating the creature's ability, hand cards become highlighted.
 
-**Integration with DuelNavigator:**
-```csharp
-// In DuelNavigator.HandleCustomInput()
-if (_targetNavigator.HandleInput())     // Targeting takes priority
-    return true;
-if (_highlightNavigator.HandleInput())  // Then playable card cycling
-    return true;
-if (_zoneNavigator.HandleInput())       // Then zone navigation
-    return true;
-```
+**Old Navigators (Deprecated - in `src/Core/Services/old/`):**
+- `TargetNavigator.cs` - Had separate _isTargeting mode, auto-enter/exit logic
+- `HighlightNavigator.cs` - Had separate playable card cycling, rescan delay logic
 
-### Mode Interactions and Auto-Detection (January 2026)
+### Mode Interactions (January 2026 - Updated)
 
-The duel scene has multiple "modes" that affect input handling. Understanding their interactions is critical for debugging.
+The duel scene has multiple "modes" that affect input handling. With unified HotHighlightNavigator,
+mode tracking is simpler - we trust the game's highlight system.
 
-**Modes:**
-1. **Targeting Mode** (TargetNavigator) - Selecting targets for spells/abilities
-2. **Discard Mode** (DiscardNavigator) - Selecting cards to discard
-3. **Combat Phase** (CombatNavigator) - Declare attackers/blockers
-4. **Normal Mode** - Default zone navigation
+**Modes (Simplified):**
+1. **Highlight Mode** (HotHighlightNavigator) - Tab cycles whatever game highlights (targets OR playable cards)
+2. **Discard Mode** (DiscardNavigator) - Enter/Space during discard
+3. **Combat Phase** (CombatNavigator) - F/Space during declare attackers/blockers
+4. **Normal Mode** - Zone navigation
 
 **Input Priority in DuelNavigator.HandleCustomInput():**
 ```
-1. TargetNavigator    → Tab/Enter/Escape during targeting
-2. DiscardNavigator   → Enter/Space during discard mode
-3. CombatNavigator    → F/Space during declare attackers/blockers
-4. HighlightNavigator → Tab to cycle playable cards
-5. BattlefieldNavigator → A/R/B shortcuts, row navigation
-6. ZoneNavigator      → C/G/X/S shortcuts, Left/Right in zones
+1. BrowserNavigator       → Scry/Surveil/Mulligan browsers
+2. DiscardNavigator       → Enter/Space during discard mode
+3. CombatNavigator        → F/Space during declare attackers/blockers
+4. HotHighlightNavigator  → Tab/Enter/Backspace for highlights (UNIFIED)
+5. BattlefieldNavigator   → A/R/B shortcuts, row navigation
+6. ZoneNavigator          → C/G/X/S shortcuts, Left/Right in zones
 ```
+
+**Key Simplification:**
+Old approach required complex auto-detect/auto-exit logic to track targeting mode.
+New approach trusts game highlights - whatever is highlighted is what Tab cycles through.
 
 **HotHighlight - Shared Visual Indicator:**
 The game uses `HotHighlight` child objects for MULTIPLE purposes:
 - Valid spell targets (targeting mode)
 - Playable cards (highlight mode)
-- Creatures that can attack (declare attackers)
-- Creatures that can block (declare blockers)
 
-**CRITICAL: We cannot visually distinguish these!** This is why phase detection is essential.
+**Key Discovery (January 2026):** Through diagnostic logging we verified the game CORRECTLY
+manages highlights - when targeting mode starts, hand cards LOSE their highlight. When targeting
+ends, battlefield cards LOSE their highlight. There is NO overlap.
 
-**Auto-Detection Logic (DuelNavigator):**
+**What about attackers/blockers?** Testing showed attackers/blockers do NOT use HotHighlight.
+They use different indicators (`CombatIcon_AttackerFrame`, `SelectedHighlightBattlefield`, etc.).
 
-*Entering Targeting Mode:*
+**No Auto-Detection Needed (Unified Navigator):**
+With HotHighlightNavigator, we removed all auto-detect/auto-exit logic:
 ```csharp
-// Only auto-enter when NOT in combat phase
-bool inCombatPhase = IsInDeclareAttackersPhase || IsInDeclareBlockersPhase;
-if (!_targetNavigator.IsTargeting && !inCombatPhase && HasValidTargetsOnBattlefield())
-{
+// OLD (removed):
+if (!_targetNavigator.IsTargeting && HasValidTargetsOnBattlefield())
     _targetNavigator.EnterTargetMode();
-}
-```
-- Checks for HotHighlight on battlefield/stack cards
-- EXCLUDES combat phases (HotHighlight = attackers/blockers there)
-- During combat, UIActivator explicitly calls EnterTargetMode() for instants
 
-*Exiting Targeting Mode:*
-```csharp
-// Auto-exit when:
-// 1. No more HotHighlight (spell resolved)
-// 2. Combat started without spell on stack
-if (_targetNavigator.IsTargeting)
-{
-    if (!hasValidTargets)
-        _targetNavigator.ExitTargetMode(); // Spell resolved
-    else if (inCombatPhase && _zoneNavigator.StackCardCount == 0)
-        _targetNavigator.ExitTargetMode(); // Combat, no spell
-}
+// NEW:
+// Just scan for highlights - game manages what's highlighted
+DiscoverAllHighlights(); // Finds whatever game highlights
 ```
-- Game event `PlayerSubmittedTargetsEventTranslator` is unreliable
-- Fallback: check if HotHighlight disappeared or combat started
 
 **DiscardNavigator Detection:**
 ```csharp
@@ -1068,13 +1026,10 @@ public bool IsDiscardModeActive()
 {
     if (GetSubmitButtonInfo() == null)  // No "Submit X" button
         return false;
-    if (HasValidTargetsOnBattlefield()) // HotHighlight = targeting, not discard
-        return false;
     return true;
 }
 ```
 - Looks for "Submit X" button (e.g., "Submit 0", "Submit 1")
-- Yields to targeting mode if HotHighlight exists
 - NOTE: Cancel button alone is NOT reliable (appears in combat too)
 
 **Combat Phase Detection:**
@@ -1084,58 +1039,39 @@ public bool IsInDeclareAttackersPhase { get; private set; }
 public bool IsInDeclareBlockersPhase { get; private set; }
 ```
 - Set via `ToggleCombatUXEvent` and phase tracking
-- Used to suppress targeting auto-detection during combat
+- Used by CombatNavigator for F/Space shortcuts
 
 **BattlefieldNavigator Zone Coordination:**
 ```csharp
 // Only handle Left/Right if in battlefield zone
 bool inBattlefield = _zoneNavigator.CurrentZone == ZoneType.Battlefield;
-if (!alt && inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow)) { ... }
-
-// A/R/B shortcuts set zone to Battlefield
-if (Input.GetKeyDown(KeyCode.B))
-{
-    _zoneNavigator.SetCurrentZone(ZoneType.Battlefield);
-    NavigateToRow(BattlefieldRow.PlayerCreatures);
-}
+if (inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow)) { ... }
 ```
 - Prevents stealing Left/Right from other zones (hand, graveyard)
 - Zone state shared via `ZoneNavigator.SetCurrentZone()`
 
-**Targeting Mode During Combat (Instant Spells):**
-When playing an instant during combat:
-1. User presses Enter on instant in hand
-2. UIActivator plays the card
-3. UIActivator calls `targetNavigator.EnterTargetMode()` if targeting needed
-4. Auto-detection is SKIPPED (inCombatPhase = true)
-5. After target selected, auto-exit detects "no more HotHighlight"
+**Common Bug Patterns (Simplified):**
 
-**Common Bug Patterns:**
+1. **Activatable creatures take priority (KNOWN BUG):**
+   - Game highlights mana creatures before showing playable lands
+   - This appears to be game behavior, not a mod bug
+   - User must activate the creature, then hand cards become highlighted
 
-1. **Targeting mode doesn't exit:**
-   - Check if `PlayerSubmittedTargetsEventTranslator` fired
-   - Check if HotHighlight still exists
-   - Add auto-exit fallback
-
-2. **Targeting activates during combat:**
-   - Check `inCombatPhase` flag
-   - Verify `IsInDeclareAttackersPhase`/`IsInDeclareBlockersPhase`
-
-3. **Can't play cards (stuck in mode):**
+2. **Can't play cards (stuck in mode):**
    - Check which navigator is consuming Enter key
-   - Check targeting/discard mode flags
+   - Check discard mode flags
    - Look for leftover Submit/Cancel buttons
 
-4. **Left/Right stolen by battlefield:**
+3. **Left/Right stolen by battlefield:**
    - Check `ZoneNavigator.CurrentZone`
    - Verify zone shortcuts update zone state
 
-**Debug Logging to Add:**
+**Debug Logging:**
 ```csharp
-MelonLogger.Msg($"[Mode] targeting={_targetNavigator.IsTargeting}, " +
-    $"discard={_discardNavigator.IsDiscardModeActive()}, " +
-    $"combat={inCombatPhase}, hotHighlight={hasValidTargets}, " +
-    $"stack={_zoneNavigator.StackCardCount}");
+// Use CardDetector.LogAllHotHighlights() to see all highlighted items
+// Called automatically on Tab in diagnostic mode
+MelonLogger.Msg($"[Mode] discard={_discardNavigator.IsDiscardModeActive()}, " +
+    $"combat={inCombatPhase}, highlights={_hotHighlightNavigator.ItemCount}");
 ```
 
 ### PlayerPortraitNavigator
@@ -1157,9 +1093,9 @@ Handles V key player info zone navigation. Provides access to player life, timer
 - `IsInPlayerInfoZone` - True when in any non-Inactive state
 - Used by DuelNavigator to give portrait navigator priority for Enter key
 
-**Input Priority Issue (Known Bug):**
-When player info zone is active, Enter key should be handled by PlayerPortraitNavigator.
-However, if HighlightNavigator runs first in the input chain, it may activate a highlighted card instead.
+**Input Priority:**
+PortraitNavigator runs BEFORE BattlefieldNavigator in the input chain. Arrow keys work correctly
+when in player info zone. HotHighlightNavigator handles Tab/Enter separately.
 
 **Current Workaround Attempts:**
 1. `InputManager.GetEnterAndConsume()` marks Enter as consumed

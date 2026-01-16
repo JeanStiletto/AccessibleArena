@@ -35,12 +35,15 @@ C:\Users\fabia\arena\
         CardInfoNavigator.cs     - Card detail navigation (arrow up/down)
         ZoneNavigator.cs         - Zone navigation in duel (H/B/G/X/S + arrows)
         DuelAnnouncer.cs         - Game event announcements via Harmony
-        TargetNavigator.cs       - Target selection during spells/abilities
-        HighlightNavigator.cs    - Tab cycling through playable/highlighted cards
+        HotHighlightNavigator.cs - Unified Tab navigation for playable cards AND targets (NEW)
         DiscardNavigator.cs      - Discard selection when forced to discard
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
         BrowserNavigator.cs      - Library manipulation browsers (scry, surveil, mulligan)
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
+
+        old/                     - Deprecated navigators (kept for reference/revert)
+          TargetNavigator.cs     - OLD: Separate target selection (replaced by HotHighlightNavigator)
+          HighlightNavigator.cs  - OLD: Separate playable card cycling (replaced by HotHighlightNavigator)
 
         # Navigator Infrastructure
         BaseNavigator.cs         - Abstract base for screen navigators
@@ -168,27 +171,38 @@ C:\Users\fabia\arena\
 - [x] Opponent plays - "Opponent played a card" (hand count decrease detection)
 - [x] Code cleanup - Debug logging removed, dead code removed, file optimized
 
-### Target Selection System (Working)
-- [x] TargetNavigator service - Tab/Shift+Tab/Enter/Escape handling (~340 lines)
-- [x] TargetInfo model - CardTargetType enum, target data structure
-- [x] Integration with DuelNavigator - TargetNavigator created and connected
-- [x] Integration with ZoneNavigator - Passes TargetNavigator to UIActivator
-- [x] Land detection - Skips targeting mode for lands (via card type check)
-- [x] Submit button detection - Detects "Submit X" or "Cancel" button to enter targeting mode
-- [x] **HotHighlight detection** - Valid targets have active `HotHighlightBattlefield(Clone)` child
-- [x] Tab targeting for targeted spells - **Working** (uses HotHighlight detection)
-- [x] High priority announcements - Always announces on Tab (bypasses duplicate check for single-target case)
-- [x] Battlefield row navigation during targeting - Left/Right navigate within current row (Shift+B/etc to switch rows)
+### Unified HotHighlight Navigator System (Working - January 2026)
 
-### Highlight Navigator System (Working)
-- [x] HighlightNavigator service - Tab cycles playable cards outside targeting mode
-- [x] HotHighlight detection - Finds cards with active highlight (playable indicator)
-- [x] Integration with DuelNavigator - Priority: TargetNavigator > HighlightNavigator > ZoneNavigator
-- [x] Tab/Shift+Tab cycling - Cycles through all playable cards (hand + battlefield)
-- [x] Enter to play - Activates currently highlighted card
-- [x] Replaces default Tab behavior - No more cycling through useless UI buttons
-- [x] High priority announcements - Always announces on Tab (bypasses duplicate check)
-- [x] Priority pass announcements - When no playable cards, announces primary button text (e.g., "Opponent's Turn", "Next") instead of generic "No playable cards"
+**Replaced separate TargetNavigator + HighlightNavigator with unified HotHighlightNavigator.**
+
+Key insight: The game's HotHighlight system correctly manages what's highlighted based on game state.
+When in targeting mode, only valid targets have HotHighlight. When not targeting, only playable cards
+have HotHighlight. We trust the game and scan ALL zones, letting the zone determine behavior.
+
+- [x] HotHighlightNavigator service - Unified Tab navigation for playable cards AND targets
+- [x] **Trusts game's highlight system** - No separate mode tracking needed
+- [x] Scans ALL zones - Hand, Battlefield, Stack, Player portraits
+- [x] Zone-based announcements:
+  - Hand: "Shock, in hand, 1 of 2"
+  - Battlefield: "Goblin, 2/2, opponent's Creature, 1 of 3"
+  - Stack: "Lightning Bolt, on stack, 1 of 2"
+  - Player: "Opponent, player, 3 of 3"
+- [x] Zone-based activation:
+  - Hand cards: Two-click to play
+  - All other targets: Single-click to select
+- [x] Player target detection - Scans MatchTimer objects for player portrait highlights
+- [x] Primary button text - When no highlights, announces game state ("Pass", "Resolve", "Next")
+- [x] Backspace to cancel - Available when targets are highlighted
+
+**Old navigators moved to `src/Core/Services/old/` for reference/revert:**
+- `TargetNavigator.cs` - Had separate _isTargeting mode, auto-enter/exit logic, zone scanning
+- `HighlightNavigator.cs` - Had separate playable card cycling, rescan delay logic
+
+**To revert to old navigators:**
+1. Move files back from `old/` folder
+2. Restore connections in DuelNavigator constructor
+3. Replace HotHighlightNavigator.HandleInput() with old TargetNavigator + HighlightNavigator calls
+4. Restore auto-detect/auto-exit logic in DuelNavigator.HandleCustomInput()
 
 ### Discard Navigator System (Working)
 - [x] DiscardNavigator service - Handles forced discard selection
@@ -344,6 +358,13 @@ Mulligan has two distinct UI flows depending on play/draw:
 Mulligan is partially working. Tab navigation and Space confirmation work. Some bugs remain that need specific reproduction steps to investigate.
 
 ## Known Issues
+
+### HotHighlightNavigator (Unified Navigator)
+- **Activatable creatures on battlefield take priority**: The game sometimes highlights only activatable
+  creatures (like mana creatures) even when you have playable lands in hand. This appears to be game
+  behavior, not a mod bug - the game wants you to tap mana first. After activating the creature's
+  ability, hand cards become highlighted. Example: Ilysian Caryatid highlighted but Forest in hand
+  not highlighted until Caryatid is tapped.
 
 ### Combat Navigator
 - **Blocker selection after targeting**: There may be strange interactions after selecting a target for blocks. Needs further testing.
@@ -1074,3 +1095,45 @@ ZoneNavigator.CurrentZone wasn't updated. Same issue in TargetNavigator.
 - `src/Core/Services/DiscardNavigator.cs` - Throttled log spam
 - `src/Core/Services/HighlightNavigator.cs` - Update zone context on Tab cycling
 - `src/Core/Services/TargetNavigator.cs` - Set focus and zone when cycling targets
+
+### January 2026 - Unified HotHighlightNavigator (Navigator Simplification)
+
+**Problem:** Two separate navigators (TargetNavigator + HighlightNavigator) handled Tab navigation
+with complex auto-detect/auto-exit logic. This caused communication issues, mode tracking bugs,
+and duplicate code.
+
+**Key Discovery:** Through diagnostic logging, we verified that the game's HotHighlight system
+correctly manages what's highlighted based on game state:
+- When targeting: Only valid targets have HotHighlight (hand cards lose highlight)
+- When not targeting: Only playable cards have HotHighlight (battlefield cards lose highlight)
+
+**Solution:** Created unified `HotHighlightNavigator` that trusts the game's highlight system:
+- Scans ALL zones for HotHighlight (no hardcoded zone lists)
+- No separate "targeting mode" flag - zone determines behavior
+- Zone-based announcements (hand: "in hand", battlefield: "opponent's Creature")
+- Zone-based activation (hand: two-click, else: single-click)
+
+**Benefits:**
+- Removed ~40 lines of auto-detect/auto-exit logic
+- Simpler state management (no mode tracking)
+- Consistent behavior based on what game highlights
+- Easier to maintain and debug
+
+**Known Bug:** Game sometimes highlights only activatable creatures (like mana creatures) even
+when playable lands are in hand. This appears to be game behavior - it wants you to tap mana
+first. After activating the creature, hand cards become highlighted.
+
+**Files Added:**
+- `src/Core/Services/HotHighlightNavigator.cs` - NEW: Unified Tab navigation
+
+**Files Moved to `src/Core/Services/old/` (for reference/revert):**
+- `TargetNavigator.cs` - OLD: Separate target selection with _isTargeting flag
+- `HighlightNavigator.cs` - OLD: Separate playable card cycling with rescan delay
+
+**Files Changed:**
+- `src/Core/Services/DuelNavigator.cs` - Uses HotHighlightNavigator, removed old navigator init/connections
+- `src/Core/Services/DuelAnnouncer.cs` - Commented out TargetNavigator calls
+- `src/Core/Services/ZoneNavigator.cs` - Commented out TargetNavigator connection
+- `src/Core/Services/BattlefieldNavigator.cs` - Commented out TargetNavigator connection
+- `src/Core/Services/PlayerPortraitNavigator.cs` - Removed TargetNavigator dependency
+- `src/Core/Services/CardDetector.cs` - Made GetHotHighlightType() public for diagnostics

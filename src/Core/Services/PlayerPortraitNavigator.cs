@@ -15,7 +15,8 @@ namespace MTGAAccessibility.Core.Services
     public class PlayerPortraitNavigator
     {
         private readonly IAnnouncementService _announcer;
-        private readonly TargetNavigator _targetNavigator;
+        // DEPRECATED: TargetNavigator was used to check IsTargeting to prevent exiting player zone during targeting
+        // private readonly TargetNavigator _targetNavigator;
         private bool _isActive;
 
         // State machine for V key navigation
@@ -42,10 +43,10 @@ namespace MTGAAccessibility.Core.Services
         private GameObject _previousFocus;
         private GameObject _playerZoneFocusElement;
 
-        public PlayerPortraitNavigator(IAnnouncementService announcer, TargetNavigator targetNavigator = null)
+        public PlayerPortraitNavigator(IAnnouncementService announcer)
         {
             _announcer = announcer;
-            _targetNavigator = targetNavigator;
+            // DEPRECATED: _targetNavigator = targetNavigator;
         }
 
         public void Activate()
@@ -316,38 +317,34 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Enter: if targeting and player is valid target, click to target
-            // Otherwise, open emote menu (local player only)
+            // Enter: open emote menu (local player only)
             // Use InputManager to consume the key so game doesn't also process it
             if (InputManager.GetEnterAndConsume())
             {
                 MelonLogger.Msg($"[PlayerPortrait] Enter pressed and consumed in PlayerNavigation, playerIndex={_currentPlayerIndex}");
-                // Check if we're in targeting mode and current player is a valid target
-                if (_targetNavigator != null && _targetNavigator.IsTargeting)
-                {
-                    var playerAvatar = FindCurrentPlayerAvatar();
-                    if (playerAvatar != null && HasPlayerTargetingHighlight(playerAvatar))
-                    {
-                        var result = UIActivator.SimulatePointerClick(playerAvatar);
-                        string playerName = _currentPlayerIndex == 0 ? Strings.You : Strings.Opponent;
-                        if (result.Success)
-                        {
-                            _announcer.Announce(Strings.Targeted(playerName), AnnouncementPriority.Normal);
-                        }
-                        else
-                        {
-                            _announcer.Announce(Strings.CouldNotTarget(playerName), AnnouncementPriority.Normal);
-                        }
-                        return true;
-                    }
-                }
 
-                // Not targeting - open emote wheel (local player only)
+                // DEPRECATED: Old targeting check - now handled by HotHighlightNavigator which includes player targets
+                // if (_targetNavigator != null && _targetNavigator.IsTargeting)
+                // {
+                //     var playerAvatar = FindCurrentPlayerAvatar();
+                //     if (playerAvatar != null && HasPlayerTargetingHighlight(playerAvatar))
+                //     {
+                //         var result = UIActivator.SimulatePointerClick(playerAvatar);
+                //         string playerName = _currentPlayerIndex == 0 ? Strings.You : Strings.Opponent;
+                //         if (result.Success)
+                //             _announcer.Announce(Strings.Targeted(playerName), AnnouncementPriority.Normal);
+                //         else
+                //             _announcer.Announce(Strings.CouldNotTarget(playerName), AnnouncementPriority.Normal);
+                //         return true;
+                //     }
+                // }
+
+                // Open emote wheel (local player only)
                 if (_currentPlayerIndex == 0)
                 {
                     OpenEmoteWheel();
                 }
-                // Do nothing for opponent when not targeting
+                // Do nothing for opponent
                 return true;
             }
 
