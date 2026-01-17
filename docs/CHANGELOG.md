@@ -4,6 +4,24 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Hidden Zone Card Counts
+
+Added shortcuts to query card counts for hidden zones that sighted players can see but couldn't be accessed via keyboard before.
+
+**New Shortcuts:**
+- **D**: Your library card count (e.g., "Library, 45 cards")
+- **Shift+D**: Opponent's library card count (e.g., "Opponent's library, 52 cards")
+- **Shift+C**: Opponent's hand card count (e.g., "Opponent's hand, 7 cards")
+
+**Technical Details:**
+- Counts retrieved from ZoneNavigator's zone discovery (counts actual cards in scene)
+- Added `GetZoneCardCount()` helper that refreshes zones before returning count
+- Shift key state checked before individual key handlers to properly differentiate C vs Shift+C
+
+**Files:** `ZoneNavigator.cs`, `Strings.cs`, `DuelAnnouncer.cs`
+
+---
+
 ### Deck Selection Fix
 
 Fixed deck selection on the Deck Selection screen (ConstructedDeckSelectController).

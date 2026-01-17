@@ -168,6 +168,7 @@ C:\Users\fabia\arena\
 - [x] Card navigation - Left/Right arrows within current zone
 - [x] EventSystem conflict fix - Clears selection to prevent UI cycling
 - [x] Card playing - Enter key plays cards from hand (double-click + center click approach)
+- [x] Hidden zone counts - D (your library), Shift+D (opponent library), Shift+C (opponent hand)
 
 ### Card Playing (Working)
 - [x] Lands - Play correctly, detected via card type before playing

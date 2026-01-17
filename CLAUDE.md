@@ -79,7 +79,7 @@ Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
 Battlefield (Your side): B (Creatures), A (Lands), R (Non-creatures)
 Battlefield (Enemy side): Shift+B (Creatures), Shift+A (Lands), Shift+R (Non-creatures)
 Battlefield Navigation: Shift+Up (Previous row), Shift+Down (Next row), Left/Right (Within row)
-Info: T (Turn), L (Life), V (Player Info Zone)
+Info: T (Turn), L (Life), V (Player Info Zone), D (Your Library Count), Shift+D (Opponent Library Count), Shift+C (Opponent Hand Count)
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 Card Details: Arrow Up/Down when focused on a card
 Carousel: Arrow Left/Right when focused on a carousel element (e.g., promotional banners)

@@ -95,6 +95,37 @@ namespace MTGAAccessibility.Core.Services
             _currentStep = null;
         }
 
+        #region Zone Count Accessors
+
+        /// <summary>
+        /// Gets the current card count for opponent's hand.
+        /// Returns -1 if not yet tracked.
+        /// </summary>
+        public int GetOpponentHandCount()
+        {
+            return _zoneCounts.TryGetValue("Opp_Hand", out int count) ? count : -1;
+        }
+
+        /// <summary>
+        /// Gets the current card count for local player's library.
+        /// Returns -1 if not yet tracked.
+        /// </summary>
+        public int GetLocalLibraryCount()
+        {
+            return _zoneCounts.TryGetValue("Local_Library", out int count) ? count : -1;
+        }
+
+        /// <summary>
+        /// Gets the current card count for opponent's library.
+        /// Returns -1 if not yet tracked.
+        /// </summary>
+        public int GetOpponentLibraryCount()
+        {
+            return _zoneCounts.TryGetValue("Opp_Library", out int count) ? count : -1;
+        }
+
+        #endregion
+
         // Track event types we've seen for discovery
         private static HashSet<string> _loggedEventTypes = new HashSet<string>();
 

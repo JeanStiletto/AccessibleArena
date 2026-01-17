@@ -130,6 +130,16 @@ namespace MTGAAccessibility.Core.Models
                 : $"{cardName}{state}, {position} of {total}";
 
         // ===========================================
+        // HIDDEN ZONE INFO (Library, Opponent Hand)
+        // ===========================================
+        public static string LibraryCount(int count) => $"Library, {count} {(count == 1 ? "card" : "cards")}";
+        public static string OpponentLibraryCount(int count) => $"Opponent's library, {count} {(count == 1 ? "card" : "cards")}";
+        public static string OpponentHandCount(int count) => $"Opponent's hand, {count} {(count == 1 ? "card" : "cards")}";
+        public const string LibraryCountNotAvailable = "Library count not available";
+        public const string OpponentLibraryCountNotAvailable = "Opponent's library count not available";
+        public const string OpponentHandCountNotAvailable = "Opponent's hand count not available";
+
+        // ===========================================
         // PLAYER INFO ZONE
         // ===========================================
         public const string PlayerInfo = "Player info";
@@ -212,8 +222,8 @@ namespace MTGAAccessibility.Core.Models
         public const string Confirmed = "Confirmed";
         public const string Cancelled = "Cancelled";
         public const string NoConfirmButton = "No confirm button found";
-        public const string KeepOnTop = "keep on top";
-        public const string PutOnBottom = "put on bottom";
+        public const string KeepOnTop = "keep";
+        public const string PutOnBottom = "selected";
         public static string CouldNotClick(string label) => $"Could not click {label}";
         public static string BrowserCards(int count, string browserName) =>
             $"{browserName}. {count} {(count == 1 ? "card" : "cards")}. Tab to navigate, Enter to select";

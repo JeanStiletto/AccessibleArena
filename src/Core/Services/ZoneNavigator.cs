@@ -242,17 +242,27 @@ namespace MTGAAccessibility.Core.Services
         {
             if (!_isActive) return false;
 
-            // Zone shortcuts - clear HotHighlightNavigator state for consistency
+            // Check shift state FIRST for all key handlers
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+            // C key: Hand navigation (no shift) or Opponent hand count (with shift)
             if (Input.GetKeyDown(KeyCode.C))
             {
-                _hotHighlightNavigator?.ClearState();
-                NavigateToZone(ZoneType.Hand);
+                if (shift)
+                {
+                    // Shift+C: Opponent's hand count
+                    AnnounceOpponentHandCount();
+                }
+                else
+                {
+                    // C: Navigate to your hand
+                    _hotHighlightNavigator?.ClearState();
+                    NavigateToZone(ZoneType.Hand);
+                }
                 return true;
             }
 
             // B shortcut handled by BattlefieldNavigator (row-based navigation)
-
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
             if (Input.GetKeyDown(KeyCode.G))
             {
@@ -278,6 +288,22 @@ namespace MTGAAccessibility.Core.Services
             {
                 _hotHighlightNavigator?.ClearState();
                 NavigateToZone(ZoneType.Stack);
+                return true;
+            }
+
+            // D key for library counts (hidden zone info)
+            if (Input.GetKeyDown(KeyCode.D))
+            {
+                if (shift)
+                {
+                    // Shift+D: Opponent's library count
+                    AnnounceOpponentLibraryCount();
+                }
+                else
+                {
+                    // D: Your library count
+                    AnnounceLocalLibraryCount();
+                }
                 return true;
             }
 
@@ -589,6 +615,73 @@ namespace MTGAAccessibility.Core.Services
                 SetFocusedGameObject(null, "ZoneNavigator.Clear");
             }
         }
+
+        #region Hidden Zone Count Announcements
+
+        /// <summary>
+        /// Gets the card count for a zone, refreshing zones if needed.
+        /// </summary>
+        private int GetZoneCardCount(ZoneType zone)
+        {
+            // Refresh zones to get current counts
+            DiscoverZones();
+
+            if (_zones.TryGetValue(zone, out var zoneInfo))
+            {
+                return zoneInfo.Cards.Count;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Announces the local player's library card count.
+        /// </summary>
+        private void AnnounceLocalLibraryCount()
+        {
+            int count = GetZoneCardCount(ZoneType.Library);
+            if (count >= 0)
+            {
+                _announcer.Announce(Strings.LibraryCount(count), AnnouncementPriority.Normal);
+            }
+            else
+            {
+                _announcer.Announce(Strings.LibraryCountNotAvailable, AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Announces the opponent's library card count.
+        /// </summary>
+        private void AnnounceOpponentLibraryCount()
+        {
+            int count = GetZoneCardCount(ZoneType.OpponentLibrary);
+            if (count >= 0)
+            {
+                _announcer.Announce(Strings.OpponentLibraryCount(count), AnnouncementPriority.Normal);
+            }
+            else
+            {
+                _announcer.Announce(Strings.OpponentLibraryCountNotAvailable, AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Announces the opponent's hand card count.
+        /// </summary>
+        private void AnnounceOpponentHandCount()
+        {
+            int count = GetZoneCardCount(ZoneType.OpponentHand);
+            if (count >= 0)
+            {
+                _announcer.Announce(Strings.OpponentHandCount(count), AnnouncementPriority.Normal);
+            }
+            else
+            {
+                _announcer.Announce(Strings.OpponentHandCountNotAvailable, AnnouncementPriority.Normal);
+            }
+        }
+
+        #endregion
 
         private string GetZoneName(ZoneType zone)
         {

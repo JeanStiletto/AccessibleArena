@@ -26,13 +26,40 @@ Multiple rapid Enter presses can trigger card play sequence multiple times, pote
 
 ### Mulligan
 
-**Partially working**
+**Regular Mulligan: Working**
+- BrowserScaffold_Mulligan detected properly
+- Space → clicks KeepButton ("X behalten" / "Keep X")
+- Backspace → clicks MulliganButton to take new hand
+- Tab navigates through cards in opening hand
+- Fallback detection waits for mulligan buttons before entering browser mode
 
-- Tab navigation and Space confirmation work
-- Card count varies (1 card vs 6-7) depending on phase
-- Button text varies ("Keep", "Opponent's Turn", "Done")
-- Phase 3 (putting cards back after mulligan) needs more testing
-- Some unspecified bugs reported (need reproduction steps)
+**London Mulligan (putting card back): NOT WORKING**
+- After mulliganing, you must put 1 card on bottom of library per mulligan taken
+- BrowserScaffold_London detected, SubmitButton ("Fertig"/"Done") found
+- Card selection requires DRAG interaction - keyboard simulation doesn't work
+- **Current workaround:** Use mouse to drag card to bottom pile, then Space to confirm
+
+**What was tried for London card selection:**
+1. Clicking the card directly (CardInput.OnPointerClick) - no effect
+2. Clicking BrowserCardHolder_ViewDismiss - state stays "keep"
+3. ProcessInteraction(SimpleInteractionType) - no effect
+4. Simulating drag via OnBeginDrag/OnDrag/OnEndDrag - no effect
+5. Dragging to LocalLibrary zone - no effect
+6. Dragging to LibraryContainer - no effect
+
+**Why drag simulation fails:**
+- Unity's PointerEventData needs raycast info and screen coordinates
+- Game validates drop targets via raycast, not just position
+- Fake event data lacks the context the game's drag handlers expect
+
+**Future investigation directions:**
+- Search game DLLs for methods that move cards in London mulligan
+- Look for `CardBrowserCardHolder` methods like `MoveCard`, `TransferCard`, `SelectCard`
+- Check if `BrowserScaffold_London` has a `SelectCardForBottom` or similar API
+- Look for `LondonMulligan` class or related interaction handlers
+- Check `WorkflowController` for London mulligan workflow
+- Search for `BottomOfLibrary` or `PutOnBottom` methods
+- Investigate what message the game sends to server when card is selected
 
 ### Friends Panel (Social UI)
 
@@ -83,6 +110,17 @@ Multiple rapid Enter presses can trigger card play sequence multiple times, pote
 
 - Does NOT support player targeting - only creatures receive HotHighlight
 - MatchTimer UI is disabled in tutorial mode
+
+## Recently Completed
+
+### Hidden Zone Card Counts (Jan 2026)
+
+Card counts for hidden zones are now accessible:
+- **D key**: Your library card count
+- **Shift+D**: Opponent's library card count
+- **Shift+C**: Opponent's hand card count
+
+Counts are tracked via UpdateZoneUXEvent and announced on demand.
 
 ## Planned Features
 
