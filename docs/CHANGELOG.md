@@ -4,6 +4,49 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Graphics Settings Menu Accessibility
+
+Added full accessibility support for the Graphics Settings submenu with new UI element types.
+
+**Settings Submenu Navigation:**
+- Fixed Settings submenu navigation (Audio, Gameplay, Graphics buttons)
+- Settings menu now properly rescans when navigating between submenus
+- Foreground panel tracking updated during Settings submenu transitions
+
+**New Element Types:**
+
+*Stepper Controls (Increment/Decrement buttons):*
+- Detected via `Control - Setting: X` parent pattern with `Button - Increment`/`Button - Decrement` children
+- Extracts setting name from parent control (e.g., "FPS Limit", "Anti-Aliasing")
+- Extracts current value from sibling "Value" text element
+- Announced as: "Setting Name: Current Value, increment/decrement button"
+- Examples: "FPS Limit: VSync, increment button", "Shadows: Aus, decrement button"
+
+*Dropdown Controls (TMP_Dropdown):*
+- Detected via `Control - X_Dropdown` parent pattern containing TMP_Dropdown
+- Extracts setting name from parent control name (e.g., "Quality", "Resolution", "Languages")
+- Extracts current value from `TMP_Dropdown.options[value].text`
+- Announced as: "Setting Name: Current Value, dropdown"
+- Examples: "Quality: Benutzerdefiniert, dropdown", "Resolution: 2880x1800, dropdown"
+
+**Technical Changes:**
+- `GeneralMenuNavigator`: Added `FindSettingsDropdownControls()` for custom dropdown detection
+- `GeneralMenuNavigator`: Added `FindClickableInDropdownControl()` helper
+- `GeneralMenuNavigator`: Settings submenu button clicks trigger rescan
+- `GeneralMenuNavigator`: `PerformRescan()` updates foreground panel for Settings
+- `UIElementClassifier`: Added `IsSettingsStepperButton()` for stepper detection
+- `UIElementClassifier`: Added `IsSettingsDropdownControl()` for dropdown detection
+- `UIElementClassifier`: Added `GetSettingsDropdownLabel()` helper
+- `UIElementClassifier`: Added `FindValueInControl()` to search for value text in control hierarchy
+- `UIElementClassifier`: Enhanced TMP_Dropdown classification with setting label extraction
+
+**Known Limitation:**
+- Stepper controls require pressing increment/decrement buttons to change values - a unified stepper control with left/right navigation would provide better UX (planned for future redesign)
+
+**Files:** `GeneralMenuNavigator.cs`, `UIElementClassifier.cs`
+
+---
+
 ### GeneralMenuNavigator Refactoring
 
 Refactored `GeneralMenuNavigator` for improved maintainability and code organization.

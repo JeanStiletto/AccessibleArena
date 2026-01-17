@@ -122,6 +122,31 @@ namespace MTGAAccessibility.Core.Services
                 return result;
             }
 
+            // Check for Settings stepper controls (Increment/Decrement buttons)
+            // These are standard Buttons inside "Control - X" parents for settings like Graphics quality
+            if (IsSettingsStepperButton(obj, objName, out string stepperLabel, out string stepperRole))
+            {
+                result.Role = ElementRole.Button;
+                result.Label = stepperLabel;
+                result.RoleLabel = stepperRole;
+                result.IsNavigable = true;
+                result.ShouldAnnounce = true;
+                return result;
+            }
+
+            // Check for Settings dropdown controls (Control - X_Dropdown pattern)
+            if (IsSettingsDropdownControl(obj, objName, out string dropdownLabel, out string dropdownValue))
+            {
+                result.Role = ElementRole.Dropdown;
+                result.Label = !string.IsNullOrEmpty(dropdownValue)
+                    ? $"{dropdownLabel}: {dropdownValue}"
+                    : dropdownLabel;
+                result.RoleLabel = "dropdown";
+                result.IsNavigable = true;
+                result.ShouldAnnounce = true;
+                return result;
+            }
+
             // Check standard Unity components (cache GetComponent results)
             var toggle = obj.GetComponent<Toggle>();
             if (toggle != null)
@@ -146,10 +171,38 @@ namespace MTGAAccessibility.Core.Services
                 return result;
             }
 
-            if (obj.GetComponent<TMP_Dropdown>() != null || obj.GetComponent<Dropdown>() != null)
+            var tmpDropdown = obj.GetComponent<TMP_Dropdown>();
+            var unityDropdown = obj.GetComponent<Dropdown>();
+            if (tmpDropdown != null || unityDropdown != null)
             {
                 result.Role = ElementRole.Dropdown;
-                result.Label = text;
+
+                // Get the current selected value
+                string selectedValue = null;
+                if (tmpDropdown != null && tmpDropdown.options != null && tmpDropdown.options.Count > tmpDropdown.value)
+                {
+                    selectedValue = tmpDropdown.options[tmpDropdown.value].text;
+                }
+                else if (unityDropdown != null && unityDropdown.options != null && unityDropdown.options.Count > unityDropdown.value)
+                {
+                    selectedValue = unityDropdown.options[unityDropdown.value].text;
+                }
+
+                // Check if this is inside a Settings dropdown control (Control - X_Dropdown)
+                string settingLabel = GetSettingsDropdownLabel(obj.transform);
+                if (!string.IsNullOrEmpty(settingLabel))
+                {
+                    // Format as "Setting Name: Current Value"
+                    result.Label = !string.IsNullOrEmpty(selectedValue)
+                        ? $"{settingLabel}: {selectedValue}"
+                        : settingLabel;
+                }
+                else
+                {
+                    // Use selected value or fallback to generic label
+                    result.Label = !string.IsNullOrEmpty(selectedValue) ? selectedValue : text;
+                }
+
                 result.RoleLabel = "dropdown";
                 result.IsNavigable = true;
                 result.ShouldAnnounce = true;
@@ -758,6 +811,243 @@ namespace MTGAAccessibility.Core.Services
 
             // It's a carousel if we found at least one nav control
             return previousControl != null || nextControl != null;
+        }
+
+        /// <summary>
+        /// Get the setting label from a Settings dropdown control parent (Control - X_Dropdown pattern).
+        /// Returns null if not inside a Settings dropdown control.
+        /// </summary>
+        private static string GetSettingsDropdownLabel(Transform transform)
+        {
+            // Walk up to find "Control - X_Dropdown" parent (max 3 levels)
+            Transform current = transform;
+            int levels = 0;
+            while (current != null && levels < 3)
+            {
+                string parentName = current.name;
+                if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
+                    parentName.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    // Extract the setting name from "Control - X_Dropdown"
+                    // Pattern: "Control - Quality_Dropdown" -> "Quality"
+                    string label = parentName.Substring(10); // Remove "Control - "
+                    int dropdownIdx = label.LastIndexOf("_Dropdown", System.StringComparison.OrdinalIgnoreCase);
+                    if (dropdownIdx > 0)
+                        label = label.Substring(0, dropdownIdx);
+
+                    // Clean up the name (CamelCase to spaces)
+                    label = CamelCasePattern.Replace(label, "$1 $2");
+                    label = label.Replace("_", " ").Trim();
+
+                    return label;
+                }
+                current = current.parent;
+                levels++;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Check if this is a Settings dropdown control (Control - X_Dropdown pattern) and extract label/value.
+        /// </summary>
+        private static bool IsSettingsDropdownControl(GameObject obj, string name, out string label, out string currentValue)
+        {
+            label = null;
+            currentValue = null;
+
+            // Check if this object or its parent matches "Control - X_Dropdown" pattern
+            Transform controlTransform = obj.transform;
+            string controlName = null;
+
+            // Walk up to find "Control - X_Dropdown" parent (max 3 levels)
+            int levels = 0;
+            while (controlTransform != null && levels < 3)
+            {
+                string parentName = controlTransform.name;
+                if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
+                    parentName.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    controlName = parentName;
+                    break;
+                }
+                controlTransform = controlTransform.parent;
+                levels++;
+            }
+
+            if (string.IsNullOrEmpty(controlName))
+                return false;
+
+            // Extract the setting name from "Control - X_Dropdown"
+            // Pattern: "Control - Quality_Dropdown" -> "Quality"
+            label = controlName.Substring(10); // Remove "Control - "
+            int dropdownIdx = label.LastIndexOf("_Dropdown", System.StringComparison.OrdinalIgnoreCase);
+            if (dropdownIdx > 0)
+                label = label.Substring(0, dropdownIdx);
+
+            // Clean up the name (CamelCase to spaces)
+            label = CamelCasePattern.Replace(label, "$1 $2");
+            label = label.Replace("_", " ").Trim();
+
+            // Try to find the current selected value
+            // First check if this object has a TMP_Dropdown - get value from selected option
+            var tmpDropdown = obj.GetComponent<TMP_Dropdown>();
+            if (tmpDropdown != null && tmpDropdown.options != null && tmpDropdown.options.Count > tmpDropdown.value)
+            {
+                currentValue = tmpDropdown.options[tmpDropdown.value].text;
+                return true;
+            }
+
+            // Also check for Unity Dropdown
+            var unityDropdown = obj.GetComponent<Dropdown>();
+            if (unityDropdown != null && unityDropdown.options != null && unityDropdown.options.Count > unityDropdown.value)
+            {
+                currentValue = unityDropdown.options[unityDropdown.value].text;
+                return true;
+            }
+
+            // Fallback: Look for "Value" child element (for non-dropdown controls)
+            if (controlTransform != null)
+            {
+                currentValue = FindValueInControl(controlTransform, label);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Check if this is a Settings stepper button (Increment/Decrement) and extract proper label.
+        /// These buttons are inside "Control - X" parents and need to show the setting name + current value.
+        /// </summary>
+        private static bool IsSettingsStepperButton(GameObject obj, string name, out string label, out string roleLabel)
+        {
+            label = null;
+            roleLabel = null;
+
+            // Check if this is an Increment or Decrement button
+            bool isIncrement = ContainsIgnoreCase(name, "increment");
+            bool isDecrement = ContainsIgnoreCase(name, "decrement");
+
+            if (!isIncrement && !isDecrement)
+                return false;
+
+            // Must have a Button component
+            if (obj.GetComponent<Button>() == null)
+                return false;
+
+            // Find the parent "Control - X" element
+            Transform parent = obj.transform.parent;
+            string settingName = null;
+            string currentValue = null;
+            Transform controlParent = null;
+
+            // Walk up to find the Control parent (max 5 levels)
+            int levels = 0;
+            while (parent != null && levels < 5)
+            {
+                string parentName = parent.name;
+
+                // Check if this is a "Control - X" parent
+                if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) ||
+                    parentName.StartsWith("Control_", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    controlParent = parent;
+
+                    // Extract setting name from parent name
+                    // Pattern: "Control - Setting: SettingName" or "Control - SettingName_Selector"
+                    settingName = parentName;
+                    if (settingName.StartsWith("Control - Setting: ", System.StringComparison.OrdinalIgnoreCase))
+                        settingName = settingName.Substring(19); // Remove "Control - Setting: "
+                    else if (settingName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase))
+                        settingName = settingName.Substring(10);
+                    else if (settingName.StartsWith("Control_", System.StringComparison.OrdinalIgnoreCase))
+                        settingName = settingName.Substring(8);
+
+                    // Remove suffix like "_Selector", "_Toggle"
+                    int underscoreIdx = settingName.LastIndexOf('_');
+                    if (underscoreIdx > 0)
+                        settingName = settingName.Substring(0, underscoreIdx);
+
+                    // Clean up the name (CamelCase to spaces)
+                    settingName = CamelCasePattern.Replace(settingName, "$1 $2");
+                    settingName = settingName.Replace("_", " ").Trim();
+
+                    break;
+                }
+
+                parent = parent.parent;
+                levels++;
+            }
+
+            // Now search WITHIN the control parent for value text
+            // The value is typically in a child named "Value" or inside "Value BG"
+            if (controlParent != null)
+            {
+                currentValue = FindValueInControl(controlParent, settingName);
+            }
+
+            // If we couldn't find a proper parent structure, fall back to simpler label
+            if (string.IsNullOrEmpty(settingName))
+            {
+                // Try to get value from the button's own text
+                currentValue = UITextExtractor.GetText(obj);
+                label = currentValue ?? (isIncrement ? "Increase" : "Decrease");
+                roleLabel = isIncrement ? "increment button" : "decrement button";
+                return true;
+            }
+
+            // Build the label: "Setting Name: Current Value"
+            if (!string.IsNullOrEmpty(currentValue))
+                label = $"{settingName}: {currentValue}";
+            else
+                label = settingName;
+
+            roleLabel = isIncrement ? "increment button" : "decrement button";
+            return true;
+        }
+
+        /// <summary>
+        /// Search within a Control element for the value text.
+        /// The value is typically in a child named "Value" or inside "Value BG".
+        /// </summary>
+        private static string FindValueInControl(Transform controlParent, string settingName)
+        {
+            // Search all descendants for a "Value" element
+            foreach (Transform child in controlParent.GetComponentsInChildren<Transform>(true))
+            {
+                string childName = child.name;
+
+                // Look for elements named "Value" (not "Value BG" which is a container)
+                if (EqualsIgnoreCase(childName, "Value"))
+                {
+                    var tmpText = child.GetComponent<TMP_Text>();
+                    if (tmpText != null && !string.IsNullOrEmpty(tmpText.text))
+                    {
+                        string text = tmpText.text.Trim();
+                        // Make sure it's not the setting name (label) but the actual value
+                        if (!EqualsIgnoreCase(text, settingName) && text.Length < 30)
+                        {
+                            return text;
+                        }
+                    }
+                }
+
+                // Also check for "Text_Value" or similar patterns
+                if (ContainsIgnoreCase(childName, "value") && !ContainsIgnoreCase(childName, "bg"))
+                {
+                    var tmpText = child.GetComponent<TMP_Text>();
+                    if (tmpText != null && !string.IsNullOrEmpty(tmpText.text))
+                    {
+                        string text = tmpText.text.Trim();
+                        if (!EqualsIgnoreCase(text, settingName) && text.Length < 30)
+                        {
+                            return text;
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static bool IsProgressIndicator(GameObject obj, string name, string text)

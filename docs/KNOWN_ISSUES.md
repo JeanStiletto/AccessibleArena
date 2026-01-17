@@ -91,6 +91,7 @@ Multiple rapid Enter presses can trigger card play sequence multiple times, pote
 
 1. Life total announcements (L shortcut) - fix reliability
 2. Mana pool info (A shortcut or from ManaPoolString)
+3. Stepper control redesign - current increment/decrement buttons should be unified into a single navigable stepper with left/right arrows to change value
 
 ### Upcoming
 
