@@ -40,6 +40,9 @@ namespace MTGAAccessibility.Core.Services
         private ZoneNavigator _zoneNavigator;
         private DateTime _lastSpellResolvedTime = DateTime.MinValue;
 
+        // Track user's turn count (game turn number counts each half-turn, we want full cycles)
+        private int _userTurnCount = 0;
+
         // Current combat phase tracking
         private string _currentPhase;
         private string _currentStep;
@@ -86,6 +89,7 @@ namespace MTGAAccessibility.Core.Services
             _isActive = true;
             _localPlayerId = localPlayerId;
             _zoneCounts.Clear();
+            _userTurnCount = 0;
         }
 
         public void Deactivate()
@@ -221,15 +225,6 @@ namespace MTGAAccessibility.Core.Services
             {
                 var type = uxEvent.GetType();
 
-                var turnNumberField = type.GetField("_turnNumber", BindingFlags.NonPublic | BindingFlags.Instance);
-                int turnNumber = 0;
-                if (turnNumberField != null)
-                {
-                    var turnValue = turnNumberField.GetValue(uxEvent);
-                    if (turnValue != null)
-                        turnNumber = Convert.ToInt32(turnValue);
-                }
-
                 var activePlayerField = type.GetField("_activePlayer", BindingFlags.NonPublic | BindingFlags.Instance);
                 bool isYourTurn = false;
                 if (activePlayerField != null)
@@ -239,8 +234,16 @@ namespace MTGAAccessibility.Core.Services
                         isYourTurn = playerObj.ToString().Contains("LocalPlayer");
                 }
 
-                string turnText = isYourTurn ? "Your turn" : "Opponent's turn";
-                return turnNumber > 0 ? $"Turn {turnNumber}. {turnText}" : turnText;
+                // Track our own turn count (game counts each half-turn, we want full cycles)
+                if (isYourTurn)
+                {
+                    _userTurnCount++;
+                    return $"Turn {_userTurnCount}";
+                }
+                else
+                {
+                    return "Opponent's turn";
+                }
             }
             catch
             {
@@ -309,9 +312,9 @@ namespace MTGAAccessibility.Core.Services
                     else if (diff < 0)
                     {
                         int removed = Math.Abs(diff);
-                        return isOpponent
-                            ? $"Opponent lost {removed} permanent{(removed > 1 ? "s" : "")}"
-                            : $"{removed} of your permanent{(removed > 1 ? "s" : "")} left battlefield";
+                        // Battlefield is a shared zone - can't determine ownership from zone string
+                        // Graveyard/Exile announcements will specify correct ownership
+                        return $"{removed} permanent{(removed > 1 ? "s" : "")} left battlefield";
                     }
                 }
                 else if (zoneName == "Graveyard" && diff > 0)
@@ -376,7 +379,8 @@ namespace MTGAAccessibility.Core.Services
                 if (avatar != null)
                 {
                     var avatarStr = avatar.ToString();
-                    isLocal = avatarStr.Contains("Player #1") || avatarStr.Contains("#" + _localPlayerId);
+                    // Check for local player ID - don't hardcode Player #1 as local could be #2
+                    isLocal = avatarStr.Contains("Player #" + _localPlayerId) || avatarStr.Contains("#" + _localPlayerId);
                 }
 
                 string who = isLocal ? "You" : "Opponent";
