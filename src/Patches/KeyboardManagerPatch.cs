@@ -42,6 +42,25 @@ namespace MTGAAccessibility.Patches
         }
 
         /// <summary>
+        /// Check if we're in a menu scene (not DuelScene, not loading screens).
+        /// </summary>
+        private static bool IsInMenuScene()
+        {
+            int currentFrame = Time.frameCount;
+            if (currentFrame != _lastSceneCheck)
+            {
+                _cachedSceneName = SceneManager.GetActiveScene().name;
+                _lastSceneCheck = currentFrame;
+            }
+            // Menu scenes: MainNavigation, NavBar, or any scene that's not Duel/Draft/Sealed/Bootstrap/AssetPrep
+            return _cachedSceneName != "DuelScene" &&
+                   _cachedSceneName != "DraftScene" &&
+                   _cachedSceneName != "SealedScene" &&
+                   _cachedSceneName != "Bootstrap" &&
+                   _cachedSceneName != "AssetPrep";
+        }
+
+        /// <summary>
         /// Check if this key should be blocked from the game.
         /// </summary>
         private static bool ShouldBlockKey(KeyCode key)
@@ -52,6 +71,16 @@ namespace MTGAAccessibility.Patches
             if (IsInDuelScene())
             {
                 if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
+                {
+                    return true;
+                }
+            }
+
+            // In menu scenes, block Tab entirely - our mod handles Tab for navigation
+            // This prevents the game from toggling the Friends panel when we Tab navigate
+            if (IsInMenuScene())
+            {
+                if (key == KeyCode.Tab)
                 {
                     return true;
                 }

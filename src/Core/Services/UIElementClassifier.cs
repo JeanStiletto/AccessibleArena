@@ -422,6 +422,30 @@ namespace MTGAAccessibility.Core.Services
 
         #region Detection Helpers
 
+        /// <summary>
+        /// Check if element is inside the FriendsWidget (social panel friend list).
+        /// Elements inside FriendsWidget should not be filtered by hitbox/backer patterns
+        /// because they ARE the clickable friend list items.
+        /// </summary>
+        private static bool IsInsideFriendsWidget(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int maxLevels = 10;
+
+            while (current != null && maxLevels > 0)
+            {
+                string name = current.name;
+                if (ContainsIgnoreCase(name, "FriendsWidget"))
+                    return true;
+                current = current.parent;
+                maxLevels--;
+            }
+
+            return false;
+        }
+
         private static bool IsInternalElement(GameObject obj, string name, string text)
         {
             // Check game properties first (most reliable)
@@ -521,12 +545,23 @@ namespace MTGAAccessibility.Core.Services
             if (ContainsIgnoreCase(name, "fade") && !ContainsIgnoreCase(name, "nav")) return true;
 
             // Hitboxes without actual text content
-            if (ContainsIgnoreCase(name, "hitbox") && !UITextExtractor.HasActualText(obj)) return true;
+            // BUT: Allow hitboxes inside FriendsWidget (they ARE the clickable friend items)
+            if (ContainsIgnoreCase(name, "hitbox") && !UITextExtractor.HasActualText(obj))
+            {
+                if (!IsInsideFriendsWidget(obj))
+                    return true;
+            }
 
             // Backer elements from social panel (internal hitboxes)
-            if (ContainsIgnoreCase(name, "backer") && !UITextExtractor.HasActualText(obj)) return true;
+            // BUT: Allow backer elements inside FriendsWidget (they ARE the clickable friend items)
+            if (ContainsIgnoreCase(name, "backer") && !UITextExtractor.HasActualText(obj))
+            {
+                if (!IsInsideFriendsWidget(obj))
+                    return true;
+            }
 
             // Social corner icon without meaningful content
+            // Filter this out - it's the small icon in the corner, not useful for navigation
             if (ContainsIgnoreCase(name, "socialcorner") || ContainsIgnoreCase(name, "social corner")) return true;
 
             // "New" badge indicators (appear on many elements)
@@ -545,6 +580,11 @@ namespace MTGAAccessibility.Core.Services
             // Top/bottom fades (settings menu decorations)
             if (ContainsIgnoreCase(name, "topfade") || ContainsIgnoreCase(name, "bottomfade")) return true;
             if (ContainsIgnoreCase(name, "top_fade") || ContainsIgnoreCase(name, "bottom_fade")) return true;
+
+            // Background art/decorative elements (have CustomButton but are not interactive)
+            // Pattern: Background_SubMenu_Art, BackgroundImage, etc.
+            if (name.StartsWith("Background", System.StringComparison.OrdinalIgnoreCase) && !UITextExtractor.HasActualText(obj))
+                return true;
 
             // BUTTONS container elements (EventTriggers that wrap actual buttons)
             // These appear in Color Challenge and similar screens as non-functional containers

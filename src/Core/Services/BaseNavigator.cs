@@ -116,6 +116,16 @@ namespace MTGAAccessibility.Core.Services
                         @"checkbox, (checked|unchecked)",
                         $"checkbox, {currentState}");
                 }
+
+                // Update content for input fields - re-read current text
+                var tmpInput = navElement.GameObject.GetComponent<TMPro.TMP_InputField>();
+                if (tmpInput != null)
+                {
+                    // Re-extract the label with current content
+                    label = UITextExtractor.GetText(navElement.GameObject);
+                    // Update the cached label too
+                    navElement.Label = label;
+                }
             }
 
             return $"{index + 1} of {_elements.Count}: {label}";

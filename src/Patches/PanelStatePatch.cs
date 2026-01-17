@@ -53,6 +53,9 @@ namespace MTGAAccessibility.Patches
                 // Try to patch BladeContentView base class (Events, FindMatch, LastPlayed blades)
                 PatchBladeContentView(harmony);
 
+                // Try to patch SocialUI (friends panel)
+                PatchSocialUI(harmony);
+
                 _patchApplied = true;
                 MelonLogger.Msg("[PanelStatePatch] Harmony patches applied successfully");
 
@@ -601,6 +604,124 @@ namespace MTGAAccessibility.Patches
             }
         }
 
+        private static void PatchSocialUI(HarmonyLib.Harmony harmony)
+        {
+            var socialUIType = FindType("SocialUI");
+            if (socialUIType == null)
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find SocialUI type");
+                return;
+            }
+
+            MelonLogger.Msg($"[PanelStatePatch] Found SocialUI: {socialUIType.FullName}");
+
+            // Patch ShowSocialEntitiesList - called when friends list opens
+            // Use both prefix (to block Tab-triggered opens) and postfix (for notifications)
+            var showMethod = socialUIType.GetMethod("ShowSocialEntitiesList",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (showMethod != null)
+            {
+                try
+                {
+                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIShowPrefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIShowPostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(showMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched SocialUI.ShowSocialEntitiesList()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.ShowSocialEntitiesList: {ex.Message}");
+                }
+            }
+
+            // Patch CloseFriendsWidget - called when friends list closes
+            // Add prefix to block closing when Tab is pressed (our mod uses Tab for navigation)
+            var closeMethod = socialUIType.GetMethod("CloseFriendsWidget",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (closeMethod != null)
+            {
+                try
+                {
+                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIClosePrefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIHidePostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(closeMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched SocialUI.CloseFriendsWidget()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.CloseFriendsWidget: {ex.Message}");
+                }
+            }
+
+            // Also patch Minimize - another way to close
+            // Add prefix to block minimizing when Tab is pressed
+            var minimizeMethod = socialUIType.GetMethod("Minimize",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (minimizeMethod != null)
+            {
+                try
+                {
+                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIClosePrefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIHidePostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(minimizeMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched SocialUI.Minimize()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.Minimize: {ex.Message}");
+                }
+            }
+
+            // Patch SetVisible - general visibility control (with Tab blocking)
+            var setVisibleMethod = socialUIType.GetMethod("SetVisible",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (setVisibleMethod != null)
+            {
+                try
+                {
+                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUISetVisiblePrefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUISetVisiblePostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(setVisibleMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched SocialUI.SetVisible()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.SetVisible: {ex.Message}");
+                }
+            }
+
+            // Patch HandleKeyDown - block Tab from toggling social panel
+            var handleKeyDownMethod = socialUIType.GetMethod("HandleKeyDown",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (handleKeyDownMethod != null)
+            {
+                try
+                {
+                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIHandleKeyDownPrefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(handleKeyDownMethod, prefix: new HarmonyMethod(prefix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched SocialUI.HandleKeyDown()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.HandleKeyDown: {ex.Message}");
+                }
+            }
+        }
+
         private static void LogTypeMembers(Type type)
         {
             MelonLogger.Msg($"[PanelStatePatch] Methods on {type.Name}:");
@@ -924,6 +1045,126 @@ namespace MTGAAccessibility.Patches
             {
                 MelonLogger.Warning($"[PanelStatePatch] Error in EventBladeHidePostfix: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Prefix for SocialUI.ShowSocialEntitiesList - blocks opening if Tab key is pressed.
+        /// This prevents Tab from toggling the friends panel (our mod uses Tab for navigation).
+        /// </summary>
+        public static bool SocialUIShowPrefix(object __instance)
+        {
+            // Block if Tab is currently pressed - this means the game is trying to open
+            // the social panel via Tab, which we want to prevent
+            if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+            {
+                MelonLogger.Msg("[PanelStatePatch] Blocked SocialUI.ShowSocialEntitiesList (Tab pressed)");
+                return false; // Skip the original method
+            }
+            return true; // Allow the method to run
+        }
+
+        public static void SocialUIShowPostfix(object __instance)
+        {
+            try
+            {
+                // Skip if Tab is pressed - means prefix blocked the call but Harmony still runs postfix
+                if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+                {
+                    MelonLogger.Msg("[PanelStatePatch] Skipping SocialUI.ShowSocialEntitiesList postfix (Tab pressed)");
+                    return;
+                }
+
+                MelonLogger.Msg("[PanelStatePatch] SocialUI.ShowSocialEntitiesList");
+                OnPanelStateChanged?.Invoke(__instance, true, "SocialUI");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in SocialUIShowPostfix: {ex.Message}");
+            }
+        }
+
+        public static void SocialUIHidePostfix(object __instance)
+        {
+            try
+            {
+                // Skip notification if Tab is pressed - prefix should have blocked the call
+                if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+                {
+                    MelonLogger.Msg("[PanelStatePatch] Skipping SocialUI Hide postfix (Tab pressed)");
+                    return;
+                }
+
+                MelonLogger.Msg("[PanelStatePatch] SocialUI Hide");
+                OnPanelStateChanged?.Invoke(__instance, false, "SocialUI");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in SocialUIHidePostfix: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Prefix for SocialUI.CloseFriendsWidget and Minimize - blocks closing if Tab key is pressed.
+        /// Our mod uses Tab for navigation within the Friends panel, so we don't want Tab to close it.
+        /// </summary>
+        public static bool SocialUIClosePrefix(object __instance)
+        {
+            // Block if Tab is pressed - our mod uses Tab for navigation, not closing
+            if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+            {
+                MelonLogger.Msg("[PanelStatePatch] Blocked SocialUI close (Tab pressed)");
+                return false; // Skip the original method
+            }
+            return true; // Allow the method to run
+        }
+
+        /// <summary>
+        /// Prefix for SocialUI.SetVisible - blocks showing if Tab key is pressed.
+        /// </summary>
+        public static bool SocialUISetVisiblePrefix(object __instance, bool visible)
+        {
+            // Block if Tab is pressed and trying to show the panel
+            if (visible && UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+            {
+                MelonLogger.Msg("[PanelStatePatch] Blocked SocialUI.SetVisible(true) (Tab pressed)");
+                return false; // Skip the original method
+            }
+            return true;
+        }
+
+        public static void SocialUISetVisiblePostfix(object __instance, bool visible)
+        {
+            try
+            {
+                // Skip if Tab is pressed and trying to show - means prefix blocked the call
+                if (visible && UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+                {
+                    MelonLogger.Msg("[PanelStatePatch] Skipping SocialUI.SetVisible postfix (Tab pressed)");
+                    return;
+                }
+
+                MelonLogger.Msg($"[PanelStatePatch] SocialUI.SetVisible({visible})");
+                OnPanelStateChanged?.Invoke(__instance, visible, "SocialUI");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in SocialUISetVisiblePostfix: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Prefix for SocialUI.HandleKeyDown - blocks Tab from toggling the social panel.
+        /// Our mod uses Tab for navigation, so we don't want it to open/close the friends panel.
+        /// </summary>
+        public static bool SocialUIHandleKeyDownPrefix(object __instance, UnityEngine.KeyCode curr)
+        {
+            // Block Tab key - our mod handles Tab for navigation
+            if (curr == UnityEngine.KeyCode.Tab)
+            {
+                MelonLogger.Msg("[PanelStatePatch] Blocked Tab from SocialUI.HandleKeyDown");
+                return false; // Skip the original method
+            }
+            return true; // Let other keys through
         }
     }
 }

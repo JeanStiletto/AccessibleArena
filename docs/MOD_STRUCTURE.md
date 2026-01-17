@@ -127,10 +127,24 @@ C:\Users\fabia\arena\
   - Pointer events sent but `IsDeckSelected` not triggered
   - May require starter deck cloning first (see BEST_PRACTICES.md)
 
+### Friends Panel (Social UI)
+- [~] Friends panel accessibility - **PARTIALLY WORKING**
+  - [x] F4 key toggles Friends panel open/closed
+  - [x] Tab navigation within Friends panel
+  - [x] Popup detection and automatic rescan
+  - [x] Popup name announcements ("Invite Friend opened.")
+  - [x] Input field support for friend invite
+  - [x] Backspace closes Friends panel
+  - [ ] Full input field change detection (partial)
+  - [ ] Friend list navigation
+  - [ ] Friend status announcements
+
 ### UI Utilities
 - [x] UIElementClassifier - Element role detection and filtering
   - Detects: Button, Link, Toggle, Slider, ProgressBar, Navigation, Internal
   - Filters internal elements (blockers, tooltips, gradients)
+  - Filters decorative Background elements without text
+  - Special handling for FriendsWidget elements (hitbox/backer allowed)
 
 ### Card System
 - [x] CardDetector - Universal detection with caching

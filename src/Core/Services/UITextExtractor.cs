@@ -148,6 +148,14 @@ namespace MTGAAccessibility.Core.Services
                 return siblingText;
             }
 
+            // For FriendsWidget elements, try to get label from parent object name
+            // Pattern: Button_AddFriend/Backer_Hitbox -> "Add Friend"
+            string friendsWidgetLabel = TryGetFriendsWidgetLabel(gameObject);
+            if (!string.IsNullOrEmpty(friendsWidgetLabel))
+            {
+                return friendsWidgetLabel;
+            }
+
             // Fallback to GameObject name (cleaned up)
             return CleanObjectName(gameObject.name);
         }
@@ -291,6 +299,71 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Tries to get a label from parent object names for FriendsWidget elements.
+        /// The friends panel uses Backer_Hitbox children inside parent containers like Button_AddFriend.
+        /// Pattern: Button_AddFriend/Backer_Hitbox -> "Add Friend"
+        /// </summary>
+        private static string TryGetFriendsWidgetLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            // Check if we're inside FriendsWidget
+            Transform current = gameObject.transform;
+            bool insideFriendsWidget = false;
+            int maxLevels = 10;
+
+            while (current != null && maxLevels > 0)
+            {
+                if (current.name.Contains("FriendsWidget"))
+                {
+                    insideFriendsWidget = true;
+                    break;
+                }
+                current = current.parent;
+                maxLevels--;
+            }
+
+            if (!insideFriendsWidget) return null;
+
+            // Get the immediate parent name and try to extract a label from it
+            var parent = gameObject.transform.parent;
+            if (parent == null) return null;
+
+            string parentName = parent.name;
+
+            // Pattern: Button_Something -> "Something"
+            if (parentName.StartsWith("Button_"))
+            {
+                string label = parentName.Substring(7); // Remove "Button_"
+                // Clean up: AddFriend -> "Add Friend"
+                label = CleanObjectName(label);
+                return label;
+            }
+
+            // Pattern: Something_Button -> "Something"
+            if (parentName.EndsWith("_Button"))
+            {
+                string label = parentName.Substring(0, parentName.Length - 7); // Remove "_Button"
+                label = CleanObjectName(label);
+                return label;
+            }
+
+            // For other patterns, check if parent has meaningful TMP_Text children
+            // that might not be direct children of our element
+            var parentTmpText = parent.GetComponentInChildren<TMP_Text>();
+            if (parentTmpText != null)
+            {
+                string text = CleanText(parentTmpText.text);
+                if (!string.IsNullOrWhiteSpace(text) && text.Length > 1)
+                {
+                    return text;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Gets the type of UI element for additional context.
         /// </summary>
         public static string GetElementType(GameObject gameObject)
@@ -368,17 +441,83 @@ namespace MTGAAccessibility.Core.Services
             return fallback;
         }
 
+        /// <summary>
+        /// Try to get a meaningful label for an input field from its parent hierarchy.
+        /// Looks for patterns like "OpponentName_inputField" → "Opponent Name"
+        /// </summary>
+        private static string TryGetInputFieldLabel(GameObject inputFieldObj)
+        {
+            if (inputFieldObj == null) return null;
+
+            // Check parent and grandparent for meaningful names
+            Transform current = inputFieldObj.transform.parent;
+            int maxLevels = 3;
+
+            while (current != null && maxLevels > 0)
+            {
+                string name = current.name;
+
+                // Pattern: Something_inputField → "Something"
+                if (name.EndsWith("_inputField", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    string label = name.Substring(0, name.Length - 11); // Remove "_inputField"
+                    return CleanObjectName(label);
+                }
+
+                // Pattern: inputField_Something → "Something"
+                if (name.StartsWith("inputField_", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    string label = name.Substring(11); // Remove "inputField_"
+                    return CleanObjectName(label);
+                }
+
+                // Pattern: Login_inputField Something → extract "Something"
+                if (name.Contains("_inputField"))
+                {
+                    int idx = name.IndexOf("_inputField");
+                    // Check for text after _inputField
+                    if (idx + 11 < name.Length)
+                    {
+                        string label = name.Substring(idx + 11).Trim();
+                        if (!string.IsNullOrEmpty(label))
+                            return CleanObjectName(label);
+                    }
+                    // Otherwise use text before _inputField
+                    string prefix = name.Substring(0, idx);
+                    // Remove common prefixes like "Login_"
+                    if (prefix.Contains("_"))
+                        prefix = prefix.Substring(prefix.LastIndexOf('_') + 1);
+                    return CleanObjectName(prefix);
+                }
+
+                current = current.parent;
+                maxLevels--;
+            }
+
+            return null;
+        }
+
         private static string GetInputFieldText(TMP_InputField inputField)
         {
+            // Try to get a meaningful label from the parent hierarchy
+            string fieldLabel = TryGetInputFieldLabel(inputField.gameObject);
+
             // If there's user input, report it
             string userText = CleanText(inputField.text);
             if (!string.IsNullOrWhiteSpace(userText))
             {
                 // For password fields, don't read the actual text
                 if (inputField.inputType == TMP_InputField.InputType.Password)
-                    return "password field, contains text";
+                {
+                    if (!string.IsNullOrEmpty(fieldLabel))
+                        return $"{fieldLabel}, has text";
+                    return "password field, has text";
+                }
 
-                return $"{userText}, text field";
+                // Show label and content
+                if (!string.IsNullOrEmpty(fieldLabel))
+                    return $"{fieldLabel}: {userText}";
+                return userText;
             }
 
             // Try to get placeholder text
@@ -390,19 +529,25 @@ namespace MTGAAccessibility.Core.Services
                     string placeholder = CleanText(placeholderText.text);
                     if (!string.IsNullOrWhiteSpace(placeholder))
                     {
-                        return $"{placeholder}, text field, empty";
+                        if (!string.IsNullOrEmpty(fieldLabel))
+                            return $"{fieldLabel}, empty";
+                        return $"{placeholder}, empty";
                     }
                 }
             }
+
+            // Use derived label if we have one
+            if (!string.IsNullOrEmpty(fieldLabel))
+                return $"{fieldLabel}, empty";
 
             // Fall back to field name
             string fieldName = CleanObjectName(inputField.gameObject.name);
             if (!string.IsNullOrWhiteSpace(fieldName))
             {
-                return $"{fieldName}, text field, empty";
+                return $"{fieldName}, empty";
             }
 
-            return "text field, empty";
+            return "empty";
         }
 
         private static string GetInputFieldText(InputField inputField)

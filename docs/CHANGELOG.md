@@ -4,6 +4,37 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Friends Menu (Social Panel) Accessibility
+
+Added partial accessibility for the Friends/Social panel:
+
+**New Features:**
+- F4 key toggles Friends panel open/closed
+- Tab navigation within Friends panel (Add Friend, settings buttons)
+- Popup detection - new popups (like "Invite Friend") trigger automatic rescan
+- Popup name announcement - "Invite Friend opened." when popup appears
+- Input field support for friend invite text entry
+- Backspace closes Friends panel
+
+**Technical Changes:**
+- `UIElementClassifier`: Added `IsInsideFriendsWidget()` helper to allow hitbox/backer elements inside Friends panel
+- `UIElementClassifier`: Added filter for decorative Background elements without text
+- `UITextExtractor`: Added `TryGetFriendsWidgetLabel()` to extract labels from parent object names (Button_AddFriend → "Add Friend")
+- `UITextExtractor`: Added `TryGetInputFieldLabel()` for input field labeling
+- `PanelStatePatch`: Added `SocialUIClosePrefix` to block Tab from closing Friends panel
+- `GeneralMenuNavigator`: Added popup detection (`CheckForNewPopups()`) with instance ID tracking
+- `GeneralMenuNavigator`: Added `CleanPopupName()` for human-readable popup announcements
+- `GeneralMenuNavigator`: Added TMP_InputField discovery in element scanning
+- `BaseNavigator`: Dynamic input field content update in announcements
+
+**Known Limitations:**
+- Input field changes only detected after panel reopen (partial fix)
+- Not all Friends panel features accessible yet
+
+**Files:** `UIElementClassifier.cs`, `UITextExtractor.cs`, `PanelStatePatch.cs`, `GeneralMenuNavigator.cs`, `BaseNavigator.cs`
+
+---
+
 ### Unified HotHighlightNavigator
 
 Replaced separate `TargetNavigator` + `HighlightNavigator` with unified `HotHighlightNavigator`.

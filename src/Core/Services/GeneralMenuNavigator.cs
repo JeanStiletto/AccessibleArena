@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using TMPro;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 using System.Collections.Generic;
@@ -96,6 +97,9 @@ namespace MTGAAccessibility.Core.Services
         private GameObject _foregroundPanel;
         private float _rescanDelay;
         private float _lastRescanTime;
+
+        // Popup tracking - detect when new popups appear
+        private HashSet<int> _knownPopupIds = new HashSet<int>();
         private float _postActivationRescanDelay;
         private int _elementCountAtActivation;
         private float _bladeAutoExpandDelay;
@@ -143,6 +147,30 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         protected GameObject SettingsContentPanel => _settingsContentPanel;
 
+        /// <summary>
+        /// Check if the Social/Friends panel is currently open.
+        /// </summary>
+        protected bool IsSocialPanelOpen()
+        {
+            // Check if social panel exists and is active
+            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+            if (socialPanel == null) return false;
+
+            // Check for visible social content (the friends list panel)
+            // Look for the FriendsWidget or similar content that indicates the panel is expanded
+            var friendsWidget = socialPanel.transform.Find("MobileSafeArea/FriendsWidget_V2(Clone)");
+            if (friendsWidget != null && friendsWidget.gameObject.activeInHierarchy)
+                return true;
+
+            // Alternative: check for the top bar dismiss button which appears when panel is open
+            var topBarDismiss = socialPanel.GetComponentsInChildren<UnityEngine.UI.Button>(false)
+                .FirstOrDefault(b => b.name.Contains("TopBarDismiss"));
+            if (topBarDismiss != null && topBarDismiss.gameObject.activeInHierarchy)
+                return true;
+
+            return false;
+        }
+
         public GeneralMenuNavigator(IAnnouncementService announcer) : base(announcer) { }
 
         protected virtual string GetMenuScreenName()
@@ -151,6 +179,12 @@ namespace MTGAAccessibility.Core.Services
             if (CheckSettingsMenuOpen())
             {
                 return "Settings";
+            }
+
+            // Check if Social/Friends panel is open
+            if (IsSocialPanelOpen())
+            {
+                return "Friends";
             }
 
             // Check for PlayBlade state (deck selection, play mode)
@@ -235,6 +269,7 @@ namespace MTGAAccessibility.Core.Services
             base.OnDeactivating();
             _foregroundPanel = null;
             _activePanels.Clear();
+            _knownPopupIds.Clear();
             _postActivationRescanDelay = 0f;
             _playBladeActive = false;
             _playBladeState = null;
@@ -276,6 +311,10 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // DISABLED FOR TESTING - Post-activation rescan may be obsolete now that we have
+            // Harmony patches for most panel types (NavContentController, SettingsMenu, SocialUI, etc.)
+            // This was causing duplicate announcements when panels opened.
+            /*
             // One-time check after activation to detect unknown panels/overlays
             // (Known panels like Settings are handled directly in OnElementActivated)
             if (_postActivationRescanDelay > 0 && _isActive)
@@ -304,6 +343,15 @@ namespace MTGAAccessibility.Core.Services
                     }
                 }
             }
+            */
+
+            // Check for new popups - this detects popups that appear after button clicks
+            // (e.g., InviteFriendPopup appearing after clicking Add Friend)
+            if (_rescanDelay <= 0 && CheckForNewPopups())
+            {
+                MelonLogger.Msg($"[{NavigatorId}] New popup detected, triggering rescan");
+                TriggerRescan(force: true);
+            }
 
             // Call base Update for normal navigation handling
             base.Update();
@@ -311,13 +359,28 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Handle custom input keys. Backspace navigates back to Home when in a content panel.
+        /// F4 toggles the Friends panel.
         /// </summary>
         protected override bool HandleCustomInput()
         {
-            // Backspace: Navigate back to Home (main menu)
-            // Active when in any content panel other than HomePage
+            // F4: Toggle Friends panel
+            if (Input.GetKeyDown(KeyCode.F4))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] F4 pressed - toggling Friends panel");
+                ToggleFriendsPanel();
+                return true;
+            }
+
+            // Backspace: Navigate back to Home (main menu) or close Friends panel
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
+                // If Friends panel is open, close it first
+                if (IsSocialPanelOpen())
+                {
+                    ToggleFriendsPanel();
+                    return true;
+                }
+
                 bool isInContentPanel = !string.IsNullOrEmpty(_activeContentController) &&
                                         _activeContentController != "HomePageContentController";
                 if (isInContentPanel)
@@ -327,6 +390,62 @@ namespace MTGAAccessibility.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Toggle the Friends/Social panel by calling SocialUI methods directly.
+        /// </summary>
+        private void ToggleFriendsPanel()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] ToggleFriendsPanel called");
+
+            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+            if (socialPanel == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Social UI panel not found");
+                return;
+            }
+
+            // Get the SocialUI component
+            var socialUI = socialPanel.GetComponent("SocialUI");
+            if (socialUI == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] SocialUI component not found");
+                return;
+            }
+
+            bool isOpen = IsSocialPanelOpen();
+            MelonLogger.Msg($"[{NavigatorId}] Toggling Friends panel (isOpen: {isOpen})");
+
+            try
+            {
+                if (isOpen)
+                {
+                    // Close the panel
+                    var closeMethod = socialUI.GetType().GetMethod("CloseFriendsWidget",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (closeMethod != null)
+                    {
+                        closeMethod.Invoke(socialUI, null);
+                        MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.CloseFriendsWidget()");
+                    }
+                }
+                else
+                {
+                    // Open the panel
+                    var showMethod = socialUI.GetType().GetMethod("ShowSocialEntitiesList",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (showMethod != null)
+                    {
+                        showMethod.Invoke(socialUI, null);
+                        MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.ShowSocialEntitiesList()");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Warning($"[{NavigatorId}] Error toggling Friends panel: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -620,6 +739,89 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Check if any new popup GameObjects have appeared.
+        /// Popups are detected by having "Popup" in their name and being active.
+        /// Returns true if a new popup was found and rescan should be triggered.
+        /// Announces the popup name when a new popup is detected.
+        /// </summary>
+        private bool CheckForNewPopups()
+        {
+            bool foundNewPopup = false;
+            string newPopupName = null;
+
+            // Find all active GameObjects with "Popup" in their name
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (!go.name.Contains("Popup")) continue;
+
+                int id = go.GetInstanceID();
+                if (!_knownPopupIds.Contains(id))
+                {
+                    _knownPopupIds.Add(id);
+                    MelonLogger.Msg($"[{NavigatorId}] New popup detected: {go.name}");
+                    foundNewPopup = true;
+                    newPopupName = go.name;
+                }
+            }
+
+            // Announce the popup name if a new one was found
+            if (foundNewPopup && !string.IsNullOrEmpty(newPopupName))
+            {
+                string cleanName = CleanPopupName(newPopupName);
+                _announcer.AnnounceInterrupt($"{cleanName} opened.");
+            }
+
+            // Clean up IDs of popups that no longer exist
+            _knownPopupIds.RemoveWhere(id =>
+            {
+                var go = FindObjectFromInstanceID(id);
+                return go == null || !go.activeInHierarchy;
+            });
+
+            return foundNewPopup;
+        }
+
+        /// <summary>
+        /// Clean up a popup name for announcement.
+        /// E.g., "InviteFriendPopup(Clone)" -> "Invite Friend"
+        /// </summary>
+        private string CleanPopupName(string popupName)
+        {
+            if (string.IsNullOrEmpty(popupName)) return "Popup";
+
+            // Remove common suffixes
+            string clean = popupName
+                .Replace("(Clone)", "")
+                .Replace("Popup", "")
+                .Replace("_Desktop_16x9", "")
+                .Replace("_", " ")
+                .Trim();
+
+            // Add spaces before capital letters (InviteFriend -> Invite Friend)
+            clean = System.Text.RegularExpressions.Regex.Replace(clean, "([a-z])([A-Z])", "$1 $2");
+
+            // Handle empty result
+            if (string.IsNullOrWhiteSpace(clean))
+                return "Popup";
+
+            return clean;
+        }
+
+        /// <summary>
+        /// Find a GameObject by its instance ID.
+        /// </summary>
+        private static GameObject FindObjectFromInstanceID(int instanceId)
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go.GetInstanceID() == instanceId)
+                    return go;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Check if element should be shown based on current panel state.
         /// Uses the active content controller to determine visibility.
         /// </summary>
@@ -627,6 +829,12 @@ namespace MTGAAccessibility.Core.Services
         {
             // Settings overlay takes highest priority - only show Settings elements
             if (_foregroundPanel != null && CheckSettingsMenuOpen())
+            {
+                return IsChildOf(obj, _foregroundPanel);
+            }
+
+            // Social panel overlay - only show Social elements when open
+            if (_foregroundPanel != null && IsSocialPanelOpen())
             {
                 return IsChildOf(obj, _foregroundPanel);
             }
@@ -1223,6 +1431,13 @@ namespace MTGAAccessibility.Core.Services
                     TryAddElement(slider.gameObject);
             }
 
+            // Find TMP_InputField elements (text input fields)
+            foreach (var inputField in GameObject.FindObjectsOfType<TMP_InputField>())
+            {
+                if (inputField != null && inputField.interactable)
+                    TryAddElement(inputField.gameObject);
+            }
+
             // Process deck entries: pair main buttons with their TextBox edit buttons
             // Each deck entry has UI (CustomButton for selection) and TextBox (for editing name)
             var deckElements = discoveredElements.Where(x => x.classification.Label.Contains(", deck")).ToList();
@@ -1392,6 +1607,9 @@ namespace MTGAAccessibility.Core.Services
             // Check if this is a Toggle (checkbox) - we'll force rescan for these
             bool isToggle = element.GetComponent<Toggle>() != null;
 
+            // Check if this is an input field - may cause UI changes (e.g., Send button appearing)
+            bool isInputField = element.GetComponent<TMP_InputField>() != null;
+
             // Use UIActivator for CustomButtons
             var result = UIActivator.Activate(element);
             _announcer.Announce(result.Message, Models.AnnouncementPriority.Normal);
@@ -1403,6 +1621,15 @@ namespace MTGAAccessibility.Core.Services
             if (isToggle)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
+                TriggerRescan(force: true);
+                return true;
+            }
+
+            // For input field activations, trigger a rescan after a short delay
+            // The UI might change (e.g., Send button appearing) when entering an input field
+            if (isInputField)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Input field activated - scheduling rescan");
                 TriggerRescan(force: true);
                 return true;
             }
@@ -1449,7 +1676,7 @@ namespace MTGAAccessibility.Core.Services
                 HandleBladeChange(panelTypeName, isOpen);
             }
 
-            // Trigger rescan when any panel opens or closes
+            // Trigger rescan when panel opens or closes
             TriggerRescan();
         }
 
@@ -1467,7 +1694,8 @@ namespace MTGAAccessibility.Core.Services
 
             // Additional panel types not in ContentControllerTypes
             return panelTypeName.Contains("SettingsMenu") ||
-                   panelTypeName.Contains("DeckSelectBlade");
+                   panelTypeName.Contains("DeckSelectBlade") ||
+                   panelTypeName.Contains("SocialUI");
         }
 
         /// <summary>
@@ -1499,6 +1727,17 @@ namespace MTGAAccessibility.Core.Services
                     {
                         _foregroundPanel = SettingsContentPanel;
                         MelonLogger.Msg($"[{NavigatorId}] Set foreground panel to Settings: {_foregroundPanel.name}");
+                    }
+                }
+
+                // For SocialUI (friends panel), find and set as foreground
+                if (panelTypeName.Contains("SocialUI"))
+                {
+                    var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+                    if (socialPanel != null)
+                    {
+                        _foregroundPanel = socialPanel;
+                        MelonLogger.Msg($"[{NavigatorId}] Set foreground panel to Social: {_foregroundPanel.name}");
                     }
                 }
 

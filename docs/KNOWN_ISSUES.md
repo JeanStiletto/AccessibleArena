@@ -34,6 +34,17 @@ Multiple rapid Enter presses can trigger card play sequence multiple times, pote
 - Phase 3 (putting cards back after mulligan) needs more testing
 - Some unspecified bugs reported (need reproduction steps)
 
+### Friends Panel (Social UI)
+
+**Partially working**
+
+- F4 toggles panel, Tab navigates, Backspace closes
+- Add Friend popup detected and announced
+- Input field typing works but content changes not immediately reflected
+- Input field content only updates after panel reopen
+- Friend list not yet navigable
+- Friend status/online indicators not announced
+
 ## Needs Testing
 
 ### Menu Navigation
