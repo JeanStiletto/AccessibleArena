@@ -277,12 +277,19 @@ namespace MTGAAccessibility.Core.Services
                 TriggerRescan(force: true);
             }
 
+            // Check for panel changes (e.g., Settings submenu navigation)
+            // This detects when foreground panel becomes inactive or changes
+            if (_rescanDelay <= 0)
+            {
+                CheckForPanelChanges();
+            }
+
             // Call base Update for normal navigation handling
             base.Update();
         }
 
         /// <summary>
-        /// Handle custom input keys. Backspace navigates back to Home when in a content panel.
+        /// Handle custom input keys. Backspace goes back one level in menus.
         /// F4 toggles the Friends panel.
         /// </summary>
         protected override bool HandleCustomInput()
@@ -295,25 +302,309 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Backspace: Navigate back to Home (main menu) or close Friends panel
+            // Backspace: Universal back - goes back one level in menus
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                // If Friends panel is open, close it first
-                if (IsSocialPanelOpen())
-                {
-                    ToggleFriendsPanel();
-                    return true;
-                }
-
-                bool isInContentPanel = !string.IsNullOrEmpty(_activeContentController) &&
-                                        _activeContentController != "HomePageContentController";
-                if (isInContentPanel)
-                {
-                    return NavigateToHome();
-                }
+                return HandleBackNavigation();
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Handle Backspace key - navigates back one level in the menu hierarchy.
+        /// Priority order:
+        /// 1. Settings submenu → Settings main menu
+        /// 2. Settings main menu → Close settings
+        /// 3. Friends panel open → Close it
+        /// 4. PlayBlade open → Close it
+        /// 5. In content panel (not Home) → Navigate to Home
+        /// </summary>
+        private bool HandleBackNavigation()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Backspace pressed - handling back navigation");
+
+            // 1. If Settings is open, handle Settings navigation
+            if (CheckSettingsMenuOpen())
+            {
+                return HandleSettingsBack();
+            }
+
+            // 2. If Friends panel is open, close it
+            if (IsSocialPanelOpen())
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Closing Friends panel");
+                ToggleFriendsPanel();
+                return true;
+            }
+
+            // 3. If PlayBlade is open, close it
+            if (_playBladeActive)
+            {
+                return ClosePlayBlade();
+            }
+
+            // 4. If in a content panel (not Home), navigate to Home
+            bool isInContentPanel = !string.IsNullOrEmpty(_activeContentController) &&
+                                    _activeContentController != "HomePageContentController";
+            if (isInContentPanel)
+            {
+                return NavigateToHome();
+            }
+
+            // 5. Already at Home, nothing to do
+            MelonLogger.Msg($"[{NavigatorId}] Already at top level, no back action");
+            return false;
+        }
+
+        /// <summary>
+        /// Handle back navigation within Settings menu.
+        /// If in a submenu (Audio, Graphics, Gameplay), navigate back to main menu.
+        /// If in main menu, close Settings entirely.
+        /// </summary>
+        private bool HandleSettingsBack()
+        {
+            var settingsPanel = SettingsContentPanel;
+            if (settingsPanel == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Settings panel not found");
+                return false;
+            }
+
+            string panelName = settingsPanel.name;
+            MelonLogger.Msg($"[{NavigatorId}] Settings back from panel: {panelName}");
+
+            // Check if we're in a submenu (not the main menu)
+            bool isInSubmenu = panelName != "Content - MainMenu" &&
+                              (panelName == "Content - Audio" ||
+                               panelName == "Content - Graphics" ||
+                               panelName == "Content - Gameplay");
+
+            if (isInSubmenu)
+            {
+                // Navigate back to main Settings menu by clicking the back button
+                // Find the BackButton in the current submenu
+                var backButton = FindSettingsBackButton(settingsPanel);
+                if (backButton != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Activating Settings submenu back button");
+                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+
+                    // Try multiple activation methods for better compatibility
+                    ActivateBackButton(backButton);
+                    return true;
+                }
+                else
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Could not find Settings submenu back button");
+                }
+            }
+
+            // Close Settings entirely via SettingsMenu.Close()
+            return CloseSettingsMenu();
+        }
+
+        /// <summary>
+        /// Find the back button within a Settings panel.
+        /// </summary>
+        private GameObject FindSettingsBackButton(GameObject settingsPanel)
+        {
+            // BackButton is typically at: Content - X/Header/Back/BackButton
+            var headerTransform = settingsPanel.transform.Find("Header");
+            if (headerTransform == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Header not found in {settingsPanel.name}");
+                return null;
+            }
+
+            var backContainer = headerTransform.Find("Back");
+            if (backContainer == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Back container not found in Header");
+                return null;
+            }
+
+            var backButton = backContainer.Find("BackButton");
+            if (backButton != null && backButton.gameObject.activeInHierarchy)
+            {
+                return backButton.gameObject;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] BackButton not found or not active");
+            return null;
+        }
+
+        /// <summary>
+        /// Activate a back button using multiple methods for better compatibility.
+        /// Some buttons respond to pointer events, others to onClick, others to Button.onClick.
+        /// </summary>
+        private void ActivateBackButton(GameObject backButton)
+        {
+            // Method 1: Check for standard Unity Button component first
+            var unityButton = backButton.GetComponent<Button>();
+            if (unityButton != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Activating via Unity Button.onClick");
+                unityButton.onClick.Invoke();
+                return;
+            }
+
+            // Method 2: Try to find and invoke OnPointerClick directly
+            var pointerClickHandlers = backButton.GetComponents<IPointerClickHandler>();
+            if (pointerClickHandlers.Length > 0)
+            {
+                var pointer = new PointerEventData(EventSystem.current)
+                {
+                    button = PointerEventData.InputButton.Left,
+                    pointerPress = backButton
+                };
+
+                foreach (var handler in pointerClickHandlers)
+                {
+                    // Skip TooltipTrigger as it's just for tooltips
+                    if (handler.GetType().Name != "TooltipTrigger")
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Invoking IPointerClickHandler: {handler.GetType().Name}");
+                        handler.OnPointerClick(pointer);
+                        return;
+                    }
+                }
+            }
+
+            // Method 3: Fall back to UIActivator (comprehensive approach)
+            MelonLogger.Msg($"[{NavigatorId}] Falling back to UIActivator.Activate");
+            UIActivator.Activate(backButton);
+        }
+
+        /// <summary>
+        /// Close the Settings menu by calling SettingsMenu.Close() directly.
+        /// </summary>
+        private bool CloseSettingsMenu()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Attempting to close Settings menu via SettingsMenu.Close()");
+
+            // Find the SettingsMenu component
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || mb.GetType().Name != "SettingsMenu")
+                    continue;
+
+                // Call the Close method
+                var closeMethod = mb.GetType().GetMethod("Close",
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                if (closeMethod != null)
+                {
+                    try
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Calling SettingsMenu.Close()");
+                        _announcer.Announce(Models.Strings.ClosingSettings, Models.AnnouncementPriority.High);
+                        closeMethod.Invoke(mb, null);
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Warning($"[{NavigatorId}] Error calling SettingsMenu.Close(): {ex.Message}");
+                    }
+                }
+            }
+
+            MelonLogger.Warning($"[{NavigatorId}] Could not find SettingsMenu.Close() method");
+            return false;
+        }
+
+        /// <summary>
+        /// Close the PlayBlade by finding and activating the dismiss button.
+        /// Immediately clears blade state and triggers rescan so user can navigate
+        /// Home elements right away, even while the blade animation is still playing.
+        /// </summary>
+        private bool ClosePlayBlade()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Attempting to close PlayBlade");
+
+            // Method 1: Find the Blade_DismissButton
+            var dismissButton = GameObject.Find("Blade_DismissButton");
+            if (dismissButton != null && dismissButton.activeInHierarchy)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found Blade_DismissButton, activating");
+                _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
+                UIActivator.Activate(dismissButton);
+
+                // Immediately clear blade state and rescan - don't wait for animation
+                ClearBladeStateAndRescan();
+                return true;
+            }
+
+            // Method 2: Search for dismiss button in PlayBlade hierarchy
+            var playBladeController = GameObject.Find("ContentController - PlayBladeV3_Desktop_16x9(Clone)");
+            if (playBladeController != null)
+            {
+                var dismissTransform = playBladeController.transform.Find("SafeArea/Popout/BackButton_CONTAINER/Blade_DismissButton");
+                if (dismissTransform != null && dismissTransform.gameObject.activeInHierarchy)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Found Blade_DismissButton via path, activating");
+                    _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(dismissTransform.gameObject);
+
+                    // Immediately clear blade state and rescan - don't wait for animation
+                    ClearBladeStateAndRescan();
+                    return true;
+                }
+            }
+
+            // Method 3: Try to find BladeContentView and call Hide
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+
+                string typeName = mb.GetType().Name;
+                if (!typeName.Contains("BladeContentView") && !typeName.Contains("PlayBladeController"))
+                    continue;
+
+                // Try Hide method
+                var hideMethod = mb.GetType().GetMethod("Hide",
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                if (hideMethod != null)
+                {
+                    try
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Calling {typeName}.Hide()");
+                        _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
+                        hideMethod.Invoke(mb, null);
+
+                        // Immediately clear blade state and rescan - don't wait for animation
+                        ClearBladeStateAndRescan();
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Warning($"[{NavigatorId}] Error calling {typeName}.Hide(): {ex.Message}");
+                    }
+                }
+            }
+
+            MelonLogger.Warning($"[{NavigatorId}] Could not close PlayBlade");
+            return false;
+        }
+
+        /// <summary>
+        /// Clear blade state and trigger immediate rescan.
+        /// Called when user presses Backspace to close PlayBlade.
+        /// This allows navigation of Home elements while blade animation plays.
+        /// </summary>
+        private void ClearBladeStateAndRescan()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
+            _playBladeActive = false;
+            _playBladeState = null;
+            _activePanels.RemoveWhere(p => p.Contains("Blade:"));
+            _foregroundPanel = null;
+            TriggerRescan(force: true);
         }
 
         /// <summary>
@@ -1636,8 +1927,13 @@ namespace MTGAAccessibility.Core.Services
             }
             else
             {
-                // Only fully close if it's a Hide/Hidden state, otherwise it's a state transition
-                bool isClosing = panelTypeName.Contains("Hidden") || panelTypeName.Contains("Hide");
+                // Determine if this is a close event or just a state transition
+                // - PlayBlade:Hidden = close (PlayBladeController visual state)
+                // - Blade:* with isOpen=false = close (BladeContentView.Hide() was called)
+                // - PlayBlade:<non-Hidden> with isOpen=false = state transition (e.g., Events -> DirectChallenge)
+                bool isPlayBladeVisualState = panelTypeName.StartsWith("PlayBlade:");
+                bool isBladeContentViewHide = panelTypeName.StartsWith("Blade:");
+                bool isClosing = panelTypeName.Contains("Hidden") || isBladeContentViewHide;
 
                 if (isClosing)
                 {

@@ -4,6 +4,37 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Universal Backspace Navigation in Menus
+
+Added Backspace as a universal "back one level" key for all accessible menus.
+
+**User Experience:**
+- Backspace now consistently navigates back one level in menu hierarchies
+- Settings submenu (Audio/Graphics/Gameplay) → Settings main menu
+- Settings main menu → Closes Settings entirely
+- PlayBlade → Closes and returns to Home
+- Friends panel → Closes panel
+- Other content panels (Decks, Store, etc.) → Returns to Home
+
+**Key Improvements:**
+- PlayBlade closes immediately and shows Home elements while animation plays
+- Settings menu closes via direct `SettingsMenu.Close()` call (bypasses problematic BackButton)
+- Panel change detection now properly triggers rescans for submenu navigation
+
+**Technical Changes:**
+- `GeneralMenuNavigator`: Added `HandleBackNavigation()` for hierarchical back navigation
+- `GeneralMenuNavigator`: Added `HandleSettingsBack()` to handle Settings submenu vs main menu
+- `GeneralMenuNavigator`: Added `CloseSettingsMenu()` using reflection to call `SettingsMenu.Close()`
+- `GeneralMenuNavigator`: Added `ClosePlayBlade()` with immediate state clearing via `ClearBladeStateAndRescan()`
+- `GeneralMenuNavigator`: Added `FindSettingsBackButton()` and `ActivateBackButton()` helpers
+- `GeneralMenuNavigator`: Fixed `CheckForPanelChanges()` not being called in Update loop
+- `GeneralMenuNavigator`: Fixed blade close detection for `BladeContentView.Hide()` events
+- `Strings.cs`: Added `NavigatingBack`, `ClosingSettings`, `ClosingPlayBlade` constants
+
+**Files:** `GeneralMenuNavigator.cs`, `Strings.cs`
+
+---
+
 ### Slider Accessibility with Arrow Key Control
 
 Added full accessibility support for sliders (volume controls in Audio Settings).

@@ -40,6 +40,9 @@ namespace MTGAAccessibility.Core.Models
         public const string HomeNotAvailable = "Home button not available";
         public const string ReturningHome = "Returning to Home";
         public const string OpeningColorChallenges = "Opening color challenges";
+        public const string NavigatingBack = "Back";
+        public const string ClosingSettings = "Closing settings";
+        public const string ClosingPlayBlade = "Closing play menu";
 
         // ===========================================
         // LOGIN / ACCOUNT

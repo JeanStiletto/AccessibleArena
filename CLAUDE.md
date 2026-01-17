@@ -88,11 +88,11 @@ Combat (Declare Blockers): F (Confirm Blocks / Next), Backspace (No Blocks / Can
 Main Phase: Space (Next / To Combat / Pass - clicks primary button)
 Targeting: Tab (Cycle targets), Enter (Select), Backspace (Cancel)
 Browser (Scry/Surveil/etc.): Tab/Arrows (Navigate), Enter (Activate), Space (Confirm), Backspace (Cancel)
-Global: F1 (Help), F2 (Context), Ctrl+R (Repeat), Backspace (Dismiss/Cancel - universal)
+Global: F1 (Help), F2 (Context), Ctrl+R (Repeat), Backspace (Back/Dismiss/Cancel - universal)
 
 Do NOT override: Tab, Enter, Escape
 Note: Shift+Up/Down used for battlefield row switching
 Note: Left/Right arrows used contextually (cards, carousels, battlefield rows)
 Note: F key used contextually during combat phases (attackers/blockers)
 Note: Space used contextually during duels (main phase pass, combat confirmations)
-Note: Backspace is the universal dismiss/cancel key (combat no attacks/blocks, browser cancel, targeting cancel, exit zones)
+Note: Backspace is the universal back/dismiss/cancel key - in menus goes back one level (Settings submenu → Settings → Home, PlayBlade → Home), also handles combat no attacks/blocks, browser cancel, targeting cancel, exit zones
