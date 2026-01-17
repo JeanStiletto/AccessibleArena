@@ -51,7 +51,6 @@ Multiple rapid Enter presses can trigger card play sequence multiple times, pote
 
 ### Menu Navigation
 
-- Deck selection screen Submit Deck / View Deck buttons
 - Card name extraction for various reward types
 - Rewards screen detection
 

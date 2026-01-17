@@ -4,6 +4,25 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Deck Selection Fix
+
+Fixed deck selection on the Deck Selection screen (ConstructedDeckSelectController).
+
+**Problem:**
+When pressing Enter on a deck entry, the standard pointer click simulation wasn't properly triggering the deck selection. The deck might visually highlight but the internal selection state wasn't being updated, preventing the "Submit Deck" button from working.
+
+**Solution:**
+Added specialized deck activation handling in `UIActivator.TrySelectDeck()`:
+1. Detects deck entries by checking parent hierarchy for `DeckView_Base`
+2. Finds the `DeckView` component on the parent GameObject
+3. Invokes `DeckView.OnDeckClick()` via reflection
+
+This method properly triggers the game's internal deck selection callback, enabling the "Submit Deck" button.
+
+**Files:** `UIActivator.cs`
+
+---
+
 ### Universal Backspace Navigation in Menus
 
 Added Backspace as a universal "back one level" key for all accessible menus.

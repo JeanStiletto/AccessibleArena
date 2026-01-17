@@ -75,6 +75,19 @@ namespace MTGAAccessibility.Core.Services
             if (element == null)
                 return new ActivationResult(false, "Element is null");
 
+            // Special handling for deck entries - they need direct selection via DeckViewSelector
+            // because MTGA's CustomButton onClick on decks doesn't reliably trigger selection
+            if (IsDeckEntry(element))
+            {
+                Log($"Detected deck entry, trying specialized deck selection");
+                if (TrySelectDeck(element))
+                {
+                    return new ActivationResult(true, "Deck Selected", ActivationType.Button);
+                }
+                // Fall through to standard activation if specialized selection fails
+                Log($"Specialized deck selection failed, falling back to standard activation");
+            }
+
             // Try TMP_InputField
             var tmpInput = element.GetComponent<TMP_InputField>();
             if (tmpInput != null)
@@ -704,6 +717,109 @@ namespace MTGAAccessibility.Core.Services
             // for other purposes (Cancel Attacks, etc.). Only the "Submit X" pattern reliably
             // indicates discard/selection mode.
             return false;
+        }
+
+        #endregion
+
+        #region Deck Selection
+
+        /// <summary>
+        /// Attempts to select a deck entry by invoking its OnDeckClick method.
+        /// This is needed because MTGA's deck CustomButtons don't reliably respond
+        /// to standard pointer events - the DeckView.OnDeckClick() method must be called directly.
+        /// </summary>
+        /// <param name="deckElement">The deck UI element (CustomButton on DeckView_Base/UI)</param>
+        /// <returns>True if deck was selected successfully</returns>
+        public static bool TrySelectDeck(GameObject deckElement)
+        {
+            if (deckElement == null) return false;
+
+            Log($"Attempting deck selection for: {deckElement.name}");
+
+            // Find the DeckView component in parent hierarchy
+            // Structure: DeckView_Base(Clone)/UI <- we click this
+            // The DeckView component is on DeckView_Base(Clone)
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null)
+            {
+                Log("No DeckView component found in parents");
+                return false;
+            }
+
+            Log($"Found DeckView on: {deckView.gameObject.name}");
+
+            // Invoke OnDeckClick() on the DeckView component
+            var deckViewType = deckView.GetType();
+            var onDeckClickMethod = deckViewType.GetMethod("OnDeckClick",
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+
+            if (onDeckClickMethod != null && onDeckClickMethod.GetParameters().Length == 0)
+            {
+                try
+                {
+                    Log($"Invoking {deckViewType.Name}.OnDeckClick()");
+                    onDeckClickMethod.Invoke(deckView, null);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Error invoking OnDeckClick: {ex.Message}");
+                }
+            }
+            else
+            {
+                Log("OnDeckClick method not found on DeckView");
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if an element is a deck entry (for specialized handling).
+        /// </summary>
+        public static bool IsDeckEntry(GameObject element)
+        {
+            if (element == null) return false;
+
+            // Check parent hierarchy for DeckView_Base
+            Transform current = element.transform;
+            int depth = 0;
+            while (current != null && depth < 5)
+            {
+                if (current.name.Contains("DeckView_Base"))
+                    return true;
+                current = current.parent;
+                depth++;
+            }
+
+            return false;
+        }
+
+        private static MonoBehaviour FindDeckViewInParents(GameObject element)
+        {
+            Transform current = element.transform;
+            int depth = 0;
+
+            while (current != null && depth < 6)
+            {
+                // Look for DeckView component (the component type name is "DeckView")
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb == null) continue;
+                    string typeName = mb.GetType().Name;
+                    if (typeName == "DeckView")
+                    {
+                        return mb;
+                    }
+                }
+
+                current = current.parent;
+                depth++;
+            }
+
+            return null;
         }
 
         #endregion
