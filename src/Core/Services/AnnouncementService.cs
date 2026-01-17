@@ -1,3 +1,4 @@
+using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 using MTGAAccessibility.Core.Models;
 
@@ -19,6 +20,9 @@ namespace MTGAAccessibility.Core.Services
                 return;
 
             _lastAnnouncement = message;
+
+            // Log what we're speaking
+            MelonLogger.Msg($"[Announce] {priority}: {message}");
 
             // Only Immediate priority interrupts - let Tolk queue everything else
             bool interrupt = priority == AnnouncementPriority.Immediate;

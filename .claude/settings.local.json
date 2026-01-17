@@ -62,7 +62,48 @@
       "Bash(powershell.exe -Command \"Select-String -Path ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' -Pattern ''NavigatorManager\\\\].*Panel state''\")",
       "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' | Select-Object -First 250\")",
       "Bash(powershell.exe -Command \"Select-String -Path ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' -Pattern ''Nav_Settings|SettingsMenu|settings'' -Context 2,2 | Select-Object -First 60\")",
-      "Bash(powershell.exe -Command \"Select-String -Path ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' -Pattern ''Settings overlay|Rescanning|Discovered|Nav_Settings|Gameplay|Graphics|Audio'' | Select-Object -First 40\")"
+      "Bash(powershell.exe -Command \"Select-String -Path ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' -Pattern ''Settings overlay|Rescanning|Discovered|Nav_Settings|Gameplay|Graphics|Audio'' | Select-Object -First 40\")",
+      "Bash(git -C \"C:\\\\Users\\\\fabia\\\\arena\" status)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(Get-Content 'C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log' -Tail 500)",
+      "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' -Tail 200 | Select-String -Pattern ''AttackLob|Field:|Property:''\")",
+      "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' -Tail 300 | Select-String -Pattern ''AttackLob|FIELDS''\")",
+      "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' | Select-String -Pattern ''AttackLob''\")",
+      "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MelonLoader\\\\Latest.log'' | Select-String -Pattern ''13:35:14'' | Select-Object -First 30\")",
+      "Bash(findstr:*)",
+      "Bash(powershell.exe -NoProfile -Command \"Get-Command ilspy,dnspy,dotpeek -ErrorAction SilentlyContinue | Select Name,Source\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-ChildItem ''C:\\\\Users\\\\fabia\\\\arena\\\\libs'' | Select Name,Length\")",
+      "Bash(powershell.exe -NoProfile -Command \"Select-String -Path ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MTGA_Data\\\\Managed\\\\Core.dll'' -Pattern ''inputactions'' -Encoding byte -ErrorAction SilentlyContinue\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''\\(?i\\)keybind|hotkey|shortcut|inputaction'' | Select -First 30\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''\\(?i\\)_keybind|float.*all|quick.*tap|enter|space|escape'' | Select -First 50\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''KeyCode'' | Select -First 30\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''\\(?i\\)MTGAInput|ContinueKeyCode|m_actions|binding|keyboard'' | Select -First 50\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''<Keyboard>|<Mouse>|/Keyboard/'' | Select -First 50\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''/escape|/space|/enter|/tab|/return|/f1|/f2|actions/'' | Select -First 50\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''Custom/|UI/|Debug/'' | Select -First 50\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''\"\"name\"\"|\"\"path\"\"|m_Name|m_Path|m_Binding'' | Select -First 30\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Select-String -Pattern ''float.*all|quick.*tap|show.*collection|full.*control'' -CaseSensitive:$false | Select -First 20\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Where-Object { $_-match ''floatall|quicktap|showcollection|fullcontrol'' } | Select -First 20\")",
+      "Bash(powershell.exe -NoProfile -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\)\\) -split ''\\\\x00'' | Where-Object { $_-match ''Float All|Quick Tap|Show Collection|Full Control'' } | Select -First 20\")",
+      "Bash(powershell.exe -NoProfile -Command \"$bytes = [System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\); $text = [System.Text.Encoding]::ASCII.GetString\\($bytes\\); $matches = [regex]::Matches\\($text, ''\\(?<=[\\\\x00]\\)\\([A-Z][a-zA-Z0-9_]*\\(?:Keybind|Hotkey|Shortcut\\)[A-Za-z0-9_]*\\)\\(?=[\\\\x00]\\)''\\); $matches | ForEach-Object { $_Value } | Select -First 30\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-ChildItem ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MTGA_Data'' -Filter ''*.assets'' | ForEach-Object { $_Name }\")",
+      "Bash(powershell.exe -NoProfile -Command \"findstr /I /S /M ''InputActionAsset'' ''C:\\\\Program Files\\\\Wizards of the Coast\\\\MTGA\\\\MTGA_Data\\\\*.assets'' 2>&1 | Select -First 10\")",
+      "Bash(powershell.exe -NoProfile -Command \"$bytes = [System.IO.File]::ReadAllBytes\\(''C:\\\\Users\\\\fabia\\\\arena\\\\libs\\\\Core.dll''\\); $text = [System.Text.Encoding]::ASCII.GetString\\($bytes\\); $text -split [char]0 | Where-Object { $_-match ''Keybind|Hotkey|_Key_|keyboard.*short'' -and $_Length -lt 100 } | Sort-Object -Unique | Select-Object -First 50\")",
+      "Bash(Select-String -Pattern \"unknown|portrait|avatar|player|emote\" -Context 2,2)"
+    ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -Command \"[console]::beep(800,300)\""
+          }
+        ]
+      }
     ]
   }
 }
