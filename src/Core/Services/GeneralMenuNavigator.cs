@@ -30,41 +30,6 @@ namespace MTGAAccessibility.Core.Services
         // Minimum CustomButtons needed to consider this a menu
         private const int MinButtonsForMenu = 2;
 
-        // Base menu controller types for panel state detection
-        private static readonly string[] MenuControllerTypes = new[]
-        {
-            "NavContentController",
-            "SettingsMenu",
-            "SettingsMenuHost",
-            "PopupBase"
-        };
-
-        // Content controller types for screen detection and element filtering
-        private static readonly string[] ContentControllerTypes = new[]
-        {
-            "HomePageContentController",
-            "DeckManagerController",
-            "ProfileContentController",
-            "ContentController_StoreCarousel",
-            "MasteryContentController",
-            "AchievementsContentController",
-            "LearnToPlayControllerV2",
-            "PackOpeningController",
-            "CampaignGraphContentController",
-            "WrapperDeckBuilder",
-            "ConstructedDeckSelectController",
-            "EventPageContentController"
-        };
-
-        // Settings submenu panel names
-        private static readonly string[] SettingsPanelNames = new[]
-        {
-            "Content - MainMenu",
-            "Content - Gameplay",
-            "Content - Graphics",
-            "Content - Audio"
-        };
-
         // Blade container name patterns (used for element filtering when blade is active)
         private static readonly string[] BladePatterns = new[]
         {
@@ -91,22 +56,18 @@ namespace MTGAAccessibility.Core.Services
         private bool _hasLoggedUIOnce;
         private float _activationDelay;
 
-        // Panel state tracking
-        private HashSet<string> _activePanels = new HashSet<string>();
-        private GameObject _foregroundPanel;
+        // Helper instances
+        private readonly MenuScreenDetector _screenDetector;
+        private readonly MenuPanelTracker _panelTracker;
+
+        // Rescan timing
         private float _rescanDelay;
         private float _lastRescanTime;
-
-        // Popup tracking - detect when new popups appear
-        private HashSet<int> _knownPopupIds = new HashSet<int>();
-        private int _elementCountAtActivation;
-        private float _bladeAutoExpandDelay;
         private bool _forceRescan;
 
-        // Active content controller tracking
-        private string _activeContentController;
-        private GameObject _activeControllerGameObject;
-        private GameObject _navBarGameObject;
+        // Element tracking
+        private int _elementCountAtActivation;
+        private float _bladeAutoExpandDelay;
 
         // Blade state tracking
         private bool _playBladeActive;
@@ -143,58 +104,37 @@ namespace MTGAAccessibility.Core.Services
         public override string ScreenName => GetMenuScreenName();
         public override int Priority => 15; // Low priority - fallback after specific navigators
 
-        // Cached Settings panel reference (refreshed each check)
-        private GameObject _settingsContentPanel;
+        /// <summary>
+        /// Check if Settings menu is currently open.
+        /// </summary>
+        protected bool CheckSettingsMenuOpen() => _screenDetector.CheckSettingsMenuOpen();
 
         /// <summary>
-        /// Check if Settings menu is currently open and update the cached panel reference.
+        /// Cached Settings content panel.
         /// </summary>
-        /// <returns>True if Settings is open, false otherwise</returns>
-        protected bool CheckSettingsMenuOpen()
-        {
-            foreach (var panelName in SettingsPanelNames)
-            {
-                var panel = GameObject.Find(panelName);
-                if (panel != null && panel.activeInHierarchy)
-                {
-                    _settingsContentPanel = panel;
-                    return true;
-                }
-            }
-            _settingsContentPanel = null;
-            return false;
-        }
-
-        /// <summary>
-        /// Cached Settings content panel. Updated by CheckSettingsMenuOpen().
-        /// </summary>
-        protected GameObject SettingsContentPanel => _settingsContentPanel;
+        protected GameObject SettingsContentPanel => _screenDetector.SettingsContentPanel;
 
         /// <summary>
         /// Check if the Social/Friends panel is currently open.
         /// </summary>
-        protected bool IsSocialPanelOpen()
+        protected bool IsSocialPanelOpen() => _screenDetector.IsSocialPanelOpen();
+
+        // Convenience properties to access helper state
+        private string _activeContentController => _screenDetector.ActiveContentController;
+        private GameObject _activeControllerGameObject => _screenDetector.ActiveControllerGameObject;
+        private GameObject _navBarGameObject => _screenDetector.NavBarGameObject;
+        private GameObject _foregroundPanel
         {
-            // Check if social panel exists and is active
-            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
-            if (socialPanel == null) return false;
-
-            // Check for visible social content (the friends list panel)
-            // Look for the FriendsWidget or similar content that indicates the panel is expanded
-            var friendsWidget = socialPanel.transform.Find("MobileSafeArea/FriendsWidget_V2(Clone)");
-            if (friendsWidget != null && friendsWidget.gameObject.activeInHierarchy)
-                return true;
-
-            // Alternative: check for the top bar dismiss button which appears when panel is open
-            var topBarDismiss = socialPanel.GetComponentsInChildren<UnityEngine.UI.Button>(false)
-                .FirstOrDefault(b => b.name.Contains("TopBarDismiss"));
-            if (topBarDismiss != null && topBarDismiss.gameObject.activeInHierarchy)
-                return true;
-
-            return false;
+            get => _panelTracker.ForegroundPanel;
+            set => _panelTracker.ForegroundPanel = value;
         }
+        private HashSet<string> _activePanels => _panelTracker.ActivePanels;
 
-        public GeneralMenuNavigator(IAnnouncementService announcer) : base(announcer) { }
+        public GeneralMenuNavigator(IAnnouncementService announcer) : base(announcer)
+        {
+            _screenDetector = new MenuScreenDetector();
+            _panelTracker = new MenuPanelTracker(announcer, NavigatorId);
+        }
 
         protected virtual string GetMenuScreenName()
         {
@@ -218,7 +158,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Detect active content controller
-            _activeContentController = DetectActiveContentController();
+            DetectActiveContentController();
 
             if (!string.IsNullOrEmpty(_activeContentController))
             {
@@ -266,13 +206,12 @@ namespace MTGAAccessibility.Core.Services
             _currentScene = sceneName;
             _hasLoggedUIOnce = false;
             _activationDelay = ActivationDelaySeconds;
-            _activePanels.Clear();
-            _foregroundPanel = null; // Clear panel filter on scene change
             _playBladeActive = false;
             _playBladeState = null;
-            _activeContentController = null;
-            _activeControllerGameObject = null;
-            _navBarGameObject = null; // Clear cached NavBar on scene change
+
+            // Reset helpers
+            _screenDetector.Reset();
+            _panelTracker.Reset();
 
             if (_isActive)
             {
@@ -290,13 +229,12 @@ namespace MTGAAccessibility.Core.Services
         protected override void OnDeactivating()
         {
             base.OnDeactivating();
-            _foregroundPanel = null;
-            _activePanels.Clear();
-            _knownPopupIds.Clear();
             _playBladeActive = false;
             _playBladeState = null;
-            _activeContentController = null;
-            _activeControllerGameObject = null;
+
+            // Reset helpers
+            _screenDetector.Reset();
+            _panelTracker.Reset();
         }
 
         /// <summary>
@@ -333,7 +271,7 @@ namespace MTGAAccessibility.Core.Services
 
             // Check for new popups - this detects popups that appear after button clicks
             // (e.g., InviteFriendPopup appearing after clicking Add Friend)
-            if (_rescanDelay <= 0 && CheckForNewPopups())
+            if (_rescanDelay <= 0 && _panelTracker.CheckForNewPopups())
             {
                 MelonLogger.Msg($"[{NavigatorId}] New popup detected, triggering rescan");
                 TriggerRescan(force: true);
@@ -555,257 +493,15 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Get currently active panels by checking game's internal menu controllers.
-        /// Uses two-pass approach: first find all open controllers, then apply priority.
         /// </summary>
-        private List<(string name, GameObject obj)> GetActivePanelsWithObjects()
-        {
-            var activePanels = new List<(string name, GameObject obj)>();
-            var openControllers = new List<(MonoBehaviour mb, string typeName)>();
-
-            // PASS 1: Find all open menu controllers
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-
-                var type = mb.GetType();
-                string typeName = type.Name;
-
-                // Check if this is a menu controller type or inherits from one
-                bool isMenuController = false;
-                var checkType = type;
-                while (checkType != null)
-                {
-                    if (MenuControllerTypes.Contains(checkType.Name))
-                    {
-                        isMenuController = true;
-                        break;
-                    }
-                    checkType = checkType.BaseType;
-                }
-
-                if (!isMenuController) continue;
-
-                // Check IsOpen state
-                bool isOpen = CheckIsOpen(mb, type);
-                if (isOpen)
-                {
-                    openControllers.Add((mb, typeName));
-                }
-            }
-
-            // Check if Settings menu is open (uses cached property)
-            bool settingsMenuOpen = CheckSettingsMenuOpen();
-
-            // PASS 2: Build panel list with priority filtering
-            foreach (var (mb, typeName) in openControllers)
-            {
-                // When SettingsMenu is open, skip other controllers (HomePage, etc.)
-                // Settings overlays them and should have exclusive focus
-                if (settingsMenuOpen && typeName != "SettingsMenu" && typeName != "PopupBase")
-                {
-                    continue;
-                }
-
-                string panelId = $"{typeName}:{mb.gameObject.name}";
-                if (!activePanels.Any(p => p.name == panelId))
-                {
-                    // For SettingsMenu, use the content panel where buttons are
-                    GameObject panelObj = (typeName == "SettingsMenu" && SettingsContentPanel != null)
-                        ? SettingsContentPanel
-                        : mb.gameObject;
-                    activePanels.Add((panelId, panelObj));
-                }
-            }
-
-            return activePanels;
-        }
-
-        /// <summary>
-        /// Check if a MonoBehaviour has IsOpen = true AND is ready (animation complete).
-        /// Uses reflection to check various properties/methods on game controller types.
-        /// </summary>
-        private bool CheckIsOpen(MonoBehaviour mb, System.Type type)
-        {
-            bool isOpen = false;
-            string typeName = type.Name;
-
-            // Try IsOpen property
-            var isOpenProp = type.GetProperty("IsOpen",
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Instance);
-            if (isOpenProp != null && isOpenProp.PropertyType == typeof(bool))
-            {
-                try
-                {
-                    isOpen = (bool)isOpenProp.GetValue(mb);
-                }
-                catch (System.Exception ex)
-                {
-                    MelonLogger.Warning($"[{NavigatorId}] Failed to read IsOpen property on {typeName}: {ex.Message}");
-                }
-            }
-
-            // Try IsOpen() method if property didn't work
-            if (!isOpen)
-            {
-                var isOpenMethod = type.GetMethod("IsOpen",
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance,
-                    null, new System.Type[0], null);
-                if (isOpenMethod != null && isOpenMethod.ReturnType == typeof(bool))
-                {
-                    try
-                    {
-                        isOpen = (bool)isOpenMethod.Invoke(mb, null);
-                    }
-                    catch (System.Exception ex)
-                    {
-                        MelonLogger.Warning($"[{NavigatorId}] Failed to invoke IsOpen() method on {typeName}: {ex.Message}");
-                    }
-                }
-            }
-
-            if (!isOpen) return false;
-
-            // Check if animation is complete (IsReadyToShow for NavContentController)
-            var isReadyProp = type.GetProperty("IsReadyToShow",
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Instance);
-            if (isReadyProp != null && isReadyProp.PropertyType == typeof(bool))
-            {
-                try
-                {
-                    bool isReady = (bool)isReadyProp.GetValue(mb);
-                    if (!isReady)
-                    {
-                        return false; // Not ready yet, animation still playing
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    MelonLogger.Warning($"[{NavigatorId}] Failed to read IsReadyToShow on {typeName}: {ex.Message}");
-                }
-            }
-
-            // Check IsMainPanelActive for SettingsMenu
-            var isMainPanelActiveProp = type.GetProperty("IsMainPanelActive",
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Instance);
-            if (isMainPanelActiveProp != null && isMainPanelActiveProp.PropertyType == typeof(bool))
-            {
-                try
-                {
-                    bool isMainActive = (bool)isMainPanelActiveProp.GetValue(mb);
-                    if (!isMainActive)
-                    {
-                        return false; // Main panel not active (might be in sub-menu or closing)
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    MelonLogger.Warning($"[{NavigatorId}] Failed to read IsMainPanelActive on {typeName}: {ex.Message}");
-                }
-            }
-
-            return true;
-        }
+        private List<(string name, GameObject obj)> GetActivePanelsWithObjects() =>
+            _panelTracker.GetActivePanelsWithObjects(_screenDetector);
 
         /// <summary>
         /// Check if a panel name represents an overlay that should filter elements.
-        /// Only Settings and Popups are overlays. NavContentController (HomePage, etc.) are not.
         /// </summary>
-        private bool IsOverlayPanel(string panelName)
-        {
-            // Panel names are formatted as "TypeName:GameObjectName"
-            return panelName.StartsWith("SettingsMenu:") || panelName.StartsWith("PopupBase:");
-        }
-
-        /// <summary>
-        /// Check if any new popup GameObjects have appeared.
-        /// Popups are detected by having "Popup" in their name and being active.
-        /// Returns true if a new popup was found and rescan should be triggered.
-        /// Announces the popup name when a new popup is detected.
-        /// </summary>
-        private bool CheckForNewPopups()
-        {
-            bool foundNewPopup = false;
-            string newPopupName = null;
-
-            // Find all active GameObjects with "Popup" in their name
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy) continue;
-                if (!go.name.Contains("Popup")) continue;
-
-                int id = go.GetInstanceID();
-                if (!_knownPopupIds.Contains(id))
-                {
-                    _knownPopupIds.Add(id);
-                    MelonLogger.Msg($"[{NavigatorId}] New popup detected: {go.name}");
-                    foundNewPopup = true;
-                    newPopupName = go.name;
-                }
-            }
-
-            // Announce the popup name if a new one was found
-            if (foundNewPopup && !string.IsNullOrEmpty(newPopupName))
-            {
-                string cleanName = CleanPopupName(newPopupName);
-                _announcer.AnnounceInterrupt($"{cleanName} opened.");
-            }
-
-            // Clean up IDs of popups that no longer exist
-            _knownPopupIds.RemoveWhere(id =>
-            {
-                var go = FindObjectFromInstanceID(id);
-                return go == null || !go.activeInHierarchy;
-            });
-
-            return foundNewPopup;
-        }
-
-        /// <summary>
-        /// Clean up a popup name for announcement.
-        /// E.g., "InviteFriendPopup(Clone)" -> "Invite Friend"
-        /// </summary>
-        private string CleanPopupName(string popupName)
-        {
-            if (string.IsNullOrEmpty(popupName)) return "Popup";
-
-            // Remove common suffixes
-            string clean = popupName
-                .Replace("(Clone)", "")
-                .Replace("Popup", "")
-                .Replace("_Desktop_16x9", "")
-                .Replace("_", " ")
-                .Trim();
-
-            // Add spaces before capital letters (InviteFriend -> Invite Friend)
-            clean = System.Text.RegularExpressions.Regex.Replace(clean, "([a-z])([A-Z])", "$1 $2");
-
-            // Handle empty result
-            if (string.IsNullOrWhiteSpace(clean))
-                return "Popup";
-
-            return clean;
-        }
-
-        /// <summary>
-        /// Find a GameObject by its instance ID.
-        /// </summary>
-        private static GameObject FindObjectFromInstanceID(int instanceId)
-        {
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go.GetInstanceID() == instanceId)
-                    return go;
-            }
-            return null;
-        }
+        private static bool IsOverlayPanel(string panelName) =>
+            MenuPanelTracker.IsOverlayPanel(panelName);
 
         /// <summary>
         /// Check if element should be shown based on current panel state.
@@ -866,23 +562,8 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Check if a GameObject is a child of (or the same as) a parent GameObject.
         /// </summary>
-        private bool IsChildOf(GameObject child, GameObject parent)
-        {
-            if (child == null || parent == null)
-                return false;
-
-            Transform current = child.transform;
-            Transform parentTransform = parent.transform;
-
-            while (current != null)
-            {
-                if (current == parentTransform)
-                    return true;
-                current = current.parent;
-            }
-
-            return false;
-        }
+        private static bool IsChildOf(GameObject child, GameObject parent) =>
+            MenuPanelTracker.IsChildOf(child, parent);
 
         /// <summary>
         /// Check if element is inside a Blade (PlayBlade, EventBlade, FindMatchBlade, etc.)
@@ -964,7 +645,7 @@ namespace MTGAAccessibility.Core.Services
             _forceRescan = false; // Reset force flag
 
             // Detect active controller BEFORE discovering elements so filtering works correctly
-            _activeContentController = DetectActiveContentController();
+            DetectActiveContentController();
             MelonLogger.Msg($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
 
             // Remember the navigator's current selection before clearing
@@ -1298,7 +979,7 @@ namespace MTGAAccessibility.Core.Services
         protected override void DiscoverElements()
         {
             // Detect active controller first so filtering works correctly
-            _activeContentController = DetectActiveContentController();
+            DetectActiveContentController();
 
             var addedObjects = new HashSet<GameObject>();
             var discoveredElements = new List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)>();
@@ -1603,15 +1284,13 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private bool IsContentPanelType(string panelTypeName)
         {
-            // Check against known content controller types (excluding HomePage)
-            foreach (var controllerType in ContentControllerTypes)
-            {
-                if (controllerType != "HomePageContentController" && panelTypeName.Contains(controllerType))
-                    return true;
-            }
+            // Check for known content panel patterns (excluding HomePage which is always there)
+            if (panelTypeName.Contains("HomePage") || panelTypeName.Contains("HomeContent"))
+                return false;
 
-            // Additional panel types not in ContentControllerTypes
-            return panelTypeName.Contains("SettingsMenu") ||
+            // Check for content controller patterns
+            return MenuScreenDetector.IsContentControllerType(panelTypeName) ||
+                   panelTypeName.Contains("SettingsMenu") ||
                    panelTypeName.Contains("DeckSelectBlade") ||
                    panelTypeName.Contains("SocialUI");
         }
@@ -1756,122 +1435,24 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Detect which content controller is currently active.
-        /// Returns the type name of the active controller, or null if none detected.
-        /// Also updates _activeControllerGameObject with the controller's GameObject.
+        /// Delegates to MenuScreenDetector.
         /// </summary>
-        private string DetectActiveContentController()
-        {
-            // Cache NavBar if not already cached
-            if (_navBarGameObject == null)
-            {
-                _navBarGameObject = GameObject.Find("NavBar_Desktop_16x9(Clone)");
-                if (_navBarGameObject == null)
-                    _navBarGameObject = GameObject.Find("NavBar");
-            }
-
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-
-                var type = mb.GetType();
-                string typeName = type.Name;
-
-                if (!ContentControllerTypes.Contains(typeName)) continue;
-
-                // Check IsOpen property
-                var isOpenProp = type.GetProperty("IsOpen",
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance);
-
-                if (isOpenProp != null && isOpenProp.PropertyType == typeof(bool))
-                {
-                    try
-                    {
-                        bool isOpen = (bool)isOpenProp.GetValue(mb);
-                        if (isOpen)
-                        {
-                            // Also check IsReadyToShow if available
-                            var isReadyProp = type.GetProperty("IsReadyToShow",
-                                System.Reflection.BindingFlags.Public |
-                                System.Reflection.BindingFlags.NonPublic |
-                                System.Reflection.BindingFlags.Instance);
-
-                            if (isReadyProp != null && isReadyProp.PropertyType == typeof(bool))
-                            {
-                                bool isReady = (bool)isReadyProp.GetValue(mb);
-                                if (!isReady) continue; // Skip if not ready yet
-                            }
-
-                            // Store the GameObject for element filtering
-                            _activeControllerGameObject = mb.gameObject;
-                            return typeName;
-                        }
-                    }
-                    catch { /* Ignore reflection errors */ }
-                }
-            }
-
-            // Fallback: Check for rewards/claim overlay by object name pattern
-            // These popups use a different structure than type-based controllers
-            var rewardsObj = GameObject.Find("ContentController - Rewards_Desktop_16x9(Clone)");
-            if (rewardsObj != null && rewardsObj.activeInHierarchy)
-            {
-                _activeControllerGameObject = rewardsObj;
-                return "RewardsOverlay"; // Virtual controller name for display mapping
-            }
-
-            _activeControllerGameObject = null;
-            return null;
-        }
+        private string DetectActiveContentController() => _screenDetector.DetectActiveContentController();
 
         /// <summary>
         /// Check if the promotional carousel is visible on the home screen.
         /// </summary>
         private bool HasVisibleCarousel()
         {
-            // Look for carousel navigation elements (Previous/Next buttons)
-            var carouselPatterns = new[] { "Carousel", "NavGradient_Previous", "NavGradient_Next", "WelcomeBundle", "EventBlade_Item" };
-
-            foreach (var pattern in carouselPatterns)
-            {
-                var obj = GameObject.Find(pattern);
-                if (obj != null && obj.activeInHierarchy)
-                {
-                    return true;
-                }
-            }
-
-            // Also check for carousel by finding nav controls in the elements
-            foreach (var element in _elements)
-            {
-                if (element.Carousel.HasArrowNavigation)
-                    return true;
-            }
-
-            return false;
+            bool hasCarouselElement = _elements.Any(e => e.Carousel.HasArrowNavigation);
+            return _screenDetector.HasVisibleCarousel(hasCarouselElement);
         }
 
         /// <summary>
         /// Check if Color Challenge content is visible.
         /// </summary>
-        private bool HasColorChallengeVisible()
-        {
-            // Check for CampaignGraph content controller being open
-            if (_activeContentController == "CampaignGraphContentController")
-                return true;
-
-            // Also check for Color Challenge buttons directly
-            var colorChallengePatterns = new[] { "ColorMastery", "CampaignGraph", "Color Challenge" };
-
-            return GetActiveCustomButtons().Any(obj =>
-            {
-                string objName = obj.name;
-                string path = GetGameObjectPath(obj);
-                return colorChallengePatterns.Any(pattern =>
-                    objName.Contains(pattern) || path.Contains(pattern));
-            });
-        }
+        private bool HasColorChallengeVisible() =>
+            _screenDetector.HasColorChallengeVisible(GetActiveCustomButtons, GetGameObjectPath);
 
         /// <summary>
         /// Get a human-readable name for the current PlayBlade state.
@@ -1904,26 +1485,8 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Map content controller type name to user-friendly screen name.
         /// </summary>
-        private string GetContentControllerDisplayName(string controllerTypeName)
-        {
-            return controllerTypeName switch
-            {
-                "HomePageContentController" => "Home",
-                "DeckManagerController" => "Decks",
-                "ProfileContentController" => "Profile",
-                "ContentController_StoreCarousel" => "Store",
-                "MasteryContentController" => "Mastery",
-                "AchievementsContentController" => "Achievements",
-                "LearnToPlayControllerV2" => "Learn to Play",
-                "PackOpeningController" => "Pack Opening",
-                "CampaignGraphContentController" => "Color Challenge",
-                "WrapperDeckBuilder" => "Deck Builder",
-                "ConstructedDeckSelectController" => "Deck Selection",
-                "EventPageContentController" => "Event",
-                "RewardsOverlay" => "Rewards",
-                _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
-            };
-        }
+        private string GetContentControllerDisplayName(string controllerTypeName) =>
+            _screenDetector.GetContentControllerDisplayName(controllerTypeName);
 
         #endregion
     }

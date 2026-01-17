@@ -49,6 +49,10 @@ C:\Users\fabia\arena\
         BaseNavigator.cs         - Abstract base for screen navigators
         NavigatorManager.cs      - Manages navigator lifecycle and priority
 
+        # Menu Navigation Helpers
+        MenuScreenDetector.cs    - Content controller detection, screen name mapping
+        MenuPanelTracker.cs      - Panel/popup state tracking, overlay management
+
         # Screen Navigators (all extend BaseNavigator)
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
         WelcomeGateNavigator.cs      - Welcome/login choice screen

@@ -4,6 +4,25 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### GeneralMenuNavigator Refactoring
+
+Refactored `GeneralMenuNavigator` for improved maintainability and code organization.
+
+**New Helper Classes:**
+- `MenuScreenDetector` - Handles content controller detection, screen name mapping, visibility checks (Settings, Social, Carousel, Color Challenge)
+- `MenuPanelTracker` - Manages panel/popup state tracking, overlay detection, popup announcements
+
+**Changes:**
+- Extracted ~400 lines from GeneralMenuNavigator into reusable helper classes
+- Removed dead code: disabled post-activation rescan block and related fields
+- Fixed corrupted method formatting (IsMainButton)
+- Consolidated repeated `FindObjectsOfType<MonoBehaviour>` patterns into `GetActiveCustomButtons()` helper
+- Better separation of concerns between navigation logic and state tracking
+
+**Files:** `GeneralMenuNavigator.cs`, `MenuScreenDetector.cs` (new), `MenuPanelTracker.cs` (new)
+
+---
+
 ### Input Field Accessibility
 
 Full keyboard navigation support for text input fields (Add Friend, login, etc.):
