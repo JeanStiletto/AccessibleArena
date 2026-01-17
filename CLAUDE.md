@@ -35,12 +35,15 @@ Example - instead of tables, format like this:
 ## Documentation
 
 Detailed documentation in `docs/`:
-- **BEST_PRACTICES.md** - Game architecture, input system, UI patterns, utility usage, debugging
-- **MOD_STRUCTURE.md** - Project layout, implementation status, deployment, next steps
-- **SCREENS.md** - Special screen handling reference
-- **old/** - Archived analysis files
+- **GAME_ARCHITECTURE.md** - Game internals, assemblies, zones, interfaces, modding tools
+- **MOD_STRUCTURE.md** - Project layout, implementation status
+- **BEST_PRACTICES.md** - Coding patterns, utilities, input handling
+- **SCREENS.md** - Navigator quick reference
+- **CHANGELOG.md** - Recent changes
+- **KNOWN_ISSUES.md** - Bugs, limitations, planned features
+- **old/** - Archived planning documents
 
-**IGNORE:** `arena accessibility backlog.txt` - outdated, do not use for documentation
+**IGNORE:** `arena accessibility backlog.txt` - outdated
 
 ## Quick Reference
 
@@ -77,20 +80,19 @@ Battlefield (Your side): B (Creatures), A (Lands), R (Non-creatures)
 Battlefield (Enemy side): Shift+B (Creatures), Shift+A (Lands), Shift+R (Non-creatures)
 Battlefield Navigation: Shift+Up (Previous row), Shift+Down (Next row), Left/Right (Within row)
 Info: T (Turn), L (Life), V (Player Info Zone)
-Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes)
+Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 Card Details: Arrow Up/Down when focused on a card
 Carousel: Arrow Left/Right when focused on a carousel element (e.g., promotional banners)
-Combat (Declare Attackers): F (All Attack / X Attack), Shift+F (No Attacks), Space (All Attack / X Attack)
-Combat (Declare Blockers): F (Confirm Blocks / Next), Shift+F (No Blocks / Cancel Blocks), Space (Confirm Blocks / Next)
+Combat (Declare Attackers): F (All Attack / X Attack), Backspace (No Attacks), Space (All Attack / X Attack)
+Combat (Declare Blockers): F (Confirm Blocks / Next), Backspace (No Blocks / Cancel Blocks), Space (Confirm Blocks / Next)
 Main Phase: Space (Next / To Combat / Pass - clicks primary button)
-Global: F1 (Help), F2 (Context), Ctrl+R (Repeat)
+Targeting: Tab (Cycle targets), Enter (Select), Backspace (Cancel)
+Browser (Scry/Surveil/etc.): Tab/Arrows (Navigate), Enter (Activate), Space (Confirm), Backspace (Cancel)
+Global: F1 (Help), F2 (Context), Ctrl+R (Repeat), Backspace (Dismiss/Cancel - universal)
 
 Do NOT override: Tab, Enter, Escape
 Note: Shift+Up/Down used for battlefield row switching
 Note: Left/Right arrows used contextually (cards, carousels, battlefield rows)
 Note: F key used contextually during combat phases (attackers/blockers)
 Note: Space used contextually during duels (main phase pass, combat confirmations)
-Note: During blockers phase, selecting creatures announces combined P/T (e.g., "4/6 blocking")
-Note: Each attacker announced with name and P/T (e.g., "Goblin Bruiser 3/3 attacking")
-Note: Attacker count summary when phase ends (e.g., "2 attackers. Declare blockers")
-Note: When assigning blocker to attacker, announces assignment (e.g., "Spiritual Guardian assigned")
+Note: Backspace is the universal dismiss/cancel key (combat no attacks/blocks, browser cancel, targeting cancel, exit zones)

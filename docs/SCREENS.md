@@ -116,15 +116,12 @@ Detection: Activates when `PromptButton_Primary` shows duel-related text
 
 DuelNavigator delegates to specialized sub-navigators for different game phases:
 
-**HighlightNavigator**
-- Handles Tab cycling through playable/highlighted cards during normal gameplay
-- Detects cards with active `HotHighlight` child objects
-- Tab/Shift+Tab cycles, Enter plays card
-
-**TargetNavigator**
-- Handles target selection when playing spells that require targets
-- Detects valid targets via `HotHighlightBattlefield(Clone)` child objects
-- Tab cycles targets, Enter selects, Escape cancels
+**HotHighlightNavigator** (Unified Tab Navigation)
+- Handles Tab cycling through ALL highlighted cards (playable cards AND targets)
+- Trusts game's HotHighlight system - no separate mode tracking needed
+- Zone-based announcements: "in hand", "opponent's Creature", "on stack"
+- Zone-based activation: hand cards use two-click, others use single-click
+- Tab/Shift+Tab cycles, Enter activates, Backspace cancels
 
 **DiscardNavigator**
 - Handles forced discard selection (e.g., opponent plays discard spell)
@@ -133,11 +130,21 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 
 **CombatNavigator**
 - Handles declare attackers/blockers phases
-- Space triggers attack/block actions
-- Announces combat state for creatures
+- F/Space triggers attack/block actions, Shift+F for no attacks/blocks
+- Announces combat state for creatures (attacking, blocking, can block)
+
+**BrowserNavigator**
+- Handles library manipulation (scry, surveil, mulligan)
+- Tab cycles through cards, Space confirms
+- Detects via `BrowserScaffold_*` GameObjects
+
+**PlayerPortraitNavigator**
+- V key enters player info zone
+- Left/Right switches players, Up/Down cycles properties
+- Enter opens emote wheel (your portrait only)
 
 **Priority Order:**
-TargetNavigator > DiscardNavigator > CombatNavigator > HighlightNavigator > ZoneNavigator
+HotHighlightNavigator > DiscardNavigator > CombatNavigator > BrowserNavigator > ZoneNavigator
 
 ## Adding New Screens
 
