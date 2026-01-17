@@ -1120,6 +1120,7 @@ namespace MTGAAccessibility.Core.Services
             if (CheckSettingsMenuOpen())
             {
                 FindSettingsDropdownControls(TryAddElement);
+                FindSettingsStepperControls(TryAddElement);
             }
 
             // Process deck entries: pair main buttons with their TextBox edit buttons
@@ -1277,6 +1278,66 @@ namespace MTGAAccessibility.Core.Services
                 return control;
 
             return null;
+        }
+
+        /// <summary>
+        /// Find Settings stepper controls (Control - Setting: X pattern with Increment/Decrement buttons).
+        /// These are unified into a single navigable element with left/right arrow navigation.
+        /// </summary>
+        private void FindSettingsStepperControls(System.Action<GameObject> tryAddElement)
+        {
+            // Search for GameObjects with names matching "Control - Setting: X" pattern
+            var allTransforms = GameObject.FindObjectsOfType<Transform>();
+
+            foreach (var transform in allTransforms)
+            {
+                if (transform == null || !transform.gameObject.activeInHierarchy)
+                    continue;
+
+                string name = transform.name;
+
+                // Match "Control - Setting: X" or "Control - X_Selector" pattern (but not dropdowns)
+                bool isSettingControl = name.StartsWith("Control - Setting:", System.StringComparison.OrdinalIgnoreCase);
+                bool isSelectorControl = name.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
+                                         name.EndsWith("_Selector", System.StringComparison.OrdinalIgnoreCase);
+
+                if (!isSettingControl && !isSelectorControl)
+                    continue;
+
+                // Skip dropdown controls - those are handled separately
+                if (name.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Check if this control has Increment/Decrement buttons (stepper pattern)
+                bool hasIncrement = false;
+                bool hasDecrement = false;
+
+                foreach (Transform child in transform.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child == transform) continue;
+                    if (!child.gameObject.activeInHierarchy) continue;
+
+                    var button = child.GetComponent<Button>();
+                    if (button != null)
+                    {
+                        string childName = child.name;
+                        if (childName.IndexOf("increment", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                            hasIncrement = true;
+                        else if (childName.IndexOf("decrement", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                            hasDecrement = true;
+                    }
+
+                    if (hasIncrement && hasDecrement)
+                        break;
+                }
+
+                // Only add if it has stepper buttons
+                if (hasIncrement || hasDecrement)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Found Settings stepper control: {name}");
+                    tryAddElement(transform.gameObject);
+                }
+            }
         }
 
         /// <summary>

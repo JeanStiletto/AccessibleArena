@@ -22,6 +22,10 @@ namespace MTGAAccessibility.Core.Services
         protected int _currentIndex = -1;
         protected bool _isActive;
 
+        // Delayed stepper value announcement (game needs a frame to update value after button click)
+        private float _stepperAnnounceDelay;
+        private const float StepperAnnounceDelaySeconds = 0.1f;
+
         /// <summary>
         /// Represents a navigable UI element with its label and optional carousel info
         /// </summary>
@@ -174,6 +178,16 @@ namespace MTGAAccessibility.Core.Services
             {
                 TryActivate();
                 return;
+            }
+
+            // Handle delayed stepper/carousel value announcement
+            if (_stepperAnnounceDelay > 0)
+            {
+                _stepperAnnounceDelay -= Time.deltaTime;
+                if (_stepperAnnounceDelay <= 0)
+                {
+                    AnnounceStepperValue();
+                }
             }
 
             // Verify elements still exist
@@ -555,8 +569,8 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Handle left/right arrow keys for carousel elements.
-        /// Returns true if the current element is a carousel and the key was handled.
+        /// Handle left/right arrow keys for carousel/stepper elements.
+        /// Returns true if the current element supports arrow navigation and the key was handled.
         /// </summary>
         protected virtual bool HandleCarouselArrow(bool isNext)
         {
@@ -574,19 +588,50 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // Activate the nav control
-            MelonLogger.Msg($"[{NavigatorId}] Carousel {(isNext ? "next" : "previous")}: {control.name}");
+            // Activate the nav control (carousel nav button or stepper increment/decrement)
+            MelonLogger.Msg($"[{NavigatorId}] Arrow nav {(isNext ? "next/increment" : "previous/decrement")}: {control.name}");
             UIActivator.Activate(control);
 
-            // After activation, re-read and announce updated content
+            // Schedule delayed announcement - game needs a frame to update the value
+            _stepperAnnounceDelay = StepperAnnounceDelaySeconds;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Announce the current stepper/carousel value after a delay.
+        /// Called from Update() when the delay expires.
+        /// </summary>
+        private void AnnounceStepperValue()
+        {
+            if (_currentIndex < 0 || _currentIndex >= _elements.Count)
+                return;
+
             var currentElement = _elements[_currentIndex].GameObject;
             if (currentElement != null)
             {
-                string newText = UITextExtractor.GetText(currentElement);
-                _announcer.Announce(newText, AnnouncementPriority.High);
-            }
+                // Re-classify to get the updated label with new value
+                var classification = UIElementClassifier.Classify(currentElement);
+                string newLabel = classification.Label;
 
-            return true;
+                // Update cached label in our element list
+                var updatedElement = _elements[_currentIndex];
+                updatedElement.Label = BuildElementLabel(classification);
+                _elements[_currentIndex] = updatedElement;
+
+                _announcer.Announce(newLabel, AnnouncementPriority.High);
+            }
+        }
+
+        /// <summary>
+        /// Build the display label from a classification result.
+        /// Subclasses may override this for custom label formatting.
+        /// </summary>
+        protected virtual string BuildElementLabel(UIElementClassifier.ClassificationResult classification)
+        {
+            if (string.IsNullOrEmpty(classification.RoleLabel))
+                return classification.Label;
+            return $"{classification.Label}, {classification.RoleLabel}";
         }
 
         /// <summary>Move to next (direction=1) or previous (direction=-1) element</summary>

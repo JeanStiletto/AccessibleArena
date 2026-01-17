@@ -122,15 +122,31 @@ namespace MTGAAccessibility.Core.Services
                 return result;
             }
 
-            // Check for Settings stepper controls (Increment/Decrement buttons)
-            // These are standard Buttons inside "Control - X" parents for settings like Graphics quality
-            if (IsSettingsStepperButton(obj, objName, out string stepperLabel, out string stepperRole))
+            // Check if this is a stepper control parent (Control - Setting: X)
+            // These should be a single navigable element with left/right arrow navigation
+            GameObject incrementControl, decrementControl;
+            if (IsSettingsStepperControl(obj, objName, out string stepperLabel, out string stepperValue, out incrementControl, out decrementControl))
             {
                 result.Role = ElementRole.Button;
-                result.Label = stepperLabel;
-                result.RoleLabel = stepperRole;
+                result.Label = !string.IsNullOrEmpty(stepperValue)
+                    ? $"{stepperLabel}: {stepperValue}"
+                    : stepperLabel;
+                result.RoleLabel = "stepper, use left and right arrows";
                 result.IsNavigable = true;
                 result.ShouldAnnounce = true;
+                result.HasArrowNavigation = true;
+                result.PreviousControl = decrementControl;  // Left arrow = decrement
+                result.NextControl = incrementControl;       // Right arrow = increment
+                return result;
+            }
+
+            // Check for Settings stepper buttons (Increment/Decrement) - filter them out
+            // They are now handled by the parent stepper control
+            if (IsStepperNavControl(obj, objName))
+            {
+                result.Role = ElementRole.Internal;
+                result.IsNavigable = false;
+                result.ShouldAnnounce = false;
                 return result;
             }
 
@@ -767,6 +783,116 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Check if this element is a stepper navigation control (Increment/Decrement button).
+        /// These should be hidden from tab navigation - the parent stepper control handles arrow keys.
+        /// </summary>
+        private static bool IsStepperNavControl(GameObject obj, string name)
+        {
+            // Check if this is an Increment or Decrement button
+            bool isIncrement = ContainsIgnoreCase(name, "increment");
+            bool isDecrement = ContainsIgnoreCase(name, "decrement");
+
+            if (!isIncrement && !isDecrement)
+                return false;
+
+            // Must have a Button component
+            if (obj.GetComponent<Button>() == null)
+                return false;
+
+            // Verify it's inside a "Control - " parent (stepper control structure)
+            Transform parent = obj.transform.parent;
+            int levels = 0;
+            while (parent != null && levels < 5)
+            {
+                string parentName = parent.name;
+                if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) ||
+                    parentName.StartsWith("Control_", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    // This is a stepper nav control inside a Control parent
+                    return true;
+                }
+                parent = parent.parent;
+                levels++;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if this is a Settings stepper control parent (Control - Setting: X or Control - X_Selector).
+        /// Returns true if this is a stepper control that should be navigable with arrow keys.
+        /// </summary>
+        private static bool IsSettingsStepperControl(GameObject obj, string name, out string label, out string currentValue, out GameObject incrementControl, out GameObject decrementControl)
+        {
+            label = null;
+            currentValue = null;
+            incrementControl = null;
+            decrementControl = null;
+
+            // Check if this matches "Control - Setting: X" or "Control - X_Selector" pattern
+            if (!name.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
+                !name.StartsWith("Control_", System.StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // Skip dropdown controls - those are handled separately
+            if (name.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // Search for Increment and Decrement buttons in children
+            foreach (Transform child in obj.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == obj.transform) continue;
+                if (!child.gameObject.activeInHierarchy) continue;
+
+                string childName = child.name;
+                var button = child.GetComponent<Button>();
+
+                if (button != null)
+                {
+                    if (ContainsIgnoreCase(childName, "increment") && incrementControl == null)
+                    {
+                        incrementControl = child.gameObject;
+                    }
+                    else if (ContainsIgnoreCase(childName, "decrement") && decrementControl == null)
+                    {
+                        decrementControl = child.gameObject;
+                    }
+                }
+
+                if (incrementControl != null && decrementControl != null)
+                    break;
+            }
+
+            // Must have at least one stepper button to be considered a stepper
+            if (incrementControl == null && decrementControl == null)
+                return false;
+
+            // Extract setting name from control name
+            // Pattern: "Control - Setting: SettingName" or "Control - SettingName_Selector"
+            label = name;
+            if (label.StartsWith("Control - Setting: ", System.StringComparison.OrdinalIgnoreCase))
+                label = label.Substring(19);
+            else if (label.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase))
+                label = label.Substring(10);
+            else if (label.StartsWith("Control_", System.StringComparison.OrdinalIgnoreCase))
+                label = label.Substring(8);
+
+            // Remove suffix like "_Selector", "_Toggle"
+            int underscoreIdx = label.LastIndexOf('_');
+            if (underscoreIdx > 0)
+                label = label.Substring(0, underscoreIdx);
+
+            // Clean up the name (CamelCase to spaces)
+            label = CamelCasePattern.Replace(label, "$1 $2");
+            label = label.Replace("_", " ").Trim();
+
+            // Find the current value from "Value" child
+            currentValue = FindValueInControl(obj.transform, label);
+
+            return true;
+        }
+
+        /// <summary>
         /// Check if an element is a carousel (has left/right navigation controls as children)
         /// </summary>
         public static bool IsCarouselElement(GameObject obj, out GameObject previousControl, out GameObject nextControl)
@@ -912,97 +1038,6 @@ namespace MTGAAccessibility.Core.Services
                 currentValue = FindValueInControl(controlTransform, label);
             }
 
-            return true;
-        }
-
-        /// <summary>
-        /// Check if this is a Settings stepper button (Increment/Decrement) and extract proper label.
-        /// These buttons are inside "Control - X" parents and need to show the setting name + current value.
-        /// </summary>
-        private static bool IsSettingsStepperButton(GameObject obj, string name, out string label, out string roleLabel)
-        {
-            label = null;
-            roleLabel = null;
-
-            // Check if this is an Increment or Decrement button
-            bool isIncrement = ContainsIgnoreCase(name, "increment");
-            bool isDecrement = ContainsIgnoreCase(name, "decrement");
-
-            if (!isIncrement && !isDecrement)
-                return false;
-
-            // Must have a Button component
-            if (obj.GetComponent<Button>() == null)
-                return false;
-
-            // Find the parent "Control - X" element
-            Transform parent = obj.transform.parent;
-            string settingName = null;
-            string currentValue = null;
-            Transform controlParent = null;
-
-            // Walk up to find the Control parent (max 5 levels)
-            int levels = 0;
-            while (parent != null && levels < 5)
-            {
-                string parentName = parent.name;
-
-                // Check if this is a "Control - X" parent
-                if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) ||
-                    parentName.StartsWith("Control_", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    controlParent = parent;
-
-                    // Extract setting name from parent name
-                    // Pattern: "Control - Setting: SettingName" or "Control - SettingName_Selector"
-                    settingName = parentName;
-                    if (settingName.StartsWith("Control - Setting: ", System.StringComparison.OrdinalIgnoreCase))
-                        settingName = settingName.Substring(19); // Remove "Control - Setting: "
-                    else if (settingName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase))
-                        settingName = settingName.Substring(10);
-                    else if (settingName.StartsWith("Control_", System.StringComparison.OrdinalIgnoreCase))
-                        settingName = settingName.Substring(8);
-
-                    // Remove suffix like "_Selector", "_Toggle"
-                    int underscoreIdx = settingName.LastIndexOf('_');
-                    if (underscoreIdx > 0)
-                        settingName = settingName.Substring(0, underscoreIdx);
-
-                    // Clean up the name (CamelCase to spaces)
-                    settingName = CamelCasePattern.Replace(settingName, "$1 $2");
-                    settingName = settingName.Replace("_", " ").Trim();
-
-                    break;
-                }
-
-                parent = parent.parent;
-                levels++;
-            }
-
-            // Now search WITHIN the control parent for value text
-            // The value is typically in a child named "Value" or inside "Value BG"
-            if (controlParent != null)
-            {
-                currentValue = FindValueInControl(controlParent, settingName);
-            }
-
-            // If we couldn't find a proper parent structure, fall back to simpler label
-            if (string.IsNullOrEmpty(settingName))
-            {
-                // Try to get value from the button's own text
-                currentValue = UITextExtractor.GetText(obj);
-                label = currentValue ?? (isIncrement ? "Increase" : "Decrease");
-                roleLabel = isIncrement ? "increment button" : "decrement button";
-                return true;
-            }
-
-            // Build the label: "Setting Name: Current Value"
-            if (!string.IsNullOrEmpty(currentValue))
-                label = $"{settingName}: {currentValue}";
-            else
-                label = settingName;
-
-            roleLabel = isIncrement ? "increment button" : "decrement button";
             return true;
         }
 

@@ -4,6 +4,38 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Unified Stepper Controls with Arrow Navigation
+
+Redesigned stepper controls (Increment/Decrement buttons) to use a single navigable element with left/right arrow keys, similar to carousel elements.
+
+**User Experience:**
+- Steppers now appear as a single item in the Tab navigation (e.g., "FPS Limit: VSync, stepper, use left and right arrows")
+- Left arrow = decrement value
+- Right arrow = increment value
+- Value updates are announced after each arrow press with a slight delay to ensure accuracy
+
+**How It Works:**
+- Parent control (`Control - Setting: X`) is detected as the navigable element
+- Individual Increment/Decrement buttons are filtered out from Tab navigation
+- Arrow keys activate the hidden buttons and announce the updated value
+- Uses 0.1s delay before re-reading value (game needs time to process button click)
+
+**Technical Changes:**
+- `UIElementClassifier`: Added `IsSettingsStepperControl()` to detect parent stepper controls
+- `UIElementClassifier`: Added `IsStepperNavControl()` to filter out individual Increment/Decrement buttons
+- `UIElementClassifier`: Removed obsolete `IsSettingsStepperButton()` method
+- `GeneralMenuNavigator`: Added `FindSettingsStepperControls()` to discover stepper parent elements
+- `BaseNavigator`: Added delayed announcement mechanism (`_stepperAnnounceDelay`) for accurate value reading
+- `BaseNavigator`: Updated `HandleCarouselArrow()` to schedule delayed re-read instead of immediate
+
+**Why Delay is Needed:**
+- Carousels switch between pre-existing child elements (instant)
+- Steppers update the same text element's content (requires game to process click first)
+
+**Files:** `UIElementClassifier.cs`, `GeneralMenuNavigator.cs`, `BaseNavigator.cs`
+
+---
+
 ### Graphics Settings Menu Accessibility
 
 Added full accessibility support for the Graphics Settings submenu with new UI element types.
@@ -13,16 +45,7 @@ Added full accessibility support for the Graphics Settings submenu with new UI e
 - Settings menu now properly rescans when navigating between submenus
 - Foreground panel tracking updated during Settings submenu transitions
 
-**New Element Types:**
-
-*Stepper Controls (Increment/Decrement buttons):*
-- Detected via `Control - Setting: X` parent pattern with `Button - Increment`/`Button - Decrement` children
-- Extracts setting name from parent control (e.g., "FPS Limit", "Anti-Aliasing")
-- Extracts current value from sibling "Value" text element
-- Announced as: "Setting Name: Current Value, increment/decrement button"
-- Examples: "FPS Limit: VSync, increment button", "Shadows: Aus, decrement button"
-
-*Dropdown Controls (TMP_Dropdown):*
+**Dropdown Controls (TMP_Dropdown):**
 - Detected via `Control - X_Dropdown` parent pattern containing TMP_Dropdown
 - Extracts setting name from parent control name (e.g., "Quality", "Resolution", "Languages")
 - Extracts current value from `TMP_Dropdown.options[value].text`
@@ -34,14 +57,10 @@ Added full accessibility support for the Graphics Settings submenu with new UI e
 - `GeneralMenuNavigator`: Added `FindClickableInDropdownControl()` helper
 - `GeneralMenuNavigator`: Settings submenu button clicks trigger rescan
 - `GeneralMenuNavigator`: `PerformRescan()` updates foreground panel for Settings
-- `UIElementClassifier`: Added `IsSettingsStepperButton()` for stepper detection
 - `UIElementClassifier`: Added `IsSettingsDropdownControl()` for dropdown detection
 - `UIElementClassifier`: Added `GetSettingsDropdownLabel()` helper
 - `UIElementClassifier`: Added `FindValueInControl()` to search for value text in control hierarchy
 - `UIElementClassifier`: Enhanced TMP_Dropdown classification with setting label extraction
-
-**Known Limitation:**
-- Stepper controls require pressing increment/decrement buttons to change values - a unified stepper control with left/right navigation would provide better UX (planned for future redesign)
 
 **Files:** `GeneralMenuNavigator.cs`, `UIElementClassifier.cs`
 
