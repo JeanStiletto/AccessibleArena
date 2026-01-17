@@ -40,8 +40,10 @@ Multiple rapid Enter presses can trigger card play sequence multiple times, pote
 
 - F4 toggles panel, Tab navigates, Backspace closes
 - Add Friend popup detected and announced
-- Input field typing works but content changes not immediately reflected
-- Input field content only updates after panel reopen
+- Input field fully accessible:
+  - Left/Right arrows navigate cursor and announce character
+  - Up/Down arrows announce full content
+  - Typing works without mod interference
 - Friend list not yet navigable
 - Friend status/online indicators not announced
 

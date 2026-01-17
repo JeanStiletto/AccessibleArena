@@ -4,6 +4,31 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Input Field Accessibility
+
+Full keyboard navigation support for text input fields (Add Friend, login, etc.):
+
+**Features:**
+- Editing mode detection - mod stops intercepting navigation keys when input field is focused
+- Left/Right arrows navigate within text and announce character at cursor
+- Up/Down arrows announce full field content with label
+- Password fields announce "star" for characters, never reveal content
+- Boundary announcements: "start" when at beginning, "end" when at end position
+- Character names for punctuation (space, at, underscore, dash, etc.)
+
+**Technical Changes:**
+- `UIFocusTracker`: Added `IsEditingInputField()` static method to detect focused input fields
+- `BaseNavigator`: Added `HandleInputFieldNavigation()` for cursor navigation while editing
+- `BaseNavigator`: Added `AnnounceCharacterAtCursor()` and `AnnounceCurrentInputFieldContent()`
+- `BaseNavigator`: Added `GetCharacterName()` for speakable character names
+- `BaseNavigator`: Added `GetInputFieldLabel()` to extract labels from field names/placeholders
+- `KeyboardManagerPatch`: Skip key blocking when editing input fields
+- `Strings.cs`: Added input field navigation strings for localization
+
+**Files:** `UIFocusTracker.cs`, `BaseNavigator.cs`, `KeyboardManagerPatch.cs`, `Strings.cs`
+
+---
+
 ### Friends Menu (Social Panel) Accessibility
 
 Added partial accessibility for the Friends/Social panel:
@@ -28,8 +53,7 @@ Added partial accessibility for the Friends/Social panel:
 - `BaseNavigator`: Dynamic input field content update in announcements
 
 **Known Limitations:**
-- Input field changes only detected after panel reopen (partial fix)
-- Not all Friends panel features accessible yet
+- Not all Friends panel features accessible yet (friend list, status indicators)
 
 **Files:** `UIElementClassifier.cs`, `UITextExtractor.cs`, `PanelStatePatch.cs`, `GeneralMenuNavigator.cs`, `BaseNavigator.cs`
 

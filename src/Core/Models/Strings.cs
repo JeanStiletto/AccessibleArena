@@ -153,6 +153,53 @@ namespace MTGAAccessibility.Core.Models
         public const string EmotesNotAvailable = "Emotes not available";
 
         // ===========================================
+        // INPUT FIELD NAVIGATION
+        // ===========================================
+        public const string InputFieldEmpty = "empty";
+        public const string InputFieldStart = "start";
+        public const string InputFieldEnd = "end";
+        public const string InputFieldStar = "star"; // For password characters
+        public static string InputFieldCharacterCount(int count) => $"{count} characters";
+        public static string InputFieldContent(string label, string content) => $"{label}: {content}";
+        public static string InputFieldEmptyWithLabel(string label) => $"{label}, empty";
+        public static string InputFieldPasswordWithCount(string label, int count) => $"{label}, {count} characters";
+
+        // Character names for cursor navigation
+        public const string CharSpace = "space";
+        public const string CharDot = "dot";
+        public const string CharComma = "comma";
+        public const string CharExclamation = "exclamation";
+        public const string CharQuestion = "question";
+        public const string CharAt = "at";
+        public const string CharHash = "hash";
+        public const string CharDollar = "dollar";
+        public const string CharPercent = "percent";
+        public const string CharAnd = "and";
+        public const string CharStar = "star";
+        public const string CharDash = "dash";
+        public const string CharUnderscore = "underscore";
+        public const string CharPlus = "plus";
+        public const string CharEquals = "equals";
+        public const string CharSlash = "slash";
+        public const string CharBackslash = "backslash";
+        public const string CharColon = "colon";
+        public const string CharSemicolon = "semicolon";
+        public const string CharQuote = "quote";
+        public const string CharApostrophe = "apostrophe";
+        public const string CharOpenParen = "open paren";
+        public const string CharCloseParen = "close paren";
+        public const string CharOpenBracket = "open bracket";
+        public const string CharCloseBracket = "close bracket";
+        public const string CharOpenBrace = "open brace";
+        public const string CharCloseBrace = "close brace";
+        public const string CharLessThan = "less than";
+        public const string CharGreaterThan = "greater than";
+        public const string CharPipe = "pipe";
+        public const string CharTilde = "tilde";
+        public const string CharBacktick = "backtick";
+        public const string CharCaret = "caret";
+
+        // ===========================================
         // BROWSER (Scry, Surveil, Mulligan, etc.)
         // ===========================================
         public const string NoCards = "No cards";

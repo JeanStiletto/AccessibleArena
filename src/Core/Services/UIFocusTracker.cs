@@ -28,6 +28,35 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         public event Action<GameObject, GameObject> OnFocusChanged;
 
+        /// <summary>
+        /// Returns true if a TMP_InputField is currently focused (user is typing).
+        /// When true, navigation keys should pass through to the input field.
+        /// </summary>
+        public static bool IsEditingInputField()
+        {
+            // Check TMP_InputField (MTGA uses TextMeshPro)
+            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
+            foreach (var field in tmpInputFields)
+            {
+                if (field != null && field.isFocused)
+                {
+                    return true;
+                }
+            }
+
+            // Also check legacy Unity InputField just in case
+            var legacyInputFields = GameObject.FindObjectsOfType<UnityEngine.UI.InputField>();
+            foreach (var field in legacyInputFields)
+            {
+                if (field != null && field.isFocused)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public UIFocusTracker(IAnnouncementService announcer)
         {
             _announcer = announcer;

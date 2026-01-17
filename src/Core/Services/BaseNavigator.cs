@@ -245,8 +245,248 @@ namespace MTGAAccessibility.Core.Services
 
         #region Input Handling
 
+        /// <summary>
+        /// Handle navigation while editing an input field.
+        /// Up/Down arrows announce the field content.
+        /// Left/Right arrows announce the character at cursor.
+        /// </summary>
+        protected virtual void HandleInputFieldNavigation()
+        {
+            // Up or Down arrow: announce the current input field content
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                AnnounceCurrentInputFieldContent();
+            }
+            // Left/Right arrows: announce character at cursor position
+            else if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                AnnounceCharacterAtCursor();
+            }
+            // All other keys pass through for typing
+        }
+
+        /// <summary>
+        /// Announce the character at the current cursor position in the focused input field.
+        /// </summary>
+        private void AnnounceCharacterAtCursor()
+        {
+            bool isLeftArrow = Input.GetKeyDown(KeyCode.LeftArrow);
+            bool isRightArrow = Input.GetKeyDown(KeyCode.RightArrow);
+
+            // Find the focused TMP_InputField
+            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
+            foreach (var field in tmpInputFields)
+            {
+                if (field != null && field.isFocused)
+                {
+                    string text = field.text;
+                    int caretPos = field.stringPosition;
+
+                    // Handle empty field
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
+                        return;
+                    }
+
+                    // Handle password fields - don't reveal characters
+                    if (field.inputType == TMPro.TMP_InputField.InputType.Password)
+                    {
+                        if (caretPos == 0 && isLeftArrow)
+                            _announcer.AnnounceInterrupt(Strings.InputFieldStart);
+                        else if (caretPos >= text.Length && isRightArrow)
+                            _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
+                        else if (caretPos >= 0 && caretPos < text.Length)
+                            _announcer.AnnounceInterrupt(Strings.InputFieldStar);
+                        else
+                            _announcer.AnnounceInterrupt(caretPos == 0 ? Strings.InputFieldStart : Strings.InputFieldEnd);
+                        return;
+                    }
+
+                    // At start and pressing left - can't go further
+                    if (caretPos == 0 && isLeftArrow)
+                    {
+                        _announcer.AnnounceInterrupt(Strings.InputFieldStart);
+                    }
+                    // At end and pressing right - can't go further
+                    else if (caretPos >= text.Length && isRightArrow)
+                    {
+                        _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
+                    }
+                    // At end position (after last character)
+                    else if (caretPos >= text.Length)
+                    {
+                        _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
+                    }
+                    // Normal position - announce character
+                    else if (caretPos >= 0 && caretPos < text.Length)
+                    {
+                        char c = text[caretPos];
+                        string charName = GetCharacterName(c);
+                        _announcer.AnnounceInterrupt(charName);
+                    }
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get a speakable name for a character (handles spaces, punctuation, etc.)
+        /// </summary>
+        private string GetCharacterName(char c)
+        {
+            if (char.IsWhiteSpace(c))
+                return Strings.CharSpace;
+            if (char.IsDigit(c))
+                return c.ToString();
+            if (char.IsLetter(c))
+                return c.ToString();
+
+            // Common punctuation
+            return c switch
+            {
+                '.' => Strings.CharDot,
+                ',' => Strings.CharComma,
+                '!' => Strings.CharExclamation,
+                '?' => Strings.CharQuestion,
+                '@' => Strings.CharAt,
+                '#' => Strings.CharHash,
+                '$' => Strings.CharDollar,
+                '%' => Strings.CharPercent,
+                '&' => Strings.CharAnd,
+                '*' => Strings.CharStar,
+                '-' => Strings.CharDash,
+                '_' => Strings.CharUnderscore,
+                '+' => Strings.CharPlus,
+                '=' => Strings.CharEquals,
+                '/' => Strings.CharSlash,
+                '\\' => Strings.CharBackslash,
+                ':' => Strings.CharColon,
+                ';' => Strings.CharSemicolon,
+                '"' => Strings.CharQuote,
+                '\'' => Strings.CharApostrophe,
+                '(' => Strings.CharOpenParen,
+                ')' => Strings.CharCloseParen,
+                '[' => Strings.CharOpenBracket,
+                ']' => Strings.CharCloseBracket,
+                '{' => Strings.CharOpenBrace,
+                '}' => Strings.CharCloseBrace,
+                '<' => Strings.CharLessThan,
+                '>' => Strings.CharGreaterThan,
+                '|' => Strings.CharPipe,
+                '~' => Strings.CharTilde,
+                '`' => Strings.CharBacktick,
+                '^' => Strings.CharCaret,
+                _ => c.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Find the focused input field and announce its content.
+        /// </summary>
+        private void AnnounceCurrentInputFieldContent()
+        {
+            // Find the focused TMP_InputField
+            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
+            foreach (var field in tmpInputFields)
+            {
+                if (field != null && field.isFocused)
+                {
+                    string label = GetInputFieldLabel(field.gameObject);
+                    string content = field.text;
+
+                    // Handle password fields
+                    if (field.inputType == TMPro.TMP_InputField.InputType.Password)
+                    {
+                        if (string.IsNullOrEmpty(content))
+                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
+                        else
+                            _announcer.AnnounceInterrupt(Strings.InputFieldPasswordWithCount(label, content.Length));
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(content))
+                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
+                        else
+                            _announcer.AnnounceInterrupt(Strings.InputFieldContent(label, content));
+                    }
+                    return;
+                }
+            }
+
+            // Check legacy InputField
+            var legacyInputFields = GameObject.FindObjectsOfType<UnityEngine.UI.InputField>();
+            foreach (var field in legacyInputFields)
+            {
+                if (field != null && field.isFocused)
+                {
+                    string label = GetInputFieldLabel(field.gameObject);
+                    string content = field.text;
+
+                    if (field.inputType == UnityEngine.UI.InputField.InputType.Password)
+                    {
+                        if (string.IsNullOrEmpty(content))
+                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
+                        else
+                            _announcer.AnnounceInterrupt(Strings.InputFieldPasswordWithCount(label, content.Length));
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(content))
+                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
+                        else
+                            _announcer.AnnounceInterrupt(Strings.InputFieldContent(label, content));
+                    }
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get a readable label for an input field from its name or parent context.
+        /// </summary>
+        private string GetInputFieldLabel(GameObject inputField)
+        {
+            string name = inputField.name;
+
+            // Try to extract meaningful label from name
+            // Common patterns: "Input Field - Email", "InputField_Username", etc.
+            if (name.Contains(" - "))
+            {
+                var parts = name.Split(new[] { " - " }, System.StringSplitOptions.None);
+                if (parts.Length > 1)
+                    return parts[1].Trim();
+            }
+
+            if (name.Contains("_"))
+            {
+                var parts = name.Split('_');
+                if (parts.Length > 1)
+                    return parts[parts.Length - 1].Trim();
+            }
+
+            // Check placeholder text
+            var tmpInput = inputField.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null && tmpInput.placeholder != null)
+            {
+                var placeholderText = tmpInput.placeholder.GetComponent<TMPro.TMP_Text>();
+                if (placeholderText != null && !string.IsNullOrEmpty(placeholderText.text))
+                    return placeholderText.text;
+            }
+
+            // Fallback: clean up the name
+            return name.Replace("Input Field", "").Replace("InputField", "").Trim();
+        }
+
         protected virtual void HandleInput()
         {
+            // Special handling when user is editing an input field
+            if (UIFocusTracker.IsEditingInputField())
+            {
+                HandleInputFieldNavigation();
+                return;
+            }
+
             // Custom input first (subclass-specific keys)
             if (HandleCustomInput()) return;
 
