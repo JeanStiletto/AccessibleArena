@@ -1172,13 +1172,14 @@ namespace MTGAAccessibility.Core.Services
 
                 string announcement = BuildAnnouncement(classification);
 
-                // Build carousel info if this element supports arrow navigation
+                // Build carousel info if this element supports arrow navigation (including sliders)
                 CarouselInfo carouselInfo = classification.HasArrowNavigation
                     ? new CarouselInfo
                     {
                         HasArrowNavigation = true,
                         PreviousControl = classification.PreviousControl,
-                        NextControl = classification.NextControl
+                        NextControl = classification.NextControl,
+                        SliderComponent = classification.SliderComponent
                     }
                     : default;
 

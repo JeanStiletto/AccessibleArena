@@ -4,6 +4,36 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Slider Accessibility with Arrow Key Control
+
+Added full accessibility support for sliders (volume controls in Audio Settings).
+
+**User Experience:**
+- Sliders now announce their name and current value (e.g., "Master Volume, slider, 80 percent, use left and right arrows")
+- Left arrow = decrease by 5%
+- Right arrow = increase by 5%
+- New value is announced immediately after each adjustment
+- At min/max boundaries, current value is announced without change
+
+**Label Detection:**
+Sliders find their label from multiple sources:
+1. Parent "Control - X" container name (Settings pattern)
+2. Sibling "Label" or "Text" elements with TMP_Text
+3. Cleaned object name as fallback
+
+**Technical Changes:**
+- `UIElementClassifier.ClassificationResult`: Added `SliderComponent` property for direct slider access
+- `UIElementClassifier`: Added `GetSliderLabel()` method to find slider name from parent/sibling elements
+- `UIElementClassifier`: Updated slider classification to use `GetSliderLabel()` instead of `UITextExtractor.GetText()` (which caused duplicate "slider, percent" announcements)
+- `UIElementClassifier`: Sliders now set `HasArrowNavigation = true` and store `SliderComponent` reference
+- `BaseNavigator.CarouselInfo`: Added `SliderComponent` property
+- `BaseNavigator`: Added `HandleSliderArrow()` method for direct slider value adjustment
+- `GeneralMenuNavigator`: Updated carousel info building to pass `SliderComponent`
+
+**Files:** `UIElementClassifier.cs`, `BaseNavigator.cs`, `GeneralMenuNavigator.cs`
+
+---
+
 ### Unified Stepper Controls with Arrow Navigation
 
 Redesigned stepper controls (Increment/Decrement buttons) to use a single navigable element with left/right arrow keys, similar to carousel elements.

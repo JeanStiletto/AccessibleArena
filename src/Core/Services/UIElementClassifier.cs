@@ -71,7 +71,7 @@ namespace MTGAAccessibility.Core.Services
             public bool ShouldAnnounce { get; set; }
 
             /// <summary>
-            /// If true, this element supports left/right arrow navigation (e.g., carousel)
+            /// If true, this element supports left/right arrow navigation (e.g., carousel, slider)
             /// </summary>
             public bool HasArrowNavigation { get; set; }
 
@@ -84,6 +84,11 @@ namespace MTGAAccessibility.Core.Services
             /// Reference to the "next" control for arrow navigation
             /// </summary>
             public GameObject NextControl { get; set; }
+
+            /// <summary>
+            /// Reference to slider component for direct value adjustment via arrow keys
+            /// </summary>
+            public Slider SliderComponent { get; set; }
         }
 
         /// <summary>
@@ -180,10 +185,14 @@ namespace MTGAAccessibility.Core.Services
             {
                 int percent = CalculateSliderPercent(slider);
                 result.Role = ElementRole.Slider;
-                result.Label = GetCleanLabel(text, objName);
-                result.RoleLabel = $"slider, {percent} percent";
+                // Find label from parent/sibling elements, not from UITextExtractor
+                // (UITextExtractor already returns "slider, percent" which causes duplication)
+                result.Label = GetSliderLabel(obj, objName);
+                result.RoleLabel = $"slider, {percent} percent, use left and right arrows";
                 result.IsNavigable = true;
                 result.ShouldAnnounce = true;
+                result.HasArrowNavigation = true;
+                result.SliderComponent = slider;
                 return result;
             }
 
@@ -1193,6 +1202,102 @@ namespace MTGAAccessibility.Core.Services
             name = name.Replace("Btn", "");
 
             return name.Trim();
+        }
+
+        /// <summary>
+        /// Find the label for a slider from parent/sibling elements.
+        /// MTGA sliders typically have a "Label" sibling or a parent "Control - X" container.
+        /// </summary>
+        private static string GetSliderLabel(GameObject sliderObj, string fallbackName)
+        {
+            var sliderTransform = sliderObj.transform;
+
+            // First, check for a parent "Control - " container (Settings pattern)
+            Transform parent = sliderTransform.parent;
+            int levels = 0;
+            while (parent != null && levels < 5)
+            {
+                string parentName = parent.name;
+                if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    // Extract label from parent name: "Control - MasterVolume" -> "Master Volume"
+                    string label = parentName.Substring(10); // Remove "Control - "
+
+                    // Remove common suffixes
+                    if (label.EndsWith("_Slider", System.StringComparison.OrdinalIgnoreCase))
+                        label = label.Substring(0, label.Length - 7);
+
+                    // Clean up the name (CamelCase to spaces)
+                    label = CamelCasePattern.Replace(label, "$1 $2");
+                    label = label.Replace("_", " ").Trim();
+
+                    if (!string.IsNullOrEmpty(label))
+                        return label;
+                }
+                parent = parent.parent;
+                levels++;
+            }
+
+            // Second, look for a "Label" sibling or child in the parent container
+            parent = sliderTransform.parent;
+            if (parent != null)
+            {
+                foreach (Transform sibling in parent)
+                {
+                    if (sibling == sliderTransform) continue;
+
+                    string siblingName = sibling.name;
+
+                    // Look for elements named "Label", "Text", "Title", or similar
+                    if (ContainsIgnoreCase(siblingName, "label") ||
+                        EqualsIgnoreCase(siblingName, "Text") ||
+                        EqualsIgnoreCase(siblingName, "Title"))
+                    {
+                        var tmpText = sibling.GetComponent<TMP_Text>();
+                        if (tmpText != null && !string.IsNullOrEmpty(tmpText.text))
+                        {
+                            string labelText = tmpText.text.Trim();
+                            // Make sure it's not the percentage value
+                            if (!labelText.Contains("%") && labelText.Length < 50)
+                                return labelText;
+                        }
+
+                        var legacyText = sibling.GetComponent<Text>();
+                        if (legacyText != null && !string.IsNullOrEmpty(legacyText.text))
+                        {
+                            string labelText = legacyText.text.Trim();
+                            if (!labelText.Contains("%") && labelText.Length < 50)
+                                return labelText;
+                        }
+                    }
+                }
+
+                // Third, search deeper in the parent's hierarchy for any label
+                foreach (var tmpText in parent.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (tmpText == null || tmpText.transform == sliderTransform) continue;
+
+                    string textObjName = tmpText.gameObject.name;
+                    if (ContainsIgnoreCase(textObjName, "label") ||
+                        ContainsIgnoreCase(textObjName, "title"))
+                    {
+                        string labelText = tmpText.text?.Trim();
+                        if (!string.IsNullOrEmpty(labelText) && !labelText.Contains("%") && labelText.Length < 50)
+                            return labelText;
+                    }
+                }
+            }
+
+            // Fallback: try to extract from object name
+            string cleanName = CleanObjectName(fallbackName);
+
+            // Remove "slider" from the name if present
+            cleanName = System.Text.RegularExpressions.Regex.Replace(cleanName, @"\bslider\b", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+
+            if (!string.IsNullOrEmpty(cleanName) && cleanName.Length > 1)
+                return cleanName;
+
+            return "Volume";  // Ultimate fallback for audio sliders
         }
 
         private static int CalculateSliderPercent(Slider slider)

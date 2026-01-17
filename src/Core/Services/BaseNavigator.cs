@@ -46,6 +46,10 @@ namespace MTGAAccessibility.Core.Services
             public bool HasArrowNavigation { get; set; }
             public GameObject PreviousControl { get; set; }
             public GameObject NextControl { get; set; }
+            /// <summary>
+            /// For sliders: direct reference to modify value via arrow keys
+            /// </summary>
+            public Slider SliderComponent { get; set; }
         }
 
         #endregion
@@ -569,7 +573,7 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Handle left/right arrow keys for carousel/stepper elements.
+        /// Handle left/right arrow keys for carousel/stepper/slider elements.
         /// Returns true if the current element supports arrow navigation and the key was handled.
         /// </summary>
         protected virtual bool HandleCarouselArrow(bool isNext)
@@ -581,6 +585,13 @@ namespace MTGAAccessibility.Core.Services
             if (!info.HasArrowNavigation)
                 return false;
 
+            // Handle slider elements directly
+            if (info.SliderComponent != null)
+            {
+                return HandleSliderArrow(info.SliderComponent, isNext);
+            }
+
+            // Handle carousel/stepper elements via control buttons
             GameObject control = isNext ? info.NextControl : info.PreviousControl;
             if (control == null || !control.activeInHierarchy)
             {
@@ -594,6 +605,41 @@ namespace MTGAAccessibility.Core.Services
 
             // Schedule delayed announcement - game needs a frame to update the value
             _stepperAnnounceDelay = StepperAnnounceDelaySeconds;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Handle slider value adjustment via arrow keys.
+        /// Adjusts by 5% per keypress.
+        /// </summary>
+        private bool HandleSliderArrow(Slider slider, bool isNext)
+        {
+            if (slider == null || !slider.interactable)
+                return false;
+
+            float range = slider.maxValue - slider.minValue;
+            float step = range * 0.05f;  // 5% step
+
+            float newValue = isNext
+                ? Mathf.Min(slider.value + step, slider.maxValue)
+                : Mathf.Max(slider.value - step, slider.minValue);
+
+            // Check if at boundary
+            if ((isNext && slider.value >= slider.maxValue) ||
+                (!isNext && slider.value <= slider.minValue))
+            {
+                int currentPercent = Mathf.RoundToInt((slider.value - slider.minValue) / range * 100);
+                _announcer.Announce($"{currentPercent} percent", AnnouncementPriority.Normal);
+                return true;
+            }
+
+            slider.value = newValue;
+
+            // Announce new value
+            int percent = Mathf.RoundToInt((newValue - slider.minValue) / range * 100);
+            MelonLogger.Msg($"[{NavigatorId}] Slider {(isNext ? "increase" : "decrease")}: {percent}%");
+            _announcer.AnnounceInterrupt($"{percent} percent");
 
             return true;
         }
