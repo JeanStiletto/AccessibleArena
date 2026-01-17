@@ -132,6 +132,54 @@ foreach (var handler in element.GetComponents<IPointerClickHandler>())
 - Implements `IPointerClickHandler` - use `UIActivator.SimulatePointerClick()` directly
 - Does NOT respond to `onClick.Invoke()` or reflection-based method calls
 
+### Primary/Secondary Button Pattern (Language-Agnostic)
+
+**Key Insight:** MTGA uses two consistent prompt buttons throughout all game phases:
+- **`PromptButton_Primary`** - Always the "proceed/confirm" action
+- **`PromptButton_Secondary`** - Always the "cancel/skip" action
+
+The button **GameObject names** never change regardless of language. Only the **text labels** change.
+
+**Declare Attackers Phase:**
+- Primary: "All Attack" / "X Attackers" (German: "Alle angreifen" / "X Angreifer")
+- Secondary: "No Attacks" (German: "Keine Angriffe")
+
+**Declare Blockers Phase:**
+- Primary: "No Blocks" → "X Blocker" / "Next" / "Confirm"
+- Secondary: "No Blocks" / "Cancel Blocks"
+
+**Main Phase:**
+- Primary: "Pass" / "Resolve" / "Next" / "End Turn"
+- Secondary: (varies by context)
+
+**Language-Agnostic Detection:**
+```csharp
+// CORRECT - Find by GameObject name (works in any language)
+foreach (var selectable in FindObjectsOfType<Selectable>())
+{
+    if (selectable.gameObject.name.Contains("PromptButton_Primary"))
+    {
+        string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
+        UIActivator.SimulatePointerClick(selectable.gameObject);
+        _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+    }
+}
+
+// WRONG - Text matching breaks with localization
+if (buttonText.Contains("Attack")) // Fails in German!
+```
+
+**Implementation Pattern:**
+1. Find button by name (`PromptButton_Primary` or `PromptButton_Secondary`)
+2. Extract localized text for announcement
+3. Click the button
+4. Announce the localized text to user
+
+This pattern is used in:
+- `CombatNavigator` - F/Space clicks Primary, Backspace clicks Secondary
+- `BrowserNavigator` - Space clicks Primary (confirm), Backspace clicks Secondary (cancel)
+- `DiscardNavigator` - Finds Primary button and extracts count from text
+
 ### Input Field Text
 - Empty fields contain zero-width space (U+200B), not empty string
 - Always check for TMP_InputField BEFORE checking TMP_Text children
@@ -705,6 +753,15 @@ public bool IsInDeclareBlockersPhase { get; private set; }
 ```
 - Set via `ToggleCombatUXEvent` and phase tracking
 - Used by CombatNavigator for F/Space shortcuts
+
+**Combat Button Handling (Language-Agnostic):**
+CombatNavigator uses the Primary/Secondary Button Pattern (see above):
+- **F or Space** → Clicks `PromptButton_Primary` (confirm attackers/blockers)
+- **Backspace** → Clicks `PromptButton_Secondary` (no attacks/cancel blocks)
+
+The button text changes dynamically based on game state, but the function stays the same:
+- Attackers: Primary cycles "All Attack" → "X Attackers" as you select
+- Blockers: Primary shows "No Blocks" → "X Blocker" → "Next" as you assign
 
 **BattlefieldNavigator Zone Coordination:**
 ```csharp

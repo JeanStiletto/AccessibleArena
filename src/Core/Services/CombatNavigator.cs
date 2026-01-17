@@ -437,34 +437,32 @@ namespace MTGAAccessibility.Core.Services
             // Handle Declare Attackers phase
             if (_duelAnnouncer.IsInDeclareAttackersPhase)
             {
-                // Backspace - press the no attacks button
+                // Backspace - press the secondary button (No Attacks / cancel)
                 if (Input.GetKeyDown(KeyCode.Backspace))
                 {
-                    return TryClickNoAttackButton();
+                    return TryClickSecondaryButton();
                 }
 
-                // Space or F - press the attack button (All Attack / X Attack)
+                // Space or F - press the primary button (All Attack / X Attack)
                 if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F))
                 {
-                    return TryClickAttackButton();
+                    return TryClickPrimaryButton();
                 }
             }
 
             // Handle Declare Blockers phase
             if (_duelAnnouncer.IsInDeclareBlockersPhase)
             {
-                // Backspace - press the no blocks / cancel blocks button
+                // Backspace - press the secondary button (No Blocks / Cancel Blocks)
                 if (Input.GetKeyDown(KeyCode.Backspace))
                 {
-                    LogBlockerPhaseButtons();
-                    return TryClickNoBlockButton();
+                    return TryClickSecondaryButton();
                 }
 
-                // Space or F - press the confirm blocks button (X Blocker / Next)
+                // Space or F - press the primary button (X Blocker / Next / Confirm)
                 if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F))
                 {
-                    LogBlockerPhaseButtons();
-                    return TryClickBlockerConfirmButton();
+                    return TryClickPrimaryButton();
                 }
             }
 
@@ -476,48 +474,73 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Finds and clicks the primary prompt button (Next, To Combat, Pass, Done, etc.).
-        /// Used during main phase to pass priority or move to combat.
+        /// Finds and clicks the primary prompt button.
+        /// Language-agnostic: identifies button by GameObject name, announces localized text.
         /// Returns true if button was found and clicked.
         /// </summary>
         private bool TryClickPrimaryButton()
         {
-            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
+            var button = FindPromptButton(isPrimary: true);
+            if (button == null)
             {
-                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
-                    continue;
-
-                string name = selectable.gameObject.name;
-                if (!name.Contains("PromptButton_Primary"))
-                    continue;
-
-                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
-                if (string.IsNullOrEmpty(buttonText))
-                    continue;
-
-                // Skip "Opponent's Turn" - nothing to do
-                if (buttonText.Contains("Opponent"))
-                    continue;
-
-                MelonLogger.Msg($"[CombatNavigator] Clicking primary button: {buttonText}");
-                var result = UIActivator.SimulatePointerClick(selectable.gameObject);
-                if (result.Success)
-                {
-                    _announcer.Announce(buttonText, AnnouncementPriority.Normal);
-                    return true;
-                }
+                MelonLogger.Msg("[CombatNavigator] No primary button found");
+                return false;
             }
 
-            MelonLogger.Msg("[CombatNavigator] No primary button found");
-            return false;
+            string buttonText = UITextExtractor.GetButtonText(button);
+            MelonLogger.Msg($"[CombatNavigator] Clicking primary button: {buttonText}");
+
+            var result = UIActivator.SimulatePointerClick(button);
+            if (result.Success)
+            {
+                _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+                return true;
+            }
+            else
+            {
+                MelonLogger.Msg("[CombatNavigator] Primary button click failed");
+                return false;
+            }
         }
 
         /// <summary>
-        /// Debug: Logs all buttons visible during declare blockers phase.
+        /// Finds and clicks the secondary prompt button.
+        /// Language-agnostic: identifies button by GameObject name, announces localized text.
+        /// Returns true if button was found and clicked.
         /// </summary>
-        private void LogBlockerPhaseButtons()
+        private bool TryClickSecondaryButton()
         {
-            MelonLogger.Msg("[CombatNavigator] === BLOCKER PHASE BUTTONS ===");
+            var button = FindPromptButton(isPrimary: false);
+            if (button == null)
+            {
+                MelonLogger.Msg("[CombatNavigator] No secondary button found");
+                return false;
+            }
+
+            string buttonText = UITextExtractor.GetButtonText(button);
+            MelonLogger.Msg($"[CombatNavigator] Clicking secondary button: {buttonText}");
+
+            var result = UIActivator.SimulatePointerClick(button);
+            if (result.Success)
+            {
+                _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+                return true;
+            }
+            else
+            {
+                MelonLogger.Msg("[CombatNavigator] Secondary button click failed");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Finds a prompt button by type (primary or secondary).
+        /// Language-agnostic: uses GameObject name pattern, not button text.
+        /// </summary>
+        private GameObject FindPromptButton(bool isPrimary)
+        {
+            string pattern = isPrimary ? "PromptButton_Primary" : "PromptButton_Secondary";
+
             foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
             {
                 if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
@@ -527,246 +550,15 @@ namespace MTGAAccessibility.Core.Services
                 if (IsInEmotePanel(selectable.gameObject))
                     continue;
 
-                string name = selectable.gameObject.name;
-                if (name.Contains("PromptButton") || name.Contains("Button"))
+                if (selectable.gameObject.name.Contains(pattern))
                 {
-                    string text = UITextExtractor.GetButtonText(selectable.gameObject);
-                    MelonLogger.Msg($"[CombatNavigator]   Button: {name} - Text: '{text}'");
-                }
-            }
-            MelonLogger.Msg("[CombatNavigator] === END BLOCKER PHASE BUTTONS ===");
-        }
-
-        /// <summary>
-        /// Finds and clicks the confirm/done button during declare blockers.
-        /// Matches "X Blocker" or "Next" but NOT "No Blocks".
-        /// Returns true if button was found and clicked.
-        /// </summary>
-        private bool TryClickBlockerConfirmButton()
-        {
-            // Look for PromptButton_Primary with confirm-like text
-            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
-            {
-                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
-                    continue;
-
-                string name = selectable.gameObject.name;
-                if (!name.Contains("PromptButton_Primary"))
-                    continue;
-
-                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
-                if (string.IsNullOrEmpty(buttonText))
-                    continue;
-
-                // Skip "No Blocks" - that's handled by TryClickNoBlockButton
-                if (buttonText.Contains("No "))
-                    continue;
-
-                // Look for confirm type buttons: "X Blocker", "Next", "Done", "Confirm", "OK"
-                // But NOT "Opponent's Turn"
-                if (buttonText.Contains("Blocker") || buttonText.Contains("Next") ||
-                    buttonText.Contains("Done") || buttonText.Contains("Confirm") || buttonText.Contains("OK"))
-                {
-                    MelonLogger.Msg($"[CombatNavigator] Clicking blocker confirm button: {buttonText}");
-                    var result = UIActivator.SimulatePointerClick(selectable.gameObject);
-                    if (result.Success)
-                    {
-                        _announcer.Announce(buttonText, AnnouncementPriority.Normal);
-                        return true;
-                    }
-                }
-            }
-
-            MelonLogger.Msg("[CombatNavigator] No blocker confirm button found");
-            return false;
-        }
-
-        /// <summary>
-        /// Finds and clicks the "No Blocks" or "Cancel Blocks" button.
-        /// Returns true if button was found and clicked.
-        /// </summary>
-        private bool TryClickNoBlockButton()
-        {
-            // First check secondary button for "No Blocks" or "Cancel Blocks"
-            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
-            {
-                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
-                    continue;
-
-                string name = selectable.gameObject.name;
-                if (!name.Contains("PromptButton_Secondary"))
-                    continue;
-
-                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
-                if (string.IsNullOrEmpty(buttonText))
-                    continue;
-
-                // Match "No Blocks" or "Cancel Blocks"
-                if (buttonText.Contains("No ") || buttonText.Contains("Cancel"))
-                {
-                    MelonLogger.Msg($"[CombatNavigator] Clicking no block button: {buttonText}");
-                    var result = UIActivator.SimulatePointerClick(selectable.gameObject);
-                    if (result.Success)
-                    {
-                        _announcer.Announce(buttonText, AnnouncementPriority.Normal);
-                        return true;
-                    }
-                }
-            }
-
-            // Also check primary button for "No Blocks" (initial state)
-            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
-            {
-                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
-                    continue;
-
-                string name = selectable.gameObject.name;
-                if (!name.Contains("PromptButton_Primary"))
-                    continue;
-
-                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
-                if (string.IsNullOrEmpty(buttonText))
-                    continue;
-
-                // Match "No Blocks" on primary button
-                if (buttonText.Contains("No Blocks"))
-                {
-                    MelonLogger.Msg($"[CombatNavigator] Clicking no block button (primary): {buttonText}");
-                    var result = UIActivator.SimulatePointerClick(selectable.gameObject);
-                    if (result.Success)
-                    {
-                        _announcer.Announce(buttonText, AnnouncementPriority.Normal);
-                        return true;
-                    }
-                }
-            }
-
-            MelonLogger.Msg("[CombatNavigator] No 'No Blocks' or 'Cancel Blocks' button found");
-            return false;
-        }
-
-        /// <summary>
-        /// Finds and clicks the "All Attack" or "X Attack" button.
-        /// Returns true if button was found and clicked.
-        /// </summary>
-        private bool TryClickAttackButton()
-        {
-            var buttonInfo = FindAttackButton();
-            if (buttonInfo == null)
-            {
-                MelonLogger.Msg("[CombatNavigator] No attack button found");
-                return false;
-            }
-
-            var (button, text) = buttonInfo.Value;
-            MelonLogger.Msg($"[CombatNavigator] Clicking attack button: {text}");
-
-            var result = UIActivator.SimulatePointerClick(button);
-            if (result.Success)
-            {
-                _announcer.Announce(text, AnnouncementPriority.Normal);
-                return true;
-            }
-            else
-            {
-                _announcer.Announce(Strings.CouldNotActivateAttackButton, AnnouncementPriority.High);
-                return true; // Still consume the input
-            }
-        }
-
-        /// <summary>
-        /// Finds and clicks the "No Attacks" button.
-        /// Returns true if button was found and clicked.
-        /// </summary>
-        private bool TryClickNoAttackButton()
-        {
-            var buttonInfo = FindNoAttackButton();
-            if (buttonInfo == null)
-            {
-                MelonLogger.Msg("[CombatNavigator] No 'No Attacks' button found");
-                return false;
-            }
-
-            var (button, text) = buttonInfo.Value;
-            MelonLogger.Msg($"[CombatNavigator] Clicking no attack button: {text}");
-
-            var result = UIActivator.SimulatePointerClick(button);
-            if (result.Success)
-            {
-                _announcer.Announce(text, AnnouncementPriority.Normal);
-                return true;
-            }
-            else
-            {
-                _announcer.Announce(Strings.CouldNotActivateNoAttackButton, AnnouncementPriority.High);
-                return true; // Still consume the input
-            }
-        }
-
-        /// <summary>
-        /// Finds the attack button (PromptButton_Primary with "Attack" in text).
-        /// Returns null if not found or if it's opponent's turn.
-        /// </summary>
-        private (GameObject button, string text)? FindAttackButton()
-        {
-            // Look for PromptButton_Primary with text containing "Attack"
-            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
-            {
-                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
-                    continue;
-
-                string name = selectable.gameObject.name;
-                if (!name.Contains("PromptButton_Primary"))
-                    continue;
-
-                // Get the button text
-                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
-                if (string.IsNullOrEmpty(buttonText))
-                    continue;
-
-                // Check if it contains "Attack" (e.g., "All Attack", "1 Attack", "2 Attack")
-                // This also filters out "Opponent's Turn" which appears during opponent's declare attackers
-                if (buttonText.Contains("Attack"))
-                {
-                    MelonLogger.Msg($"[CombatNavigator] Found attack button: {name} with text '{buttonText}'");
-                    return (selectable.gameObject, buttonText);
+                    return selectable.gameObject;
                 }
             }
 
             return null;
         }
 
-        /// <summary>
-        /// Finds the "No Attacks" button (PromptButton_Secondary with "No" in text).
-        /// Returns null if not found.
-        /// </summary>
-        private (GameObject button, string text)? FindNoAttackButton()
-        {
-            // Look for PromptButton_Secondary with text containing "No"
-            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
-            {
-                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
-                    continue;
-
-                string name = selectable.gameObject.name;
-                if (!name.Contains("PromptButton_Secondary"))
-                    continue;
-
-                // Get the button text
-                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
-                if (string.IsNullOrEmpty(buttonText))
-                    continue;
-
-                // Check if it contains "No" (e.g., "No Attacks", "No Attack")
-                if (buttonText.Contains("No"))
-                {
-                    MelonLogger.Msg($"[CombatNavigator] Found no attack button: {name} with text '{buttonText}'");
-                    return (selectable.gameObject, buttonText);
-                }
-            }
-
-            return null;
-        }
 
         /// <summary>
         /// Checks if a GameObject is part of the emote/communication panel UI.

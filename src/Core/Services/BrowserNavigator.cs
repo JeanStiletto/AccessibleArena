@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 using MTGAAccessibility.Core.Models;
@@ -1561,20 +1562,37 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Clicks the confirm/primary button.
+        /// Language-agnostic: prioritizes PromptButton_Primary, falls back to browser-specific buttons.
         /// </summary>
         private void ClickConfirmButton()
         {
             MelonLogger.Msg($"[BrowserNavigator] ClickConfirmButton called. Buttons count: {_browserButtons.Count}");
-            foreach (var b in _browserButtons)
+
+            // First priority: PromptButton_Primary (always works regardless of language)
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
-                var label = UITextExtractor.GetButtonText(b, b.name);
-                MelonLogger.Msg($"[BrowserNavigator]   Available button: {b.name} -> '{label}'");
+                if (go == null || !go.activeInHierarchy) continue;
+                if (go.name.StartsWith("PromptButton_Primary"))
+                {
+                    var selectable = go.GetComponent<Selectable>();
+                    if (selectable != null && !selectable.interactable) continue;
+
+                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
+                    MelonLogger.Msg($"[BrowserNavigator] Found PromptButton_Primary: {go.name} -> '{buttonLabel}'");
+                    var result = UIActivator.SimulatePointerClick(go);
+                    if (result.Success)
+                    {
+                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
+                        return;
+                    }
+                }
             }
 
+            // Fallback: browser-specific buttons by name pattern (KeepButton, etc.)
             var confirmPatterns = new[] { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary" };
-
             foreach (var button in _browserButtons)
             {
+                if (button == null) continue;
                 var name = button.name.ToLower();
                 foreach (var pattern in confirmPatterns)
                 {
@@ -1585,26 +1603,9 @@ namespace MTGAAccessibility.Core.Services
                         var result = UIActivator.SimulatePointerClick(button);
                         if (result.Success)
                         {
-                            _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                            _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
                             return;
                         }
-                    }
-                }
-            }
-
-            // Try finding PromptButton_Primary (name may include suffix like _Desktop_16x9(Clone))
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy) continue;
-                if (go.name.StartsWith("PromptButton_Primary"))
-                {
-                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                    MelonLogger.Msg($"[BrowserNavigator] Found PromptButton_Primary: {go.name} -> '{buttonLabel}'");
-                    var result = UIActivator.SimulatePointerClick(go);
-                    if (result.Success)
-                    {
-                        _announcer.Announce($"{buttonLabel}", AnnouncementPriority.Normal);
-                        return;
                     }
                 }
             }
@@ -1613,24 +1614,47 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Clicks the cancel button.
+        /// Clicks the cancel/secondary button.
+        /// Language-agnostic: prioritizes PromptButton_Secondary, falls back to browser-specific buttons.
         /// </summary>
         private void ClickCancelButton()
         {
-            var cancelPatterns = new[] { "Cancel", "No", "Back", "Close", "Secondary" };
+            // First priority: PromptButton_Secondary (always works regardless of language)
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (go.name.StartsWith("PromptButton_Secondary"))
+                {
+                    var selectable = go.GetComponent<Selectable>();
+                    if (selectable != null && !selectable.interactable) continue;
 
+                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
+                    MelonLogger.Msg($"[BrowserNavigator] Found PromptButton_Secondary: {go.name} -> '{buttonLabel}'");
+                    var result = UIActivator.SimulatePointerClick(go);
+                    if (result.Success)
+                    {
+                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: browser-specific buttons by name pattern
+            var cancelPatterns = new[] { "Cancel", "No", "Back", "Close", "Secondary" };
             foreach (var button in _browserButtons)
             {
+                if (button == null) continue;
                 var name = button.name.ToLower();
                 foreach (var pattern in cancelPatterns)
                 {
                     if (name.Contains(pattern.ToLower()))
                     {
-                        MelonLogger.Msg($"[BrowserNavigator] Clicking cancel: {button.name}");
+                        var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
+                        MelonLogger.Msg($"[BrowserNavigator] Clicking cancel: {button.name} ('{buttonLabel}')");
                         var result = UIActivator.SimulatePointerClick(button);
                         if (result.Success)
                         {
-                            _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
+                            _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
                             return;
                         }
                     }

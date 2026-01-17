@@ -20,9 +20,26 @@ namespace MTGAAccessibility.Core.Services
     {
         private readonly IAnnouncementService _announcer;
         private readonly ZoneNavigator _zoneNavigator;
-        private static readonly Regex SubmitPattern = new Regex(@"^Submit\s*(\d+)$", RegexOptions.IgnoreCase);
-        private static readonly Regex DiscardCountPattern = new Regex(@"Discard\s+(\d+)\s+cards?", RegexOptions.IgnoreCase);
-        private static readonly Regex DiscardACardPattern = new Regex(@"Discard\s+a\s+card", RegexOptions.IgnoreCase);
+
+        // Language-agnostic: matches any text with a number at the end (e.g., "Submit 2", "Abgeben 2")
+        private static readonly Regex ButtonNumberPattern = new Regex(@"(\d+)\s*$", RegexOptions.IgnoreCase);
+
+        // Multi-language patterns for required discard count
+        // English: "Discard X cards", "Discard a card"
+        // German: "X Karten abwerfen", "Eine Karte abwerfen", "Wirf X Karten ab"
+        private static readonly Regex[] DiscardCountPatterns = new[]
+        {
+            new Regex(@"Discard\s+(\d+)\s+cards?", RegexOptions.IgnoreCase),           // English: "Discard 2 cards"
+            new Regex(@"(\d+)\s+Karten?\s+abwerfen", RegexOptions.IgnoreCase),         // German: "2 Karten abwerfen"
+            new Regex(@"Wirf\s+(\d+)\s+Karten?\s+ab", RegexOptions.IgnoreCase),        // German: "Wirf 2 Karten ab"
+        };
+        private static readonly Regex[] DiscardOnePatterns = new[]
+        {
+            new Regex(@"Discard\s+a\s+card", RegexOptions.IgnoreCase),                 // English: "Discard a card"
+            new Regex(@"Eine\s+Karte\s+abwerfen", RegexOptions.IgnoreCase),            // German: "Eine Karte abwerfen"
+            new Regex(@"Wirf\s+eine\s+Karte\s+ab", RegexOptions.IgnoreCase),           // German: "Wirf eine Karte ab"
+        };
+
         private int? _requiredCount = null; // Cached when entering discard mode
         private bool _hasLoggedTargetYield = false; // Throttle log spam
 
@@ -63,6 +80,7 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Gets the required discard count from the prompt text.
+        /// Language-agnostic: supports multiple language patterns.
         /// Looks for patterns like "Discard a card" (=1) or "Discard 2 cards" (=2).
         /// Returns null if not found.
         /// </summary>
@@ -77,17 +95,23 @@ namespace MTGAAccessibility.Core.Services
                 if (string.IsNullOrEmpty(text))
                     continue;
 
-                // Check for "Discard a card" pattern (= 1 card)
-                if (DiscardACardPattern.IsMatch(text))
+                // Check for "discard one card" patterns (any language)
+                foreach (var pattern in DiscardOnePatterns)
                 {
-                    return 1;
+                    if (pattern.IsMatch(text))
+                    {
+                        return 1;
+                    }
                 }
 
-                // Check for "Discard X cards" pattern
-                var match = DiscardCountPattern.Match(text);
-                if (match.Success)
+                // Check for "discard X cards" patterns (any language)
+                foreach (var pattern in DiscardCountPatterns)
                 {
-                    return int.Parse(match.Groups[1].Value);
+                    var match = pattern.Match(text);
+                    if (match.Success)
+                    {
+                        return int.Parse(match.Groups[1].Value);
+                    }
                 }
             }
 
@@ -96,63 +120,31 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Gets the Submit button info: count of selected cards and button GameObject.
-        /// Returns null if no Submit button found.
+        /// Language-agnostic: finds PromptButton_Primary and extracts trailing number from text.
+        /// Returns null if no Submit button with a number found.
         /// </summary>
         public (int count, GameObject button)? GetSubmitButtonInfo()
         {
-            // Check TMP_Text components (used by StyledButton)
-            foreach (var tmpText in GameObject.FindObjectsOfType<TMP_Text>())
+            // Find PromptButton_Primary directly (language-agnostic by button name)
+            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
             {
-                if (tmpText == null || !tmpText.gameObject.activeInHierarchy)
+                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
                     continue;
 
-                string text = tmpText.text?.Trim();
-                if (string.IsNullOrEmpty(text))
+                if (!selectable.gameObject.name.Contains("PromptButton_Primary"))
                     continue;
 
-                var match = SubmitPattern.Match(text);
+                // Get button text and look for a trailing number
+                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
+                if (string.IsNullOrEmpty(buttonText))
+                    continue;
+
+                // Match any trailing number (e.g., "Submit 2", "Abgeben 2", "2")
+                var match = ButtonNumberPattern.Match(buttonText);
                 if (match.Success)
                 {
-                    // Find the PromptButton_Primary parent (the actual clickable button)
-                    var parent = tmpText.transform.parent;
-                    while (parent != null)
-                    {
-                        string parentName = parent.name;
-                        // Look specifically for PromptButton_Primary, not just any "button"
-                        if (parentName.Contains("PromptButton_Primary"))
-                        {
-                            int count = int.Parse(match.Groups[1].Value);
-                            return (count, parent.gameObject);
-                        }
-                        parent = parent.parent;
-                    }
-                }
-            }
-
-            // Also check legacy Text components
-            foreach (var uiText in GameObject.FindObjectsOfType<Text>())
-            {
-                if (uiText == null || !uiText.gameObject.activeInHierarchy)
-                    continue;
-
-                string text = uiText.text?.Trim();
-                if (string.IsNullOrEmpty(text))
-                    continue;
-
-                var match = SubmitPattern.Match(text);
-                if (match.Success)
-                {
-                    var parent = uiText.transform.parent;
-                    while (parent != null)
-                    {
-                        string parentName = parent.name;
-                        if (parentName.Contains("PromptButton_Primary"))
-                        {
-                            int count = int.Parse(match.Groups[1].Value);
-                            return (count, parent.gameObject);
-                        }
-                        parent = parent.parent;
-                    }
+                    int count = int.Parse(match.Groups[1].Value);
+                    return (count, selectable.gameObject);
                 }
             }
 

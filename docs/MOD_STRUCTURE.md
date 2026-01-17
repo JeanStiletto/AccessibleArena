@@ -239,6 +239,14 @@ have HotHighlight. We trust the game and scan ALL zones, letting the zone determ
 - [x] Phase tracking in DuelAnnouncer - `IsInDeclareAttackersPhase`, `IsInDeclareBlockersPhase` properties
 - [x] Integration with DuelNavigator - Priority: TargetNavigator > DiscardNavigator > CombatNavigator > HighlightNavigator
 - [x] Integration with ZoneNavigator - `GetCombatStateText()` adds combat state to card announcements
+- [x] **Language-agnostic button detection** - Uses button GameObject names, not localized text
+
+**Language-Agnostic Button Pattern:**
+The mod detects buttons by their **GameObject names** which never change regardless of game language:
+- `PromptButton_Primary` - Always the proceed/confirm action
+- `PromptButton_Secondary` - Always the cancel/skip action
+
+Button **text** is only used for announcements, not for routing decisions. This works with German, English, or any other language.
 
 **Combat State Detection:**
 Cards announce their current state based on active UI indicators:
@@ -249,12 +257,8 @@ Cards announce their current state based on active UI indicators:
 - "tapped" - Has `TappedIcon` (shown for non-attackers only, since attackers are always tapped)
 
 **Declare Attackers Phase:**
-- [x] F key handling - Clicks "All Attack" or "X Attackers" button (same as Space)
-- [x] Shift+F key handling - Clicks "No Attacks" button to skip attacking
-- [x] Space key handling - Clicks "All Attack" or "X Attackers" button (redundant with F)
-- [x] Button detection - Finds `PromptButton_Primary` with text containing "Attack"
-- [x] No Attack button detection - Finds `PromptButton_Secondary` with text containing "No"
-- [x] Opponent turn filtering - Ignores "Opponent's Turn" button text
+- [x] F/Space key handling - Clicks `PromptButton_Primary` (whatever text: "All Attack", "X Attackers", etc.)
+- [x] Backspace key handling - Clicks `PromptButton_Secondary` (whatever text: "No Attacks", etc.)
 - [x] Attacker state detection - `IsAttacking` child indicates declared attacker state
 
 **Note:** Game requires two presses to complete attack declaration:
@@ -262,11 +266,8 @@ Cards announce their current state based on active UI indicators:
 2. Second F/Space: Confirms attackers (button shows "X Attackers")
 
 **Declare Blockers Phase:**
-- [x] F key handling - Clicks "X Blocker" or "Next" button (confirm blocks)
-- [x] Shift+F key handling - Clicks "No Blocks" or "Cancel Blocks" button
-- [x] Space key handling - Same as F (confirm blocks)
-- [x] Button detection - Primary button matches "Blocker", "Next", "Done", "Confirm", "OK" (excludes "No Blocks")
-- [x] No block button detection - Secondary button matches "No " or "Cancel"
+- [x] F/Space key handling - Clicks `PromptButton_Primary` (whatever text: "X Blocker", "Next", "Confirm", etc.)
+- [x] Backspace key handling - Clicks `PromptButton_Secondary` (whatever text: "No Blocks", "Cancel Blocks", etc.)
 - [x] **Full blocker state announcements** - "can block", "selected to block", "blocking" (see Combat State Detection above)
 - [x] **Attacker announcements during blockers** - Enemy attackers announce ", attacking"
 - [x] **Blocker state detection** - Checks for active `IsBlocking` child (not just presence of BlockerFrame)
@@ -279,6 +280,7 @@ Cards announce their current state based on active UI indicators:
 - `GetPowerToughness(card)` - Extracts P/T from card using `CardDetector.ExtractCardInfo()`
 - `CalculateCombinedStats(blockers)` - Sums power and toughness across all selected blockers
 - `UpdateBlockerSelection()` - Called each frame, detects selection changes, announces combined stats
+- `FindPromptButton(isPrimary)` - Language-agnostic button finder by GameObject name
 - Tracking uses `HashSet<int>` of instance IDs to detect changes efficiently
 - Resets tracking when entering/exiting blockers phase
 

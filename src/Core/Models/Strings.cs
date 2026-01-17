@@ -95,8 +95,7 @@ namespace MTGAAccessibility.Core.Models
         // ===========================================
         // COMBAT
         // ===========================================
-        public const string CouldNotActivateAttackButton = "Could not activate attack button";
-        public const string CouldNotActivateNoAttackButton = "Could not activate no attack button";
+        // Combat button activation uses language-agnostic detection (by button name, not text)
 
         // ===========================================
         // CARD ACTIONS
