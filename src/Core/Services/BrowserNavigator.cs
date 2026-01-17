@@ -1615,21 +1615,36 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Clicks the cancel/secondary button.
-        /// Language-agnostic: prioritizes PromptButton_Secondary, falls back to browser-specific buttons.
+        /// Language-agnostic: prioritizes exact MulliganButton match, then browser-specific buttons,
+        /// then falls back to PromptButton_Secondary.
         /// </summary>
         private void ClickCancelButton()
         {
-            // First priority: PromptButton_Secondary (always works regardless of language)
+            // First priority: Look for exact MulliganButton (not MulliganRulesButton!)
+            foreach (var button in _browserButtons)
+            {
+                if (button == null) continue;
+                if (button.name == "MulliganButton")
+                {
+                    var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
+                    MelonLogger.Msg($"[BrowserNavigator] Clicking MulliganButton: {button.name} ('{buttonLabel}')");
+                    var result = UIActivator.SimulatePointerClick(button);
+                    if (result.Success)
+                    {
+                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
+                        return;
+                    }
+                }
+            }
+
+            // Second priority: Look for MulliganButton directly in scene (may not be in _browserButtons)
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy) continue;
-                if (go.name.StartsWith("PromptButton_Secondary"))
+                if (go.name == "MulliganButton")
                 {
-                    var selectable = go.GetComponent<Selectable>();
-                    if (selectable != null && !selectable.interactable) continue;
-
                     var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                    MelonLogger.Msg($"[BrowserNavigator] Found PromptButton_Secondary: {go.name} -> '{buttonLabel}'");
+                    MelonLogger.Msg($"[BrowserNavigator] Found MulliganButton in scene: {go.name} -> '{buttonLabel}'");
                     var result = UIActivator.SimulatePointerClick(go);
                     if (result.Success)
                     {
@@ -1639,7 +1654,7 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
-            // Fallback: browser-specific buttons by name pattern
+            // Third priority: other browser-specific cancel buttons (Cancel, No, etc.)
             var cancelPatterns = new[] { "Cancel", "No", "Back", "Close", "Secondary" };
             foreach (var button in _browserButtons)
             {
@@ -1650,13 +1665,40 @@ namespace MTGAAccessibility.Core.Services
                     if (name.Contains(pattern.ToLower()))
                     {
                         var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Clicking cancel: {button.name} ('{buttonLabel}')");
+                        MelonLogger.Msg($"[BrowserNavigator] Clicking cancel (browser button): {button.name} ('{buttonLabel}')");
                         var result = UIActivator.SimulatePointerClick(button);
                         if (result.Success)
                         {
                             _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
                             return;
                         }
+                    }
+                }
+            }
+
+            // Fourth priority: PromptButton_Secondary (general fallback)
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (go.name.StartsWith("PromptButton_Secondary"))
+                {
+                    var selectable = go.GetComponent<Selectable>();
+                    if (selectable != null && !selectable.interactable) continue;
+
+                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
+                    // Skip if it's just a keyboard hint (like "Strg" / "Ctrl")
+                    if (buttonLabel.Length <= 4 && !buttonLabel.Contains(" "))
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator] Skipping PromptButton_Secondary with short text: '{buttonLabel}'");
+                        continue;
+                    }
+
+                    MelonLogger.Msg($"[BrowserNavigator] Found PromptButton_Secondary: {go.name} -> '{buttonLabel}'");
+                    var result = UIActivator.SimulatePointerClick(go);
+                    if (result.Success)
+                    {
+                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
+                        return;
                     }
                 }
             }
