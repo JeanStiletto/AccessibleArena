@@ -80,7 +80,6 @@ namespace MTGAAccessibility.Core.Services
         private const float ActivationDelaySeconds = 0.5f;
         private const float RescanDelaySeconds = 0.5f;
         private const float RescanDebounceSeconds = 1.0f;
-        private const float PostActivationRescanDelay = 1.0f;
         private const float BladeAutoExpandDelay = 0.8f;
 
         #endregion
@@ -100,7 +99,6 @@ namespace MTGAAccessibility.Core.Services
 
         // Popup tracking - detect when new popups appear
         private HashSet<int> _knownPopupIds = new HashSet<int>();
-        private float _postActivationRescanDelay;
         private int _elementCountAtActivation;
         private float _bladeAutoExpandDelay;
         private bool _forceRescan;
@@ -113,6 +111,31 @@ namespace MTGAAccessibility.Core.Services
         // Blade state tracking
         private bool _playBladeActive;
         private string _playBladeState;
+
+        #endregion
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Get all active CustomButton GameObjects in the scene.
+        /// Consolidates the common pattern of finding CustomButton/CustomButtonWithTooltip components.
+        /// </summary>
+        private IEnumerable<GameObject> GetActiveCustomButtons()
+        {
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.gameObject.activeInHierarchy && IsCustomButtonType(mb.GetType().Name))
+                    yield return mb.gameObject;
+            }
+        }
+
+        /// <summary>
+        /// Check if a type name is a CustomButton variant (CustomButton or CustomButtonWithTooltip).
+        /// </summary>
+        private static bool IsCustomButtonType(string typeName)
+        {
+            return typeName == "CustomButton" || typeName == "CustomButtonWithTooltip";
+        }
 
         #endregion
 
@@ -270,7 +293,6 @@ namespace MTGAAccessibility.Core.Services
             _foregroundPanel = null;
             _activePanels.Clear();
             _knownPopupIds.Clear();
-            _postActivationRescanDelay = 0f;
             _playBladeActive = false;
             _playBladeState = null;
             _activeContentController = null;
@@ -278,14 +300,12 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Called when navigator activates - set up post-activation rescan check
+        /// Called when navigator activates.
         /// </summary>
         protected override void OnActivated()
         {
             base.OnActivated();
-            // Schedule a one-time check for late-loading elements (e.g., HomePage loads after NavBar)
             _elementCountAtActivation = _elements.Count;
-            _postActivationRescanDelay = PostActivationRescanDelay;
         }
 
         public override void Update()
@@ -310,40 +330,6 @@ namespace MTGAAccessibility.Core.Services
                     AutoExpandBlade();
                 }
             }
-
-            // DISABLED FOR TESTING - Post-activation rescan may be obsolete now that we have
-            // Harmony patches for most panel types (NavContentController, SettingsMenu, SocialUI, etc.)
-            // This was causing duplicate announcements when panels opened.
-            /*
-            // One-time check after activation to detect unknown panels/overlays
-            // (Known panels like Settings are handled directly in OnElementActivated)
-            if (_postActivationRescanDelay > 0 && _isActive)
-            {
-                _postActivationRescanDelay -= Time.deltaTime;
-                if (_postActivationRescanDelay <= 0)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Post-activation check running (stored count: {_elementCountAtActivation})");
-
-                    // First try game state detection
-                    CheckForPanelChanges();
-
-                    // If that didn't trigger a rescan, fall back to Selectable count
-                    // This catches overlays that aren't NavContentController/SettingsMenu/PopupBase
-                    // Uses same approach as FocusTracker - count all active Selectables
-                    if (_rescanDelay <= 0)
-                    {
-                        int currentCount = CountActiveSelectables();
-                        int difference = System.Math.Abs(currentCount - _elementCountAtActivation);
-                        MelonLogger.Msg($"[{NavigatorId}] Selectable count: {_elementCountAtActivation} -> {currentCount} (diff: {difference})");
-                        if (difference > 0)
-                        {
-                            MelonLogger.Msg($"[{NavigatorId}] Selectable count changed ({difference}), rescanning");
-                            PerformRescan();
-                        }
-                    }
-                }
-            }
-            */
 
             // Check for new popups - this detects popups that appear after button clicks
             // (e.g., InviteFriendPopup appearing after clicking Add Friend)
@@ -926,66 +912,33 @@ namespace MTGAAccessibility.Core.Services
         /// Check if element is the HomePage's MainButton (Play button).
         /// </summary>
         private bool IsMainButton(GameObject obj)
-
         {
-
             if (obj == null) return false;
 
             string name = obj.name;
 
-
-
             // MainButtonOutline is the play button in Color Challenge mode
-
             if (name == "MainButtonOutline")
-
                 return true;
 
-
-
             // MainButton is the normal play button with MainButton component
-
             if (name == "MainButton")
-
             {
-
                 var components = obj.GetComponents<MonoBehaviour>();
-
                 foreach (var comp in components)
-
                 {
-
                     if (comp != null && comp.GetType().Name == "MainButton")
-
                         return true;
-
                 }
-
             }
 
             return false;
-
         }
 
         /// <summary>
-        /// Schedule a rescan after a short delay to let UI settle
+        /// Schedule a rescan after a short delay to let UI settle.
         /// </summary>
         /// <param name="force">If true, bypasses the debounce check (used for toggle activations)</param>
-        /// <summary>
-
-        /// Check if a type name is a CustomButton variant (CustomButton or CustomButtonWithTooltip).
-
-        /// </summary>
-
-        private static bool IsCustomButtonType(string typeName)
-
-        {
-
-            return typeName == "CustomButton" || typeName == "CustomButtonWithTooltip";
-
-        }
-
-
         private void TriggerRescan(bool force = false)
         {
             _rescanDelay = RescanDelaySeconds;
@@ -1009,11 +962,6 @@ namespace MTGAAccessibility.Core.Services
             }
             _lastRescanTime = currentTime;
             _forceRescan = false; // Reset force flag
-
-            // Cancel any pending post-activation check since we're rescanning now.
-            // This prevents double rescans when both Harmony patch and post-activation
-            // check detect the same panel change.
-            _postActivationRescanDelay = 0f;
 
             // Detect active controller BEFORE discovering elements so filtering works correctly
             _activeContentController = DetectActiveContentController();
@@ -1149,14 +1097,7 @@ namespace MTGAAccessibility.Core.Services
 
         protected int CountActiveCustomButtons()
         {
-            int count = 0;
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (IsCustomButtonType(mb.GetType().Name))
-                    count++;
-            }
-            return count;
+            return GetActiveCustomButtons().Count();
         }
 
         /// <summary>
@@ -1198,20 +1139,17 @@ namespace MTGAAccessibility.Core.Services
 
         protected GameObject FindButtonByPattern(params string[] patterns)
         {
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            foreach (var buttonObj in GetActiveCustomButtons())
             {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (!IsCustomButtonType(mb.GetType().Name)) continue;
-
-                string objName = mb.gameObject.name;
-                string text = UITextExtractor.GetText(mb.gameObject);
+                string objName = buttonObj.name;
+                string text = UITextExtractor.GetText(buttonObj);
 
                 foreach (var pattern in patterns)
                 {
                     if (objName.IndexOf(pattern, System.StringComparison.OrdinalIgnoreCase) >= 0)
-                        return mb.gameObject;
+                        return buttonObj;
                     if (!string.IsNullOrEmpty(text) && text.IndexOf(pattern, System.StringComparison.OrdinalIgnoreCase) >= 0)
-                        return mb.gameObject;
+                        return buttonObj;
                 }
             }
             return null;
@@ -1222,16 +1160,9 @@ namespace MTGAAccessibility.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] === UI DUMP FOR {_currentScene} ===");
 
             // Find all CustomButtons
-            var customButtons = new List<(GameObject obj, string text, string path)>();
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (!IsCustomButtonType(mb.GetType().Name)) continue;
-
-                string text = UITextExtractor.GetText(mb.gameObject);
-                string path = GetGameObjectPath(mb.gameObject);
-                customButtons.Add((mb.gameObject, text ?? "(no text)", path));
-            }
+            var customButtons = GetActiveCustomButtons()
+                .Select(obj => (obj, text: UITextExtractor.GetText(obj) ?? "(no text)", path: GetGameObjectPath(obj)))
+                .ToList();
 
             MelonLogger.Msg($"[{NavigatorId}] Found {customButtons.Count} CustomButtons:");
             foreach (var (obj, text, path) in customButtons.OrderBy(x => x.path).Take(40))
@@ -1400,10 +1331,9 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Find CustomButtons (MTGA's primary button component)
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            foreach (var buttonObj in GetActiveCustomButtons())
             {
-                if (mb != null && IsCustomButtonType(mb.GetType().Name))
-                    TryAddElement(mb.gameObject);
+                TryAddElement(buttonObj);
             }
 
             // Find standard Unity UI elements
@@ -1634,18 +1564,6 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
-            // For non-toggle elements, schedule a post-activation check to detect panel changes
-            // This generalized approach works for all menus, not just Settings:
-            // - Settings submenus (Gameplay, Graphics, Audio)
-            // - Deck selection panel
-            // - Any other overlay or submenu
-            // The check uses CheckForPanelChanges() which handles:
-            // - New panels opening (sets _foregroundPanel)
-            // - Panels closing (clears _foregroundPanel if no overlay remains)
-            // - Panel transitions within overlays (updates _foregroundPanel to new content)
-            _postActivationRescanDelay = PostActivationRescanDelay;
-            MelonLogger.Msg($"[{NavigatorId}] Scheduled post-activation check in {PostActivationRescanDelay}s (pre-activation Selectables: {_elementCountAtActivation})");
-
             return true;
         }
 
@@ -1811,21 +1729,12 @@ namespace MTGAAccessibility.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Attempting blade auto-expand");
 
             // Find the blade expand button (Btn_BladeIsClosed or its arrow child)
-            GameObject bladeButton = null;
+            var bladeButton = GetActiveCustomButtons()
+                .FirstOrDefault(obj => obj.name.Contains("BladeHoverClosed") || obj.name.Contains("Btn_BladeIsClosed"));
 
-            // First try to find the arrow button (more reliable)
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            if (bladeButton != null)
             {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (!IsCustomButtonType(mb.GetType().Name)) continue;
-
-                string name = mb.gameObject.name;
-                if (name.Contains("BladeHoverClosed") || name.Contains("Btn_BladeIsClosed"))
-                {
-                    bladeButton = mb.gameObject;
-                    MelonLogger.Msg($"[{NavigatorId}] Found blade expand button: {name}");
-                    break;
-                }
+                MelonLogger.Msg($"[{NavigatorId}] Found blade expand button: {bladeButton.name}");
             }
 
             if (bladeButton != null)
@@ -1955,22 +1864,13 @@ namespace MTGAAccessibility.Core.Services
             // Also check for Color Challenge buttons directly
             var colorChallengePatterns = new[] { "ColorMastery", "CampaignGraph", "Color Challenge" };
 
-            foreach (var pattern in colorChallengePatterns)
+            return GetActiveCustomButtons().Any(obj =>
             {
-                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-                {
-                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                    if (!IsCustomButtonType(mb.GetType().Name)) continue;
-
-                    if (mb.gameObject.name.Contains(pattern) ||
-                        GetGameObjectPath(mb.gameObject).Contains(pattern))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+                string objName = obj.name;
+                string path = GetGameObjectPath(obj);
+                return colorChallengePatterns.Any(pattern =>
+                    objName.Contains(pattern) || path.Contains(pattern));
+            });
         }
 
         /// <summary>
