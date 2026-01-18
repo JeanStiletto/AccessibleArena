@@ -35,6 +35,10 @@ namespace MTGAAccessibility.Core.Services
         private int _currentButtonIndex = -1;
 
         // Known browser type names (in Wotc.Mtga.DuelScene.Browsers namespace)
+        // NOTE: This is a final fallback for browser detection. Primary detection uses:
+        // 1. BrowserScaffold_* pattern (most common)
+        // 2. CardBrowserCardHolder component
+        // This array catches edge cases where neither of the above work.
         private static readonly string[] KnownBrowserTypes = new[]
         {
             // Library manipulation
@@ -74,6 +78,81 @@ namespace MTGAAccessibility.Core.Services
         // Track discovered browser types for one-time logging
         private static HashSet<string> _loggedBrowserTypes = new HashSet<string>();
 
+        // Cache for browser detection to reduce scene scans
+        private object _cachedBrowser;
+        private GameObject _cachedBrowserGo;
+        private float _lastBrowserScanTime;
+        private const float BrowserScanInterval = 0.1f; // Only scan every 100ms
+
+        #region Constants
+
+        // Button names
+        private const string ButtonKeep = "KeepButton";
+        private const string ButtonMulligan = "MulliganButton";
+        private const string ButtonSubmit = "SubmitButton";
+        private const string PromptButtonPrimaryPrefix = "PromptButton_Primary";
+        private const string PromptButtonSecondaryPrefix = "PromptButton_Secondary";
+
+        // Card holder names
+        private const string HolderDefault = "BrowserCardHolder_Default";
+        private const string HolderViewDismiss = "BrowserCardHolder_ViewDismiss";
+
+        // Browser scaffold prefix
+        private const string ScaffoldPrefix = "BrowserScaffold_";
+
+        // Zone names
+        private const string ZoneLocalHand = "LocalHand";
+        private const string ZoneLocalLibrary = "LocalLibrary";
+
+        // Browser type names
+        private static class BrowserTypes
+        {
+            public const string Scry = "Scry";
+            public const string Surveil = "Surveil";
+            public const string Mulligan = "Mulligan";
+            public const string OpeningHand = "OpeningHand";
+            public const string London = "London";
+        }
+
+        // Button name patterns for detection
+        private static readonly string[] ButtonPatterns = { "Button", "Accept", "Confirm", "Cancel", "Done", "Keep", "Submit", "Yes", "No", "Mulligan" };
+        private static readonly string[] ConfirmPatterns = { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary" };
+        private static readonly string[] CancelPatterns = { "Cancel", "No", "Back", "Close", "Secondary" };
+
+        // Friendly browser name mappings (keyword -> display name)
+        private static readonly Dictionary<string, string> FriendlyBrowserNames = new Dictionary<string, string>
+        {
+            // Library manipulation
+            { "Scryish", "Scry" },
+            { "Scry", "Scry" },
+            { "Surveil", "Surveil" },
+            { "ReadAhead", "Read ahead" },
+            { "LibrarySideboard", "Search library" },
+            // Opening hand
+            { "London", "Mulligan" },
+            { "Mulligan", "Mulligan" },
+            { "OpeningHand", "Opening hand" },
+            // Card ordering
+            { "OrderCards", "Order cards" },
+            { "SplitCards", "Split cards into piles" },
+            // Combat
+            { "AssignDamage", "Assign damage" },
+            { "Attachment", "View attachments" },
+            // Selection
+            { "SelectCards", "Select cards" },
+            { "SelectGroup", "Select group" },
+            { "SelectMana", "Choose mana type" },
+            { "Keyword", "Choose keyword" },
+            // Special
+            { "Dungeon", "Choose dungeon room" },
+            { "Mutate", "Mutate choice" },
+            { "YesNo", "Choose yes or no" },
+            { "Optional", "Optional action" },
+            { "Informational", "Information" }
+        };
+
+        #endregion
+
         public BrowserNavigator(IAnnouncementService announcer)
         {
             _announcer = announcer;
@@ -83,6 +162,260 @@ namespace MTGAAccessibility.Core.Services
         /// Returns true if a browser is currently active.
         /// </summary>
         public bool IsActive => _isActive;
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Checks if a browser type is mulligan-related (OpeningHand or Mulligan).
+        /// </summary>
+        private bool IsMulliganBrowser(string browserType)
+        {
+            return browserType == BrowserTypes.Mulligan || browserType == BrowserTypes.OpeningHand;
+        }
+
+        /// <summary>
+        /// Checks if a browser type is scry-style (Scry or Surveil).
+        /// </summary>
+        private bool IsScryStyleBrowser(string browserType)
+        {
+            return browserType == BrowserTypes.Scry || browserType == BrowserTypes.Surveil;
+        }
+
+        /// <summary>
+        /// Checks if a card name is valid (not empty, not unknown).
+        /// </summary>
+        private bool IsValidCardName(string cardName)
+        {
+            return !string.IsNullOrEmpty(cardName) &&
+                   !cardName.Contains("Unknown") &&
+                   !cardName.Contains("unknown") &&
+                   cardName != "Card";
+        }
+
+        /// <summary>
+        /// Checks if a card is a duplicate in the given list.
+        /// Checks by instance ID first, then by name.
+        /// </summary>
+        private bool IsDuplicateCard(GameObject card, List<GameObject> existingCards)
+        {
+            if (card == null) return false;
+
+            int instanceId = card.GetInstanceID();
+            string cardName = CardDetector.GetCardName(card);
+
+            foreach (var existingCard in existingCards)
+            {
+                if (existingCard == null) continue;
+
+                // Check instance ID first (exact same object)
+                if (existingCard.GetInstanceID() == instanceId)
+                {
+                    return true;
+                }
+
+                // Check by name
+                if (CardDetector.GetCardName(existingCard) == cardName)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a card name is a duplicate in the given list (name only check).
+        /// </summary>
+        private bool IsDuplicateCardByName(string cardName, List<GameObject> existingCards)
+        {
+            foreach (var existingCard in existingCards)
+            {
+                if (existingCard == null) continue;
+                if (CardDetector.GetCardName(existingCard) == cardName)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Finds an active GameObject by exact name.
+        /// </summary>
+        private GameObject FindActiveGameObject(string exactName)
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go != null && go.activeInHierarchy && go.name == exactName)
+                {
+                    return go;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Finds all active GameObjects matching a predicate.
+        /// </summary>
+        private List<GameObject> FindActiveGameObjects(System.Func<GameObject, bool> predicate)
+        {
+            var results = new List<GameObject>();
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go != null && go.activeInHierarchy && predicate(go))
+                {
+                    results.Add(go);
+                }
+            }
+            return results;
+        }
+
+        /// <summary>
+        /// Checks if a GameObject has any clickable component.
+        /// </summary>
+        private bool HasClickableComponent(GameObject go)
+        {
+            if (go.GetComponent<UnityEngine.UI.Button>() != null) return true;
+            if (go.GetComponent<UnityEngine.UI.Toggle>() != null) return true;
+            if (go.GetComponent<UnityEngine.EventSystems.EventTrigger>() != null) return true;
+
+            foreach (var comp in go.GetComponents<Component>())
+            {
+                if (comp == null) continue;
+                var typeName = comp.GetType().Name;
+                if (typeName.Contains("Button") || typeName.Contains("Interactable") || typeName.Contains("Clickable"))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a button name matches any of the given patterns (case-insensitive).
+        /// </summary>
+        private bool MatchesButtonPattern(string buttonName, string[] patterns)
+        {
+            string nameLower = buttonName.ToLowerInvariant();
+            foreach (var pattern in patterns)
+            {
+                if (nameLower.Contains(pattern.ToLowerInvariant()))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Tries to click a button matching the given patterns. Returns true if successful.
+        /// </summary>
+        private bool TryClickButtonByPatterns(string[] patterns, out string clickedLabel)
+        {
+            clickedLabel = null;
+
+            // First check our discovered buttons
+            foreach (var button in _browserButtons)
+            {
+                if (button == null) continue;
+                if (MatchesButtonPattern(button.name, patterns))
+                {
+                    clickedLabel = UITextExtractor.GetButtonText(button, button.name);
+                    var result = UIActivator.SimulatePointerClick(button);
+                    if (result.Success)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Tries to click a specific button by exact name. Returns true if successful.
+        /// </summary>
+        private bool TryClickButtonByName(string buttonName, out string clickedLabel)
+        {
+            clickedLabel = null;
+
+            // Check discovered buttons first
+            foreach (var button in _browserButtons)
+            {
+                if (button == null) continue;
+                if (button.name == buttonName)
+                {
+                    clickedLabel = UITextExtractor.GetButtonText(button, button.name);
+                    var result = UIActivator.SimulatePointerClick(button);
+                    if (result.Success)
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator] Clicked {buttonName}: '{clickedLabel}'");
+                        return true;
+                    }
+                }
+            }
+
+            // Search scene as fallback
+            var go = FindActiveGameObject(buttonName);
+            if (go != null)
+            {
+                clickedLabel = UITextExtractor.GetButtonText(go, go.name);
+                var result = UIActivator.SimulatePointerClick(go);
+                if (result.Success)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Clicked {buttonName} (scene): '{clickedLabel}'");
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the CardBrowserCardHolder component from a GameObject if present.
+        /// </summary>
+        private object GetCardBrowserCardHolderComponent(GameObject holder)
+        {
+            foreach (var comp in holder.GetComponents<Component>())
+            {
+                if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                {
+                    return comp;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Tries to click a PromptButton (Primary or Secondary). Returns true if successful.
+        /// </summary>
+        private bool TryClickPromptButton(string prefix, out string clickedLabel)
+        {
+            clickedLabel = null;
+
+            var buttons = FindActiveGameObjects(go => go.name.StartsWith(prefix));
+            foreach (var go in buttons)
+            {
+                var selectable = go.GetComponent<Selectable>();
+                if (selectable != null && !selectable.interactable) continue;
+
+                clickedLabel = UITextExtractor.GetButtonText(go, go.name);
+
+                // Skip if it's just a keyboard hint (like "Strg" / "Ctrl")
+                if (prefix == PromptButtonSecondaryPrefix && clickedLabel.Length <= 4 && !clickedLabel.Contains(" "))
+                {
+                    continue;
+                }
+
+                var result = UIActivator.SimulatePointerClick(go);
+                if (result.Success)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Clicked {prefix}: '{clickedLabel}'");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        #endregion
 
         /// <summary>
         /// The type name of the currently active browser.
@@ -148,19 +481,28 @@ namespace MTGAAccessibility.Core.Services
             MelonLogger.Msg("[BrowserNavigator] === SEARCHING FOR BROWSERS (DuelAnnouncer says browser active) ===");
 
             int browserCount = 0;
+
+            // Single pass through scene
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy) continue;
 
-                // Check name for browser-related terms
-                string name = go.name.ToLower();
-                if (name.Contains("browser") || name.Contains("scry") || name.Contains("surveil") ||
-                    name.Contains("mulligan") || name.Contains("cardholder") && name.Contains("select"))
+                string goName = go.name;
+
+                // Check name for browser-related terms (case-insensitive)
+                bool isBrowserRelated =
+                    goName.IndexOf("browser", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    goName.IndexOf("scry", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    goName.IndexOf("surveil", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    goName.IndexOf("mulligan", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    (goName.IndexOf("cardholder", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
+                     goName.IndexOf("select", System.StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (isBrowserRelated)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Found GO: {go.name}");
+                    MelonLogger.Msg($"[BrowserNavigator] Found GO: {goName}");
                     browserCount++;
 
-                    // Log components
                     foreach (var comp in go.GetComponents<Component>())
                     {
                         if (comp != null)
@@ -170,38 +512,30 @@ namespace MTGAAccessibility.Core.Services
                     }
                 }
 
-                // Also check components for browser types
+                // Check components for browser types
                 foreach (var comp in go.GetComponents<Component>())
                 {
                     if (comp == null) continue;
-                    var typeName = comp.GetType().Name;
-                    if (typeName.Contains("Browser"))
+                    string typeName = comp.GetType().Name;
+                    if (typeName.IndexOf("Browser", System.StringComparison.Ordinal) >= 0)
                     {
-                        MelonLogger.Msg($"[BrowserNavigator] Found component {typeName} on {go.name}");
+                        MelonLogger.Msg($"[BrowserNavigator] Found component {typeName} on {goName}");
                         browserCount++;
                     }
                 }
-            }
 
-            // Also look for any UI with card selection patterns
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy) continue;
+                // Check for card containers
+                bool isCardContainer =
+                    goName.IndexOf("CardHolder", System.StringComparison.Ordinal) >= 0 ||
+                    goName.IndexOf("Selection", System.StringComparison.Ordinal) >= 0 ||
+                    goName.IndexOf("Prompt", System.StringComparison.Ordinal) >= 0;
 
-                // Look for card-like children in top-level containers
-                if (go.name.Contains("CardHolder") || go.name.Contains("Selection") || go.name.Contains("Prompt"))
+                if (isCardContainer)
                 {
-                    int cardCount = 0;
-                    foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
-                    {
-                        if (child.gameObject.activeInHierarchy && CardDetector.IsCard(child.gameObject))
-                        {
-                            cardCount++;
-                        }
-                    }
+                    int cardCount = CountCardsInContainer(go);
                     if (cardCount > 0)
                     {
-                        MelonLogger.Msg($"[BrowserNavigator] Container {go.name} has {cardCount} cards");
+                        MelonLogger.Msg($"[BrowserNavigator] Container {goName} has {cardCount} cards");
                     }
                 }
             }
@@ -307,134 +641,211 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Finds an active browser component in the scene.
         /// Uses scaffold pattern detection (BrowserScaffold_*) and CardBrowserCardHolder.
+        /// Implements caching to reduce expensive scene scans.
         /// </summary>
         private (object browser, GameObject go) FindActiveBrowser()
         {
-            // First, look for BrowserScaffold_* GameObjects (the actual browser UI)
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            float currentTime = Time.time;
+
+            // Return cached result if still valid
+            if (currentTime - _lastBrowserScanTime < BrowserScanInterval)
             {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                // Check for browser scaffold pattern: BrowserScaffold_Scry_*, BrowserScaffold_Surveil_*, etc.
-                if (go.name.StartsWith("BrowserScaffold_"))
+                // Validate cache - check if cached browser is still valid
+                if (_cachedBrowser != null && _cachedBrowserGo != null && _cachedBrowserGo.activeInHierarchy)
                 {
-                    // Extract browser type from name (e.g., "Scry" from "BrowserScaffold_Scry_Desktop_16x9(Clone)")
-                    string scaffoldType = ExtractBrowserTypeFromScaffold(go.name);
-
-                    // For mulligan/opening hand scaffolds, verify the UI is actually visible
-                    // The scaffold can stay active even after mulligan ends
-                    if (scaffoldType == "Mulligan" || scaffoldType == "OpeningHand")
+                    // For mulligan browsers, verify buttons are still present
+                    if (_cachedBrowser is BrowserScaffoldInfo scaffoldInfo && IsMulliganBrowser(scaffoldInfo.BrowserType))
                     {
                         if (!IsMulliganBrowserVisible())
                         {
-                            continue; // Skip this scaffold, mulligan is over
+                            InvalidateBrowserCache();
+                            return (null, null);
                         }
                     }
-
-                    // London mulligan: We CAN'T select cards (requires drag), but we CAN click SubmitButton
-                    // So we enter the browser to allow Space to confirm, but skip card selection logic
-
-                    if (!_loggedBrowserTypes.Contains(go.name))
-                    {
-                        _loggedBrowserTypes.Add(go.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Found browser scaffold: {go.name}, type: {scaffoldType}");
-
-                        // Discovery: log components on scaffold to find controller APIs
-                        LogScaffoldComponents(go, scaffoldType);
-                    }
-
-                    // Return a wrapper object with the scaffold info
-                    return (new BrowserScaffoldInfo { ScaffoldName = go.name, BrowserType = scaffoldType }, go);
+                    return (_cachedBrowser, _cachedBrowserGo);
                 }
             }
 
-            // Fallback: look for CardBrowserCardHolder with cards (when scaffold not found)
-            // BUT: Don't use fallback if this looks like mulligan but mulligan buttons aren't ready yet
+            _lastBrowserScanTime = currentTime;
+
+            // Perform single scene scan and categorize results
+            var result = ScanForBrowser();
+
+            // Cache the result
+            _cachedBrowser = result.browser;
+            _cachedBrowserGo = result.go;
+
+            return result;
+        }
+
+        /// <summary>
+        /// Invalidates the browser cache, forcing a fresh scan on next call.
+        /// </summary>
+        private void InvalidateBrowserCache()
+        {
+            _cachedBrowser = null;
+            _cachedBrowserGo = null;
+            _lastBrowserScanTime = 0f;
+        }
+
+        /// <summary>
+        /// Performs the actual browser scan. Single pass through scene objects.
+        /// </summary>
+        private (object browser, GameObject go) ScanForBrowser()
+        {
+            // Candidates found during scan
+            GameObject scaffoldCandidate = null;
+            string scaffoldType = null;
+            GameObject cardHolderCandidate = null;
+            Component cardHolderComponent = null;
+            int cardHolderCardCount = 0;
+            GameObject knownBrowserCandidate = null;
+            Component knownBrowserComponent = null;
+
+            // Track if we've seen mulligan buttons (for validation)
+            bool hasMulliganButtons = false;
+
+            // Single pass through all GameObjects
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy) continue;
 
-                // Check for CardBrowserCardHolder component
-                foreach (var comp in go.GetComponents<Component>())
+                string goName = go.name;
+
+                // Check for mulligan buttons
+                if (goName == ButtonKeep || goName == ButtonMulligan)
                 {
-                    if (comp == null) continue;
-                    var typeName = comp.GetType().Name;
+                    hasMulliganButtons = true;
+                }
 
-                    if (typeName == "CardBrowserCardHolder")
+                // Priority 1: Browser scaffold pattern
+                if (scaffoldCandidate == null && goName.StartsWith(ScaffoldPrefix, System.StringComparison.Ordinal))
+                {
+                    string type = ExtractBrowserTypeFromScaffold(goName);
+
+                    // For mulligan scaffolds, will validate buttons after scan completes
+                    scaffoldCandidate = go;
+                    scaffoldType = type;
+                }
+
+                // Priority 2: CardBrowserCardHolder component
+                if (cardHolderCandidate == null && goName.IndexOf("Browser", System.StringComparison.Ordinal) >= 0)
+                {
+                    foreach (var comp in go.GetComponents<Component>())
                     {
-                        // Check if it has cards
-                        int cardCount = 0;
-                        foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                        if (comp == null) continue;
+                        if (comp.GetType().Name == "CardBrowserCardHolder")
                         {
-                            if (child.gameObject.activeInHierarchy && CardDetector.IsCard(child.gameObject))
-                                cardCount++;
+                            int cardCount = CountCardsInContainer(go);
+                            if (cardCount > 0)
+                            {
+                                cardHolderCandidate = go;
+                                cardHolderComponent = comp;
+                                cardHolderCardCount = cardCount;
+                            }
+                            break;
                         }
+                    }
+                }
 
-                        if (cardCount > 0 && go.name.Contains("Browser"))
+                // Priority 3: Known browser MonoBehaviour types (final fallback)
+                if (knownBrowserCandidate == null)
+                {
+                    foreach (var comp in go.GetComponents<Component>())
+                    {
+                        if (comp == null) continue;
+                        string typeName = comp.GetType().Name;
+
+                        if (System.Array.IndexOf(KnownBrowserTypes, typeName) >= 0)
                         {
-                            // If 5+ cards (looks like opening hand/mulligan), check if mulligan buttons exist
-                            // If not, skip - wait for the proper mulligan scaffold to load
-                            if (cardCount >= 5)
+                            if (IsBrowserVisible(comp))
                             {
-                                bool hasMulliganButtons = false;
-                                foreach (var buttonGo in GameObject.FindObjectsOfType<GameObject>())
-                                {
-                                    if (buttonGo != null && buttonGo.activeInHierarchy &&
-                                        (buttonGo.name == "KeepButton" || buttonGo.name == "MulliganButton"))
-                                    {
-                                        hasMulliganButtons = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!hasMulliganButtons)
-                                {
-                                    // Mulligan-like browser but buttons not ready - skip fallback, wait for scaffold
-                                    continue;
-                                }
+                                knownBrowserCandidate = go;
+                                knownBrowserComponent = comp;
                             }
-
-                            if (!_loggedBrowserTypes.Contains("CardBrowserCardHolder"))
-                            {
-                                _loggedBrowserTypes.Add("CardBrowserCardHolder");
-                                MelonLogger.Msg($"[BrowserNavigator] Found CardBrowserCardHolder: {go.name} with {cardCount} cards");
-                            }
-                            return (comp, go);
+                            break;
                         }
                     }
                 }
             }
 
-            // Also check for known browser MonoBehaviour types (original approach as final fallback)
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            // Return results in priority order
+
+            // Priority 1: Scaffold
+            if (scaffoldCandidate != null)
             {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                foreach (var comp in go.GetComponents<Component>())
+                // Validate mulligan browsers
+                if (IsMulliganBrowser(scaffoldType) && !hasMulliganButtons)
                 {
-                    if (comp == null) continue;
-
-                    var typeName = comp.GetType().Name;
-
-                    if (KnownBrowserTypes.Contains(typeName))
-                    {
-                        // Check visibility
-                        if (IsBrowserVisible(comp))
-                        {
-                            // Log new browser type discovery
-                            if (!_loggedBrowserTypes.Contains(typeName))
-                            {
-                                _loggedBrowserTypes.Add(typeName);
-                                LogBrowserDetails(comp, typeName);
-                            }
-
-                            return (comp, go);
-                        }
-                    }
+                    // Mulligan scaffold exists but buttons aren't ready - skip
                 }
+                else
+                {
+                    LogBrowserDiscovery(scaffoldCandidate.name, scaffoldType);
+                    return (new BrowserScaffoldInfo { ScaffoldName = scaffoldCandidate.name, BrowserType = scaffoldType }, scaffoldCandidate);
+                }
+            }
+
+            // Priority 2: CardBrowserCardHolder
+            if (cardHolderCandidate != null)
+            {
+                // If 5+ cards, ensure mulligan buttons exist
+                if (cardHolderCardCount >= 5 && !hasMulliganButtons)
+                {
+                    // Looks like mulligan but buttons not ready - skip
+                }
+                else
+                {
+                    if (!_loggedBrowserTypes.Contains("CardBrowserCardHolder"))
+                    {
+                        _loggedBrowserTypes.Add("CardBrowserCardHolder");
+                        MelonLogger.Msg($"[BrowserNavigator] Found CardBrowserCardHolder: {cardHolderCandidate.name} with {cardHolderCardCount} cards");
+                    }
+                    return (cardHolderComponent, cardHolderCandidate);
+                }
+            }
+
+            // Priority 3: Known browser type
+            if (knownBrowserCandidate != null && knownBrowserComponent != null)
+            {
+                string typeName = knownBrowserComponent.GetType().Name;
+                if (!_loggedBrowserTypes.Contains(typeName))
+                {
+                    _loggedBrowserTypes.Add(typeName);
+                    LogBrowserDetails(knownBrowserComponent, typeName);
+                }
+                return (knownBrowserComponent, knownBrowserCandidate);
             }
 
             return (null, null);
+        }
+
+        /// <summary>
+        /// Counts cards in a container without creating intermediate lists.
+        /// </summary>
+        private int CountCardsInContainer(GameObject container)
+        {
+            int count = 0;
+            foreach (Transform child in container.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.gameObject.activeInHierarchy && CardDetector.IsCard(child.gameObject))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Logs browser scaffold discovery (once per scaffold name).
+        /// </summary>
+        private void LogBrowserDiscovery(string scaffoldName, string scaffoldType)
+        {
+            if (!_loggedBrowserTypes.Contains(scaffoldName))
+            {
+                _loggedBrowserTypes.Add(scaffoldName);
+                MelonLogger.Msg($"[BrowserNavigator] Found browser scaffold: {scaffoldName}, type: {scaffoldType}");
+            }
         }
 
         /// <summary>
@@ -453,9 +864,9 @@ namespace MTGAAccessibility.Core.Services
         private string ExtractBrowserTypeFromScaffold(string scaffoldName)
         {
             // Pattern: BrowserScaffold_{Type}_{Resolution}
-            if (scaffoldName.StartsWith("BrowserScaffold_"))
+            if (scaffoldName.StartsWith(ScaffoldPrefix))
             {
-                string remainder = scaffoldName.Substring("BrowserScaffold_".Length);
+                string remainder = scaffoldName.Substring(ScaffoldPrefix.Length);
                 int underscoreIndex = remainder.IndexOf('_');
                 if (underscoreIndex > 0)
                 {
@@ -504,20 +915,8 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private bool IsMulliganBrowserVisible()
         {
-            // Check if KeepButton or MulliganButton are active in the scene
-            // Either one being present means mulligan is still active
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                if (go.name == "KeepButton" || go.name == "MulliganButton")
-                {
-                    return true;
-                }
-            }
-
-            // If neither button found, mulligan is over
-            return false;
+            // Either Keep or Mulligan button being present means mulligan is still active
+            return FindActiveGameObject(ButtonKeep) != null || FindActiveGameObject(ButtonMulligan) != null;
         }
 
         /// <summary>
@@ -631,9 +1030,6 @@ namespace MTGAAccessibility.Core.Services
 
             // Discover cards and buttons
             DiscoverBrowserElements();
-
-            // Notify DuelAnnouncer
-            DuelAnnouncer.Instance?.OnLibraryBrowserClosed(); // Reset any previous state
         }
 
         /// <summary>
@@ -653,6 +1049,9 @@ namespace MTGAAccessibility.Core.Services
             _currentCardIndex = -1;
             _currentButtonIndex = -1;
 
+            // Invalidate cache so next detection starts fresh
+            InvalidateBrowserCache();
+
             // Notify DuelAnnouncer
             DuelAnnouncer.Instance?.OnLibraryBrowserClosed();
         }
@@ -667,219 +1066,197 @@ namespace MTGAAccessibility.Core.Services
 
             if (_activeBrowser == null || _browserGameObject == null) return;
 
-            // For scaffold-based browsers, search for BrowserCardHolder_Default
             if (_activeBrowser is BrowserScaffoldInfo scaffoldInfo)
             {
-                // Opening hand / mulligan browser card discovery
-                // For OpeningHand or Mulligan browser, look in LocalHand zone
-                bool isOpeningHandOrMulligan = scaffoldInfo.BrowserType == "OpeningHand" ||
-                                                scaffoldInfo.BrowserType == "Mulligan";
-
-                if (isOpeningHandOrMulligan)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] {scaffoldInfo.BrowserType} browser - searching for opening hand cards");
-
-                    // Search for LocalHand zone specifically (not OpponentHand)
-                    foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-                    {
-                        if (go == null || !go.activeInHierarchy) continue;
-
-                        // LocalHand zone naming: LocalHand_Desktop_16x9 or similar
-                        // Must start with "LocalHand" to avoid matching OpponentHand
-                        if (go.name.StartsWith("LocalHand"))
-                        {
-                            MelonLogger.Msg($"[BrowserNavigator] Found LocalHand zone: {go.name}");
-                            SearchForCardsInLocalHand(go);
-                        }
-                    }
-
-                    // Also search within the browser scaffold for card displays
-                    SearchForCardsInContainer(_browserGameObject, "Scaffold");
-
-                    // Log cards found
-                    MelonLogger.Msg($"[BrowserNavigator] After opening hand search: {_browserCards.Count} cards found");
-                }
-
-                // Find BrowserCardHolder_Default which contains the scry card(s)
-                // Only use Default holder - ViewDismiss shows same card in different position
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-                {
-                    if (go == null || !go.activeInHierarchy) continue;
-
-                    // Look in both holders but track unique cards by InstanceId
-                    if (go.name == "BrowserCardHolder_Default" || go.name == "BrowserCardHolder_ViewDismiss")
-                    {
-                        foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
-                        {
-                            if (!child.gameObject.activeInHierarchy) continue;
-                            if (CardDetector.IsCard(child.gameObject))
-                            {
-                                // Filter out unknown/invalid cards
-                                string cardName = CardDetector.GetCardName(child.gameObject);
-                                if (string.IsNullOrEmpty(cardName) ||
-                                    cardName.Contains("Unknown") ||
-                                    cardName.Contains("unknown"))
-                                {
-                                    MelonLogger.Msg($"[BrowserNavigator] Skipping invalid card: {child.name} -> {cardName}");
-                                    continue;
-                                }
-
-                                // Check if we already have a card with same name (avoid duplicates)
-                                bool isDuplicate = false;
-                                foreach (var existingCard in _browserCards)
-                                {
-                                    string existingName = CardDetector.GetCardName(existingCard);
-                                    if (existingName == cardName)
-                                    {
-                                        isDuplicate = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!isDuplicate)
-                                {
-                                    _browserCards.Add(child.gameObject);
-                                    MelonLogger.Msg($"[BrowserNavigator] Found card in {go.name}: {child.name} -> {cardName}");
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Find buttons - search entire scene for browser-related buttons
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-                {
-                    if (go == null || !go.activeInHierarchy) continue;
-                    if (go.name.Contains("Browser") || go.name.Contains("Prompt"))
-                    {
-                        FindBrowserButtons(go);
-                    }
-                }
-
-                // For mulligan specifically, also search for KeepButton and MulliganButton
-                if (isOpeningHandOrMulligan)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] === MULLIGAN BUTTON DISCOVERY ===");
-                    foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-                    {
-                        if (go == null || !go.activeInHierarchy) continue;
-
-                        // Log ALL objects that might be buttons during mulligan
-                        if (go.name.Contains("Keep") || go.name.Contains("Mulligan") || go.name.Contains("Button"))
-                        {
-                            var components = string.Join(", ", go.GetComponents<Component>()
-                                .Where(c => c != null)
-                                .Select(c => c.GetType().Name));
-                            MelonLogger.Msg($"[BrowserNavigator] Candidate: {go.name} [{components}]");
-                        }
-
-                        // Find specific mulligan buttons
-                        if (go.name == "KeepButton" || go.name == "MulliganButton")
-                        {
-                            MelonLogger.Msg($"[BrowserNavigator] Found exact match: {go.name}");
-                            if (!_browserButtons.Contains(go))
-                            {
-                                // Check if it's clickable - now also accept EventTrigger
-                                bool hasClickable = go.GetComponent<UnityEngine.UI.Button>() != null ||
-                                                    go.GetComponent<UnityEngine.EventSystems.EventTrigger>() != null;
-                                foreach (var comp in go.GetComponents<Component>())
-                                {
-                                    if (comp != null && (comp.GetType().Name.Contains("Button") ||
-                                                         comp.GetType().Name.Contains("Interactable") ||
-                                                         comp.GetType().Name.Contains("Clickable")))
-                                    {
-                                        hasClickable = true;
-                                        break;
-                                    }
-                                }
-
-                                if (hasClickable)
-                                {
-                                    _browserButtons.Add(go);
-                                    MelonLogger.Msg($"[BrowserNavigator] Added mulligan button: {go.name}");
-                                }
-                                else
-                                {
-                                    MelonLogger.Msg($"[BrowserNavigator] WARNING: {go.name} has no clickable component, adding anyway for testing");
-                                    _browserButtons.Add(go); // Add anyway for testing
-                                }
-                            }
-                            else
-                            {
-                                MelonLogger.Msg($"[BrowserNavigator] {go.name} already in button list");
-                            }
-                        }
-                    }
-                    MelonLogger.Msg($"[BrowserNavigator] === END MULLIGAN BUTTON DISCOVERY ===");
-                }
-
-                // If we have cards but no buttons, search for PromptButton_Primary/Secondary
-                // These are the main action buttons during opening hand/mulligan phases
-                if (_browserCards.Count > 0 && _browserButtons.Count == 0)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] No buttons found, searching for PromptButtons...");
-                    foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-                    {
-                        if (go == null || !go.activeInHierarchy) continue;
-
-                        // Find PromptButton_Primary and PromptButton_Secondary (main action buttons)
-                        if (go.name.StartsWith("PromptButton_Primary") || go.name.StartsWith("PromptButton_Secondary"))
-                        {
-                            if (!_browserButtons.Contains(go))
-                            {
-                                _browserButtons.Add(go);
-                                string buttonText = UITextExtractor.GetButtonText(go, go.name);
-                                MelonLogger.Msg($"[BrowserNavigator] Found prompt button: {go.name} -> '{buttonText}'");
-                            }
-                        }
-                    }
-                }
+                DiscoverScaffoldBrowserElements(scaffoldInfo);
             }
             else
             {
-                // Original approach for component-based browsers (CardBrowserCardHolder fallback)
-                MelonLogger.Msg($"[BrowserNavigator] Component-based browser: {_browserTypeName}");
-
-                var cardHolderProp = _activeBrowser.GetType().GetProperty("CardHolder");
-                GameObject cardHolderGo = null;
-
-                if (cardHolderProp != null)
-                {
-                    var cardHolder = cardHolderProp.GetValue(_activeBrowser);
-                    if (cardHolder is GameObject go)
-                        cardHolderGo = go;
-                    else if (cardHolder is Component comp)
-                        cardHolderGo = comp.gameObject;
-                }
-
-                // Find cards in CardHolder or browser hierarchy
-                var searchRoot = cardHolderGo ?? _browserGameObject;
-                foreach (Transform child in searchRoot.GetComponentsInChildren<Transform>(true))
-                {
-                    if (!child.gameObject.activeInHierarchy) continue;
-
-                    if (CardDetector.IsCard(child.gameObject))
-                    {
-                        if (!_browserCards.Contains(child.gameObject))
-                        {
-                            _browserCards.Add(child.gameObject);
-                        }
-                    }
-                }
-
-                // Find buttons in browser hierarchy
-                FindBrowserButtons(_browserGameObject);
-
-                // If we found cards but no buttons, this might be mulligan/opening hand
-                // detected via CardBrowserCardHolder fallback - search scene for mulligan buttons
-                if (_browserCards.Count >= 5 && _browserButtons.Count == 0)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] Component browser with {_browserCards.Count} cards and 0 buttons - checking for mulligan");
-                    SearchForMulliganButtons();
-                }
+                DiscoverComponentBrowserElements();
             }
 
             MelonLogger.Msg($"[BrowserNavigator] Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
+        }
+
+        /// <summary>
+        /// Discovers elements for scaffold-based browsers (Scry, Surveil, Mulligan, etc.).
+        /// </summary>
+        private void DiscoverScaffoldBrowserElements(BrowserScaffoldInfo scaffoldInfo)
+        {
+            bool isOpeningHandOrMulligan = IsMulliganBrowser(scaffoldInfo.BrowserType);
+
+            // Discover cards
+            if (isOpeningHandOrMulligan)
+            {
+                DiscoverMulliganCards();
+            }
+            DiscoverCardsInHolders();
+
+            // Discover buttons
+            DiscoverBrowserRelatedButtons();
+
+            if (isOpeningHandOrMulligan)
+            {
+                DiscoverMulliganButtons();
+            }
+
+            // Fallback: prompt buttons if no other buttons found
+            if (_browserCards.Count > 0 && _browserButtons.Count == 0)
+            {
+                DiscoverPromptButtons();
+            }
+        }
+
+        /// <summary>
+        /// Discovers cards for mulligan/opening hand browsers.
+        /// </summary>
+        private void DiscoverMulliganCards()
+        {
+            MelonLogger.Msg($"[BrowserNavigator] Searching for opening hand cards");
+
+            // Search for LocalHand zone
+            var localHandZones = FindActiveGameObjects(go => go.name.StartsWith(ZoneLocalHand));
+            foreach (var zone in localHandZones)
+            {
+                MelonLogger.Msg($"[BrowserNavigator] Found LocalHand zone: {zone.name}");
+                SearchForCardsInLocalHand(zone);
+            }
+
+            // Also search within the browser scaffold
+            SearchForCardsInContainer(_browserGameObject, "Scaffold");
+
+            MelonLogger.Msg($"[BrowserNavigator] After opening hand search: {_browserCards.Count} cards found");
+        }
+
+        /// <summary>
+        /// Discovers cards in BrowserCardHolder containers.
+        /// </summary>
+        private void DiscoverCardsInHolders()
+        {
+            var holders = FindActiveGameObjects(go => go.name == HolderDefault || go.name == HolderViewDismiss);
+
+            foreach (var holder in holders)
+            {
+                foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (!child.gameObject.activeInHierarchy) continue;
+                    if (!CardDetector.IsCard(child.gameObject)) continue;
+
+                    string cardName = CardDetector.GetCardName(child.gameObject);
+
+                    if (!IsValidCardName(cardName))
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator] Skipping invalid card: {child.name} -> {cardName}");
+                        continue;
+                    }
+
+                    if (!IsDuplicateCard(child.gameObject, _browserCards))
+                    {
+                        _browserCards.Add(child.gameObject);
+                        MelonLogger.Msg($"[BrowserNavigator] Found card in {holder.name}: {child.name} -> {cardName}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Discovers buttons in browser-related containers.
+        /// </summary>
+        private void DiscoverBrowserRelatedButtons()
+        {
+            var browserContainers = FindActiveGameObjects(go =>
+                go.name.Contains("Browser") || go.name.Contains("Prompt"));
+
+            foreach (var container in browserContainers)
+            {
+                FindBrowserButtons(container);
+            }
+        }
+
+        /// <summary>
+        /// Discovers mulligan-specific buttons (Keep/Mulligan).
+        /// </summary>
+        private void DiscoverMulliganButtons()
+        {
+            MelonLogger.Msg($"[BrowserNavigator] === MULLIGAN BUTTON DISCOVERY ===");
+
+            var mulliganButtons = FindActiveGameObjects(go =>
+                go.name == ButtonKeep || go.name == ButtonMulligan);
+
+            foreach (var button in mulliganButtons)
+            {
+                if (!_browserButtons.Contains(button))
+                {
+                    _browserButtons.Add(button);
+                    MelonLogger.Msg($"[BrowserNavigator] Added mulligan button: {button.name}");
+                }
+            }
+
+            MelonLogger.Msg($"[BrowserNavigator] === END MULLIGAN BUTTON DISCOVERY ===");
+        }
+
+        /// <summary>
+        /// Discovers PromptButton_Primary/Secondary as fallback.
+        /// </summary>
+        private void DiscoverPromptButtons()
+        {
+            MelonLogger.Msg($"[BrowserNavigator] No buttons found, searching for PromptButtons...");
+
+            var promptButtons = FindActiveGameObjects(go =>
+                go.name.StartsWith(PromptButtonPrimaryPrefix) || go.name.StartsWith(PromptButtonSecondaryPrefix));
+
+            foreach (var button in promptButtons)
+            {
+                if (!_browserButtons.Contains(button))
+                {
+                    _browserButtons.Add(button);
+                    string buttonText = UITextExtractor.GetButtonText(button, button.name);
+                    MelonLogger.Msg($"[BrowserNavigator] Found prompt button: {button.name} -> '{buttonText}'");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Discovers elements for component-based browsers (CardBrowserCardHolder fallback).
+        /// </summary>
+        private void DiscoverComponentBrowserElements()
+        {
+            MelonLogger.Msg($"[BrowserNavigator] Component-based browser: {_browserTypeName}");
+
+            // Try to get CardHolder from browser component
+            var cardHolderProp = _activeBrowser.GetType().GetProperty("CardHolder");
+            GameObject cardHolderGo = null;
+
+            if (cardHolderProp != null)
+            {
+                var cardHolder = cardHolderProp.GetValue(_activeBrowser);
+                if (cardHolder is GameObject go)
+                    cardHolderGo = go;
+                else if (cardHolder is Component comp)
+                    cardHolderGo = comp.gameObject;
+            }
+
+            // Find cards in CardHolder or browser hierarchy
+            var searchRoot = cardHolderGo ?? _browserGameObject;
+            foreach (Transform child in searchRoot.GetComponentsInChildren<Transform>(true))
+            {
+                if (!child.gameObject.activeInHierarchy) continue;
+
+                if (CardDetector.IsCard(child.gameObject) && !_browserCards.Contains(child.gameObject))
+                {
+                    _browserCards.Add(child.gameObject);
+                }
+            }
+
+            // Find buttons in browser hierarchy
+            FindBrowserButtons(_browserGameObject);
+
+            // If looks like mulligan (5+ cards, no buttons), search for mulligan buttons
+            if (_browserCards.Count >= 5 && _browserButtons.Count == 0)
+            {
+                MelonLogger.Msg($"[BrowserNavigator] Component browser with {_browserCards.Count} cards and 0 buttons - checking for mulligan");
+                SearchForMulliganButtons();
+            }
         }
 
         /// <summary>
@@ -887,47 +1264,18 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private void FindBrowserButtons(GameObject root)
         {
-            // Look for common button patterns (including mulligan-specific)
-            var buttonPatterns = new[] { "Button", "Accept", "Confirm", "Cancel", "Done", "Keep", "Submit", "Yes", "No", "Mulligan" };
-
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
             {
                 if (!child.gameObject.activeInHierarchy) continue;
 
-                var name = child.name;
-
-                // Check if it's a button-like element
-                bool isButton = false;
-                foreach (var pattern in buttonPatterns)
-                {
-                    if (name.Contains(pattern))
-                    {
-                        isButton = true;
-                        break;
-                    }
-                }
-
-                if (!isButton) continue;
+                // Check if name matches button patterns
+                if (!MatchesButtonPattern(child.name, ButtonPatterns)) continue;
 
                 // Verify it has a clickable component
-                var hasClickable = child.GetComponent<UnityEngine.UI.Button>() != null ||
-                                   child.GetComponent<UnityEngine.UI.Toggle>() != null ||
-                                   child.GetComponent<UnityEngine.EventSystems.IPointerClickHandler>() != null;
-
-                // Also check for CustomButton via reflection
-                foreach (var comp in child.GetComponents<Component>())
-                {
-                    if (comp != null && comp.GetType().Name.Contains("Button"))
-                    {
-                        hasClickable = true;
-                        break;
-                    }
-                }
-
-                if (hasClickable && !_browserButtons.Contains(child.gameObject))
+                if (HasClickableComponent(child.gameObject) && !_browserButtons.Contains(child.gameObject))
                 {
                     _browserButtons.Add(child.gameObject);
-                    MelonLogger.Msg($"[BrowserNavigator] Found button: {name}");
+                    MelonLogger.Msg($"[BrowserNavigator] Found button: {child.name}");
                 }
             }
         }
@@ -940,53 +1288,30 @@ namespace MTGAAccessibility.Core.Services
         {
             MelonLogger.Msg($"[BrowserNavigator] === SCENE SEARCH FOR MULLIGAN BUTTONS ===");
 
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            var mulliganButtons = FindActiveGameObjects(go =>
+                go.name == ButtonKeep || go.name == ButtonMulligan);
+
+            foreach (var go in mulliganButtons)
             {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                // Find KeepButton and MulliganButton
-                if (go.name == "KeepButton" || go.name == "MulliganButton")
+                if (!_browserButtons.Contains(go))
                 {
-                    if (!_browserButtons.Contains(go))
-                    {
-                        // Check for clickable component (StyledButton, Button, EventTrigger, etc.)
-                        bool hasClickable = false;
-                        foreach (var comp in go.GetComponents<Component>())
-                        {
-                            if (comp == null) continue;
-                            var typeName = comp.GetType().Name;
-                            if (typeName.Contains("Button") || typeName.Contains("Styled") ||
-                                typeName == "EventTrigger" || typeName.Contains("Interactable"))
-                            {
-                                hasClickable = true;
-                                break;
-                            }
-                        }
-
-                        if (hasClickable)
-                        {
-                            _browserButtons.Add(go);
-                            var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                            MelonLogger.Msg($"[BrowserNavigator] Found mulligan button in scene: {go.name} -> '{buttonLabel}'");
-                        }
-                        else
-                        {
-                            // Add anyway - might still be clickable
-                            _browserButtons.Add(go);
-                            MelonLogger.Msg($"[BrowserNavigator] Found mulligan button (no clickable component): {go.name}");
-                        }
-                    }
+                    _browserButtons.Add(go);
+                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
+                    MelonLogger.Msg($"[BrowserNavigator] Found mulligan button: {go.name} -> '{buttonLabel}'");
                 }
+            }
 
-                // Also search for PromptButton_Primary/Secondary as fallback
-                if (go.name.StartsWith("PromptButton_Primary") || go.name.StartsWith("PromptButton_Secondary"))
+            // Also search for PromptButton_Primary/Secondary as fallback
+            var promptButtons = FindActiveGameObjects(go =>
+                go.name.StartsWith(PromptButtonPrimaryPrefix) || go.name.StartsWith(PromptButtonSecondaryPrefix));
+
+            foreach (var go in promptButtons)
+            {
+                if (!_browserButtons.Contains(go))
                 {
-                    if (!_browserButtons.Contains(go))
-                    {
-                        _browserButtons.Add(go);
-                        var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Found prompt button in scene: {go.name} -> '{buttonLabel}'");
-                    }
+                    _browserButtons.Add(go);
+                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
+                    MelonLogger.Msg($"[BrowserNavigator] Found prompt button: {go.name} -> '{buttonLabel}'");
                 }
             }
 
@@ -994,8 +1319,7 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// EXPERIMENTAL: Searches for cards in a container and adds them to the browser cards list.
-        /// Added for OpeningHand/mulligan support - needs testing.
+        /// Searches for cards in a container and adds them to the browser cards list.
         /// </summary>
         private void SearchForCardsInContainer(GameObject container, string containerName)
         {
@@ -1003,37 +1327,17 @@ namespace MTGAAccessibility.Core.Services
             foreach (Transform child in container.GetComponentsInChildren<Transform>(true))
             {
                 if (!child.gameObject.activeInHierarchy) continue;
-                if (CardDetector.IsCard(child.gameObject))
-                {
-                    string cardName = CardDetector.GetCardName(child.gameObject);
+                if (!CardDetector.IsCard(child.gameObject)) continue;
 
-                    // Filter out unknown/invalid cards
-                    if (string.IsNullOrEmpty(cardName) ||
-                        cardName.Contains("Unknown") ||
-                        cardName.Contains("unknown"))
-                    {
-                        continue;
-                    }
+                string cardName = CardDetector.GetCardName(child.gameObject);
 
-                    // Check for duplicates
-                    bool isDuplicate = false;
-                    foreach (var existingCard in _browserCards)
-                    {
-                        string existingName = CardDetector.GetCardName(existingCard);
-                        if (existingName == cardName)
-                        {
-                            isDuplicate = true;
-                            break;
-                        }
-                    }
+                // Filter and check for duplicates using helpers
+                if (!IsValidCardName(cardName)) continue;
+                if (IsDuplicateCard(child.gameObject, _browserCards)) continue;
 
-                    if (!isDuplicate)
-                    {
-                        _browserCards.Add(child.gameObject);
-                        foundCount++;
-                        MelonLogger.Msg($"[BrowserNavigator] Found card in {containerName}: {child.name} -> {cardName}");
-                    }
-                }
+                _browserCards.Add(child.gameObject);
+                foundCount++;
+                MelonLogger.Msg($"[BrowserNavigator] Found card in {containerName}: {child.name} -> {cardName}");
             }
 
             if (foundCount > 0)
@@ -1058,14 +1362,10 @@ namespace MTGAAccessibility.Core.Services
                 var card = child.gameObject;
                 string cardName = CardDetector.GetCardName(card);
 
-                // Log every card found for debugging
                 MelonLogger.Msg($"[BrowserNavigator] LocalHand card candidate: {card.name} -> '{cardName}'");
 
-                // Filter: must have valid card name (not unknown or empty)
-                if (string.IsNullOrEmpty(cardName) ||
-                    cardName.Contains("Unknown") ||
-                    cardName.Contains("unknown") ||
-                    cardName == "Card")
+                // Filter: must have valid card name
+                if (!IsValidCardName(cardName))
                 {
                     MelonLogger.Msg($"[BrowserNavigator]   -> Skipped (invalid name)");
                     continue;
@@ -1079,25 +1379,8 @@ namespace MTGAAccessibility.Core.Services
                     continue;
                 }
 
-                // Check for duplicates by instance ID or name
-                bool isDuplicate = false;
-                foreach (var existingCard in foundCards)
-                {
-                    if (existingCard.GetInstanceID() == card.GetInstanceID())
-                    {
-                        isDuplicate = true;
-                        break;
-                    }
-                    // Also check if same card name (might be same card in different state)
-                    string existingName = CardDetector.GetCardName(existingCard);
-                    if (existingName == cardName && existingCard.transform.parent == card.transform.parent)
-                    {
-                        isDuplicate = true;
-                        break;
-                    }
-                }
-
-                if (!isDuplicate)
+                // Check for duplicates using unified helper
+                if (!IsDuplicateCard(card, foundCards))
                 {
                     foundCards.Add(card);
                     MelonLogger.Msg($"[BrowserNavigator]   -> Added: {cardName}");
@@ -1107,7 +1390,7 @@ namespace MTGAAccessibility.Core.Services
             // Sort cards by horizontal position (left to right)
             foundCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
-            // Add to browser cards
+            // Add to browser cards (avoiding duplicates)
             foreach (var card in foundCards)
             {
                 if (!_browserCards.Contains(card))
@@ -1169,38 +1452,14 @@ namespace MTGAAccessibility.Core.Services
         {
             if (string.IsNullOrEmpty(typeName)) return "Browser";
 
-            // Library manipulation
-            if (typeName.Contains("Scryish")) return "Scry";
-            if (typeName.Contains("Scry")) return "Scry";
-            if (typeName.Contains("Surveil")) return "Surveil";
-            if (typeName.Contains("ReadAhead")) return "Read ahead";
-            if (typeName.Contains("LibrarySideboard")) return "Search library";
-
-            // Opening hand
-            if (typeName.Contains("London")) return "Mulligan";
-            if (typeName.Contains("Mulligan")) return "Mulligan";
-            if (typeName.Contains("OpeningHand")) return "Opening hand";
-
-            // Card ordering
-            if (typeName.Contains("OrderCards")) return "Order cards";
-            if (typeName.Contains("SplitCards")) return "Split cards into piles";
-
-            // Combat
-            if (typeName.Contains("AssignDamage")) return "Assign damage";
-            if (typeName.Contains("Attachment")) return "View attachments";
-
-            // Selection
-            if (typeName.Contains("SelectCards")) return "Select cards";
-            if (typeName.Contains("SelectGroup")) return "Select group";
-            if (typeName.Contains("SelectMana")) return "Choose mana type";
-            if (typeName.Contains("Keyword")) return "Choose keyword";
-
-            // Special
-            if (typeName.Contains("Dungeon")) return "Choose dungeon room";
-            if (typeName.Contains("Mutate")) return "Mutate choice";
-            if (typeName.Contains("YesNo")) return "Choose yes or no";
-            if (typeName.Contains("Optional")) return "Optional action";
-            if (typeName.Contains("Informational")) return "Information";
+            // Check each keyword in the dictionary (order matters for Scryish before Scry)
+            foreach (var kvp in FriendlyBrowserNames)
+            {
+                if (typeName.Contains(kvp.Key))
+                {
+                    return kvp.Value;
+                }
+            }
 
             return "Browser";
         }
@@ -1255,7 +1514,7 @@ namespace MTGAAccessibility.Core.Services
 
             // Mulligan/opening hand browsers don't have selection states
             // Cards are just displayed for viewing, not sorted into piles
-            if (_browserTypeName == "Mulligan" || _browserTypeName == "OpeningHand")
+            if (IsMulliganBrowser(_browserTypeName))
             {
                 return null;
             }
@@ -1271,17 +1530,14 @@ namespace MTGAAccessibility.Core.Services
             Transform parent = card.transform.parent;
             while (parent != null)
             {
-                string parentName = parent.name;
-
-                if (parentName == "BrowserCardHolder_Default")
+                if (parent.name == HolderDefault)
                 {
                     return Strings.KeepOnTop;
                 }
-                else if (parentName == "BrowserCardHolder_ViewDismiss")
+                if (parent.name == HolderViewDismiss)
                 {
                     return Strings.PutOnBottom;
                 }
-
                 parent = parent.parent;
             }
 
@@ -1383,7 +1639,7 @@ namespace MTGAAccessibility.Core.Services
             MelonLogger.Msg($"[BrowserNavigator] Activating card: {cardName}, state before: {stateBefore}");
 
             // For London mulligan, try simulating a drag to the ViewDismiss holder
-            if (_browserTypeName == "London")
+            if (_browserTypeName == BrowserTypes.London)
             {
                 MelonLogger.Msg($"[BrowserNavigator] London mulligan - attempting to drag card: {cardName}");
 
@@ -1399,7 +1655,7 @@ namespace MTGAAccessibility.Core.Services
                     if (go == null || !go.activeInHierarchy) continue;
 
                     // Prioritize LocalLibrary (the actual player's library zone)
-                    if (go.name.StartsWith("LocalLibrary"))
+                    if (go.name.StartsWith(ZoneLocalLibrary))
                     {
                         localLibrary = go;
                         MelonLogger.Msg($"[BrowserNavigator] Found LocalLibrary: {go.name}");
@@ -1417,14 +1673,10 @@ namespace MTGAAccessibility.Core.Services
                 // Fallback to ViewDismiss if no library found
                 if (targetZone == null)
                 {
-                    foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                    targetZone = FindActiveGameObject(HolderViewDismiss);
+                    if (targetZone != null)
                     {
-                        if (go != null && go.activeInHierarchy && go.name == "BrowserCardHolder_ViewDismiss")
-                        {
-                            targetZone = go;
-                            MelonLogger.Msg($"[BrowserNavigator] Using ViewDismiss as fallback");
-                            break;
-                        }
+                        MelonLogger.Msg($"[BrowserNavigator] Using ViewDismiss as fallback");
                     }
                 }
 
@@ -1494,7 +1746,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // For scry-style browsers, toggle by clicking the opposite holder
-            if (_browserTypeName == "Scry" || _browserTypeName == "Surveil")
+            if (IsScryStyleBrowser(_browserTypeName))
             {
                 ToggleCardPosition(card, cardName, stateBefore);
             }
@@ -1521,48 +1773,29 @@ namespace MTGAAccessibility.Core.Services
         {
             MelonLogger.Msg($"[BrowserNavigator] === TOGGLE CARD POSITION ===");
 
-            // Log all button texts
-            MelonLogger.Msg($"[BrowserNavigator] Available buttons ({_browserButtons.Count}):");
-            foreach (var btn in _browserButtons)
-            {
-                string btnText = UITextExtractor.GetButtonText(btn, btn.name);
-                MelonLogger.Msg($"[BrowserNavigator]   {btn.name} -> '{btnText}'");
-            }
+            // Find both card holders
+            var defaultHolder = FindActiveGameObject(HolderDefault);
+            var dismissHolder = FindActiveGameObject(HolderViewDismiss);
 
-            // Find both card holders and their components
-            GameObject defaultHolder = null;
-            GameObject dismissHolder = null;
             object defaultHolderComp = null;
             object dismissHolderComp = null;
 
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            if (defaultHolder != null)
             {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                if (go.name == "BrowserCardHolder_Default")
+                defaultHolderComp = GetCardBrowserCardHolderComponent(defaultHolder);
+                if (defaultHolderComp != null)
                 {
-                    defaultHolder = go;
-                    foreach (var comp in go.GetComponents<Component>())
-                    {
-                        if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
-                        {
-                            defaultHolderComp = comp;
-                            MelonLogger.Msg($"[BrowserNavigator] Found Default CardBrowserCardHolder");
-                            LogComponentMethods(comp);
-                        }
-                    }
+                    MelonLogger.Msg($"[BrowserNavigator] Found Default CardBrowserCardHolder");
+                    LogComponentMethods(defaultHolderComp);
                 }
-                else if (go.name == "BrowserCardHolder_ViewDismiss")
+            }
+
+            if (dismissHolder != null)
+            {
+                dismissHolderComp = GetCardBrowserCardHolderComponent(dismissHolder);
+                if (dismissHolderComp != null)
                 {
-                    dismissHolder = go;
-                    foreach (var comp in go.GetComponents<Component>())
-                    {
-                        if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
-                        {
-                            dismissHolderComp = comp;
-                            MelonLogger.Msg($"[BrowserNavigator] Found ViewDismiss CardBrowserCardHolder");
-                        }
-                    }
+                    MelonLogger.Msg($"[BrowserNavigator] Found ViewDismiss CardBrowserCardHolder");
                 }
             }
 
@@ -1719,22 +1952,19 @@ namespace MTGAAccessibility.Core.Services
 
             // Re-find the card (it may have moved to different holder)
             GameObject card = null;
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            var holders = FindActiveGameObjects(go => go.name == HolderDefault || go.name == HolderViewDismiss);
+            foreach (var holder in holders)
             {
-                if (go == null || !go.activeInHierarchy) continue;
-                if (go.name == "BrowserCardHolder_Default" || go.name == "BrowserCardHolder_ViewDismiss")
+                foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
                 {
-                    foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                    if (!child.gameObject.activeInHierarchy) continue;
+                    if (CardDetector.IsCard(child.gameObject))
                     {
-                        if (!child.gameObject.activeInHierarchy) continue;
-                        if (CardDetector.IsCard(child.gameObject))
+                        string name = CardDetector.GetCardName(child.gameObject);
+                        if (name == cardName)
                         {
-                            string name = CardDetector.GetCardName(child.gameObject);
-                            if (name == cardName)
-                            {
-                                card = child.gameObject;
-                                break;
-                            }
+                            card = child.gameObject;
+                            break;
                         }
                     }
                 }
@@ -1801,110 +2031,42 @@ namespace MTGAAccessibility.Core.Services
         {
             MelonLogger.Msg($"[BrowserNavigator] ClickConfirmButton called. Browser: {_browserTypeName}, Buttons: {_browserButtons.Count}");
 
-            // For mulligan/opening hand, prioritize KeepButton
-            // For London mulligan (put cards back), prioritize SubmitButton
-            bool isMulligan = _browserTypeName == "Mulligan" || _browserTypeName == "OpeningHand";
-            bool isLondon = _browserTypeName == "London";
+            string clickedLabel;
 
-            if (isLondon)
+            // London mulligan: click SubmitButton to confirm card selection
+            if (_browserTypeName == BrowserTypes.London)
             {
-                // London mulligan: click SubmitButton to confirm card selection
-                foreach (var button in _browserButtons)
+                if (TryClickButtonByName(ButtonSubmit, out clickedLabel))
                 {
-                    if (button == null) continue;
-                    if (button.name == "SubmitButton")
-                    {
-                        var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Clicking SubmitButton: {button.name} -> '{buttonLabel}'");
-                        var result = UIActivator.SimulatePointerClick(button);
-                        if (result.Success)
-                        {
-                            _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                            return;
-                        }
-                    }
+                    _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                    return;
                 }
                 MelonLogger.Msg($"[BrowserNavigator] SubmitButton not found during London mulligan");
             }
 
-            if (isMulligan)
+            // For mulligan/opening hand, prioritize KeepButton
+            if (IsMulliganBrowser(_browserTypeName))
             {
-                // First: Look for KeepButton in our discovered buttons
-                foreach (var button in _browserButtons)
+                if (TryClickButtonByName(ButtonKeep, out clickedLabel))
                 {
-                    if (button == null) continue;
-                    if (button.name == "KeepButton")
-                    {
-                        var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Clicking KeepButton: {button.name} -> '{buttonLabel}'");
-                        var result = UIActivator.SimulatePointerClick(button);
-                        if (result.Success)
-                        {
-                            _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                            return;
-                        }
-                    }
-                }
-
-                // Second: Search scene for KeepButton
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-                {
-                    if (go == null || !go.activeInHierarchy) continue;
-                    if (go.name == "KeepButton")
-                    {
-                        var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Found KeepButton in scene: {go.name} -> '{buttonLabel}'");
-                        var result = UIActivator.SimulatePointerClick(go);
-                        if (result.Success)
-                        {
-                            _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                            return;
-                        }
-                    }
+                    _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                    return;
                 }
                 MelonLogger.Msg($"[BrowserNavigator] KeepButton not found during mulligan");
             }
 
-            // For non-mulligan browsers: PromptButton_Primary first
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            // Try PromptButton_Primary
+            if (TryClickPromptButton(PromptButtonPrimaryPrefix, out clickedLabel))
             {
-                if (go == null || !go.activeInHierarchy) continue;
-                if (go.name.StartsWith("PromptButton_Primary"))
-                {
-                    var selectable = go.GetComponent<Selectable>();
-                    if (selectable != null && !selectable.interactable) continue;
-
-                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                    MelonLogger.Msg($"[BrowserNavigator] Found PromptButton_Primary: {go.name} -> '{buttonLabel}'");
-                    var result = UIActivator.SimulatePointerClick(go);
-                    if (result.Success)
-                    {
-                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                        return;
-                    }
-                }
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                return;
             }
 
-            // Fallback: browser-specific buttons by name pattern (KeepButton, etc.)
-            var confirmPatterns = new[] { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary" };
-            foreach (var button in _browserButtons)
+            // Fallback: browser-specific buttons by name pattern
+            if (TryClickButtonByPatterns(ConfirmPatterns, out clickedLabel))
             {
-                if (button == null) continue;
-                var name = button.name.ToLower();
-                foreach (var pattern in confirmPatterns)
-                {
-                    if (name.Contains(pattern.ToLower()))
-                    {
-                        var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Clicking confirm: {button.name} ('{buttonLabel}')");
-                        var result = UIActivator.SimulatePointerClick(button);
-                        if (result.Success)
-                        {
-                            _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                            return;
-                        }
-                    }
-                }
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                return;
             }
 
             _announcer.Announce(Strings.NoConfirmButton, AnnouncementPriority.Normal);
@@ -1919,130 +2081,27 @@ namespace MTGAAccessibility.Core.Services
         {
             MelonLogger.Msg($"[BrowserNavigator] ClickCancelButton called. Browser: {_browserTypeName}, Buttons: {_browserButtons.Count}");
 
-            // Debug: Log all buttons in _browserButtons
-            MelonLogger.Msg($"[BrowserNavigator] === CANCEL BUTTON DEBUG ===");
-            for (int i = 0; i < _browserButtons.Count; i++)
-            {
-                var btn = _browserButtons[i];
-                if (btn == null)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator]   Button[{i}]: NULL");
-                }
-                else
-                {
-                    string btnText = UITextExtractor.GetButtonText(btn, btn.name);
-                    MelonLogger.Msg($"[BrowserNavigator]   Button[{i}]: '{btn.name}' -> '{btnText}'");
-                }
-            }
-            MelonLogger.Msg($"[BrowserNavigator] === END CANCEL BUTTON DEBUG ===");
+            string clickedLabel;
 
-            // For mulligan/opening hand, prioritize MulliganButton
-            bool isMulligan = _browserTypeName == "Mulligan" || _browserTypeName == "OpeningHand";
-            if (isMulligan)
+            // First priority: MulliganButton (for mulligan browsers)
+            if (TryClickButtonByName(ButtonMulligan, out clickedLabel))
             {
-                MelonLogger.Msg($"[BrowserNavigator] Mulligan mode - looking for MulliganButton");
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                return;
             }
 
-            // First priority: Look for exact MulliganButton (not MulliganRulesButton!)
-            foreach (var button in _browserButtons)
+            // Second priority: other cancel buttons by pattern
+            if (TryClickButtonByPatterns(CancelPatterns, out clickedLabel))
             {
-                if (button == null) continue;
-                if (button.name == "MulliganButton")
-                {
-                    var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
-                    MelonLogger.Msg($"[BrowserNavigator] Clicking MulliganButton: {button.name} ('{buttonLabel}')");
-                    var result = UIActivator.SimulatePointerClick(button);
-                    if (result.Success)
-                    {
-                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                        return;
-                    }
-                    else
-                    {
-                        MelonLogger.Msg($"[BrowserNavigator] MulliganButton click failed: {result.Message}");
-                    }
-                }
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                return;
             }
 
-            // Second priority: Look for MulliganButton directly in scene (may not be in _browserButtons)
-            MelonLogger.Msg($"[BrowserNavigator] Searching scene for MulliganButton...");
-            int mulliganCandidates = 0;
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            // Third priority: PromptButton_Secondary
+            if (TryClickPromptButton(PromptButtonSecondaryPrefix, out clickedLabel))
             {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                // Log any button with "Mulligan" in name for debugging
-                if (go.name.Contains("Mulligan"))
-                {
-                    mulliganCandidates++;
-                    MelonLogger.Msg($"[BrowserNavigator] Scene object with 'Mulligan': {go.name} (active: {go.activeInHierarchy})");
-                }
-
-                if (go.name == "MulliganButton")
-                {
-                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                    MelonLogger.Msg($"[BrowserNavigator] Found exact MulliganButton in scene: {go.name} -> '{buttonLabel}'");
-                    var result = UIActivator.SimulatePointerClick(go);
-                    if (result.Success)
-                    {
-                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                        return;
-                    }
-                    else
-                    {
-                        MelonLogger.Msg($"[BrowserNavigator] Click failed on MulliganButton: {result.Message}");
-                    }
-                }
-            }
-            MelonLogger.Msg($"[BrowserNavigator] Scene search found {mulliganCandidates} Mulligan-related objects");
-
-            // Third priority: other browser-specific cancel buttons (Cancel, No, etc.)
-            var cancelPatterns = new[] { "Cancel", "No", "Back", "Close", "Secondary" };
-            foreach (var button in _browserButtons)
-            {
-                if (button == null) continue;
-                var name = button.name.ToLower();
-                foreach (var pattern in cancelPatterns)
-                {
-                    if (name.Contains(pattern.ToLower()))
-                    {
-                        var buttonLabel = UITextExtractor.GetButtonText(button, button.name);
-                        MelonLogger.Msg($"[BrowserNavigator] Clicking cancel (browser button): {button.name} ('{buttonLabel}')");
-                        var result = UIActivator.SimulatePointerClick(button);
-                        if (result.Success)
-                        {
-                            _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                            return;
-                        }
-                    }
-                }
-            }
-
-            // Fourth priority: PromptButton_Secondary (general fallback)
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy) continue;
-                if (go.name.StartsWith("PromptButton_Secondary"))
-                {
-                    var selectable = go.GetComponent<Selectable>();
-                    if (selectable != null && !selectable.interactable) continue;
-
-                    var buttonLabel = UITextExtractor.GetButtonText(go, go.name);
-                    // Skip if it's just a keyboard hint (like "Strg" / "Ctrl")
-                    if (buttonLabel.Length <= 4 && !buttonLabel.Contains(" "))
-                    {
-                        MelonLogger.Msg($"[BrowserNavigator] Skipping PromptButton_Secondary with short text: '{buttonLabel}'");
-                        continue;
-                    }
-
-                    MelonLogger.Msg($"[BrowserNavigator] Found PromptButton_Secondary: {go.name} -> '{buttonLabel}'");
-                    var result = UIActivator.SimulatePointerClick(go);
-                    if (result.Success)
-                    {
-                        _announcer.Announce(buttonLabel, AnnouncementPriority.Normal);
-                        return;
-                    }
-                }
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                return;
             }
 
             // Not finding cancel is OK - some browsers don't have it
