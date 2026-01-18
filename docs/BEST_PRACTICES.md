@@ -296,12 +296,14 @@ var result = UIActivator.Activate(element);
 **Activation Order (in `Activate()`):**
 1. TMP_InputField → ActivateInputField()
 2. InputField → Select()
-3. Toggle → toggle.isOn = !toggle.isOn
-4. Button → onClick.Invoke()
-5. Child Button → onClick.Invoke()
-6. Clickable in hierarchy → SimulatePointerClick on child
-7. **CustomButton → SimulatePointerClick + TryInvokeCustomButtonOnClick**
+3. Toggle → toggle.isOn (with CustomButton handling if present)
+4. **CustomButton → SimulatePointerClick + TryInvokeCustomButtonOnClick** (checked BEFORE Button)
+5. Button → onClick.Invoke() (only if no CustomButton)
+6. Child Button → onClick.Invoke()
+7. Clickable in hierarchy → SimulatePointerClick on child
 8. Fallback → SimulatePointerClick
+
+**Why CustomButton before Button:** MTGA elements like Link_LogOut have BOTH Button and CustomButton components. The game logic responds to CustomButton pointer events, not Button.onClick. Checking CustomButton first ensures proper activation.
 
 **SimulatePointerClick() sequence (updated January 2026):**
 1. SetSelectedGameObject in EventSystem

@@ -143,7 +143,23 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
-            // Try Button
+            // Check for CustomButton BEFORE standard Button
+            // MTGA uses CustomButton for most interactions - the game logic responds to pointer events,
+            // not to Button.onClick. If element has CustomButton, use pointer simulation.
+            // This is critical for buttons like Link_LogOut that have both Button and CustomButton.
+            bool hasCustomButton = HasCustomButtonComponent(element);
+            if (hasCustomButton)
+            {
+                Log($"CustomButton detected (early check), trying pointer simulation first");
+                var pointerResult = SimulatePointerClick(element);
+
+                // Also try onClick reflection as additional handler
+                TryInvokeCustomButtonOnClick(element);
+
+                return pointerResult;
+            }
+
+            // Try standard Unity Button (only if no CustomButton)
             var button = element.GetComponent<Button>();
             if (button != null)
             {
@@ -169,23 +185,24 @@ namespace MTGAAccessibility.Core.Services
                 return SimulatePointerClick(clickableTarget);
             }
 
-            // For CustomButtons: Try pointer simulation FIRST
-            // The actual game logic (tab switching, deck selection, etc.) responds to pointer events,
-            // not to the onClick UnityEvent. onClick might only handle secondary effects like sounds.
-            bool hasCustomButton = HasCustomButtonComponent(element);
-            if (hasCustomButton)
+            // Special handling for SystemMessageButtonView (confirmation dialog buttons)
+            // These buttons need their OnClick method invoked directly
+            var systemMessageButton = FindComponentByName(element, "SystemMessageButtonView");
+            if (systemMessageButton != null)
             {
-                Log($"CustomButton detected, trying pointer simulation first");
-                var pointerResult = SimulatePointerClick(element);
-
-                // Also try onClick reflection as additional handler
-                // Some buttons (like HomeBanner) register handlers on onClick in addition to pointer events
-                TryInvokeCustomButtonOnClick(element);
-
-                return pointerResult;
+                Log($"SystemMessageButtonView detected, trying OnClick method");
+                if (TryInvokeMethod(systemMessageButton, "OnClick"))
+                {
+                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                }
+                // Also try OnButtonClicked pattern
+                if (TryInvokeMethod(systemMessageButton, "OnButtonClicked"))
+                {
+                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                }
             }
 
-            // For non-CustomButton elements, try onClick reflection then pointer fallback
+            // For non-CustomButton elements (CustomButton was handled earlier), try onClick reflection then pointer fallback
             var customButtonResult = TryInvokeCustomButtonOnClick(element);
             if (customButtonResult.Success)
             {
@@ -602,6 +619,51 @@ namespace MTGAAccessibility.Core.Services
             {
                 if (mb != null && mb.GetType().Name == "CustomButton")
                     return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Finds a MonoBehaviour component by type name.
+        /// </summary>
+        private static MonoBehaviour FindComponentByName(GameObject obj, string typeName)
+        {
+            foreach (var mb in obj.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == typeName)
+                    return mb;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Tries to invoke a parameterless method on a component by name.
+        /// </summary>
+        private static bool TryInvokeMethod(MonoBehaviour component, string methodName)
+        {
+            if (component == null) return false;
+
+            var type = component.GetType();
+            var method = type.GetMethod(methodName,
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance,
+                null,
+                System.Type.EmptyTypes,
+                null);
+
+            if (method != null)
+            {
+                try
+                {
+                    Log($"Invoking {type.Name}.{methodName}()");
+                    method.Invoke(component, null);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Error invoking {methodName}: {ex.InnerException?.Message ?? ex.Message}");
+                }
             }
             return false;
         }

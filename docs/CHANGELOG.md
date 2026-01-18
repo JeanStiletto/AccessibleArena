@@ -4,6 +4,42 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Logout Button Fix (UIActivator Order)
+
+Fixed logout button (Link_LogOut) and similar buttons not responding to Enter key.
+
+**Problem:**
+Buttons with BOTH `Button` and `CustomButton` components (like Link_LogOut, Link_Account) weren't activating properly. UIActivator found the standard Unity `Button` first and called `button.onClick.Invoke()`, but the actual action was on the `CustomButton` which responds to pointer events.
+
+**Solution:**
+Changed UIActivator to check for `CustomButton` BEFORE checking for standard `Button`. If an element has a CustomButton, it uses pointer simulation which properly triggers the game's action handlers.
+
+**Files:** `UIActivator.cs`, `BEST_PRACTICES.md`
+
+---
+
+### Confirmation Dialogs (SystemMessageView) - Partial Support
+
+Added detection and navigation for confirmation dialogs like "Exit Game" confirmation.
+
+**Features:**
+- SystemMessageView dialogs are detected and announced ("Confirmation opened.")
+- OK and Cancel buttons are navigable with arrow keys
+- Enter activates the selected button
+- OK button works correctly (exits game)
+
+**Known Issue:**
+Cancel button closes the popup visually, but mod navigation doesn't properly return to Settings menu. See KNOWN_ISSUES.md for details. Needs refactoring of panel hierarchy management.
+
+**Technical:**
+- Popup detection uses whitelist: `SystemMessageView` and `*Popup(Clone)` patterns
+- Verifies popup has active `SystemMessageButton` children before considering it open
+- Added cooldown mechanism to prevent re-detection during close animation
+
+**Files:** `MenuPanelTracker.cs`, `GeneralMenuNavigator.cs`, `UIActivator.cs`
+
+---
+
 ### F1 Help Menu - Navigable Keybind List
 
 Replaced the single-announcement F1 help with an interactive, navigable help menu.
