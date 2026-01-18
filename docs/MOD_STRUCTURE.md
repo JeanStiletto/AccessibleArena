@@ -60,6 +60,7 @@ C:\Users\fabia\arena\
 
         # Screen Navigators (all extend BaseNavigator)
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
+        AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
         WelcomeGateNavigator.cs      - Welcome/login choice screen
         LoginPanelNavigator.cs       - Email/password login screen
         CodeOfConductNavigator.cs    - Terms/consent checkboxes screen
@@ -99,6 +100,7 @@ C:\Users\fabia\arena\
 - [x] F1 Help Menu - Navigable keybind list (Up/Down navigation, Backspace/F1 to close)
 
 ### Screen Navigators
+- [?] AssetPrepNavigator - Download screen on fresh install (UNTESTED, fail-safe design)
 - [x] WelcomeGateNavigator - Login/Register choice screen
 - [x] LoginPanelNavigator - Email/password entry
 - [x] CodeOfConductNavigator - Terms/consent checkboxes

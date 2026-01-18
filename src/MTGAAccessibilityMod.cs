@@ -88,7 +88,8 @@ namespace MTGAAccessibility
                 new DuelNavigator(_announcer),
                 new CodeOfConductNavigator(_announcer),
                 new GeneralMenuNavigator(_announcer),
-                new EventTriggerNavigator(_announcer)
+                new EventTriggerNavigator(_announcer),
+                new AssetPrepNavigator(_announcer)  // Download screen - low priority, fails gracefully
             );
 
             // Subscribe to focus changes for automatic card navigation
