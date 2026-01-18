@@ -4,6 +4,34 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### F1 Help Menu - Navigable Keybind List
+
+Replaced the single-announcement F1 help with an interactive, navigable help menu.
+
+**Features:**
+- F1 toggles help menu open/closed
+- Up/Down arrows (or W/S) navigate through keybind items
+- Home/End jump to first/last item
+- Backspace or F1 closes the menu
+- Blocks all other input while open (modal overlay)
+
+**Content Organization:**
+- Global shortcuts
+- Menu navigation
+- Zones in duel (combined entries: "C: Your hand, Shift+C: Opponent hand count")
+- Duel information
+- Card navigation in zone
+- Card details
+- Combat
+- Browser (Scry, Surveil, Mulligan)
+
+**Localization:**
+All help strings are in `Core/Models/Strings.cs` ready for future translation.
+
+**Files:** `HelpNavigator.cs` (new), `Strings.cs`, `MTGAAccessibilityMod.cs`
+
+---
+
 ### Unified Navigation Paradigm - Arrow Keys for Menus
 
 Changed menu navigation from Tab/Shift+Tab to Arrow Up/Down with WASD alternatives for improved consistency with screen reader conventions.

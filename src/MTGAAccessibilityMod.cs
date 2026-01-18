@@ -23,6 +23,7 @@ namespace MTGAAccessibility
         private UIFocusTracker _focusTracker;
         private CardInfoNavigator _cardInfoNavigator;
         private NavigatorManager _navigatorManager;
+        private HelpNavigator _helpNavigator;
 
         private bool _initialized;
 
@@ -75,6 +76,7 @@ namespace MTGAAccessibility
             _inputHandler = new InputManager(_shortcuts, _contextManager, _announcer);
             _focusTracker = new UIFocusTracker(_announcer);
             _cardInfoNavigator = new CardInfoNavigator(_announcer);
+            _helpNavigator = new HelpNavigator(_announcer);
 
             // Initialize navigator manager with all screen navigators
             _navigatorManager = new NavigatorManager();
@@ -153,9 +155,14 @@ namespace MTGAAccessibility
 
         private void RegisterGlobalShortcuts()
         {
-            _shortcuts.RegisterShortcut(KeyCode.F1, AnnounceHelp, "Help - list shortcuts");
+            _shortcuts.RegisterShortcut(KeyCode.F1, ToggleHelpMenu, "Help menu");
             _shortcuts.RegisterShortcut(KeyCode.R, KeyCode.LeftControl, RepeatLastAnnouncement, "Repeat last announcement");
             _shortcuts.RegisterShortcut(KeyCode.F2, AnnounceCurrentContext, "Announce current screen");
+        }
+
+        private void ToggleHelpMenu()
+        {
+            _helpNavigator?.Toggle();
         }
 
         private void RegisterContexts()
@@ -167,57 +174,6 @@ namespace MTGAAccessibility
             _contextManager.RegisterContext(GameContext.MainMenu, mainMenuContext);
 
             LoggerInstance.Msg("Contexts registered: Login, MainMenu");
-        }
-
-        private void AnnounceHelp()
-        {
-            var helpText = new System.Text.StringBuilder();
-
-            helpText.Append("Keyboard shortcuts. ");
-
-            // Global
-            helpText.Append("Global: ");
-            helpText.Append("F1 Help. ");
-            helpText.Append("F2 Current screen. ");
-            helpText.Append("Control plus R Repeat last. ");
-
-            // Navigation
-            helpText.Append("Navigation: ");
-            helpText.Append("Tab Next item. ");
-            helpText.Append("Shift plus Tab Previous item. ");
-            helpText.Append("Enter or Space Activate. ");
-
-            // Zone shortcuts
-            helpText.Append("Your zones: ");
-            helpText.Append("C Hand. ");
-            helpText.Append("B Battlefield. ");
-            helpText.Append("G Graveyard. ");
-            helpText.Append("X Exile. ");
-            helpText.Append("S Stack. ");
-
-            // Opponent zones
-            helpText.Append("Opponent zones: ");
-            helpText.Append("Shift plus G Graveyard. ");
-            helpText.Append("Shift plus X Exile. ");
-
-            // Info shortcuts
-            helpText.Append("Info: ");
-            helpText.Append("L Life totals. ");
-            helpText.Append("T Turn and phase. ");
-            helpText.Append("V Player info zone. ");
-
-            // Card navigation in zone
-            helpText.Append("Cards in zone: ");
-            helpText.Append("Left arrow Previous card. ");
-            helpText.Append("Right arrow Next card. ");
-            helpText.Append("Enter Play or activate card. ");
-
-            // Card details
-            helpText.Append("Card details: ");
-            helpText.Append("Down arrow Next detail. ");
-            helpText.Append("Up arrow Previous detail.");
-
-            _announcer.AnnounceInterrupt(helpText.ToString());
         }
 
         private void RepeatLastAnnouncement()
@@ -307,6 +263,13 @@ namespace MTGAAccessibility
         {
             if (!_initialized)
                 return;
+
+            // Help menu has highest priority - blocks all other input when active
+            if (_helpNavigator != null && _helpNavigator.IsActive)
+            {
+                _helpNavigator.HandleInput();
+                return;
+            }
 
             // Card navigation handles arrow keys when active, but allows other input through
             if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)

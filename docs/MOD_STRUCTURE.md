@@ -39,6 +39,7 @@ C:\Users\fabia\arena\
         DiscardNavigator.cs      - Discard selection when forced to discard
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
+        HelpNavigator.cs         - F1 help menu with navigable keybind list
 
         # Browser Navigation (library manipulation - scry, surveil, mulligan)
         BrowserDetector.cs       - Static browser detection and caching
@@ -95,6 +96,7 @@ C:\Users\fabia\arena\
 - [x] Core framework (interfaces, services, base classes)
 - [x] Scene detection (Bootstrap, AssetPrep, Login)
 - [x] UI Focus tracking via EventSystem polling
+- [x] F1 Help Menu - Navigable keybind list (Up/Down navigation, Backspace/F1 to close)
 
 ### Screen Navigators
 - [x] WelcomeGateNavigator - Login/Register choice screen

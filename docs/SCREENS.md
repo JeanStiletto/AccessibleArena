@@ -2,6 +2,31 @@
 
 Quick reference for special screens requiring custom navigation.
 
+## Global Overlay
+
+### Help Menu
+**Navigator:** `HelpNavigator`
+**Trigger:** F1 key (toggle)
+
+Modal overlay that blocks all other input while active. Displays navigable list of all keyboard shortcuts organized by category.
+
+**Navigation:**
+- Up/Down arrows (or W/S): Navigate through help items
+- Home/End: Jump to first/last item
+- Backspace or F1: Close menu
+
+**Categories:**
+- Global shortcuts
+- Menu navigation
+- Zones in duel (combined yours/opponent entries)
+- Duel information
+- Card navigation in zone
+- Card details
+- Combat
+- Browser (Scry, Surveil, Mulligan)
+
+All strings are localization-ready in `Core/Models/Strings.cs`.
+
 ## Login Flow
 
 ### WelcomeGate Screen

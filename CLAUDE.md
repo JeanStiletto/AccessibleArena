@@ -119,7 +119,8 @@ Left/Right (Navigate), Home/End (Jump to first/last)
 Enter (Toggle card), Space (Submit)
 
 **Global:**
-F1 (Help), F2 (Context), Ctrl+R (Repeat)
+F1 (Help Menu - navigable with Up/Down, close with Backspace or F1)
+F2 (Context), Ctrl+R (Repeat)
 Backspace (Back/Dismiss/Cancel - universal)
 
 Do NOT override: Tab (used for duel highlights), Enter, Escape

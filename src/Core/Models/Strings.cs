@@ -250,6 +250,70 @@ namespace MTGAAccessibility.Core.Models
         public static string ManaHybrid(string color1, string color2) => $"{color1} or {color2}";
 
         // ===========================================
+        // HELP MENU
+        // ===========================================
+        public const string HelpMenuTitle = "Help Menu";
+        public const string HelpMenuInstructions = "Arrow Up and Down to navigate, Backspace or F1 to close";
+        public static string HelpItemPosition(int index, int total, string text) => $"{index} of {total}: {text}";
+        public const string HelpMenuClosed = "Help closed";
+
+        // Help categories
+        public const string HelpCategoryGlobal = "Global shortcuts";
+        public const string HelpCategoryMenuNavigation = "Menu navigation";
+        public const string HelpCategoryDuelZones = "Zones in duel";
+        public const string HelpCategoryDuelInfo = "Duel information";
+        public const string HelpCategoryCardNavigation = "Card navigation in zone";
+        public const string HelpCategoryCardDetails = "Card details";
+        public const string HelpCategoryCombat = "Combat";
+        public const string HelpCategoryBrowser = "Browser (Scry, Surveil, Mulligan)";
+
+        // Global shortcuts
+        public const string HelpF1Help = "F1: Help menu";
+        public const string HelpF2Context = "F2: Current screen";
+        public const string HelpCtrlRRepeat = "Control plus R: Repeat last announcement";
+        public const string HelpBackspace = "Backspace: Back, dismiss, or cancel";
+
+        // Menu navigation
+        public const string HelpArrowUpDown = "Arrow Up or Down: Navigate menu items";
+        public const string HelpArrowLeftRight = "Arrow Left or Right: Carousel and stepper controls";
+        public const string HelpHomeEnd = "Home or End: Jump to first or last item";
+        public const string HelpEnterSpace = "Enter or Space: Activate";
+
+        // Zones (yours and opponent)
+        public const string HelpCHand = "C: Your hand, Shift plus C: Opponent hand count";
+        public const string HelpBBattlefield = "B: Your creatures, Shift plus B: Opponent creatures";
+        public const string HelpALands = "A: Your lands, Shift plus A: Opponent lands";
+        public const string HelpRNonCreatures = "R: Your non-creatures, Shift plus R: Opponent non-creatures";
+        public const string HelpGGraveyard = "G: Your graveyard, Shift plus G: Opponent graveyard";
+        public const string HelpXExile = "X: Your exile, Shift plus X: Opponent exile";
+        public const string HelpSStack = "S: Stack";
+        public const string HelpDLibrary = "D: Your library count, Shift plus D: Opponent library count";
+
+        // Duel info
+        public const string HelpLLifeTotals = "L: Life totals";
+        public const string HelpTTurnPhase = "T: Turn and phase";
+        public const string HelpVPlayerInfo = "V: Player info zone";
+
+        // Card navigation
+        public const string HelpLeftRightCards = "Left or Right arrow: Previous or next card";
+        public const string HelpHomeEndCards = "Home or End: First or last card";
+        public const string HelpEnterPlay = "Enter: Play or activate card";
+        public const string HelpTabTargets = "Tab: Cycle through targets or playable cards";
+
+        // Card details
+        public const string HelpUpDownDetails = "Up or Down arrow: Navigate card details";
+
+        // Combat
+        public const string HelpFSpaceCombat = "F or Space: Confirm attackers or blockers";
+        public const string HelpBackspaceCombat = "Backspace: No attacks or cancel blocks";
+
+        // Browser
+        public const string HelpTabBrowser = "Tab: Navigate all cards";
+        public const string HelpCDZones = "C or D: Jump to keep or bottom zone";
+        public const string HelpEnterToggle = "Enter: Toggle card between zones";
+        public const string HelpSpaceConfirm = "Space: Confirm selection";
+
+        // ===========================================
         // BROWSER (Scry, Surveil, Mulligan, etc.)
         // ===========================================
         public const string NoCards = "No cards";
