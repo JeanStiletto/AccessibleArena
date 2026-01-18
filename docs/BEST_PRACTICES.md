@@ -1221,6 +1221,101 @@ May extract unintended sibling text in some cases.
 4. Tab to find "Play" button and deck selection
 5. Press Enter on Play to start the match
 
+## Browser Card Interactions (CardGroupProvider Pattern)
+
+**Added January 2026:**
+
+Some browser UIs (like London mulligan) don't respond to standard click simulation. Their cards require
+drag-based interaction. The solution is to access the browser's internal API via `CardGroupProvider`.
+
+### Pattern Overview
+
+1. Find the browser holder (e.g., `BrowserCardHolder_Default`)
+2. Get `CardBrowserCardHolder` component
+3. Access `CardGroupProvider` property (returns browser instance like `LondonBrowser`)
+4. Use browser's internal methods for card manipulation
+
+### Getting the Browser Instance
+
+```csharp
+// Find holder and get browser instance
+var holder = FindActiveGameObject("BrowserCardHolder_Default");
+Component cardBrowserHolder = holder.GetComponents<Component>()
+    .FirstOrDefault(c => c.GetType().Name == "CardBrowserCardHolder");
+
+var providerProp = cardBrowserHolder.GetType().GetProperty("CardGroupProvider",
+    BindingFlags.Public | BindingFlags.Instance);
+var browser = providerProp?.GetValue(cardBrowserHolder);
+// browser is now LondonBrowser, ScryBrowser, etc.
+```
+
+### Common Browser Methods (via reflection)
+
+**Card Lists:**
+- `GetHandCards()` - Returns cards in "keep" pile (hand group)
+- `GetLibraryCards()` - Returns cards in "bottom" pile (library group)
+
+**Card Position Check:**
+- `IsInHand(DuelScene_CDC card)` - True if card is in keep pile
+- `IsInLibrary(DuelScene_CDC card)` - True if card is in bottom pile
+- `CanChangeZones(DuelScene_CDC card)` - True if card can be moved
+
+**Zone Positions:**
+- `HandScreenSpace` (Vector2) - Screen position of keep pile
+- `LibraryScreenSpace` (Vector2) - Screen position of bottom pile
+
+**Card Movement (Drag Simulation):**
+```csharp
+// 1. Get target position (opposite of current zone)
+var targetProp = browser.GetType().GetProperty(isInHand ? "LibraryScreenSpace" : "HandScreenSpace");
+var targetPos = (Vector2)targetProp.GetValue(browser);
+
+// 2. Move card transform to target position
+Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(targetPos.x, targetPos.y, 10f));
+card.transform.position = worldPos;
+
+// 3. Invoke drag methods
+var handleDrag = browser.GetType().GetMethod("HandleDrag");
+var onDragRelease = browser.GetType().GetMethod("OnDragRelease");
+handleDrag.Invoke(browser, new object[] { cardCDC });
+onDragRelease.Invoke(browser, new object[] { cardCDC });
+```
+
+### Filtering Invalid Cards
+
+Browser card lists may include placeholder cards (CDC #0). Filter these out:
+
+```csharp
+foreach (var cardCDC in handCards)
+{
+    if (cardCDC is Component comp && comp.gameObject != null)
+    {
+        var cardName = CardDetector.GetCardName(comp.gameObject);
+        // Skip placeholders
+        if (!string.IsNullOrEmpty(cardName) &&
+            cardName != "Unknown card" &&
+            !comp.gameObject.name.Contains("CDC #0"))
+        {
+            validCards.Add(comp.gameObject);
+        }
+    }
+}
+```
+
+### When to Use This Pattern
+
+Use the CardGroupProvider pattern when:
+- Standard click simulation (`UIActivator.SimulatePointerClick`) doesn't work
+- Cards are in a browser context (scry, surveil, London mulligan, etc.)
+- Cards need to be moved between visual zones/piles
+
+**Known Working:**
+- London Mulligan (`LondonBrowser`) - keep/bottom pile selection
+
+**Potentially Applicable (untested):**
+- Scry/Surveil reordering
+- Other card browsers with drag-based interaction
+
 ## Common Gotchas
 
 - MelonGame attribute is case sensitive: `"Wizards Of The Coast"`

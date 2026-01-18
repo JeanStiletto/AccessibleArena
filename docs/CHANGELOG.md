@@ -4,6 +4,35 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### London Mulligan - Full Keyboard Support
+
+Implemented full keyboard accessibility for London mulligan (putting cards on bottom of library after mulliganing).
+
+**User Experience:**
+- **C** - Enter keep pile (cards you're keeping), navigate with Left/Right
+- **D** - Enter bottom pile (cards going to bottom), navigate with Left/Right
+- **Enter** - Toggle current card between keep and bottom piles
+- **Up/Down** - Card details (as usual)
+- **Space** - Confirm selection
+
+**Technical Discovery:**
+The London mulligan browser uses internal drag-based card selection that doesn't respond to standard click simulation. Key discovery was the `LondonBrowser` instance accessible via `BrowserCardHolder_Default.CardGroupProvider`.
+
+**Implementation:**
+1. Get `LondonBrowser` from holder's `CardGroupProvider` property
+2. Use `GetHandCards()` / `GetLibraryCards()` for card lists
+3. Use `IsInHand()` / `IsInLibrary()` to check card position
+4. Move card by: positioning at target zone (`LibraryScreenSpace` / `HandScreenSpace`), then calling `HandleDrag(cardCDC)` + `OnDragRelease(cardCDC)`
+
+**New Pattern - Browser Card Interactions:**
+This establishes a pattern for interacting with browser cards that don't respond to standard UI clicks. The browser's `CardGroupProvider` exposes the internal API for card manipulation. This pattern may be reusable for other browser types (scry, surveil reordering, etc.).
+
+**Files:** `BrowserNavigator.cs`
+
+**Note:** Code works but needs significant refactoring - investigation/debugging code still present, duplication between methods.
+
+---
+
 ### Card Info: Mana Symbols, Flavor Text, and Artist
 
 Enhanced card information display with proper mana symbol parsing and new metadata fields.

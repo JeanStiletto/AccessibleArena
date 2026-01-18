@@ -88,6 +88,7 @@ Combat (Declare Blockers): F (Confirm Blocks / Next), Backspace (No Blocks / Can
 Main Phase: Space (Next / To Combat / Pass - clicks primary button)
 Targeting: Tab (Cycle targets), Enter (Select), Backspace (Cancel)
 Browser (Scry/Surveil/etc.): Tab/Arrows (Navigate), Enter (Activate), Space (Confirm), Backspace (Cancel)
+London Mulligan: C (Keep pile), D (Bottom pile), Left/Right (Navigate), Enter (Toggle card), Space (Submit)
 Global: F1 (Help), F2 (Context), Ctrl+R (Repeat), Backspace (Back/Dismiss/Cancel - universal)
 
 Do NOT override: Tab, Enter, Escape

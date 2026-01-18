@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
@@ -25,6 +26,17 @@ namespace MTGAAccessibility.Core.Services
         private object _activeBrowser;
         private string _browserTypeName;
         private GameObject _browserGameObject;
+
+        // London mulligan tracking
+        private int _mulliganCount = 0;
+        private HashSet<int> _londonSelectedCards = new HashSet<int>();
+
+        // London zone navigation (hand = keep, library = bottom)
+        private enum LondonZone { Hand, Library }
+        private LondonZone _londonCurrentZone = LondonZone.Hand;
+        private List<GameObject> _londonHandCards = new List<GameObject>();
+        private List<GameObject> _londonLibraryCards = new List<GameObject>();
+        private int _londonCardIndex = -1;
 
         // Card navigation
         private List<GameObject> _browserCards = new List<GameObject>();
@@ -319,6 +331,16 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         public string ActiveBrowserType => _browserTypeName;
 
+        /// <summary>
+        /// Resets mulligan tracking state. Call when entering a new duel.
+        /// </summary>
+        public void ResetMulliganState()
+        {
+            _mulliganCount = 0;
+            _londonSelectedCards.Clear();
+            MelonLogger.Msg("[BrowserNavigator] Mulligan state reset for new game");
+        }
+
         private float _lastSearchLogTime = 0f;
 
         /// <summary>
@@ -455,6 +477,32 @@ namespace MTGAAccessibility.Core.Services
                 _hasAnnouncedEntry = true;
             }
 
+            // C key - Enter hand (keep) zone in London browser, or activate card in other browsers
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                if (_browserTypeName == BrowserTypes.London)
+                {
+                    EnterLondonZone(LondonZone.Hand);
+                    return true;
+                }
+                // For non-London browsers, C activates current card (like Enter)
+                if (_browserCards.Count > 0 && _currentCardIndex >= 0)
+                {
+                    ActivateCurrentCard();
+                    return true;
+                }
+            }
+
+            // D key - Enter library (bottom) zone in London browser
+            if (Input.GetKeyDown(KeyCode.D))
+            {
+                if (_browserTypeName == BrowserTypes.London)
+                {
+                    EnterLondonZone(LondonZone.Library);
+                    return true;
+                }
+            }
+
             // Tab / Shift+Tab - cycle through items
             if (Input.GetKeyDown(KeyCode.Tab))
             {
@@ -476,12 +524,24 @@ namespace MTGAAccessibility.Core.Services
             // Left/Right arrows - card/button navigation
             if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
+                // In London zone mode, use London navigation
+                if (_browserTypeName == BrowserTypes.London && _londonCardIndex >= 0)
+                {
+                    NavigateLondonPrevious();
+                    return true;
+                }
                 if (_browserCards.Count > 0) NavigateToPreviousCard();
                 else if (_browserButtons.Count > 0) NavigateToPreviousButton();
                 return true;
             }
             if (Input.GetKeyDown(KeyCode.RightArrow))
             {
+                // In London zone mode, use London navigation
+                if (_browserTypeName == BrowserTypes.London && _londonCardIndex >= 0)
+                {
+                    NavigateLondonNext();
+                    return true;
+                }
                 if (_browserCards.Count > 0) NavigateToNextCard();
                 else if (_browserButtons.Count > 0) NavigateToNextButton();
                 return true;
@@ -505,6 +565,12 @@ namespace MTGAAccessibility.Core.Services
             // Enter - activate current card or button
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                // In London zone mode, use London activation
+                if (_browserTypeName == BrowserTypes.London && _londonCardIndex >= 0)
+                {
+                    ActivateCurrentLondonCard();
+                    return true;
+                }
                 if (_browserCards.Count > 0 && _currentCardIndex >= 0)
                 {
                     ActivateCurrentCard();
@@ -845,6 +911,20 @@ namespace MTGAAccessibility.Core.Services
 
             MelonLogger.Msg($"[BrowserNavigator] Entering browser: {_browserTypeName}");
 
+            // Reset London selection state when entering London browser
+            if (_browserTypeName == BrowserTypes.London)
+            {
+                _londonSelectedCards.Clear();
+                _londonCurrentZone = LondonZone.Hand;
+                _londonHandCards.Clear();
+                _londonLibraryCards.Clear();
+                _londonCardIndex = -1;
+                MelonLogger.Msg($"[BrowserNavigator] London mulligan: need to select {_mulliganCount} cards for bottom");
+
+                // Investigation: Log browser holder components to find card selection APIs
+                InvestigateBrowserHolders();
+            }
+
             // Discover cards and buttons
             DiscoverBrowserElements();
         }
@@ -855,6 +935,14 @@ namespace MTGAAccessibility.Core.Services
         private void ExitBrowserMode()
         {
             MelonLogger.Msg($"[BrowserNavigator] Exiting browser: {_browserTypeName}");
+
+            // Reset mulligan count after London phase completes
+            if (_browserTypeName == BrowserTypes.London)
+            {
+                MelonLogger.Msg($"[BrowserNavigator] London phase complete, resetting mulligan count");
+                _mulliganCount = 0;
+                _londonSelectedCards.Clear();
+            }
 
             _isActive = false;
             _activeBrowser = null;
@@ -871,6 +959,687 @@ namespace MTGAAccessibility.Core.Services
 
             // Notify DuelAnnouncer
             DuelAnnouncer.Instance?.OnLibraryBrowserClosed();
+        }
+
+        /// <summary>
+        /// Enters a specific zone in London mulligan (hand = keep, library = bottom).
+        /// Refreshes card lists from LondonBrowser and announces state.
+        /// </summary>
+        private void EnterLondonZone(LondonZone zone)
+        {
+            _londonCurrentZone = zone;
+            _londonCardIndex = -1;
+
+            // Refresh card lists from LondonBrowser
+            RefreshLondonCardLists();
+
+            var currentList = zone == LondonZone.Hand ? _londonHandCards : _londonLibraryCards;
+            string zoneName = zone == LondonZone.Hand ? "Keep pile" : "Bottom pile";
+
+            if (currentList.Count == 0)
+            {
+                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.High);
+            }
+            else
+            {
+                // Navigate to first card
+                _londonCardIndex = 0;
+                var firstCard = currentList[0];
+                var cardName = CardDetector.GetCardName(firstCard);
+                _announcer.Announce($"{zoneName}: {currentList.Count} cards. {cardName}, 1 of {currentList.Count}", AnnouncementPriority.High);
+
+                // Update CardInfoNavigator with this card
+                var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+                cardNav?.PrepareForCard(firstCard, ZoneType.Library);
+            }
+
+            MelonLogger.Msg($"[BrowserNavigator] Entered London zone: {zoneName}, {currentList.Count} cards");
+        }
+
+        /// <summary>
+        /// Refreshes the London hand and library card lists from the LondonBrowser.
+        /// </summary>
+        private void RefreshLondonCardLists()
+        {
+            _londonHandCards.Clear();
+            _londonLibraryCards.Clear();
+
+            try
+            {
+                var defaultHolder = FindActiveGameObject(HolderDefault);
+                if (defaultHolder == null) return;
+
+                Component cardBrowserHolder = null;
+                foreach (var comp in defaultHolder.GetComponents<Component>())
+                {
+                    if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                    {
+                        cardBrowserHolder = comp;
+                        break;
+                    }
+                }
+                if (cardBrowserHolder == null) return;
+
+                var providerProp = cardBrowserHolder.GetType().GetProperty("CardGroupProvider",
+                    BindingFlags.Public | BindingFlags.Instance);
+                var londonBrowser = providerProp?.GetValue(cardBrowserHolder);
+                if (londonBrowser == null) return;
+
+                // Get hand cards (keep pile)
+                var getHandCardsMethod = londonBrowser.GetType().GetMethod("GetHandCards",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (getHandCardsMethod != null)
+                {
+                    var handCards = getHandCardsMethod.Invoke(londonBrowser, null) as System.Collections.IList;
+                    if (handCards != null)
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator] GetHandCards returned {handCards.Count} items");
+                        foreach (var cardCDC in handCards)
+                        {
+                            if (cardCDC is Component comp && comp.gameObject != null)
+                            {
+                                var go = comp.gameObject;
+                                var cardName = CardDetector.GetCardName(go);
+                                MelonLogger.Msg($"[BrowserNavigator] Hand card: {go.name} -> {cardName}");
+
+                                // Filter out placeholder cards (CDC #0 or invalid)
+                                if (!string.IsNullOrEmpty(cardName) && cardName != "Unknown card" && !go.name.Contains("CDC #0"))
+                                {
+                                    _londonHandCards.Add(go);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Get library cards (bottom pile)
+                var getLibraryCardsMethod = londonBrowser.GetType().GetMethod("GetLibraryCards",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (getLibraryCardsMethod != null)
+                {
+                    var libraryCards = getLibraryCardsMethod.Invoke(londonBrowser, null) as System.Collections.IList;
+                    if (libraryCards != null)
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator] GetLibraryCards returned {libraryCards.Count} items");
+                        foreach (var cardCDC in libraryCards)
+                        {
+                            if (cardCDC is Component comp && comp.gameObject != null)
+                            {
+                                var go = comp.gameObject;
+                                var cardName = CardDetector.GetCardName(go);
+                                MelonLogger.Msg($"[BrowserNavigator] Library card: {go.name} -> {cardName}");
+
+                                // Filter out placeholder cards (CDC #0 or invalid)
+                                if (!string.IsNullOrEmpty(cardName) && cardName != "Unknown card" && !go.name.Contains("CDC #0"))
+                                {
+                                    _londonLibraryCards.Add(go);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Refreshed London lists - Hand: {_londonHandCards.Count}, Library: {_londonLibraryCards.Count}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[BrowserNavigator] Error refreshing London card lists: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Navigates to the next card in the current London zone.
+        /// </summary>
+        private void NavigateLondonNext()
+        {
+            var currentList = _londonCurrentZone == LondonZone.Hand ? _londonHandCards : _londonLibraryCards;
+            if (currentList.Count == 0) return;
+
+            _londonCardIndex++;
+            if (_londonCardIndex >= currentList.Count)
+                _londonCardIndex = 0;
+
+            AnnounceCurrentLondonCard();
+        }
+
+        /// <summary>
+        /// Navigates to the previous card in the current London zone.
+        /// </summary>
+        private void NavigateLondonPrevious()
+        {
+            var currentList = _londonCurrentZone == LondonZone.Hand ? _londonHandCards : _londonLibraryCards;
+            if (currentList.Count == 0) return;
+
+            _londonCardIndex--;
+            if (_londonCardIndex < 0)
+                _londonCardIndex = currentList.Count - 1;
+
+            AnnounceCurrentLondonCard();
+        }
+
+        /// <summary>
+        /// Announces the current card in London zone navigation.
+        /// </summary>
+        private void AnnounceCurrentLondonCard()
+        {
+            var currentList = _londonCurrentZone == LondonZone.Hand ? _londonHandCards : _londonLibraryCards;
+            if (_londonCardIndex < 0 || _londonCardIndex >= currentList.Count) return;
+
+            var card = currentList[_londonCardIndex];
+            var cardName = CardDetector.GetCardName(card);
+            string zoneName = _londonCurrentZone == LondonZone.Hand ? "keep" : "bottom";
+
+            _announcer.Announce($"{cardName}, {zoneName}, {_londonCardIndex + 1} of {currentList.Count}", AnnouncementPriority.High);
+
+            // Update CardInfoNavigator
+            var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+            cardNav?.PrepareForCard(card, ZoneType.Library);
+        }
+
+        /// <summary>
+        /// Activates (toggles) the current card in London zone navigation.
+        /// Moves the card to the other zone.
+        /// </summary>
+        private void ActivateCurrentLondonCard()
+        {
+            var currentList = _londonCurrentZone == LondonZone.Hand ? _londonHandCards : _londonLibraryCards;
+            if (_londonCardIndex < 0 || _londonCardIndex >= currentList.Count)
+            {
+                _announcer.Announce("No card selected", AnnouncementPriority.Normal);
+                return;
+            }
+
+            var card = currentList[_londonCardIndex];
+            var cardName = CardDetector.GetCardName(card);
+
+            // Use the existing activation method
+            bool success = TryActivateCardViaLondonBrowser(card, cardName);
+            if (success)
+            {
+                // Refresh lists and announce new state after a short delay
+                MelonCoroutines.Start(RefreshLondonZoneAfterDelay());
+            }
+            else
+            {
+                _announcer.Announce($"Could not move {cardName}", AnnouncementPriority.High);
+            }
+        }
+
+        /// <summary>
+        /// Refreshes London zone after card activation with a short delay.
+        /// </summary>
+        private System.Collections.IEnumerator RefreshLondonZoneAfterDelay()
+        {
+            yield return new WaitForSeconds(0.2f);
+
+            RefreshLondonCardLists();
+
+            var currentList = _londonCurrentZone == LondonZone.Hand ? _londonHandCards : _londonLibraryCards;
+            string zoneName = _londonCurrentZone == LondonZone.Hand ? "keep" : "bottom";
+
+            // Adjust index if needed
+            if (_londonCardIndex >= currentList.Count)
+                _londonCardIndex = currentList.Count - 1;
+
+            if (currentList.Count == 0)
+            {
+                _announcer.Announce($"{zoneName} pile: empty. {_londonLibraryCards.Count} of {_mulliganCount} selected for bottom", AnnouncementPriority.Normal);
+            }
+            else if (_londonCardIndex >= 0)
+            {
+                var card = currentList[_londonCardIndex];
+                var cardName = CardDetector.GetCardName(card);
+                _announcer.Announce($"{cardName}, {zoneName}, {_londonCardIndex + 1} of {currentList.Count}. {_londonLibraryCards.Count} of {_mulliganCount} selected for bottom", AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// INVESTIGATION: Logs detailed information about BrowserCardHolder components
+        /// to discover APIs for card selection in London mulligan.
+        /// </summary>
+        private void InvestigateBrowserHolders()
+        {
+            MelonLogger.Msg("[BrowserNavigator] === INVESTIGATING BROWSER HOLDERS FOR CARD SELECTION API ===");
+
+            // Find all browser-related holders
+            var holders = FindActiveGameObjects(go =>
+                go.name.Contains("BrowserCardHolder") ||
+                go.name.Contains("CardHolder") ||
+                go.name.Contains("Browser"));
+
+            foreach (var holder in holders)
+            {
+                MelonLogger.Msg($"[BrowserNavigator] --- Holder: {holder.name} ---");
+
+                foreach (var comp in holder.GetComponents<Component>())
+                {
+                    if (comp == null) continue;
+                    var type = comp.GetType();
+                    string typeName = type.FullName ?? type.Name;
+
+                    // Skip common Unity components
+                    if (typeName.StartsWith("UnityEngine.") && !typeName.Contains("Event"))
+                        continue;
+
+                    MelonLogger.Msg($"[BrowserNavigator]   Component: {typeName}");
+
+                    // Log fields (especially Action/UnityEvent delegates)
+                    foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                    {
+                        string fieldTypeName = field.FieldType.Name;
+                        bool isInteresting = fieldTypeName.Contains("Action") ||
+                                            fieldTypeName.Contains("Event") ||
+                                            fieldTypeName.Contains("Click") ||
+                                            fieldTypeName.Contains("Select") ||
+                                            fieldTypeName.Contains("Card") ||
+                                            field.Name.ToLower().Contains("click") ||
+                                            field.Name.ToLower().Contains("select") ||
+                                            field.Name.ToLower().Contains("card");
+
+                        if (isInteresting)
+                        {
+                            try
+                            {
+                                var value = field.GetValue(comp);
+                                string valueStr = value != null ? $"has value ({value.GetType().Name})" : "null";
+                                MelonLogger.Msg($"[BrowserNavigator]     Field: {field.Name} : {fieldTypeName} = {valueStr}");
+                            }
+                            catch
+                            {
+                                MelonLogger.Msg($"[BrowserNavigator]     Field: {field.Name} : {fieldTypeName} (could not read)");
+                            }
+                        }
+                    }
+
+                    // Log properties (especially Action/UnityEvent delegates)
+                    foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                    {
+                        string propTypeName = prop.PropertyType.Name;
+                        bool isInteresting = propTypeName.Contains("Action") ||
+                                            propTypeName.Contains("Event") ||
+                                            propTypeName.Contains("Click") ||
+                                            propTypeName.Contains("Select") ||
+                                            propTypeName.Contains("Card") ||
+                                            prop.Name.ToLower().Contains("click") ||
+                                            prop.Name.ToLower().Contains("select") ||
+                                            prop.Name.ToLower().Contains("card");
+
+                        if (isInteresting)
+                        {
+                            try
+                            {
+                                var value = prop.GetValue(comp);
+                                string valueStr = value != null ? $"has value ({value.GetType().Name})" : "null";
+                                MelonLogger.Msg($"[BrowserNavigator]     Property: {prop.Name} : {propTypeName} = {valueStr}");
+                            }
+                            catch
+                            {
+                                MelonLogger.Msg($"[BrowserNavigator]     Property: {prop.Name} : {propTypeName} (could not read)");
+                            }
+                        }
+                    }
+
+                    // Log methods that look relevant to card interaction
+                    foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                    {
+                        string methodName = method.Name.ToLower();
+                        bool isInteresting = methodName.Contains("click") ||
+                                            methodName.Contains("select") ||
+                                            methodName.Contains("card") ||
+                                            methodName.Contains("toggle") ||
+                                            methodName.Contains("add") ||
+                                            methodName.Contains("remove") ||
+                                            methodName.Contains("drag") ||
+                                            methodName.Contains("drop");
+
+                        if (isInteresting)
+                        {
+                            var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                            MelonLogger.Msg($"[BrowserNavigator]     Method: {method.Name}({paramStr}) -> {method.ReturnType.Name}");
+                        }
+                    }
+                }
+            }
+
+            // Also investigate the first card found in the browser
+            InvestigateBrowserCard();
+
+            // Investigate the LondonBrowser instance (CardGroupProvider)
+            InvestigateLondonBrowser();
+
+            // Look for InteractionSystem or GameInteractionSystem
+            InvestigateInteractionSystem();
+
+            MelonLogger.Msg("[BrowserNavigator] === END BROWSER HOLDER INVESTIGATION ===");
+        }
+
+        /// <summary>
+        /// INVESTIGATION: Logs details about card components in browser context.
+        /// </summary>
+        private void InvestigateBrowserCard()
+        {
+            MelonLogger.Msg("[BrowserNavigator] --- Investigating Browser Card Components ---");
+
+            // Find a card in the browser
+            GameObject card = null;
+            var holders = FindActiveGameObjects(go => go.name == HolderDefault || go.name == HolderViewDismiss);
+            foreach (var holder in holders)
+            {
+                foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.gameObject.activeInHierarchy && CardDetector.IsCard(child.gameObject))
+                    {
+                        card = child.gameObject;
+                        break;
+                    }
+                }
+                if (card != null) break;
+            }
+
+            if (card == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] No card found in browser holders");
+                return;
+            }
+
+            MelonLogger.Msg($"[BrowserNavigator] Found card: {card.name}");
+
+            foreach (var comp in card.GetComponents<Component>())
+            {
+                if (comp == null) continue;
+                var type = comp.GetType();
+                string typeName = type.Name;
+
+                // Focus on game-specific components, not Unity builtins
+                if (typeName.StartsWith("UnityEngine"))
+                    continue;
+
+                MelonLogger.Msg($"[BrowserNavigator]   Card Component: {type.FullName}");
+
+                // Log all public and declared methods
+                foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                    MelonLogger.Msg($"[BrowserNavigator]     Method: {method.Name}({paramStr}) -> {method.ReturnType.Name}");
+                }
+
+                // Log fields that might be callbacks
+                foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                {
+                    string fieldTypeName = field.FieldType.Name;
+                    if (fieldTypeName.Contains("Action") || fieldTypeName.Contains("Event") ||
+                        fieldTypeName.Contains("Func") || fieldTypeName.Contains("Callback"))
+                    {
+                        try
+                        {
+                            var value = field.GetValue(comp);
+                            string valueStr = value != null ? "has callback" : "null";
+                            MelonLogger.Msg($"[BrowserNavigator]     Callback Field: {field.Name} : {fieldTypeName} = {valueStr}");
+                        }
+                        catch
+                        {
+                            MelonLogger.Msg($"[BrowserNavigator]     Callback Field: {field.Name} : {fieldTypeName}");
+                        }
+                    }
+                }
+
+                // Check for IPointerClickHandler implementation
+                var interfaces = type.GetInterfaces();
+                foreach (var iface in interfaces)
+                {
+                    if (iface.Name.Contains("Pointer") || iface.Name.Contains("Click") ||
+                        iface.Name.Contains("Drag") || iface.Name.Contains("Handler"))
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator]     Implements: {iface.Name}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// INVESTIGATION: Gets LondonBrowser from CardGroupProvider and logs all its APIs.
+        /// </summary>
+        private void InvestigateLondonBrowser()
+        {
+            MelonLogger.Msg("[BrowserNavigator] --- Investigating LondonBrowser (CardGroupProvider) ---");
+
+            // Find BrowserCardHolder_Default
+            var defaultHolder = FindActiveGameObject(HolderDefault);
+            if (defaultHolder == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] BrowserCardHolder_Default not found");
+                return;
+            }
+
+            // Get CardBrowserCardHolder component
+            Component cardBrowserHolder = null;
+            foreach (var comp in defaultHolder.GetComponents<Component>())
+            {
+                if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                {
+                    cardBrowserHolder = comp;
+                    break;
+                }
+            }
+
+            if (cardBrowserHolder == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] CardBrowserCardHolder component not found");
+                return;
+            }
+
+            // Get CardGroupProvider property (should be LondonBrowser)
+            var providerProp = cardBrowserHolder.GetType().GetProperty("CardGroupProvider",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (providerProp == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] CardGroupProvider property not found");
+                return;
+            }
+
+            var londonBrowser = providerProp.GetValue(cardBrowserHolder);
+            if (londonBrowser == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] CardGroupProvider is null");
+                return;
+            }
+
+            var browserType = londonBrowser.GetType();
+            MelonLogger.Msg($"[BrowserNavigator] LondonBrowser type: {browserType.FullName}");
+
+            // Log ALL methods (including inherited)
+            MelonLogger.Msg("[BrowserNavigator] === LondonBrowser Methods ===");
+            foreach (var method in browserType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+            {
+                // Skip common object methods
+                if (method.DeclaringType == typeof(object)) continue;
+
+                var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                MelonLogger.Msg($"[BrowserNavigator]   {method.DeclaringType?.Name}.{method.Name}({paramStr}) -> {method.ReturnType.Name}");
+            }
+
+            // Log ALL fields
+            MelonLogger.Msg("[BrowserNavigator] === LondonBrowser Fields ===");
+            foreach (var field in browserType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                try
+                {
+                    var value = field.GetValue(londonBrowser);
+                    string valueStr = value != null ? $"has value ({value.GetType().Name})" : "null";
+                    MelonLogger.Msg($"[BrowserNavigator]   {field.Name} : {field.FieldType.Name} = {valueStr}");
+                }
+                catch
+                {
+                    MelonLogger.Msg($"[BrowserNavigator]   {field.Name} : {field.FieldType.Name} (could not read)");
+                }
+            }
+
+            // Log ALL properties
+            MelonLogger.Msg("[BrowserNavigator] === LondonBrowser Properties ===");
+            foreach (var prop in browserType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                try
+                {
+                    var value = prop.GetValue(londonBrowser);
+                    string valueStr = value != null ? $"has value ({value.GetType().Name})" : "null";
+                    MelonLogger.Msg($"[BrowserNavigator]   {prop.Name} : {prop.PropertyType.Name} = {valueStr}");
+                }
+                catch
+                {
+                    MelonLogger.Msg($"[BrowserNavigator]   {prop.Name} : {prop.PropertyType.Name} (could not read)");
+                }
+            }
+
+            // Log interfaces
+            MelonLogger.Msg("[BrowserNavigator] === LondonBrowser Interfaces ===");
+            foreach (var iface in browserType.GetInterfaces())
+            {
+                MelonLogger.Msg($"[BrowserNavigator]   Implements: {iface.FullName}");
+
+                // Log interface methods
+                foreach (var method in iface.GetMethods())
+                {
+                    var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                    MelonLogger.Msg($"[BrowserNavigator]     Interface method: {method.Name}({paramStr})");
+                }
+            }
+
+            // Check base class hierarchy
+            MelonLogger.Msg("[BrowserNavigator] === LondonBrowser Base Classes ===");
+            var baseType = browserType.BaseType;
+            while (baseType != null && baseType != typeof(object))
+            {
+                MelonLogger.Msg($"[BrowserNavigator]   Base: {baseType.FullName}");
+
+                // Log base class methods that might be useful
+                foreach (var method in baseType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    string methodName = method.Name.ToLower();
+                    if (methodName.Contains("select") || methodName.Contains("card") ||
+                        methodName.Contains("toggle") || methodName.Contains("click") ||
+                        methodName.Contains("add") || methodName.Contains("remove") ||
+                        methodName.Contains("move") || methodName.Contains("group"))
+                    {
+                        var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                        MelonLogger.Msg($"[BrowserNavigator]     Base.{method.Name}({paramStr})");
+                    }
+                }
+
+                baseType = baseType.BaseType;
+            }
+
+            // Try to find and log events/actions
+            MelonLogger.Msg("[BrowserNavigator] === LondonBrowser Events/Actions ===");
+            foreach (var eventInfo in browserType.GetEvents(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                MelonLogger.Msg($"[BrowserNavigator]   Event: {eventInfo.Name} : {eventInfo.EventHandlerType?.Name}");
+            }
+
+            MelonLogger.Msg("[BrowserNavigator] === End LondonBrowser Investigation ===");
+        }
+
+        /// <summary>
+        /// INVESTIGATION: Look for InteractionSystem or GameInteractionSystem.
+        /// </summary>
+        private void InvestigateInteractionSystem()
+        {
+            MelonLogger.Msg("[BrowserNavigator] --- Investigating InteractionSystem ---");
+
+            // Search for InteractionSystem type
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    foreach (var type in assembly.GetTypes())
+                    {
+                        if (type.Name.Contains("InteractionSystem") ||
+                            type.Name.Contains("GameInteraction") ||
+                            type.Name.Contains("CardInteraction"))
+                        {
+                            MelonLogger.Msg($"[BrowserNavigator] Found type: {type.FullName}");
+
+                            // Check for static instance property
+                            var instanceProp = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                            if (instanceProp != null)
+                            {
+                                try
+                                {
+                                    var instance = instanceProp.GetValue(null);
+                                    if (instance != null)
+                                    {
+                                        MelonLogger.Msg($"[BrowserNavigator]   Has singleton instance");
+                                        LogInteractionSystemMembers(instance);
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            // Check for OnCardClicked or similar events
+                            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
+                            {
+                                if (field.Name.ToLower().Contains("card") || field.Name.ToLower().Contains("click"))
+                                {
+                                    MelonLogger.Msg($"[BrowserNavigator]   Static/Instance Field: {field.Name} : {field.FieldType.Name}");
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { /* Skip assemblies that can't be scanned */ }
+            }
+
+            // Also search MonoBehaviours in scene
+            foreach (var mb in UnityEngine.Object.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName.Contains("InteractionSystem") || typeName.Contains("CardInteraction"))
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Found MonoBehaviour: {typeName} on {mb.gameObject.name}");
+                    LogInteractionSystemMembers(mb);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Logs relevant members of an InteractionSystem instance.
+        /// </summary>
+        private void LogInteractionSystemMembers(object instance)
+        {
+            var type = instance.GetType();
+
+            // Log fields related to card/click
+            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                string fieldName = field.Name.ToLower();
+                string fieldTypeName = field.FieldType.Name;
+                if (fieldName.Contains("card") || fieldName.Contains("click") ||
+                    fieldTypeName.Contains("Action") || fieldTypeName.Contains("Event"))
+                {
+                    try
+                    {
+                        var value = field.GetValue(instance);
+                        string valueStr = value != null ? "has value" : "null";
+                        MelonLogger.Msg($"[BrowserNavigator]     Field: {field.Name} : {fieldTypeName} = {valueStr}");
+                    }
+                    catch
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator]     Field: {field.Name} : {fieldTypeName}");
+                    }
+                }
+            }
+
+            // Log methods related to card interaction
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                string methodName = method.Name.ToLower();
+                if (methodName.Contains("card") || methodName.Contains("click") ||
+                    methodName.Contains("select") || methodName.Contains("toggle"))
+                {
+                    var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                    MelonLogger.Msg($"[BrowserNavigator]     Method: {method.Name}({paramStr})");
+                }
+            }
         }
 
         /// <summary>
@@ -1234,7 +2003,13 @@ namespace MTGAAccessibility.Core.Services
 
             string message;
 
-            if (cardCount > 0)
+            // Special announcement for London mulligan - explain the task
+            if (_browserTypeName == BrowserTypes.London && _mulliganCount > 0)
+            {
+                string cardWord = _mulliganCount == 1 ? "card" : "cards";
+                message = $"Select {_mulliganCount} {cardWord} to put on bottom. {cardCount} cards. Enter to toggle, Space when done";
+            }
+            else if (cardCount > 0)
             {
                 message = Strings.BrowserCards(cardCount, browserName);
             }
@@ -1323,11 +2098,19 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Gets the selection state of a card in the browser.
         /// For scry: "keep on top" or "put on bottom"
+        /// For London: "keep" or "bottom" (tracked in our selection set)
         /// For mulligan/opening hand: no state (just viewing cards)
         /// </summary>
         private string GetCardSelectionState(GameObject card)
         {
             if (card == null) return null;
+
+            // London mulligan uses our tracked selection state
+            if (_browserTypeName == BrowserTypes.London)
+            {
+                int cardId = card.GetInstanceID();
+                return _londonSelectedCards.Contains(cardId) ? "bottom" : "keep";
+            }
 
             // Mulligan/opening hand browsers don't have selection states
             // Cards are just displayed for viewing, not sorted into piles
@@ -1438,6 +2221,7 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Activates (clicks) the current card.
         /// The game handles moving cards between holders (scry/surveil) or marking as selected.
+        /// For London mulligan, we track selection ourselves and toggle on click.
         /// </summary>
         private void ActivateCurrentCard()
         {
@@ -1453,16 +2237,600 @@ namespace MTGAAccessibility.Core.Services
 
             MelonLogger.Msg($"[BrowserNavigator] Activating card: {cardName}, state before: {stateBefore}");
 
-            // Just click the card - let the game handle selection/toggle logic
-            var result = UIActivator.SimulatePointerClick(card);
-            if (result.Success)
+            // For London browser, use LondonBrowser.OnCardViewSelected() instead of UI clicks
+            if (_browserTypeName == BrowserTypes.London)
             {
-                MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
+                bool success = TryActivateCardViaLondonBrowser(card, cardName);
+                if (success)
+                {
+                    // The game handles selection state, announce the new state after a short delay
+                    MelonCoroutines.Start(AnnounceLondonStateAfterDelay(card, cardName));
+                }
+                else
+                {
+                    _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
+                }
+                return;
+            }
+
+            // Non-London browsers: use standard UI click
+            var result = UIActivator.SimulatePointerClick(card);
+            if (!result.Success)
+            {
+                _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
+                return;
+            }
+
+            // Wait for game state to update
+            MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
+        }
+
+        /// <summary>
+        /// Activates a card via the LondonBrowser's OnCardViewSelected method.
+        /// This is the proper way to select cards in London mulligan.
+        /// </summary>
+        private bool TryActivateCardViaLondonBrowser(GameObject card, string cardName)
+        {
+            MelonLogger.Msg($"[BrowserNavigator] Attempting LondonBrowser.OnCardViewSelected for: {cardName}");
+
+            try
+            {
+                // Step 1: Find BrowserCardHolder_Default
+                var defaultHolder = FindActiveGameObject(HolderDefault);
+                if (defaultHolder == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] BrowserCardHolder_Default not found");
+                    return false;
+                }
+
+                // Step 2: Get CardBrowserCardHolder component
+                Component cardBrowserHolder = null;
+                foreach (var comp in defaultHolder.GetComponents<Component>())
+                {
+                    if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                    {
+                        cardBrowserHolder = comp;
+                        break;
+                    }
+                }
+
+                if (cardBrowserHolder == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] CardBrowserCardHolder component not found");
+                    return false;
+                }
+
+                // Step 3: Get CardGroupProvider property (LondonBrowser instance)
+                var providerProp = cardBrowserHolder.GetType().GetProperty("CardGroupProvider",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (providerProp == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] CardGroupProvider property not found");
+                    return false;
+                }
+
+                var londonBrowser = providerProp.GetValue(cardBrowserHolder);
+                if (londonBrowser == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] CardGroupProvider (LondonBrowser) is null");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Got LondonBrowser: {londonBrowser.GetType().Name}");
+
+                // Step 4: Get DuelScene_CDC component from card
+                var cardCDC = CardDetector.GetDuelSceneCDC(card);
+                if (cardCDC == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] DuelScene_CDC component not found on card");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Got DuelScene_CDC: {cardCDC.GetType().Name}");
+
+                // Step 5: Check if the card can change zones
+                var canChangeZonesMethod = londonBrowser.GetType().GetMethod("CanChangeZones",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (canChangeZonesMethod != null)
+                {
+                    bool canChange = (bool)canChangeZonesMethod.Invoke(londonBrowser, new object[] { cardCDC });
+                    MelonLogger.Msg($"[BrowserNavigator] CanChangeZones: {canChange}");
+                }
+
+                // Step 6: Check if card is in hand (keep) or library (bottom)
+                var isInHandMethod = londonBrowser.GetType().GetMethod("IsInHand",
+                    BindingFlags.Public | BindingFlags.Instance);
+                var isInLibraryMethod = londonBrowser.GetType().GetMethod("IsInLibrary",
+                    BindingFlags.Public | BindingFlags.Instance);
+
+                bool isInHand = isInHandMethod != null && (bool)isInHandMethod.Invoke(londonBrowser, new object[] { cardCDC });
+                bool isInLibrary = isInLibraryMethod != null && (bool)isInLibraryMethod.Invoke(londonBrowser, new object[] { cardCDC });
+                MelonLogger.Msg($"[BrowserNavigator] Card position - IsInHand: {isInHand}, IsInLibrary: {isInLibrary}");
+
+                // Step 7: Get target screen position (opposite of current zone)
+                // HandScreenSpace = keep pile, LibraryScreenSpace = bottom pile
+                string targetPropName = isInHand ? "LibraryScreenSpace" : "HandScreenSpace";
+                var targetPosProp = londonBrowser.GetType().GetProperty(targetPropName,
+                    BindingFlags.Public | BindingFlags.Instance);
+
+                if (targetPosProp != null)
+                {
+                    var targetPos = (Vector2)targetPosProp.GetValue(londonBrowser);
+                    MelonLogger.Msg($"[BrowserNavigator] Target position ({targetPropName}): {targetPos}");
+
+                    // Move the card's screen position to the target zone
+                    // The card GameObject's position needs to be in the target zone for OnDragRelease to detect it
+                    var cardTransform = card.transform;
+                    Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(targetPos.x, targetPos.y, 10f));
+                    cardTransform.position = worldPos;
+                    MelonLogger.Msg($"[BrowserNavigator] Moved card to world position: {worldPos}");
+                }
+
+                // Step 8: Call HandleDrag to start the drag
+                var handleDragMethod = londonBrowser.GetType().GetMethod("HandleDrag",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (handleDragMethod == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] HandleDrag method not found on LondonBrowser");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Invoking HandleDrag...");
+                handleDragMethod.Invoke(londonBrowser, new object[] { cardCDC });
+                MelonLogger.Msg($"[BrowserNavigator] HandleDrag invoked!");
+
+                // Step 9: Call OnDragRelease to complete the drag (card is now at target position)
+                var onDragReleaseMethod = londonBrowser.GetType().GetMethod("OnDragRelease",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (onDragReleaseMethod == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] OnDragRelease method not found on LondonBrowser");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Invoking OnDragRelease...");
+                onDragReleaseMethod.Invoke(londonBrowser, new object[] { cardCDC });
+                MelonLogger.Msg($"[BrowserNavigator] OnDragRelease invoked successfully!");
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] Error in TryActivateCardViaLondonBrowser: {ex.Message}");
+                MelonLogger.Error($"[BrowserNavigator] Stack trace: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Announces the London mulligan state after a short delay to allow game state to update.
+        /// </summary>
+        private System.Collections.IEnumerator AnnounceLondonStateAfterDelay(GameObject card, string cardName)
+        {
+            // Wait for game state to update
+            yield return new WaitForSeconds(0.15f);
+
+            // Get LondonBrowser to check actual state
+            int bottomCount = 0;
+            int keepCount = 0;
+            bool cardIsInLibrary = false;
+
+            try
+            {
+                var defaultHolder = FindActiveGameObject(HolderDefault);
+                if (defaultHolder != null)
+                {
+                    Component cardBrowserHolder = null;
+                    foreach (var comp in defaultHolder.GetComponents<Component>())
+                    {
+                        if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                        {
+                            cardBrowserHolder = comp;
+                            break;
+                        }
+                    }
+
+                    if (cardBrowserHolder != null)
+                    {
+                        var providerProp = cardBrowserHolder.GetType().GetProperty("CardGroupProvider",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        var londonBrowser = providerProp?.GetValue(cardBrowserHolder);
+
+                        if (londonBrowser != null)
+                        {
+                            // Get card counts from LondonBrowser's internal lists
+                            var getLibraryCardsMethod = londonBrowser.GetType().GetMethod("GetLibraryCards",
+                                BindingFlags.Public | BindingFlags.Instance);
+                            var getHandCardsMethod = londonBrowser.GetType().GetMethod("GetHandCards",
+                                BindingFlags.Public | BindingFlags.Instance);
+
+                            if (getLibraryCardsMethod != null)
+                            {
+                                var libraryCards = getLibraryCardsMethod.Invoke(londonBrowser, null) as System.Collections.IList;
+                                bottomCount = libraryCards?.Count ?? 0;
+                            }
+
+                            if (getHandCardsMethod != null)
+                            {
+                                var handCards = getHandCardsMethod.Invoke(londonBrowser, null) as System.Collections.IList;
+                                keepCount = handCards?.Count ?? 0;
+                            }
+
+                            // Check if this specific card is now in library (bottom)
+                            var cardCDC = CardDetector.GetDuelSceneCDC(card);
+                            if (cardCDC != null)
+                            {
+                                var isInLibraryMethod = londonBrowser.GetType().GetMethod("IsInLibrary",
+                                    BindingFlags.Public | BindingFlags.Instance);
+                                if (isInLibraryMethod != null)
+                                {
+                                    cardIsInLibrary = (bool)isInLibraryMethod.Invoke(londonBrowser, new object[] { cardCDC });
+                                }
+                            }
+
+                            MelonLogger.Msg($"[BrowserNavigator] London state - Keep: {keepCount}, Bottom: {bottomCount}, Card in library: {cardIsInLibrary}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[BrowserNavigator] Error getting London state: {ex.Message}");
+            }
+
+            // Announce based on the card's new position
+            if (cardIsInLibrary)
+            {
+                _announcer.Announce($"bottom. {bottomCount} of {_mulliganCount} selected", AnnouncementPriority.Normal);
             }
             else
             {
-                _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
+                _announcer.Announce($"keep. {bottomCount} of {_mulliganCount} selected", AnnouncementPriority.Normal);
             }
+
+            // Refresh browser cards list
+            DiscoverBrowserElements();
+        }
+
+        /// <summary>
+        /// Activates a card via the game's workflow system instead of UI clicks.
+        /// Uses WorkflowController.CurrentWorkflow.OnClick(entityView, Primary).
+        /// NOTE: This doesn't work for London mulligan - use TryActivateCardViaLondonBrowser instead.
+        /// </summary>
+        private bool TryActivateCardViaWorkflow(GameObject card, string cardName)
+        {
+            MelonLogger.Msg($"[BrowserNavigator] Attempting workflow-based activation for: {cardName}");
+
+            // Step 1: Find WorkflowController in scene
+            var workflowController = FindWorkflowController();
+            if (workflowController == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] WorkflowController not found");
+                return false;
+            }
+
+            // Step 2: Get CurrentWorkflow property
+            var currentWorkflow = GetCurrentWorkflow(workflowController);
+            if (currentWorkflow == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] CurrentWorkflow is null");
+                return false;
+            }
+
+            MelonLogger.Msg($"[BrowserNavigator] CurrentWorkflow type: {currentWorkflow.GetType().FullName}");
+
+            // Step 3: Get IEntityView from card (DuelScene_CDC component)
+            var entityView = GetEntityViewFromCard(card);
+            if (entityView == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] Could not get IEntityView from card");
+                return false;
+            }
+
+            MelonLogger.Msg($"[BrowserNavigator] Got IEntityView, attempting OnClick");
+
+            // Step 4: Get SimpleInteractionType.Primary enum value
+            var interactionType = GetSimpleInteractionTypePrimary();
+            if (interactionType == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] Could not get SimpleInteractionType.Primary");
+                return false;
+            }
+
+            // Step 5: Call OnClick on the workflow
+            return InvokeWorkflowOnClick(currentWorkflow, entityView, interactionType);
+        }
+
+        /// <summary>
+        /// Finds the WorkflowController in the scene.
+        /// WorkflowController is not a MonoBehaviour, so we need to find it via a manager class.
+        /// </summary>
+        private object FindWorkflowController()
+        {
+            try
+            {
+                // WorkflowController is typically accessed via a DuelScene manager
+                // Look for objects that might have a WorkflowController property
+
+                // Try to find via InteractionManager or similar
+                var interactionManagerType = FindTypeByName("Wotc.Mtga.DuelScene.Interactions.InteractionManager");
+                if (interactionManagerType != null && typeof(MonoBehaviour).IsAssignableFrom(interactionManagerType))
+                {
+                    var managers = UnityEngine.Object.FindObjectsOfType(interactionManagerType);
+                    if (managers.Length > 0)
+                    {
+                        var prop = interactionManagerType.GetProperty("WorkflowController", BindingFlags.Public | BindingFlags.Instance);
+                        if (prop != null)
+                        {
+                            var controller = prop.GetValue(managers[0]);
+                            if (controller != null)
+                            {
+                                MelonLogger.Msg($"[BrowserNavigator] Found WorkflowController via InteractionManager");
+                                return controller;
+                            }
+                        }
+                    }
+                }
+
+                // Try DuelSceneController
+                var duelSceneControllerType = FindTypeByName("Wotc.Mtga.DuelScene.DuelSceneController");
+                if (duelSceneControllerType != null && typeof(MonoBehaviour).IsAssignableFrom(duelSceneControllerType))
+                {
+                    var controllers = UnityEngine.Object.FindObjectsOfType(duelSceneControllerType);
+                    if (controllers.Length > 0)
+                    {
+                        // Try to find WorkflowController property
+                        var prop = duelSceneControllerType.GetProperty("WorkflowController", BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                        if (prop != null)
+                        {
+                            var controller = prop.GetValue(controllers[0]);
+                            if (controller != null)
+                            {
+                                MelonLogger.Msg($"[BrowserNavigator] Found WorkflowController via DuelSceneController");
+                                return controller;
+                            }
+                        }
+
+                        // Try all public properties to find WorkflowController
+                        foreach (var p in duelSceneControllerType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                        {
+                            if (p.PropertyType.Name == "WorkflowController")
+                            {
+                                var controller = p.GetValue(controllers[0]);
+                                if (controller != null)
+                                {
+                                    MelonLogger.Msg($"[BrowserNavigator] Found WorkflowController via {p.Name}");
+                                    return controller;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Fallback: Search all MonoBehaviours for one with WorkflowController property
+                var allBehaviours = UnityEngine.Object.FindObjectsOfType<MonoBehaviour>();
+                MelonLogger.Msg($"[BrowserNavigator] Searching {allBehaviours.Length} MonoBehaviours for WorkflowController");
+
+                int duelSceneCount = 0;
+                foreach (var behaviour in allBehaviours)
+                {
+                    var behaviourType = behaviour.GetType();
+
+                    // Check all types that might have WorkflowController
+                    var prop = behaviourType.GetProperty("WorkflowController", BindingFlags.Public | BindingFlags.Instance);
+                    if (prop != null)
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator] Found WorkflowController property on: {behaviourType.FullName}");
+                        try
+                        {
+                            var controller = prop.GetValue(behaviour);
+                            if (controller != null)
+                            {
+                                MelonLogger.Msg($"[BrowserNavigator] Got WorkflowController instance from {behaviourType.FullName}");
+                                return controller;
+                            }
+                            else
+                            {
+                                MelonLogger.Msg($"[BrowserNavigator] WorkflowController property was null on {behaviourType.FullName}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MelonLogger.Warning($"[BrowserNavigator] Error getting WorkflowController from {behaviourType.FullName}: {ex.Message}");
+                        }
+                    }
+
+                    if (behaviourType.FullName?.Contains("DuelScene") == true)
+                        duelSceneCount++;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Checked {duelSceneCount} DuelScene types, none had WorkflowController");
+
+                MelonLogger.Warning("[BrowserNavigator] WorkflowController not found on any manager");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] Error finding WorkflowController: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets the CurrentWorkflow property from WorkflowController.
+        /// </summary>
+        private object GetCurrentWorkflow(object workflowController)
+        {
+            var type = workflowController.GetType();
+            var prop = type.GetProperty("CurrentWorkflow", BindingFlags.Public | BindingFlags.Instance);
+            if (prop == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] CurrentWorkflow property not found");
+                return null;
+            }
+
+            return prop.GetValue(workflowController);
+        }
+
+        /// <summary>
+        /// Gets the IEntityView interface from a card's DuelScene_CDC component.
+        /// </summary>
+        private object GetEntityViewFromCard(GameObject card)
+        {
+            // Find DuelScene_CDC component
+            var cdcComponent = card.GetComponents<Component>()
+                .FirstOrDefault(c => c.GetType().Name == "DuelScene_CDC");
+
+            if (cdcComponent == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] DuelScene_CDC component not found on card");
+                return null;
+            }
+
+            // Check if it implements IEntityView (has InstanceId property)
+            var entityViewInterface = FindTypeByName("IEntityView");
+            if (entityViewInterface != null && entityViewInterface.IsAssignableFrom(cdcComponent.GetType()))
+            {
+                MelonLogger.Msg($"[BrowserNavigator] DuelScene_CDC implements IEntityView");
+                return cdcComponent;
+            }
+
+            // If not directly implementing, check for interfaces
+            var interfaces = cdcComponent.GetType().GetInterfaces();
+            foreach (var iface in interfaces)
+            {
+                if (iface.Name == "IEntityView" || iface.FullName?.Contains("IEntityView") == true)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Found IEntityView interface: {iface.FullName}");
+                    return cdcComponent;
+                }
+            }
+
+            // Log available interfaces for debugging
+            MelonLogger.Msg($"[BrowserNavigator] DuelScene_CDC interfaces:");
+            foreach (var iface in interfaces)
+            {
+                MelonLogger.Msg($"[BrowserNavigator]   - {iface.FullName}");
+            }
+
+            // Even if we don't confirm IEntityView, try using the component directly
+            // The workflow's OnClick might accept it anyway
+            MelonLogger.Msg("[BrowserNavigator] Using DuelScene_CDC as entity (IEntityView not confirmed)");
+            return cdcComponent;
+        }
+
+        /// <summary>
+        /// Gets the SimpleInteractionType.Primary enum value.
+        /// </summary>
+        private object GetSimpleInteractionTypePrimary()
+        {
+            var enumType = FindTypeByName("SimpleInteractionType");
+            if (enumType == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] SimpleInteractionType enum not found");
+                return null;
+            }
+
+            try
+            {
+                return Enum.Parse(enumType, "Primary");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[BrowserNavigator] Failed to get Primary enum value: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Invokes OnClick on the workflow with the entity and interaction type.
+        /// </summary>
+        private bool InvokeWorkflowOnClick(object workflow, object entityView, object interactionType)
+        {
+            var workflowType = workflow.GetType();
+
+            // Try to find OnClick method
+            var onClickMethod = workflowType.GetMethod("OnClick", BindingFlags.Public | BindingFlags.Instance);
+            if (onClickMethod == null)
+            {
+                // Try to find it in interfaces
+                foreach (var iface in workflowType.GetInterfaces())
+                {
+                    onClickMethod = iface.GetMethod("OnClick", BindingFlags.Public | BindingFlags.Instance);
+                    if (onClickMethod != null) break;
+                }
+            }
+
+            if (onClickMethod == null)
+            {
+                MelonLogger.Warning($"[BrowserNavigator] OnClick method not found on workflow type: {workflowType.FullName}");
+
+                // Log ALL public methods for debugging
+                MelonLogger.Msg("[BrowserNavigator] All public methods on workflow:");
+                foreach (var method in workflowType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                    MelonLogger.Msg($"[BrowserNavigator]   {method.Name}({paramStr})");
+                }
+
+                // Also log base type methods
+                if (workflowType.BaseType != null && workflowType.BaseType != typeof(object))
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Base type: {workflowType.BaseType.FullName}");
+                    foreach (var method in workflowType.BaseType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                    {
+                        var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                        MelonLogger.Msg($"[BrowserNavigator]   Base.{method.Name}({paramStr})");
+                    }
+                }
+
+                // Log interfaces
+                MelonLogger.Msg("[BrowserNavigator] Interfaces:");
+                foreach (var iface in workflowType.GetInterfaces())
+                {
+                    MelonLogger.Msg($"[BrowserNavigator]   {iface.FullName}");
+                }
+
+                return false;
+            }
+
+            try
+            {
+                MelonLogger.Msg($"[BrowserNavigator] Invoking OnClick on {workflowType.Name}");
+                onClickMethod.Invoke(workflow, new object[] { entityView, interactionType });
+                MelonLogger.Msg("[BrowserNavigator] OnClick invoked successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] OnClick invocation failed: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    MelonLogger.Error($"[BrowserNavigator] Inner exception: {ex.InnerException.Message}");
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Finds a type by name across all loaded assemblies.
+        /// </summary>
+        private System.Type FindTypeByName(string typeName)
+        {
+            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    var type = assembly.GetTypes().FirstOrDefault(t =>
+                        t.Name == typeName || t.FullName == typeName);
+                    if (type != null) return type;
+                }
+                catch
+                {
+                    // Ignore assemblies that can't be scanned
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -1630,6 +2998,9 @@ namespace MTGAAccessibility.Core.Services
             // First priority: MulliganButton (for mulligan browsers)
             if (TryClickButtonByName(ButtonMulligan, out clickedLabel))
             {
+                // Track mulligan count for London phase
+                _mulliganCount++;
+                MelonLogger.Msg($"[BrowserNavigator] Mulligan taken, count now: {_mulliganCount}");
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 return;
             }
