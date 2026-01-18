@@ -34,47 +34,6 @@ namespace MTGAAccessibility.Core.Services
         private List<GameObject> _browserButtons = new List<GameObject>();
         private int _currentButtonIndex = -1;
 
-        // Known browser type names (in Wotc.Mtga.DuelScene.Browsers namespace)
-        // NOTE: This is a final fallback for browser detection. Primary detection uses:
-        // 1. BrowserScaffold_* pattern (most common)
-        // 2. CardBrowserCardHolder component
-        // This array catches edge cases where neither of the above work.
-        private static readonly string[] KnownBrowserTypes = new[]
-        {
-            // Library manipulation
-            "ScryBrowser",
-            "ScryishBrowser",
-            "SurveilBrowser",
-            "ReadAheadBrowser",
-            "LibrarySideboardBrowser",
-            // Card selection
-            "SelectCardsBrowser",
-            "SelectCardsBrowser_MultiZone",
-            "SelectGroupBrowser",
-            "SelectManaTypeBrowser",
-            "SelectNKeywordWithContextBrowser",
-            "KeywordSelectionBrowser",
-            // Combat/damage
-            "AssignDamageBrowser",
-            "AttachmentAndExileStackBrowser",
-            // Opening hand
-            "MulliganBrowser",
-            "LondonBrowser",
-            "OpeningHandBrowser",
-            // Card ordering
-            "OrderCardsBrowser",
-            "SplitCardsBrowser",
-            // Special
-            "DungeonRoomSelectBrowser",
-            "MutateOptionalActionBrowser",
-            "OptionalActionBrowser",
-            "RepeatSelectionBrowser",
-            "YesNoBrowser",
-            "InformationalBrowser",
-            "ButtonScrollListBrowser",
-            "ButtonSelectionBrowser"
-        };
-
         // Track discovered browser types for one-time logging
         private static HashSet<string> _loggedBrowserTypes = new HashSet<string>();
 
@@ -102,13 +61,10 @@ namespace MTGAAccessibility.Core.Services
 
         // Zone names
         private const string ZoneLocalHand = "LocalHand";
-        private const string ZoneLocalLibrary = "LocalLibrary";
 
-        // Browser type names
+        // Browser type names (used for special-case handling)
         private static class BrowserTypes
         {
-            public const string Scry = "Scry";
-            public const string Surveil = "Surveil";
             public const string Mulligan = "Mulligan";
             public const string OpeningHand = "OpeningHand";
             public const string London = "London";
@@ -174,14 +130,6 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Checks if a browser type is scry-style (Scry or Surveil).
-        /// </summary>
-        private bool IsScryStyleBrowser(string browserType)
-        {
-            return browserType == BrowserTypes.Scry || browserType == BrowserTypes.Surveil;
-        }
-
-        /// <summary>
         /// Checks if a card name is valid (not empty, not unknown).
         /// </summary>
         private bool IsValidCardName(string cardName)
@@ -193,49 +141,13 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Checks if a card is a duplicate in the given list.
-        /// Checks by instance ID first, then by name.
+        /// Checks if a card is already in the given list (by instance ID).
         /// </summary>
         private bool IsDuplicateCard(GameObject card, List<GameObject> existingCards)
         {
             if (card == null) return false;
-
             int instanceId = card.GetInstanceID();
-            string cardName = CardDetector.GetCardName(card);
-
-            foreach (var existingCard in existingCards)
-            {
-                if (existingCard == null) continue;
-
-                // Check instance ID first (exact same object)
-                if (existingCard.GetInstanceID() == instanceId)
-                {
-                    return true;
-                }
-
-                // Check by name
-                if (CardDetector.GetCardName(existingCard) == cardName)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Checks if a card name is a duplicate in the given list (name only check).
-        /// </summary>
-        private bool IsDuplicateCardByName(string cardName, List<GameObject> existingCards)
-        {
-            foreach (var existingCard in existingCards)
-            {
-                if (existingCard == null) continue;
-                if (CardDetector.GetCardName(existingCard) == cardName)
-                {
-                    return true;
-                }
-            }
-            return false;
+            return existingCards.Exists(c => c != null && c.GetInstanceID() == instanceId);
         }
 
         /// <summary>
@@ -367,21 +279,6 @@ namespace MTGAAccessibility.Core.Services
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Gets the CardBrowserCardHolder component from a GameObject if present.
-        /// </summary>
-        private object GetCardBrowserCardHolderComponent(GameObject holder)
-        {
-            foreach (var comp in holder.GetComponents<Component>())
-            {
-                if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
-                {
-                    return comp;
-                }
-            }
-            return null;
         }
 
         /// <summary>
@@ -689,20 +586,15 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Performs the actual browser scan. Single pass through scene objects.
+        /// Performs the actual browser scan. Detects browsers via scaffold pattern or CardBrowserCardHolder.
         /// </summary>
         private (object browser, GameObject go) ScanForBrowser()
         {
-            // Candidates found during scan
             GameObject scaffoldCandidate = null;
             string scaffoldType = null;
             GameObject cardHolderCandidate = null;
             Component cardHolderComponent = null;
             int cardHolderCardCount = 0;
-            GameObject knownBrowserCandidate = null;
-            Component knownBrowserComponent = null;
-
-            // Track if we've seen mulligan buttons (for validation)
             bool hasMulliganButtons = false;
 
             // Single pass through all GameObjects
@@ -718,23 +610,19 @@ namespace MTGAAccessibility.Core.Services
                     hasMulliganButtons = true;
                 }
 
-                // Priority 1: Browser scaffold pattern
+                // Priority 1: Browser scaffold pattern (BrowserScaffold_*)
                 if (scaffoldCandidate == null && goName.StartsWith(ScaffoldPrefix, System.StringComparison.Ordinal))
                 {
-                    string type = ExtractBrowserTypeFromScaffold(goName);
-
-                    // For mulligan scaffolds, will validate buttons after scan completes
                     scaffoldCandidate = go;
-                    scaffoldType = type;
+                    scaffoldType = ExtractBrowserTypeFromScaffold(goName);
                 }
 
-                // Priority 2: CardBrowserCardHolder component
-                if (cardHolderCandidate == null && goName.IndexOf("Browser", System.StringComparison.Ordinal) >= 0)
+                // Priority 2: CardBrowserCardHolder component (fallback)
+                if (cardHolderCandidate == null && goName.Contains("Browser"))
                 {
                     foreach (var comp in go.GetComponents<Component>())
                     {
-                        if (comp == null) continue;
-                        if (comp.GetType().Name == "CardBrowserCardHolder")
+                        if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
                         {
                             int cardCount = CountCardsInContainer(go);
                             if (cardCount > 0)
@@ -747,54 +635,24 @@ namespace MTGAAccessibility.Core.Services
                         }
                     }
                 }
-
-                // Priority 3: Known browser MonoBehaviour types (final fallback)
-                if (knownBrowserCandidate == null)
-                {
-                    foreach (var comp in go.GetComponents<Component>())
-                    {
-                        if (comp == null) continue;
-                        string typeName = comp.GetType().Name;
-
-                        if (System.Array.IndexOf(KnownBrowserTypes, typeName) >= 0)
-                        {
-                            if (IsBrowserVisible(comp))
-                            {
-                                knownBrowserCandidate = go;
-                                knownBrowserComponent = comp;
-                            }
-                            break;
-                        }
-                    }
-                }
             }
 
             // Return results in priority order
 
-            // Priority 1: Scaffold
+            // Priority 1: Scaffold (skip if mulligan scaffold without buttons)
             if (scaffoldCandidate != null)
             {
-                // Validate mulligan browsers
-                if (IsMulliganBrowser(scaffoldType) && !hasMulliganButtons)
-                {
-                    // Mulligan scaffold exists but buttons aren't ready - skip
-                }
-                else
+                if (!IsMulliganBrowser(scaffoldType) || hasMulliganButtons)
                 {
                     LogBrowserDiscovery(scaffoldCandidate.name, scaffoldType);
                     return (new BrowserScaffoldInfo { ScaffoldName = scaffoldCandidate.name, BrowserType = scaffoldType }, scaffoldCandidate);
                 }
             }
 
-            // Priority 2: CardBrowserCardHolder
+            // Priority 2: CardBrowserCardHolder (skip if looks like mulligan without buttons)
             if (cardHolderCandidate != null)
             {
-                // If 5+ cards, ensure mulligan buttons exist
-                if (cardHolderCardCount >= 5 && !hasMulliganButtons)
-                {
-                    // Looks like mulligan but buttons not ready - skip
-                }
-                else
+                if (cardHolderCardCount < 5 || hasMulliganButtons)
                 {
                     if (!_loggedBrowserTypes.Contains("CardBrowserCardHolder"))
                     {
@@ -803,18 +661,6 @@ namespace MTGAAccessibility.Core.Services
                     }
                     return (cardHolderComponent, cardHolderCandidate);
                 }
-            }
-
-            // Priority 3: Known browser type
-            if (knownBrowserCandidate != null && knownBrowserComponent != null)
-            {
-                string typeName = knownBrowserComponent.GetType().Name;
-                if (!_loggedBrowserTypes.Contains(typeName))
-                {
-                    _loggedBrowserTypes.Add(typeName);
-                    LogBrowserDetails(knownBrowserComponent, typeName);
-                }
-                return (knownBrowserComponent, knownBrowserCandidate);
             }
 
             return (null, null);
@@ -880,35 +726,6 @@ namespace MTGAAccessibility.Core.Services
             }
             return "Unknown";
         }
-
-        /// <summary>
-        /// Checks if a browser component is currently visible.
-        /// </summary>
-        private bool IsBrowserVisible(object browser)
-        {
-            var type = browser.GetType();
-
-            // Check IsVisible property
-            var isVisibleProp = type.GetProperty("IsVisible", BindingFlags.Public | BindingFlags.Instance);
-            if (isVisibleProp != null)
-            {
-                var val = isVisibleProp.GetValue(browser);
-                if (val is bool visible && !visible)
-                    return false;
-            }
-
-            // Check IsClosed property
-            var isClosedProp = type.GetProperty("IsClosed", BindingFlags.Public | BindingFlags.Instance);
-            if (isClosedProp != null)
-            {
-                var val = isClosedProp.GetValue(browser);
-                if (val is bool closed && closed)
-                    return false;
-            }
-
-            return true;
-        }
-
         /// <summary>
         /// Checks if the mulligan/opening hand browser UI is actually visible.
         /// The scaffold can remain active even after mulligan ends, so we check for actual UI elements.
@@ -1619,8 +1436,8 @@ namespace MTGAAccessibility.Core.Services
         #region Activation
 
         /// <summary>
-        /// Activates (clicks) the current card - toggles between keep/dismiss.
-        /// For scry: moves card between Default (keep) and ViewDismiss (bottom) holders.
+        /// Activates (clicks) the current card.
+        /// The game handles moving cards between holders (scry/surveil) or marking as selected.
         /// </summary>
         private void ActivateCurrentCard()
         {
@@ -1632,237 +1449,24 @@ namespace MTGAAccessibility.Core.Services
 
             var card = _browserCards[_currentCardIndex];
             var cardName = CardDetector.GetCardName(card) ?? "card";
-
-            // Get state BEFORE action
             string stateBefore = GetCardSelectionState(card);
 
             MelonLogger.Msg($"[BrowserNavigator] Activating card: {cardName}, state before: {stateBefore}");
 
-            // For London mulligan, try simulating a drag to the ViewDismiss holder
-            if (_browserTypeName == BrowserTypes.London)
-            {
-                MelonLogger.Msg($"[BrowserNavigator] London mulligan - attempting to drag card: {cardName}");
-
-                // Find the library zone as drop target - prefer LocalLibrary
-                GameObject targetZone = null;
-                GameObject localLibrary = null;
-                GameObject libraryContainer = null;
-
-                // Search for library-related objects
-                MelonLogger.Msg($"[BrowserNavigator] Searching for library zone...");
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-                {
-                    if (go == null || !go.activeInHierarchy) continue;
-
-                    // Prioritize LocalLibrary (the actual player's library zone)
-                    if (go.name.StartsWith(ZoneLocalLibrary))
-                    {
-                        localLibrary = go;
-                        MelonLogger.Msg($"[BrowserNavigator] Found LocalLibrary: {go.name}");
-                    }
-                    else if (go.name == "LibraryContainer")
-                    {
-                        libraryContainer = go;
-                        MelonLogger.Msg($"[BrowserNavigator] Found LibraryContainer: {go.name}");
-                    }
-                }
-
-                // Use LocalLibrary first, then LibraryContainer, then fallback
-                targetZone = localLibrary ?? libraryContainer;
-
-                // Fallback to ViewDismiss if no library found
-                if (targetZone == null)
-                {
-                    targetZone = FindActiveGameObject(HolderViewDismiss);
-                    if (targetZone != null)
-                    {
-                        MelonLogger.Msg($"[BrowserNavigator] Using ViewDismiss as fallback");
-                    }
-                }
-
-                if (targetZone == null)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] No target zone found");
-                    _announcer.Announce("Cannot select card", AnnouncementPriority.High);
-                    return;
-                }
-
-                MelonLogger.Msg($"[BrowserNavigator] Using target zone: {targetZone.name}");
-
-                // Try to simulate drag using CardInput's drag handlers
-                var cardInput = card.GetComponent("CardInput") as Component;
-                if (cardInput != null)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] Simulating drag from card to ViewDismiss");
-
-                    // Create fake event data for drag
-                    var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-                    var pointerData = new UnityEngine.EventSystems.PointerEventData(eventSystem)
-                    {
-                        position = card.transform.position,
-                        pressPosition = card.transform.position,
-                        pointerDrag = card
-                    };
-
-                    // Try calling drag methods via reflection
-                    var cardInputType = cardInput.GetType();
-
-                    // OnBeginDrag
-                    var beginDragMethod = cardInputType.GetMethod("OnBeginDrag");
-                    if (beginDragMethod != null)
-                    {
-                        MelonLogger.Msg($"[BrowserNavigator] Calling OnBeginDrag");
-                        beginDragMethod.Invoke(cardInput, new object[] { pointerData });
-                    }
-
-                    // Update position to target zone (library)
-                    pointerData.position = targetZone.transform.position;
-
-                    // OnDrag
-                    var dragMethod = cardInputType.GetMethod("OnDrag");
-                    if (dragMethod != null)
-                    {
-                        MelonLogger.Msg($"[BrowserNavigator] Calling OnDrag");
-                        dragMethod.Invoke(cardInput, new object[] { pointerData });
-                    }
-
-                    // OnEndDrag
-                    var endDragMethod = cardInputType.GetMethod("OnEndDrag");
-                    if (endDragMethod != null)
-                    {
-                        MelonLogger.Msg($"[BrowserNavigator] Calling OnEndDrag");
-                        endDragMethod.Invoke(cardInput, new object[] { pointerData });
-                    }
-
-                    // Check state after drag
-                    MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
-                }
-                else
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] CardInput component not found");
-                    _announcer.Announce("Cannot select card", AnnouncementPriority.High);
-                }
-                return;
-            }
-
-            // For scry-style browsers, toggle by clicking the opposite holder
-            if (IsScryStyleBrowser(_browserTypeName))
-            {
-                ToggleCardPosition(card, cardName, stateBefore);
-            }
-            else
-            {
-                // Default: just click the card
-                var result = UIActivator.SimulatePointerClick(card);
-                if (result.Success)
-                {
-                    MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
-                }
-                else
-                {
-                    _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Toggles card position for scry-style browsers.
-        /// Explores the CardBrowserCardHolder API to find the right method.
-        /// </summary>
-        private void ToggleCardPosition(GameObject card, string cardName, string stateBefore)
-        {
-            MelonLogger.Msg($"[BrowserNavigator] === TOGGLE CARD POSITION ===");
-
-            // Find both card holders
-            var defaultHolder = FindActiveGameObject(HolderDefault);
-            var dismissHolder = FindActiveGameObject(HolderViewDismiss);
-
-            object defaultHolderComp = null;
-            object dismissHolderComp = null;
-
-            if (defaultHolder != null)
-            {
-                defaultHolderComp = GetCardBrowserCardHolderComponent(defaultHolder);
-                if (defaultHolderComp != null)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] Found Default CardBrowserCardHolder");
-                    LogComponentMethods(defaultHolderComp);
-                }
-            }
-
-            if (dismissHolder != null)
-            {
-                dismissHolderComp = GetCardBrowserCardHolderComponent(dismissHolder);
-                if (dismissHolderComp != null)
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] Found ViewDismiss CardBrowserCardHolder");
-                }
-            }
-
-            // Also check the card itself for interactive components
-            MelonLogger.Msg($"[BrowserNavigator] Card components:");
-            foreach (var comp in card.GetComponents<Component>())
-            {
-                if (comp != null)
-                {
-                    var typeName = comp.GetType().Name;
-                    MelonLogger.Msg($"[BrowserNavigator]   {typeName}");
-
-                    // Look for card-specific browser interaction components
-                    if (typeName.Contains("Browser") || typeName.Contains("Card"))
-                    {
-                        LogComponentMethods(comp);
-                    }
-                }
-            }
-
-            // Try different approaches based on what we found
-
-            // Approach 1: Try to invoke MoveToHolder/Toggle methods on card or holder
-            bool success = TryInvokeToggleMethod(card, defaultHolderComp, dismissHolderComp, stateBefore);
-            if (success)
-            {
-                MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
-                return;
-            }
-
-            // Approach 2: Try clicking the opposite holder directly (works for Scry/Surveil)
-            if (stateBefore == Strings.KeepOnTop && dismissHolder != null)
-            {
-                MelonLogger.Msg($"[BrowserNavigator] Trying to click dismiss holder");
-                var result = UIActivator.SimulatePointerClick(dismissHolder);
-                if (result.Success)
-                {
-                    MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
-                    return;
-                }
-            }
-            else if (stateBefore == Strings.PutOnBottom && defaultHolder != null)
-            {
-                MelonLogger.Msg($"[BrowserNavigator] Trying to click default holder");
-                var result = UIActivator.SimulatePointerClick(defaultHolder);
-                if (result.Success)
-                {
-                    MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
-                    return;
-                }
-            }
-
-            // Approach 3: Try clicking the card directly (fallback)
-            MelonLogger.Msg($"[BrowserNavigator] Trying direct card click");
-            var cardClickResult = UIActivator.SimulatePointerClick(card);
-            if (cardClickResult.Success)
+            // Just click the card - let the game handle selection/toggle logic
+            var result = UIActivator.SimulatePointerClick(card);
+            if (result.Success)
             {
                 MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, stateBefore));
             }
             else
             {
-                _announcer.Announce(Strings.CouldNotTogglePosition, AnnouncementPriority.High);
+                _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
             }
         }
 
         /// <summary>
-        /// Logs public methods on a component for API discovery.
+        /// Logs public methods on a component for API discovery (debug).
         /// </summary>
         private void LogComponentMethods(object component)
         {
@@ -1881,66 +1485,6 @@ namespace MTGAAccessibility.Core.Services
                 var paramInfo = string.Join(", ", System.Array.ConvertAll(method.GetParameters(), p => $"{p.ParameterType.Name} {p.Name}"));
                 MelonLogger.Msg($"[BrowserNavigator]   {method.ReturnType.Name} {method.Name}({paramInfo})");
             }
-        }
-
-        /// <summary>
-        /// Tries to invoke toggle/move methods on card or holder components.
-        /// </summary>
-        private bool TryInvokeToggleMethod(GameObject card, object defaultHolder, object dismissHolder, string currentState)
-        {
-            // Try common method names for toggling
-            var toggleMethodNames = new[] { "Toggle", "Select", "Click", "OnClick", "OnPointerClick", "MoveCard", "TransferCard", "Dismiss", "ViewDismiss" };
-
-            // Try on card components first
-            foreach (var comp in card.GetComponents<Component>())
-            {
-                if (comp == null) continue;
-                var type = comp.GetType();
-
-                foreach (var methodName in toggleMethodNames)
-                {
-                    var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
-                    if (method != null && method.GetParameters().Length == 0)
-                    {
-                        try
-                        {
-                            MelonLogger.Msg($"[BrowserNavigator] Invoking {type.Name}.{methodName}()");
-                            method.Invoke(comp, null);
-                            return true;
-                        }
-                        catch (System.Exception ex)
-                        {
-                            MelonLogger.Msg($"[BrowserNavigator] Method {methodName} failed: {ex.Message}");
-                        }
-                    }
-                }
-            }
-
-            // Try on target holder
-            var targetHolder = (currentState == Strings.KeepOnTop) ? dismissHolder : defaultHolder;
-            if (targetHolder != null)
-            {
-                var type = targetHolder.GetType();
-                foreach (var methodName in toggleMethodNames)
-                {
-                    var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
-                    if (method != null && method.GetParameters().Length == 0)
-                    {
-                        try
-                        {
-                            MelonLogger.Msg($"[BrowserNavigator] Invoking {type.Name}.{methodName}()");
-                            method.Invoke(targetHolder, null);
-                            return true;
-                        }
-                        catch (System.Exception ex)
-                        {
-                            MelonLogger.Msg($"[BrowserNavigator] Method {methodName} failed: {ex.Message}");
-                        }
-                    }
-                }
-            }
-
-            return false;
         }
 
         /// <summary>
