@@ -4,6 +4,35 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Browser Navigator Architecture Refactoring
+
+Refactored the monolithic `BrowserNavigator.cs` (~2465 lines) into 3 well-organized files following the established CardDetector/DuelNavigator/ZoneNavigator pattern.
+
+**New Architecture:**
+- `BrowserDetector.cs` - Static browser detection and caching (like CardDetector)
+- `BrowserNavigator.cs` - Orchestrator for browser lifecycle and generic navigation (like DuelNavigator)
+- `BrowserZoneNavigator.cs` - Two-zone navigation for Scry/Surveil and London mulligan (like ZoneNavigator)
+
+**Benefits:**
+- Clear separation of concerns (detection vs orchestration vs zone navigation)
+- Easier maintenance (London bugs → BrowserZoneNavigator, detection issues → BrowserDetector)
+- Consistent with existing codebase patterns
+- Better testability
+
+**Bug Fixes During Refactoring:**
+- Fixed browser not exiting after Scry closed (ViewDismiss holder cards were animation remnants)
+- Fixed Tab+Enter not moving cards in zone-based browsers (now detects zone from parent hierarchy)
+- Fixed zone names showing "selected" instead of descriptive names
+
+**Technical Details:**
+- BrowserDetector only detects CardBrowserCardHolder from DEFAULT holder (not ViewDismiss)
+- Zone detection uses parent hierarchy for Scry, API methods (`IsInHand`/`IsInLibrary`) for London
+- Cache invalidation on button clicks forces immediate re-detection
+
+**Files:** `BrowserDetector.cs` (new), `BrowserNavigator.cs` (rewritten), `BrowserZoneNavigator.cs` (new)
+
+---
+
 ### Scry/Surveil Browser - Full Keyboard Support
 
 Implemented full keyboard accessibility for Scry, Surveil, and similar card selection browsers.

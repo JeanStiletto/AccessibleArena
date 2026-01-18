@@ -35,11 +35,15 @@ C:\Users\fabia\arena\
         CardInfoNavigator.cs     - Card detail navigation (arrow up/down)
         ZoneNavigator.cs         - Zone navigation in duel (H/B/G/X/S + arrows)
         DuelAnnouncer.cs         - Game event announcements via Harmony
-        HotHighlightNavigator.cs - Unified Tab navigation for playable cards AND targets (NEW)
+        HotHighlightNavigator.cs - Unified Tab navigation for playable cards AND targets
         DiscardNavigator.cs      - Discard selection when forced to discard
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
-        BrowserNavigator.cs      - Library manipulation browsers (scry, surveil, mulligan)
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
+
+        # Browser Navigation (library manipulation - scry, surveil, mulligan)
+        BrowserDetector.cs       - Static browser detection and caching
+        BrowserNavigator.cs      - Browser orchestration and generic navigation
+        BrowserZoneNavigator.cs  - Two-zone navigation (Scry/London mulligan)
 
         old/                     - Deprecated navigators (kept for reference/revert)
           TargetNavigator.cs     - OLD: Separate target selection (replaced by HotHighlightNavigator)
@@ -320,48 +324,47 @@ Cards announce their current state based on active UI indicators:
 - `src/Core/Services/InputManager.cs` - Key consumption infrastructure
 - `src/Patches/KeyboardManagerPatch.cs` - Harmony patch for game's KeyboardManager
 
-### Browser Navigator System (Partially Working)
-- [x] BrowserNavigator service - Unified handler for browser-style UIs
-- [x] Browser scaffold detection - Finds `BrowserScaffold_*` GameObjects (Scry, Surveil, etc.)
+### Browser Navigator System (Complete)
+
+Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator pattern.
+
+**Architecture:**
+- `BrowserDetector.cs` - Static browser detection and caching (like CardDetector)
+- `BrowserNavigator.cs` - Orchestrator for browser lifecycle and generic navigation (like DuelNavigator)
+- `BrowserZoneNavigator.cs` - Two-zone navigation for Scry/Surveil and London mulligan (like ZoneNavigator)
+
+**Features:**
+- [x] Browser scaffold detection - Finds `BrowserScaffold_*` GameObjects (Scry, Surveil, London, etc.)
 - [x] Card holder detection - `BrowserCardHolder_Default` (keep) and `BrowserCardHolder_ViewDismiss` (dismiss)
-- [x] Tab navigation - Cycles through cards in browser
-- [x] Card state announcements - "keep on top" or "put on bottom" based on holder (only when buttons present)
-- [x] Integration with DuelNavigator - BrowserNavigator.Update() and HandleInput() called
-- [x] Integration with DuelAnnouncer - `MultistepEffectStartedUXEvent` triggers browser entry announcement
-- [x] Space to confirm - Clicks `PromptButton_Primary` (Keep, Done, etc.)
-- [~] Mulligan browser - Partially working (see details below)
-- [ ] Enter to toggle position - API discovery in progress (card doesn't move between holders yet)
-- [ ] Surveil testing - Same UI pattern as scry, needs verification
+- [x] Tab navigation - Cycles through all cards in browser
+- [x] Zone navigation (C/D keys) - C for top/keep zone, D for bottom zone
+- [x] Card movement - Enter toggles card between zones
+- [x] Card state announcements - Zone-based ("Keep on top", "Put on bottom")
+- [x] Space to confirm - Clicks `PromptButton_Primary`
+- [x] Backspace to cancel - Clicks `PromptButton_Secondary`
+- [x] Scry/Surveil - Full keyboard support with two-zone navigation
+- [x] London Mulligan - Full keyboard support for putting cards on bottom
 
 **Browser Types Supported:**
 - Scry - View top card(s), choose keep on top or put on bottom
 - Surveil - Similar to scry, dismissed cards go to graveyard
-- Mulligan/Opening Hand - View starting hand, keep or mulligan (partially working)
+- Read Ahead - Saga chapter selection
+- London Mulligan - Select cards to put on bottom after mulliganing
+- Opening Hand/Mulligan - View starting hand, keep or mulligan
+- Generic browsers - YesNo, Dungeon, SelectCards, etc. (Tab + Enter)
 
-**Mulligan Implementation Status:**
+**Zone Navigation:**
+- **C** - Enter top/keep zone (Scry: "Keep on top", London: "Keep pile")
+- **D** - Enter bottom zone (Scry: "Put on bottom", London: "Bottom of library")
+- **Left/Right** - Navigate within current zone
+- **Enter** - Toggle card between zones
+- **Tab** - Navigate all cards (detects zone automatically for activation)
 
-Mulligan has two distinct UI flows depending on play/draw:
-
-1. **On the draw (opponent starts first):**
-   - `BrowserScaffold_OpeningHand` appears for opponent's hand view
-   - `BrowserScaffold_Mulligan` with `KeepButton`/`MulliganButton` for your decision
-   - Detection via `IsMulliganBrowserVisible()` checks for these buttons
-
-2. **On the play (you start first):**
-   - No scaffold detected, falls back to `CardBrowserCardHolder`
-   - Uses `PromptButton_Primary`/`PromptButton_Secondary` for actions
-   - Cards found but shown differently
-
-**Mulligan Phases:**
-- Phase 1: View 7 cards, decide Keep or Mulligan
-- Phase 2: Wait for opponent's decision
-- Phase 3 (London Mulligan): If mulliganed, select card(s) to put on bottom (1 per mulligan taken)
-
-**What Works:**
-- Tab cycles through opening hand cards
-- Cards announced without "keep on top" (viewing mode, no selection state)
-- Space clicks PromptButton_Primary (announces button label like "Keep" or "Opponent's Turn")
-- Browser exits properly when mulligan buttons disappear
+**Technical Implementation:**
+- BrowserDetector caches scan results for performance (100ms interval)
+- Only detects CardBrowserCardHolder from DEFAULT holder (ViewDismiss without scaffold is animation remnant)
+- Zone detection from parent hierarchy (Scry) or API methods (London: `IsInHand`/`IsInLibrary`)
+- Card movement via reflection: Scry uses `RemoveCard`/`AddCard`, London uses `HandleDrag`/`OnDragRelease`
 
 ## Known Issues
 
