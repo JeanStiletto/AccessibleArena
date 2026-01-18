@@ -72,7 +72,7 @@ namespace MTGAAccessibility.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            return $"{ScreenName}. {_elements.Count} fields. Tab to navigate.";
+            return $"{ScreenName}. {_elements.Count} fields. {Models.Strings.NavigateWithArrows}.";
         }
 
         protected override string GetElementAnnouncement(int index)

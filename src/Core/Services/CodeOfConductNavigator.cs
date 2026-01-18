@@ -124,7 +124,7 @@ namespace MTGAAccessibility.Core.Services
                 if (element.GameObject?.GetComponent<Toggle>() != null)
                     toggleCount++;
             }
-            return $"{ScreenName}. {toggleCount} checkboxes. Tab to navigate. Press C to read terms.";
+            return $"{ScreenName}. {toggleCount} checkboxes. {Models.Strings.NavigateWithArrows}. Press C to read terms.";
         }
 
         protected override bool HandleCustomInput()

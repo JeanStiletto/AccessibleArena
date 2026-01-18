@@ -166,6 +166,18 @@ namespace MTGAAccessibility.Core.Services
                     return true;
                 }
 
+                // Home/End for jumping to first/last card in zone
+                if (Input.GetKeyDown(KeyCode.Home))
+                {
+                    NavigateFirst();
+                    return true;
+                }
+                if (Input.GetKeyDown(KeyCode.End))
+                {
+                    NavigateLast();
+                    return true;
+                }
+
                 // Enter - activate current card (toggle between zones)
                 if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
                 {
@@ -217,6 +229,7 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Navigates to the next card in the current zone.
+        /// Stops at the end without wrapping.
         /// </summary>
         public void NavigateNext()
         {
@@ -228,15 +241,20 @@ namespace MTGAAccessibility.Core.Services
                 return;
             }
 
-            _cardIndex++;
-            if (_cardIndex >= currentList.Count)
-                _cardIndex = 0;
-
-            AnnounceCurrentCard();
+            if (_cardIndex < currentList.Count - 1)
+            {
+                _cardIndex++;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _announcer.AnnounceInterrupt(Strings.EndOfZone);
+            }
         }
 
         /// <summary>
         /// Navigates to the previous card in the current zone.
+        /// Stops at the beginning without wrapping.
         /// </summary>
         public void NavigatePrevious()
         {
@@ -248,10 +266,61 @@ namespace MTGAAccessibility.Core.Services
                 return;
             }
 
-            _cardIndex--;
-            if (_cardIndex < 0)
-                _cardIndex = currentList.Count - 1;
+            if (_cardIndex > 0)
+            {
+                _cardIndex--;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _announcer.AnnounceInterrupt(Strings.BeginningOfZone);
+            }
+        }
 
+        /// <summary>
+        /// Jumps to the first card in the current zone.
+        /// </summary>
+        public void NavigateFirst()
+        {
+            var currentList = GetCurrentZoneCards();
+            if (currentList.Count == 0)
+            {
+                string zoneName = GetZoneName(_currentZone);
+                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (_cardIndex == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.BeginningOfZone);
+                return;
+            }
+
+            _cardIndex = 0;
+            AnnounceCurrentCard();
+        }
+
+        /// <summary>
+        /// Jumps to the last card in the current zone.
+        /// </summary>
+        public void NavigateLast()
+        {
+            var currentList = GetCurrentZoneCards();
+            if (currentList.Count == 0)
+            {
+                string zoneName = GetZoneName(_currentZone);
+                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                return;
+            }
+
+            int lastIndex = currentList.Count - 1;
+            if (_cardIndex == lastIndex)
+            {
+                _announcer.AnnounceInterrupt(Strings.EndOfZone);
+                return;
+            }
+
+            _cardIndex = lastIndex;
             AnnounceCurrentCard();
         }
 

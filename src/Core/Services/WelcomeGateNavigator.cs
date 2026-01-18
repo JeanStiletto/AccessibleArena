@@ -46,7 +46,7 @@ namespace MTGAAccessibility.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            return $"{ScreenName}. {_elements.Count} options. Press Tab to navigate, Enter to select.";
+            return $"{ScreenName}. {_elements.Count} options. {Models.Strings.NavigateWithArrows}, Enter to select.";
         }
     }
 }

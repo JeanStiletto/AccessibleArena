@@ -48,18 +48,30 @@ This solves multiple problems at once:
 - Risk of breaking existing working functionality
 
 ### Game's Built-in Keybinds (DO NOT OVERRIDE)
-- Arrow keys: Navigation
-- Tab / Shift+Tab: Next / Previous item
 - Enter / Space: Accept / Submit
 - Escape: Cancel / Back
-- F: Find
+- Tab: Next item (used by mod for duel highlights only)
 - Alt (hold): Alt view (card details)
+
+### Mod Navigation Keys
+
+**Menu Navigation:**
+- Arrow Up/Down (or W/S): Navigate menu items (non-wrapping)
+- Arrow Left/Right (or A/D): Carousel/stepper controls
+- Home: Jump to first item
+- End: Jump to last item
+
+**Duel Navigation:**
+- Tab/Shift+Tab: Cycle highlights (playable cards, targets)
+- Arrow keys: Zone/card/battlefield navigation
 
 ### Safe Custom Shortcuts
 Your Zones (Battle): C (Hand/Cards), B (Battlefield), G (Graveyard), X (Exile), S (Stack)
 Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
-Information: T (Turn/phase), L (Life totals), A (Your Mana), Shift+A (Opponent Mana)
+Information: T (Turn/phase), L (Life totals), V (Player Info Zone)
+Library Counts: D (Your Library), Shift+D (Opponent Library), Shift+C (Opponent Hand)
 Card Details: Arrow Up/Down when focused on a card
+Zone Navigation: Left/Right (Navigate cards), Home/End (Jump to first/last)
 Deck Selection: Shift+Enter to edit deck name (Enter to select deck)
 Global: F1 (Help), F2 (Context info), Ctrl+R (Repeat last)
 

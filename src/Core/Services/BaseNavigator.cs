@@ -99,7 +99,7 @@ namespace MTGAAccessibility.Core.Services
         protected virtual string GetActivationAnnouncement()
         {
             string countInfo = _elements.Count > 1 ? $"{_elements.Count} items. " : "";
-            return $"{ScreenName}. {countInfo}Tab to navigate, Enter to select.";
+            return $"{ScreenName}. {countInfo}{Models.Strings.NavigateWithArrows}, Enter to select.";
         }
 
         /// <summary>Build announcement for current element</summary>
@@ -508,26 +508,40 @@ namespace MTGAAccessibility.Core.Services
             // Custom input first (subclass-specific keys)
             if (HandleCustomInput()) return;
 
-            // Standard navigation
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-
-            if (Input.GetKeyDown(KeyCode.Tab))
+            // Menu navigation with Arrow Up/Down and W/S alternatives
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
             {
-                if (shift)
-                    MovePrevious();
-                else
-                    MoveNext();
+                MovePrevious();
                 return;
             }
 
-            // Arrow key navigation for carousel elements
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+            {
+                MoveNext();
+                return;
+            }
+
+            // Home/End for quick jump to first/last
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                MoveFirst();
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                MoveLast();
+                return;
+            }
+
+            // Arrow Left/Right for carousel elements
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
             {
                 if (HandleCarouselArrow(isNext: false))
                     return;
             }
 
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
             {
                 if (HandleCarouselArrow(isNext: true))
                     return;
@@ -680,12 +694,27 @@ namespace MTGAAccessibility.Core.Services
             return $"{classification.Label}, {classification.RoleLabel}";
         }
 
-        /// <summary>Move to next (direction=1) or previous (direction=-1) element</summary>
+        /// <summary>Move to next (direction=1) or previous (direction=-1) element without wrapping</summary>
         protected virtual void Move(int direction)
         {
             if (_elements.Count == 0) return;
 
-            _currentIndex = (_currentIndex + direction + _elements.Count) % _elements.Count;
+            int newIndex = _currentIndex + direction;
+
+            // Check boundaries - no wrapping
+            if (newIndex < 0)
+            {
+                _announcer.Announce(Models.Strings.BeginningOfList, Models.AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (newIndex >= _elements.Count)
+            {
+                _announcer.Announce(Models.Strings.EndOfList, Models.AnnouncementPriority.Normal);
+                return;
+            }
+
+            _currentIndex = newIndex;
             AnnounceCurrentElement();
 
             if (SupportsCardNavigation)
@@ -696,6 +725,47 @@ namespace MTGAAccessibility.Core.Services
 
         protected virtual void MoveNext() => Move(1);
         protected virtual void MovePrevious() => Move(-1);
+
+        /// <summary>Jump to first element</summary>
+        protected virtual void MoveFirst()
+        {
+            if (_elements.Count == 0) return;
+
+            if (_currentIndex == 0)
+            {
+                _announcer.Announce(Models.Strings.BeginningOfList, Models.AnnouncementPriority.Normal);
+                return;
+            }
+
+            _currentIndex = 0;
+            AnnounceCurrentElement();
+
+            if (SupportsCardNavigation)
+            {
+                PrepareCardNavigationForCurrentElement();
+            }
+        }
+
+        /// <summary>Jump to last element</summary>
+        protected virtual void MoveLast()
+        {
+            if (_elements.Count == 0) return;
+
+            int lastIndex = _elements.Count - 1;
+            if (_currentIndex == lastIndex)
+            {
+                _announcer.Announce(Models.Strings.EndOfList, Models.AnnouncementPriority.Normal);
+                return;
+            }
+
+            _currentIndex = lastIndex;
+            AnnounceCurrentElement();
+
+            if (SupportsCardNavigation)
+            {
+                PrepareCardNavigationForCurrentElement();
+            }
+        }
 
         protected virtual void AnnounceCurrentElement()
         {

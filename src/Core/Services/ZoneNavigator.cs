@@ -328,6 +328,27 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
+            // Home/End for jumping to first/last card in zone
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                ClearEventSystemSelection();
+                if (HasCardsInCurrentZone())
+                {
+                    FirstCard();
+                }
+                return true;
+            }
+
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                ClearEventSystemSelection();
+                if (HasCardsInCurrentZone())
+                {
+                    LastCard();
+                }
+                return true;
+            }
+
             // Enter key - play/activate current card
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
@@ -482,6 +503,47 @@ namespace MTGAAccessibility.Core.Services
             {
                 _announcer.AnnounceInterrupt(Strings.BeginningOfZone);
             }
+        }
+
+        /// <summary>
+        /// Jumps to the first card in the current zone.
+        /// </summary>
+        public void FirstCard()
+        {
+            if (!_zones.ContainsKey(_currentZone)) return;
+
+            var zoneInfo = _zones[_currentZone];
+            if (zoneInfo.Cards.Count == 0) return;
+
+            if (_cardIndexInZone == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.BeginningOfZone);
+                return;
+            }
+
+            _cardIndexInZone = 0;
+            AnnounceCurrentCard();
+        }
+
+        /// <summary>
+        /// Jumps to the last card in the current zone.
+        /// </summary>
+        public void LastCard()
+        {
+            if (!_zones.ContainsKey(_currentZone)) return;
+
+            var zoneInfo = _zones[_currentZone];
+            if (zoneInfo.Cards.Count == 0) return;
+
+            int lastIndex = zoneInfo.Cards.Count - 1;
+            if (_cardIndexInZone == lastIndex)
+            {
+                _announcer.AnnounceInterrupt(Strings.EndOfZone);
+                return;
+            }
+
+            _cardIndexInZone = lastIndex;
+            AnnounceCurrentCard();
         }
 
         /// <summary>

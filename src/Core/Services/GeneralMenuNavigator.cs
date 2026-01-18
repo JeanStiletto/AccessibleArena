@@ -1715,7 +1715,7 @@ namespace MTGAAccessibility.Core.Services
             {
                 return $"{menuName}. No navigable items found.";
             }
-            return $"{menuName}. {_elements.Count} items. Tab to navigate, Enter to select.";
+            return $"{menuName}. {_elements.Count} items. {Models.Strings.NavigateWithArrows}, Enter to select.";
         }
 
         protected override bool OnElementActivated(int index, GameObject element)

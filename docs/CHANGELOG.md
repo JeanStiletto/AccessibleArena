@@ -4,6 +4,38 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Unified Navigation Paradigm - Arrow Keys for Menus
+
+Changed menu navigation from Tab/Shift+Tab to Arrow Up/Down with WASD alternatives for improved consistency with screen reader conventions.
+
+**Menu Navigation (New):**
+- Arrow Up / W = Previous item
+- Arrow Down / S = Next item
+- Arrow Left/Right / A/D = Carousel/stepper controls
+- Home = Jump to first item
+- End = Jump to last item
+- No wrapping at boundaries (announces "Beginning of list" / "End of list")
+
+**Duel Navigation (Unchanged - keeps Tab):**
+- Tab/Shift+Tab for cycling through highlights (playable cards, targets)
+- Arrow keys for zone/card/battlefield navigation
+
+**Zone/Battlefield/Browser Navigation (Enhanced):**
+- Added Home/End support for jumping to first/last card
+- ZoneNavigator: Home/End in hand, graveyard, exile, stack
+- BattlefieldNavigator: Home/End within battlefield rows
+- BrowserZoneNavigator: Home/End in scry/surveil/mulligan zones
+- BrowserZoneNavigator: Changed from wrapping to non-wrapping for consistency
+
+**Design Rationale:**
+- Menus are linear lists → Arrow navigation is intuitive (like desktop apps)
+- Duel highlights are scattered across screen → Tab as "next action" is appropriate
+- All zone navigation now consistently non-wrapping with boundary announcements
+
+**Files:** `BaseNavigator.cs`, `ZoneNavigator.cs`, `BattlefieldNavigator.cs`, `BrowserZoneNavigator.cs`, `Strings.cs`, plus announcement updates in 5 derived navigators
+
+---
+
 ### Browser Navigator Architecture Refactoring
 
 Refactored the monolithic `BrowserNavigator.cs` (~2465 lines) into 3 well-organized files following the established CardDetector/DuelNavigator/ZoneNavigator pattern.

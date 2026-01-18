@@ -74,26 +74,56 @@ Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\MTGAAccessibility.dll
 - `UITextExtractor.GetText(element)` - Text extraction
 
 ### Safe Custom Shortcuts
+
+**Menu Navigation:**
+Arrow Up/Down (or W/S): Navigate menu items
+Arrow Left/Right (or A/D): Carousel/stepper controls
+Home: Jump to first item
+End: Jump to last item
+Enter/Space: Activate
+Backspace: Back one level
+
+**Duel - Zone Navigation:**
 Your Zones: C (Hand/Cards), G (Graveyard), X (Exile), S (Stack)
 Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
-Battlefield (Your side): B (Creatures), A (Lands), R (Non-creatures)
-Battlefield (Enemy side): Shift+B (Creatures), Shift+A (Lands), Shift+R (Non-creatures)
-Battlefield Navigation: Shift+Up (Previous row), Shift+Down (Next row), Left/Right (Within row)
-Info: T (Turn), L (Life), V (Player Info Zone), D (Your Library Count), Shift+D (Opponent Library Count), Shift+C (Opponent Hand Count)
-Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
+Within Zone: Left/Right (Navigate cards), Home/End (Jump to first/last)
 Card Details: Arrow Up/Down when focused on a card
-Carousel: Arrow Left/Right when focused on a carousel element (e.g., promotional banners)
-Combat (Declare Attackers): F (All Attack / X Attack), Backspace (No Attacks), Space (All Attack / X Attack)
-Combat (Declare Blockers): F (Confirm Blocks / Next), Backspace (No Blocks / Cancel Blocks), Space (Confirm Blocks / Next)
-Main Phase: Space (Next / To Combat / Pass - clicks primary button)
-Targeting: Tab (Cycle targets), Enter (Select), Backspace (Cancel)
-Browser (Scry/Surveil/etc.): Tab/Arrows (Navigate), Enter (Activate), Space (Confirm), Backspace (Cancel)
-London Mulligan: C (Keep pile), D (Bottom pile), Left/Right (Navigate), Enter (Toggle card), Space (Submit)
-Global: F1 (Help), F2 (Context), Ctrl+R (Repeat), Backspace (Back/Dismiss/Cancel - universal)
 
-Do NOT override: Tab, Enter, Escape
-Note: Shift+Up/Down used for battlefield row switching
-Note: Left/Right arrows used contextually (cards, carousels, battlefield rows)
+**Duel - Battlefield:**
+Your side: B (Creatures), A (Lands), R (Non-creatures)
+Enemy side: Shift+B (Creatures), Shift+A (Lands), Shift+R (Non-creatures)
+Row Switching: Shift+Up (Previous row), Shift+Down (Next row)
+Within Row: Left/Right (Navigate cards), Home/End (Jump to first/last)
+
+**Duel - Info:**
+T (Turn), L (Life), V (Player Info Zone)
+D (Your Library Count), Shift+D (Opponent Library Count), Shift+C (Opponent Hand Count)
+Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
+
+**Duel - Combat:**
+Declare Attackers: F (All Attack / X Attack), Backspace (No Attacks), Space (All Attack / X Attack)
+Declare Blockers: F (Confirm Blocks / Next), Backspace (No Blocks / Cancel Blocks), Space (Confirm Blocks / Next)
+Main Phase: Space (Next / To Combat / Pass - clicks primary button)
+
+**Duel - Targeting:**
+Tab (Cycle targets), Enter (Select), Backspace (Cancel)
+
+**Duel - Browser (Scry/Surveil/etc.):**
+Tab (Navigate all cards), C/D (Jump to top/bottom zone)
+Within Zone: Left/Right (Navigate), Home/End (Jump to first/last)
+Enter (Toggle card), Space (Confirm), Backspace (Cancel)
+
+**Duel - London Mulligan:**
+C (Keep pile), D (Bottom pile)
+Left/Right (Navigate), Home/End (Jump to first/last)
+Enter (Toggle card), Space (Submit)
+
+**Global:**
+F1 (Help), F2 (Context), Ctrl+R (Repeat)
+Backspace (Back/Dismiss/Cancel - universal)
+
+Do NOT override: Tab (used for duel highlights), Enter, Escape
+Note: Arrow keys used differently in menus (navigation) vs duels (zone/card navigation)
 Note: F key used contextually during combat phases (attackers/blockers)
 Note: Space used contextually during duels (main phase pass, combat confirmations)
-Note: Backspace is the universal back/dismiss/cancel key - in menus goes back one level (Settings submenu → Settings → Home, PlayBlade → Home), also handles combat no attacks/blocks, browser cancel, targeting cancel, exit zones
+Note: Backspace is the universal back/dismiss/cancel key

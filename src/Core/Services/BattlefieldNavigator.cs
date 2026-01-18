@@ -169,6 +169,21 @@ namespace MTGAAccessibility.Core.Services
                 return true;
             }
 
+            // Home/End for jumping to first/last card in row
+            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.Home))
+            {
+                ClearEventSystemSelection();
+                FirstCard();
+                return true;
+            }
+
+            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.End))
+            {
+                ClearEventSystemSelection();
+                LastCard();
+                return true;
+            }
+
             // Enter to activate card (only when in battlefield)
             // Note: HotHighlightNavigator handles Enter for targets - this is for non-highlighted cards
             if (inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
@@ -401,6 +416,51 @@ namespace MTGAAccessibility.Core.Services
             {
                 _announcer.AnnounceInterrupt(Strings.BeginningOfRow);
             }
+        }
+
+        /// <summary>
+        /// Jumps to the first card in the current row.
+        /// </summary>
+        private void FirstCard()
+        {
+            var cards = _rows[_currentRow];
+            if (cards.Count == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.RowEmpty(GetRowName(_currentRow)));
+                return;
+            }
+
+            if (_currentIndex == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.BeginningOfRow);
+                return;
+            }
+
+            _currentIndex = 0;
+            AnnounceCurrentCard();
+        }
+
+        /// <summary>
+        /// Jumps to the last card in the current row.
+        /// </summary>
+        private void LastCard()
+        {
+            var cards = _rows[_currentRow];
+            if (cards.Count == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.RowEmpty(GetRowName(_currentRow)));
+                return;
+            }
+
+            int lastIndex = cards.Count - 1;
+            if (_currentIndex == lastIndex)
+            {
+                _announcer.AnnounceInterrupt(Strings.EndOfRow);
+                return;
+            }
+
+            _currentIndex = lastIndex;
+            AnnounceCurrentCard();
         }
 
         /// <summary>

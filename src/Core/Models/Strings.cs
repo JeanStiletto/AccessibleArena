@@ -29,6 +29,9 @@ namespace MTGAAccessibility.Core.Models
         // ===========================================
         // MENU NAVIGATION
         // ===========================================
+        public const string NavigateWithArrows = "Arrow keys to navigate";
+        public const string BeginningOfList = "Beginning of list";
+        public const string EndOfList = "End of list";
         public const string OpeningPlayModes = "Opening play modes...";
         public const string OpeningDeckManager = "Opening deck manager...";
         public const string OpeningStore = "Opening store...";

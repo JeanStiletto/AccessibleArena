@@ -322,10 +322,10 @@ namespace MTGAAccessibility.Core.Services
             // Try to include content summary for What's New
             if (_overlayType == "WhatsNew")
             {
-                return $"{ScreenName} overlay. {countInfo}Press Tab to navigate, Enter to continue.";
+                return $"{ScreenName} overlay. {countInfo}{Models.Strings.NavigateWithArrows}, Enter to continue.";
             }
 
-            return $"{ScreenName}. {countInfo}Tab to navigate, Enter to select.";
+            return $"{ScreenName}. {countInfo}{Models.Strings.NavigateWithArrows}, Enter to select.";
         }
 
         public override void OnSceneChanged(string sceneName)
