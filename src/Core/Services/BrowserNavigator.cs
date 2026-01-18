@@ -38,6 +38,13 @@ namespace MTGAAccessibility.Core.Services
         private List<GameObject> _londonLibraryCards = new List<GameObject>();
         private int _londonCardIndex = -1;
 
+        // Scry/Surveil zone navigation (top = keep, bottom = put on bottom)
+        private enum ScryZone { None, Top, Bottom }
+        private ScryZone _scryCurrentZone = ScryZone.None;
+        private List<GameObject> _scryTopCards = new List<GameObject>();
+        private List<GameObject> _scryBottomCards = new List<GameObject>();
+        private int _scryCardIndex = -1;
+
         // Card navigation
         private List<GameObject> _browserCards = new List<GameObject>();
         private int _currentCardIndex = -1;
@@ -139,6 +146,18 @@ namespace MTGAAccessibility.Core.Services
         private bool IsMulliganBrowser(string browserType)
         {
             return browserType == BrowserTypes.Mulligan || browserType == BrowserTypes.OpeningHand;
+        }
+
+        /// <summary>
+        /// Checks if a browser type supports two-zone navigation (Scry, Surveil, etc.).
+        /// These browsers have a "keep on top" and "put on bottom" zone.
+        /// </summary>
+        private bool IsScryLikeBrowser(string browserType)
+        {
+            if (string.IsNullOrEmpty(browserType)) return false;
+            return browserType.Contains("Scry") ||
+                   browserType.Contains("Surveil") ||
+                   browserType.Contains("ReadAhead");
         }
 
         /// <summary>
@@ -477,7 +496,7 @@ namespace MTGAAccessibility.Core.Services
                 _hasAnnouncedEntry = true;
             }
 
-            // C key - Enter hand (keep) zone in London browser, or activate card in other browsers
+            // C key - Enter keep/top zone (London hand, Scry top)
             if (Input.GetKeyDown(KeyCode.C))
             {
                 if (_browserTypeName == BrowserTypes.London)
@@ -485,7 +504,12 @@ namespace MTGAAccessibility.Core.Services
                     EnterLondonZone(LondonZone.Hand);
                     return true;
                 }
-                // For non-London browsers, C activates current card (like Enter)
+                if (IsScryLikeBrowser(_browserTypeName))
+                {
+                    EnterScryZone(ScryZone.Top);
+                    return true;
+                }
+                // For other browsers, C activates current card (like Enter)
                 if (_browserCards.Count > 0 && _currentCardIndex >= 0)
                 {
                     ActivateCurrentCard();
@@ -493,12 +517,17 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
-            // D key - Enter library (bottom) zone in London browser
+            // D key - Enter bottom zone (London library, Scry bottom)
             if (Input.GetKeyDown(KeyCode.D))
             {
                 if (_browserTypeName == BrowserTypes.London)
                 {
                     EnterLondonZone(LondonZone.Library);
+                    return true;
+                }
+                if (IsScryLikeBrowser(_browserTypeName))
+                {
+                    EnterScryZone(ScryZone.Bottom);
                     return true;
                 }
             }
@@ -530,6 +559,12 @@ namespace MTGAAccessibility.Core.Services
                     NavigateLondonPrevious();
                     return true;
                 }
+                // In Scry zone mode, use Scry navigation
+                if (_scryCurrentZone != ScryZone.None && _scryCardIndex >= 0)
+                {
+                    NavigateScryPrevious();
+                    return true;
+                }
                 if (_browserCards.Count > 0) NavigateToPreviousCard();
                 else if (_browserButtons.Count > 0) NavigateToPreviousButton();
                 return true;
@@ -540,6 +575,12 @@ namespace MTGAAccessibility.Core.Services
                 if (_browserTypeName == BrowserTypes.London && _londonCardIndex >= 0)
                 {
                     NavigateLondonNext();
+                    return true;
+                }
+                // In Scry zone mode, use Scry navigation
+                if (_scryCurrentZone != ScryZone.None && _scryCardIndex >= 0)
+                {
+                    NavigateScryNext();
                     return true;
                 }
                 if (_browserCards.Count > 0) NavigateToNextCard();
@@ -569,6 +610,12 @@ namespace MTGAAccessibility.Core.Services
                 if (_browserTypeName == BrowserTypes.London && _londonCardIndex >= 0)
                 {
                     ActivateCurrentLondonCard();
+                    return true;
+                }
+                // In Scry zone mode, use Scry activation (toggles card between zones)
+                if (_scryCurrentZone != ScryZone.None && _scryCardIndex >= 0)
+                {
+                    ActivateCurrentScryCard();
                     return true;
                 }
                 if (_browserCards.Count > 0 && _currentCardIndex >= 0)
@@ -954,6 +1001,12 @@ namespace MTGAAccessibility.Core.Services
             _currentCardIndex = -1;
             _currentButtonIndex = -1;
 
+            // Reset Scry zone state
+            _scryCurrentZone = ScryZone.None;
+            _scryTopCards.Clear();
+            _scryBottomCards.Clear();
+            _scryCardIndex = -1;
+
             // Invalidate cache so next detection starts fresh
             InvalidateBrowserCache();
 
@@ -1192,6 +1245,524 @@ namespace MTGAAccessibility.Core.Services
                 _announcer.Announce($"{cardName}, {zoneName}, {_londonCardIndex + 1} of {currentList.Count}. {_londonLibraryCards.Count} of {_mulliganCount} selected for bottom", AnnouncementPriority.Normal);
             }
         }
+
+        #region Scry Zone Navigation
+
+        /// <summary>
+        /// Enters a specific zone in Scry/Surveil browser (top = keep, bottom = put on bottom).
+        /// </summary>
+        private void EnterScryZone(ScryZone zone)
+        {
+            _scryCurrentZone = zone;
+            _scryCardIndex = -1;
+
+            // Investigation of Scry browser API (runs each session)
+            InvestigateScryBrowser();
+
+            // Refresh card lists from holders
+            RefreshScryCardLists();
+
+            var currentList = zone == ScryZone.Top ? _scryTopCards : _scryBottomCards;
+            string zoneName = zone == ScryZone.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
+
+            if (currentList.Count == 0)
+            {
+                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.High);
+            }
+            else
+            {
+                // Navigate to first card
+                _scryCardIndex = 0;
+                var firstCard = currentList[0];
+                var cardName = CardDetector.GetCardName(firstCard);
+                _announcer.Announce($"{zoneName}: {currentList.Count} cards. {cardName}, 1 of {currentList.Count}", AnnouncementPriority.High);
+
+                // Update CardInfoNavigator with this card
+                var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+                cardNav?.PrepareForCard(firstCard, ZoneType.Library);
+            }
+
+            MelonLogger.Msg($"[BrowserNavigator] Entered Scry zone: {zoneName}, {currentList.Count} cards");
+        }
+
+        /// <summary>
+        /// Refreshes the Scry top and bottom card lists from the browser holders.
+        /// </summary>
+        private void RefreshScryCardLists()
+        {
+            _scryTopCards.Clear();
+            _scryBottomCards.Clear();
+
+            // Find cards in BrowserCardHolder_Default (top/keep)
+            var defaultHolder = FindActiveGameObject(HolderDefault);
+            if (defaultHolder != null)
+            {
+                foreach (Transform child in defaultHolder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (!child.gameObject.activeInHierarchy) continue;
+                    if (!CardDetector.IsCard(child.gameObject)) continue;
+
+                    string cardName = CardDetector.GetCardName(child.gameObject);
+                    if (IsValidCardName(cardName) && !IsDuplicateCard(child.gameObject, _scryTopCards))
+                    {
+                        _scryTopCards.Add(child.gameObject);
+                    }
+                }
+            }
+
+            // Find cards in BrowserCardHolder_ViewDismiss (bottom)
+            var dismissHolder = FindActiveGameObject(HolderViewDismiss);
+            if (dismissHolder != null)
+            {
+                foreach (Transform child in dismissHolder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (!child.gameObject.activeInHierarchy) continue;
+                    if (!CardDetector.IsCard(child.gameObject)) continue;
+
+                    string cardName = CardDetector.GetCardName(child.gameObject);
+                    if (IsValidCardName(cardName) && !IsDuplicateCard(child.gameObject, _scryBottomCards))
+                    {
+                        _scryBottomCards.Add(child.gameObject);
+                    }
+                }
+            }
+
+            // Sort by horizontal position (left to right)
+            _scryTopCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+            _scryBottomCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+
+            MelonLogger.Msg($"[BrowserNavigator] Refreshed Scry lists - Top: {_scryTopCards.Count}, Bottom: {_scryBottomCards.Count}");
+        }
+
+        /// <summary>
+        /// Navigates to the next card in the current Scry zone.
+        /// </summary>
+        private void NavigateScryNext()
+        {
+            var currentList = _scryCurrentZone == ScryZone.Top ? _scryTopCards : _scryBottomCards;
+            if (currentList.Count == 0)
+            {
+                string zoneName = _scryCurrentZone == ScryZone.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
+                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                return;
+            }
+
+            _scryCardIndex++;
+            if (_scryCardIndex >= currentList.Count)
+                _scryCardIndex = 0;
+
+            AnnounceCurrentScryCard();
+        }
+
+        /// <summary>
+        /// Navigates to the previous card in the current Scry zone.
+        /// </summary>
+        private void NavigateScryPrevious()
+        {
+            var currentList = _scryCurrentZone == ScryZone.Top ? _scryTopCards : _scryBottomCards;
+            if (currentList.Count == 0)
+            {
+                string zoneName = _scryCurrentZone == ScryZone.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
+                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                return;
+            }
+
+            _scryCardIndex--;
+            if (_scryCardIndex < 0)
+                _scryCardIndex = currentList.Count - 1;
+
+            AnnounceCurrentScryCard();
+        }
+
+        /// <summary>
+        /// Announces the current card in Scry zone navigation.
+        /// </summary>
+        private void AnnounceCurrentScryCard()
+        {
+            var currentList = _scryCurrentZone == ScryZone.Top ? _scryTopCards : _scryBottomCards;
+            if (_scryCardIndex < 0 || _scryCardIndex >= currentList.Count) return;
+
+            var card = currentList[_scryCardIndex];
+            var cardName = CardDetector.GetCardName(card);
+            string zoneName = _scryCurrentZone == ScryZone.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
+
+            _announcer.Announce($"{cardName}, {zoneName}, {_scryCardIndex + 1} of {currentList.Count}", AnnouncementPriority.High);
+
+            // Update CardInfoNavigator
+            var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+            cardNav?.PrepareForCard(card, ZoneType.Library);
+        }
+
+        /// <summary>
+        /// Activates (toggles) the current card in Scry zone navigation.
+        /// Moves the card to the other zone via UI click.
+        /// </summary>
+        private void ActivateCurrentScryCard()
+        {
+            var currentList = _scryCurrentZone == ScryZone.Top ? _scryTopCards : _scryBottomCards;
+            if (_scryCardIndex < 0 || _scryCardIndex >= currentList.Count)
+            {
+                _announcer.Announce("No card selected", AnnouncementPriority.Normal);
+                return;
+            }
+
+            var card = currentList[_scryCardIndex];
+            var cardName = CardDetector.GetCardName(card);
+            string fromZone = _scryCurrentZone == ScryZone.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
+
+            MelonLogger.Msg($"[BrowserNavigator] Activating Scry card: {cardName} from {fromZone}");
+
+            // Use drag-based activation (same approach as London mulligan)
+            bool success = TryActivateCardViaScryBrowser(card, cardName);
+            if (success)
+            {
+                // Wait for state update and announce
+                MelonCoroutines.Start(RefreshScryZoneAfterDelay(cardName));
+            }
+            else
+            {
+                _announcer.Announce($"Could not move {cardName}", AnnouncementPriority.High);
+            }
+        }
+
+        /// <summary>
+        /// Activates a card via the Scry/Surveil browser by moving it between holders.
+        /// Uses RemoveCard on source holder and AddCard on target holder.
+        /// </summary>
+        private bool TryActivateCardViaScryBrowser(GameObject card, string cardName)
+        {
+            MelonLogger.Msg($"[BrowserNavigator] Attempting Scry card move for: {cardName}");
+
+            try
+            {
+                // Step 1: Find both holders
+                var defaultHolder = FindActiveGameObject(HolderDefault);
+                var dismissHolder = FindActiveGameObject(HolderViewDismiss);
+
+                if (defaultHolder == null || dismissHolder == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] Could not find both browser holders");
+                    return false;
+                }
+
+                // Step 2: Get CardBrowserCardHolder components from both holders
+                Component sourceHolderComp = null;
+                Component targetHolderComp = null;
+                bool isInDefaultHolder = false;
+
+                Component defaultHolderComp = null;
+                Component dismissHolderComp = null;
+
+                foreach (var comp in defaultHolder.GetComponents<Component>())
+                {
+                    if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                    {
+                        defaultHolderComp = comp;
+                        break;
+                    }
+                }
+
+                foreach (var comp in dismissHolder.GetComponents<Component>())
+                {
+                    if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                    {
+                        dismissHolderComp = comp;
+                        break;
+                    }
+                }
+
+                if (defaultHolderComp == null || dismissHolderComp == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] CardBrowserCardHolder components not found on holders");
+                    return false;
+                }
+
+                // Step 3: Determine which holder the card is in
+                foreach (Transform child in defaultHolder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.gameObject == card)
+                    {
+                        sourceHolderComp = defaultHolderComp;
+                        targetHolderComp = dismissHolderComp;
+                        isInDefaultHolder = true;
+                        break;
+                    }
+                }
+
+                if (sourceHolderComp == null)
+                {
+                    foreach (Transform child in dismissHolder.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (child.gameObject == card)
+                        {
+                            sourceHolderComp = dismissHolderComp;
+                            targetHolderComp = defaultHolderComp;
+                            isInDefaultHolder = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (sourceHolderComp == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] Could not find card in either holder");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Card is in {(isInDefaultHolder ? "Default (top)" : "ViewDismiss (bottom)")} holder");
+
+                // Step 4: Get DuelScene_CDC component from card
+                var cardCDC = CardDetector.GetDuelSceneCDC(card);
+                if (cardCDC == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] DuelScene_CDC component not found on card");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Got card CDC: {cardCDC.GetType().Name}");
+
+                // Step 5: Remove card from source holder
+                var sourceType = sourceHolderComp.GetType();
+                var removeCardMethod = sourceType.GetMethod("RemoveCard", BindingFlags.Public | BindingFlags.Instance);
+                if (removeCardMethod == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] RemoveCard method not found on source holder");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Removing card from source holder...");
+                removeCardMethod.Invoke(sourceHolderComp, new object[] { cardCDC });
+                MelonLogger.Msg($"[BrowserNavigator] Card removed from source holder");
+
+                // Step 6: Add card to target holder
+                var targetType = targetHolderComp.GetType();
+
+                // Try AddCard first (from base class CardHolderBase)
+                var addCardMethod = targetType.GetMethod("AddCard", BindingFlags.Public | BindingFlags.Instance);
+                if (addCardMethod == null)
+                {
+                    // Try base class
+                    var baseType = targetType.BaseType;
+                    while (baseType != null && addCardMethod == null)
+                    {
+                        addCardMethod = baseType.GetMethod("AddCard", BindingFlags.Public | BindingFlags.Instance);
+                        baseType = baseType.BaseType;
+                    }
+                }
+
+                if (addCardMethod == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] AddCard method not found on target holder");
+                    return false;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] Adding card to target holder...");
+                addCardMethod.Invoke(targetHolderComp, new object[] { cardCDC });
+                MelonLogger.Msg($"[BrowserNavigator] Card added to target holder successfully!");
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] Error in TryActivateCardViaScryBrowser: {ex.Message}");
+                MelonLogger.Error($"[BrowserNavigator] Stack trace: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// INVESTIGATION: Logs the Scry browser's API to discover drag methods.
+        /// </summary>
+        private void InvestigateScryBrowser()
+        {
+            MelonLogger.Msg("[BrowserNavigator] === INVESTIGATING SCRY BROWSER API ===");
+
+            // Check both holders and log ALL their properties/methods
+            var holders = new[] { (HolderDefault, "Default"), (HolderViewDismiss, "ViewDismiss") };
+
+            foreach (var (holderName, label) in holders)
+            {
+                var holder = FindActiveGameObject(holderName);
+                if (holder == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] {label} holder not found");
+                    continue;
+                }
+
+                Component cardBrowserHolder = null;
+                foreach (var comp in holder.GetComponents<Component>())
+                {
+                    if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                    {
+                        cardBrowserHolder = comp;
+                        break;
+                    }
+                }
+
+                if (cardBrowserHolder == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] {label}: No CardBrowserCardHolder");
+                    continue;
+                }
+
+                var holderType = cardBrowserHolder.GetType();
+                MelonLogger.Msg($"[BrowserNavigator] {label} CardBrowserCardHolder type: {holderType.FullName}");
+
+                // Log ALL properties of CardBrowserCardHolder
+                MelonLogger.Msg($"[BrowserNavigator] === {label} CardBrowserCardHolder Properties ===");
+                foreach (var prop in holderType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                {
+                    try
+                    {
+                        var value = prop.GetValue(cardBrowserHolder);
+                        string valueStr = value != null ? $"{value.GetType().Name}: {value}" : "null";
+                        if (valueStr.Length > 80) valueStr = valueStr.Substring(0, 80) + "...";
+                        MelonLogger.Msg($"[BrowserNavigator]   {prop.Name}: {prop.PropertyType.Name} = {valueStr}");
+                    }
+                    catch
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator]   {prop.Name}: {prop.PropertyType.Name} (could not read)");
+                    }
+                }
+
+                // Log ALL methods of CardBrowserCardHolder
+                MelonLogger.Msg($"[BrowserNavigator] === {label} CardBrowserCardHolder Methods ===");
+                foreach (var method in holderType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                    MelonLogger.Msg($"[BrowserNavigator]   {method.Name}({paramStr}) -> {method.ReturnType.Name}");
+                }
+
+                // Log base class methods too
+                var baseType = holderType.BaseType;
+                while (baseType != null && baseType != typeof(object) && baseType != typeof(MonoBehaviour))
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] {label} base class: {baseType.Name}");
+                    foreach (var method in baseType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                    {
+                        string methodName = method.Name.ToLower();
+                        if (methodName.Contains("drag") || methodName.Contains("card") ||
+                            methodName.Contains("select") || methodName.Contains("move") ||
+                            methodName.Contains("add") || methodName.Contains("remove"))
+                        {
+                            var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                            MelonLogger.Msg($"[BrowserNavigator]   Base.{method.Name}({paramStr})");
+                        }
+                    }
+                    baseType = baseType.BaseType;
+                }
+
+                // Only investigate first holder
+                break;
+            }
+
+            // Also look for ViewDismissBrowser object
+            MelonLogger.Msg("[BrowserNavigator] === Looking for ViewDismissBrowser ===");
+            var viewDismissBrowser = FindActiveGameObject("ViewDismissBrowser");
+            if (viewDismissBrowser != null)
+            {
+                MelonLogger.Msg($"[BrowserNavigator] Found ViewDismissBrowser: {viewDismissBrowser.name}");
+                foreach (var comp in viewDismissBrowser.GetComponents<Component>())
+                {
+                    if (comp == null) continue;
+                    var compType = comp.GetType();
+                    MelonLogger.Msg($"[BrowserNavigator]   Component: {compType.FullName}");
+                }
+
+                // Check parent for browser components
+                var parent = viewDismissBrowser.transform.parent;
+                while (parent != null)
+                {
+                    foreach (var comp in parent.GetComponents<Component>())
+                    {
+                        if (comp == null) continue;
+                        var compType = comp.GetType();
+                        if (compType.Name.Contains("Browser") || compType.Name.Contains("Scry") ||
+                            compType.Name.Contains("ViewDismiss"))
+                        {
+                            MelonLogger.Msg($"[BrowserNavigator] Parent {parent.name} has: {compType.FullName}");
+
+                            // Log methods
+                            foreach (var method in compType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                            {
+                                var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                                MelonLogger.Msg($"[BrowserNavigator]     {method.Name}({paramStr})");
+                            }
+                        }
+                    }
+                    parent = parent.parent;
+                }
+            }
+
+            // Look for WorkflowBrowser
+            MelonLogger.Msg("[BrowserNavigator] === Looking for WorkflowBrowser ===");
+            var workflowBrowsers = FindActiveGameObjects(go => go.name == "WorkflowBrowser");
+            foreach (var wb in workflowBrowsers)
+            {
+                MelonLogger.Msg($"[BrowserNavigator] WorkflowBrowser at: {GetGameObjectPath(wb)}");
+                foreach (var comp in wb.GetComponents<Component>())
+                {
+                    if (comp == null) continue;
+                    MelonLogger.Msg($"[BrowserNavigator]   Component: {comp.GetType().FullName}");
+                }
+            }
+
+            MelonLogger.Msg("[BrowserNavigator] === END SCRY BROWSER INVESTIGATION ===");
+        }
+
+        /// <summary>
+        /// Gets the full path of a GameObject in the hierarchy.
+        /// </summary>
+        private string GetGameObjectPath(GameObject go)
+        {
+            string path = go.name;
+            var parent = go.transform.parent;
+            while (parent != null)
+            {
+                path = parent.name + "/" + path;
+                parent = parent.parent;
+            }
+            return path;
+        }
+
+        /// <summary>
+        /// Refreshes Scry zone after card activation with a short delay.
+        /// </summary>
+        private System.Collections.IEnumerator RefreshScryZoneAfterDelay(string cardName)
+        {
+            yield return new WaitForSeconds(0.2f);
+
+            RefreshScryCardLists();
+
+            var currentList = _scryCurrentZone == ScryZone.Top ? _scryTopCards : _scryBottomCards;
+            string zoneName = _scryCurrentZone == ScryZone.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
+
+            // Adjust index if needed
+            if (_scryCardIndex >= currentList.Count)
+                _scryCardIndex = currentList.Count - 1;
+
+            if (currentList.Count == 0)
+            {
+                // Card moved to the other zone, announce the result
+                string newZone = _scryCurrentZone == ScryZone.Top ? Strings.PutOnBottom : Strings.KeepOnTop;
+                _announcer.Announce($"{cardName} moved to {newZone}. {zoneName}: empty", AnnouncementPriority.Normal);
+            }
+            else if (_scryCardIndex >= 0)
+            {
+                var currentCard = currentList[_scryCardIndex];
+                var currentCardName = CardDetector.GetCardName(currentCard);
+
+                // Announce what happened and current position
+                string newZone = _scryCurrentZone == ScryZone.Top ? Strings.PutOnBottom : Strings.KeepOnTop;
+                _announcer.Announce($"{cardName} moved to {newZone}. Now: {currentCardName}, {_scryCardIndex + 1} of {currentList.Count}", AnnouncementPriority.Normal);
+
+                // Update CardInfoNavigator
+                var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+                cardNav?.PrepareForCard(currentCard, ZoneType.Library);
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// INVESTIGATION: Logs detailed information about BrowserCardHolder components

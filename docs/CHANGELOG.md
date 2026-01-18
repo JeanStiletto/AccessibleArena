@@ -4,6 +4,39 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Scry/Surveil Browser - Full Keyboard Support
+
+Implemented full keyboard accessibility for Scry, Surveil, and similar card selection browsers.
+
+**User Experience:**
+- **C** - Enter "keep on top" zone, navigate with Left/Right
+- **D** - Enter "put on bottom" zone, navigate with Left/Right
+- **Enter** - Toggle current card between zones (moves card)
+- **Up/Down** - Card details (as usual)
+- **Space** - Confirm selection
+
+**Technical Discovery:**
+Scry-like browsers work differently from London mulligan:
+- `CardGroupProvider` is **null** (no central browser controller)
+- Cards are managed directly by the `CardBrowserCardHolder` components
+- Moving cards uses `RemoveCard()` on source holder + `AddCard()` on target holder
+
+**Implementation:**
+1. Detect Scry-like browser via `IsScryLikeBrowser()` (checks for "Scry", "Surveil", "ReadAhead" in browser type)
+2. Get `CardBrowserCardHolder` components from both holders
+3. Move card: `sourceHolder.RemoveCard(cardCDC)` then `targetHolder.AddCard(cardCDC)`
+
+**Browser Type Comparison:**
+
+| Browser | CardGroupProvider | Move Method |
+|---------|-------------------|-------------|
+| London Mulligan | LondonBrowser | HandleDrag + OnDragRelease |
+| Scry/Surveil | null | RemoveCard + AddCard |
+
+**Files:** `BrowserNavigator.cs`, `GAME_ARCHITECTURE.md`
+
+---
+
 ### London Mulligan - Full Keyboard Support
 
 Implemented full keyboard accessibility for London mulligan (putting cards on bottom of library after mulliganing).

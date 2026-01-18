@@ -328,6 +328,74 @@ Key handling goes through `MTGA.KeyboardManager.KeyboardManager`:
 
 Key-to-action mappings stored in Unity InputActionAsset inside `globalgamemanagers.assets` (binary).
 
+## Browser Types (Card Selection UI)
+
+Browsers are overlay UIs for selecting/arranging cards (mulligan, scry, surveil, etc.). Different browser types use different APIs for card manipulation.
+
+### Browser Architecture
+
+All browsers use two card holders:
+- `BrowserCardHolder_Default` - Cards staying on top / being kept
+- `BrowserCardHolder_ViewDismiss` - Cards going to bottom / being dismissed
+
+Both holders have a `CardBrowserCardHolder` component with:
+- `CardViews` - List of DuelScene_CDC card objects
+- `RemoveCard(DuelScene_CDC)` - Remove card from holder
+- `AddCard(DuelScene_CDC)` - Add card to holder (base class method)
+- `CardGroupProvider` - Optional browser controller (null for most browsers)
+
+### London Mulligan Browser
+
+Uses a central `LondonBrowser` controller accessed via `CardGroupProvider` property.
+
+**Card Manipulation:**
+```
+1. Get LondonBrowser from holder.CardGroupProvider
+2. Position card at target zone (LibraryScreenSpace / HandScreenSpace)
+3. Call HandleDrag(cardCDC)
+4. Call OnDragRelease(cardCDC)
+```
+
+**Key Methods on LondonBrowser:**
+- `GetHandCards()` / `GetLibraryCards()` - Get card lists
+- `IsInHand(cardCDC)` / `IsInLibrary(cardCDC)` - Check card position
+- `HandleDrag(cardCDC)` - Start drag operation
+- `OnDragRelease(cardCDC)` - Complete drag and move card
+- `LibraryScreenSpace` / `HandScreenSpace` - Target positions (Vector2)
+
+### Scry-like Browsers (Scry, Surveil, Read Ahead)
+
+No central controller - `CardGroupProvider` is **null**. Cards are managed directly by the holder components.
+
+**Card Manipulation:**
+```
+1. Get CardBrowserCardHolder from source holder
+2. Get CardBrowserCardHolder from target holder
+3. Call RemoveCard(cardCDC) on source
+4. Call AddCard(cardCDC) on target
+```
+
+**Why Different:**
+- London needs drag simulation because it tracks selection state internally
+- Scry-like browsers just need cards moved between visual holders
+
+### Detection Pattern
+
+```csharp
+// Find browser scaffold
+var scaffold = FindGameObject("BrowserScaffold_*");  // e.g., BrowserScaffold_Scry_Desktop_16x9
+
+// Check if London (has CardGroupProvider)
+var holder = FindGameObject("BrowserCardHolder_Default");
+var holderComp = holder.GetComponent("CardBrowserCardHolder");
+var provider = holderComp.CardGroupProvider;
+
+if (provider != null && provider.GetType().Name == "LondonBrowser")
+    // Use drag-based API
+else
+    // Use direct AddCard/RemoveCard
+```
+
 ## Modding Tools
 
 ### Required
