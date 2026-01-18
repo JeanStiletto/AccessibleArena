@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using MTGAAccessibility.Core.Models;
 
 namespace MTGAAccessibility.Core.Services
 {
@@ -32,6 +33,16 @@ namespace MTGAAccessibility.Core.Services
         private static MethodInfo _getAbilityTextMethod = null;
         private static bool _abilityTextProviderSearched = false;
 
+        // Cache for flavor text provider
+        private static object _flavorTextProvider = null;
+        private static MethodInfo _getFlavorTextMethod = null;
+        private static bool _flavorTextProviderSearched = false;
+
+        // Cache for artist provider
+        private static object _artistProvider = null;
+        private static MethodInfo _getArtistMethod = null;
+        private static bool _artistProviderSearched = false;
+
         /// <summary>
         /// Clears the model provider cache. Call when scene changes.
         /// </summary>
@@ -46,6 +57,12 @@ namespace MTGAAccessibility.Core.Services
             _abilityTextProvider = null;
             _getAbilityTextMethod = null;
             _abilityTextProviderSearched = false;
+            _flavorTextProvider = null;
+            _getFlavorTextMethod = null;
+            _flavorTextProviderSearched = false;
+            _artistProvider = null;
+            _getArtistMethod = null;
+            _artistProviderSearched = false;
         }
 
         #region Component Access
@@ -615,6 +632,241 @@ namespace MTGAAccessibility.Core.Services
             MelonLogger.Msg("[CardModelProvider] No ability text provider found");
         }
 
+        /// <summary>
+        /// Searches for the flavor text provider in the game.
+        /// FlavorTextId is a localization key that needs to be looked up via GreLocProvider or ClientLocProvider.
+        /// </summary>
+        private static void FindFlavorTextProvider()
+        {
+            MelonLogger.Msg("[CardModelProvider] Searching for flavor text provider...");
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                var type = mb.GetType();
+                if (type.Name == "GameManager")
+                {
+                    MelonLogger.Msg("[CardModelProvider] Found GameManager, looking for CardDatabase...");
+                    var cardDbProp = type.GetProperty("CardDatabase");
+                    if (cardDbProp != null)
+                    {
+                        var cardDb = cardDbProp.GetValue(mb);
+                        if (cardDb != null)
+                        {
+                            var cardDbType = cardDb.GetType();
+
+                            // Try GreLocProvider first - this is for GRE (game rules engine) content like flavor text
+                            var greLocProp = cardDbType.GetProperty("GreLocProvider");
+                            if (greLocProp != null)
+                            {
+                                var greLocProvider = greLocProp.GetValue(cardDb);
+                                if (greLocProvider != null)
+                                {
+                                    var providerType = greLocProvider.GetType();
+                                    MelonLogger.Msg($"[CardModelProvider] Found GreLocProvider: {providerType.FullName}");
+
+                                    // Log all methods
+                                    foreach (var m in providerType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                                    {
+                                        if (m.DeclaringType == typeof(object)) continue;
+                                        var paramStr = string.Join(", ", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                                        MelonLogger.Msg($"[CardModelProvider]   GreLocProvider.{m.Name}({paramStr}) -> {m.ReturnType.Name}");
+
+                                        // Look for GetString, GetText, or similar methods
+                                        if (m.ReturnType == typeof(string) &&
+                                            (m.Name == "GetString" || m.Name == "GetText" || m.Name == "Get" || m.Name.Contains("Loc")))
+                                        {
+                                            var mParams = m.GetParameters();
+                                            if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
+                                            {
+                                                _flavorTextProvider = greLocProvider;
+                                                _getFlavorTextMethod = m;
+                                                MelonLogger.Msg($"[CardModelProvider] Using GreLocProvider.{m.Name} for flavor text lookup");
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Try ClientLocProvider as fallback
+                            var clientLocProp = cardDbType.GetProperty("ClientLocProvider");
+                            if (clientLocProp != null)
+                            {
+                                var clientLocProvider = clientLocProp.GetValue(cardDb);
+                                if (clientLocProvider != null)
+                                {
+                                    var providerType = clientLocProvider.GetType();
+                                    MelonLogger.Msg($"[CardModelProvider] Found ClientLocProvider: {providerType.FullName}");
+
+                                    // Log all methods
+                                    foreach (var m in providerType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                                    {
+                                        if (m.DeclaringType == typeof(object)) continue;
+                                        var paramStr = string.Join(", ", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                                        MelonLogger.Msg($"[CardModelProvider]   ClientLocProvider.{m.Name}({paramStr}) -> {m.ReturnType.Name}");
+
+                                        // Look for GetString, GetText methods
+                                        if (m.ReturnType == typeof(string))
+                                        {
+                                            var mParams = m.GetParameters();
+                                            if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
+                                            {
+                                                _flavorTextProvider = clientLocProvider;
+                                                _getFlavorTextMethod = m;
+                                                MelonLogger.Msg($"[CardModelProvider] Using ClientLocProvider.{m.Name} for flavor text lookup");
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+
+            MelonLogger.Msg("[CardModelProvider] No flavor text provider found");
+        }
+
+        /// <summary>
+        /// Searches for the artist provider in the game.
+        /// </summary>
+        private static void FindArtistProvider()
+        {
+            MelonLogger.Msg("[CardModelProvider] Searching for artist provider...");
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                var type = mb.GetType();
+                if (type.Name == "GameManager")
+                {
+                    var cardDbProp = type.GetProperty("CardDatabase");
+                    if (cardDbProp != null)
+                    {
+                        var cardDb = cardDbProp.GetValue(mb);
+                        if (cardDb != null)
+                        {
+                            var cardDbType = cardDb.GetType();
+
+                            // Look for properties containing "Artist"
+                            foreach (var prop in cardDbType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                            {
+                                if (prop.Name.Contains("Artist"))
+                                {
+                                    MelonLogger.Msg($"[CardModelProvider] CardDatabase.{prop.Name} ({prop.PropertyType.Name})");
+
+                                    var provider = prop.GetValue(cardDb);
+                                    if (provider != null)
+                                    {
+                                        var providerType = provider.GetType();
+                                        foreach (var m in providerType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                                        {
+                                            if (m.DeclaringType == typeof(object)) continue;
+
+                                            // Look for methods that take uint and return string
+                                            if (m.ReturnType == typeof(string))
+                                            {
+                                                var mParams = m.GetParameters();
+                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
+                                                {
+                                                    _artistProvider = provider;
+                                                    _getArtistMethod = m;
+                                                    MelonLogger.Msg($"[CardModelProvider] Using {prop.Name}.{m.Name} for artist lookup");
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+
+            MelonLogger.Msg("[CardModelProvider] No artist provider found");
+        }
+
+        /// <summary>
+        /// Gets the flavor text for a card using its FlavorId.
+        /// Uses GreLocProvider.GetLocalizedText(locId, overrideLangCode, formatted).
+        /// </summary>
+        private static string GetFlavorText(uint flavorId)
+        {
+            if (flavorId == 0 || flavorId == 1) return null; // 1 appears to be a placeholder for "no flavor text"
+
+            if (!_flavorTextProviderSearched)
+            {
+                _flavorTextProviderSearched = true;
+                FindFlavorTextProvider();
+            }
+
+            if (_flavorTextProvider == null || _getFlavorTextMethod == null)
+                return null;
+
+            try
+            {
+                var parameters = _getFlavorTextMethod.GetParameters();
+                object result;
+
+                if (parameters.Length == 3)
+                {
+                    // GetLocalizedText(UInt32 locId, String overrideLangCode, Boolean formatted)
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { flavorId, null, false });
+                }
+                else if (parameters.Length == 1)
+                {
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { flavorId });
+                }
+                else
+                {
+                    return null;
+                }
+
+                var text = result as string;
+                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.Contains("Unknown"))
+                {
+                    MelonLogger.Msg($"[CardModelProvider] Flavor text found: {text}");
+                    return text;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] Error getting flavor text for id {flavorId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets the artist name for a card using its ArtistId.
+        /// </summary>
+        private static string GetArtistName(uint artistId)
+        {
+            if (artistId == 0) return null;
+
+            if (!_artistProviderSearched)
+            {
+                _artistProviderSearched = true;
+                FindArtistProvider();
+            }
+
+            if (_artistProvider == null || _getArtistMethod == null)
+                return null;
+
+            try
+            {
+                var text = _getArtistMethod.Invoke(_artistProvider, new object[] { artistId }) as string;
+                return string.IsNullOrEmpty(text) ? null : text;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         #endregion
 
         #region Property Helpers
@@ -673,6 +925,135 @@ namespace MTGAAccessibility.Core.Services
         #endregion
 
         #region Mana Parsing
+
+        /// <summary>
+        /// Parses mana symbols in rules text like {oT}, {oR}, {o1}, etc. into readable text.
+        /// Also handles bare format like "2oW:" used in activated ability costs.
+        /// This matches the pattern used for mana cost presentation.
+        /// </summary>
+        public static string ParseManaSymbolsInText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            // Pattern 1: {oX} format with curly braces
+            // Examples: {oT}, {oR}, {oW}, {oU}, {oB}, {oG}, {oC}, {o1}, {o2}, {oX}, {oS}, {oP}, {oE}
+            // Also handles hybrid like {oW/U}, {oR/G}, {o2/W}
+            text = Regex.Replace(text, @"\{o([^}]+)\}", match =>
+            {
+                string symbol = match.Groups[1].Value;
+                return ConvertManaSymbolToText(symbol);
+            });
+
+            // Pattern 2: Bare format for activated ability costs (e.g., "2oW:", "oT:", "3oRoR:")
+            // This handles patterns like: [number]o[color] at the start of ability text
+            // Pattern breakdown: (optional number)(one or more oX sequences)(colon)
+            text = Regex.Replace(text, @"^((\d*)(?:o([WUBRGCTXSE]))+):", match =>
+            {
+                string fullCost = match.Groups[1].Value;
+                return ParseBareManaSequence(fullCost) + ":";
+            });
+
+            return text;
+        }
+
+        /// <summary>
+        /// Parses a bare mana sequence like "2oW" or "oToRoR" into readable text.
+        /// </summary>
+        private static string ParseBareManaSequence(string sequence)
+        {
+            if (string.IsNullOrEmpty(sequence))
+                return "";
+
+            var parts = new List<string>();
+
+            // Extract leading number if present (generic mana)
+            var numberMatch = Regex.Match(sequence, @"^(\d+)");
+            if (numberMatch.Success)
+            {
+                parts.Add(numberMatch.Groups[1].Value);
+                sequence = sequence.Substring(numberMatch.Length);
+            }
+
+            // Extract all oX patterns
+            var symbolMatches = Regex.Matches(sequence, @"o([WUBRGCTXSE])");
+            foreach (Match m in symbolMatches)
+            {
+                string symbol = m.Groups[1].Value;
+                parts.Add(ConvertSingleManaSymbol(symbol));
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>
+        /// Converts a mana symbol code to readable text.
+        /// Uses localized strings from the Strings class.
+        /// </summary>
+        private static string ConvertManaSymbolToText(string symbol)
+        {
+            if (string.IsNullOrEmpty(symbol))
+                return "";
+
+            // Handle hybrid mana (e.g., "W/U", "R/G", "2/W")
+            if (symbol.Contains("/"))
+            {
+                var parts = symbol.Split('/');
+                if (parts.Length == 2)
+                {
+                    // Check for Phyrexian (ends with P)
+                    if (parts[1].ToUpper() == "P")
+                    {
+                        string color = ConvertSingleManaSymbol(parts[0]);
+                        return Strings.ManaPhyrexian(color);
+                    }
+
+                    string left = ConvertSingleManaSymbol(parts[0]);
+                    string right = ConvertSingleManaSymbol(parts[1]);
+                    return Strings.ManaHybrid(left, right);
+                }
+            }
+
+            return ConvertSingleManaSymbol(symbol);
+        }
+
+        /// <summary>
+        /// Converts a single mana symbol character/code to readable text.
+        /// Uses localized strings from the Strings class.
+        /// </summary>
+        private static string ConvertSingleManaSymbol(string symbol)
+        {
+            switch (symbol.ToUpper())
+            {
+                // Tap/Untap
+                case "T": return Strings.ManaTap;
+                case "Q": return Strings.ManaUntap;
+
+                // Colors
+                case "W": return Strings.ManaWhite;
+                case "U": return Strings.ManaBlue;
+                case "B": return Strings.ManaBlack;
+                case "R": return Strings.ManaRed;
+                case "G": return Strings.ManaGreen;
+                case "C": return Strings.ManaColorless;
+
+                // Special
+                case "X": return Strings.ManaX;
+                case "S": return Strings.ManaSnow;
+                case "E": return Strings.ManaEnergy;
+
+                // Generic mana (numbers) - don't need localization
+                case "0": case "1": case "2": case "3": case "4":
+                case "5": case "6": case "7": case "8": case "9":
+                case "10": case "11": case "12": case "13": case "14":
+                case "15": case "16":
+                    return symbol;
+
+                default:
+                    // Return as-is if unknown
+                    return symbol;
+            }
+        }
 
         /// <summary>
         /// Parses a ManaQuantity[] array into a readable mana cost string.
@@ -1006,13 +1387,83 @@ namespace MTGAAccessibility.Core.Services
 
                     if (rulesLines.Count > 0)
                     {
-                        info.RulesText = string.Join(" ", rulesLines);
+                        // Join all ability texts and parse mana symbols to readable text
+                        string rawRulesText = string.Join(" ", rulesLines);
+                        info.RulesText = ParseManaSymbolsInText(rawRulesText);
                         MelonLogger.Msg($"[CardModelProvider] Extracted rules text: {info.RulesText}");
                     }
                 }
 
-                // Flavor Text - not on Model
-                // Artist - not on Model
+                // Flavor Text - lookup via FlavorTextId (not FlavorId!)
+                var flavorIdValue = GetModelPropertyValue(model, modelType, "FlavorTextId");
+                if (flavorIdValue != null)
+                {
+                    uint flavorId = 0;
+                    if (flavorIdValue is uint fid) flavorId = fid;
+                    else if (flavorIdValue is int fidInt && fidInt > 0) flavorId = (uint)fidInt;
+
+                    MelonLogger.Msg($"[CardModelProvider] FlavorTextId = {flavorId}");
+
+                    if (flavorId > 0)
+                    {
+                        var flavorText = GetFlavorText(flavorId);
+                        if (!string.IsNullOrEmpty(flavorText))
+                        {
+                            info.FlavorText = flavorText;
+                            MelonLogger.Msg($"[CardModelProvider] Extracted flavor text: {info.FlavorText}");
+                        }
+                        else
+                        {
+                            MelonLogger.Msg($"[CardModelProvider] FlavorText lookup returned empty for id {flavorId}");
+                        }
+                    }
+                }
+
+                // Artist - try to get from Printing object which may have ArtistCredit
+                var printing = GetModelPropertyValue(model, modelType, "Printing");
+                if (printing != null)
+                {
+                    var printingType = printing.GetType();
+
+                    // Try ArtistCredit or Artist property on Printing
+                    var artistProp = printingType.GetProperty("ArtistCredit") ??
+                                     printingType.GetProperty("Artist") ??
+                                     printingType.GetProperty("ArtistName");
+                    if (artistProp != null)
+                    {
+                        var artistValue = artistProp.GetValue(printing);
+                        if (artistValue != null)
+                        {
+                            // Could be a string or an ID
+                            if (artistValue is string artistStr && !string.IsNullOrEmpty(artistStr))
+                            {
+                                info.Artist = artistStr;
+                                MelonLogger.Msg($"[CardModelProvider] Extracted artist from Printing: {info.Artist}");
+                            }
+                            else if (artistValue is uint artistId && artistId > 0)
+                            {
+                                var artistName = GetArtistName(artistId);
+                                if (!string.IsNullOrEmpty(artistName))
+                                {
+                                    info.Artist = artistName;
+                                    MelonLogger.Msg($"[CardModelProvider] Extracted artist: {info.Artist}");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Log available properties on Printing for discovery
+                        MelonLogger.Msg($"[CardModelProvider] Printing type: {printingType.Name}, checking for artist properties...");
+                        foreach (var prop in printingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                        {
+                            if (prop.Name.ToLower().Contains("artist"))
+                            {
+                                MelonLogger.Msg($"[CardModelProvider] Found artist-related property: {prop.Name}");
+                            }
+                        }
+                    }
+                }
 
                 info.IsValid = !string.IsNullOrEmpty(info.Name);
                 return info;

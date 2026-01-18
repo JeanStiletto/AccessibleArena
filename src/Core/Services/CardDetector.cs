@@ -546,32 +546,32 @@ namespace MTGAAccessibility.Core.Services
             var info = ExtractCardInfo(cardObj);
 
             if (!string.IsNullOrEmpty(info.Name))
-                blocks.Add(new CardInfoBlock("Name", info.Name));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, info.Name));
 
             // Battlefield: mana cost comes after rules (less important when card is in play)
             bool isBattlefield = zone == ZoneType.Battlefield;
 
             if (!isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
-                blocks.Add(new CardInfoBlock("Mana Cost", info.ManaCost));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
 
             if (!string.IsNullOrEmpty(info.PowerToughness))
-                blocks.Add(new CardInfoBlock("Power and Toughness", info.PowerToughness));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoPowerToughness, info.PowerToughness));
 
             if (!string.IsNullOrEmpty(info.TypeLine))
-                blocks.Add(new CardInfoBlock("Type", info.TypeLine));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoType, info.TypeLine));
 
             if (!string.IsNullOrEmpty(info.RulesText))
-                blocks.Add(new CardInfoBlock("Rules", info.RulesText));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
 
             // Battlefield: mana cost after rules
             if (isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
-                blocks.Add(new CardInfoBlock("Mana Cost", info.ManaCost));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
 
             if (!string.IsNullOrEmpty(info.FlavorText))
-                blocks.Add(new CardInfoBlock("Flavor", info.FlavorText));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoFlavor, info.FlavorText));
 
             if (!string.IsNullOrEmpty(info.Artist))
-                blocks.Add(new CardInfoBlock("Artist", info.Artist));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoArtist, info.Artist));
 
             return blocks;
         }

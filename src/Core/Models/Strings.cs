@@ -121,6 +121,15 @@ namespace MTGAAccessibility.Core.Models
         public const string EndOfCard = "End of card";
         public const string BeginningOfCard = "Beginning of card";
 
+        // Card info block labels
+        public const string CardInfoName = "Name";
+        public const string CardInfoManaCost = "Mana Cost";
+        public const string CardInfoPowerToughness = "Power and Toughness";
+        public const string CardInfoType = "Type";
+        public const string CardInfoRules = "Rules";
+        public const string CardInfoFlavor = "Flavor";
+        public const string CardInfoArtist = "Artist";
+
         // ===========================================
         // POSITION / COUNTS
         // ===========================================
@@ -210,6 +219,32 @@ namespace MTGAAccessibility.Core.Models
         public const string CharTilde = "tilde";
         public const string CharBacktick = "backtick";
         public const string CharCaret = "caret";
+
+        // ===========================================
+        // MANA SYMBOLS (for rules text parsing)
+        // ===========================================
+        // Tap/Untap
+        public const string ManaTap = "Tap";
+        public const string ManaUntap = "Untap";
+
+        // Colors
+        public const string ManaWhite = "White";
+        public const string ManaBlue = "Blue";
+        public const string ManaBlack = "Black";
+        public const string ManaRed = "Red";
+        public const string ManaGreen = "Green";
+        public const string ManaColorless = "Colorless";
+
+        // Special
+        public const string ManaX = "X";
+        public const string ManaSnow = "Snow";
+        public const string ManaEnergy = "Energy";
+
+        // Phyrexian format
+        public static string ManaPhyrexian(string color) => $"Phyrexian {color}";
+
+        // Hybrid mana format (e.g., "White or Blue")
+        public static string ManaHybrid(string color1, string color2) => $"{color1} or {color2}";
 
         // ===========================================
         // BROWSER (Scry, Surveil, Mulligan, etc.)

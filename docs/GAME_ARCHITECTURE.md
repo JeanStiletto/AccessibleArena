@@ -401,3 +401,92 @@ LocalPlayerMatchTimer_Desktop_16x9(Clone)
 - `LocalHand` / `OpponentHand` - Zone objects
 - `Battlefield` / `Stack` / `Exile` - Zone objects
 - `LocalPlayerBattlefieldCards` / `OpponentBattlefieldCards` - Direct card lists
+
+## CardDatabase and Localization Providers
+
+The `GameManager.CardDatabase` provides access to card data and localization.
+
+### CardDatabase Properties
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `VersionProvider` | IVersionProvider | Database version info |
+| `CardDataProvider` | ICardDataProvider | Card data access |
+| `AbilityDataProvider` | IAbilityDataProvider | Ability data access |
+| `DynamicAbilityDataProvider` | IDynamicAbilityDataProvider | Dynamic ability data |
+| `AbilityTextProvider` | IAbilityTextProvider | Ability text lookup |
+| `GreLocProvider` | IGreLocProvider | GRE (Game Rules Engine) localization |
+| `ClientLocProvider` | IClientLocProvider | Client-side localization |
+| `PromptProvider` | IPromptProvider | Prompt text |
+| `PromptEngine` | IPromptEngine | Prompt processing |
+| `AltPrintingProvider` | IAltPrintingProvider | Alternate art info |
+| `AltArtistCreditProvider` | IAltArtistCreditProvider | Alternate artist info |
+| `AltFlavorTextKeyProvider` | IAltFlavorTextKeyProvider | Alternate flavor text keys |
+| `CardTypeProvider` | ICardTypeProvider | Card type info |
+| `CardTitleProvider` | ICardTitleProvider | Card name lookup |
+| `CardNameTextProvider` | ICardNameTextProvider | Card name text |
+| `DatabaseUtilities` | IDatabaseUtilities | Utility functions |
+
+### Key Lookup Methods
+
+**Card Names:**
+```csharp
+CardDatabase.CardTitleProvider.GetCardTitle(uint grpId, bool formatted, string overrideLang)
+```
+
+**Ability Text:**
+```csharp
+CardDatabase.AbilityTextProvider.GetAbilityTextByCardAbilityGrpId(
+    uint cardGrpId, uint abilityGrpId, IEnumerable<uint> abilityIds,
+    uint cardTitleId, string overrideLangCode, bool formatted)
+```
+
+**Flavor Text (via GreLocProvider):**
+```csharp
+// GreLocProvider is SqlGreLocalizationProvider
+CardDatabase.GreLocProvider.GetLocalizedText(uint locId, string overrideLangCode, bool formatted)
+// FlavorTextId = 1 is a placeholder meaning "no flavor text"
+```
+
+### Card Model Properties
+
+Cards have a `Model` object with these key properties:
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `GrpId` | uint | Card database ID |
+| `TitleId` | uint | Localization key for name |
+| `FlavorTextId` | uint | Localization key for flavor (1 = none) |
+| `PrintedCastingCost` | ManaQuantity[] | Mana cost array |
+| `CardTypes` | enum[] | Creature, Land, Instant, etc. |
+| `Supertypes` | enum[] | Legendary, Basic, etc. |
+| `Subtypes` | enum[] | Goblin, Forest, etc. |
+| `Power` | StringBackedInt | Creature power |
+| `Toughness` | StringBackedInt | Creature toughness |
+| `Abilities` | AbilityPrintingData[] | Card abilities |
+| `Printing` | object | Print-specific data |
+
+### Printing Object Properties
+
+The `Printing` object contains print-run specific data:
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `ArtistCredit` | string | Artist name |
+| `SetCode` | string | Set identifier |
+
+### Mana Symbol Formats
+
+Rules text uses these mana symbol formats:
+
+**Curly Brace Format:** `{oX}` where X is:
+- `T` = Tap, `Q` = Untap
+- `W` = White, `U` = Blue, `B` = Black, `R` = Red, `G` = Green
+- `C` = Colorless, `S` = Snow, `E` = Energy, `X` = Variable
+- Numbers for generic mana: `{o1}`, `{o2}`, etc.
+- Hybrid: `{oW/U}` = White or Blue
+- Phyrexian: `{oW/P}` = Phyrexian White
+
+**Bare Format (Activated Abilities):** `2oW:` at start of ability text
+- Number followed by `oX` sequences, ending with colon
+- Example: `2oW:` = "2, White:"

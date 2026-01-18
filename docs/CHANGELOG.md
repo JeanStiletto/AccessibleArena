@@ -4,6 +4,36 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Card Info: Mana Symbols, Flavor Text, and Artist
+
+Enhanced card information display with proper mana symbol parsing and new metadata fields.
+
+**Mana Symbol Parsing in Rules Text:**
+- Mana symbols like `{oT}`, `{oR}`, `{oW}` now read as "Tap", "Red", "White"
+- Hybrid mana like `{oW/U}` reads as "White or Blue"
+- Phyrexian mana like `{oW/P}` reads as "Phyrexian White"
+- Activated ability costs in bare format (e.g., `2oW:`) also parsed correctly
+- All mana strings use localized constants from `Strings.cs`
+
+**Flavor Text:**
+- Cards now display flavor text as a navigable info block
+- Uses `GreLocProvider.GetLocalizedText(flavorTextId, null, false)` for lookup
+- FlavorTextId = 1 is a placeholder for cards without flavor text (ignored)
+
+**Artist Credit:**
+- Artist name extracted from `Printing.ArtistCredit` property
+- Displayed as the last info block when navigating card details
+
+**Technical Details:**
+- `ParseManaSymbolsInText()` handles both `{oX}` and bare `2oW:` formats
+- `ParseBareManaSequence()` extracts generic mana numbers and color symbols
+- `FindFlavorTextProvider()` uses `CardDatabase.GreLocProvider` (SqlGreLocalizationProvider)
+- Artist extracted directly from Printing object on card Model
+
+**Files:** `CardModelProvider.cs`, `Strings.cs`, `CardDetector.cs`
+
+---
+
 ### Hidden Zone Card Counts
 
 Added shortcuts to query card counts for hidden zones that sighted players can see but couldn't be accessed via keyboard before.
