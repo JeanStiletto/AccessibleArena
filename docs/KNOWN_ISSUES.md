@@ -92,6 +92,22 @@ See BEST_PRACTICES.md "Browser Card Interactions" for reusable patterns.
 - Friend list not yet navigable
 - Friend status/online indicators not announced
 
+## Technical Debt
+
+### WinAPI Fallback Code (UIActivator.cs)
+
+The UIActivator contains ~47 lines of commented WinAPI code (mouse_event, SetCursorPos, etc.) that was a working fallback when Unity pointer event simulation failed. This was kept because:
+- Unity event approach stopped working at some point (unknown cause)
+- WinAPI approach worked reliably at the time
+- After PC restart, Unity events worked again
+
+**TODO:** Test if this fallback is still needed:
+1. Run prolonged tests with Unity events approach
+2. Check if overlapping overlays or mouse positioning issues recur
+3. If stable for several months, the WinAPI code can be removed
+
+**Location:** `src/Core/Services/UIActivator.cs` lines 13-59
+
 ## Needs Testing
 
 ### Menu Navigation

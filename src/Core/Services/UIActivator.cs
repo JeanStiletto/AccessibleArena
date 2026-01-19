@@ -65,6 +65,35 @@ namespace MTGAAccessibility.Core.Services
     /// </summary>
     public static class UIActivator
     {
+        #region Constants
+
+        // Timing delays for card play sequence
+        private const float CardSelectDelay = 0.1f;
+        private const float CardPickupDelay = 0.5f;
+        private const float CardDropDelay = 0.6f;
+
+        // Hierarchy search depth limits
+        private const int MaxDeckSearchDepth = 5;
+        private const int MaxDeckViewSearchDepth = 6;
+
+        // Type names for reflection
+        private const string CustomButtonTypeName = "CustomButton";
+        private const string DeckViewTypeName = "DeckView";
+        private const string TooltipTriggerTypeName = "TooltipTrigger";
+
+        // Compiled regex for Submit button detection
+        private static readonly Regex SubmitButtonPattern = new Regex(@"^Submit\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Checks if a MonoBehaviour is a CustomButton by type name.
+        /// </summary>
+        private static bool IsCustomButton(MonoBehaviour mb)
+        {
+            return mb != null && mb.GetType().Name == CustomButtonTypeName;
+        }
+
+        #endregion
+
         #region General UI Activation
 
         /// <summary>
@@ -334,8 +363,7 @@ namespace MTGAAccessibility.Core.Services
                 Log("No raycast hits, trying CustomButton fallback...");
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
-                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                    if (mb.GetType().Name != "CustomButton") continue;
+                    if (!IsCustomButton(mb) || !mb.gameObject.activeInHierarchy) continue;
 
                     var type = mb.GetType();
                     var onClickField = type.GetField("onClick",
@@ -376,7 +404,7 @@ namespace MTGAAccessibility.Core.Services
         /// 5. Click screen center (confirms play for non-targeted cards)
         /// 6. Enter targeting mode (for targeted cards, Tab cycles through targets)
         /// </summary>
-        public static void PlayCardViaTwoClick(GameObject card, System.Action<bool, string> callback = null, TargetNavigator targetNavigator = null)
+        public static void PlayCardViaTwoClick(GameObject card, System.Action<bool, string> callback = null)
         {
             if (card == null)
             {
@@ -385,10 +413,10 @@ namespace MTGAAccessibility.Core.Services
             }
 
             Log($"=== PLAYING CARD: {card.name} ===");
-            MelonCoroutines.Start(PlayCardCoroutine(card, callback, targetNavigator));
+            MelonCoroutines.Start(PlayCardCoroutine(card, callback));
         }
 
-        private static IEnumerator PlayCardCoroutine(GameObject card, System.Action<bool, string> callback, TargetNavigator targetNavigator)
+        private static IEnumerator PlayCardCoroutine(GameObject card, System.Action<bool, string> callback)
         {
             // Step 0: Check if card is a land (lands use simplified double-click, no screen center needed)
             var cardInfo = CardDetector.ExtractCardInfo(card);
@@ -405,7 +433,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Brief wait for selection to register
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(CardSelectDelay);
 
             // Step 1.5: Check if we're in discard/selection mode BEFORE second click
             // If "Submit X" button is showing, first click selected the card for discard
@@ -439,7 +467,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // For spells: Wait for card to be held, then drop at screen center
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(CardPickupDelay);
 
             // Step 3: Click screen center via Unity events (confirm play)
             // Unity events approach works after PC restart (Jan 2026).
@@ -469,7 +497,7 @@ namespace MTGAAccessibility.Core.Services
 
             // Step 4: Wait for game to process the play and UI to update
             // Need enough time for targeting UI (Cancel/Submit buttons) to appear
-            yield return new WaitForSeconds(0.6f);
+            yield return new WaitForSeconds(CardDropDelay);
 
             // Note: Targeting mode is now handled by DuelNavigator's auto-detection
             // which checks for spell on stack + HotHighlight targets.
@@ -491,7 +519,7 @@ namespace MTGAAccessibility.Core.Services
         {
             foreach (var mb in element.GetComponents<MonoBehaviour>())
             {
-                if (mb == null || mb.GetType().Name != "CustomButton")
+                if (!IsCustomButton(mb))
                     continue;
 
                 var type = mb.GetType();
@@ -593,7 +621,7 @@ namespace MTGAAccessibility.Core.Services
             // Check for CustomButton component
             foreach (var mb in obj.GetComponents<MonoBehaviour>())
             {
-                if (mb != null && mb.GetType().Name == "CustomButton")
+                if (IsCustomButton(mb))
                     return true;
             }
 
@@ -602,7 +630,7 @@ namespace MTGAAccessibility.Core.Services
             foreach (var handler in clickHandlers)
             {
                 // TooltipTrigger implements IPointerClickHandler but doesn't activate buttons
-                if (handler.GetType().Name != "TooltipTrigger")
+                if (handler.GetType().Name != TooltipTriggerTypeName)
                     return true;
             }
 
@@ -617,7 +645,7 @@ namespace MTGAAccessibility.Core.Services
         {
             foreach (var mb in obj.GetComponents<MonoBehaviour>())
             {
-                if (mb != null && mb.GetType().Name == "CustomButton")
+                if (IsCustomButton(mb))
                     return true;
             }
             return false;
@@ -716,36 +744,14 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private static bool IsTargetingModeActive()
         {
-            // Pattern matches "Submit" followed by optional space and a number
-            // This is the reliable indicator of discard/selection mode
-            var submitPattern = new Regex(@"^Submit\s*\d+$", RegexOptions.IgnoreCase);
-
             // Check TMP_Text components (used by StyledButton)
             foreach (var tmpText in GameObject.FindObjectsOfType<TMP_Text>())
             {
                 if (tmpText == null || !tmpText.gameObject.activeInHierarchy)
                     continue;
 
-                string text = tmpText.text?.Trim();
-                if (string.IsNullOrEmpty(text))
-                    continue;
-
-                // Check for Submit X pattern
-                if (submitPattern.IsMatch(text))
-                {
-                    var parent = tmpText.transform.parent;
-                    while (parent != null)
-                    {
-                        string parentName = parent.name.ToLower();
-                        if (parentName.Contains("button") || parentName.Contains("prompt"))
-                        {
-                            Log($"Found Submit button: '{text}' on {parent.name}");
-                            return true;
-                        }
-                        parent = parent.parent;
-                    }
-                }
-
+                if (IsSubmitButton(tmpText.text, tmpText.transform))
+                    return true;
             }
 
             // Also check legacy Text components
@@ -754,30 +760,42 @@ namespace MTGAAccessibility.Core.Services
                 if (uiText == null || !uiText.gameObject.activeInHierarchy)
                     continue;
 
-                string text = uiText.text?.Trim();
-                if (string.IsNullOrEmpty(text))
-                    continue;
-
-                if (submitPattern.IsMatch(text))
-                {
-                    var parent = uiText.transform.parent;
-                    while (parent != null)
-                    {
-                        string parentName = parent.name.ToLower();
-                        if (parentName.Contains("button") || parentName.Contains("prompt"))
-                        {
-                            Log($"Found Submit button: '{text}' on {parent.name}");
-                            return true;
-                        }
-                        parent = parent.parent;
-                    }
-                }
-
+                if (IsSubmitButton(uiText.text, uiText.transform))
+                    return true;
             }
 
             // Note: Cancel button alone is NOT a reliable indicator - there can be Cancel buttons
             // for other purposes (Cancel Attacks, etc.). Only the "Submit X" pattern reliably
             // indicates discard/selection mode.
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if text matches the Submit button pattern and is inside a button/prompt element.
+        /// </summary>
+        private static bool IsSubmitButton(string text, Transform textTransform)
+        {
+            string trimmed = text?.Trim();
+            if (string.IsNullOrEmpty(trimmed))
+                return false;
+
+            // Check for "Submit X" pattern (e.g., "Submit 0", "Submit 1")
+            if (!SubmitButtonPattern.IsMatch(trimmed))
+                return false;
+
+            // Verify it's inside a button or prompt element
+            var parent = textTransform.parent;
+            while (parent != null)
+            {
+                string parentName = parent.name.ToLower();
+                if (parentName.Contains("button") || parentName.Contains("prompt"))
+                {
+                    Log($"Found Submit button: '{trimmed}' on {parent.name}");
+                    return true;
+                }
+                parent = parent.parent;
+            }
+
             return false;
         }
 
@@ -848,7 +866,7 @@ namespace MTGAAccessibility.Core.Services
             // Check parent hierarchy for DeckView_Base
             Transform current = element.transform;
             int depth = 0;
-            while (current != null && depth < 5)
+            while (current != null && depth < MaxDeckSearchDepth)
             {
                 if (current.name.Contains("DeckView_Base"))
                     return true;
@@ -864,17 +882,13 @@ namespace MTGAAccessibility.Core.Services
             Transform current = element.transform;
             int depth = 0;
 
-            while (current != null && depth < 6)
+            while (current != null && depth < MaxDeckViewSearchDepth)
             {
-                // Look for DeckView component (the component type name is "DeckView")
+                // Look for DeckView component
                 foreach (var mb in current.GetComponents<MonoBehaviour>())
                 {
-                    if (mb == null) continue;
-                    string typeName = mb.GetType().Name;
-                    if (typeName == "DeckView")
-                    {
+                    if (mb != null && mb.GetType().Name == DeckViewTypeName)
                         return mb;
-                    }
                 }
 
                 current = current.parent;

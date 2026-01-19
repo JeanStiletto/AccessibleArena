@@ -14,15 +14,51 @@ namespace MTGAAccessibility.Core.Services
     /// </summary>
     public static class UIElementClassifier
     {
+        #region Constants
+
+        // Visibility thresholds
+        private const float MinVisibleAlpha = 0.1f;
+        private const int MinDecorativeSize = 10;
+
+        // Hierarchy search depth limits
+        private const int MaxParentSearchDepth = 5;
+        private const int MaxFriendsWidgetSearchDepth = 10;
+        private const int MaxDropdownSearchDepth = 3;
+
+        // Label constraints
+        private const int MaxLabelLength = 80;
+
+        // Simple name patterns that always filter (case-insensitive Contains check)
+        private static readonly string[] FilteredContainsPatterns = new[]
+        {
+            "blocker", "navpip", "pip_", "dismiss", "button_base",
+            "socialcorner", "social corner", "viewport",
+            "topfade", "bottomfade", "top_fade", "bottom_fade"
+        };
+
+        // Exact names that always filter (case-insensitive Equals check)
+        private static readonly HashSet<string> FilteredExactNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            "button base", "buttonbase", "new", "BUTTONS", "Button_NPE", "Stop"
+        };
+
+        #endregion
+
+        #region Compiled Patterns
+
         // Compiled regex patterns for performance
         private static readonly Regex ProgressFractionPattern = new Regex(@"^\d+/\d+", RegexOptions.Compiled);
         private static readonly Regex ProgressPercentPattern = new Regex(@"^\d+%", RegexOptions.Compiled);
         private static readonly Regex HtmlTagPattern = new Regex(@"<[^>]+>", RegexOptions.Compiled);
         private static readonly Regex WhitespacePattern = new Regex(@"\s+", RegexOptions.Compiled);
         private static readonly Regex CamelCasePattern = new Regex("([a-z])([A-Z])", RegexOptions.Compiled);
+        private static readonly Regex SliderSuffixPattern = new Regex(@"\bslider\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex ResolutionPattern = new Regex(@"\s*(Desktop|Mobile|Tablet)?\s*\d+x\d+\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // String comparison helper to avoid ToLower() allocations
         private static readonly System.StringComparison IgnoreCase = System.StringComparison.OrdinalIgnoreCase;
+
+        #endregion
 
         /// <summary>
         /// Case-insensitive Contains check without string allocation
@@ -38,6 +74,26 @@ namespace MTGAAccessibility.Core.Services
         private static bool EqualsIgnoreCase(string source, string value)
         {
             return string.Equals(source, value, IgnoreCase);
+        }
+
+        /// <summary>
+        /// Converts CamelCase or PascalCase text to space-separated words.
+        /// Example: "MasterVolume" -> "Master Volume"
+        /// </summary>
+        private static string SplitCamelCase(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            return CamelCasePattern.Replace(text, "$1 $2");
+        }
+
+        /// <summary>
+        /// Cleans a setting/control label by splitting CamelCase and replacing underscores.
+        /// </summary>
+        private static string CleanSettingLabel(string label)
+        {
+            if (string.IsNullOrEmpty(label)) return label;
+            label = SplitCamelCase(label);
+            return label.Replace("_", " ").Trim();
         }
 
         /// <summary>
@@ -440,8 +496,8 @@ namespace MTGAAccessibility.Core.Services
             var canvasGroup = obj.GetComponent<CanvasGroup>();
             if (canvasGroup != null)
             {
-                // MTGA uses alpha < 0.1 for hidden elements (see docs/MENU_NAVIGATION.md)
-                if (canvasGroup.alpha < 0.1f)
+                // MTGA uses alpha < MinVisibleAlpha for hidden elements (see docs/MENU_NAVIGATION.md)
+                if (canvasGroup.alpha < MinVisibleAlpha)
                 {
                     if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup alpha={canvasGroup.alpha}");
                     return false;
@@ -471,7 +527,7 @@ namespace MTGAAccessibility.Core.Services
 
                     if (!isStructuralContainer)
                     {
-                        if (parentCG.alpha < 0.1f)
+                        if (parentCG.alpha < MinVisibleAlpha)
                         {
                             if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup alpha={parentCG.alpha}");
                             return false;
@@ -516,15 +572,15 @@ namespace MTGAAccessibility.Core.Services
             if (obj == null) return false;
 
             Transform current = obj.transform;
-            int maxLevels = 10;
+            int levels = 0;
 
-            while (current != null && maxLevels > 0)
+            while (current != null && levels < MaxFriendsWidgetSearchDepth)
             {
                 string name = current.name;
                 if (ContainsIgnoreCase(name, "FriendsWidget"))
                     return true;
                 current = current.parent;
-                maxLevels--;
+                levels++;
             }
 
             return false;
@@ -594,12 +650,12 @@ namespace MTGAAccessibility.Core.Services
             if (obj.GetComponentInChildren<TMP_Text>() != null)
                 return false;
 
-            // Must have zero or very small size (< 10 pixels in both dimensions)
+            // Must have zero or very small size (< MinDecorativeSize pixels in both dimensions)
             var rectTransform = obj.GetComponent<RectTransform>();
             if (rectTransform != null)
             {
                 Vector2 size = rectTransform.sizeDelta;
-                if (size.x > 10 || size.y > 10)
+                if (size.x > MinDecorativeSize || size.y > MinDecorativeSize)
                     return false; // Has meaningful size, keep it
             }
 
@@ -612,101 +668,80 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private static bool IsFilteredByNamePattern(GameObject obj, string name)
         {
-            // Click blockers (modal overlays)
-            if (ContainsIgnoreCase(name, "blocker")) return true;
+            // Check simple exact name matches first (fast HashSet lookup)
+            if (FilteredExactNames.Contains(name))
+                return true;
 
-            // Navigation pips (carousel dots)
-            if (ContainsIgnoreCase(name, "navpip") || ContainsIgnoreCase(name, "pip_")) return true;
+            // Check simple Contains patterns
+            foreach (var pattern in FilteredContainsPatterns)
+            {
+                if (ContainsIgnoreCase(name, pattern))
+                    return true;
+            }
 
-            // Dismiss buttons (internal UI)
-            if (ContainsIgnoreCase(name, "dismiss")) return true;
+            // Conditional filters that require additional checks:
 
-            // Internal button bases
-            if (EqualsIgnoreCase(name, "button base") || EqualsIgnoreCase(name, "buttonbase")) return true;
-            if (ContainsIgnoreCase(name, "button_base")) return true;
-
-            // Fade overlays
-            if (ContainsIgnoreCase(name, "fade") && !ContainsIgnoreCase(name, "nav")) return true;
+            // Fade overlays (but not nav fades)
+            if (ContainsIgnoreCase(name, "fade") && !ContainsIgnoreCase(name, "nav"))
+                return true;
 
             // Hitboxes without actual text content
             // BUT: Allow hitboxes inside FriendsWidget (they ARE the clickable friend items)
-            if (ContainsIgnoreCase(name, "hitbox") && !UITextExtractor.HasActualText(obj))
-            {
-                if (!IsInsideFriendsWidget(obj))
-                    return true;
-            }
+            if (ContainsIgnoreCase(name, "hitbox") && !UITextExtractor.HasActualText(obj) && !IsInsideFriendsWidget(obj))
+                return true;
 
             // Backer elements from social panel (internal hitboxes)
             // BUT: Allow backer elements inside FriendsWidget (they ARE the clickable friend items)
-            if (ContainsIgnoreCase(name, "backer") && !UITextExtractor.HasActualText(obj))
-            {
-                if (!IsInsideFriendsWidget(obj))
-                    return true;
-            }
+            if (ContainsIgnoreCase(name, "backer") && !UITextExtractor.HasActualText(obj) && !IsInsideFriendsWidget(obj))
+                return true;
 
-            // Social corner icon without meaningful content
-            // Filter this out - it's the small icon in the corner, not useful for navigation
-            if (ContainsIgnoreCase(name, "socialcorner") || ContainsIgnoreCase(name, "social corner")) return true;
+            // "New" badge indicators (both "new" alone and "new...indicator" patterns)
+            if (ContainsIgnoreCase(name, "new") && ContainsIgnoreCase(name, "indicator"))
+                return true;
 
-            // "New" badge indicators (appear on many elements)
-            if (EqualsIgnoreCase(name, "new") || (ContainsIgnoreCase(name, "new") && ContainsIgnoreCase(name, "indicator"))) return true;
-
-            // Viewport and scroll content
-            if (ContainsIgnoreCase(name, "viewport")) return true;
-            if (EqualsIgnoreCase(name, "content") && obj.GetComponent<RectTransform>() != null) return true;
+            // Scroll content containers
+            if (EqualsIgnoreCase(name, "content") && obj.GetComponent<RectTransform>() != null)
+                return true;
 
             // Gradient decorations (but not nav gradients which are handled separately)
-            if (ContainsIgnoreCase(name, "gradient") && !ContainsIgnoreCase(name, "nav")) return true;
+            if (ContainsIgnoreCase(name, "gradient") && !ContainsIgnoreCase(name, "nav"))
+                return true;
 
             // Navigation controls that are part of carousels - hide them, the parent handles arrow keys
-            if (IsCarouselNavControl(obj, name)) return true;
-
-            // Top/bottom fades (settings menu decorations)
-            if (ContainsIgnoreCase(name, "topfade") || ContainsIgnoreCase(name, "bottomfade")) return true;
-            if (ContainsIgnoreCase(name, "top_fade") || ContainsIgnoreCase(name, "bottom_fade")) return true;
+            if (IsCarouselNavControl(obj, name))
+                return true;
 
             // Background art/decorative elements (have CustomButton but are not interactive)
-            // Pattern: Background_SubMenu_Art, BackgroundImage, etc.
             if (name.StartsWith("Background", System.StringComparison.OrdinalIgnoreCase) && !UITextExtractor.HasActualText(obj))
                 return true;
 
-            // BUTTONS container elements (EventTriggers that wrap actual buttons)
-            // These appear in Color Challenge and similar screens as non-functional containers
-            if (EqualsIgnoreCase(name, "BUTTONS")) return true;
-
             // EventTriggers that contain TMP_InputField children are just containers
-            // The actual input field handles navigation, not the wrapper
             if (obj.GetComponent<UnityEngine.EventSystems.EventTrigger>() != null &&
                 obj.GetComponentInChildren<TMPro.TMP_InputField>() != null &&
                 obj.GetComponent<TMPro.TMP_InputField>() == null)
-            {
                 return true;
-            }
 
             // Back buttons (icon buttons for navigation) - handled via Backspace, not navigation list
-            // Criteria: name contains "back", is a button, has image but no actual text
             if (ContainsIgnoreCase(name, "back") &&
                 (HasCustomButton(obj) || obj.GetComponent<Button>() != null) &&
                 !UITextExtractor.HasActualText(obj))
-            {
                 return true;
+
+            // Stop buttons with prefix (e.g., "Stop Second Strike")
+            if (name.StartsWith("Stop ", System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // Scene-specific filters for MatchEndScene (victory/defeat screen)
+            if (IsMatchEndScene())
+            {
+                // Duel prompt buttons (leftover from duel)
+                if (IsDuelPromptElement(obj, name))
+                    return true;
+
+                // Navigation arrows (leftover from duel)
+                if (IsNavigationArrow(obj, name, null))
+                    return true;
             }
-
-            // Button_NPE overlay buttons (NPE = New Player Experience)
-            // These are graphical overlays on objectives that duplicate the actual blade list buttons
-            if (EqualsIgnoreCase(name, "Button_NPE")) return true;
-
-            // Stop buttons (timer controls in duel/match end screens)
-            // These are auto-pass timer controls, not meant for direct navigation
-            // Includes "Stop", "Stop Second Strike", and similar variants
-            if (EqualsIgnoreCase(name, "Stop") || name.StartsWith("Stop ", System.StringComparison.OrdinalIgnoreCase)) return true;
-
-            // Duel prompt buttons that appear in MatchEndScene (leftover from duel)
-            // These include "Pass Turn", "Cancel Attacks", broken "Ctrl" buttons
-            if (IsMatchEndScene() && IsDuelPromptElement(obj, name)) return true;
-
-            // Navigation arrows in MatchEndScene (leftover from duel)
-            if (IsMatchEndScene() && IsNavigationArrow(obj, name, null)) return true;
 
             return false;
         }
@@ -835,7 +870,7 @@ namespace MTGAAccessibility.Core.Services
             // Verify it's inside a "Control - " parent (stepper control structure)
             Transform parent = obj.transform.parent;
             int levels = 0;
-            while (parent != null && levels < 5)
+            while (parent != null && levels < MaxParentSearchDepth)
             {
                 string parentName = parent.name;
                 if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) ||
@@ -915,9 +950,8 @@ namespace MTGAAccessibility.Core.Services
             if (underscoreIdx > 0)
                 label = label.Substring(0, underscoreIdx);
 
-            // Clean up the name (CamelCase to spaces)
-            label = CamelCasePattern.Replace(label, "$1 $2");
-            label = label.Replace("_", " ").Trim();
+            // Clean up the name
+            label = CleanSettingLabel(label);
 
             // Find the current value from "Value" child
             currentValue = FindValueInControl(obj.transform, label);
@@ -978,10 +1012,10 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private static string GetSettingsDropdownLabel(Transform transform)
         {
-            // Walk up to find "Control - X_Dropdown" parent (max 3 levels)
+            // Walk up to find "Control - X_Dropdown" parent
             Transform current = transform;
             int levels = 0;
-            while (current != null && levels < 3)
+            while (current != null && levels < MaxDropdownSearchDepth)
             {
                 string parentName = current.name;
                 if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
@@ -994,9 +1028,8 @@ namespace MTGAAccessibility.Core.Services
                     if (dropdownIdx > 0)
                         label = label.Substring(0, dropdownIdx);
 
-                    // Clean up the name (CamelCase to spaces)
-                    label = CamelCasePattern.Replace(label, "$1 $2");
-                    label = label.Replace("_", " ").Trim();
+                    // Clean up the name
+                    label = CleanSettingLabel(label);
 
                     return label;
                 }
@@ -1019,9 +1052,9 @@ namespace MTGAAccessibility.Core.Services
             Transform controlTransform = obj.transform;
             string controlName = null;
 
-            // Walk up to find "Control - X_Dropdown" parent (max 3 levels)
+            // Walk up to find "Control - X_Dropdown" parent
             int levels = 0;
-            while (controlTransform != null && levels < 3)
+            while (controlTransform != null && levels < MaxDropdownSearchDepth)
             {
                 string parentName = controlTransform.name;
                 if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
@@ -1044,9 +1077,8 @@ namespace MTGAAccessibility.Core.Services
             if (dropdownIdx > 0)
                 label = label.Substring(0, dropdownIdx);
 
-            // Clean up the name (CamelCase to spaces)
-            label = CamelCasePattern.Replace(label, "$1 $2");
-            label = label.Replace("_", " ").Trim();
+            // Clean up the name
+            label = CleanSettingLabel(label);
 
             // Try to find the current selected value
             // First check if this object has a TMP_Dropdown - get value from selected option
@@ -1191,9 +1223,6 @@ namespace MTGAAccessibility.Core.Services
             return "Navigate";
         }
 
-        // Maximum label length - longer text is likely descriptive content, not a label
-        private const int MaxLabelLength = 80;
-
         // Generic element names that should check parent for better label
         private static readonly HashSet<string> GenericElementNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
         {
@@ -1292,18 +1321,13 @@ namespace MTGAAccessibility.Core.Services
             return CleanObjectName(objName);
         }
 
-        // Pattern to match resolution/aspect ratio suffixes like "Desktop 16x9", "Mobile 4x3"
-        private static readonly Regex ResolutionPattern = new Regex(
-            @"\s*(Desktop|Mobile|Tablet)?\s*\d+x\d+\s*",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
         private static string CleanObjectName(string name)
         {
             if (string.IsNullOrEmpty(name)) return "Unknown";
 
             name = name.Replace("(Clone)", "");
             name = name.Replace("_", " ");
-            name = CamelCasePattern.Replace(name, "$1 $2");
+            name = SplitCamelCase(name);
             name = ResolutionPattern.Replace(name, " ");  // Remove resolution suffixes
             name = WhitespacePattern.Replace(name, " ");
             name = name.Replace("Nav ", "");
@@ -1324,7 +1348,7 @@ namespace MTGAAccessibility.Core.Services
             // First, check for a parent "Control - " container (Settings pattern)
             Transform parent = sliderTransform.parent;
             int levels = 0;
-            while (parent != null && levels < 5)
+            while (parent != null && levels < MaxParentSearchDepth)
             {
                 string parentName = parent.name;
                 if (parentName.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase))
@@ -1336,9 +1360,8 @@ namespace MTGAAccessibility.Core.Services
                     if (label.EndsWith("_Slider", System.StringComparison.OrdinalIgnoreCase))
                         label = label.Substring(0, label.Length - 7);
 
-                    // Clean up the name (CamelCase to spaces)
-                    label = CamelCasePattern.Replace(label, "$1 $2");
-                    label = label.Replace("_", " ").Trim();
+                    // Clean up the name
+                    label = CleanSettingLabel(label);
 
                     if (!string.IsNullOrEmpty(label))
                         return label;
@@ -1401,7 +1424,7 @@ namespace MTGAAccessibility.Core.Services
             string cleanName = CleanObjectName(fallbackName);
 
             // Remove "slider" from the name if present
-            cleanName = System.Text.RegularExpressions.Regex.Replace(cleanName, @"\bslider\b", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+            cleanName = SliderSuffixPattern.Replace(cleanName, "").Trim();
 
             if (!string.IsNullOrEmpty(cleanName) && cleanName.Length > 1)
                 return cleanName;

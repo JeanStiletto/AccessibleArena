@@ -448,7 +448,7 @@ namespace MTGAAccessibility.Core.Services
                         _announcer.Announce(Strings.CouldNotPlay(item.Name), AnnouncementPriority.High);
                         MelonLogger.Msg($"[HotHighlightNavigator] Card play failed: {message}");
                     }
-                }, null);
+                });
             }
             else
             {
