@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -173,7 +174,9 @@ namespace MTGAAccessibility.Core.Services
             if (toggle != null)
             {
                 result.Role = ElementRole.Toggle;
-                result.Label = GetCleanLabel(text, objName);
+                // For generic toggle names, check parent for label (e.g., "Toggle - Remember Me/Toggle")
+                string effectiveName = GetEffectiveToggleName(obj, objName);
+                result.Label = GetCleanLabel(text, effectiveName);
                 result.RoleLabel = toggle.isOn ? "checkbox, checked" : "checkbox, unchecked";
                 result.IsNavigable = true;
                 result.ShouldAnnounce = true;
@@ -304,16 +307,19 @@ namespace MTGAAccessibility.Core.Services
                 }
 
                 // Determine if it's a link or button based on content
+                // For generic names like "Button", try to get a better name from parent
+                string effectiveName = GetEffectiveButtonName(obj, objName);
+
                 if (IsLinkElement(objName, text))
                 {
                     result.Role = ElementRole.Link;
-                    result.Label = GetCleanLabel(text, objName);
+                    result.Label = GetCleanLabel(text, effectiveName);
                     result.RoleLabel = "link";
                 }
                 else
                 {
                     result.Role = ElementRole.Button;
-                    result.Label = GetCleanLabel(text, objName);
+                    result.Label = GetCleanLabel(text, effectiveName);
                     result.RoleLabel = "button";
                 }
                 result.IsNavigable = true;
@@ -667,6 +673,24 @@ namespace MTGAAccessibility.Core.Services
             // BUTTONS container elements (EventTriggers that wrap actual buttons)
             // These appear in Color Challenge and similar screens as non-functional containers
             if (EqualsIgnoreCase(name, "BUTTONS")) return true;
+
+            // EventTriggers that contain TMP_InputField children are just containers
+            // The actual input field handles navigation, not the wrapper
+            if (obj.GetComponent<UnityEngine.EventSystems.EventTrigger>() != null &&
+                obj.GetComponentInChildren<TMPro.TMP_InputField>() != null &&
+                obj.GetComponent<TMPro.TMP_InputField>() == null)
+            {
+                return true;
+            }
+
+            // Back buttons (icon buttons for navigation) - handled via Backspace, not navigation list
+            // Criteria: name contains "back", is a button, has image but no actual text
+            if (ContainsIgnoreCase(name, "back") &&
+                (HasCustomButton(obj) || obj.GetComponent<Button>() != null) &&
+                !UITextExtractor.HasActualText(obj))
+            {
+                return true;
+            }
 
             // Button_NPE overlay buttons (NPE = New Player Experience)
             // These are graphical overlays on objectives that duplicate the actual blade list buttons
@@ -1170,6 +1194,82 @@ namespace MTGAAccessibility.Core.Services
         // Maximum label length - longer text is likely descriptive content, not a label
         private const int MaxLabelLength = 80;
 
+        // Generic element names that should check parent for better label
+        private static readonly HashSet<string> GenericElementNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            "Button", "Btn", "CustomButton", "MainButton", "Toggle", "Checkbox"
+        };
+
+        /// <summary>
+        /// Get an effective name for a toggle, checking parent if name is generic.
+        /// For toggles named just "Toggle", the parent often has a descriptive name like "Toggle - Remember Me".
+        /// </summary>
+        private static string GetEffectiveToggleName(GameObject obj, string objName)
+        {
+            // If the name is descriptive, use it
+            if (!EqualsIgnoreCase(objName, "Toggle") && !EqualsIgnoreCase(objName, "Checkbox"))
+            {
+                return objName;
+            }
+
+            // Name is generic, check parent for a better name
+            var parent = obj.transform.parent;
+            if (parent != null)
+            {
+                string parentName = parent.name;
+                // Pattern: "Toggle - Label" or "Checkbox - Label" -> extract the label part
+                if (parentName.StartsWith("Toggle - ", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return parentName.Substring(9); // Remove "Toggle - "
+                }
+                if (parentName.StartsWith("Checkbox - ", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return parentName.Substring(11); // Remove "Checkbox - "
+                }
+                // If parent has a meaningful name (not also generic), use it
+                if (!string.IsNullOrEmpty(parentName) &&
+                    !EqualsIgnoreCase(parentName, "Toggle") &&
+                    !EqualsIgnoreCase(parentName, "Checkbox") &&
+                    parentName.Length > 3)
+                {
+                    return parentName;
+                }
+            }
+
+            // Fall back to original name
+            return objName;
+        }
+
+        /// <summary>
+        /// Get an effective name for a button, checking parent if name is generic.
+        /// For buttons named just "Button", the parent often has a descriptive name like "SettingsButton".
+        /// </summary>
+        private static string GetEffectiveButtonName(GameObject obj, string objName)
+        {
+            // If the name is descriptive, use it
+            if (!GenericElementNames.Contains(objName.Replace("(Clone)", "").Trim()))
+            {
+                return objName;
+            }
+
+            // Name is generic, check parent for a better name
+            var parent = obj.transform.parent;
+            if (parent != null)
+            {
+                string parentName = parent.name;
+                // If parent has a meaningful name (not also generic), use it
+                if (!string.IsNullOrEmpty(parentName) &&
+                    !GenericElementNames.Contains(parentName.Replace("(Clone)", "").Trim()) &&
+                    parentName.Length > 3)
+                {
+                    return parentName;
+                }
+            }
+
+            // Fall back to original name
+            return objName;
+        }
+
         private static string GetCleanLabel(string text, string objName)
         {
             // Prefer text content if available and meaningful (not too short or too long)
@@ -1181,13 +1281,21 @@ namespace MTGAAccessibility.Core.Services
                 text = WhitespacePattern.Replace(text, " ");
 
                 // MTGA uses zero-width space for empty fields (see docs/BEST_PRACTICES.md)
-                if (!string.IsNullOrEmpty(text) && text != "\u200B")
+                // Also reject generic button names - these are fallbacks from object name, not actual content
+                if (!string.IsNullOrEmpty(text) &&
+                    text != "\u200B" &&
+                    !GenericElementNames.Contains(text))
                     return text;
             }
 
             // Fall back to cleaned object name
             return CleanObjectName(objName);
         }
+
+        // Pattern to match resolution/aspect ratio suffixes like "Desktop 16x9", "Mobile 4x3"
+        private static readonly Regex ResolutionPattern = new Regex(
+            @"\s*(Desktop|Mobile|Tablet)?\s*\d+x\d+\s*",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static string CleanObjectName(string name)
         {
@@ -1196,6 +1304,7 @@ namespace MTGAAccessibility.Core.Services
             name = name.Replace("(Clone)", "");
             name = name.Replace("_", " ");
             name = CamelCasePattern.Replace(name, "$1 $2");
+            name = ResolutionPattern.Replace(name, " ");  // Remove resolution suffixes
             name = WhitespacePattern.Replace(name, " ");
             name = name.Replace("Nav ", "");
             name = name.Replace("Button", "");

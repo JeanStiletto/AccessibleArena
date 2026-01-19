@@ -4,6 +4,30 @@ Active bugs and limitations in the MTGA Accessibility Mod.
 
 ## Active Bugs
 
+### Confirmation Dialogs (SystemMessageView)
+
+**Cancel button navigation issue**
+
+Confirmation dialogs (e.g., Exit Game confirmation) are now detected and navigable with OK/Cancel buttons. However, after pressing Cancel, the mod doesn't properly return to the previous menu (Settings). The popup closes visually (confirmed via OCR), but the mod gets confused about panel hierarchy (Home → Settings → Popup) and enters a loop.
+
+Attempted fixes included: popup detection cooldowns, saving/restoring previous foreground panel, skipping panel detection during cooldown. The underlying issue is complex interaction between multiple panel tracking systems (popup detection, Settings overlay detection, foreground panel management) that need refactoring.
+
+**Workaround:** Press OK to confirm, or use mouse to click Cancel.
+
+### Login Screen Back Button
+
+**Back button does not respond to keyboard activation**
+
+The back button on the login panel (Button_Back) cannot be activated via keyboard (Enter or Backspace). The button has CustomButton and Animator components but doesn't respond to:
+- Pointer event simulation
+- CustomButton.onClick invocation
+- Animator triggers (Pressed, Click, Selected)
+- Submit events
+
+The button likely uses a mechanism we haven't discovered (possibly parent panel controller or input system integration).
+
+**Workaround:** Use mouse to click the back button, or restart the game to return to Welcome screen.
+
 ### HotHighlightNavigator
 
 **Activatable creatures take priority over playable cards**

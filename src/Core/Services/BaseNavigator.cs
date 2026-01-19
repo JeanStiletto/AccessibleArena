@@ -125,14 +125,28 @@ namespace MTGAAccessibility.Core.Services
                         $"checkbox, {currentState}");
                 }
 
-                // Update content for input fields - re-read current text
+                // Update content for input fields - re-read current text with password masking
                 var tmpInput = navElement.GameObject.GetComponent<TMPro.TMP_InputField>();
                 if (tmpInput != null)
                 {
-                    // Re-extract the label with current content
-                    label = UITextExtractor.GetText(navElement.GameObject);
-                    // Update the cached label too
-                    navElement.Label = label;
+                    string fieldLabel = GetInputFieldLabel(navElement.GameObject);
+                    string content = tmpInput.text;
+
+                    // Handle password fields - show character count instead of content
+                    if (tmpInput.inputType == TMPro.TMP_InputField.InputType.Password)
+                    {
+                        label = string.IsNullOrEmpty(content)
+                            ? $"{fieldLabel}, empty"
+                            : $"{fieldLabel}, has {content.Length} characters";
+                    }
+                    else
+                    {
+                        // Regular field - show content or empty state
+                        label = string.IsNullOrEmpty(content)
+                            ? $"{fieldLabel}, empty"
+                            : $"{fieldLabel}: {content}";
+                    }
+                    label += ", text field";
                 }
             }
 
@@ -267,9 +281,26 @@ namespace MTGAAccessibility.Core.Services
         /// Handle navigation while editing an input field.
         /// Up/Down arrows announce the field content.
         /// Left/Right arrows announce the character at cursor.
+        /// Escape exits edit mode and returns to menu navigation.
         /// </summary>
         protected virtual void HandleInputFieldNavigation()
         {
+            // Escape exits edit mode (game's Escape is blocked while editing)
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                UIFocusTracker.ExitInputFieldEditMode();
+                _announcer.Announce("Exited input field", AnnouncementPriority.Normal);
+                return;
+            }
+
+            // Tab exits edit mode and lets Tab navigation take over
+            if (Input.GetKeyDown(KeyCode.Tab))
+            {
+                UIFocusTracker.ExitInputFieldEditMode();
+                // Don't announce - Tab fallback will handle navigation
+                return;
+            }
+
             // Up or Down arrow: announce the current input field content
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {
@@ -784,6 +815,17 @@ namespace MTGAAccessibility.Core.Services
             if (element == null) return;
 
             MelonLogger.Msg($"[{NavigatorId}] Activating: {element.name} (ID:{element.GetInstanceID()}, Label:{_elements[_currentIndex].Label})");
+
+            // Check if this is an input field - enter edit mode
+            if (UIFocusTracker.IsInputField(element))
+            {
+                UIFocusTracker.EnterInputFieldEditMode(element);
+                _announcer.Announce("Editing. Type to enter text, Backspace on empty to exit.", AnnouncementPriority.Normal);
+
+                // Also activate the field so it receives keyboard input
+                UIActivator.Activate(element);
+                return;
+            }
 
             // Check if this is a card - delegate to CardInfoNavigator
             if (SupportsCardNavigation && CardDetector.IsCard(element))

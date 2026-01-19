@@ -24,7 +24,7 @@ namespace MTGAAccessibility.Core.Services
         // Scenes where this navigator should NOT activate (handled by other navigators)
         private static readonly HashSet<string> ExcludedScenes = new HashSet<string>
         {
-            "Bootstrap", "AssetPrep", "Login", "DuelScene", "DraftScene", "SealedScene"
+            "Bootstrap", "AssetPrep", "DuelScene", "DraftScene", "SealedScene"
         };
 
         // Minimum CustomButtons needed to consider this a menu
@@ -270,16 +270,38 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Check for new popups - this detects popups that appear after button clicks
-            // (e.g., InviteFriendPopup appearing after clicking Add Friend)
-            if (_rescanDelay <= 0 && _panelTracker.CheckForNewPopups())
+            // (e.g., InviteFriendPopup appearing after clicking Add Friend, SystemMessageView for confirmations)
+            if (_rescanDelay <= 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] New popup detected, triggering rescan");
-                TriggerRescan(force: true);
+                bool newPopup = _panelTracker.CheckForNewPopups();
+                var trackerForeground = _panelTracker.ForegroundPanel;
+
+                // Sync foreground panel from tracker if it changed (popup opened or closed)
+                if (trackerForeground != _foregroundPanel && IsPopupOverlay(trackerForeground))
+                {
+                    _foregroundPanel = trackerForeground;
+                    MelonLogger.Msg($"[{NavigatorId}] Popup foreground changed: {_foregroundPanel?.name ?? "null"}, triggering rescan");
+                    TriggerRescan(force: true);
+                }
+                else if (newPopup)
+                {
+                    _foregroundPanel = trackerForeground;
+                    MelonLogger.Msg($"[{NavigatorId}] New popup detected, foreground: {_foregroundPanel?.name ?? "null"}, triggering rescan");
+                    TriggerRescan(force: true);
+                }
+                // Clear popup foreground if popup closed
+                else if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel) && !_foregroundPanel.activeInHierarchy)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup closed: {_foregroundPanel.name}, clearing foreground");
+                    _foregroundPanel = null;
+                    TriggerRescan(force: true);
+                }
             }
 
             // Check for panel changes (e.g., Settings submenu navigation)
             // This detects when foreground panel becomes inactive or changes
-            if (_rescanDelay <= 0)
+            // Skip during popup cooldown to avoid overriding restored foreground
+            if (_rescanDelay <= 0 && !_panelTracker.IsPopupCooldownActive)
             {
                 CheckForPanelChanges();
             }
@@ -352,9 +374,54 @@ namespace MTGAAccessibility.Core.Services
                 return NavigateToHome();
             }
 
-            // 5. Already at Home, nothing to do
+            // 5. Try to find a generic back button on screen (icon buttons named *Back*)
+            var genericBackButton = FindGenericBackButton();
+            if (genericBackButton != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found generic back button: {genericBackButton.name}");
+                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                ActivateBackButton(genericBackButton);
+                return true;
+            }
+
+            // 6. Already at top level, nothing to do
             MelonLogger.Msg($"[{NavigatorId}] Already at top level, no back action");
             return false;
+        }
+
+        /// <summary>
+        /// Find a generic back button on the current screen.
+        /// Looks for icon buttons (no text) with "Back" in the name.
+        /// </summary>
+        private GameObject FindGenericBackButton()
+        {
+            // Look for CustomButtons with "Back" in name that have no actual text (icon buttons)
+            foreach (var btn in GetActiveCustomButtons())
+            {
+                if (btn == null || !btn.activeInHierarchy) continue;
+
+                string btnName = btn.name;
+                if (btnName.IndexOf("back", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    !UITextExtractor.HasActualText(btn))
+                {
+                    return btn;
+                }
+            }
+
+            // Also check standard Unity Buttons
+            foreach (var btn in GameObject.FindObjectsOfType<Button>())
+            {
+                if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
+
+                string btnName = btn.gameObject.name;
+                if (btnName.IndexOf("back", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    !UITextExtractor.HasActualText(btn.gameObject))
+                {
+                    return btn.gameObject;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -471,7 +538,38 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
-            // Method 3: Fall back to UIActivator (comprehensive approach)
+            // Method 3: Try Animator triggers via reflection (some buttons use animation-based navigation)
+            foreach (var component in backButton.GetComponents<Component>())
+            {
+                if (component == null) continue;
+                var typeName = component.GetType().Name;
+                if (typeName == "Animator")
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Trying Animator triggers on: {backButton.name}");
+                    var type = component.GetType();
+
+                    // Try SetTrigger with common trigger names
+                    var setTrigger = type.GetMethod("SetTrigger", new[] { typeof(string) });
+                    if (setTrigger != null)
+                    {
+                        setTrigger.Invoke(component, new object[] { "Pressed" });
+                        setTrigger.Invoke(component, new object[] { "Click" });
+                        setTrigger.Invoke(component, new object[] { "Selected" });
+                    }
+
+                    // Try Play method
+                    var play = type.GetMethod("Play", new[] { typeof(string) });
+                    if (play != null)
+                    {
+                        play.Invoke(component, new object[] { "Pressed" });
+                    }
+
+                    MelonLogger.Msg($"[{NavigatorId}] Animator triggers sent");
+                    break;
+                }
+            }
+
+            // Method 4: Fall back to UIActivator (comprehensive approach)
             MelonLogger.Msg($"[{NavigatorId}] Falling back to UIActivator.Activate");
             UIActivator.Activate(backButton);
         }
@@ -774,9 +872,18 @@ namespace MTGAAccessibility.Core.Services
                     _activePanels.Remove(panel);
                 }
 
-                // Check if any remaining panel is an overlay that should filter
-                var overlayPanel = currentPanels.LastOrDefault(p => IsOverlayPanel(p.name));
-                _foregroundPanel = overlayPanel.obj; // Will be null if no overlay
+                // Don't overwrite popup foreground - popups are tracked separately
+                // Only update foreground if current one is NOT a popup overlay
+                if (_foregroundPanel == null || !IsPopupOverlay(_foregroundPanel))
+                {
+                    // Check if any remaining panel is an overlay that should filter
+                    var overlayPanel = currentPanels.LastOrDefault(p => IsOverlayPanel(p.name));
+                    _foregroundPanel = overlayPanel.obj; // Will be null if no overlay
+                }
+                else
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Preserving popup foreground: {_foregroundPanel.name}");
+                }
 
                 TriggerRescan();
             }
@@ -808,6 +915,12 @@ namespace MTGAAccessibility.Core.Services
 
             // Social panel overlay - only show Social elements when open
             if (_foregroundPanel != null && IsSocialPanelOpen())
+            {
+                return IsChildOf(obj, _foregroundPanel);
+            }
+
+            // Popup/dialog overlay - only show popup elements (includes SystemMessageView)
+            if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel))
             {
                 return IsChildOf(obj, _foregroundPanel);
             }
@@ -855,6 +968,16 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private static bool IsChildOf(GameObject child, GameObject parent) =>
             MenuPanelTracker.IsChildOf(child, parent);
+
+        /// <summary>
+        /// Check if a GameObject is a popup overlay (Popup or SystemMessageView).
+        /// </summary>
+        private static bool IsPopupOverlay(GameObject obj)
+        {
+            if (obj == null) return false;
+            string name = obj.name;
+            return name.Contains("Popup") || name.Contains("SystemMessageView");
+        }
 
         /// <summary>
         /// Check if element is inside a Blade (PlayBlade, EventBlade, FindMatchBlade, etc.)
@@ -941,7 +1064,8 @@ namespace MTGAAccessibility.Core.Services
 
             // Update foreground panel for Settings menu - the content panel may have changed
             // (e.g., from MainMenu to Graphics submenu)
-            if (CheckSettingsMenuOpen() && SettingsContentPanel != null)
+            // BUT don't overwrite popup foreground - popups take priority over Settings
+            if (CheckSettingsMenuOpen() && SettingsContentPanel != null && !IsPopupOverlay(_foregroundPanel))
             {
                 _foregroundPanel = SettingsContentPanel;
                 MelonLogger.Msg($"[{NavigatorId}] Updated foreground panel to Settings: {_foregroundPanel.name}");
@@ -1729,6 +1853,9 @@ namespace MTGAAccessibility.Core.Services
             // Check if this is an input field - may cause UI changes (e.g., Send button appearing)
             bool isInputField = element.GetComponent<TMP_InputField>() != null;
 
+            // Check if this is a popup/dialog button (SystemMessageButton) - popup will close with animation
+            bool isPopupButton = element.name.Contains("SystemMessageButton");
+
             // Check if we're in the Settings menu - submenu button clicks need rescan
             // because the content panel changes but no panel state event fires
             bool isInSettingsMenu = CheckSettingsMenuOpen();
@@ -1754,6 +1881,21 @@ namespace MTGAAccessibility.Core.Services
             if (isInputField)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Input field activated - scheduling rescan");
+                TriggerRescan(force: true);
+                return true;
+            }
+
+            // For popup/dialog button activations (OK, Cancel), the popup closes with animation
+            // Start cooldown to prevent popup re-detection during close animation
+            if (isPopupButton)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup button activated ({element.name}) - dismissing popup");
+                // Start cooldown in tracker (restores tracker's foreground to panel before popup)
+                _panelTracker.StartPopupDismissCooldown();
+                // Sync our foreground from tracker (restored to panel before popup)
+                _foregroundPanel = _panelTracker.ForegroundPanel;
+                MelonLogger.Msg($"[{NavigatorId}] Synced foreground: {_foregroundPanel?.name ?? "null"}");
+                // Trigger immediate rescan
                 TriggerRescan(force: true);
                 return true;
             }

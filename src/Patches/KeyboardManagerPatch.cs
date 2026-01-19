@@ -65,11 +65,15 @@ namespace MTGAAccessibility.Patches
         /// </summary>
         private static bool ShouldBlockKey(KeyCode key)
         {
-            // Never block keys when user is editing an input field
-            // Let the input field receive all keypresses for typing
+            // When editing an input field, block Escape from game (so we can use it to exit edit mode)
+            // but let all other keys through for typing
             if (UIFocusTracker.IsEditingInputField())
             {
-                return false;
+                if (key == KeyCode.Escape)
+                {
+                    return true; // Block Escape so game doesn't open settings menu
+                }
+                return false; // Let typing keys through
             }
 
             // In DuelScene, block Enter entirely - our mod handles all Enter presses

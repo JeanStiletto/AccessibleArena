@@ -49,6 +49,7 @@ C:\Users\fabia\arena\
         old/                     - Deprecated navigators (kept for reference/revert)
           TargetNavigator.cs     - OLD: Separate target selection (replaced by HotHighlightNavigator)
           HighlightNavigator.cs  - OLD: Separate playable card cycling (replaced by HotHighlightNavigator)
+          LoginPanelNavigator.cs - OLD: Login screen (replaced by GeneralMenuNavigator, Jan 2026)
 
         # Navigator Infrastructure
         BaseNavigator.cs         - Abstract base for screen navigators
@@ -62,7 +63,7 @@ C:\Users\fabia\arena\
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
         AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
         WelcomeGateNavigator.cs      - Welcome/login choice screen
-        LoginPanelNavigator.cs       - Email/password login screen
+        # LoginPanelNavigator removed - GeneralMenuNavigator handles Login scene
         CodeOfConductNavigator.cs    - Terms/consent checkboxes screen
         DuelNavigator.cs             - Duel gameplay screen (delegates to ZoneNavigator)
         EventTriggerNavigator.cs     - NPE rewards, pack opening, card reveal
@@ -102,7 +103,7 @@ C:\Users\fabia\arena\
 ### Screen Navigators
 - [?] AssetPrepNavigator - Download screen on fresh install (UNTESTED, fail-safe design)
 - [x] WelcomeGateNavigator - Login/Register choice screen
-- [x] LoginPanelNavigator - Email/password entry
+- [x] Login scene - Now handled by GeneralMenuNavigator with password masking
 - [x] CodeOfConductNavigator - Terms/consent checkboxes
 - [x] DuelNavigator - Duel gameplay (zone navigation working)
 - [x] EventTriggerNavigator - NPE rewards, pack opening

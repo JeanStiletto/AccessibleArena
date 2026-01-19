@@ -279,6 +279,13 @@ namespace MTGAAccessibility.Core.Models
         public const string HelpHomeEnd = "Home or End: Jump to first or last item";
         public const string HelpEnterSpace = "Enter or Space: Activate";
 
+        // Input fields (text entry)
+        public const string HelpCategoryInputFields = "Input fields";
+        public const string HelpEnterEditField = "Enter: Start editing text field";
+        public const string HelpEscapeExitField = "Escape: Stop editing, return to navigation";
+        public const string HelpTabNextField = "Tab: Stop editing and move to next element";
+        public const string HelpArrowsInField = "Arrows in field: Left or Right reads character, Up or Down reads content";
+
         // Zones (yours and opponent)
         public const string HelpCHand = "C: Your hand, Shift plus C: Opponent hand count";
         public const string HelpBBattlefield = "B: Your creatures, Shift plus B: Opponent creatures";

@@ -48,6 +48,13 @@ namespace MTGAAccessibility.Core.Services
                 Strings.HelpHomeEnd,
                 Strings.HelpEnterSpace,
 
+                // Input fields
+                Strings.HelpCategoryInputFields,
+                Strings.HelpEnterEditField,
+                Strings.HelpEscapeExitField,
+                Strings.HelpTabNextField,
+                Strings.HelpArrowsInField,
+
                 // Zones in duel (yours and opponent)
                 Strings.HelpCategoryDuelZones,
                 Strings.HelpCHand,

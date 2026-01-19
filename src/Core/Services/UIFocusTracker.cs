@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 
@@ -9,8 +13,7 @@ namespace MTGAAccessibility.Core.Services
     /// <summary>
     /// Tracks UI focus changes using Unity's EventSystem and announces them via screen reader.
     /// Polls EventSystem.current.currentSelectedGameObject each frame to detect selection changes.
-    /// Note: EventSystem.currentSelectedGameObject is often null in MTGA because most screens
-    /// use CustomButton/EventTrigger which don't register with EventSystem.
+    /// Also provides Tab navigation fallback when Unity's navigation is broken (menu scenes only).
     /// </summary>
     public class UIFocusTracker
     {
@@ -18,10 +21,25 @@ namespace MTGAAccessibility.Core.Services
         private const int MAX_SELECTABLE_LOG_COUNT = 10;
         private const int MAX_HIERARCHY_DEPTH = 3;
 
+        // Scenes where Tab fallback should NOT apply (HotHighlightNavigator handles Tab)
+        private static readonly HashSet<string> DuelScenes = new HashSet<string>
+        {
+            "DuelScene", "DraftScene", "SealedScene"
+        };
+
         private readonly IAnnouncementService _announcer;
         private GameObject _lastSelected;
         private string _lastAnnouncedText;
         private readonly bool _debugMode = true;
+
+        // Tab navigation fallback state
+        private bool _tabPressedLastFrame;
+        private bool _shiftHeldOnTab;
+        private GameObject _selectionBeforeTab;
+
+        // Input field edit mode - only true when user explicitly activated (Enter) the field
+        private static bool _inputFieldEditMode;
+        private static GameObject _activeInputFieldObject;
 
         /// <summary>
         /// Fired when focus changes. Parameters: (oldElement, newElement)
@@ -29,32 +47,60 @@ namespace MTGAAccessibility.Core.Services
         public event Action<GameObject, GameObject> OnFocusChanged;
 
         /// <summary>
-        /// Returns true if a TMP_InputField is currently focused (user is typing).
-        /// When true, navigation keys should pass through to the input field.
+        /// Returns true if user is actively editing an input field (pressed Enter to activate).
+        /// When true, arrow keys control cursor. When false, arrows navigate between elements.
         /// </summary>
         public static bool IsEditingInputField()
         {
-            // Check TMP_InputField (MTGA uses TextMeshPro)
-            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
-            foreach (var field in tmpInputFields)
-            {
-                if (field != null && field.isFocused)
-                {
-                    return true;
-                }
-            }
+            // Only return true if user explicitly entered edit mode AND the field is still focused
+            if (!_inputFieldEditMode || _activeInputFieldObject == null)
+                return false;
 
-            // Also check legacy Unity InputField just in case
-            var legacyInputFields = GameObject.FindObjectsOfType<UnityEngine.UI.InputField>();
-            foreach (var field in legacyInputFields)
-            {
-                if (field != null && field.isFocused)
-                {
-                    return true;
-                }
-            }
+            // Verify the input field is still actually focused
+            var tmpInput = _activeInputFieldObject.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null && tmpInput.isFocused)
+                return true;
 
+            var legacyInput = _activeInputFieldObject.GetComponent<UnityEngine.UI.InputField>();
+            if (legacyInput != null && legacyInput.isFocused)
+                return true;
+
+            // Field lost focus, exit edit mode
+            ExitInputFieldEditMode();
             return false;
+        }
+
+        /// <summary>
+        /// Enter edit mode for an input field. Called when user presses Enter on an input field.
+        /// </summary>
+        public static void EnterInputFieldEditMode(GameObject inputFieldObject)
+        {
+            _inputFieldEditMode = true;
+            _activeInputFieldObject = inputFieldObject;
+            MelonLogger.Msg($"[FocusTracker] Entered input field edit mode: {inputFieldObject?.name}");
+        }
+
+        /// <summary>
+        /// Exit edit mode. Called when user presses Escape/Tab or focus leaves the field.
+        /// </summary>
+        public static void ExitInputFieldEditMode()
+        {
+            if (_inputFieldEditMode)
+            {
+                MelonLogger.Msg($"[FocusTracker] Exited input field edit mode");
+                _inputFieldEditMode = false;
+                _activeInputFieldObject = null;
+            }
+        }
+
+        /// <summary>
+        /// Check if a GameObject is an input field (TMP or legacy).
+        /// </summary>
+        public static bool IsInputField(GameObject obj)
+        {
+            if (obj == null) return false;
+            return obj.GetComponent<TMPro.TMP_InputField>() != null ||
+                   obj.GetComponent<UnityEngine.UI.InputField>() != null;
         }
 
         public UIFocusTracker(IAnnouncementService announcer)
@@ -74,7 +120,121 @@ namespace MTGAAccessibility.Core.Services
                 DebugLogKeyPresses();
             }
 
+            // Handle Tab fallback for broken Unity navigation (menu scenes only)
+            HandleTabFallback();
+
             CheckFocusChange();
+        }
+
+        #endregion
+
+        #region Tab Navigation Fallback
+
+        /// <summary>
+        /// Provides Tab navigation fallback when Unity's EventSystem navigation is broken.
+        /// Only applies in menu scenes - duel scenes use HotHighlightNavigator for Tab.
+        /// </summary>
+        private void HandleTabFallback()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null) return;
+
+            // Check if Tab was pressed last frame and navigation didn't work
+            if (_tabPressedLastFrame)
+            {
+                _tabPressedLastFrame = false;
+
+                var currentSelection = eventSystem.currentSelectedGameObject;
+
+                // If selection didn't change, manually navigate to next Selectable
+                if (currentSelection == _selectionBeforeTab && currentSelection != null)
+                {
+                    // Only apply fallback in menu scenes, not duel scenes
+                    if (!IsInDuelScene())
+                    {
+                        Log($"Tab navigation stuck on {currentSelection.name}, applying fallback");
+                        NavigateToNextSelectable(_shiftHeldOnTab);
+                    }
+                }
+            }
+
+            // Detect Tab press this frame
+            if (Input.GetKeyDown(KeyCode.Tab))
+            {
+                _tabPressedLastFrame = true;
+                _shiftHeldOnTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                _selectionBeforeTab = eventSystem.currentSelectedGameObject;
+            }
+        }
+
+        /// <summary>
+        /// Check if current scene is a duel scene where HotHighlightNavigator handles Tab.
+        /// </summary>
+        private bool IsInDuelScene()
+        {
+            string sceneName = SceneManager.GetActiveScene().name;
+            return DuelScenes.Contains(sceneName);
+        }
+
+        /// <summary>
+        /// Manually navigate to the next/previous Selectable when Unity's navigation fails.
+        /// </summary>
+        private void NavigateToNextSelectable(bool reverse)
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null) return;
+
+            var current = eventSystem.currentSelectedGameObject;
+            if (current == null) return;
+
+            // Get all active, interactable Selectables
+            var allSelectables = Selectable.allSelectablesArray
+                .Where(s => s != null && s.isActiveAndEnabled && s.interactable && s.gameObject.activeInHierarchy)
+                .ToList();
+
+            if (allSelectables.Count == 0) return;
+
+            // Sort by position (top-to-bottom, left-to-right) for consistent Tab order
+            allSelectables.Sort((a, b) =>
+            {
+                var posA = a.transform.position;
+                var posB = b.transform.position;
+                // Higher Y = earlier in tab order (top to bottom)
+                // For same Y, lower X = earlier (left to right)
+                int yCompare = posB.y.CompareTo(posA.y);
+                return yCompare != 0 ? yCompare : posA.x.CompareTo(posB.x);
+            });
+
+            // Find current element's index
+            var currentSelectable = current.GetComponent<Selectable>();
+            int currentIndex = currentSelectable != null ? allSelectables.IndexOf(currentSelectable) : -1;
+
+            if (currentIndex == -1)
+            {
+                // Current element isn't a Selectable, find closest one
+                Log("Current selection is not a Selectable, selecting first available");
+                var first = allSelectables.FirstOrDefault();
+                if (first != null)
+                {
+                    eventSystem.SetSelectedGameObject(first.gameObject);
+                }
+                return;
+            }
+
+            // Calculate next index with wrapping
+            int nextIndex;
+            if (reverse)
+            {
+                nextIndex = currentIndex > 0 ? currentIndex - 1 : allSelectables.Count - 1;
+            }
+            else
+            {
+                nextIndex = currentIndex < allSelectables.Count - 1 ? currentIndex + 1 : 0;
+            }
+
+            var nextSelectable = allSelectables[nextIndex];
+            Log($"Tab fallback: {current.name} -> {nextSelectable.gameObject.name}");
+            eventSystem.SetSelectedGameObject(nextSelectable.gameObject);
         }
 
         #endregion

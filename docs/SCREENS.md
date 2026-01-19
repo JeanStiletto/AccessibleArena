@@ -41,16 +41,31 @@ Issue: EventSystem shows no selected object on Tab.
 
 ### Login Panel
 **Panel:** `Panel - Log In_Desktop_16x9(Clone)`
-**Navigator:** `LoginPanelNavigator`
+**Navigator:** `GeneralMenuNavigator` (was LoginPanelNavigator, deprecated January 2026)
 
-Elements:
-- `InputsBox/.../Input Field - E-mail` - TMP_InputField
-- `InputsBox/.../Input Field - PW` - TMP_InputField (password)
-- `Toggle` - First Toggle in panel
-- `MainButton_Login` - Standard Button
-- `Button_Back` - CustomButton
+Elements discovered automatically by GeneralMenuNavigator:
+- Settings button (icon, labeled from parent name)
+- Email input field (TMP_InputField)
+- Password input field (TMP_InputField with password masking)
+- Remember me toggle (labeled from parent "Toggle - Remember Me")
+- Log In button (CustomButton)
+- Privacy links
 
-Issue: Tab gets stuck after Login button. Toggle changes state when selected.
+**Input Field Navigation:**
+- Arrow keys navigate between elements (including input fields)
+- Press **Enter** on input field to start editing
+- While editing: type normally, arrows read content/characters
+- Press **Escape** to stop editing and return to navigation
+- Press **Tab** to stop editing and move to next element
+
+**Password Masking:**
+Password fields announce "has X characters" instead of actual content for privacy.
+
+**Tab Navigation Fallback:**
+If Unity's Tab navigation gets stuck (broken selectOnDown links), UIFocusTracker provides fallback navigation to next Selectable.
+
+**Known Issue:**
+Back button (Button_Back) does not respond to keyboard activation. See KNOWN_ISSUES.md.
 
 ### Code of Conduct
 **Navigator:** `CodeOfConductNavigator`

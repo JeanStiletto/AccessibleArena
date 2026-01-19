@@ -83,6 +83,13 @@ End: Jump to last item
 Enter/Space: Activate
 Backspace: Back one level
 
+**Input Fields (Login, Search, etc.):**
+Enter: Start editing text field
+Escape: Stop editing, return to navigation
+Tab: Stop editing and move to next element
+Arrow Left/Right (while editing): Read character at cursor
+Arrow Up/Down (while editing): Read full content
+
 **Duel - Zone Navigation:**
 Your Zones: C (Hand/Cards), G (Graveyard), X (Exile), S (Stack)
 Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
