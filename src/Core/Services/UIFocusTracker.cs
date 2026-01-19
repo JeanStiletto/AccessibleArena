@@ -113,7 +113,26 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         public static bool IsEditingDropdown()
         {
-            return _dropdownEditMode;
+            // Only return true if we're in dropdown mode AND focus is still on a dropdown item
+            if (!_dropdownEditMode)
+                return false;
+
+            // Verify focus is still on a dropdown item
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
+            {
+                ExitDropdownEditMode();
+                return false;
+            }
+
+            // If focus moved away from dropdown items, exit mode
+            if (!IsDropdownItem(eventSystem.currentSelectedGameObject))
+            {
+                ExitDropdownEditMode();
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>

@@ -4,6 +4,33 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### BaseNavigator Code Quality Refactoring
+
+Refactored BaseNavigator for improved code quality, reduced duplication, and better performance.
+
+**New Helpers:**
+- Added `IsValidIndex` property - eliminates repetitive `_currentIndex >= 0 && _currentIndex < _elements.Count` checks (was duplicated 6 times)
+- Added `InputFieldInfo` struct and `GetFocusedInputFieldInfo()` helper - consolidates TMP_InputField and legacy InputField handling
+- Added `_editingInputField` cache - avoids expensive `FindObjectsOfType` during input field navigation
+
+**Consolidated Patterns:**
+- Renamed `PrepareCardNavigationForCurrentElement()` to `UpdateCardNavigation()` - now includes `SupportsCardNavigation` check internally, callers don't need to wrap
+- Refactored `AnnounceCharacterAtCursor()` - uses cached field instead of searching all fields, fixed redundant condition
+- Refactored `AnnounceCurrentInputFieldContent()` - reduced from 56 lines to 23 lines by using shared helper
+
+**Namespace Normalization:**
+- Changed all `Models.Strings` references to `Strings` for consistency
+- Changed all `Models.AnnouncementPriority` references to `AnnouncementPriority`
+
+**UIFocusTracker Dropdown Validation:**
+- Added validation to `IsEditingDropdown()` to match `IsEditingInputField()` pattern
+- Now verifies focus is still on a dropdown item before returning true
+- Auto-exits dropdown mode if focus moved away (prevents stale state)
+
+**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`
+
+---
+
 ### UI Handling Code Quality Rework
 
 Completed refactoring of UIElementClassifier and UIActivator for improved code quality, readability, and maintainability.

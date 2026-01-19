@@ -197,6 +197,20 @@ This pattern is used in:
 - Always check for TMP_InputField BEFORE checking TMP_Text children
 - Password fields: announce character count, not content
 
+**Input Field Navigation (BaseNavigator):**
+BaseNavigator caches the editing input field in `_editingInputField` to avoid expensive `FindObjectsOfType` calls during navigation. The `GetFocusedInputFieldInfo()` helper consolidates TMP_InputField and legacy InputField handling:
+```csharp
+private struct InputFieldInfo
+{
+    public bool IsValid;
+    public string Text;
+    public int CaretPosition;
+    public bool IsPassword;
+    public GameObject GameObject;
+}
+```
+This helper is used by `AnnounceCharacterAtCursor()` and `AnnounceCurrentInputFieldContent()`.
+
 ### EventSystem Limitations
 - `EventSystem.currentSelectedGameObject` is often null in MTGA
 - Most screens use CustomButton/EventTrigger which don't register with EventSystem
@@ -949,6 +963,16 @@ protected struct NavigableElement
 ```
 Access via `_elements[index].GameObject`, `_elements[index].Label`, etc.
 
+**Index Validation:**
+Use the `IsValidIndex` property instead of manual bounds checking:
+```csharp
+// Use this:
+if (!IsValidIndex) return;
+
+// Instead of:
+if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
+```
+
 **Alternate Actions (Shift+Enter):**
 Some elements have a secondary action accessible via Shift+Enter. For example:
 - Deck entries: Enter selects deck, Shift+Enter edits deck name
@@ -977,30 +1001,36 @@ Some elements (NPE chest/deck boxes) need controller reflection:
 ## Card Handling in Navigators
 
 ### Automatic Card Navigation on Tab
-When Tab changes the current element, prepare card navigation:
+BaseNavigator provides `UpdateCardNavigation()` which handles card navigation automatically:
 ```csharp
-private void PrepareCardNavigationForCurrentElement()
+// Called internally by Move(), MoveFirst(), MoveLast(), and TryActivate()
+// Checks SupportsCardNavigation internally - no need to wrap the call
+private void UpdateCardNavigation()
 {
+    if (!SupportsCardNavigation) return;
+
     var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
     if (cardNavigator == null) return;
+
+    if (!IsValidIndex)
+    {
+        cardNavigator.Deactivate();
+        return;
+    }
 
     var element = _elements[_currentIndex].GameObject;
     if (element != null && CardDetector.IsCard(element))
     {
-        // Prepare (lazy) - info extracted only when user presses Arrow
         cardNavigator.PrepareForCard(element);
     }
     else if (cardNavigator.IsActive)
     {
-        // Not a card - deactivate card navigation
         cardNavigator.Deactivate();
     }
 }
 ```
 
-Call this method:
-1. After Tab changes `_currentIndex`
-2. In `FinalizeActivation()` for the initial element
+This is called automatically by BaseNavigator's navigation methods. Subclasses don't need to call it manually.
 
 ### Manual Card Activation on Enter (legacy)
 When activating an element with Enter:

@@ -22,9 +22,15 @@ namespace MTGAAccessibility.Core.Services
         protected int _currentIndex = -1;
         protected bool _isActive;
 
+        /// <summary>Whether current index points to a valid element</summary>
+        protected bool IsValidIndex => _currentIndex >= 0 && _currentIndex < _elements.Count;
+
         // Delayed stepper value announcement (game needs a frame to update value after button click)
         private float _stepperAnnounceDelay;
         private const float StepperAnnounceDelaySeconds = 0.1f;
+
+        // Cached input field being edited (set when entering edit mode)
+        private GameObject _editingInputField;
 
         /// <summary>
         /// Represents a navigable UI element with its label and optional carousel info
@@ -50,6 +56,18 @@ namespace MTGAAccessibility.Core.Services
             /// For sliders: direct reference to modify value via arrow keys
             /// </summary>
             public Slider SliderComponent { get; set; }
+        }
+
+        /// <summary>
+        /// Info about a focused input field for navigation announcements
+        /// </summary>
+        private struct InputFieldInfo
+        {
+            public bool IsValid;
+            public string Text;
+            public int CaretPosition;
+            public bool IsPassword;
+            public GameObject GameObject;
         }
 
         #endregion
@@ -99,7 +117,7 @@ namespace MTGAAccessibility.Core.Services
         protected virtual string GetActivationAnnouncement()
         {
             string countInfo = _elements.Count > 1 ? $"{_elements.Count} items. " : "";
-            return $"{ScreenName}. {countInfo}{Models.Strings.NavigateWithArrows}, Enter to select.";
+            return $"{ScreenName}. {countInfo}{Strings.NavigateWithArrows}, Enter to select.";
         }
 
         /// <summary>Build announcement for current element</summary>
@@ -247,11 +265,7 @@ namespace MTGAAccessibility.Core.Services
             // Announce screen
             _announcer.AnnounceInterrupt(GetActivationAnnouncement());
 
-            // Prepare card navigation if supported
-            if (SupportsCardNavigation)
-            {
-                PrepareCardNavigationForCurrentElement();
-            }
+            UpdateCardNavigation();
         }
 
         protected virtual bool ValidateElements()
@@ -288,6 +302,7 @@ namespace MTGAAccessibility.Core.Services
             // Escape exits edit mode (game's Escape is blocked while editing)
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
                 _announcer.Announce("Exited input field", AnnouncementPriority.Normal);
                 return;
@@ -296,6 +311,7 @@ namespace MTGAAccessibility.Core.Services
             // Tab exits edit mode and lets Tab navigation take over
             if (Input.GetKeyDown(KeyCode.Tab))
             {
+                _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
                 // Don't announce - Tab fallback will handle navigation
                 return;
@@ -362,67 +378,104 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Get info about the currently focused input field from cache or current element.
+        /// Uses cached field when available, avoids expensive FindObjectsOfType.
+        /// </summary>
+        private InputFieldInfo GetFocusedInputFieldInfo()
+        {
+            var result = new InputFieldInfo { IsValid = false };
+
+            // Try cached editing field first
+            GameObject fieldObj = _editingInputField;
+            if (fieldObj == null && IsValidIndex)
+            {
+                fieldObj = _elements[_currentIndex].GameObject;
+            }
+
+            if (fieldObj == null) return result;
+
+            // Check TMP_InputField
+            var tmpInput = fieldObj.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null && tmpInput.isFocused)
+            {
+                result.IsValid = true;
+                result.Text = tmpInput.text;
+                result.CaretPosition = tmpInput.stringPosition;
+                result.IsPassword = tmpInput.inputType == TMPro.TMP_InputField.InputType.Password;
+                result.GameObject = fieldObj;
+                return result;
+            }
+
+            // Check legacy InputField
+            var legacyInput = fieldObj.GetComponent<UnityEngine.UI.InputField>();
+            if (legacyInput != null && legacyInput.isFocused)
+            {
+                result.IsValid = true;
+                result.Text = legacyInput.text;
+                result.CaretPosition = legacyInput.caretPosition;
+                result.IsPassword = legacyInput.inputType == UnityEngine.UI.InputField.InputType.Password;
+                result.GameObject = fieldObj;
+                return result;
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Announce the character at the current cursor position in the focused input field.
         /// </summary>
         private void AnnounceCharacterAtCursor()
         {
+            var info = GetFocusedInputFieldInfo();
+            if (!info.IsValid) return;
+
             bool isLeftArrow = Input.GetKeyDown(KeyCode.LeftArrow);
             bool isRightArrow = Input.GetKeyDown(KeyCode.RightArrow);
+            string text = info.Text;
+            int caretPos = info.CaretPosition;
 
-            // Find the focused TMP_InputField
-            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
-            foreach (var field in tmpInputFields)
+            // Handle empty field
+            if (string.IsNullOrEmpty(text))
             {
-                if (field != null && field.isFocused)
-                {
-                    string text = field.text;
-                    int caretPos = field.stringPosition;
+                _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
+                return;
+            }
 
-                    // Handle empty field
-                    if (string.IsNullOrEmpty(text))
-                    {
-                        _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
-                        return;
-                    }
+            // Handle password fields - don't reveal characters
+            if (info.IsPassword)
+            {
+                if (caretPos == 0 && isLeftArrow)
+                    _announcer.AnnounceInterrupt(Strings.InputFieldStart);
+                else if (caretPos >= text.Length && isRightArrow)
+                    _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
+                else if (caretPos >= 0 && caretPos < text.Length)
+                    _announcer.AnnounceInterrupt(Strings.InputFieldStar);
+                else
+                    _announcer.AnnounceInterrupt(caretPos == 0 ? Strings.InputFieldStart : Strings.InputFieldEnd);
+                return;
+            }
 
-                    // Handle password fields - don't reveal characters
-                    if (field.inputType == TMPro.TMP_InputField.InputType.Password)
-                    {
-                        if (caretPos == 0 && isLeftArrow)
-                            _announcer.AnnounceInterrupt(Strings.InputFieldStart);
-                        else if (caretPos >= text.Length && isRightArrow)
-                            _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
-                        else if (caretPos >= 0 && caretPos < text.Length)
-                            _announcer.AnnounceInterrupt(Strings.InputFieldStar);
-                        else
-                            _announcer.AnnounceInterrupt(caretPos == 0 ? Strings.InputFieldStart : Strings.InputFieldEnd);
-                        return;
-                    }
-
-                    // At start and pressing left - can't go further
-                    if (caretPos == 0 && isLeftArrow)
-                    {
-                        _announcer.AnnounceInterrupt(Strings.InputFieldStart);
-                    }
-                    // At end and pressing right - can't go further
-                    else if (caretPos >= text.Length && isRightArrow)
-                    {
-                        _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
-                    }
-                    // At end position (after last character)
-                    else if (caretPos >= text.Length)
-                    {
-                        _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
-                    }
-                    // Normal position - announce character
-                    else if (caretPos >= 0 && caretPos < text.Length)
-                    {
-                        char c = text[caretPos];
-                        string charName = GetCharacterName(c);
-                        _announcer.AnnounceInterrupt(charName);
-                    }
-                    return;
-                }
+            // At start and pressing left - can't go further
+            if (caretPos == 0 && isLeftArrow)
+            {
+                _announcer.AnnounceInterrupt(Strings.InputFieldStart);
+            }
+            // At end and pressing right - can't go further
+            else if (caretPos >= text.Length && isRightArrow)
+            {
+                _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
+            }
+            // Normal position - announce character (caretPos < text.Length implied by above)
+            else if (caretPos >= 0 && caretPos < text.Length)
+            {
+                char c = text[caretPos];
+                string charName = GetCharacterName(c);
+                _announcer.AnnounceInterrupt(charName);
+            }
+            // At end position (caretPos >= text.Length, left arrow) - announce end
+            else
+            {
+                _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
             }
         }
 
@@ -478,63 +531,29 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Find the focused input field and announce its content.
+        /// Announce the content of the currently focused input field.
         /// </summary>
         private void AnnounceCurrentInputFieldContent()
         {
-            // Find the focused TMP_InputField
-            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
-            foreach (var field in tmpInputFields)
-            {
-                if (field != null && field.isFocused)
-                {
-                    string label = GetInputFieldLabel(field.gameObject);
-                    string content = field.text;
+            var info = GetFocusedInputFieldInfo();
+            if (!info.IsValid) return;
 
-                    // Handle password fields
-                    if (field.inputType == TMPro.TMP_InputField.InputType.Password)
-                    {
-                        if (string.IsNullOrEmpty(content))
-                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
-                        else
-                            _announcer.AnnounceInterrupt(Strings.InputFieldPasswordWithCount(label, content.Length));
-                    }
-                    else
-                    {
-                        if (string.IsNullOrEmpty(content))
-                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
-                        else
-                            _announcer.AnnounceInterrupt(Strings.InputFieldContent(label, content));
-                    }
-                    return;
-                }
+            string label = GetInputFieldLabel(info.GameObject);
+            string content = info.Text;
+
+            if (info.IsPassword)
+            {
+                string announcement = string.IsNullOrEmpty(content)
+                    ? Strings.InputFieldEmptyWithLabel(label)
+                    : Strings.InputFieldPasswordWithCount(label, content.Length);
+                _announcer.AnnounceInterrupt(announcement);
             }
-
-            // Check legacy InputField
-            var legacyInputFields = GameObject.FindObjectsOfType<UnityEngine.UI.InputField>();
-            foreach (var field in legacyInputFields)
+            else
             {
-                if (field != null && field.isFocused)
-                {
-                    string label = GetInputFieldLabel(field.gameObject);
-                    string content = field.text;
-
-                    if (field.inputType == UnityEngine.UI.InputField.InputType.Password)
-                    {
-                        if (string.IsNullOrEmpty(content))
-                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
-                        else
-                            _announcer.AnnounceInterrupt(Strings.InputFieldPasswordWithCount(label, content.Length));
-                    }
-                    else
-                    {
-                        if (string.IsNullOrEmpty(content))
-                            _announcer.AnnounceInterrupt(Strings.InputFieldEmptyWithLabel(label));
-                        else
-                            _announcer.AnnounceInterrupt(Strings.InputFieldContent(label, content));
-                    }
-                    return;
-                }
+                string announcement = string.IsNullOrEmpty(content)
+                    ? Strings.InputFieldEmptyWithLabel(label)
+                    : Strings.InputFieldContent(label, content);
+                _announcer.AnnounceInterrupt(announcement);
             }
         }
 
@@ -672,7 +691,7 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         protected virtual void ActivateAlternateAction()
         {
-            if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
+            if (!IsValidIndex) return;
 
             var element = _elements[_currentIndex];
             if (element.AlternateActionObject != null && element.AlternateActionObject.activeInHierarchy)
@@ -692,7 +711,7 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         protected virtual bool HandleCarouselArrow(bool isNext)
         {
-            if (_currentIndex < 0 || _currentIndex >= _elements.Count)
+            if (!IsValidIndex)
                 return false;
 
             var info = _elements[_currentIndex].Carousel;
@@ -764,7 +783,7 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private void AnnounceStepperValue()
         {
-            if (_currentIndex < 0 || _currentIndex >= _elements.Count)
+            if (!IsValidIndex)
                 return;
 
             var currentElement = _elements[_currentIndex].GameObject;
@@ -804,23 +823,19 @@ namespace MTGAAccessibility.Core.Services
             // Check boundaries - no wrapping
             if (newIndex < 0)
             {
-                _announcer.Announce(Models.Strings.BeginningOfList, Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             if (newIndex >= _elements.Count)
             {
-                _announcer.Announce(Models.Strings.EndOfList, Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             _currentIndex = newIndex;
             AnnounceCurrentElement();
-
-            if (SupportsCardNavigation)
-            {
-                PrepareCardNavigationForCurrentElement();
-            }
+            UpdateCardNavigation();
         }
 
         protected virtual void MoveNext() => Move(1);
@@ -833,17 +848,13 @@ namespace MTGAAccessibility.Core.Services
 
             if (_currentIndex == 0)
             {
-                _announcer.Announce(Models.Strings.BeginningOfList, Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             _currentIndex = 0;
             AnnounceCurrentElement();
-
-            if (SupportsCardNavigation)
-            {
-                PrepareCardNavigationForCurrentElement();
-            }
+            UpdateCardNavigation();
         }
 
         /// <summary>Jump to last element</summary>
@@ -854,17 +865,13 @@ namespace MTGAAccessibility.Core.Services
             int lastIndex = _elements.Count - 1;
             if (_currentIndex == lastIndex)
             {
-                _announcer.Announce(Models.Strings.EndOfList, Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             _currentIndex = lastIndex;
             AnnounceCurrentElement();
-
-            if (SupportsCardNavigation)
-            {
-                PrepareCardNavigationForCurrentElement();
-            }
+            UpdateCardNavigation();
         }
 
         protected virtual void AnnounceCurrentElement()
@@ -878,7 +885,7 @@ namespace MTGAAccessibility.Core.Services
 
         protected virtual void ActivateCurrentElement()
         {
-            if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
+            if (!IsValidIndex) return;
 
             var element = _elements[_currentIndex].GameObject;
             if (element == null) return;
@@ -888,6 +895,7 @@ namespace MTGAAccessibility.Core.Services
             // Check if this is an input field - enter edit mode
             if (UIFocusTracker.IsInputField(element))
             {
+                _editingInputField = element;
                 UIFocusTracker.EnterInputFieldEditMode(element);
                 _announcer.Announce("Editing. Type to enter text, Backspace on empty to exit.", AnnouncementPriority.Normal);
 
@@ -929,12 +937,18 @@ namespace MTGAAccessibility.Core.Services
 
         #region Card Navigation Integration
 
-        protected void PrepareCardNavigationForCurrentElement()
+        /// <summary>
+        /// Update card navigation state for current element.
+        /// Checks SupportsCardNavigation internally - callers don't need to check.
+        /// </summary>
+        private void UpdateCardNavigation()
         {
+            if (!SupportsCardNavigation) return;
+
             var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
             if (cardNavigator == null) return;
 
-            if (_currentIndex < 0 || _currentIndex >= _elements.Count)
+            if (!IsValidIndex)
             {
                 cardNavigator.Deactivate();
                 return;
