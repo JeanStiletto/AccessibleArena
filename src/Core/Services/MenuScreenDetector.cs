@@ -200,9 +200,16 @@ namespace MTGAAccessibility.Core.Services
             if (socialPanel == null) return false;
 
             // Check for visible social content (the friends list panel)
-            var friendsWidget = socialPanel.transform.Find("MobileSafeArea/FriendsWidget_V2(Clone)");
-            if (friendsWidget != null && friendsWidget.gameObject.activeInHierarchy)
-                return true;
+            // Widget name varies: FriendsWidget_Desktop_16x9(Clone) or FriendsWidget_V2(Clone)
+            var mobileSafeArea = socialPanel.transform.Find("MobileSafeArea");
+            if (mobileSafeArea != null)
+            {
+                foreach (Transform child in mobileSafeArea)
+                {
+                    if (child.name.StartsWith("FriendsWidget") && child.gameObject.activeInHierarchy)
+                        return true;
+                }
+            }
 
             // Alternative: check for the top bar dismiss button which appears when panel is open
             var topBarDismiss = socialPanel.GetComponentsInChildren<UnityEngine.UI.Button>(false)

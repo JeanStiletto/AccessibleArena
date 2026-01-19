@@ -31,8 +31,7 @@ namespace MTGAAccessibility.Core.Services
         // Simple name patterns that always filter (case-insensitive Contains check)
         private static readonly string[] FilteredContainsPatterns = new[]
         {
-            "blocker", "navpip", "pip_", "dismiss", "button_base",
-            "socialcorner", "social corner", "viewport",
+            "blocker", "navpip", "pip_", "button_base", "viewport",
             "topfade", "bottomfade", "top_fade", "bottom_fade"
         };
 
@@ -506,8 +505,10 @@ namespace MTGAAccessibility.Core.Services
                 // For interactable check, skip if this is a MainButton (action buttons like Submit Deck)
                 // These may have interactable=false temporarily but should still be visible for accessibility
                 // Also skip for elements with meaningful text content (not just icon buttons)
+                // FriendsWidget elements use non-standard UI where text comes from parent/sibling, so check GetText() too
                 bool isMainButton = HasMainButtonComponent(obj);
-                bool hasMeaningfulContent = UITextExtractor.HasActualText(obj);
+                bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
+                    || (IsInsideFriendsWidget(obj) && !string.IsNullOrEmpty(UITextExtractor.GetText(obj)));
                 if (!canvasGroup.interactable && !isMainButton && !hasMeaningfulContent)
                 {
                     if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup interactable=false");
@@ -612,10 +613,12 @@ namespace MTGAAccessibility.Core.Services
             // Check if CustomButton says it's not interactable or hidden
             // But allow MainButton elements (like Submit Deck) and elements with actual text through
             // They may be temporarily disabled but should still show for accessibility
+            // FriendsWidget elements use non-standard UI where text comes from parent/sibling, so check GetText() too
             if (HasCustomButton(obj) && !IsCustomButtonInteractable(obj))
             {
                 bool isMainButton = HasMainButtonComponent(obj);
-                bool hasMeaningfulContent = UITextExtractor.HasActualText(obj);
+                bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
+                    || (IsInsideFriendsWidget(obj) && !string.IsNullOrEmpty(UITextExtractor.GetText(obj)));
                 if (!isMainButton && !hasMeaningfulContent)
                     return true;
             }
@@ -684,6 +687,17 @@ namespace MTGAAccessibility.Core.Services
 
             // Fade overlays (but not nav fades)
             if (ContainsIgnoreCase(name, "fade") && !ContainsIgnoreCase(name, "nav"))
+                return true;
+
+            // Dismiss buttons (internal UI close buttons)
+            // BUT: Allow dismiss inside FriendsWidget (Button_TopBarDismiss is the panel header)
+            if (ContainsIgnoreCase(name, "dismiss") && !IsInsideFriendsWidget(obj))
+                return true;
+
+            // Social corner icon (opens friends panel - allow it)
+            // Filter only if NOT the main SocialCornerIcon button
+            if ((ContainsIgnoreCase(name, "socialcorner") || ContainsIgnoreCase(name, "social corner"))
+                && !name.Equals("SocialCornerIcon", System.StringComparison.OrdinalIgnoreCase))
                 return true;
 
             // Hitboxes without actual text content

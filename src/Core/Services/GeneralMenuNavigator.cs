@@ -66,7 +66,6 @@ namespace MTGAAccessibility.Core.Services
         private bool _forceRescan;
 
         // Element tracking
-        private int _elementCountAtActivation;
         private float _bladeAutoExpandDelay;
 
         // Blade state tracking
@@ -243,7 +242,6 @@ namespace MTGAAccessibility.Core.Services
         protected override void OnActivated()
         {
             base.OnActivated();
-            _elementCountAtActivation = _elements.Count;
         }
 
         public override void Update()
@@ -396,12 +394,12 @@ namespace MTGAAccessibility.Core.Services
         private GameObject FindGenericBackButton()
         {
             // Look for CustomButtons with "Back" in name that have no actual text (icon buttons)
+            // Note: GetActiveCustomButtons() already filters for activeInHierarchy
             foreach (var btn in GetActiveCustomButtons())
             {
-                if (btn == null || !btn.activeInHierarchy) continue;
+                if (btn == null) continue;
 
-                string btnName = btn.name;
-                if (btnName.IndexOf("back", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
+                if (btn.name.IndexOf("back", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
                     !UITextExtractor.HasActualText(btn))
                 {
                     return btn;
@@ -741,6 +739,10 @@ namespace MTGAAccessibility.Core.Services
                     {
                         closeMethod.Invoke(socialUI, null);
                         MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.CloseFriendsWidget()");
+
+                        // Clear foreground and rescan to return to Home elements
+                        _foregroundPanel = null;
+                        TriggerRescan(force: true);
                     }
                 }
                 else
@@ -752,6 +754,11 @@ namespace MTGAAccessibility.Core.Services
                     {
                         showMethod.Invoke(socialUI, null);
                         MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.ShowSocialEntitiesList()");
+
+                        // Set foreground to social panel so elements are filtered correctly
+                        _foregroundPanel = socialPanel;
+                        MelonLogger.Msg($"[{NavigatorId}] Set foreground to Social panel");
+                        TriggerRescan(force: true);
                     }
                 }
             }
@@ -914,9 +921,13 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Social panel overlay - only show Social elements when open
-            if (_foregroundPanel != null && IsSocialPanelOpen())
+            // Check IsSocialPanelOpen() directly since _foregroundPanel may not be set reliably
+            bool socialOpen = IsSocialPanelOpen();
+            if (socialOpen)
             {
-                return IsChildOf(obj, _foregroundPanel);
+                var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+                if (socialPanel != null)
+                    return IsChildOf(obj, socialPanel);
             }
 
             // Popup/dialog overlay - only show popup elements (includes SystemMessageView)
@@ -1204,20 +1215,6 @@ namespace MTGAAccessibility.Core.Services
             return GetActiveCustomButtons().Count();
         }
 
-        /// <summary>
-        /// Count active Selectables (same as FocusTracker) - includes Buttons, Toggles, etc.
-        /// </summary>
-        protected int CountActiveSelectables()
-        {
-            int count = 0;
-            foreach (var sel in GameObject.FindObjectsOfType<UnityEngine.UI.Selectable>())
-            {
-                if (sel != null && sel.isActiveAndEnabled && sel.interactable)
-                    count++;
-            }
-            return count;
-        }
-
         protected virtual string DetectMenuType()
         {
             // Try to identify the menu type by looking for specific elements
@@ -1473,7 +1470,16 @@ namespace MTGAAccessibility.Core.Services
             {
                 if (obj == null || !obj.activeInHierarchy) return;
                 if (addedObjects.Contains(obj)) return;
-                if (!IsInForegroundPanel(obj)) return;
+
+                // Debug: log Friends panel elements
+                bool isFriendsElement = obj.name.Contains("Backer") || obj.name.Contains("AddFriend");
+
+                if (!IsInForegroundPanel(obj))
+                {
+                    if (isFriendsElement)
+                        MelonLogger.Msg($"[{NavigatorId}] Friends element REJECTED by IsInForegroundPanel: {obj.name}");
+                    return;
+                }
 
                 var classification = UIElementClassifier.Classify(obj);
                 if (classification.IsNavigable && classification.ShouldAnnounce)
@@ -1482,6 +1488,12 @@ namespace MTGAAccessibility.Core.Services
                     float sortOrder = -pos.y * 1000 + pos.x;
                     discoveredElements.Add((obj, classification, sortOrder));
                     addedObjects.Add(obj);
+                    if (isFriendsElement)
+                        MelonLogger.Msg($"[{NavigatorId}] Friends element ADDED: {obj.name} -> {classification.Label}");
+                }
+                else if (isFriendsElement)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Friends element REJECTED by Classifier: {obj.name} IsNavigable={classification.IsNavigable} ShouldAnnounce={classification.ShouldAnnounce}");
                 }
             }
 
@@ -1530,12 +1542,11 @@ namespace MTGAAccessibility.Core.Services
                     TryAddElement(dropdown.gameObject);
             }
 
-            // Find Settings dropdown controls (Control - *_Dropdown pattern)
-            // These are custom dropdown implementations in MTGA Settings
+            // Find Settings custom controls (dropdowns, steppers)
+            // These are custom implementations in MTGA Settings that need special handling
             if (CheckSettingsMenuOpen())
             {
-                FindSettingsDropdownControls(TryAddElement);
-                FindSettingsStepperControls(TryAddElement);
+                FindSettingsCustomControls(TryAddElement);
             }
 
             // Process deck entries: pair main buttons with their TextBox edit buttons
@@ -1615,113 +1626,47 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Find Settings dropdown controls (Control - *_Dropdown pattern).
-        /// These are custom dropdown implementations in MTGA Settings that need special handling.
-        /// Only adds the control if there's NO TMP_Dropdown child (those are detected separately).
+        /// Find Settings custom controls (dropdowns and steppers) in a single iteration.
+        /// - Dropdowns: "Control - *_Dropdown" pattern (only if no TMP_Dropdown child)
+        /// - Steppers: "Control - Setting:*" or "Control - *_Selector" with Increment/Decrement buttons
         /// </summary>
-        private void FindSettingsDropdownControls(System.Action<GameObject> tryAddElement)
+        private void FindSettingsCustomControls(System.Action<GameObject> tryAddElement)
         {
-            // Search for GameObjects with names matching "Control - *_Dropdown" pattern
-            // These are in the Settings VerticalLayout
-            var allTransforms = GameObject.FindObjectsOfType<Transform>();
-
-            foreach (var transform in allTransforms)
+            // Single iteration through all transforms for both control types
+            foreach (var transform in GameObject.FindObjectsOfType<Transform>())
             {
                 if (transform == null || !transform.gameObject.activeInHierarchy)
                     continue;
 
                 string name = transform.name;
 
-                // Match "Control - X_Dropdown" pattern
-                if (name.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
-                    name.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
+                // All Settings controls start with "Control - "
+                if (!name.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Check for dropdown pattern: "Control - *_Dropdown"
+                if (name.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
                 {
                     // Skip if there's a TMP_Dropdown child - those are detected separately
-                    // and have proper value detection
                     var tmpDropdown = transform.GetComponentInChildren<TMP_Dropdown>();
                     if (tmpDropdown != null)
-                    {
-                        // TMP_Dropdown will be detected separately, skip this container
                         continue;
-                    }
 
                     // Find the clickable element inside this control
-                    // It might be a CustomButton child or the control itself might have a CustomButton
                     GameObject clickableElement = FindClickableInDropdownControl(transform.gameObject);
                     if (clickableElement != null)
                     {
                         MelonLogger.Msg($"[{NavigatorId}] Found Settings dropdown (non-TMP): {name} -> clickable: {clickableElement.name}");
                         tryAddElement(clickableElement);
                     }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Find the clickable element inside a Settings dropdown control.
-        /// </summary>
-        private GameObject FindClickableInDropdownControl(GameObject control)
-        {
-            // First check if the control itself has a CustomButton
-            if (UIElementClassifier.HasCustomButton(control))
-                return control;
-
-            // Look for a Button component
-            var button = control.GetComponent<Button>();
-            if (button != null)
-                return control;
-
-            // Search children for a CustomButton or Button
-            foreach (Transform child in control.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.gameObject == control) continue;
-
-                // Skip inactive children
-                if (!child.gameObject.activeInHierarchy) continue;
-
-                // Check for CustomButton
-                if (UIElementClassifier.HasCustomButton(child.gameObject))
-                    return child.gameObject;
-
-                // Check for Button
-                var childButton = child.GetComponent<Button>();
-                if (childButton != null && childButton.interactable)
-                    return child.gameObject;
-            }
-
-            // Fallback: return the control itself if it has meaningful text
-            if (UITextExtractor.HasActualText(control))
-                return control;
-
-            return null;
-        }
-
-        /// <summary>
-        /// Find Settings stepper controls (Control - Setting: X pattern with Increment/Decrement buttons).
-        /// These are unified into a single navigable element with left/right arrow navigation.
-        /// </summary>
-        private void FindSettingsStepperControls(System.Action<GameObject> tryAddElement)
-        {
-            // Search for GameObjects with names matching "Control - Setting: X" pattern
-            var allTransforms = GameObject.FindObjectsOfType<Transform>();
-
-            foreach (var transform in allTransforms)
-            {
-                if (transform == null || !transform.gameObject.activeInHierarchy)
                     continue;
+                }
 
-                string name = transform.name;
-
-                // Match "Control - Setting: X" or "Control - X_Selector" pattern (but not dropdowns)
+                // Check for stepper pattern: "Control - Setting:*" or "Control - *_Selector"
                 bool isSettingControl = name.StartsWith("Control - Setting:", System.StringComparison.OrdinalIgnoreCase);
-                bool isSelectorControl = name.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase) &&
-                                         name.EndsWith("_Selector", System.StringComparison.OrdinalIgnoreCase);
+                bool isSelectorControl = name.EndsWith("_Selector", System.StringComparison.OrdinalIgnoreCase);
 
                 if (!isSettingControl && !isSelectorControl)
-                    continue;
-
-                // Skip dropdown controls - those are handled separately
-                if (name.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 // Check if this control has Increment/Decrement buttons (stepper pattern)
@@ -1730,8 +1675,8 @@ namespace MTGAAccessibility.Core.Services
 
                 foreach (Transform child in transform.GetComponentsInChildren<Transform>(true))
                 {
-                    if (child == transform) continue;
-                    if (!child.gameObject.activeInHierarchy) continue;
+                    if (child == transform || !child.gameObject.activeInHierarchy)
+                        continue;
 
                     var button = child.GetComponent<Button>();
                     if (button != null)
@@ -1754,6 +1699,43 @@ namespace MTGAAccessibility.Core.Services
                     tryAddElement(transform.gameObject);
                 }
             }
+        }
+
+        /// <summary>
+        /// Find the clickable element inside a Settings dropdown control.
+        /// </summary>
+        private GameObject FindClickableInDropdownControl(GameObject control)
+        {
+            // First check if the control itself has a CustomButton
+            if (UIElementClassifier.HasCustomButton(control))
+                return control;
+
+            // Look for a Button component
+            var button = control.GetComponent<Button>();
+            if (button != null)
+                return control;
+
+            // Search children for a CustomButton or Button
+            foreach (Transform child in control.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.gameObject == control || !child.gameObject.activeInHierarchy)
+                    continue;
+
+                // Check for CustomButton
+                if (UIElementClassifier.HasCustomButton(child.gameObject))
+                    return child.gameObject;
+
+                // Check for Button
+                var childButton = child.GetComponent<Button>();
+                if (childButton != null && childButton.interactable)
+                    return child.gameObject;
+            }
+
+            // Fallback: return the control itself if it has meaningful text
+            if (UITextExtractor.HasActualText(control))
+                return control;
+
+            return null;
         }
 
         /// <summary>
@@ -1844,9 +1826,6 @@ namespace MTGAAccessibility.Core.Services
 
         protected override bool OnElementActivated(int index, GameObject element)
         {
-            // Store Selectable count BEFORE activation to detect changes caused by the activation
-            _elementCountAtActivation = CountActiveSelectables();
-
             // Check if this is a Toggle (checkbox) - we'll force rescan for these
             bool isToggle = element.GetComponent<Toggle>() != null;
 
@@ -2116,11 +2095,6 @@ namespace MTGAAccessibility.Core.Services
             // Find the blade expand button (Btn_BladeIsClosed or its arrow child)
             var bladeButton = GetActiveCustomButtons()
                 .FirstOrDefault(obj => obj.name.Contains("BladeHoverClosed") || obj.name.Contains("Btn_BladeIsClosed"));
-
-            if (bladeButton != null)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Found blade expand button: {bladeButton.name}");
-            }
 
             if (bladeButton != null)
             {

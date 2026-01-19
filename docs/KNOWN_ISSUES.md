@@ -93,18 +93,92 @@ See BEST_PRACTICES.md "Browser Card Interactions" for reusable patterns.
 
 ### Friends Panel (Social UI)
 
-**Partially working**
+**Broken after GeneralMenuNavigator code quality refactoring (Jan 2026)**
 
-- F4 toggles panel, Tab navigates, Backspace closes
+Previously working, now shows only 2 elements ("Freunde" header, "social corner icon") instead of friend list.
+
+**Symptoms:**
+- F4 opens panel, announces "Friends. 2 items"
+- Actual friend entries (Backer_Hitbox with names like "jean stiletto") are filtered out
+- Debug log shows: `Friends element REJECTED by Classifier: Backer_Hitbox IsNavigable=False ShouldAnnounce=False`
+
+**Root cause investigation:**
+The Friends panel uses non-standard UI where clickable elements (Backer_Hitbox) don't have direct TMP_Text children. The text comes from parent/sibling elements and is extracted via special `GetText()` logic, but `HasActualText()` returns false.
+
+Multiple filters in `UIElementClassifier` check `HasActualText()` and filter out elements without it:
+1. `IsHiddenByGameProperties()` - filters non-interactable CustomButtons without actual text
+2. `IsVisibleViaCanvasGroup()` - filters non-interactable CanvasGroup elements without actual text
+3. `IsFilteredByNamePattern()` - has exceptions for "backer"/"hitbox" inside FriendsWidget
+
+**Fixes attempted (all still result in filtering):**
+1. Added `IsInsideFriendsWidget()` exception to `IsFilteredByNamePattern()` for "dismiss", "backer", "hitbox"
+2. Added `IsInsideFriendsWidget()` exception to `IsHiddenByGameProperties()`
+3. Added `IsInsideFriendsWidget()` exception to `IsVisibleViaCanvasGroup()`
+4. Changed `hasMeaningfulContent` check to:
+   ```csharp
+   bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
+       || (IsInsideFriendsWidget(obj) && !string.IsNullOrEmpty(UITextExtractor.GetText(obj)));
+   ```
+
+**UI structure of Friends panel elements:**
+```
+SocialUI_V2_Desktop_16x9(Clone)/MobileSafeArea/FriendsWidget_Desktop_16x9(Clone)/BottomTabBar/Backer_Hitbox
+  Text: 'jean stiletto' | HasActualText: False | HasImage: True | Size: -50x0
+  Components: RectTransform, CanvasRenderer, Image, CustomButton, RolloverAudioPlayer
+
+SocialUI_V2_Desktop_16x9(Clone)/MobileSafeArea/FriendsWidget_Desktop_16x9(Clone)/Button_AddFriend/Backer_Hitbox
+  Text: 'add friend' | HasActualText: False | HasImage: True | Size: 0x0
+```
+
+**Key observations:**
+- `GetText()` returns friend names correctly (e.g., "jean stiletto")
+- `HasActualText()` returns false (no TMP_Text child component)
+- Elements have invalid/zero size (-50x0, 0x0)
+- Elements have CustomButton but may not be "interactable" per game's definition
+
+**Next steps to investigate:**
+1. Add debug logging to `IsInternalElement()` to see exactly which sub-check is filtering
+2. Check if `IsInsideFriendsWidget()` is returning true correctly
+3. Check if there's a parent CanvasGroup filter catching them
+4. Consider bypassing ALL filtering for FriendsWidget elements with extractable text
+5. Look at git history before UI rework (commit 6ec5bf9) to see what was different
+
+**Relevant code locations:**
+- `UIElementClassifier.cs`: `IsInternalElement()`, `IsHiddenByGameProperties()`, `IsVisibleViaCanvasGroup()`, `IsFilteredByNamePattern()`, `IsInsideFriendsWidget()`
+- `GeneralMenuNavigator.cs`: `TryAddElement()` (has debug logging for Friends elements)
+- `MenuScreenDetector.cs`: `IsSocialPanelOpen()`
+
+**Working features (unchanged):**
 - Add Friend popup detected and announced
-- Input field fully accessible:
-  - Left/Right arrows navigate cursor and announce character
-  - Up/Down arrows announce full content
-  - Typing works without mod interference
-- Friend list not yet navigable
-- Friend status/online indicators not announced
+- Input field fully accessible (arrow keys, typing)
+- F4 toggle works, Backspace closes
 
 ## Technical Debt
+
+### Code Archaeology Review Needed
+
+The codebase has accumulated defensive fallback code and verbose patterns from iterative reverse-engineering of MTGA's custom UI. A cleanup pass should test and potentially remove:
+
+**Defensive fallback chains:**
+- `ActivateBackButton()` in GeneralMenuNavigator has 4 activation methods (Unity Button → IPointerClickHandler → Animator triggers → UIActivator). Test which are actually needed.
+- Multiple detection fallbacks throughout navigators - some may be obsolete after we understood MTGA's patterns better.
+
+**Debug/logging code:**
+- `LogAvailableUIElements()` (~150 lines) - useful during development, could be behind a debug flag or removed.
+- Extensive `MelonLogger.Msg()` calls throughout - review which are still needed for troubleshooting vs just noise.
+
+**Potential dead patterns:**
+- Settings control discovery methods were consolidated but may have edge cases we no longer encounter.
+- Panel detection fallbacks that were added for specific bugs that may be fixed.
+
+**AI-induced verbosity:**
+- Overly verbose comments explaining obvious code
+- Redundant null checks where nulls can't occur
+- Long method names that could be shorter
+
+**Approach:** Pick one file at a time, remove suspected dead code, test thoroughly in-game. If something breaks, restore it. Document which fallbacks are actually required.
+
+**Priority:** Low - code works, this is optimization/maintainability.
 
 ### WinAPI Fallback Code (UIActivator.cs)
 
