@@ -737,7 +737,9 @@ namespace MTGAAccessibility.Core.Services
                 return true;
 
             // Back buttons (icon buttons for navigation) - handled via Backspace, not navigation list
+            // BUT: Don't filter "backer" elements (FriendsWidget uses Backer_Hitbox for clickable items)
             if (ContainsIgnoreCase(name, "back") &&
+                !ContainsIgnoreCase(name, "backer") &&
                 (HasCustomButton(obj) || obj.GetComponent<Button>() != null) &&
                 !UITextExtractor.HasActualText(obj))
                 return true;

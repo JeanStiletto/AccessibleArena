@@ -4,6 +4,32 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Friends Panel Fixes
+
+Fixed Friends panel navigation that was broken after code quality refactoring.
+
+**Bug 1: "Backer" elements filtered by "back" button filter**
+- The back button filter (`ContainsIgnoreCase(name, "back")`) was matching "Backer_Hitbox" elements
+- Fix: Added exclusion for "backer" in the back button filter
+
+**Bug 2: Popup detection not matching resolution-suffixed names**
+- Popup detection used `EndsWith("Popup(Clone)")` which didn't match `InviteFriendPopup_Desktop_16x9(Clone)`
+- Fix: Changed to `Contains("Popup") && EndsWith("(Clone)")`
+
+**Bug 3: Popup elements filtered to Social panel instead of popup**
+- When InviteFriendPopup opened, elements were still filtered to the Friends panel underneath
+- Fix: Moved popup priority check before social panel check in `IsInForegroundPanel()`
+
+**Now Working:**
+- Friends panel shows all elements (friend list, add friend button, header)
+- Add Friend popup opens and shows input field + invite button
+- Full input field editing with Enter to submit
+- Escape closes popup, Backspace closes Friends panel
+
+**Files:** `UIElementClassifier.cs`, `MenuPanelTracker.cs`, `GeneralMenuNavigator.cs`
+
+---
+
 ### BaseNavigator Code Quality Refactoring
 
 Refactored BaseNavigator for improved code quality, reduced duplication, and better performance.

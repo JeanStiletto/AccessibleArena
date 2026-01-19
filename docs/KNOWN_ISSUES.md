@@ -91,68 +91,6 @@ Card selection uses the `LondonBrowser` API via reflection:
 Card lists retrieved via `GetHandCards()` and `GetLibraryCards()` from LondonBrowser.
 See BEST_PRACTICES.md "Browser Card Interactions" for reusable patterns.
 
-### Friends Panel (Social UI)
-
-**Broken after GeneralMenuNavigator code quality refactoring (Jan 2026)**
-
-Previously working, now shows only 2 elements ("Freunde" header, "social corner icon") instead of friend list.
-
-**Symptoms:**
-- F4 opens panel, announces "Friends. 2 items"
-- Actual friend entries (Backer_Hitbox with names like "jean stiletto") are filtered out
-- Debug log shows: `Friends element REJECTED by Classifier: Backer_Hitbox IsNavigable=False ShouldAnnounce=False`
-
-**Root cause investigation:**
-The Friends panel uses non-standard UI where clickable elements (Backer_Hitbox) don't have direct TMP_Text children. The text comes from parent/sibling elements and is extracted via special `GetText()` logic, but `HasActualText()` returns false.
-
-Multiple filters in `UIElementClassifier` check `HasActualText()` and filter out elements without it:
-1. `IsHiddenByGameProperties()` - filters non-interactable CustomButtons without actual text
-2. `IsVisibleViaCanvasGroup()` - filters non-interactable CanvasGroup elements without actual text
-3. `IsFilteredByNamePattern()` - has exceptions for "backer"/"hitbox" inside FriendsWidget
-
-**Fixes attempted (all still result in filtering):**
-1. Added `IsInsideFriendsWidget()` exception to `IsFilteredByNamePattern()` for "dismiss", "backer", "hitbox"
-2. Added `IsInsideFriendsWidget()` exception to `IsHiddenByGameProperties()`
-3. Added `IsInsideFriendsWidget()` exception to `IsVisibleViaCanvasGroup()`
-4. Changed `hasMeaningfulContent` check to:
-   ```csharp
-   bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
-       || (IsInsideFriendsWidget(obj) && !string.IsNullOrEmpty(UITextExtractor.GetText(obj)));
-   ```
-
-**UI structure of Friends panel elements:**
-```
-SocialUI_V2_Desktop_16x9(Clone)/MobileSafeArea/FriendsWidget_Desktop_16x9(Clone)/BottomTabBar/Backer_Hitbox
-  Text: 'jean stiletto' | HasActualText: False | HasImage: True | Size: -50x0
-  Components: RectTransform, CanvasRenderer, Image, CustomButton, RolloverAudioPlayer
-
-SocialUI_V2_Desktop_16x9(Clone)/MobileSafeArea/FriendsWidget_Desktop_16x9(Clone)/Button_AddFriend/Backer_Hitbox
-  Text: 'add friend' | HasActualText: False | HasImage: True | Size: 0x0
-```
-
-**Key observations:**
-- `GetText()` returns friend names correctly (e.g., "jean stiletto")
-- `HasActualText()` returns false (no TMP_Text child component)
-- Elements have invalid/zero size (-50x0, 0x0)
-- Elements have CustomButton but may not be "interactable" per game's definition
-
-**Next steps to investigate:**
-1. Add debug logging to `IsInternalElement()` to see exactly which sub-check is filtering
-2. Check if `IsInsideFriendsWidget()` is returning true correctly
-3. Check if there's a parent CanvasGroup filter catching them
-4. Consider bypassing ALL filtering for FriendsWidget elements with extractable text
-5. Look at git history before UI rework (commit 6ec5bf9) to see what was different
-
-**Relevant code locations:**
-- `UIElementClassifier.cs`: `IsInternalElement()`, `IsHiddenByGameProperties()`, `IsVisibleViaCanvasGroup()`, `IsFilteredByNamePattern()`, `IsInsideFriendsWidget()`
-- `GeneralMenuNavigator.cs`: `TryAddElement()` (has debug logging for Friends elements)
-- `MenuScreenDetector.cs`: `IsSocialPanelOpen()`
-
-**Working features (unchanged):**
-- Add Friend popup detected and announced
-- Input field fully accessible (arrow keys, typing)
-- F4 toggle works, Backspace closes
-
 ## Technical Debt
 
 ### Code Archaeology Review Needed
@@ -232,6 +170,20 @@ The UIActivator contains ~47 lines of commented WinAPI code (mouse_event, SetCur
 - MatchTimer UI is disabled in tutorial mode
 
 ## Recently Completed
+
+### Friends Panel Fixes (Jan 2026)
+
+Fixed Friends panel navigation that was broken after code quality refactoring.
+
+**Root causes found and fixed:**
+1. The "back" button filter was matching "Backer_Hitbox" elements (fixed by excluding "backer")
+2. Popup detection pattern didn't match resolution-suffixed names like `InviteFriendPopup_Desktop_16x9(Clone)` (fixed pattern)
+3. Popup elements were filtered to Social panel instead of the popup itself (fixed priority order)
+
+**Now working:**
+- F4 opens Friends panel with all elements (friend list, add friend, header)
+- Add Friend popup with input field and invite button
+- Full keyboard workflow: navigate to Add Friend → Enter → type name → Tab to invite button → Enter
 
 ### Hidden Zone Card Counts (Jan 2026)
 

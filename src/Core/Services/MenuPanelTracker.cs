@@ -152,7 +152,7 @@ namespace MTGAAccessibility.Core.Services
 
                 // Only detect actual modal dialogs:
                 // 1. SystemMessageView - confirmation dialogs (Exit Game, etc.)
-                // 2. Names ending with "Popup(Clone)" - actual popup prefabs
+                // 2. Names containing "Popup" and ending with "(Clone)" - actual popup prefabs
                 bool isModalPopup = false;
 
                 if (go.name.Contains("SystemMessageView"))
@@ -164,11 +164,16 @@ namespace MTGAAccessibility.Core.Services
                         isModalPopup = true;
                     }
                 }
-                else if (go.name.EndsWith("Popup(Clone)"))
+                else if (go.name.Contains("Popup") && go.name.EndsWith("(Clone)"))
                 {
                     // Actual popup prefab instances, but skip certain types
-                    if (!go.name.Contains("Wildcard"))  // WildcardPopup is a tooltip, not modal
+                    // Skip: WildcardPopup (tooltip), ObjectivePopupCONTAINER (always present), SettingsPopup (container)
+                    if (!go.name.Contains("Wildcard") &&
+                        !go.name.Contains("ObjectivePopup") &&
+                        !go.name.Equals("SettingsPopup"))
+                    {
                         isModalPopup = true;
+                    }
                 }
 
                 if (!isModalPopup) continue;

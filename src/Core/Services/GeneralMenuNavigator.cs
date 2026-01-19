@@ -920,6 +920,13 @@ namespace MTGAAccessibility.Core.Services
                 return IsChildOf(obj, _foregroundPanel);
             }
 
+            // Popup/dialog overlay - takes priority over Social panel
+            // (e.g., InviteFriendPopup opens on top of Friends panel)
+            if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel))
+            {
+                return IsChildOf(obj, _foregroundPanel);
+            }
+
             // Social panel overlay - only show Social elements when open
             // Check IsSocialPanelOpen() directly since _foregroundPanel may not be set reliably
             bool socialOpen = IsSocialPanelOpen();
@@ -928,12 +935,6 @@ namespace MTGAAccessibility.Core.Services
                 var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
                 if (socialPanel != null)
                     return IsChildOf(obj, socialPanel);
-            }
-
-            // Popup/dialog overlay - only show popup elements (includes SystemMessageView)
-            if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel))
-            {
-                return IsChildOf(obj, _foregroundPanel);
             }
 
             // If no active controller detected, show all elements
