@@ -41,6 +41,10 @@ namespace MTGAAccessibility.Core.Services
         private static bool _inputFieldEditMode;
         private static GameObject _activeInputFieldObject;
 
+        // Dropdown edit mode - true when a dropdown is open and user is navigating its items
+        private static bool _dropdownEditMode;
+        private static GameObject _activeDropdownObject;
+
         /// <summary>
         /// Fired when focus changes. Parameters: (oldElement, newElement)
         /// </summary>
@@ -101,6 +105,76 @@ namespace MTGAAccessibility.Core.Services
             if (obj == null) return false;
             return obj.GetComponent<TMPro.TMP_InputField>() != null ||
                    obj.GetComponent<UnityEngine.UI.InputField>() != null;
+        }
+
+        /// <summary>
+        /// Returns true if user is navigating inside an open dropdown.
+        /// When true, arrow keys control dropdown selection. When false, arrows navigate between elements.
+        /// </summary>
+        public static bool IsEditingDropdown()
+        {
+            return _dropdownEditMode;
+        }
+
+        /// <summary>
+        /// Enter dropdown edit mode. Called when user presses Enter on a dropdown to open it.
+        /// </summary>
+        public static void EnterDropdownEditMode(GameObject dropdownObject)
+        {
+            _dropdownEditMode = true;
+            _activeDropdownObject = dropdownObject;
+            MelonLogger.Msg($"[FocusTracker] Entered dropdown edit mode: {dropdownObject?.name}");
+        }
+
+        /// <summary>
+        /// Exit dropdown edit mode. Called when dropdown closes (focus leaves dropdown items).
+        /// Returns the name of the element that now has focus (so navigator can sync its index).
+        /// </summary>
+        public static string ExitDropdownEditMode()
+        {
+            string newFocusName = null;
+            if (_dropdownEditMode)
+            {
+                // Get the element that now has focus so navigator can sync to it
+                var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+                if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
+                {
+                    newFocusName = eventSystem.currentSelectedGameObject.name;
+                }
+
+                MelonLogger.Msg($"[FocusTracker] Exited dropdown edit mode, new focus: {newFocusName ?? "null"}");
+                _dropdownEditMode = false;
+                _activeDropdownObject = null;
+            }
+            return newFocusName;
+        }
+
+        /// <summary>
+        /// Check if a GameObject is a dropdown item (inside an open dropdown list).
+        /// Dropdown items have names starting with "Item " followed by index.
+        /// </summary>
+        public static bool IsDropdownItem(GameObject obj)
+        {
+            if (obj == null) return false;
+            // Dropdown items are named "Item 0: ...", "Item 1: ...", etc.
+            return obj.name.StartsWith("Item ");
+        }
+
+        /// <summary>
+        /// Check if a GameObject is a dropdown (TMP_Dropdown, Dropdown, or cTMP_Dropdown).
+        /// </summary>
+        public static bool IsDropdown(GameObject obj)
+        {
+            if (obj == null) return false;
+            if (obj.GetComponent<TMPro.TMP_Dropdown>() != null) return true;
+            if (obj.GetComponent<UnityEngine.UI.Dropdown>() != null) return true;
+            // Check for game's custom cTMP_Dropdown
+            foreach (var component in obj.GetComponents<Component>())
+            {
+                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                    return true;
+            }
+            return false;
         }
 
         public UIFocusTracker(IAnnouncementService announcer)
@@ -261,6 +335,24 @@ namespace MTGAAccessibility.Core.Services
 
             var previousSelected = _lastSelected;
             _lastSelected = selected;
+
+            // Track dropdown edit mode based on where focus is
+            // If focus is on a dropdown item, we're in dropdown mode (game is handling input)
+            // If focus is elsewhere, we're not in dropdown mode
+            bool focusOnDropdownItem = selected != null && IsDropdownItem(selected);
+
+            if (focusOnDropdownItem && !_dropdownEditMode)
+            {
+                // Entering dropdown mode (game opened a dropdown)
+                _dropdownEditMode = true;
+                _activeDropdownObject = selected; // Track the item for reference
+                MelonLogger.Msg($"[FocusTracker] Entered dropdown mode (focus on item: {selected.name})");
+            }
+            else if (!focusOnDropdownItem && _dropdownEditMode)
+            {
+                // Exiting dropdown mode (focus left dropdown items)
+                ExitDropdownEditMode();
+            }
 
             OnFocusChanged?.Invoke(previousSelected, selected);
 

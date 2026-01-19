@@ -167,7 +167,7 @@ namespace MTGAAccessibility.Patches
         {
             MelonLogger.Msg("[PanelStatePatch] === Discovering potential panel controller types ===");
 
-            var keywords = new[] { "Deck", "Selection", "Picker", "Panel", "Controller", "Modal", "Dialog", "Overlay", "Screen", "Blade", "PlayBlade" };
+            var keywords = new[] { "Deck", "Selection", "Picker", "Panel", "Controller", "Modal", "Dialog", "Overlay", "Screen", "Blade", "PlayBlade", "Login", "Welcome", "Register", "Gate" };
 
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {

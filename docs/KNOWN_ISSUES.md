@@ -28,6 +28,18 @@ The button likely uses a mechanism we haven't discovered (possibly parent panel 
 
 **Workaround:** Use mouse to click the back button, or restart the game to return to Welcome screen.
 
+### Registration Screen
+
+**Registration not fully working**
+
+The registration screen dropdowns (birth date, country, experience) are navigable and selectable. However, the screen has auto-advance behavior where selecting a value automatically opens the next dropdown and moves focus. The mod tracks this via focus-based dropdown mode detection, but:
+
+- The auto-advance can cause brief navigation confusion
+- After completing all dropdowns, the final submit flow is untested
+- Some edge cases with rapid navigation may not be handled
+
+**Current status:** Basic dropdown navigation works, but full registration flow needs more testing.
+
 ### HotHighlightNavigator
 
 **Activatable creatures take priority over playable cards**

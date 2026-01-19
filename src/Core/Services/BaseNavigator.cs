@@ -315,6 +315,53 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Handle navigation while a dropdown is open.
+        /// Arrow keys and Enter are handled by Unity's dropdown.
+        /// We just block our own input handling to avoid interference.
+        /// Edit mode exits automatically when focus leaves dropdown items (detected by UIFocusTracker).
+        /// </summary>
+        protected virtual void HandleDropdownNavigation()
+        {
+            // All keys pass through to Unity's dropdown handling
+            // - Arrow keys navigate items (FocusTracker announces them)
+            // - Enter selects item and closes dropdown (focus leaves items, we auto-exit edit mode)
+            // - Escape may close dropdown (focus leaves items, we auto-exit edit mode)
+            // We don't handle any keys here - just block our normal input handling by returning
+        }
+
+        /// <summary>
+        /// Sync the navigator's index to the currently focused element.
+        /// Called after exiting dropdown mode to follow game's auto-advance (Month -> Day -> Year).
+        /// </summary>
+        protected virtual void SyncIndexToFocusedElement()
+        {
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem == null) return;
+
+            var focused = eventSystem.currentSelectedGameObject;
+            if (focused == null) return;
+
+            string focusedName = focused.name;
+
+            // Find element in our list by name
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].GameObject != null && _elements[i].GameObject.name == focusedName)
+                {
+                    if (_currentIndex != i)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Synced index {_currentIndex} -> {i} ({focusedName})");
+                        _currentIndex = i;
+                    }
+                    AnnounceCurrentElement();
+                    return;
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Could not sync to focused element: {focusedName}");
+        }
+
+        /// <summary>
         /// Announce the character at the current cursor position in the focused input field.
         /// </summary>
         private void AnnounceCharacterAtCursor()
@@ -527,12 +574,34 @@ namespace MTGAAccessibility.Core.Services
             return name.Replace("Input Field", "").Replace("InputField", "").Trim();
         }
 
+        // Track if we were in dropdown mode last frame
+        private bool _wasInDropdownMode;
+
         protected virtual void HandleInput()
         {
             // Special handling when user is editing an input field
             if (UIFocusTracker.IsEditingInputField())
             {
                 HandleInputFieldNavigation();
+                return;
+            }
+
+            // When a dropdown is open, let Unity handle arrow key navigation
+            bool inDropdownMode = UIFocusTracker.IsEditingDropdown();
+            if (inDropdownMode)
+            {
+                _wasInDropdownMode = true;
+                HandleDropdownNavigation();
+                return;
+            }
+
+            // If we just exited dropdown mode, sync our index to where focus went
+            // This handles game's auto-advance (Month -> Day -> Year)
+            if (_wasInDropdownMode)
+            {
+                _wasInDropdownMode = false;
+                SyncIndexToFocusedElement();
+                // Don't process any more input this frame to avoid double-activation
                 return;
             }
 

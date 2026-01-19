@@ -81,8 +81,8 @@ namespace MTGAAccessibility
             // Initialize navigator manager with all screen navigators
             // LoginPanelNavigator removed - GeneralMenuNavigator now handles Login scene with password masking
             _navigatorManager = new NavigatorManager();
+            // WelcomeGateNavigator removed - GeneralMenuNavigator handles Login scene
             _navigatorManager.RegisterAll(
-                new WelcomeGateNavigator(_announcer),
                 new OverlayNavigator(_announcer),
                 // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),

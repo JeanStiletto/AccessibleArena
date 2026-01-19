@@ -29,21 +29,23 @@ All strings are localization-ready in `Core/Models/Strings.cs`.
 
 ## Login Flow
 
+All Login scene panels are handled by `GeneralMenuNavigator` with automatic panel detection.
+
 ### WelcomeGate Screen
 **Panel:** `Panel - WelcomeGate_Desktop_16x9(Clone)`
-**Navigator:** `WelcomeGateNavigator`
+**Navigator:** `GeneralMenuNavigator` (WelcomeGateNavigator deprecated January 2026)
 
-Elements:
-- `Button_Login` - CustomButton (needs pointer simulation)
-- `Text_NeedHelp` - Standard Button
-
-Issue: EventSystem shows no selected object on Tab.
+Elements discovered automatically:
+- Settings button
+- Register button (CustomButton)
+- Login button (CustomButton)
+- Help button
 
 ### Login Panel
 **Panel:** `Panel - Log In_Desktop_16x9(Clone)`
 **Navigator:** `GeneralMenuNavigator` (was LoginPanelNavigator, deprecated January 2026)
 
-Elements discovered automatically by GeneralMenuNavigator:
+Elements discovered automatically:
 - Settings button (icon, labeled from parent name)
 - Email input field (TMP_InputField)
 - Password input field (TMP_InputField with password masking)
@@ -51,12 +53,38 @@ Elements discovered automatically by GeneralMenuNavigator:
 - Log In button (CustomButton)
 - Privacy links
 
-**Input Field Navigation:**
+### Registration Panel
+**Panel:** `Panel - Register_Desktop_16x9(Clone)` (and related panels)
+**Navigator:** `GeneralMenuNavigator`
+
+Elements discovered automatically:
+- Birth month dropdown (cTMP_Dropdown)
+- Birth day dropdown (cTMP_Dropdown)
+- Birth year dropdown (cTMP_Dropdown)
+- Country dropdown (cTMP_Dropdown)
+- Experience dropdown (cTMP_Dropdown)
+- Language dropdown (TMP_Dropdown)
+- Various buttons
+
+**Note:** Registration has auto-advance behavior where selecting a dropdown value automatically opens the next dropdown. See KNOWN_ISSUES.md.
+
+### Login Panel Detection
+Login scene panels are detected by `MenuPanelTracker.DetectLoginPanels()` which looks for active GameObjects matching patterns like "Panel - WelcomeGate", "Panel - Log In", "Panel - Register", etc. under the PanelParent container.
+
+### Input Field Navigation
 - Arrow keys navigate between elements (including input fields)
 - Press **Enter** on input field to start editing
 - While editing: type normally, arrows read content/characters
 - Press **Escape** to stop editing and return to navigation
 - Press **Tab** to stop editing and move to next element
+
+### Dropdown Navigation
+Dropdowns (TMP_Dropdown and cTMP_Dropdown) are detected and classified automatically.
+
+**Dropdown edit mode** is tracked by observing focus state:
+- When focus is on a dropdown item ("Item X: ..."), the mod blocks its own navigation and lets Unity handle arrow keys
+- When focus leaves dropdown items, normal navigation resumes
+- This handles both manual dropdowns (Enter to open, Enter to select) and auto-advancing dropdowns
 
 **Password Masking:**
 Password fields announce "has X characters" instead of actual content for privacy.

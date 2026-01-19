@@ -257,7 +257,10 @@ namespace MTGAAccessibility.Core.Services
 
             var tmpDropdown = obj.GetComponent<TMP_Dropdown>();
             var unityDropdown = obj.GetComponent<Dropdown>();
-            if (tmpDropdown != null || unityDropdown != null)
+            // Check for game's custom cTMP_Dropdown (used in Login/Registration screens)
+            var customDropdown = GetCustomDropdownComponent(obj);
+
+            if (tmpDropdown != null || unityDropdown != null || customDropdown != null)
             {
                 result.Role = ElementRole.Dropdown;
 
@@ -270,6 +273,11 @@ namespace MTGAAccessibility.Core.Services
                 else if (unityDropdown != null && unityDropdown.options != null && unityDropdown.options.Count > unityDropdown.value)
                 {
                     selectedValue = unityDropdown.options[unityDropdown.value].text;
+                }
+                else if (customDropdown != null)
+                {
+                    // Try to get selected value from cTMP_Dropdown via reflection
+                    selectedValue = GetCustomDropdownSelectedValue(customDropdown);
                 }
 
                 // Check if this is inside a Settings dropdown control (Control - X_Dropdown)
@@ -1437,6 +1445,64 @@ namespace MTGAAccessibility.Core.Services
             float range = slider.maxValue - slider.minValue;
             if (range <= 0) return 0;
             return Mathf.RoundToInt((slider.value - slider.minValue) / range * 100);
+        }
+
+        /// <summary>
+        /// Get game's custom cTMP_Dropdown component if present.
+        /// This is used in Login/Registration screens for dropdowns like birthdate, country, etc.
+        /// </summary>
+        private static Component GetCustomDropdownComponent(GameObject obj)
+        {
+            foreach (var component in obj.GetComponents<Component>())
+            {
+                if (component == null) continue;
+                string typeName = component.GetType().Name;
+                if (typeName == "cTMP_Dropdown")
+                {
+                    return component;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get the selected value from a cTMP_Dropdown via reflection.
+        /// cTMP_Dropdown inherits from TMP_Dropdown so it has similar properties.
+        /// </summary>
+        private static string GetCustomDropdownSelectedValue(Component dropdown)
+        {
+            if (dropdown == null) return null;
+
+            try
+            {
+                var type = dropdown.GetType();
+
+                // cTMP_Dropdown inherits from TMP_Dropdown, so it has 'value' and 'options' properties
+                var valueProperty = type.GetProperty("value", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                var optionsProperty = type.GetProperty("options", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+                if (valueProperty == null || optionsProperty == null) return null;
+
+                int selectedIndex = (int)valueProperty.GetValue(dropdown);
+                var options = optionsProperty.GetValue(dropdown) as System.Collections.IList;
+
+                if (options != null && selectedIndex >= 0 && selectedIndex < options.Count)
+                {
+                    var option = options[selectedIndex];
+                    // Each option has a 'text' property
+                    var textProperty = option.GetType().GetProperty("text");
+                    if (textProperty != null)
+                    {
+                        return textProperty.GetValue(option) as string;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore reflection errors
+            }
+
+            return null;
         }
 
         #endregion

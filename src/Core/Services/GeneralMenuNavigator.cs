@@ -1853,6 +1853,9 @@ namespace MTGAAccessibility.Core.Services
             // Check if this is an input field - may cause UI changes (e.g., Send button appearing)
             bool isInputField = element.GetComponent<TMP_InputField>() != null;
 
+            // Check if this is a dropdown - need to enter edit mode so arrows navigate dropdown items
+            bool isDropdown = UIFocusTracker.IsDropdown(element);
+
             // Check if this is a popup/dialog button (SystemMessageButton) - popup will close with animation
             bool isPopupButton = element.name.Contains("SystemMessageButton");
 
@@ -1882,6 +1885,14 @@ namespace MTGAAccessibility.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Input field activated - scheduling rescan");
                 TriggerRescan(force: true);
+                return true;
+            }
+
+            // Dropdowns: just activate, focus-based detection in UIFocusTracker handles edit mode
+            // When focus goes to dropdown items, we automatically enter dropdown mode
+            if (isDropdown)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Dropdown activated ({element.name})");
                 return true;
             }
 

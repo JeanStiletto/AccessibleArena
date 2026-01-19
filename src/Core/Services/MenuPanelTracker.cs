@@ -264,9 +264,20 @@ namespace MTGAAccessibility.Core.Services
             return false;
         }
 
+        // Login scene panel name patterns (these are simple prefabs without controllers)
+        private static readonly string[] LoginPanelPatterns = new[]
+        {
+            "Panel - WelcomeGate",
+            "Panel - Log In",
+            "Panel - Register",
+            "Panel - ForgotCredentials",
+            "Panel - AgeGate"
+        };
+
         /// <summary>
         /// Get currently active panels by checking game's internal menu controllers.
         /// Uses two-pass approach: first find all open controllers, then apply priority.
+        /// Also detects Login scene panels which don't have controllers.
         /// </summary>
         /// <param name="screenDetector">Screen detector for Settings menu state.</param>
         public List<(string name, GameObject obj)> GetActivePanelsWithObjects(MenuScreenDetector screenDetector)
@@ -329,7 +340,44 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // PASS 3: Detect Login scene panels (simple prefabs without controllers)
+            // These panels don't have IsOpen/Show/Hide, just GameObject activation
+            DetectLoginPanels(activePanels);
+
             return activePanels;
+        }
+
+        /// <summary>
+        /// Detect Login scene panels by GameObject name patterns.
+        /// These are simple prefab instances without controller classes.
+        /// </summary>
+        private void DetectLoginPanels(List<(string name, GameObject obj)> activePanels)
+        {
+            // Find PanelParent which contains Login scene panels
+            var panelParent = GameObject.Find("Canvas - Camera/PanelParent");
+            if (panelParent == null) return;
+
+            foreach (Transform child in panelParent.transform)
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                string childName = child.name;
+
+                // Check if this matches a Login panel pattern
+                foreach (var pattern in LoginPanelPatterns)
+                {
+                    if (childName.StartsWith(pattern))
+                    {
+                        string panelId = $"LoginPanel:{childName}";
+                        if (!activePanels.Any(p => p.name == panelId))
+                        {
+                            activePanels.Add((panelId, child.gameObject));
+                            MelonLogger.Msg($"[{_logPrefix}] Detected Login panel: {childName}");
+                        }
+                        break;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -428,13 +476,14 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Check if a panel name represents an overlay that should filter elements.
-        /// Settings, Popups, and SystemMessage dialogs are overlays.
+        /// Settings, Popups, SystemMessage dialogs, and Login panels are overlays.
         /// NavContentController (HomePage, etc.) are not.
         /// </summary>
         public static bool IsOverlayPanel(string panelName)
         {
             return panelName.StartsWith("SettingsMenu:") ||
                    panelName.StartsWith("PopupBase:") ||
+                   panelName.StartsWith("LoginPanel:") ||
                    panelName.Contains("SystemMessageView");
         }
 
