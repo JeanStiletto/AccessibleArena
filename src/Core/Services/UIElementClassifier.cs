@@ -150,266 +150,259 @@ namespace MTGAAccessibility.Core.Services
 
         /// <summary>
         /// Classify a UI element and determine its role, label, and navigability.
+        /// Uses a chain of TryClassifyAs* methods, each returning null if not applicable.
         /// </summary>
         public static ClassificationResult Classify(GameObject obj)
         {
             if (obj == null)
-                return new ClassificationResult { Role = ElementRole.Unknown, IsNavigable = false, ShouldAnnounce = false };
+                return CreateResult(ElementRole.Unknown, null, "", false, false);
 
-            var result = new ClassificationResult();
-
-            // Get the raw text content
             string text = UITextExtractor.GetText(obj);
             string objName = obj.name;
 
-            // First check if this is an internal/hidden element
-            if (IsInternalElement(obj, objName, text))
-            {
-                result.Role = ElementRole.Internal;
-                result.IsNavigable = false;
-                result.ShouldAnnounce = false;
-                return result;
-            }
+            // Try each classification in priority order
+            return TryClassifyAsInternal(obj, objName, text)
+                ?? TryClassifyAsCard(obj)
+                ?? TryClassifyAsStepperControl(obj, objName)
+                ?? TryClassifyAsStepperNavControl(obj, objName)
+                ?? TryClassifyAsSettingsDropdown(obj, objName)
+                ?? TryClassifyAsToggle(obj, objName, text)
+                ?? TryClassifyAsSlider(obj, objName)
+                ?? TryClassifyAsDropdown(obj, text)
+                ?? TryClassifyAsTextField(obj, text)
+                ?? TryClassifyAsScrollbar(obj, text)
+                ?? TryClassifyAsProgressIndicator(obj, objName, text)
+                ?? TryClassifyAsNavigationArrow(obj, objName, text)
+                ?? TryClassifyAsClickable(obj, objName, text)
+                ?? TryClassifyAsLabel(obj, objName, text)
+                ?? CreateResult(ElementRole.Unknown, text, "", false, false);
+        }
 
-            // Check for card (before button since cards may have button components)
-            if (CardDetector.IsCard(obj))
-            {
-                result.Role = ElementRole.Card;
-                // Use CardDetector for proper card name extraction
-                // This handles reward cards where "+99" indicator might be first text found
-                result.Label = CardDetector.GetCardName(obj);
-                result.RoleLabel = "card";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                return result;
-            }
+        #region Classification Methods
 
-            // Check if this is a stepper control parent (Control - Setting: X)
-            // These should be a single navigable element with left/right arrow navigation
-            GameObject incrementControl, decrementControl;
-            if (IsSettingsStepperControl(obj, objName, out string stepperLabel, out string stepperValue, out incrementControl, out decrementControl))
-            {
-                result.Role = ElementRole.Button;
-                result.Label = !string.IsNullOrEmpty(stepperValue)
-                    ? $"{stepperLabel}: {stepperValue}"
-                    : stepperLabel;
-                result.RoleLabel = "stepper, use left and right arrows";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                result.HasArrowNavigation = true;
-                result.PreviousControl = decrementControl;  // Left arrow = decrement
-                result.NextControl = incrementControl;       // Right arrow = increment
-                return result;
-            }
+        private static ClassificationResult TryClassifyAsInternal(GameObject obj, string objName, string text)
+        {
+            if (!IsInternalElement(obj, objName, text))
+                return null;
 
-            // Check for Settings stepper buttons (Increment/Decrement) - filter them out
-            // They are now handled by the parent stepper control
-            if (IsStepperNavControl(obj, objName))
-            {
-                result.Role = ElementRole.Internal;
-                result.IsNavigable = false;
-                result.ShouldAnnounce = false;
-                return result;
-            }
+            return CreateResult(ElementRole.Internal, null, "", false, false);
+        }
 
-            // Check for Settings dropdown controls (Control - X_Dropdown pattern)
-            if (IsSettingsDropdownControl(obj, objName, out string dropdownLabel, out string dropdownValue))
-            {
-                result.Role = ElementRole.Dropdown;
-                result.Label = !string.IsNullOrEmpty(dropdownValue)
-                    ? $"{dropdownLabel}: {dropdownValue}"
-                    : dropdownLabel;
-                result.RoleLabel = "dropdown";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                return result;
-            }
+        private static ClassificationResult TryClassifyAsCard(GameObject obj)
+        {
+            if (!CardDetector.IsCard(obj))
+                return null;
 
-            // Check standard Unity components (cache GetComponent results)
+            return CreateResult(ElementRole.Card, CardDetector.GetCardName(obj), "card", true, true);
+        }
+
+        private static ClassificationResult TryClassifyAsStepperControl(GameObject obj, string objName)
+        {
+            if (!IsSettingsStepperControl(obj, objName, out string label, out string value, out GameObject increment, out GameObject decrement))
+                return null;
+
+            return new ClassificationResult
+            {
+                Role = ElementRole.Button,
+                Label = !string.IsNullOrEmpty(value) ? $"{label}: {value}" : label,
+                RoleLabel = "stepper, use left and right arrows",
+                IsNavigable = true,
+                ShouldAnnounce = true,
+                HasArrowNavigation = true,
+                PreviousControl = decrement,
+                NextControl = increment
+            };
+        }
+
+        private static ClassificationResult TryClassifyAsStepperNavControl(GameObject obj, string objName)
+        {
+            if (!IsStepperNavControl(obj, objName))
+                return null;
+
+            return CreateResult(ElementRole.Internal, null, "", false, false);
+        }
+
+        private static ClassificationResult TryClassifyAsSettingsDropdown(GameObject obj, string objName)
+        {
+            if (!IsSettingsDropdownControl(obj, objName, out string label, out string value))
+                return null;
+
+            return CreateResult(
+                ElementRole.Dropdown,
+                !string.IsNullOrEmpty(value) ? $"{label}: {value}" : label,
+                "dropdown",
+                true, true);
+        }
+
+        private static ClassificationResult TryClassifyAsToggle(GameObject obj, string objName, string text)
+        {
             var toggle = obj.GetComponent<Toggle>();
-            if (toggle != null)
-            {
-                result.Role = ElementRole.Toggle;
-                // For generic toggle names, check parent for label (e.g., "Toggle - Remember Me/Toggle")
-                string effectiveName = GetEffectiveToggleName(obj, objName);
-                result.Label = GetCleanLabel(text, effectiveName);
-                result.RoleLabel = toggle.isOn ? "checkbox, checked" : "checkbox, unchecked";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                return result;
-            }
+            if (toggle == null)
+                return null;
 
+            string effectiveName = GetEffectiveToggleName(obj, objName);
+            return CreateResult(
+                ElementRole.Toggle,
+                GetCleanLabel(text, effectiveName),
+                toggle.isOn ? "checkbox, checked" : "checkbox, unchecked",
+                true, true);
+        }
+
+        private static ClassificationResult TryClassifyAsSlider(GameObject obj, string objName)
+        {
             var slider = obj.GetComponent<Slider>();
-            if (slider != null)
-            {
-                int percent = CalculateSliderPercent(slider);
-                result.Role = ElementRole.Slider;
-                // Find label from parent/sibling elements, not from UITextExtractor
-                // (UITextExtractor already returns "slider, percent" which causes duplication)
-                result.Label = GetSliderLabel(obj, objName);
-                result.RoleLabel = $"slider, {percent} percent, use left and right arrows";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                result.HasArrowNavigation = true;
-                result.SliderComponent = slider;
-                return result;
-            }
+            if (slider == null)
+                return null;
 
+            int percent = CalculateSliderPercent(slider);
+            return new ClassificationResult
+            {
+                Role = ElementRole.Slider,
+                Label = GetSliderLabel(obj, objName),
+                RoleLabel = $"slider, {percent} percent, use left and right arrows",
+                IsNavigable = true,
+                ShouldAnnounce = true,
+                HasArrowNavigation = true,
+                SliderComponent = slider
+            };
+        }
+
+        private static ClassificationResult TryClassifyAsDropdown(GameObject obj, string text)
+        {
             var tmpDropdown = obj.GetComponent<TMP_Dropdown>();
             var unityDropdown = obj.GetComponent<Dropdown>();
-            // Check for game's custom cTMP_Dropdown (used in Login/Registration screens)
             var customDropdown = GetCustomDropdownComponent(obj);
 
-            if (tmpDropdown != null || unityDropdown != null || customDropdown != null)
+            if (tmpDropdown == null && unityDropdown == null && customDropdown == null)
+                return null;
+
+            // Get the current selected value
+            string selectedValue = GetDropdownSelectedValue(tmpDropdown, unityDropdown, customDropdown);
+
+            // Check if inside a Settings dropdown control
+            string settingLabel = GetSettingsDropdownLabel(obj.transform);
+            string label;
+            if (!string.IsNullOrEmpty(settingLabel))
             {
-                result.Role = ElementRole.Dropdown;
-
-                // Get the current selected value
-                string selectedValue = null;
-                if (tmpDropdown != null && tmpDropdown.options != null && tmpDropdown.options.Count > tmpDropdown.value)
-                {
-                    selectedValue = tmpDropdown.options[tmpDropdown.value].text;
-                }
-                else if (unityDropdown != null && unityDropdown.options != null && unityDropdown.options.Count > unityDropdown.value)
-                {
-                    selectedValue = unityDropdown.options[unityDropdown.value].text;
-                }
-                else if (customDropdown != null)
-                {
-                    // Try to get selected value from cTMP_Dropdown via reflection
-                    selectedValue = GetCustomDropdownSelectedValue(customDropdown);
-                }
-
-                // Check if this is inside a Settings dropdown control (Control - X_Dropdown)
-                string settingLabel = GetSettingsDropdownLabel(obj.transform);
-                if (!string.IsNullOrEmpty(settingLabel))
-                {
-                    // Format as "Setting Name: Current Value"
-                    result.Label = !string.IsNullOrEmpty(selectedValue)
-                        ? $"{settingLabel}: {selectedValue}"
-                        : settingLabel;
-                }
-                else
-                {
-                    // Use selected value or fallback to generic label
-                    result.Label = !string.IsNullOrEmpty(selectedValue) ? selectedValue : text;
-                }
-
-                result.RoleLabel = "dropdown";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                return result;
+                label = !string.IsNullOrEmpty(selectedValue) ? $"{settingLabel}: {selectedValue}" : settingLabel;
+            }
+            else
+            {
+                label = !string.IsNullOrEmpty(selectedValue) ? selectedValue : text;
             }
 
-            if (obj.GetComponent<TMP_InputField>() != null || obj.GetComponent<InputField>() != null)
-            {
-                result.Role = ElementRole.TextField;
-                result.Label = text;
-                result.RoleLabel = "text field";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                return result;
-            }
+            return CreateResult(ElementRole.Dropdown, label, "dropdown", true, true);
+        }
 
-            if (obj.GetComponent<Scrollbar>() != null)
-            {
-                result.Role = ElementRole.Scrollbar;
-                result.Label = text;
-                result.RoleLabel = "scrollbar";
-                result.IsNavigable = false;  // Usually not directly navigated
-                result.ShouldAnnounce = false;
-                return result;
-            }
+        private static ClassificationResult TryClassifyAsTextField(GameObject obj, string text)
+        {
+            if (obj.GetComponent<TMP_InputField>() == null && obj.GetComponent<InputField>() == null)
+                return null;
 
-            // Check for progress indicators (before button check)
-            // These are informational only, not meant for direct navigation
-            if (IsProgressIndicator(obj, objName, text))
-            {
-                result.Role = ElementRole.ProgressBar;
-                result.Label = text;
-                result.RoleLabel = "progress";
-                result.IsNavigable = false;  // Progress indicators are informational, not interactive
-                result.ShouldAnnounce = false;
-                return result;
-            }
+            return CreateResult(ElementRole.TextField, text, "text field", true, true);
+        }
 
-            // Check for navigation arrows
-            if (IsNavigationArrow(obj, objName, text))
-            {
-                result.Role = ElementRole.Navigation;
-                result.Label = GetNavigationLabel(objName);
-                result.RoleLabel = "navigation";
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                return result;
-            }
+        private static ClassificationResult TryClassifyAsScrollbar(GameObject obj, string text)
+        {
+            if (obj.GetComponent<Scrollbar>() == null)
+                return null;
 
-            // Check for CustomButton (MTGA-specific)
+            return CreateResult(ElementRole.Scrollbar, text, "scrollbar", false, false);
+        }
+
+        private static ClassificationResult TryClassifyAsProgressIndicator(GameObject obj, string objName, string text)
+        {
+            if (!IsProgressIndicator(obj, objName, text))
+                return null;
+
+            return CreateResult(ElementRole.ProgressBar, text, "progress", false, false);
+        }
+
+        private static ClassificationResult TryClassifyAsNavigationArrow(GameObject obj, string objName, string text)
+        {
+            if (!IsNavigationArrow(obj, objName, text))
+                return null;
+
+            return CreateResult(ElementRole.Navigation, GetNavigationLabel(objName), "navigation", true, true);
+        }
+
+        private static ClassificationResult TryClassifyAsClickable(GameObject obj, string objName, string text)
+        {
             bool hasCustomButton = HasCustomButton(obj);
-
-            // Check for standard Button
             bool hasButton = obj.GetComponent<Button>() != null;
-
-            // Check for EventTrigger (often used as clickable)
             bool hasEventTrigger = obj.GetComponent<UnityEngine.EventSystems.EventTrigger>() != null;
 
-            if (hasCustomButton || hasButton || hasEventTrigger)
+            if (!hasCustomButton && !hasButton && !hasEventTrigger)
+                return null;
+
+            // Check for carousel (has nav controls as children)
+            if (IsCarouselElement(obj, out GameObject prevControl, out GameObject nextControl))
             {
-                // Check if this is a carousel element (has nav controls as children)
-                GameObject prevControl, nextControl;
-                if (IsCarouselElement(obj, out prevControl, out nextControl))
+                return new ClassificationResult
                 {
-                    result.Role = ElementRole.Button;
-                    result.Label = GetCleanLabel(text, objName);
-                    result.RoleLabel = "carousel, use left and right arrows";
-                    result.IsNavigable = true;
-                    result.ShouldAnnounce = true;
-                    result.HasArrowNavigation = true;
-                    result.PreviousControl = prevControl;
-                    result.NextControl = nextControl;
-                    return result;
-                }
-
-                // Determine if it's a link or button based on content
-                // For generic names like "Button", try to get a better name from parent
-                string effectiveName = GetEffectiveButtonName(obj, objName);
-
-                if (IsLinkElement(objName, text))
-                {
-                    result.Role = ElementRole.Link;
-                    result.Label = GetCleanLabel(text, effectiveName);
-                    result.RoleLabel = "link";
-                }
-                else
-                {
-                    result.Role = ElementRole.Button;
-                    result.Label = GetCleanLabel(text, effectiveName);
-                    result.RoleLabel = "button";
-                }
-                result.IsNavigable = true;
-                result.ShouldAnnounce = true;
-                return result;
+                    Role = ElementRole.Button,
+                    Label = GetCleanLabel(text, objName),
+                    RoleLabel = "carousel, use left and right arrows",
+                    IsNavigable = true,
+                    ShouldAnnounce = true,
+                    HasArrowNavigation = true,
+                    PreviousControl = prevControl,
+                    NextControl = nextControl
+                };
             }
 
-            // Check for labels (non-interactive text)
-            if (IsLabelElement(obj, objName))
-            {
-                result.Role = ElementRole.Label;
-                result.Label = text;
-                result.RoleLabel = ""; // Labels don't need role announcement
-                result.IsNavigable = false;
-                result.ShouldAnnounce = !string.IsNullOrEmpty(text);
-                return result;
-            }
+            // Determine if it's a link or button
+            string effectiveName = GetEffectiveButtonName(obj, objName);
+            bool isLink = IsLinkElement(objName, text);
 
-            // Default: Unknown
-            result.Role = ElementRole.Unknown;
-            result.Label = text;
-            result.RoleLabel = "";
-            result.IsNavigable = false;
-            result.ShouldAnnounce = false;
-            return result;
+            return CreateResult(
+                isLink ? ElementRole.Link : ElementRole.Button,
+                GetCleanLabel(text, effectiveName),
+                isLink ? "link" : "button",
+                true, true);
         }
+
+        private static ClassificationResult TryClassifyAsLabel(GameObject obj, string objName, string text)
+        {
+            if (!IsLabelElement(obj, objName))
+                return null;
+
+            return CreateResult(ElementRole.Label, text, "", false, !string.IsNullOrEmpty(text));
+        }
+
+        /// <summary>
+        /// Helper to create a simple ClassificationResult.
+        /// </summary>
+        private static ClassificationResult CreateResult(ElementRole role, string label, string roleLabel, bool navigable, bool announce)
+        {
+            return new ClassificationResult
+            {
+                Role = role,
+                Label = label,
+                RoleLabel = roleLabel,
+                IsNavigable = navigable,
+                ShouldAnnounce = announce
+            };
+        }
+
+        /// <summary>
+        /// Gets the selected value from any dropdown type.
+        /// </summary>
+        private static string GetDropdownSelectedValue(TMP_Dropdown tmpDropdown, Dropdown unityDropdown, Component customDropdown)
+        {
+            if (tmpDropdown != null && tmpDropdown.options != null && tmpDropdown.options.Count > tmpDropdown.value)
+                return tmpDropdown.options[tmpDropdown.value].text;
+
+            if (unityDropdown != null && unityDropdown.options != null && unityDropdown.options.Count > unityDropdown.value)
+                return unityDropdown.options[unityDropdown.value].text;
+
+            if (customDropdown != null)
+                return GetCustomDropdownSelectedValue(customDropdown);
+
+            return null;
+        }
+
+        #endregion
 
         // CustomButton type names used in MTGA
         private const string CustomButtonTypeName = "CustomButton";
@@ -1237,75 +1230,67 @@ namespace MTGAAccessibility.Core.Services
             "Button", "Btn", "CustomButton", "MainButton", "Toggle", "Checkbox"
         };
 
+        // Parent name prefixes to strip when extracting labels (e.g., "Toggle - Remember Me" -> "Remember Me")
+        private static readonly string[] ParentLabelPrefixes = new[]
+        {
+            "Toggle - ",    // 9 chars
+            "Checkbox - "   // 11 chars
+        };
+
         /// <summary>
-        /// Get an effective name for a toggle, checking parent if name is generic.
-        /// For toggles named just "Toggle", the parent often has a descriptive name like "Toggle - Remember Me".
+        /// Get an effective name for an element, checking parent if name is generic.
+        /// For elements named just "Toggle", "Button", etc., the parent often has a descriptive name.
+        /// Also handles parent patterns like "Toggle - Remember Me" by extracting the label part.
         /// </summary>
+        private static string GetEffectiveElementName(GameObject obj, string objName)
+        {
+            // Clean the name for comparison (remove Unity clone suffix)
+            string cleanName = objName.Replace("(Clone)", "").Trim();
+
+            // If the name is descriptive (not generic), use it
+            if (!GenericElementNames.Contains(cleanName))
+            {
+                return objName;
+            }
+
+            // Name is generic, check parent for a better name
+            var parent = obj.transform.parent;
+            if (parent == null)
+            {
+                return objName;
+            }
+
+            string parentName = parent.name;
+
+            // Check for "Prefix - Label" patterns and extract the label
+            foreach (var prefix in ParentLabelPrefixes)
+            {
+                if (parentName.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return parentName.Substring(prefix.Length);
+                }
+            }
+
+            // If parent has a meaningful name (not also generic), use it
+            string cleanParentName = parentName.Replace("(Clone)", "").Trim();
+            if (!string.IsNullOrEmpty(cleanParentName) &&
+                !GenericElementNames.Contains(cleanParentName) &&
+                cleanParentName.Length > 3)
+            {
+                return parentName;
+            }
+
+            // Fall back to original name
+            return objName;
+        }
+
+        // Wrapper for toggle-specific calls (maintains API compatibility)
         private static string GetEffectiveToggleName(GameObject obj, string objName)
-        {
-            // If the name is descriptive, use it
-            if (!EqualsIgnoreCase(objName, "Toggle") && !EqualsIgnoreCase(objName, "Checkbox"))
-            {
-                return objName;
-            }
+            => GetEffectiveElementName(obj, objName);
 
-            // Name is generic, check parent for a better name
-            var parent = obj.transform.parent;
-            if (parent != null)
-            {
-                string parentName = parent.name;
-                // Pattern: "Toggle - Label" or "Checkbox - Label" -> extract the label part
-                if (parentName.StartsWith("Toggle - ", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return parentName.Substring(9); // Remove "Toggle - "
-                }
-                if (parentName.StartsWith("Checkbox - ", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return parentName.Substring(11); // Remove "Checkbox - "
-                }
-                // If parent has a meaningful name (not also generic), use it
-                if (!string.IsNullOrEmpty(parentName) &&
-                    !EqualsIgnoreCase(parentName, "Toggle") &&
-                    !EqualsIgnoreCase(parentName, "Checkbox") &&
-                    parentName.Length > 3)
-                {
-                    return parentName;
-                }
-            }
-
-            // Fall back to original name
-            return objName;
-        }
-
-        /// <summary>
-        /// Get an effective name for a button, checking parent if name is generic.
-        /// For buttons named just "Button", the parent often has a descriptive name like "SettingsButton".
-        /// </summary>
+        // Wrapper for button-specific calls (maintains API compatibility)
         private static string GetEffectiveButtonName(GameObject obj, string objName)
-        {
-            // If the name is descriptive, use it
-            if (!GenericElementNames.Contains(objName.Replace("(Clone)", "").Trim()))
-            {
-                return objName;
-            }
-
-            // Name is generic, check parent for a better name
-            var parent = obj.transform.parent;
-            if (parent != null)
-            {
-                string parentName = parent.name;
-                // If parent has a meaningful name (not also generic), use it
-                if (!string.IsNullOrEmpty(parentName) &&
-                    !GenericElementNames.Contains(parentName.Replace("(Clone)", "").Trim()) &&
-                    parentName.Length > 3)
-                {
-                    return parentName;
-                }
-            }
-
-            // Fall back to original name
-            return objName;
-        }
+            => GetEffectiveElementName(obj, objName);
 
         private static string GetCleanLabel(string text, string objName)
         {

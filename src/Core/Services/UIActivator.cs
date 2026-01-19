@@ -84,6 +84,11 @@ namespace MTGAAccessibility.Core.Services
         // Compiled regex for Submit button detection
         private static readonly Regex SubmitButtonPattern = new Regex(@"^Submit\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // Targeting mode detection cache (avoids expensive FindObjectsOfType every call)
+        private const float TargetingCacheTimeout = 0.1f;
+        private static float _lastTargetingScanTime;
+        private static bool _cachedTargetingResult;
+
         /// <summary>
         /// Checks if a MonoBehaviour is a CustomButton by type name.
         /// </summary>
@@ -741,8 +746,27 @@ namespace MTGAAccessibility.Core.Services
         /// Checks if the game is waiting for target selection.
         /// Detection: Looks for "Submit X" button (e.g., "Submit 0", "Submit 1").
         /// Note: Cancel button alone is not reliable - can appear for other purposes.
+        /// Results are cached for TargetingCacheTimeout seconds to avoid expensive scans.
         /// </summary>
         private static bool IsTargetingModeActive()
+        {
+            // Return cached result if still valid
+            float currentTime = Time.time;
+            if (currentTime - _lastTargetingScanTime < TargetingCacheTimeout)
+            {
+                return _cachedTargetingResult;
+            }
+
+            // Perform the expensive scan
+            _lastTargetingScanTime = currentTime;
+            _cachedTargetingResult = ScanForSubmitButton();
+            return _cachedTargetingResult;
+        }
+
+        /// <summary>
+        /// Scans all text components for a Submit button pattern.
+        /// </summary>
+        private static bool ScanForSubmitButton()
         {
             // Check TMP_Text components (used by StyledButton)
             foreach (var tmpText in GameObject.FindObjectsOfType<TMP_Text>())

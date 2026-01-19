@@ -4,6 +4,37 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### UI Handling Code Quality Rework
+
+Completed refactoring of UIElementClassifier and UIActivator for improved code quality, readability, and maintainability.
+
+**UIActivator Changes:**
+- Added caching to `IsTargetingModeActive()` with 0.1s timeout (avoids expensive `FindObjectsOfType` scans every call)
+- Extracted `ScanForSubmitButton()` helper method
+- Extracted `IsCustomButton()` helper (was duplicated 4+ times)
+- Extracted timing constants (`CardSelectDelay`, `CardPickupDelay`, `CardDropDelay`)
+- Added type name constants for reflection
+
+**UIElementClassifier Changes:**
+- **Major refactor:** Split 260-line `Classify()` method into 14 focused `TryClassifyAs*` methods
+- Main method is now a clean null-coalescing chain showing classification priority at a glance
+- Consolidated `GetEffectiveToggleName()` and `GetEffectiveButtonName()` into single `GetEffectiveElementName()` method
+- Added `ParentLabelPrefixes` array for extensible prefix stripping
+- Added `CreateResult()` helper to reduce boilerplate
+- Added `GetDropdownSelectedValue()` to consolidate dropdown value extraction
+- Extracted constants (visibility thresholds, search depth limits, filter patterns)
+- Added `SplitCamelCase()` and `CleanSettingLabel()` helpers
+
+**Code Quality Improvements:**
+- Reduced code duplication
+- Better separation of concerns
+- Cleaner method signatures
+- More readable classification flow
+
+**Files:** `UIActivator.cs`, `UIElementClassifier.cs`, `KNOWN_ISSUES.md` (WinAPI technical debt note)
+
+---
+
 ### Logout Button Fix (UIActivator Order)
 
 Fixed logout button (Link_LogOut) and similar buttons not responding to Enter key.
