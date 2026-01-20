@@ -1026,6 +1026,9 @@ namespace MTGAAccessibility.Core.Services
             }
         }
 
+        // Track if we've logged ZoneTransferUXEvent fields (once for discovery)
+        private static bool _zoneTransferUXEventFieldsLogged = false;
+
         private string HandleZoneTransferGroup(object uxEvent)
         {
             try
@@ -1037,31 +1040,37 @@ namespace MTGAAccessibility.Core.Services
                     LogEventFields(uxEvent, "ZONE TRANSFER GROUP");
                 }
 
-                // Look for cards moving to graveyard (deaths)
-                // Try to get the transfers list
-                var transfers = GetFieldValue<object>(uxEvent, "Transfers");
-                var children = GetFieldValue<object>(uxEvent, "_children");
+                // Get the _zoneTransfers list which contains individual ZoneTransferUXEvent items
+                var zoneTransfers = GetFieldValue<object>(uxEvent, "_zoneTransfers");
+                if (zoneTransfers == null) return null;
 
-                if (transfers != null)
+                var transferList = zoneTransfers as System.Collections.IEnumerable;
+                if (transferList == null) return null;
+
+                var announcements = new List<string>();
+
+                foreach (var transfer in transferList)
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] ZoneTransfer has Transfers: {transfers.GetType().Name}");
-                }
-                if (children != null)
-                {
-                    var childList = children as System.Collections.IEnumerable;
-                    if (childList != null)
+                    if (transfer == null) continue;
+
+                    // Log ZoneTransferUXEvent fields once for discovery
+                    if (!_zoneTransferUXEventFieldsLogged)
                     {
-                        int count = 0;
-                        foreach (var child in childList)
-                        {
-                            count++;
-                            if (count <= 3) // Log first 3
-                            {
-                                MelonLogger.Msg($"[DuelAnnouncer] ZoneTransfer child: {child?.GetType().Name}");
-                            }
-                        }
-                        MelonLogger.Msg($"[DuelAnnouncer] ZoneTransfer total children: {count}");
+                        _zoneTransferUXEventFieldsLogged = true;
+                        LogEventFields(transfer, "ZONE TRANSFER UX EVENT");
                     }
+
+                    // Extract zone transfer details
+                    var announcement = ProcessZoneTransfer(transfer);
+                    if (!string.IsNullOrEmpty(announcement))
+                    {
+                        announcements.Add(announcement);
+                    }
+                }
+
+                if (announcements.Count > 0)
+                {
+                    return string.Join(". ", announcements);
                 }
 
                 return null;
@@ -1071,6 +1080,358 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Warning($"[DuelAnnouncer] Error handling zone transfer: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Processes a single zone transfer event to announce game state changes.
+        /// Handles: land plays, creatures dying, cards discarded, exiled, bounced, tokens created, etc.
+        /// </summary>
+        private string ProcessZoneTransfer(object transfer)
+        {
+            try
+            {
+                // Get zone types and reason
+                var toZoneType = GetFieldValue<object>(transfer, "ToZoneType");
+                var fromZoneType = GetFieldValue<object>(transfer, "FromZoneType");
+                var toZone = GetFieldValue<object>(transfer, "ToZone");
+                var fromZone = GetFieldValue<object>(transfer, "FromZone");
+                var reason = GetFieldValue<object>(transfer, "Reason");
+
+                string toZoneTypeStr = toZoneType?.ToString() ?? "";
+                string fromZoneTypeStr = fromZoneType?.ToString() ?? "";
+                string toZoneStr = toZone?.ToString() ?? "";
+                string fromZoneStr = fromZone?.ToString() ?? "";
+                string reasonStr = reason?.ToString() ?? "";
+
+                // Get card instance - the NewInstance field contains the card data
+                var newInstance = GetFieldValue<object>(transfer, "NewInstance");
+
+                uint grpId = 0;
+                bool isOpponent = false;
+
+                if (newInstance != null)
+                {
+                    // Try to get GrpId from the card instance
+                    var printing = GetNestedPropertyValue<object>(newInstance, "Printing");
+                    if (printing != null)
+                    {
+                        grpId = GetNestedPropertyValue<uint>(printing, "GrpId");
+                    }
+                    if (grpId == 0)
+                    {
+                        grpId = GetNestedPropertyValue<uint>(newInstance, "GrpId");
+                    }
+
+                    // Check ownership via controller - try multiple property names
+                    uint controllerId = GetNestedPropertyValue<uint>(newInstance, "ControllerSeatId");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "ControllerId");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "OwnerSeatId");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "OwnerNum");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "ControllerNum");
+
+                    // Try Owner property which might be a player object
+                    if (controllerId == 0)
+                    {
+                        var owner = GetNestedPropertyValue<object>(newInstance, "Owner");
+                        if (owner != null)
+                        {
+                            controllerId = GetNestedPropertyValue<uint>(owner, "SeatId");
+                            if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(owner, "Id");
+                            if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(owner, "PlayerNumber");
+                        }
+                    }
+
+                    MelonLogger.Msg($"[DuelAnnouncer] ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
+                    isOpponent = controllerId != 0 && controllerId != _localPlayerId;
+                }
+
+                // Check zone strings for ownership hints as fallback
+                // Zone format example: "Library (PlayerPlayer: 1 (LocalPlayer), 0 cards)" or "Hand (OpponentPlayer: 2, 5 cards)"
+                // For cards entering battlefield from hand, check FromZone (hand) for ownership
+                // For cards leaving battlefield, check FromZone (battlefield area might not have owner)
+                string zoneToCheck = fromZoneStr;
+                if (string.IsNullOrEmpty(zoneToCheck) || !zoneToCheck.Contains("Player"))
+                {
+                    zoneToCheck = toZoneStr;
+                }
+
+                // Log zone strings for debugging ownership detection
+                MelonLogger.Msg($"[DuelAnnouncer] Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
+
+                if (zoneToCheck.Contains("Opponent") || zoneToCheck.Contains("Player: 2") || zoneToCheck.Contains("Player:2"))
+                    isOpponent = true;
+                else if (zoneToCheck.Contains("LocalPlayer") || zoneToCheck.Contains("Player: 1") || zoneToCheck.Contains("Player:1"))
+                    isOpponent = false;
+
+                // Log for debugging
+                MelonLogger.Msg($"[DuelAnnouncer] ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");
+
+                // Skip if no card data
+                if (grpId == 0)
+                {
+                    return null;
+                }
+
+                // Get card name
+                string cardName = CardModelProvider.GetNameFromGrpId(grpId);
+                if (string.IsNullOrEmpty(cardName))
+                {
+                    return null;
+                }
+
+                string ownerPrefix = isOpponent ? "Opponent's " : "";
+                string announcement = null;
+
+                // Determine announcement based on zone transfer type
+                switch (toZoneTypeStr)
+                {
+                    case "Battlefield":
+                        announcement = ProcessBattlefieldEntry(fromZoneTypeStr, reasonStr, cardName, grpId, newInstance, isOpponent);
+                        if (announcement != null)
+                            _lastSpellResolvedTime = DateTime.Now;
+                        break;
+
+                    case "Graveyard":
+                        announcement = ProcessGraveyardEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix);
+                        break;
+
+                    case "Exile":
+                        announcement = ProcessExileEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix);
+                        break;
+
+                    case "Hand":
+                        announcement = ProcessHandEntry(fromZoneTypeStr, reasonStr, cardName, isOpponent);
+                        break;
+
+                    case "Stack":
+                        // Spells on stack are announced via UpdateZoneUXEvent already
+                        break;
+                }
+
+                if (!string.IsNullOrEmpty(announcement))
+                {
+                    MelonLogger.Msg($"[DuelAnnouncer] Zone transfer announcement: {announcement}");
+                }
+
+                return announcement;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error processing zone transfer: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Process card entering battlefield - lands, tokens, creatures from stack
+        /// </summary>
+        private string ProcessBattlefieldEntry(string fromZone, string reason, string cardName, uint grpId, object cardInstance, bool isOpponent)
+        {
+            string owner = isOpponent ? "Opponent" : "You";
+
+            // Token creation (from None zone with CardCreated reason)
+            if ((fromZone == "None" || string.IsNullOrEmpty(fromZone)) && reason == "CardCreated")
+            {
+                return $"{owner} created {cardName} token";
+            }
+
+            // Land played (from Hand, not from Stack)
+            if (fromZone == "Hand")
+            {
+                bool isLand = IsLandByGrpId(grpId, cardInstance);
+                if (isLand)
+                {
+                    return $"{owner} played {cardName}";
+                }
+                // Non-land from hand without going through stack (e.g., put onto battlefield effects)
+                return $"{cardName} enters battlefield";
+            }
+
+            // From stack = spell resolved (creature/artifact/enchantment)
+            if (fromZone == "Stack")
+            {
+                // We already announce spell cast, so just note it entered
+                // Could skip this to avoid double announcement, or make it brief
+                return null; // Skip - UpdateZoneUXEvent handles "spell resolved"
+            }
+
+            // From graveyard = reanimation
+            if (fromZone == "Graveyard")
+            {
+                return $"{cardName} returned from graveyard";
+            }
+
+            // From exile = returned from exile
+            if (fromZone == "Exile")
+            {
+                return $"{cardName} returned from exile";
+            }
+
+            // From library = put onto battlefield from library
+            if (fromZone == "Library")
+            {
+                return $"{cardName} enters battlefield from library";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Process card entering graveyard - death, destruction, discard, mill, counter
+        /// </summary>
+        private string ProcessGraveyardEntry(string fromZone, string reason, string cardName, string ownerPrefix)
+        {
+            // Use reason for specific language if available
+            switch (reason)
+            {
+                case "Died":
+                    return $"{ownerPrefix}{cardName} died";
+                case "Destroyed":
+                    return $"{ownerPrefix}{cardName} was destroyed";
+                case "Sacrificed":
+                    return $"{ownerPrefix}{cardName} was sacrificed";
+                case "Countered":
+                    return $"{ownerPrefix}{cardName} was countered";
+                case "Discarded":
+                    return $"{ownerPrefix}{cardName} was discarded";
+                case "Milled":
+                    return $"{ownerPrefix}{cardName} was milled";
+            }
+
+            // Fallback based on source zone
+            switch (fromZone)
+            {
+                case "Battlefield":
+                    return $"{ownerPrefix}{cardName} died";
+                case "Hand":
+                    return $"{ownerPrefix}{cardName} was discarded";
+                case "Stack":
+                    return $"{ownerPrefix}{cardName} was countered";
+                case "Library":
+                    return $"{ownerPrefix}{cardName} was milled";
+                default:
+                    return $"{ownerPrefix}{cardName} went to graveyard";
+            }
+        }
+
+        /// <summary>
+        /// Process card entering exile
+        /// </summary>
+        private string ProcessExileEntry(string fromZone, string reason, string cardName, string ownerPrefix)
+        {
+            if (fromZone == "Battlefield")
+            {
+                return $"{ownerPrefix}{cardName} was exiled";
+            }
+            if (fromZone == "Graveyard")
+            {
+                return $"{ownerPrefix}{cardName} was exiled from graveyard";
+            }
+            if (fromZone == "Hand")
+            {
+                return $"{ownerPrefix}{cardName} was exiled from hand";
+            }
+            if (fromZone == "Library")
+            {
+                return $"{ownerPrefix}{cardName} was exiled from library";
+            }
+            return $"{ownerPrefix}{cardName} was exiled";
+        }
+
+        /// <summary>
+        /// Process card entering hand - bounce, draw (draw handled elsewhere)
+        /// </summary>
+        private string ProcessHandEntry(string fromZone, string reason, string cardName, bool isOpponent)
+        {
+            // Bounce from battlefield
+            if (fromZone == "Battlefield")
+            {
+                string owner = isOpponent ? "Opponent's " : "";
+                return $"{owner}{cardName} returned to hand";
+            }
+
+            // From library = draw, but we handle this via UpdateZoneUXEvent with count
+            // Don't duplicate the announcement
+            if (fromZone == "Library")
+            {
+                return null;
+            }
+
+            // From graveyard = returned to hand
+            if (fromZone == "Graveyard")
+            {
+                string owner = isOpponent ? "Opponent's " : "";
+                return $"{owner}{cardName} returned to hand from graveyard";
+            }
+
+            // From exile = returned from exile to hand
+            if (fromZone == "Exile")
+            {
+                string owner = isOpponent ? "Opponent's " : "";
+                return $"{owner}{cardName} returned to hand from exile";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if a card is a land based on its GrpId or card object.
+        /// </summary>
+        private bool IsLandByGrpId(uint grpId, object card)
+        {
+            // Try to get card types from the card object
+            if (card != null)
+            {
+                // Check IsBasicLand property
+                var isBasicLand = GetNestedPropertyValue<bool>(card, "IsBasicLand");
+                if (isBasicLand) return true;
+
+                // Check IsLandButNotBasic property
+                var isLandNotBasic = GetNestedPropertyValue<bool>(card, "IsLandButNotBasic");
+                if (isLandNotBasic) return true;
+
+                // Check CardTypes collection
+                var cardTypes = GetNestedPropertyValue<object>(card, "CardTypes");
+                if (cardTypes is System.Collections.IEnumerable typeEnum)
+                {
+                    foreach (var ct in typeEnum)
+                    {
+                        if (ct?.ToString()?.Contains("Land") == true)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: check if card name is a basic land
+            string cardName = CardModelProvider.GetNameFromGrpId(grpId);
+            if (!string.IsNullOrEmpty(cardName))
+            {
+                // Common basic land names in various languages
+                var basicLandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    // English
+                    "Plains", "Island", "Swamp", "Mountain", "Forest",
+                    // German
+                    "Ebene", "Insel", "Sumpf", "Gebirge", "Wald",
+                    // French
+                    "Plaine", "Île", "Marais", "Montagne", "Forêt",
+                    // Spanish
+                    "Llanura", "Isla", "Pantano", "Montaña", "Bosque",
+                    // Italian
+                    "Pianura", "Isola", "Palude", "Montagna", "Foresta",
+                    // Portuguese
+                    "Planície", "Ilha", "Pântano", "Montanha", "Floresta"
+                };
+
+                if (basicLandNames.Contains(cardName))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private string HandleCombatFrame(object uxEvent)

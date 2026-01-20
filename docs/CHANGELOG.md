@@ -4,6 +4,43 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Zone Transfer Announcements - Land Plays and More
+
+Enhanced the DuelAnnouncer to parse individual zone transfer events and announce specific game state changes with card names.
+
+**Land Play Announcements:**
+- "You played [land name]" when you play a land
+- "Opponent played [land name]" when opponent plays a land
+- Ownership detection uses zone strings (FromZone contains player ownership info)
+
+**Additional Zone Transfer Announcements (when GrpId available):**
+- **Battlefield entries:**
+  - Token creation: "You/Opponent created [name] token"
+  - From graveyard: "[name] returned from graveyard"
+  - From exile: "[name] returned from exile"
+  - From library: "[name] enters battlefield from library"
+- **Graveyard entries:**
+  - From battlefield: "[name] died" / "was destroyed" / "was sacrificed"
+  - From hand: "[name] was discarded"
+  - From stack: "[name] was countered"
+  - From library: "[name] was milled"
+- **Exile entries:** "[name] was exiled" (with source zone context)
+- **Hand entries (bounce):** "[name] returned to hand"
+
+**Technical Details:**
+- Parses `ZoneTransferGroup` event's `_zoneTransfers` list for individual `ZoneTransferUXEvent` items
+- Extracts card GrpId from `NewInstance.Printing.GrpId` or direct `NewInstance.GrpId`
+- Uses `Reason` field for specific language (Died, Destroyed, Sacrificed, Countered, Discarded, Milled)
+- Ownership detection: checks `FromZone` string for "LocalPlayer" or "Opponent" patterns
+- Land detection: checks `IsBasicLand`, `IsLandButNotBasic` properties, or matches basic land names
+
+**Known Limitation:**
+Creature deaths from combat don't generate `ZoneTransferGroup` events (battlefield → graveyard transfers not included). These still use generic count-based announcements from `UpdateZoneUXEvent`.
+
+**Files:** `DuelAnnouncer.cs`
+
+---
+
 ### Friends Panel Fixes
 
 Fixed Friends panel navigation that was broken after code quality refactoring.
