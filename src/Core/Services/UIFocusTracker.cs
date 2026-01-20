@@ -75,6 +75,34 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
+        /// Returns true if the EventSystem selection is an input field.
+        /// This is true when user has navigated to an input field (Tab or arrow keys),
+        /// regardless of whether the caret is visible (isFocused).
+        /// Use this to avoid intercepting keys like Backspace/Escape that should go to the input field.
+        /// </summary>
+        public static bool IsAnyInputFieldFocused()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
+                return false;
+
+            var selected = eventSystem.currentSelectedGameObject;
+
+            // Check if selection IS an input field (not just if it's "focused" for editing)
+            // MTGA auto-activates input fields when selected, so any input field selection
+            // should be treated as "in input mode" for key blocking purposes
+            var tmpInput = selected.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null && tmpInput.interactable)
+                return true;
+
+            var legacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
+            if (legacyInput != null && legacyInput.interactable)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
         /// Enter edit mode for an input field. Called when user presses Enter on an input field.
         /// </summary>
         public static void EnterInputFieldEditMode(GameObject inputFieldObject)
@@ -94,6 +122,35 @@ namespace MTGAAccessibility.Core.Services
                 MelonLogger.Msg($"[FocusTracker] Exited input field edit mode");
                 _inputFieldEditMode = false;
                 _activeInputFieldObject = null;
+            }
+        }
+
+        /// <summary>
+        /// Deactivate any currently focused input field.
+        /// Called when user presses Escape to exit an input field they clicked into.
+        /// </summary>
+        public static void DeactivateFocusedInputField()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
+                return;
+
+            var selected = eventSystem.currentSelectedGameObject;
+
+            var tmpInput = selected.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null && tmpInput.isFocused)
+            {
+                tmpInput.DeactivateInputField();
+                MelonLogger.Msg($"[FocusTracker] Deactivated TMP_InputField: {selected.name}");
+                return;
+            }
+
+            var legacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
+            if (legacyInput != null && legacyInput.isFocused)
+            {
+                legacyInput.DeactivateInputField();
+                MelonLogger.Msg($"[FocusTracker] Deactivated InputField: {selected.name}");
+                return;
             }
         }
 

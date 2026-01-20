@@ -65,13 +65,14 @@ namespace MTGAAccessibility.Patches
         /// </summary>
         private static bool ShouldBlockKey(KeyCode key)
         {
-            // When editing an input field, block Escape from game (so we can use it to exit edit mode)
-            // but let all other keys through for typing
-            if (UIFocusTracker.IsEditingInputField())
+            // When any input field is focused (regardless of how user got there),
+            // block Escape from game so we can use it to exit the input field
+            // without the game closing the menu/panel
+            if (UIFocusTracker.IsAnyInputFieldFocused() || UIFocusTracker.IsEditingInputField())
             {
                 if (key == KeyCode.Escape)
                 {
-                    return true; // Block Escape so game doesn't open settings menu
+                    return true; // Block Escape so game doesn't close menu
                 }
                 return false; // Let typing keys through
             }

@@ -323,9 +323,27 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Backspace: Universal back - goes back one level in menus
+            // But NOT when an input field is focused - let Backspace delete characters
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
+                if (UIFocusTracker.IsAnyInputFieldFocused())
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Backspace pressed but input field focused - passing through");
+                    return false; // Let it pass through to the input field
+                }
                 return HandleBackNavigation();
+            }
+
+            // Escape: Exit input field if one is focused (but user didn't enter via our navigation)
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (UIFocusTracker.IsAnyInputFieldFocused())
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Escape pressed while input field focused - deactivating field");
+                    UIFocusTracker.DeactivateFocusedInputField();
+                    _announcer.Announce("Exited input field", Models.AnnouncementPriority.Normal);
+                    return true;
+                }
             }
 
             return false;

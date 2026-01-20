@@ -598,11 +598,26 @@ namespace MTGAAccessibility.Core.Services
 
         protected virtual void HandleInput()
         {
-            // Special handling when user is editing an input field
+            // Special handling when user is editing an input field (explicit edit mode via Enter)
             if (UIFocusTracker.IsEditingInputField())
             {
                 HandleInputFieldNavigation();
                 return;
+            }
+
+            // Also check if user is ON an input field (even without explicit edit mode)
+            // This handles MTGA's auto-activating input fields when selected via Tab
+            // In this case, don't process arrow keys as menu navigation - let them control the cursor
+            if (UIFocusTracker.IsAnyInputFieldFocused())
+            {
+                // Only handle Escape to exit the input field
+                // All other keys (including arrows for cursor, Backspace for delete) pass through
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    UIFocusTracker.DeactivateFocusedInputField();
+                    _announcer.Announce("Exited input field", AnnouncementPriority.Normal);
+                }
+                return; // Don't process any other input - let it go to the input field
             }
 
             // When a dropdown is open, let Unity handle arrow key navigation
