@@ -1829,6 +1829,15 @@ namespace AccessibleArena.Core.Services
                 addedObjects.Add(cardPrefab);
                 cardNum++;
             }
+
+            // Add the NPE-Rewards_Container itself as a "Take reward" button
+            // This container has a CustomButton that dismisses the reward screen when clicked
+            if (npeContainer != null && !addedObjects.Contains(npeContainer))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Adding NPE reward container as 'Take reward' button");
+                AddElement(npeContainer, "Take reward, button");
+                addedObjects.Add(npeContainer);
+            }
         }
 
         /// <summary>
