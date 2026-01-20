@@ -618,6 +618,29 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
+        /// <summary>
+        /// Check if element is inside the NavBar RightSideContainer.
+        /// These are functional icon buttons (Learn, Mail, Settings, DirectChallenge) that should not be filtered.
+        /// </summary>
+        private static bool IsInsideNavBarRightSide(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+
+            while (current != null && levels < MaxParentSearchDepth)
+            {
+                string name = current.name;
+                if (ContainsIgnoreCase(name, "RightSideContainer"))
+                    return true;
+                current = current.parent;
+                levels++;
+            }
+
+            return false;
+        }
+
         // Maximum size for small decorative buttons (pixels)
         private const int MaxSmallButtonSize = 80;
 
@@ -663,7 +686,7 @@ namespace AccessibleArena.Core.Services
                 return true;
 
             // Check text content
-            if (IsFilteredByTextContent(name, text))
+            if (IsFilteredByTextContent(obj, name, text))
                 return true;
 
             return false;
@@ -785,7 +808,8 @@ namespace AccessibleArena.Core.Services
 
             // Small image-only buttons without text (decorative icons, NPC portraits)
             // BUT: Allow inside FriendsWidget (Backer_Hitbox elements are clickable friend items)
-            if (IsSmallImageOnlyButton(obj) && !IsInsideFriendsWidget(obj))
+            // BUT: Allow inside NavBar RightSideContainer (Learn, Mail, Settings, DirectChallenge icons)
+            if (IsSmallImageOnlyButton(obj) && !IsInsideFriendsWidget(obj) && !IsInsideNavBarRightSide(obj))
                 return true;
 
             // Hitboxes without actual text content
@@ -892,7 +916,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Check if element should be filtered based on its text content
         /// </summary>
-        private static bool IsFilteredByTextContent(string name, string text)
+        private static bool IsFilteredByTextContent(GameObject obj, string name, string text)
         {
             if (string.IsNullOrEmpty(text))
                 return false;
@@ -906,9 +930,10 @@ namespace AccessibleArena.Core.Services
             if (EqualsIgnoreCase(textTrimmed, "more information")) return true;
 
             // Numeric-only text in mail/notification elements = badge count, not real button
+            // BUT: If it has CustomButton, it's a real interactive button (e.g., Nav_Mail showing unread count)
             if (ContainsIgnoreCase(name, "mail") || ContainsIgnoreCase(name, "notification") || ContainsIgnoreCase(name, "badge"))
             {
-                if (IsNumericOnly(text))
+                if (IsNumericOnly(text) && !HasCustomButton(obj))
                     return true;
             }
 

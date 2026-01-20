@@ -1188,6 +1188,14 @@ Elements inside `FriendsWidget` (detected via `IsInsideFriendsWidget()`) bypass 
 The exception requires elements to have meaningful text via `GetText()` (not just be inside
 FriendsWidget). Text is derived from parent object names (e.g., `Button_AddFriend` → "add friend").
 
+**NavBar RightSideContainer Exception (January 2026):**
+Elements inside `RightSideContainer` (detected via `IsInsideNavBarRightSide()`) bypass the small
+image-only button filter. These are functional NavBar icon buttons:
+- `Nav_Learn` - Tutorial/help system
+- `Nav_Mail` - Inbox/messages
+- `Nav_Settings` - Settings menu
+- `Nav_DirectChallenge` - Challenge a friend
+
 **2. Name Patterns (`IsFilteredByNamePattern`)**
 - `blocker` - Modal click blockers
 - `navpip`, `pip_` - Carousel dots
@@ -1205,7 +1213,7 @@ FriendsWidget). Text is derived from parent object names (e.g., `Button_AddFrien
 
 **3. Text Content (`IsFilteredByTextContent`)**
 - `new`, `tooltip information`, `text text text` - Placeholder text
-- Numeric-only text in mail/notification elements - Badge counts
+- Numeric-only text in mail/notification elements - Badge counts (but NOT if element has CustomButton, e.g., Nav_Mail showing unread count "21")
 
 **4. Decorative Graphical Elements (`IsDecorativeGraphicalElement`)**
 Filters elements that are purely graphical with no meaningful content:
