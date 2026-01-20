@@ -170,6 +170,25 @@ namespace MTGAAccessibility.Core.Services
                 }
             }
 
+            // Space - click primary button when no highlights are available
+            // The game's native Space handler doesn't work reliably when our mod has navigated
+            // to a card (even after clearing focus). So we click the button directly.
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                if (_items.Count == 0)
+                {
+                    var primaryButton = FindPrimaryButton();
+                    if (primaryButton != null)
+                    {
+                        string buttonText = GetPrimaryButtonText();
+                        MelonLogger.Msg($"[HotHighlightNavigator] Space pressed - clicking primary button: {buttonText}");
+                        UIActivator.SimulatePointerClick(primaryButton);
+                        _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
@@ -542,38 +561,39 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         private string GetPrimaryButtonText()
         {
-            // Look for the primary prompt button
+            var button = FindPrimaryButton();
+            if (button == null) return null;
+
+            var tmpText = button.GetComponentInChildren<TMP_Text>();
+            if (tmpText != null)
+            {
+                string text = tmpText.text?.Trim();
+                if (!string.IsNullOrEmpty(text) && text != "Ctrl")
+                    return text;
+            }
+
+            var uiText = button.GetComponentInChildren<Text>();
+            if (uiText != null)
+            {
+                string text = uiText.text?.Trim();
+                if (!string.IsNullOrEmpty(text) && text != "Ctrl")
+                    return text;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds the primary prompt button GameObject if one exists.
+        /// </summary>
+        private GameObject FindPrimaryButton()
+        {
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy) continue;
-
-                // Check for primary prompt button by name pattern
-                if (!go.name.Contains("PromptButton_Primary")) continue;
-
-                // Get the TMP_Text component to extract button text
-                var tmpText = go.GetComponentInChildren<TMP_Text>();
-                if (tmpText != null)
-                {
-                    string text = tmpText.text?.Trim();
-                    // Filter out non-meaningful text like "Ctrl" (full control indicator)
-                    if (!string.IsNullOrEmpty(text) && text != "Ctrl")
-                    {
-                        return text;
-                    }
-                }
-
-                // Also check legacy Text component
-                var uiText = go.GetComponentInChildren<Text>();
-                if (uiText != null)
-                {
-                    string text = uiText.text?.Trim();
-                    if (!string.IsNullOrEmpty(text) && text != "Ctrl")
-                    {
-                        return text;
-                    }
-                }
+                if (go.name.Contains("PromptButton_Primary"))
+                    return go;
             }
-
             return null;
         }
     }

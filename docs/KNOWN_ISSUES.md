@@ -48,6 +48,14 @@ When you have both activatable creatures on battlefield (like mana creatures) an
 
 Example: Ilysian Caryatid highlighted but Forest in hand not highlighted until Caryatid is tapped.
 
+**Space key pass priority - manual button click required (Jan 2026)**
+
+The game's native Space keybinding for passing priority doesn't work reliably after using mod navigation (C key to hand, arrow keys, etc.). Even clearing EventSystem focus doesn't help - the game checks something else internally.
+
+**Fix:** HotHighlightNavigator now clicks the primary button directly when Space is pressed with no highlights, bypassing the game's native handler entirely.
+
+**Strange behavior observed:** This needs more testing in real duels. The issue appeared suddenly and the root cause is unclear - could be related to game state, UI focus, or internal game keybinding system. The direct button click works reliably but we don't fully understand why the native handler stopped working.
+
 ### Combat
 
 **Blocker selection after targeting**
