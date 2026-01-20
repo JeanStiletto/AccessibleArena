@@ -2,12 +2,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System;
 using TMPro;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Navigator for the AssetPrep (download) screen shown on fresh install.

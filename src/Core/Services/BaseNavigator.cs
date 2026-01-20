@@ -1,12 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Base class for screen navigators. Handles common Tab/Enter navigation,
@@ -989,7 +989,7 @@ namespace MTGAAccessibility.Core.Services
             // Check if this is a card - delegate to CardInfoNavigator
             if (SupportsCardNavigation && CardDetector.IsCard(element))
             {
-                if (MTGAAccessibilityMod.Instance?.ActivateCardDetails(element) == true)
+                if (AccessibleArenaMod.Instance?.ActivateCardDetails(element) == true)
                 {
                     return; // Card navigation took over
                 }
@@ -1027,7 +1027,7 @@ namespace MTGAAccessibility.Core.Services
         {
             if (!SupportsCardNavigation) return;
 
-            var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
             if (cardNavigator == null) return;
 
             if (!IsValidIndex)

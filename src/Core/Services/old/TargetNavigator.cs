@@ -1,11 +1,11 @@
 using UnityEngine;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Handles target selection during spells and abilities.
@@ -251,7 +251,7 @@ namespace MTGAAccessibility.Core.Services
                 _zoneNavigator.SetCurrentZone(targetZone, "TargetNavigator");
 
                 // Prepare CardInfoNavigator for arrow key navigation on this target
-                var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+                var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
                 if (cardNavigator != null && target.GameObject != null)
                 {
                     cardNavigator.PrepareForCard(target.GameObject, targetZone);

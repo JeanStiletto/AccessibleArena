@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Utility class to extract readable text from Unity UI GameObjects.

@@ -219,5 +219,5 @@ BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator >
 1. Identify panel name and key elements
 2. Test if EventSystem works (log `currentSelectedGameObject` on Tab)
 3. If needed, create navigator following existing patterns
-4. Register in `MTGAAccessibilityMod.InitializeServices()` and `OnUpdate()`
+4. Register in `AccessibleArenaMod.InitializeServices()` and `OnUpdate()`
 5. Document here if screen has special requirements

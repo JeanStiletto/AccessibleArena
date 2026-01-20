@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace MTGAAccessibility.Core.Interfaces
+namespace AccessibleArena.Core.Interfaces
 {
     /// <summary>
     /// Interface for screen-specific navigators that handle Tab/Enter navigation

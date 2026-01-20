@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using MelonLoader;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Information about a detected browser.

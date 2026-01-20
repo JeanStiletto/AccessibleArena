@@ -6,9 +6,9 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
+using AccessibleArena.Core.Interfaces;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Tracks UI focus changes using Unity's EventSystem and announces them via screen reader.

@@ -1,6 +1,6 @@
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Models;
 
-namespace MTGAAccessibility.Core.Interfaces
+namespace AccessibleArena.Core.Interfaces
 {
     public interface IAnnouncementService
     {

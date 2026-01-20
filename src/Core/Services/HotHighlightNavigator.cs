@@ -3,14 +3,14 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Unified navigator for all HotHighlight-based navigation.
@@ -403,7 +403,7 @@ namespace MTGAAccessibility.Core.Services
                 var zoneType = StringToZoneType(item.Zone);
                 _zoneNavigator.SetCurrentZone(zoneType, "HotHighlightNavigator");
 
-                var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+                var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
                 if (cardNavigator != null)
                 {
                     cardNavigator.PrepareForCard(item.GameObject, zoneType);

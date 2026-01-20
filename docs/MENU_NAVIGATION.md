@@ -405,10 +405,10 @@ Get-Content 'C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log' 
 Get-Content 'C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log' -Tail 50 -Wait
 
 # Build mod
-dotnet build "C:\Users\fabia\arena\src\MTGAAccessibility.csproj"
+dotnet build "C:\Users\fabia\arena\src\AccessibleArena.csproj"
 
 # Deploy mod (game must be closed)
-Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\MTGAAccessibility.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\MTGAAccessibility.dll' -Force
+Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force
 ```
 
 ---

@@ -3,7 +3,7 @@ using MelonLoader;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Detects active content controllers and screens in the MTGA menu system.
@@ -306,8 +306,9 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Check if the NPE rewards screen is currently active.
-        /// This is used for screen naming only, not for element filtering.
+        /// Check if the NPE rewards screen is currently active (showing unlocked cards).
+        /// Returns true only when ActiveContainer is visible (actual card unlock display).
+        /// Returns false for deck preview screens where ActiveContainer is inactive.
         /// </summary>
         public bool IsNPERewardsScreenActive()
         {
@@ -316,13 +317,23 @@ namespace MTGAAccessibility.Core.Services
                 return false;
 
             // Verify we have an active NPEContentControllerRewards component
+            bool hasController = false;
             foreach (var mb in npeRewardsContainer.GetComponents<MonoBehaviour>())
             {
                 if (mb != null && mb.GetType().Name == "NPEContentControllerRewards")
-                    return true;
+                {
+                    hasController = true;
+                    break;
+                }
             }
+            if (!hasController) return false;
 
-            return false;
+            // Check if ActiveContainer is actually visible (card unlock vs deck preview)
+            var activeContainer = npeRewardsContainer.transform.Find("ActiveContainer");
+            if (activeContainer == null || !activeContainer.gameObject.activeInHierarchy)
+                return false;
+
+            return true;
         }
 
         #endregion

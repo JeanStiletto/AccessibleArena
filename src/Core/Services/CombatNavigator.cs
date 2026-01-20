@@ -2,11 +2,11 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Handles combat phase navigation.

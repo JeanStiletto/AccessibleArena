@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 // NOTE: System.Runtime.InteropServices kept for potential WinAPI reactivation
 // using System.Runtime.InteropServices;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /*
     // =============================================================================

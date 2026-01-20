@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Tracks which navigator set the current zone.
@@ -653,7 +653,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Prepare card info navigation with zone context
-            var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
             if (cardNavigator != null && CardDetector.IsCard(card))
             {
                 cardNavigator.PrepareForCard(card, _currentZone);

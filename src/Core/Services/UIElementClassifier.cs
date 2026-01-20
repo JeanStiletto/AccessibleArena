@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using MelonLoader;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Classifies UI elements by their role and determines navigability.

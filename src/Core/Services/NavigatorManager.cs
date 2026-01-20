@@ -1,10 +1,10 @@
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Patches;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Patches;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Manages all screen navigators. Only one navigator is active at a time.

@@ -1,4 +1,4 @@
-namespace MTGAAccessibility.Core.Models
+namespace AccessibleArena.Core.Models
 {
     /// <summary>
     /// Centralized storage for all user-facing announcement strings.

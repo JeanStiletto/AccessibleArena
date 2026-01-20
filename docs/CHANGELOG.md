@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the MTGA Accessibility Mod.
+All notable changes to the Accessible Arena.
 
 ## January 2026
 
@@ -212,7 +212,7 @@ Replaced the single-announcement F1 help with an interactive, navigable help men
 **Localization:**
 All help strings are in `Core/Models/Strings.cs` ready for future translation.
 
-**Files:** `HelpNavigator.cs` (new), `Strings.cs`, `MTGAAccessibilityMod.cs`
+**Files:** `HelpNavigator.cs` (new), `Strings.cs`, `AccessibleArenaMod.cs`
 
 ---
 
@@ -661,7 +661,7 @@ Replaced separate `TargetNavigator` + `HighlightNavigator` with unified `HotHigh
 - `HandleFocusChanged` no longer overwrites zone context
 - Added emote button filtering and combat button filtering
 
-**Files:** `PlayerPortraitNavigator.cs`, `ZoneNavigator.cs`, `BattlefieldNavigator.cs`, `HighlightNavigator.cs`, `CombatNavigator.cs`, `MTGAAccessibilityMod.cs`
+**Files:** `PlayerPortraitNavigator.cs`, `ZoneNavigator.cs`, `BattlefieldNavigator.cs`, `HighlightNavigator.cs`, `CombatNavigator.cs`, `AccessibleArenaMod.cs`
 
 ---
 

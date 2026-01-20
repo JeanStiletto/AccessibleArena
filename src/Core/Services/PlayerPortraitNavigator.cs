@@ -1,12 +1,12 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Linq;
 using TMPro;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Navigator for player portrait/timer interactions during duels.

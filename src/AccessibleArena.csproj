@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <AssemblyName>MTGAAccessibility</AssemblyName>
-    <RootNamespace>MTGAAccessibility</RootNamespace>
+    <AssemblyName>AccessibleArena</AssemblyName>
+    <RootNamespace>AccessibleArena</RootNamespace>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 

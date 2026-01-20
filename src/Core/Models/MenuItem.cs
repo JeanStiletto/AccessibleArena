@@ -1,7 +1,7 @@
 using System;
-using MTGAAccessibility.Core.Interfaces;
+using AccessibleArena.Core.Interfaces;
 
-namespace MTGAAccessibility.Core.Models
+namespace AccessibleArena.Core.Models
 {
     public class MenuItem : INavigable
     {

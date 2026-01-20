@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Navigator for browser UIs in the duel scene.
@@ -206,7 +206,7 @@ namespace MTGAAccessibility.Core.Services
             {
                 if (_browserCards.Count > 0 && _currentCardIndex >= 0)
                 {
-                    var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+                    var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
                     if (cardNav != null && cardNav.IsActive)
                     {
                         return false; // Let CardInfoNavigator handle it
@@ -581,7 +581,7 @@ namespace MTGAAccessibility.Core.Services
             _announcer.Announce(announcement, AnnouncementPriority.High);
 
             // Prepare CardInfoNavigator
-            MTGAAccessibilityMod.Instance?.CardNavigator?.PrepareForCard(card, ZoneType.Library);
+            AccessibleArenaMod.Instance?.CardNavigator?.PrepareForCard(card, ZoneType.Library);
         }
 
         /// <summary>

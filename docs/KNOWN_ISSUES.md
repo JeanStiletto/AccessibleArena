@@ -2,6 +2,22 @@
 
 Active bugs and limitations in the MTGA Accessibility Mod.
 
+## Potential Issues (Monitor)
+
+### Container Element Filtering
+
+**Filter: Elements with "Container" in name + 0x0 sizeDelta are skipped**
+
+Added to filter wrapper objects like `NPE-Rewards_Container` that have CustomButton but aren't real interactive buttons. These have 0x0 sizeDelta and text inherited from children.
+
+**Risk:** Some legitimate clickable containers might use anchor-based sizing (sizeDelta=0) and would be incorrectly filtered.
+
+**If a button stops working:** Check if its name contains "Container" and if the element uses anchor-based sizing. May need to revert or refine the filter in `UIElementClassifier.ShouldBeFiltered()`.
+
+**Location:** `UIElementClassifier.cs` - search for "container" in `ShouldBeFiltered` method.
+
+---
+
 ## Active Bugs
 
 ### Confirmation Dialogs (SystemMessageView)

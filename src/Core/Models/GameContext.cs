@@ -1,4 +1,4 @@
-namespace MTGAAccessibility.Core.Models
+namespace AccessibleArena.Core.Models
 {
     public enum GameContext
     {

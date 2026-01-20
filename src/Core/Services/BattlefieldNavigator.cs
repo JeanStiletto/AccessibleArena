@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Handles battlefield navigation organized into 6 logical rows by card type and ownership.
@@ -539,7 +539,7 @@ namespace MTGAAccessibility.Core.Services
             }
 
             // Prepare card info navigation (for Arrow Up/Down detail viewing)
-            var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
             if (cardNavigator != null && CardDetector.IsCard(card))
             {
                 cardNavigator.PrepareForCard(card, ZoneType.Battlefield);

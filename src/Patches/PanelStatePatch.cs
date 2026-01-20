@@ -4,7 +4,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 
-namespace MTGAAccessibility.Patches
+namespace AccessibleArena.Patches
 {
     /// <summary>
     /// Harmony patch for intercepting panel state changes from game controllers.

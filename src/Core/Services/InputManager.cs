@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
+using AccessibleArena.Core.Interfaces;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Input manager that handles keyboard input with the ability to consume/block

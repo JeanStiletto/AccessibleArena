@@ -1,4 +1,4 @@
-namespace MTGAAccessibility.Core.Interfaces
+namespace AccessibleArena.Core.Interfaces
 {
     public interface INavigable
     {

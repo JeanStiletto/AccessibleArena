@@ -1,7 +1,7 @@
 using UnityEngine;
-using MTGAAccessibility.Core.Interfaces;
+using AccessibleArena.Core.Interfaces;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Navigator for the WelcomeGate (login/register choice) screen.

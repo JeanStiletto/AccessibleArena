@@ -3,12 +3,12 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Handles Tab navigation through highlighted/playable cards during normal gameplay.
@@ -297,7 +297,7 @@ namespace MTGAAccessibility.Core.Services
             _zoneNavigator.SetCurrentZone(cardZoneType, "HighlightNavigator");
 
             // Prepare card for detailed navigation with arrow keys
-            var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
             if (cardNavigator != null)
             {
                 var zoneType = StringToZoneType(card.Zone);

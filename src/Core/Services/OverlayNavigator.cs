@@ -1,11 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
+using AccessibleArena.Core.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Handles modal overlays that appear on top of other screens.

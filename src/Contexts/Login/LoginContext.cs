@@ -1,8 +1,8 @@
-using MTGAAccessibility.Contexts.Base;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Contexts.Base;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 
-namespace MTGAAccessibility.Contexts.Login
+namespace AccessibleArena.Contexts.Login
 {
     /// <summary>
     /// Context for the login scene. Handles multiple panels:

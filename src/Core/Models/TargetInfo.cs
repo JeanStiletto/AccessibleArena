@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace MTGAAccessibility.Core.Models
+namespace AccessibleArena.Core.Models
 {
     /// <summary>
     /// Information about a valid target during target selection.

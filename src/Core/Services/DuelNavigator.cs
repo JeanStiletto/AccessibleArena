@@ -2,13 +2,13 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Navigator for the actual duel/gameplay in DuelScene.
@@ -92,7 +92,7 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Called by MTGAAccessibilityMod when DuelScene loads.
+        /// Called by AccessibleArenaMod when DuelScene loads.
         /// </summary>
         public void OnDuelSceneLoaded()
         {

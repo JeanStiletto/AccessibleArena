@@ -2,9 +2,9 @@ using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using MelonLoader;
-using MTGAAccessibility.Core.Services;
+using AccessibleArena.Core.Services;
 
-namespace MTGAAccessibility.Patches
+namespace AccessibleArena.Patches
 {
     /// <summary>
     /// Harmony patch for MTGA.KeyboardManager.KeyboardManager to block keys

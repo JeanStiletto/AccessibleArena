@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace MTGAAccessibility
+namespace AccessibleArena
 {
     public static class ScreenReaderOutput
     {

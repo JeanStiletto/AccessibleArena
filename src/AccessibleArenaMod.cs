@@ -1,20 +1,20 @@
 using MelonLoader;
 using UnityEngine;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
-using MTGAAccessibility.Core.Services;
-using MTGAAccessibility.Contexts.Login;
-using MTGAAccessibility.Contexts.MainMenu;
-using MTGAAccessibility.Patches;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Services;
+using AccessibleArena.Contexts.Login;
+using AccessibleArena.Contexts.MainMenu;
+using AccessibleArena.Patches;
 
-[assembly: MelonInfo(typeof(MTGAAccessibility.MTGAAccessibilityMod), "MTGA Accessibility", "0.1.0", "Accessibility Mod Team")]
+[assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "0.1.0-beta", "Accessible Arena Team")]
 [assembly: MelonGame("Wizards Of The Coast", "MTGA")]
 
-namespace MTGAAccessibility
+namespace AccessibleArena
 {
-    public class MTGAAccessibilityMod : MelonMod
+    public class AccessibleArenaMod : MelonMod
     {
-        public static MTGAAccessibilityMod Instance { get; private set; }
+        public static AccessibleArenaMod Instance { get; private set; }
 
         private IAnnouncementService _announcer;
         private IContextManager _contextManager;
@@ -33,7 +33,7 @@ namespace MTGAAccessibility
         public override void OnInitializeMelon()
         {
             Instance = this;
-            LoggerInstance.Msg("MTGA Accessibility Mod initializing...");
+            LoggerInstance.Msg("Accessible Arena initializing...");
 
             if (!ScreenReaderOutput.Initialize())
             {
@@ -51,7 +51,7 @@ namespace MTGAAccessibility
 
             _initialized = true;
 
-            LoggerInstance.Msg("MTGA Accessibility Mod initialized");
+            LoggerInstance.Msg("Accessible Arena initialized");
             _announcer.Announce(Strings.ModLoaded, AnnouncementPriority.High);
         }
 
@@ -294,7 +294,7 @@ namespace MTGAAccessibility
 
         public override void OnApplicationQuit()
         {
-            LoggerInstance.Msg("MTGA Accessibility Mod shutting down...");
+            LoggerInstance.Msg("Accessible Arena shutting down...");
             ScreenReaderOutput.Shutdown();
         }
     }

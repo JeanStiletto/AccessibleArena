@@ -1,11 +1,11 @@
 using UnityEngine;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
+using AccessibleArena.Core.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Tracks panel state changes, popup appearances, and overlay management
@@ -276,7 +276,14 @@ namespace MTGAAccessibility.Core.Services
             "Panel - Log In",
             "Panel - Register",
             "Panel - ForgotCredentials",
-            "Panel - AgeGate"
+            "Panel - AgeGate",
+            "Panel - Language",
+            "Panel - Consent",
+            "Panel - EULA",
+            "Panel - Marketing",
+            "Panel - Terms",
+            "Panel - Privacy",
+            "Panel - UpdatePolicies"
         };
 
         /// <summary>
@@ -377,7 +384,6 @@ namespace MTGAAccessibility.Core.Services
                         if (!activePanels.Any(p => p.name == panelId))
                         {
                             activePanels.Add((panelId, child.gameObject));
-                            MelonLogger.Msg($"[{_logPrefix}] Detected Login panel: {childName}");
                         }
                         break;
                     }

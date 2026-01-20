@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace MTGAAccessibility.Core.Interfaces
+namespace AccessibleArena.Core.Interfaces
 {
     public interface IInputHandler
     {

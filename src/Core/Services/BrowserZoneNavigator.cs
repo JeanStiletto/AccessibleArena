@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
-using MTGAAccessibility.Core.Models;
+using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Zone type for browser navigation.
@@ -220,7 +220,7 @@ namespace MTGAAccessibility.Core.Services
                 _announcer.Announce($"{zoneName}: {currentList.Count} cards. {cardName}, 1 of {currentList.Count}", AnnouncementPriority.High);
 
                 // Update CardInfoNavigator with this card
-                var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+                var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
                 cardNav?.PrepareForCard(firstCard, ZoneType.Library);
             }
 
@@ -339,7 +339,7 @@ namespace MTGAAccessibility.Core.Services
             _announcer.Announce($"{cardName}, {zoneName}, {_cardIndex + 1} of {currentList.Count}", AnnouncementPriority.High);
 
             // Update CardInfoNavigator
-            var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+            var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
             cardNav?.PrepareForCard(card, ZoneType.Library);
         }
 
@@ -432,7 +432,7 @@ namespace MTGAAccessibility.Core.Services
                 _announcer.Announce(announcement, AnnouncementPriority.Normal);
 
                 // Update CardInfoNavigator
-                var cardNav = MTGAAccessibilityMod.Instance?.CardNavigator;
+                var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
                 cardNav?.PrepareForCard(currentCard, ZoneType.Library);
             }
         }

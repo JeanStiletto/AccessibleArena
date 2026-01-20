@@ -3,11 +3,11 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
-using MTGAAccessibility.Core.Interfaces;
+using AccessibleArena.Core.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MTGAAccessibility.Core.Services
+namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// General-purpose navigator for menu screens that use CustomButton components.

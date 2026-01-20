@@ -1,12 +1,12 @@
-# MTGA Accessibility Mod - Structure & Status
+# Accessible Arena - Structure & Status
 
 ## Project Layout
 
 ```
 C:\Users\fabia\arena\
   src\
-    MTGAAccessibility.csproj
-    MTGAAccessibilityMod.cs      - MelonLoader entry point, holds central services
+    AccessibleArena.csproj
+    AccessibleArenaMod.cs      - MelonLoader entry point, holds central services
     ScreenReaderOutput.cs        - Tolk wrapper
 
     Core\
@@ -380,7 +380,7 @@ See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for active bugs, limitations, and planned
 ## Deployment
 
 ### File Locations
-- Mod: `C:\Program Files\Wizards of the Coast\MTGA\Mods\MTGAAccessibility.dll`
+- Mod: `C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll`
 - Tolk: `C:\Program Files\Wizards of the Coast\MTGA\Tolk.dll`
 - NVDA client: `C:\Program Files\Wizards of the Coast\MTGA\nvdaControllerClient64.dll`
 - Log: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`

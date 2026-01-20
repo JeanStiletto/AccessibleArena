@@ -1,4 +1,4 @@
-# MTGA Accessibility Mod
+# Accessible Arena
 
 ## Purpose
 Accessibility mod for Magic: The Gathering Arena enabling blind players to play using NVDA screen reader.
@@ -53,10 +53,10 @@ Detailed documentation in `docs/`:
 ### Build & Deploy
 ```powershell
 # Build
-dotnet build "C:\Users\fabia\arena\src\MTGAAccessibility.csproj"
+dotnet build "C:\Users\fabia\arena\src\AccessibleArena.csproj"
 
 # Deploy (game must be closed)
-Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\MTGAAccessibility.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\MTGAAccessibility.dll' -Force
+Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force
 ```
 
 ### MelonLoader Logs
@@ -65,7 +65,7 @@ Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\MTGAAccessibility.dll
 - Read last 300 lines: `Get-Content '...\Latest.log' -Tail 300`
 
 ### Deployment Paths
-- Mod DLL: `C:\Program Files\Wizards of the Coast\MTGA\Mods\MTGAAccessibility.dll`
+- Mod DLL: `C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll`
 - Tolk DLLs in game root
 
 ### Key Utilities (always use these)

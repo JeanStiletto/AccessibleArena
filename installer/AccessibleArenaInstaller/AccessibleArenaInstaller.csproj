@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>AccessibleArenaInstaller</AssemblyName>
+    <RootNamespace>AccessibleArenaInstaller</RootNamespace>
+    <Version>1.0.0</Version>
+    <Company>Accessible Arena</Company>
+    <Product>Accessible Arena Installer</Product>
+    <Description>Installer for Accessible Arena - enables blind players to play Magic: The Gathering Arena</Description>
+    <Copyright>2024</Copyright>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!-- Framework references for HTTP and ZIP -->
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <!-- Tolk DLLs embedded as resources - extracted at install time -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Tolk.dll" />
+    <EmbeddedResource Include="Resources\nvdaControllerClient64.dll" />
+  </ItemGroup>
+
+</Project>

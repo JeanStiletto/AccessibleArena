@@ -1,4 +1,4 @@
-# MTGA Accessibility Mod - Best Practices
+# Accessible Arena - Best Practices
 
 Coding patterns and utilities for the accessibility mod. For game architecture and internals, see [GAME_ARCHITECTURE.md](GAME_ARCHITECTURE.md).
 
@@ -463,15 +463,15 @@ through many cards without performance impact.
 
 **Manual Activation (legacy):**
 ```csharp
-MTGAAccessibilityMod.Instance.ActivateCardDetails(element);
+AccessibleArenaMod.Instance.ActivateCardDetails(element);
 ```
 
 **Preparing for a card (used by navigators):**
 ```csharp
 // Default (Hand zone)
-MTGAAccessibilityMod.Instance.CardNavigator.PrepareForCard(element);
+AccessibleArenaMod.Instance.CardNavigator.PrepareForCard(element);
 // With explicit zone
-MTGAAccessibilityMod.Instance.CardNavigator.PrepareForCard(element, ZoneType.Battlefield);
+AccessibleArenaMod.Instance.CardNavigator.PrepareForCard(element, ZoneType.Battlefield);
 ```
 
 **Info block order varies by zone:**
@@ -959,7 +959,7 @@ public class MyScreenNavigator : BaseNavigator
 }
 ```
 
-2. Register in `MTGAAccessibilityMod.InitializeServices()`:
+2. Register in `AccessibleArenaMod.InitializeServices()`:
 ```csharp
 _navigatorManager.RegisterAll(
     new MyScreenNavigator(_announcer),
@@ -1026,7 +1026,7 @@ private void UpdateCardNavigation()
 {
     if (!SupportsCardNavigation) return;
 
-    var cardNavigator = MTGAAccessibilityMod.Instance?.CardNavigator;
+    var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
     if (cardNavigator == null) return;
 
     if (!IsValidIndex)
@@ -1059,7 +1059,7 @@ private void ActivateElement(int index)
     // Check if card - delegate to central CardInfoNavigator
     if (CardDetector.IsCard(element))
     {
-        if (MTGAAccessibilityMod.Instance.ActivateCardDetails(element))
+        if (AccessibleArenaMod.Instance.ActivateCardDetails(element))
             return;
     }
 

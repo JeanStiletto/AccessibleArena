@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace MTGAAccessibility.Core.Models
+namespace AccessibleArena.Core.Models
 {
     public class ShortcutDefinition
     {
