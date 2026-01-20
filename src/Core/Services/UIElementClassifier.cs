@@ -536,8 +536,15 @@ namespace MTGAAccessibility.Core.Services
                         }
                         if (!parentCG.interactable && !parentCG.ignoreParentGroups)
                         {
-                            if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup interactable=false");
-                            return false;
+                            // Allow FriendsWidget elements through - they use non-standard interactable patterns
+                            // where parent CanvasGroups may be non-interactable but children should still be navigable
+                            bool isFriendsElement = IsInsideFriendsWidget(obj)
+                                && !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
+                            if (!isFriendsElement)
+                            {
+                                if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup interactable=false");
+                                return false;
+                            }
                         }
                     }
                 }
@@ -684,6 +691,19 @@ namespace MTGAAccessibility.Core.Services
             if (!IsVisibleViaCanvasGroup(obj))
                 return true;
 
+            // Filter container elements with 0x0 size - they're wrapper objects, not real buttons
+            // NOTE: May need to revert if we find clickable containers (see KNOWN_ISSUES.md)
+            if (ContainsIgnoreCase(obj.name, "container"))
+            {
+                var rectTransform = obj.GetComponent<RectTransform>();
+                if (rectTransform != null)
+                {
+                    Vector2 size = rectTransform.sizeDelta;
+                    if (size.x <= 0 && size.y <= 0)
+                        return true;
+                }
+            }
+
             // Filter decorative/graphical elements with no content and zero size
             if (IsDecorativeGraphicalElement(obj))
                 return true;
@@ -746,6 +766,10 @@ namespace MTGAAccessibility.Core.Services
             if (ContainsIgnoreCase(name, "fade") && !ContainsIgnoreCase(name, "nav"))
                 return true;
 
+            // Null-prefixed elements are placeholders (NullClaimButton, NullText_*, etc.)
+            if (name.StartsWith("Null", System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
             // Dismiss buttons (internal UI close buttons)
             // BUT: Allow dismiss inside FriendsWidget (Button_TopBarDismiss is the panel header)
             if (ContainsIgnoreCase(name, "dismiss") && !IsInsideFriendsWidget(obj))
@@ -760,7 +784,8 @@ namespace MTGAAccessibility.Core.Services
                 return true;
 
             // Small image-only buttons without text (decorative icons, NPC portraits)
-            if (IsSmallImageOnlyButton(obj))
+            // BUT: Allow inside FriendsWidget (Backer_Hitbox elements are clickable friend items)
+            if (IsSmallImageOnlyButton(obj) && !IsInsideFriendsWidget(obj))
                 return true;
 
             // Hitboxes without actual text content

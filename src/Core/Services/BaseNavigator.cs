@@ -311,6 +311,16 @@ namespace MTGAAccessibility.Core.Services
         /// </summary>
         protected virtual void HandleInputFieldNavigation()
         {
+            // F4 should work even in input fields (toggle Friends panel)
+            // Exit edit mode and let HandleCustomInput process it
+            if (Input.GetKeyDown(KeyCode.F4))
+            {
+                _editingInputField = null;
+                UIFocusTracker.ExitInputFieldEditMode();
+                HandleCustomInput();
+                return;
+            }
+
             // Escape exits edit mode (game's Escape is blocked while editing)
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -644,8 +654,17 @@ namespace MTGAAccessibility.Core.Services
                         MoveNext();
                     return;
                 }
-                // All other keys (arrows for cursor, Backspace for delete) pass through to input field
-                return;
+                // F4 should work even in input fields (toggle Friends panel)
+                // Let it fall through to HandleCustomInput()
+                if (Input.GetKeyDown(KeyCode.F4))
+                {
+                    // Don't return - let HandleCustomInput process it
+                }
+                else
+                {
+                    // All other keys (arrows for cursor, Backspace for delete) pass through to input field
+                    return;
+                }
             }
 
             // When a dropdown is open, let Unity handle arrow key navigation
@@ -872,6 +891,13 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_elements.Count == 0) return;
 
+            // Single element: re-announce it instead of saying "end/beginning of list"
+            if (_elements.Count == 1)
+            {
+                AnnounceCurrentElement();
+                return;
+            }
+
             int newIndex = _currentIndex + direction;
 
             // Check boundaries - no wrapping
@@ -900,9 +926,10 @@ namespace MTGAAccessibility.Core.Services
         {
             if (_elements.Count == 0) return;
 
+            // Single element or already at first: re-announce current
             if (_currentIndex == 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                AnnounceCurrentElement();
                 return;
             }
 
@@ -917,9 +944,10 @@ namespace MTGAAccessibility.Core.Services
             if (_elements.Count == 0) return;
 
             int lastIndex = _elements.Count - 1;
+            // Single element or already at last: re-announce current
             if (_currentIndex == lastIndex)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                AnnounceCurrentElement();
                 return;
             }
 

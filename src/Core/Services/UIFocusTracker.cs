@@ -117,6 +117,7 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Deactivate any currently focused input field.
         /// Called when user presses Escape to exit an input field they clicked into.
+        /// Also clears EventSystem selection so IsAnyInputFieldFocused() returns false.
         /// </summary>
         public static void DeactivateFocusedInputField()
         {
@@ -127,18 +128,30 @@ namespace MTGAAccessibility.Core.Services
             var selected = eventSystem.currentSelectedGameObject;
 
             var tmpInput = selected.GetComponent<TMPro.TMP_InputField>();
-            if (tmpInput != null && tmpInput.isFocused)
+            if (tmpInput != null)
             {
-                tmpInput.DeactivateInputField();
-                MelonLogger.Msg($"[FocusTracker] Deactivated TMP_InputField: {selected.name}");
+                // Deactivate if focused (caret visible)
+                if (tmpInput.isFocused)
+                {
+                    tmpInput.DeactivateInputField();
+                }
+                // Always clear selection so IsAnyInputFieldFocused() returns false
+                // MTGA auto-activates input fields on selection, so we need to clear
+                // even if isFocused is false (caret not visible but still selected)
+                eventSystem.SetSelectedGameObject(null);
+                MelonLogger.Msg($"[FocusTracker] Deactivated TMP_InputField: {selected.name} (wasFocused={tmpInput.isFocused})");
                 return;
             }
 
             var legacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
-            if (legacyInput != null && legacyInput.isFocused)
+            if (legacyInput != null)
             {
-                legacyInput.DeactivateInputField();
-                MelonLogger.Msg($"[FocusTracker] Deactivated InputField: {selected.name}");
+                if (legacyInput.isFocused)
+                {
+                    legacyInput.DeactivateInputField();
+                }
+                eventSystem.SetSelectedGameObject(null);
+                MelonLogger.Msg($"[FocusTracker] Deactivated InputField: {selected.name} (wasFocused={legacyInput.isFocused})");
                 return;
             }
         }

@@ -65,8 +65,18 @@ This solves multiple problems at once:
 - Tab: Exit input field and move to next element
 - Shift+Tab: Exit input field and move to previous element
 - Escape: Exit input field (stay on current element)
+- F4: Exit input field and toggle Friends panel (works even while editing)
 - Arrow Up/Down: Read full input field content
 - Arrow Left/Right: Read character at cursor
+
+**Input Field Exit Behavior (January 2026):**
+When exiting an input field (via Escape, Tab, or F4), the mod:
+1. Deactivates the input field (stops text input)
+2. Clears EventSystem selection (`SetSelectedGameObject(null)`)
+
+This ensures `IsAnyInputFieldFocused()` returns false after exit, allowing subsequent
+key presses (like Escape to close a popup) to work correctly. MTGA auto-selects input
+fields, so clearing selection is required even when the field wasn't actively focused.
 
 **Duel Navigation:**
 - Tab/Shift+Tab: Cycle highlights (playable cards, targets)
@@ -1168,6 +1178,15 @@ are still visible. Without this exception, buttons like "Return to Arena" would 
 filtered.
 - NOTE: This is a broad exception - may show elements that shouldn't be visible. May need
   tightening if unwanted elements appear.
+
+**FriendsWidget Exception (January 2026):**
+Elements inside `FriendsWidget` (detected via `IsInsideFriendsWidget()`) bypass several filters:
+- Parent CanvasGroup interactable check - FriendsWidget uses non-standard interactable patterns
+- Small image-only button filter - `Backer_Hitbox` elements have 0x0 size but are clickable
+- Hitbox/backer name filters - These ARE the clickable friend items in FriendsWidget
+
+The exception requires elements to have meaningful text via `GetText()` (not just be inside
+FriendsWidget). Text is derived from parent object names (e.g., `Button_AddFriend` → "add friend").
 
 **2. Name Patterns (`IsFilteredByNamePattern`)**
 - `blocker` - Modal click blockers
