@@ -84,6 +84,7 @@ namespace AccessibleArena
             // WelcomeGateNavigator removed - GeneralMenuNavigator handles Login scene
             _navigatorManager.RegisterAll(
                 new OverlayNavigator(_announcer),
+                new BoosterOpenNavigator(_announcer),  // Pack opening card list (priority 80)
                 // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),
                 // CodeOfConductNavigator removed - default navigation handles this screen

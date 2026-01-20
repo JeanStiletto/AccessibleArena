@@ -217,6 +217,33 @@ The UIActivator contains ~47 lines of commented WinAPI code (mouse_event, SetCur
 
 ## Recently Completed
 
+### Booster Pack Card List (Jan 2026)
+
+Pack opening card list is now accessible via BoosterOpenNavigator.
+
+**Status:** Partially tested - ran out of booster packs during development.
+
+**Known issues:**
+- Some cards show as "Unknown card" - possibly planeswalkers or other special card types
+- Card name extraction may pick up rules text instead of card name for some card layouts
+
+**Features:**
+- Detects when pack contents are displayed (via CardScroller or RevealAll button)
+- Navigates through all revealed cards with Left/Right arrows
+- Announces card name and type for each card
+- Includes "Reveal All" button navigation
+- Includes dismiss/continue button navigation
+- Full CardDetector integration for detailed card info (press Enter on card)
+
+**Keyboard shortcuts:**
+- Left/Right arrows (or A/D): Navigate between cards
+- Up/Down arrows: Read card details (handled by card navigator)
+- Enter: View detailed card info for selected card
+- Home/End: Jump to first/last item
+- Backspace: Close pack view
+
+**Location:** `src/Core/Services/BoosterOpenNavigator.cs`
+
 ### Friends Panel Fixes (Jan 2026)
 
 Fixed Friends panel navigation that was broken after code quality refactoring.
@@ -239,50 +266,6 @@ Card counts for hidden zones are now accessible:
 - **Shift+C**: Opponent's hand card count
 
 Counts are tracked via UpdateZoneUXEvent and announced on demand.
-
-## Investigation Findings (Ready to Implement)
-
-### Booster Pack Card List (BoosterOpenToScrollListController)
-
-**Status:** UI structure discovered, ready to implement.
-
-**Context:** After clicking a booster pack in the Packs screen, a card list appears showing the cards you'll receive. This list is not currently accessible.
-
-**Controller:** `BoosterOpenToScrollListController`
-- Location: `ContentController - BoosterChamber_v2_Desktop_16x9(Clone)/SafeArea/BoosterOpenToScrollListController`
-- Does NOT have an `IsOpen` property we can monitor
-- Is a child of the BoosterChamber controller (already detected)
-
-**UI Structure (from F12 debug dump):**
-```
-Canvas: Menu_FooterButtons (sortingOrder: 0)
-  RightContainer [CanvasGroup]
-    RevealAll_MainButtonOutline_v2 [CustomButton]  <-- "Reveal All" button
-      Text [TextMeshProUGUI, Localize]
-
-Multiple instances of:
-Canvas (sortingOrder: 0)
-  Scroll View [ScrollRect]
-    Viewport [Mask, Image]
-      EntryRoot  <-- Card entries are children of this
-```
-
-**Key Elements to Make Accessible:**
-1. **RevealAll_MainButtonOutline_v2** - CustomButton to reveal all cards at once
-2. **Card entries** - Inside `Scroll View/Viewport/EntryRoot` (need deeper exploration to find card structure)
-3. **ModalFade** - CustomButton on BoosterChamber (possibly close/dismiss function)
-
-**Implementation Plan:**
-1. Detect `BoosterOpenToScrollListController` GameObject becoming active
-2. Find all `EntryRoot` containers and their card children
-3. Extract card info from entries (likely have CardView or similar components)
-4. Add RevealAll button to navigation
-5. Allow Tab/arrow navigation through cards
-6. Cards should announce their name, rarity, etc.
-
-**Debug Tool Added:** Press F12 in GeneralMenuNavigator to dump UI hierarchy (useful for further exploration).
-
----
 
 ## Planned Features
 
