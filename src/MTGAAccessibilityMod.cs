@@ -86,9 +86,9 @@ namespace MTGAAccessibility
                 new OverlayNavigator(_announcer),
                 // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),
-                new CodeOfConductNavigator(_announcer),
+                // CodeOfConductNavigator removed - default navigation handles this screen
                 new GeneralMenuNavigator(_announcer),
-                new EventTriggerNavigator(_announcer),
+                // EventTriggerNavigator removed - GeneralMenuNavigator now handles NPE screens
                 new AssetPrepNavigator(_announcer)  // Download screen - low priority, fails gracefully
             );
 

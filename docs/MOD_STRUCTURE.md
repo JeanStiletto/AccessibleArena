@@ -50,6 +50,7 @@ C:\Users\fabia\arena\
           TargetNavigator.cs     - OLD: Separate target selection (replaced by HotHighlightNavigator)
           HighlightNavigator.cs  - OLD: Separate playable card cycling (replaced by HotHighlightNavigator)
           LoginPanelNavigator.cs - OLD: Login screen (replaced by GeneralMenuNavigator, Jan 2026)
+          EventTriggerNavigator.cs - OLD: NPE screens (replaced by GeneralMenuNavigator, Jan 2026)
 
         # Navigator Infrastructure
         BaseNavigator.cs         - Abstract base for screen navigators
@@ -64,11 +65,11 @@ C:\Users\fabia\arena\
         AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
         WelcomeGateNavigator.cs      - Welcome/login choice screen
         # LoginPanelNavigator removed - GeneralMenuNavigator handles Login scene
-        CodeOfConductNavigator.cs    - Terms/consent checkboxes screen
+        # CodeOfConductNavigator removed - default navigation handles this screen
         DuelNavigator.cs             - Duel gameplay screen (delegates to ZoneNavigator)
-        EventTriggerNavigator.cs     - NPE rewards, pack opening, card reveal
+        # EventTriggerNavigator removed - GeneralMenuNavigator handles NPE screens
         OverlayNavigator.cs          - Modal overlays (What's New, announcements)
-        GeneralMenuNavigator.cs      - Main menu and general menu screens
+        GeneralMenuNavigator.cs      - Main menu, NPE, and general menu screens
 
         # UI Classification
         UIElementClassifier.cs       - Element role detection (button, progress, etc.)
@@ -104,11 +105,11 @@ C:\Users\fabia\arena\
 - [?] AssetPrepNavigator - Download screen on fresh install (UNTESTED, fail-safe design)
 - [x] WelcomeGateNavigator - Login/Register choice screen
 - [x] Login scene - Now handled by GeneralMenuNavigator with password masking
-- [x] CodeOfConductNavigator - Terms/consent checkboxes
+- [x] Code of Conduct - Default navigation (CodeOfConductNavigator deprecated)
 - [x] DuelNavigator - Duel gameplay (zone navigation working)
-- [x] EventTriggerNavigator - NPE rewards, pack opening
+- [x] EventTriggerNavigator - Deprecated, GeneralMenuNavigator handles NPE screens
 - [~] OverlayNavigator - Modal overlays (What's New carousel) - basic implementation
-- [x] GeneralMenuNavigator - Main menu navigation with reliable overlay detection
+- [x] GeneralMenuNavigator - Main menu, NPE screens, and general menu navigation
 
 ### Menu Panel Detection (Harmony Patches)
 - [x] PanelStatePatch - Harmony patches for panel state changes

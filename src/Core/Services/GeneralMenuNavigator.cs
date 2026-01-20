@@ -72,6 +72,10 @@ namespace MTGAAccessibility.Core.Services
         private bool _playBladeActive;
         private string _playBladeState;
 
+        // Login panel waiting - track when panel became inactive (browser may be showing Terms)
+        // Wait indefinitely for panel to return or different panel to appear
+        private float _loginPanelInactiveTime;
+
         #endregion
 
         #region Helper Methods
@@ -840,6 +844,42 @@ namespace MTGAAccessibility.Core.Services
             // Check if current foreground panel became inactive OR changed to a different panel
             if (_foregroundPanel != null)
             {
+                bool isLoginPanel = _foregroundPanel.name.StartsWith("Panel -");
+
+                // Handle Login panel waiting for return - panel may be hidden while browser shows Terms
+                if (isLoginPanel && _loginPanelInactiveTime > 0)
+                {
+                    if (_foregroundPanel.activeInHierarchy)
+                    {
+                        // Panel came back - rescan to refresh elements
+                        MelonLogger.Msg($"[{NavigatorId}] Login panel returned after {Time.time - _loginPanelInactiveTime:F1}s");
+                        _loginPanelInactiveTime = 0;
+                        TriggerRescan();
+                        return;
+                    }
+
+                    // Check if a DIFFERENT Login panel became active (user moved to next screen)
+                    var panelParent = GameObject.Find("Canvas - Camera/PanelParent");
+                    if (panelParent != null)
+                    {
+                        foreach (Transform child in panelParent.transform)
+                        {
+                            if (child != null && child.gameObject.activeInHierarchy &&
+                                child.name.StartsWith("Panel -") && child.gameObject != _foregroundPanel)
+                            {
+                                MelonLogger.Msg($"[{NavigatorId}] Different Login panel detected: {child.name}");
+                                _loginPanelInactiveTime = 0;
+                                _foregroundPanel = child.gameObject;
+                                TriggerRescan();
+                                return;
+                            }
+                        }
+                    }
+
+                    // Still waiting for panel to return (browser may be open)
+                    return;
+                }
+
                 if (!_foregroundPanel.activeInHierarchy)
                 {
                     // Panel deactivated - check if there's a new content panel (submenu navigation)
@@ -852,15 +892,30 @@ namespace MTGAAccessibility.Core.Services
                         TriggerRescan();
                         return;
                     }
-                    else
+
+                    // For Login panels, log what's active in PanelParent to find the overlay
+                    if (isLoginPanel)
                     {
-                        // Overlay actually closed
-                        MelonLogger.Msg($"[{NavigatorId}] Foreground panel closed: {_foregroundPanel.name}");
-                        _foregroundPanel = null;
-                        _activePanels.Clear();
-                        TriggerRescan();
+                        // Check if LoadingPanel is active - loading in progress
+                        var loadingPanel = GameObject.Find("Canvas - Camera/PanelParent/LoadingPanel_Desktop_16x9(Clone)");
+                        if (loadingPanel != null && loadingPanel.activeInHierarchy)
+                        {
+                            return; // Loading in progress, wait
+                        }
+
+                        // Login panel became inactive - likely browser opened for Terms
+                        // Start waiting for it to return (no timeout - wait indefinitely)
+                        _loginPanelInactiveTime = Time.time;
+                        MelonLogger.Msg($"[{NavigatorId}] Login panel inactive - waiting for return (browser may be showing Terms)");
                         return;
                     }
+
+                    // Overlay actually closed (non-Login panels)
+                    MelonLogger.Msg($"[{NavigatorId}] Foreground panel closed: {_foregroundPanel.name}");
+                    _foregroundPanel = null;
+                    _activePanels.Clear();
+                    TriggerRescan();
+                    return;
                 }
             }
 
@@ -1158,12 +1213,6 @@ namespace MTGAAccessibility.Core.Services
                 return false;
             }
 
-            // Don't activate on NPE screens - let EventTriggerNavigator handle those
-            if (IsNPEScreenActive())
-            {
-                return false;
-            }
-
             // Count CustomButtons to determine if this is a menu
             int customButtonCount = CountActiveCustomButtons();
 
@@ -1195,32 +1244,6 @@ namespace MTGAAccessibility.Core.Services
             {
                 var blocker = GameObject.Find(pattern);
                 if (blocker != null && blocker.activeInHierarchy)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check if we're on an NPE (New Player Experience) screen that should be
-        /// handled by EventTriggerNavigator with its specialized logic.
-        /// </summary>
-        protected virtual bool IsNPEScreenActive()
-        {
-            // NPE containers that EventTriggerNavigator handles specially
-            var npeContainers = new[] {
-                "DeckInspection_Container",
-                "NPE-Rewards_Container",
-                "NPE_RewardChest",
-                "NPEContentController"
-            };
-
-            foreach (var containerName in npeContainers)
-            {
-                var container = GameObject.Find(containerName);
-                if (container != null && container.activeInHierarchy)
                 {
                     return true;
                 }
@@ -1870,10 +1893,20 @@ namespace MTGAAccessibility.Core.Services
             // This handles deck folder filtering where Selectable count may not change
             // but the visible decks do change
             // Use force=true to bypass debounce since user explicitly toggled a filter
+            // Skip rescan for Login panels (e.g., UpdatePolicies) - game hides panel briefly during server call
+            // which would cause our foreground detection to think it closed
             if (isToggle)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
-                TriggerRescan(force: true);
+                bool isLoginPanel = _foregroundPanel != null && _foregroundPanel.name.StartsWith("Panel -");
+                if (!isLoginPanel)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
+                    TriggerRescan(force: true);
+                }
+                else
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Toggle activated on Login panel - skipping rescan");
+                }
                 return true;
             }
 

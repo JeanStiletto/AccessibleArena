@@ -588,6 +588,63 @@ namespace MTGAAccessibility.Core.Services
             return false;
         }
 
+        /// <summary>
+        /// Check if element is inside a VS_screen (NPE/pre-game screen).
+        /// These contain decorative elements like NPC portraits that shouldn't be navigable.
+        /// </summary>
+        private static bool IsInsideVSScreen(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+
+            while (current != null && levels < MaxParentSearchDepth)
+            {
+                string name = current.name;
+                if (ContainsIgnoreCase(name, "VS_screen"))
+                    return true;
+                current = current.parent;
+                levels++;
+            }
+
+            return false;
+        }
+
+        // Maximum size for small decorative buttons (pixels)
+        private const int MaxSmallButtonSize = 80;
+
+        /// <summary>
+        /// Check if element is a small image-only button (decorative icon, NPC portrait).
+        /// These have: CustomButton, no actual text, has image, small size.
+        /// </summary>
+        private static bool IsSmallImageOnlyButton(GameObject obj)
+        {
+            // Must have CustomButton
+            if (!HasCustomButton(obj))
+                return false;
+
+            // Must have no actual text content
+            if (UITextExtractor.HasActualText(obj))
+                return false;
+
+            // Must have an Image component (it's an icon/portrait)
+            if (obj.GetComponent<Image>() == null && obj.GetComponent<RawImage>() == null)
+                return false;
+
+            // Must be small (both dimensions under threshold)
+            var rectTransform = obj.GetComponent<RectTransform>();
+            if (rectTransform == null)
+                return false;
+
+            Vector2 size = rectTransform.sizeDelta;
+            if (size.x > MaxSmallButtonSize || size.y > MaxSmallButtonSize)
+                return false;
+
+            // All conditions met - this is a small decorative image button
+            return true;
+        }
+
         private static bool IsInternalElement(GameObject obj, string name, string text)
         {
             // Check game properties first (most reliable)
@@ -694,10 +751,16 @@ namespace MTGAAccessibility.Core.Services
             if (ContainsIgnoreCase(name, "dismiss") && !IsInsideFriendsWidget(obj))
                 return true;
 
-            // Social corner icon (opens friends panel - allow it)
-            // Filter only if NOT the main SocialCornerIcon button
-            if ((ContainsIgnoreCase(name, "socialcorner") || ContainsIgnoreCase(name, "social corner"))
-                && !name.Equals("SocialCornerIcon", System.StringComparison.OrdinalIgnoreCase))
+            // Social corner icon - filter it entirely (F4 opens Friends panel directly)
+            if (ContainsIgnoreCase(name, "socialcorner") || ContainsIgnoreCase(name, "social corner"))
+                return true;
+
+            // VS_screen elements (NPE/pre-game decorative elements like NPC portraits)
+            if (IsInsideVSScreen(obj))
+                return true;
+
+            // Small image-only buttons without text (decorative icons, NPC portraits)
+            if (IsSmallImageOnlyButton(obj))
                 return true;
 
             // Hitboxes without actual text content
