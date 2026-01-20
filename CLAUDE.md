@@ -77,6 +77,7 @@ Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\MTGAAccessibility.dll
 
 **Menu Navigation:**
 Arrow Up/Down (or W/S): Navigate menu items
+Tab/Shift+Tab: Navigate menu items (same as Arrow Up/Down)
 Arrow Left/Right (or A/D): Carousel/stepper controls
 Home: Jump to first item
 End: Jump to last item
@@ -87,6 +88,7 @@ Backspace: Back one level
 Enter: Start editing text field
 Escape: Stop editing, return to navigation
 Tab: Stop editing and move to next element
+Shift+Tab: Stop editing and move to previous element
 Arrow Left/Right (while editing): Read character at cursor
 Arrow Up/Down (while editing): Read full content
 
@@ -130,7 +132,8 @@ F1 (Help Menu - navigable with Up/Down, close with Backspace or F1)
 F2 (Context), Ctrl+R (Repeat)
 Backspace (Back/Dismiss/Cancel - universal)
 
-Do NOT override: Tab (used for duel highlights), Enter, Escape
+Do NOT override: Enter, Escape
+Note: Tab works for both menu navigation and duel highlights
 Note: Arrow keys used differently in menus (navigation) vs duels (zone/card navigation)
 Note: F key used contextually during combat phases (attackers/blockers)
 Note: Space used contextually during duels (main phase pass, combat confirmations)

@@ -275,6 +275,7 @@ namespace MTGAAccessibility.Core.Models
 
         // Menu navigation
         public const string HelpArrowUpDown = "Arrow Up or Down: Navigate menu items";
+        public const string HelpTabNavigation = "Tab or Shift plus Tab: Navigate menu items";
         public const string HelpArrowLeftRight = "Arrow Left or Right: Carousel and stepper controls";
         public const string HelpHomeEnd = "Home or End: Jump to first or last item";
         public const string HelpEnterSpace = "Enter or Space: Activate";
@@ -282,8 +283,9 @@ namespace MTGAAccessibility.Core.Models
         // Input fields (text entry)
         public const string HelpCategoryInputFields = "Input fields";
         public const string HelpEnterEditField = "Enter: Start editing text field";
-        public const string HelpEscapeExitField = "Escape: Stop editing, return to navigation";
+        public const string HelpEscapeExitField = "Escape: Stop editing, stay on field";
         public const string HelpTabNextField = "Tab: Stop editing and move to next element";
+        public const string HelpShiftTabPrevField = "Shift plus Tab: Stop editing and move to previous element";
         public const string HelpArrowsInField = "Arrows in field: Left or Right reads character, Up or Down reads content";
 
         // Zones (yours and opponent)

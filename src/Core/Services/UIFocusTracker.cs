@@ -21,21 +21,10 @@ namespace MTGAAccessibility.Core.Services
         private const int MAX_SELECTABLE_LOG_COUNT = 10;
         private const int MAX_HIERARCHY_DEPTH = 3;
 
-        // Scenes where Tab fallback should NOT apply (HotHighlightNavigator handles Tab)
-        private static readonly HashSet<string> DuelScenes = new HashSet<string>
-        {
-            "DuelScene", "DraftScene", "SealedScene"
-        };
-
         private readonly IAnnouncementService _announcer;
         private GameObject _lastSelected;
         private string _lastAnnouncedText;
         private readonly bool _debugMode = true;
-
-        // Tab navigation fallback state
-        private bool _tabPressedLastFrame;
-        private bool _shiftHeldOnTab;
-        private GameObject _selectionBeforeTab;
 
         // Input field edit mode - only true when user explicitly activated (Enter) the field
         private static bool _inputFieldEditMode;
@@ -257,7 +246,6 @@ namespace MTGAAccessibility.Core.Services
         {
             _announcer = announcer;
         }
-
         #region Public Methods
 
         /// <summary>
@@ -270,121 +258,7 @@ namespace MTGAAccessibility.Core.Services
                 DebugLogKeyPresses();
             }
 
-            // Handle Tab fallback for broken Unity navigation (menu scenes only)
-            HandleTabFallback();
-
             CheckFocusChange();
-        }
-
-        #endregion
-
-        #region Tab Navigation Fallback
-
-        /// <summary>
-        /// Provides Tab navigation fallback when Unity's EventSystem navigation is broken.
-        /// Only applies in menu scenes - duel scenes use HotHighlightNavigator for Tab.
-        /// </summary>
-        private void HandleTabFallback()
-        {
-            var eventSystem = EventSystem.current;
-            if (eventSystem == null) return;
-
-            // Check if Tab was pressed last frame and navigation didn't work
-            if (_tabPressedLastFrame)
-            {
-                _tabPressedLastFrame = false;
-
-                var currentSelection = eventSystem.currentSelectedGameObject;
-
-                // If selection didn't change, manually navigate to next Selectable
-                if (currentSelection == _selectionBeforeTab && currentSelection != null)
-                {
-                    // Only apply fallback in menu scenes, not duel scenes
-                    if (!IsInDuelScene())
-                    {
-                        Log($"Tab navigation stuck on {currentSelection.name}, applying fallback");
-                        NavigateToNextSelectable(_shiftHeldOnTab);
-                    }
-                }
-            }
-
-            // Detect Tab press this frame
-            if (Input.GetKeyDown(KeyCode.Tab))
-            {
-                _tabPressedLastFrame = true;
-                _shiftHeldOnTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                _selectionBeforeTab = eventSystem.currentSelectedGameObject;
-            }
-        }
-
-        /// <summary>
-        /// Check if current scene is a duel scene where HotHighlightNavigator handles Tab.
-        /// </summary>
-        private bool IsInDuelScene()
-        {
-            string sceneName = SceneManager.GetActiveScene().name;
-            return DuelScenes.Contains(sceneName);
-        }
-
-        /// <summary>
-        /// Manually navigate to the next/previous Selectable when Unity's navigation fails.
-        /// </summary>
-        private void NavigateToNextSelectable(bool reverse)
-        {
-            var eventSystem = EventSystem.current;
-            if (eventSystem == null) return;
-
-            var current = eventSystem.currentSelectedGameObject;
-            if (current == null) return;
-
-            // Get all active, interactable Selectables
-            var allSelectables = Selectable.allSelectablesArray
-                .Where(s => s != null && s.isActiveAndEnabled && s.interactable && s.gameObject.activeInHierarchy)
-                .ToList();
-
-            if (allSelectables.Count == 0) return;
-
-            // Sort by position (top-to-bottom, left-to-right) for consistent Tab order
-            allSelectables.Sort((a, b) =>
-            {
-                var posA = a.transform.position;
-                var posB = b.transform.position;
-                // Higher Y = earlier in tab order (top to bottom)
-                // For same Y, lower X = earlier (left to right)
-                int yCompare = posB.y.CompareTo(posA.y);
-                return yCompare != 0 ? yCompare : posA.x.CompareTo(posB.x);
-            });
-
-            // Find current element's index
-            var currentSelectable = current.GetComponent<Selectable>();
-            int currentIndex = currentSelectable != null ? allSelectables.IndexOf(currentSelectable) : -1;
-
-            if (currentIndex == -1)
-            {
-                // Current element isn't a Selectable, find closest one
-                Log("Current selection is not a Selectable, selecting first available");
-                var first = allSelectables.FirstOrDefault();
-                if (first != null)
-                {
-                    eventSystem.SetSelectedGameObject(first.gameObject);
-                }
-                return;
-            }
-
-            // Calculate next index with wrapping
-            int nextIndex;
-            if (reverse)
-            {
-                nextIndex = currentIndex > 0 ? currentIndex - 1 : allSelectables.Count - 1;
-            }
-            else
-            {
-                nextIndex = currentIndex < allSelectables.Count - 1 ? currentIndex + 1 : 0;
-            }
-
-            var nextSelectable = allSelectables[nextIndex];
-            Log($"Tab fallback: {current.name} -> {nextSelectable.gameObject.name}");
-            eventSystem.SetSelectedGameObject(nextSelectable.gameObject);
         }
 
         #endregion

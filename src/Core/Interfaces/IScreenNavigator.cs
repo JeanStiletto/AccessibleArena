@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using UnityEngine;
+
 namespace MTGAAccessibility.Core.Interfaces
 {
     /// <summary>
@@ -35,5 +38,11 @@ namespace MTGAAccessibility.Core.Interfaces
 
         /// <summary>Called when scene changes - opportunity to reset state</summary>
         void OnSceneChanged(string sceneName);
+
+        /// <summary>
+        /// Gets the GameObjects of all navigable elements in order.
+        /// Used by Tab navigation fallback to use the same elements as arrow key navigation.
+        /// </summary>
+        IReadOnlyList<GameObject> GetNavigableGameObjects();
     }
 }

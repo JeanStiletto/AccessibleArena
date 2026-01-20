@@ -50,16 +50,23 @@ This solves multiple problems at once:
 ### Game's Built-in Keybinds (DO NOT OVERRIDE)
 - Enter / Space: Accept / Submit
 - Escape: Cancel / Back
-- Tab: Next item (used by mod for duel highlights only)
 - Alt (hold): Alt view (card details)
 
 ### Mod Navigation Keys
 
 **Menu Navigation:**
-- Arrow Up/Down (or W/S): Navigate menu items (non-wrapping)
+- Arrow Up/Down (or W/S): Navigate menu items
+- Tab/Shift+Tab: Navigate menu items (same as Arrow Up/Down)
 - Arrow Left/Right (or A/D): Carousel/stepper controls
 - Home: Jump to first item
 - End: Jump to last item
+
+**Input Field Navigation:**
+- Tab: Exit input field and move to next element
+- Shift+Tab: Exit input field and move to previous element
+- Escape: Exit input field (stay on current element)
+- Arrow Up/Down: Read full input field content
+- Arrow Left/Right: Read character at cursor
 
 **Duel Navigation:**
 - Tab/Shift+Tab: Cycle highlights (playable cards, targets)

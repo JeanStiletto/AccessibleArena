@@ -44,6 +44,7 @@ namespace MTGAAccessibility.Core.Services
                 // Menu navigation
                 Strings.HelpCategoryMenuNavigation,
                 Strings.HelpArrowUpDown,
+                Strings.HelpTabNavigation,
                 Strings.HelpArrowLeftRight,
                 Strings.HelpHomeEnd,
                 Strings.HelpEnterSpace,
@@ -53,6 +54,7 @@ namespace MTGAAccessibility.Core.Services
                 Strings.HelpEnterEditField,
                 Strings.HelpEscapeExitField,
                 Strings.HelpTabNextField,
+                Strings.HelpShiftTabPrevField,
                 Strings.HelpArrowsInField,
 
                 // Zones in duel (yours and opponent)

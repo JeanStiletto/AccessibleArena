@@ -169,6 +169,28 @@ The UIActivator contains ~47 lines of commented WinAPI code (mouse_event, SetCur
 - Does NOT support player targeting - only creatures receive HotHighlight
 - MatchTimer UI is disabled in tutorial mode
 
+## Design Decisions
+
+### Tab and Arrow Navigation (Jan 2026)
+
+**Current State:** Both Tab and Arrow keys navigate menu elements identically.
+
+- Tab/Shift+Tab = Arrow Down/Up (same `MoveNext()`/`MovePrevious()` calls)
+- Both use the navigator's curated element list
+- No Unity EventSystem fallback - we handle Tab directly in BaseNavigator
+
+**Why:** Unity's EventSystem Tab navigation was unreliable:
+- Moved to wrong elements (especially buttons)
+- Ignored Shift key (went forward instead of backward)
+- Required complex fallback/correction logic
+
+**Future Consideration:** May simplify to arrow-only navigation, removing Tab support in menus. Tab would remain for duel highlights (HotHighlightNavigator). This would:
+- Reduce code complexity
+- Avoid confusion between two navigation methods
+- Match screen reader conventions (arrows for menus)
+
+**Current Status:** Both work, keeping Tab for familiarity with standard form navigation.
+
 ## Recently Completed
 
 ### Friends Panel Fixes (Jan 2026)

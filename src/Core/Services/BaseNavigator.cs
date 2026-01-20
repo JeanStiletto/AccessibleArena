@@ -185,6 +185,18 @@ namespace MTGAAccessibility.Core.Services
         public int ElementCount => _elements.Count;
         public int CurrentIndex => _currentIndex;
 
+        /// <summary>
+        /// Gets the GameObjects of all navigable elements in order.
+        /// Used by Tab navigation fallback to use the same elements as arrow key navigation.
+        /// </summary>
+        public IReadOnlyList<GameObject> GetNavigableGameObjects()
+        {
+            return _elements
+                .Where(e => e.GameObject != null)
+                .Select(e => e.GameObject)
+                .ToList();
+        }
+
         public virtual void OnSceneChanged(string sceneName)
         {
             // Default: deactivate on scene change
@@ -308,12 +320,16 @@ namespace MTGAAccessibility.Core.Services
                 return;
             }
 
-            // Tab exits edit mode and lets Tab navigation take over
+            // Tab exits edit mode and navigates to next/previous element
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
-                // Don't announce - Tab fallback will handle navigation
+                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                if (shiftTab)
+                    MovePrevious();
+                else
+                    MoveNext();
                 return;
             }
 
@@ -610,14 +626,26 @@ namespace MTGAAccessibility.Core.Services
             // In this case, don't process arrow keys as menu navigation - let them control the cursor
             if (UIFocusTracker.IsAnyInputFieldFocused())
             {
-                // Only handle Escape to exit the input field
-                // All other keys (including arrows for cursor, Backspace for delete) pass through
+                // Handle Escape to exit the input field
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     UIFocusTracker.DeactivateFocusedInputField();
                     _announcer.Announce("Exited input field", AnnouncementPriority.Normal);
+                    return;
                 }
-                return; // Don't process any other input - let it go to the input field
+                // Handle Tab to navigate to next element (exit input field and move)
+                if (Input.GetKeyDown(KeyCode.Tab))
+                {
+                    UIFocusTracker.DeactivateFocusedInputField();
+                    bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    if (shiftTab)
+                        MovePrevious();
+                    else
+                        MoveNext();
+                    return;
+                }
+                // All other keys (arrows for cursor, Backspace for delete) pass through to input field
+                return;
             }
 
             // When a dropdown is open, let Unity handle arrow key navigation
@@ -642,7 +670,7 @@ namespace MTGAAccessibility.Core.Services
             // Custom input first (subclass-specific keys)
             if (HandleCustomInput()) return;
 
-            // Menu navigation with Arrow Up/Down and W/S alternatives
+            // Menu navigation with Arrow Up/Down, W/S alternatives, and Tab/Shift+Tab
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
             {
                 MovePrevious();
@@ -652,6 +680,17 @@ namespace MTGAAccessibility.Core.Services
             if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
             {
                 MoveNext();
+                return;
+            }
+
+            // Tab/Shift+Tab navigation - same as arrow down/up
+            if (Input.GetKeyDown(KeyCode.Tab))
+            {
+                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                if (shiftTab)
+                    MovePrevious();
+                else
+                    MoveNext();
                 return;
             }
 
