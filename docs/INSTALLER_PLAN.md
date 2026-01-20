@@ -70,7 +70,7 @@ Create registry entries for Add/Remove Programs:
 HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\AccessibleArena
   DisplayName = "Accessible Arena"
   DisplayVersion = "1.0.0"
-  Publisher = "Your Name"
+  Publisher = "Accessible Arena"
   InstallLocation = "C:\Program Files\Wizards of the Coast\MTGA"
   UninstallString = "path\to\uninstaller.exe"
   NoModify = 1

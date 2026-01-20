@@ -144,7 +144,7 @@ Values:
 
 Update these values before building for release:
 ```csharp
-ModRepositoryUrl = "https://github.com/YourUsername/AccessibleArena"
+ModRepositoryUrl = "https://github.com/JeanStiletto/AccessibleArena"
 ModDllName = "AccessibleArena.dll"
 Publisher = "Accessible Arena Project"
 DisplayName = "Accessible Arena"
