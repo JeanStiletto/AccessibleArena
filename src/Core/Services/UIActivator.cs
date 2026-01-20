@@ -185,6 +185,12 @@ namespace MTGAAccessibility.Core.Services
             if (hasCustomButton)
             {
                 Log($"CustomButton detected (early check), trying pointer simulation first");
+
+                // Special handling for UpdatePoliciesPanel - the button's onClick has broken listener reference
+                // so we invoke OnAccept directly on the panel controller
+                if (TryInvokeUpdatePoliciesAccept(element, out var acceptResult))
+                    return acceptResult;
+
                 var pointerResult = SimulatePointerClick(element);
 
                 // Also try onClick reflection as additional handler
@@ -515,6 +521,56 @@ namespace MTGAAccessibility.Core.Services
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Special handling for UpdatePoliciesPanel - the button's onClick listener has a broken/null target reference.
+        /// We find the panel controller and invoke OnAccept directly.
+        /// </summary>
+        private static bool TryInvokeUpdatePoliciesAccept(GameObject element, out ActivationResult result)
+        {
+            result = default;
+
+            // Only handle buttons named MainButton_Register on UpdatePolicies panel
+            if (!element.name.Contains("MainButton_Register"))
+                return false;
+
+            // Search up from the button to find the panel
+            var panel = element.transform;
+            while (panel != null && !panel.name.Contains("UpdatePolicies"))
+                panel = panel.parent;
+
+            if (panel == null)
+                return false;
+
+            // Find UpdatePoliciesPanel component and invoke OnAccept
+            foreach (var comp in panel.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (comp == null) continue;
+                if (comp.GetType().Name != "UpdatePoliciesPanel") continue;
+
+                var onAcceptMethod = comp.GetType().GetMethod("OnAccept",
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                if (onAcceptMethod != null)
+                {
+                    try
+                    {
+                        Log($"Invoking UpdatePoliciesPanel.OnAccept directly");
+                        onAcceptMethod.Invoke(comp, null);
+                        result = new ActivationResult(true, "Accepted", ActivationType.PointerClick);
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log($"UpdatePoliciesPanel.OnAccept threw: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// Tries to invoke CustomButton onClick via reflection.
