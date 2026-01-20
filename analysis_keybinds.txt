@@ -1,0 +1,272 @@
+﻿MTGA Keybind Analysis
+Generated: 01/14/2026 18:37:21
+============================================================
+
+KEYBOARD MANAGER: MTGA.KeyboardManager.KeyboardManager
+Base: Object
+
+Fields:
+  SortedList`2 _keyUpSubs
+  SortedList`2 _keyDownSubs
+  SortedList`2 _keyHeldSubs
+  List`1 _keyCodes
+  Dictionary`2 _heldKeys
+  Modifiers _mods
+  GameObject _previousSelection
+  GameObject _currentSelection
+  Boolean _isSelectingInput
+  List`1 _keyUpSubsInvocationList
+  List`1 _keyDownSubsInvocationList
+  List`1 _keyHeldSubsInvocationList
+
+Methods:
+  Void UpdatePendingAddRemoves()
+  Void Update()
+  Void Subscribe(IKeySubscriber sub)
+  Void Unsubscribe(IKeySubscriber sub)
+  Void PublishKeyUp(KeyCode key)
+  Void PublishKeyDown(KeyCode key)
+  Void PublishKeyHeld(KeyCode key, Single holdDuration)
+  Void <UpdatePendingAddRemoves>g__CullNullSubscribers|13_0(SortedList`2 sortedList)
+  Void <Subscribe>g__AddSubscriber|15_0(T subscriber, SortedList`2 priorityToSubscribers)
+  Boolean Equals(Object obj)
+  Int32 GetHashCode()
+  Void Finalize()
+  Type GetType()
+  Object MemberwiseClone()
+  String ToString()
+
+============================================================
+MTGA INPUT: Core.Code.Input.Generated.MTGAInput
+Base: Object
+
+Fields:
+  InputActionAsset <asset>k__BackingField
+  InputActionMap m_UI
+  List`1 m_UIActionsCallbackInterfaces
+  InputAction m_UI_Navigate
+  InputAction m_UI_Submit
+  InputAction m_UI_Cancel
+  InputAction m_UI_Point
+  InputAction m_UI_Click
+  InputAction m_UI_ScrollWheel
+  InputAction m_UI_MiddleClick
+  InputAction m_UI_RightClick
+  InputActionMap m_Debug
+  List`1 m_DebugActionsCallbackInterfaces
+  InputAction m_Debug_ToggleDebugMenu
+  InputAction m_Debug_OpenDebugMenu
+  InputAction m_Debug_CloseDebugMenu
+  InputActionMap m_CustomInput
+  List`1 m_CustomInputActionsCallbackInterfaces
+  InputAction m_CustomInput_Escape
+  InputAction m_CustomInput_Next
+  InputAction m_CustomInput_Accept
+  InputAction m_CustomInput_Up
+  InputAction m_CustomInput_Down
+  InputAction m_CustomInput_Left
+  InputAction m_CustomInput_Right
+  InputAction m_CustomInput_Find
+  InputAction m_CustomInput_AltViewOpen
+  InputAction m_CustomInput_AltViewClose
+  Int32 m_KeyboardMouseSchemeIndex
+  Int32 m_GamepadSchemeIndex
+  Int32 m_TouchSchemeIndex
+  Int32 m_JoystickSchemeIndex
+  Int32 m_XRSchemeIndex
+
+Properties:
+  InputActionAsset asset
+  Nullable`1 bindingMask
+  Nullable`1 devices
+  ReadOnlyArray`1 controlSchemes
+  IEnumerable`1 bindings
+  UIActions UI
+  DebugActions Debug
+  CustomInputActions CustomInput
+  InputControlScheme KeyboardMouseScheme
+  InputControlScheme GamepadScheme
+  InputControlScheme TouchScheme
+  InputControlScheme JoystickScheme
+  InputControlScheme XRScheme
+
+Methods:
+  Void Finalize()
+  Void Dispose()
+  Boolean Contains(InputAction action)
+  IEnumerator`1 GetEnumerator()
+  IEnumerator System.Collections.IEnumerable.GetEnumerator()
+  Void Enable()
+  Void Disable()
+  InputAction FindAction(String actionNameOrId, Boolean throwIfNotFound)
+  Int32 FindBinding(InputBinding bindingMask, InputAction& action)
+  Boolean Equals(Object obj)
+  Int32 GetHashCode()
+  Type GetType()
+  Object MemberwiseClone()
+  String ToString()
+
+Nested Types:
+
+  NESTED: UIActions
+    Base: ValueType
+    Field: MTGAInput m_Wrapper
+    Property: InputAction Navigate
+    Property: InputAction Submit
+    Property: InputAction Cancel
+    Property: InputAction Point
+    Property: InputAction Click
+    Property: InputAction ScrollWheel
+    Property: InputAction MiddleClick
+    Property: InputAction RightClick
+    Property: Boolean enabled
+
+  NESTED: DebugActions
+    Base: ValueType
+    Field: MTGAInput m_Wrapper
+    Property: InputAction ToggleDebugMenu
+    Property: InputAction OpenDebugMenu
+    Property: InputAction CloseDebugMenu
+    Property: Boolean enabled
+
+  NESTED: CustomInputActions
+    Base: ValueType
+    Field: MTGAInput m_Wrapper
+    Property: InputAction Escape
+    Property: InputAction Next
+    Property: InputAction Accept
+    Property: InputAction Up
+    Property: InputAction Down
+    Property: InputAction Left
+    Property: InputAction Right
+    Property: InputAction Find
+    Property: InputAction AltViewOpen
+    Property: InputAction AltViewClose
+    Property: Boolean enabled
+
+  NESTED: IUIActions
+    Base: 
+
+  NESTED: IDebugActions
+    Base: 
+
+  NESTED: ICustomInputActions
+    Base: 
+
+============================================================
+SETTINGS PANEL HOTKEYS: SettingsPanelHotkeys
+
+Fields:
+  CustomButton _backButton
+  SettingsMenu _settingsMenu
+
+Methods:
+  Void Awake()
+  Void ShowPanel()
+  Void HidePanel()
+  Void BackButton_OnClick()
+  Void Init(SettingsMenu settingsMenu)
+  Boolean IsInvoking()
+  Void CancelInvoke()
+  Void Invoke(String methodName, Single time)
+  Void InvokeRepeating(String methodName, Single time, Single repeatRate)
+  Void CancelInvoke(String methodName)
+  Boolean IsInvoking(String methodName)
+  Coroutine StartCoroutine(String methodName)
+  Coroutine StartCoroutine(String methodName, Object value)
+  Coroutine StartCoroutine(IEnumerator routine)
+  Coroutine StartCoroutine_Auto(IEnumerator routine)
+  Void StopCoroutine(IEnumerator routine)
+  Void StopCoroutine(Coroutine routine)
+  Void StopCoroutine(String methodName)
+  Void StopAllCoroutines()
+  String GetScriptClassName()
+  Component GetComponent(Type type)
+  Void GetComponentFastPath(Type type, IntPtr oneFurtherThanResultValue)
+  T GetComponent()
+  Boolean TryGetComponent(Type type, Component& component)
+  Boolean TryGetComponent(T& component)
+  Component GetComponent(String type)
+  Component GetComponentInChildren(Type t, Boolean includeInactive)
+  Component GetComponentInChildren(Type t)
+  T GetComponentInChildren(Boolean includeInactive)
+  T GetComponentInChildren()
+  Component[] GetComponentsInChildren(Type t, Boolean includeInactive)
+  Component[] GetComponentsInChildren(Type t)
+  T[] GetComponentsInChildren(Boolean includeInactive)
+  Void GetComponentsInChildren(Boolean includeInactive, List`1 result)
+  T[] GetComponentsInChildren()
+  Void GetComponentsInChildren(List`1 results)
+  Component GetComponentInParent(Type t, Boolean includeInactive)
+  Component GetComponentInParent(Type t)
+  T GetComponentInParent(Boolean includeInactive)
+  T GetComponentInParent()
+  Component[] GetComponentsInParent(Type t, Boolean includeInactive)
+  Component[] GetComponentsInParent(Type t)
+  T[] GetComponentsInParent(Boolean includeInactive)
+  Void GetComponentsInParent(Boolean includeInactive, List`1 results)
+  T[] GetComponentsInParent()
+  Component[] GetComponents(Type type)
+  Void GetComponents(Type type, List`1 results)
+  Void GetComponents(List`1 results)
+  T[] GetComponents()
+  Int32 GetComponentIndex()
+  Boolean CompareTag(String tag)
+  Void SendMessageUpwards(String methodName, Object value, SendMessageOptions options)
+  Void SendMessageUpwards(String methodName, Object value)
+  Void SendMessageUpwards(String methodName)
+  Void SendMessageUpwards(String methodName, SendMessageOptions options)
+  Void SendMessage(String methodName, Object value)
+  Void SendMessage(String methodName)
+  Void SendMessage(String methodName, Object value, SendMessageOptions options)
+  Void SendMessage(String methodName, SendMessageOptions options)
+  Void BroadcastMessage(String methodName, Object parameter, SendMessageOptions options)
+  Void BroadcastMessage(String methodName, Object parameter)
+  Void BroadcastMessage(String methodName)
+  Void BroadcastMessage(String methodName, SendMessageOptions options)
+  Void MarkDirty()
+  Int32 GetInstanceID()
+  Int32 GetHashCode()
+  Boolean Equals(Object other)
+  String ToString()
+  Void Finalize()
+  Type GetType()
+  Object MemberwiseClone()
+
+============================================================
+KEYBINDING WORKFLOW: Wotc.Mtga.DuelScene.Interactions.IKeybindingWorkflow
+
+Methods:
+  Boolean CanKeyUp(KeyCode key)
+  Void OnKeyUp(KeyCode key)
+  Boolean CanKeyDown(KeyCode key)
+  Void OnKeyDown(KeyCode key)
+  Boolean CanKeyHeld(KeyCode key, Single holdDuration)
+  Void OnKeyHeld(KeyCode key, Single holdDuration)
+
+============================================================
+CLASSES IMPLEMENTING IKeybindingWorkflow:
+  Wotc.Mtga.DuelScene.Interactions.ActionsAvailable.BatchManaSubmission
+  ActionsAvailableWorkflow+BatchManaSubmission
+
+============================================================
+KEYBIND-RELATED TYPES:
+
+  TYPE: SettingsPanelHotkeys
+    Base: SettingsMenuPanel
+    IsInterface: False
+    Field: CustomButton _backButton
+    Field: SettingsMenu _settingsMenu
+
+  TYPE: Wotc.Mtga.DuelScene.Interactions.IKeybindingWorkflow
+    Base: 
+    IsInterface: True
+
+  TYPE: Core.Code.Input.Generated.MTGAInput+CustomInputActions
+    Base: ValueType
+    IsInterface: False
+    Field: MTGAInput m_Wrapper
+
+  TYPE: Core.Code.Input.Generated.MTGAInput+ICustomInputActions
+    Base: 
+    IsInterface: True

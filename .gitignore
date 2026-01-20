@@ -22,3 +22,14 @@ working */
 
 # Outdated backlog
 arena accessibility backlog.txt
+
+# Logs
+logs/
+
+# Personal notes (German)
+nützliche soforters.txt
+rückschauzug arena.txt
+
+# Old/archived docs
+docs/old/
+ACCESSIBILITY_MODDING_GUIDE.md

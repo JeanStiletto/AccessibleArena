@@ -1019,7 +1019,8 @@ namespace AccessibleArena.Core.Services
 
             // NPE (New Player Experience) overlay - show NPE elements when tutorial UI is active
             // This handles Sparky dialogue, reward chests, etc. that overlay other screens
-            if (_screenDetector.IsNPERewardsScreenActive() && IsInsideNPEOverlay(obj))
+            // But NOT when Settings is open - Settings takes priority as a modal overlay
+            if (!CheckSettingsMenuOpen() && _screenDetector.IsNPERewardsScreenActive() && IsInsideNPEOverlay(obj))
             {
                 return true;
             }
@@ -1721,6 +1722,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void FindNPERewardCards(HashSet<GameObject> addedObjects)
         {
+            // Don't add NPE cards if Settings menu is open - Settings takes priority
+            if (CheckSettingsMenuOpen())
+                return;
+
             // Check if we're on the NPE rewards screen
             if (!_screenDetector.IsNPERewardsScreenActive())
                 return;
