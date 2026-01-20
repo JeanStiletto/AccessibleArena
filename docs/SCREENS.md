@@ -96,9 +96,9 @@ If Unity's Tab navigation gets stuck (broken selectOnDown links), UIFocusTracker
 Back button (Button_Back) does not respond to keyboard activation. See KNOWN_ISSUES.md.
 
 ### Code of Conduct
-**Navigator:** `CodeOfConductNavigator`
+**Navigator:** Default navigation (CodeOfConductNavigator deprecated January 2026)
 
-Handles terms/consent checkboxes screen with multiple toggles.
+Terms/consent checkboxes screen. Unity's native Tab navigation works correctly here.
 
 ## NPE Screens
 
@@ -191,10 +191,10 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 - Zone-based activation: hand cards use two-click, others use single-click
 - Tab/Shift+Tab cycles, Enter activates, Backspace cancels
 
-**DiscardNavigator**
-- Handles forced discard selection (e.g., opponent plays discard spell)
-- Detects via "Submit X" button presence
-- Enter toggles card selection, Space submits
+**Selection Mode (in HotHighlightNavigator)**
+- Detects Submit button with count AND no battlefield targets
+- Hand cards use single-click to toggle selection instead of two-click to play
+- Announces X cards selected after toggling
 
 **CombatNavigator**
 - Handles declare attackers/blockers phases
@@ -212,7 +212,7 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 - Enter opens emote wheel (your portrait only)
 
 **Priority Order:**
-HotHighlightNavigator > DiscardNavigator > CombatNavigator > BrowserNavigator > ZoneNavigator
+BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator > BattlefieldNavigator > ZoneNavigator
 
 ## Adding New Screens
 

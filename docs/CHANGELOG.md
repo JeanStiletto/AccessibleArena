@@ -4,6 +4,33 @@ All notable changes to the MTGA Accessibility Mod.
 
 ## January 2026
 
+### Selection Mode Fix - Consolidated DiscardNavigator into HotHighlightNavigator
+
+Fixed discard mode not working with German localization and consolidated DiscardNavigator into HotHighlightNavigator.
+
+**Problem:**
+Pressing Enter on a hand card during discard played a sound but did not select the card. The original regex only matched numbers at the END of button text (Submit 2), but German has numbers at the START (2 abwerfen, 0 bestaetigen).
+
+**Solution:**
+- IsSelectionModeActive detects Submit button with number AND no battlefield targets
+- GetSubmitButtonInfo matches any number in button text (language-agnostic)
+- Hand cards in selection mode use single-click toggle instead of two-click play
+- Announces X cards selected after toggling
+
+**Benefits:** Simpler architecture, works with all localizations.
+
+**Files:** HotHighlightNavigator.cs, DuelNavigator.cs, ZoneNavigator.cs, old/DiscardNavigator.cs
+
+---
+
+### Single Element Navigation Improvement
+
+When navigating a list with only one element, pressing Up/Down/Home/End now re-announces the element name instead of saying "Beginning of list" or "End of list". This provides more useful feedback when there's only one item available.
+
+**Files:** `BaseNavigator.cs`
+
+---
+
 ### Zone Transfer Announcements - Land Plays and More
 
 Enhanced the DuelAnnouncer to parse individual zone transfer events and announce specific game state changes with card names.

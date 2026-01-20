@@ -27,8 +27,7 @@ namespace MTGAAccessibility.Core.Services
         private bool _isWatching;
         private bool _hasCenteredMouse;
         private ZoneNavigator _zoneNavigator;
-        private HotHighlightNavigator _hotHighlightNavigator;  // Unified navigator for Tab cycling playable cards AND targets
-        private DiscardNavigator _discardNavigator;
+        private HotHighlightNavigator _hotHighlightNavigator;  // Unified navigator for Tab, cards, targets, selection mode
         private CombatNavigator _combatNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
         private BrowserNavigator _browserNavigator;
@@ -53,7 +52,6 @@ namespace MTGAAccessibility.Core.Services
 
         public ZoneNavigator ZoneNavigator => _zoneNavigator;
         public HotHighlightNavigator HotHighlightNavigator => _hotHighlightNavigator;
-        public DiscardNavigator DiscardNavigator => _discardNavigator;
         public BattlefieldNavigator BattlefieldNavigator => _battlefieldNavigator;
         public BrowserNavigator BrowserNavigator => _browserNavigator;
         public DuelAnnouncer DuelAnnouncer => _duelAnnouncer;
@@ -69,7 +67,6 @@ namespace MTGAAccessibility.Core.Services
             // Trusts game's HotHighlight system to show correct items based on game state
             _hotHighlightNavigator = new HotHighlightNavigator(announcer, _zoneNavigator);
 
-            _discardNavigator = new DiscardNavigator(announcer, _zoneNavigator);
             _browserNavigator = new BrowserNavigator(announcer);
             _portraitNavigator = new PlayerPortraitNavigator(announcer);
             _duelAnnouncer = new DuelAnnouncer(announcer);
@@ -78,9 +75,6 @@ namespace MTGAAccessibility.Core.Services
 
             // Connect DuelAnnouncer to ZoneNavigator for stack checks
             _duelAnnouncer.SetZoneNavigator(_zoneNavigator);
-
-            // Connect ZoneNavigator to DiscardNavigator for selection state announcements
-            _zoneNavigator.SetDiscardNavigator(_discardNavigator);
 
             // Connect ZoneNavigator to CombatNavigator for attacker state announcements
             _zoneNavigator.SetCombatNavigator(_combatNavigator);
@@ -338,10 +332,6 @@ namespace MTGAAccessibility.Core.Services
             // Browsers take highest priority as they represent modal interactions
             _browserNavigator.Update();
             if (_browserNavigator.HandleInput())
-                return true;
-
-            // Next, let DiscardNavigator handle Enter/Space during discard mode
-            if (_discardNavigator.HandleInput())
                 return true;
 
             // Next, let CombatNavigator handle Space during declare attackers/blockers

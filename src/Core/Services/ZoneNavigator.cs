@@ -171,7 +171,7 @@ namespace MTGAAccessibility.Core.Services
         // private TargetNavigator _targetNavigator;
 
         // Reference to DiscardNavigator for selection state announcements
-        private DiscardNavigator _discardNavigator;
+        // private DiscardNavigator _discardNavigator;  // DEPRECATED
 
         // Reference to CombatNavigator for attacker state announcements
         private CombatNavigator _combatNavigator;
@@ -193,10 +193,7 @@ namespace MTGAAccessibility.Core.Services
         /// <summary>
         /// Sets the DiscardNavigator reference for selection state announcements.
         /// </summary>
-        public void SetDiscardNavigator(DiscardNavigator navigator)
-        {
-            _discardNavigator = navigator;
-        }
+        // DEPRECATED: public void SetDiscardNavigator(DiscardNavigator navigator) { _discardNavigator = navigator; }
 
         /// <summary>
         /// Sets the CombatNavigator reference for attacker state announcements.
@@ -637,7 +634,7 @@ namespace MTGAAccessibility.Core.Services
             int total = zoneInfo.Cards.Count;
 
             // Add selection state if in discard mode
-            string selectionState = _discardNavigator?.GetSelectionStateText(card) ?? "";
+            string selectionState = "";
 
             // Add combat state if in declare attackers/blockers phase (battlefield only)
             string combatState = "";

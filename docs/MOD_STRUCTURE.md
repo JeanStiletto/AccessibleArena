@@ -35,7 +35,7 @@ C:\Users\fabia\arena\
         CardInfoNavigator.cs     - Card detail navigation (arrow up/down)
         ZoneNavigator.cs         - Zone navigation in duel (H/B/G/X/S + arrows)
         DuelAnnouncer.cs         - Game event announcements via Harmony
-        HotHighlightNavigator.cs - Unified Tab navigation for playable cards AND targets
+        HotHighlightNavigator.cs - Unified Tab navigation for playable cards, targets, AND selection mode (discard)
         DiscardNavigator.cs      - Discard selection when forced to discard
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
@@ -51,6 +51,7 @@ C:\Users\fabia\arena\
           HighlightNavigator.cs  - OLD: Separate playable card cycling (replaced by HotHighlightNavigator)
           LoginPanelNavigator.cs - OLD: Login screen (replaced by GeneralMenuNavigator, Jan 2026)
           EventTriggerNavigator.cs - OLD: NPE screens (replaced by GeneralMenuNavigator, Jan 2026)
+          DiscardNavigator.cs    - OLD: Discard selection (consolidated into HotHighlightNavigator, Jan 2026)
 
         # Navigator Infrastructure
         BaseNavigator.cs         - Abstract base for screen navigators
@@ -233,22 +234,22 @@ have HotHighlight. We trust the game and scan ALL zones, letting the zone determ
 3. Replace HotHighlightNavigator.HandleInput() with old TargetNavigator + HighlightNavigator calls
 4. Restore auto-detect/auto-exit logic in DuelNavigator.HandleCustomInput()
 
-### Discard Navigator System (Working)
-- [x] DiscardNavigator service - Handles forced discard selection
-- [x] Submit button detection - Detects "Submit X" button to identify discard mode
-- [x] Required count parsing - Parses "Discard a card" or "Discard X cards" from prompt
-- [x] Entry announcement - Announces "Discard X card(s)" when mode detected
-- [x] Selection state in announcements - Cards announce "selected for discard" when selected (silent otherwise)
-- [x] Enter to toggle - Clicks card to select/deselect for discard
-- [x] Selection count announcement - Announces "X cards selected" after toggle (0.2s delay)
-- [x] Space to submit - Validates count matches required, submits or announces error
-- [x] Integration with DuelNavigator - Priority: TargetNavigator > DiscardNavigator > HighlightNavigator
-- [x] Integration with ZoneNavigator - Adds selection state to card announcements
+### Selection Mode (Discard, etc.) - Consolidated into HotHighlightNavigator
+**January 2026:** DiscardNavigator was consolidated into HotHighlightNavigator for simpler architecture.
+
+HotHighlightNavigator now detects "selection mode" (discard, choose cards to exile, etc.) by checking for a Submit button with a count AND no valid targets on battlefield. In selection mode, hand cards use single-click to toggle selection instead of two-click to play.
+
+- [x] Selection mode detection - `IsSelectionModeActive()` checks for Submit button + no battlefield targets
+- [x] Language-agnostic button detection - Matches any number in button text (works with "Submit 2", "2 abwerfen", "0 bestätigen")
+- [x] Enter to toggle - Single-click on hand cards in selection mode
+- [x] Selection count announcement - Announces "X cards selected" after toggle
+
+**Old DiscardNavigator moved to:** `src/Core/Services/old/DiscardNavigator.cs`
 
 ### Combat Navigator System (Complete)
 - [x] CombatNavigator service - Handles declare attackers/blockers phases
 - [x] Phase tracking in DuelAnnouncer - `IsInDeclareAttackersPhase`, `IsInDeclareBlockersPhase` properties
-- [x] Integration with DuelNavigator - Priority: TargetNavigator > DiscardNavigator > CombatNavigator > HighlightNavigator
+- [x] Integration with DuelNavigator - Priority: BrowserNavigator > CombatNavigator > HotHighlightNavigator
 - [x] Integration with ZoneNavigator - `GetCombatStateText()` adds combat state to card announcements
 - [x] **Language-agnostic button detection** - Uses button GameObject names, not localized text
 

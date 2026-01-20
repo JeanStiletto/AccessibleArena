@@ -5,20 +5,24 @@ using TMPro;
 using MelonLoader;
 using MTGAAccessibility.Core.Interfaces;
 using MTGAAccessibility.Core.Models;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace MTGAAccessibility.Core.Services
 {
     /// <summary>
     /// Unified navigator for all HotHighlight-based navigation.
-    /// Replaces both TargetNavigator and HighlightNavigator.
+    /// Replaces TargetNavigator, HighlightNavigator, and DiscardNavigator.
     ///
     /// Key insight: The game correctly manages HotHighlight to show only what's
-    /// relevant in the current context. We don't need separate "modes" - we just
-    /// scan for highlights and let the zone determine announcement/activation.
+    /// relevant in the current context. We detect "selection mode" (discard, etc.)
+    /// by checking for Submit buttons with counts, and use single-click instead
+    /// of two-click for hand cards in that mode.
     ///
-    /// - Hand cards with HotHighlight = playable cards (two-click to play)
+    /// - Hand cards in selection mode = single-click to toggle selection
+    /// - Hand cards normally = two-click to play
     /// - Battlefield/Stack cards with HotHighlight = valid targets (single-click)
     /// - Player portraits with HotHighlight = player targets (single-click)
     /// </summary>
@@ -30,6 +34,10 @@ namespace MTGAAccessibility.Core.Services
         private List<HighlightedItem> _items = new List<HighlightedItem>();
         private int _currentIndex = -1;
         private bool _isActive;
+
+        // Selection mode detection (discard, choose cards to exile, etc.)
+        // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
+        private static readonly Regex ButtonNumberPattern = new Regex(@"(\d+)", RegexOptions.IgnoreCase);
 
         public bool IsActive => _isActive;
         public int ItemCount => _items.Count;
@@ -444,30 +452,51 @@ namespace MTGAAccessibility.Core.Services
         }
 
         /// <summary>
-        /// Activates the current item based on its zone.
+        /// Activates the current item based on its zone and current game mode.
+        /// In selection mode (discard, etc.), hand cards use single-click to toggle.
+        /// Otherwise, hand cards use two-click to play.
         /// </summary>
         private void ActivateCurrentItem()
         {
             if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
             var item = _items[_currentIndex];
-            MelonLogger.Msg($"[HotHighlightNavigator] Activating: {item.Name} in {item.Zone}");
+            bool selectionMode = IsSelectionModeActive();
+            MelonLogger.Msg($"[HotHighlightNavigator] Activating: {item.Name} in {item.Zone} (selection mode: {selectionMode})");
 
             if (item.Zone == "Hand")
             {
-                // Hand card - use two-click to play
-                UIActivator.PlayCardViaTwoClick(item.GameObject, (success, message) =>
+                if (selectionMode)
                 {
-                    if (success)
+                    // Selection mode (discard, etc.) - single click to toggle selection
+                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name}");
+                    var result = UIActivator.SimulatePointerClick(item.GameObject);
+                    if (result.Success)
                     {
-                        MelonLogger.Msg($"[HotHighlightNavigator] Card play initiated");
+                        // Announce selection count after game updates
+                        MelonCoroutines.Start(AnnounceSelectionCountDelayed());
                     }
                     else
                     {
-                        _announcer.Announce(Strings.CouldNotPlay(item.Name), AnnouncementPriority.High);
-                        MelonLogger.Msg($"[HotHighlightNavigator] Card play failed: {message}");
+                        _announcer.Announce(Strings.CouldNotSelect(item.Name), AnnouncementPriority.High);
                     }
-                });
+                }
+                else
+                {
+                    // Normal mode - use two-click to play
+                    UIActivator.PlayCardViaTwoClick(item.GameObject, (success, message) =>
+                    {
+                        if (success)
+                        {
+                            MelonLogger.Msg($"[HotHighlightNavigator] Card play initiated");
+                        }
+                        else
+                        {
+                            _announcer.Announce(Strings.CouldNotPlay(item.Name), AnnouncementPriority.High);
+                            MelonLogger.Msg($"[HotHighlightNavigator] Card play failed: {message}");
+                        }
+                    });
+                }
             }
             else
             {
@@ -596,6 +625,72 @@ namespace MTGAAccessibility.Core.Services
             }
             return null;
         }
+
+        #region Selection Mode (Discard, etc.)
+
+        /// <summary>
+        /// Checks if we're in selection mode (discard, choose cards to exile, etc.).
+        /// Selection mode is detected by a Submit button showing a count AND
+        /// no valid targets on battlefield/stack (to distinguish from targeting mode).
+        /// </summary>
+        private bool IsSelectionModeActive()
+        {
+            var buttonInfo = GetSubmitButtonInfo();
+            if (buttonInfo == null)
+                return false;
+
+            // If there are valid targets on battlefield/stack, it's targeting mode, not selection
+            if (CardDetector.HasValidTargetsOnBattlefield())
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the Submit button info: selected count and button GameObject.
+        /// Returns null if no Submit button with a number found.
+        /// </summary>
+        private (int count, GameObject button)? GetSubmitButtonInfo()
+        {
+            foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
+            {
+                if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
+                    continue;
+
+                if (!selectable.gameObject.name.Contains("PromptButton_Primary"))
+                    continue;
+
+                string buttonText = UITextExtractor.GetButtonText(selectable.gameObject);
+                if (string.IsNullOrEmpty(buttonText))
+                    continue;
+
+                // Match any number in the button text
+                var match = ButtonNumberPattern.Match(buttonText);
+                if (match.Success)
+                {
+                    int count = int.Parse(match.Groups[1].Value);
+                    return (count, selectable.gameObject);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// After toggling a card selection, announces the current count.
+        /// </summary>
+        private IEnumerator AnnounceSelectionCountDelayed()
+        {
+            yield return new WaitForSeconds(0.2f);
+
+            var info = GetSubmitButtonInfo();
+            if (info != null)
+            {
+                _announcer.Announce(Strings.CardsSelected(info.Value.count), AnnouncementPriority.Normal);
+            }
+        }
+
+        #endregion
     }
 
     /// <summary>
