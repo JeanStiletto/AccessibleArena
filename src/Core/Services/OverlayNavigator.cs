@@ -152,23 +152,96 @@ namespace MTGAAccessibility.Core.Services
 
         private void DiscoverRewardElements(HashSet<GameObject> addedObjects)
         {
-            // Find any reward-specific content
-            var rewardContainers = GameObject.FindObjectsOfType<Transform>()
-                .Where(t => t.gameObject.activeInHierarchy &&
-                       (t.name.Contains("Reward") || t.name.Contains("Prize")))
-                .ToList();
+            // Find reward cards first - they should be the main navigable content
+            FindRewardCards(addedObjects);
 
-            foreach (var container in rewardContainers)
+            // Find dismiss/claim buttons
+            FindDismissButtons(addedObjects);
+        }
+
+        /// <summary>
+        /// Find reward cards displayed on the rewards screen.
+        /// These cards aren't buttons but should be navigable to read card info.
+        /// </summary>
+        private void FindRewardCards(HashSet<GameObject> addedObjects)
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Searching for reward cards...");
+
+            // Find the rewards content controller
+            var rewardsController = GameObject.Find("ContentController - Rewards_Desktop_16x9(Clone)");
+            if (rewardsController == null)
             {
-                string text = ExtractContainerText(container.gameObject);
-                if (!string.IsNullOrEmpty(text) && !addedObjects.Contains(container.gameObject))
+                MelonLogger.Msg($"[{NavigatorId}] No rewards controller found");
+                return;
+            }
+
+            // Search for card elements within the rewards controller
+            var cardPrefabs = new List<GameObject>();
+            foreach (var transform in rewardsController.GetComponentsInChildren<Transform>(false))
+            {
+                if (transform == null || !transform.gameObject.activeInHierarchy)
+                    continue;
+
+                string name = transform.name;
+
+                // Card patterns - CDC is the card data context, MetaCardView is the card display
+                if (name.Contains("CDC") ||
+                    name.Contains("MetaCardView") ||
+                    name.Contains("CardReward") ||
+                    name.Contains("CardAnchor") ||
+                    name.Contains("RewardCard") ||
+                    name.Contains("CardPrefab"))
                 {
-                    AddElement(container.gameObject, text);
-                    addedObjects.Add(container.gameObject);
+                    // Skip if it's a child of something we already found
+                    bool isChildOfExisting = cardPrefabs.Any(existing =>
+                        transform.IsChildOf(existing.transform));
+                    if (isChildOfExisting) continue;
+
+                    // Skip if parent is already in the list (prefer parent)
+                    bool parentExists = cardPrefabs.RemoveAll(existing =>
+                        existing.transform.IsChildOf(transform)) > 0;
+
+                    if (!addedObjects.Contains(transform.gameObject))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Found potential card: {name}");
+                        cardPrefabs.Add(transform.gameObject);
+                    }
                 }
             }
 
-            FindDismissButtons(addedObjects);
+            if (cardPrefabs.Count == 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] No reward cards found");
+                return;
+            }
+
+            // Sort cards by X position (left to right)
+            cardPrefabs = cardPrefabs.OrderBy(c => c.transform.position.x).ToList();
+            MelonLogger.Msg($"[{NavigatorId}] Found {cardPrefabs.Count} reward card(s)");
+
+            int cardNum = 1;
+            foreach (var cardPrefab in cardPrefabs)
+            {
+                // Extract card info using CardDetector
+                var cardInfo = CardDetector.ExtractCardInfo(cardPrefab);
+                string cardName = cardInfo.IsValid ? cardInfo.Name : "Unknown card";
+
+                // Build label with card number if multiple cards
+                string label = cardPrefabs.Count > 1
+                    ? $"Card {cardNum}: {cardName}"
+                    : $"Unlocked card: {cardName}";
+
+                // Add type line if available
+                if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
+                {
+                    label += $", {cardInfo.TypeLine}";
+                }
+
+                MelonLogger.Msg($"[{NavigatorId}] Adding reward card: {label}");
+                AddElement(cardPrefab, label);
+                addedObjects.Add(cardPrefab);
+                cardNum++;
+            }
         }
 
         private void DiscoverGenericOverlayElements(HashSet<GameObject> addedObjects)

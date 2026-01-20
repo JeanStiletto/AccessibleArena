@@ -1017,6 +1017,13 @@ namespace MTGAAccessibility.Core.Services
                     return IsChildOf(obj, socialPanel);
             }
 
+            // NPE (New Player Experience) overlay - show NPE elements when tutorial UI is active
+            // This handles Sparky dialogue, reward chests, etc. that overlay other screens
+            if (_screenDetector.IsNPERewardsScreenActive() && IsInsideNPEOverlay(obj))
+            {
+                return true;
+            }
+
             // If no active controller detected, show all elements
             if (_activeControllerGameObject == null)
                 return true;
@@ -1117,6 +1124,33 @@ namespace MTGAAccessibility.Core.Services
                     if (comp != null && comp.GetType().Name == "MainButton")
                         return true;
                 }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside the NPE (New Player Experience) overlay UI.
+        /// This includes Sparky dialogue, reward chests, and other tutorial elements.
+        /// </summary>
+        private static bool IsInsideNPEOverlay(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                string name = current.gameObject.name;
+
+                // NPE containers and elements
+                if (name.Contains("NPE") ||
+                    name.Contains("StitcherSparky") ||
+                    name.Contains("Sparky"))
+                {
+                    return true;
+                }
+
+                current = current.parent;
             }
 
             return false;
@@ -1693,29 +1727,65 @@ namespace MTGAAccessibility.Core.Services
 
             MelonLogger.Msg($"[{NavigatorId}] NPE Rewards screen detected, searching for reward cards...");
 
-            // Find all NPERewardPrefab_IndividualCard objects (displayed cards)
+            // Debug: Log the RewardsCONTAINER specifically (where the actual cards are)
+            var npeContainer = GameObject.Find("NPE-Rewards_Container");
+            if (npeContainer != null)
+            {
+                var activeContainer = npeContainer.transform.Find("ActiveContainer");
+                if (activeContainer != null)
+                {
+                    var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
+                    if (rewardsContainer != null)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] RewardsCONTAINER hierarchy (depth 6):");
+                        LogHierarchy(rewardsContainer, "  ", 6);
+                    }
+                    else
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] ActiveContainer hierarchy (depth 5):");
+                        LogHierarchy(activeContainer, "  ", 5);
+                    }
+                }
+            }
+
+            // Find NPE reward cards - ONLY inside NPE-Rewards_Container, not deck boxes
             var cardPrefabs = new List<GameObject>();
 
-            foreach (var transform in GameObject.FindObjectsOfType<Transform>())
+            if (npeContainer != null)
             {
-                if (transform == null || !transform.gameObject.activeInHierarchy)
-                    continue;
-
-                string name = transform.name;
-
-                // NPE reward cards use this prefab pattern
-                if (name.Contains("NPERewardPrefab_IndividualCard"))
+                // Search within NPE-Rewards_Container only
+                foreach (var transform in npeContainer.GetComponentsInChildren<Transform>(false))
                 {
-                    if (!addedObjects.Contains(transform.gameObject))
+                    if (transform == null || !transform.gameObject.activeInHierarchy)
+                        continue;
+
+                    string name = transform.name;
+                    string path = GetFullPath(transform);
+
+                    // Skip deck box cards (background elements)
+                    if (path.Contains("DeckBox") || path.Contains("Deckbox") || path.Contains("RewardChest"))
+                        continue;
+
+                    // NPE reward cards - try multiple patterns
+                    if (name.Contains("NPERewardPrefab_IndividualCard") ||
+                        name.Contains("CardReward") ||
+                        name.Contains("CardAnchor") ||
+                        name.Contains("RewardCard") ||
+                        name.Contains("MetaCardView") ||
+                        name.Contains("CDC"))
                     {
-                        cardPrefabs.Add(transform.gameObject);
+                        MelonLogger.Msg($"[{NavigatorId}] Found potential NPE card element: {name} at {path}");
+                        if (!addedObjects.Contains(transform.gameObject))
+                        {
+                            cardPrefabs.Add(transform.gameObject);
+                        }
                     }
                 }
             }
 
             if (cardPrefabs.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] No NPE reward cards found");
+                MelonLogger.Msg($"[{NavigatorId}] No NPE reward cards found in NPE-Rewards_Container");
                 return;
             }
 
@@ -1754,6 +1824,34 @@ namespace MTGAAccessibility.Core.Services
                 addedObjects.Add(cardPrefab);
                 cardNum++;
             }
+        }
+
+        /// <summary>
+        /// Log the hierarchy of a transform for debugging purposes.
+        /// </summary>
+        private void LogHierarchy(Transform parent, string indent, int maxDepth)
+        {
+            if (maxDepth <= 0) return;
+
+            foreach (Transform child in parent)
+            {
+                if (child == null) continue;
+                string active = child.gameObject.activeInHierarchy ? "" : " [INACTIVE]";
+                string text = UITextExtractor.GetText(child.gameObject);
+                string textInfo = string.IsNullOrEmpty(text) ? "" : $" - \"{text}\"";
+                MelonLogger.Msg($"[{NavigatorId}] {indent}{child.name}{active}{textInfo}");
+                LogHierarchy(child, indent + "  ", maxDepth - 1);
+            }
+        }
+
+        /// <summary>
+        /// Get the full path of a transform in the hierarchy.
+        /// </summary>
+        private string GetFullPath(Transform t)
+        {
+            if (t == null) return "null";
+            if (t.parent == null) return t.name;
+            return GetFullPath(t.parent) + "/" + t.name;
         }
 
         /// <summary>
