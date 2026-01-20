@@ -167,6 +167,11 @@ namespace MTGAAccessibility.Core.Services
                 return "RewardsOverlay";
             }
 
+            // NPE rewards screen is NOT set as active controller because
+            // the UI elements (ChatBubble with "Oh, wow!" button) are siblings of NPE-Rewards_Container,
+            // not children. Setting it as controller would filter out all navigable elements.
+            // Screen naming is handled in GetMenuScreenName() via IsNPERewardsScreenActive() check.
+
             _activeControllerGameObject = null;
             _activeContentController = null;
             return null;
@@ -287,6 +292,7 @@ namespace MTGAAccessibility.Core.Services
                 "ConstructedDeckSelectController" => "Deck Selection",
                 "EventPageContentController" => "Event",
                 "RewardsOverlay" => "Rewards",
+                "NPERewards" => "Card Unlocked",
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
             };
         }
@@ -297,6 +303,26 @@ namespace MTGAAccessibility.Core.Services
         public static bool IsContentControllerType(string typeName)
         {
             return ContentControllerTypes.Contains(typeName);
+        }
+
+        /// <summary>
+        /// Check if the NPE rewards screen is currently active.
+        /// This is used for screen naming only, not for element filtering.
+        /// </summary>
+        public bool IsNPERewardsScreenActive()
+        {
+            var npeRewardsContainer = GameObject.Find("NPE-Rewards_Container");
+            if (npeRewardsContainer == null || !npeRewardsContainer.activeInHierarchy)
+                return false;
+
+            // Verify we have an active NPEContentControllerRewards component
+            foreach (var mb in npeRewardsContainer.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "NPEContentControllerRewards")
+                    return true;
+            }
+
+            return false;
         }
 
         #endregion

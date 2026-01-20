@@ -186,6 +186,13 @@ namespace MTGAAccessibility.Core.Services
                 return baseName;
             }
 
+            // Check for NPE rewards screen (card unlocked)
+            // This is checked separately because we don't filter elements to it
+            if (_screenDetector.IsNPERewardsScreenActive())
+            {
+                return "Card Unlocked";
+            }
+
             // Fall back to detected menu type from button patterns
             if (!string.IsNullOrEmpty(_detectedMenuType))
                 return _detectedMenuType;
@@ -1661,10 +1668,92 @@ namespace MTGAAccessibility.Core.Services
                 AddElement(obj, announcement, carouselInfo, alternateAction);
             }
 
+            // Find NPE reward cards (displayed cards on reward screens)
+            // These are not buttons but should be navigable to read card info
+            FindNPERewardCards(addedObjects);
+
             MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
 
             // On MatchEndScene, auto-focus the Continue button (ExitMatchOverlayButton)
             AutoFocusContinueButton();
+
+            // On NPE rewards screen, auto-focus the unlocked card
+            AutoFocusUnlockedCard();
+        }
+
+        /// <summary>
+        /// Find NPE (New Player Experience) reward cards that are displayed on screen.
+        /// These cards aren't buttons but should be navigable for accessibility.
+        /// </summary>
+        private void FindNPERewardCards(HashSet<GameObject> addedObjects)
+        {
+            // Check if we're on the NPE rewards screen
+            if (!_screenDetector.IsNPERewardsScreenActive())
+                return;
+
+            MelonLogger.Msg($"[{NavigatorId}] NPE Rewards screen detected, searching for reward cards...");
+
+            // Find all NPERewardPrefab_IndividualCard objects (displayed cards)
+            var cardPrefabs = new List<GameObject>();
+
+            foreach (var transform in GameObject.FindObjectsOfType<Transform>())
+            {
+                if (transform == null || !transform.gameObject.activeInHierarchy)
+                    continue;
+
+                string name = transform.name;
+
+                // NPE reward cards use this prefab pattern
+                if (name.Contains("NPERewardPrefab_IndividualCard"))
+                {
+                    if (!addedObjects.Contains(transform.gameObject))
+                    {
+                        cardPrefabs.Add(transform.gameObject);
+                    }
+                }
+            }
+
+            if (cardPrefabs.Count == 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] No NPE reward cards found");
+                return;
+            }
+
+            // Sort cards by X position (left to right)
+            cardPrefabs = cardPrefabs.OrderBy(c => c.transform.position.x).ToList();
+
+            MelonLogger.Msg($"[{NavigatorId}] Found {cardPrefabs.Count} NPE reward card(s)");
+
+            int cardNum = 1;
+            foreach (var cardPrefab in cardPrefabs)
+            {
+                // Find the CardAnchor child which holds the actual card visuals
+                var cardAnchor = cardPrefab.transform.Find("CardAnchor");
+                GameObject cardObj = cardAnchor?.gameObject ?? cardPrefab;
+
+                // Extract card info using CardDetector
+                var cardInfo = CardDetector.ExtractCardInfo(cardPrefab);
+                string cardName = cardInfo.IsValid ? cardInfo.Name : "Unknown card";
+
+                // Build label with card number if multiple cards
+                string label = cardPrefabs.Count > 1
+                    ? $"Unlocked card {cardNum}: {cardName}"
+                    : $"Unlocked card: {cardName}";
+
+                // Add type line if available
+                if (!string.IsNullOrEmpty(cardInfo.TypeLine))
+                {
+                    label += $", {cardInfo.TypeLine}";
+                }
+
+                MelonLogger.Msg($"[{NavigatorId}] Adding NPE reward card: {label}");
+
+                // Add as navigable element (even though it's not a button)
+                // Using the card prefab so arrow up/down can read card info blocks
+                AddElement(cardObj, label);
+                addedObjects.Add(cardPrefab);
+                cardNum++;
+            }
         }
 
         /// <summary>
@@ -1799,6 +1888,36 @@ namespace MTGAAccessibility.Core.Services
                         _elements.RemoveAt(i);
                         _elements.Insert(0, continueButton);
                         MelonLogger.Msg($"[{NavigatorId}] Moved Continue button to first position");
+                    }
+                    _currentIndex = 0;
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Auto-focus the unlocked card on NPE reward screens for better UX.
+        /// The card should be the first thing focused so users can read its info.
+        /// </summary>
+        private void AutoFocusUnlockedCard()
+        {
+            // Only on NPE rewards screen
+            if (!_screenDetector.IsNPERewardsScreenActive())
+                return;
+
+            // Find unlocked card elements (they have "Unlocked card" in their label)
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].Label != null &&
+                    _elements[i].Label.StartsWith("Unlocked card"))
+                {
+                    // Move this element to the front
+                    if (i > 0)
+                    {
+                        var cardElement = _elements[i];
+                        _elements.RemoveAt(i);
+                        _elements.Insert(0, cardElement);
+                        MelonLogger.Msg($"[{NavigatorId}] Moved unlocked card to first position: {cardElement.Label}");
                     }
                     _currentIndex = 0;
                     break;
