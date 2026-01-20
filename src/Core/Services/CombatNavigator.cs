@@ -264,14 +264,17 @@ namespace AccessibleArena.Core.Services
         {
             bool isInBlockersPhase = _duelAnnouncer.IsInDeclareBlockersPhase;
 
-            // Reset tracking when entering/exiting blockers phase
-            if (isInBlockersPhase != _wasInBlockersPhase)
+            // Reset tracking only when ENTERING blockers phase, not when exiting.
+            // The game can momentarily fire phase events during blocker assignment
+            // that make IsInDeclareBlockersPhase return False briefly. If we reset
+            // on "exit", we lose track of assigned blockers and can't assign more.
+            if (isInBlockersPhase && !_wasInBlockersPhase)
             {
                 _previousSelectedBlockerIds.Clear();
                 _previousAssignedBlockerIds.Clear();
-                _wasInBlockersPhase = isInBlockersPhase;
-                MelonLogger.Msg($"[CombatNavigator] Blockers phase changed: {isInBlockersPhase}, tracking reset");
+                MelonLogger.Msg("[CombatNavigator] Entering blockers phase, tracking reset");
             }
+            _wasInBlockersPhase = isInBlockersPhase;
 
             // Only track during blockers phase
             if (!isInBlockersPhase)
