@@ -1923,13 +1923,27 @@ namespace AccessibleArena.Core.Services
                 cardNum++;
             }
 
-            // Add the NPE-Rewards_Container itself as a "Take reward" button
-            // This container has a CustomButton that dismisses the reward screen when clicked
-            if (npeContainer != null && !addedObjects.Contains(npeContainer))
+            // Add the NullClaimButton as "Take reward" button
+            // This button has a CustomButton that dismisses the reward screen when clicked
+            // NOTE: The button name starts with "Null" which is normally filtered out,
+            // so we explicitly add it here to make NPE rewards accessible
+            if (npeContainer != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Adding NPE reward container as 'Take reward' button");
-                AddElement(npeContainer, "Take reward, button");
-                addedObjects.Add(npeContainer);
+                var activeContainer = npeContainer.transform.Find("ActiveContainer");
+                if (activeContainer != null)
+                {
+                    var claimButton = activeContainer.Find("NullClaimButton");
+                    if (claimButton != null && !addedObjects.Contains(claimButton.gameObject))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Adding NullClaimButton as 'Take reward' button");
+                        AddElement(claimButton.gameObject, "Take reward, button");
+                        addedObjects.Add(claimButton.gameObject);
+                    }
+                    else if (claimButton == null)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] NullClaimButton not found in ActiveContainer");
+                    }
+                }
             }
         }
 
