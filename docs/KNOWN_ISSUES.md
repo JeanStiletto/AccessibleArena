@@ -240,6 +240,50 @@ Card counts for hidden zones are now accessible:
 
 Counts are tracked via UpdateZoneUXEvent and announced on demand.
 
+## Investigation Findings (Ready to Implement)
+
+### Booster Pack Card List (BoosterOpenToScrollListController)
+
+**Status:** UI structure discovered, ready to implement.
+
+**Context:** After clicking a booster pack in the Packs screen, a card list appears showing the cards you'll receive. This list is not currently accessible.
+
+**Controller:** `BoosterOpenToScrollListController`
+- Location: `ContentController - BoosterChamber_v2_Desktop_16x9(Clone)/SafeArea/BoosterOpenToScrollListController`
+- Does NOT have an `IsOpen` property we can monitor
+- Is a child of the BoosterChamber controller (already detected)
+
+**UI Structure (from F12 debug dump):**
+```
+Canvas: Menu_FooterButtons (sortingOrder: 0)
+  RightContainer [CanvasGroup]
+    RevealAll_MainButtonOutline_v2 [CustomButton]  <-- "Reveal All" button
+      Text [TextMeshProUGUI, Localize]
+
+Multiple instances of:
+Canvas (sortingOrder: 0)
+  Scroll View [ScrollRect]
+    Viewport [Mask, Image]
+      EntryRoot  <-- Card entries are children of this
+```
+
+**Key Elements to Make Accessible:**
+1. **RevealAll_MainButtonOutline_v2** - CustomButton to reveal all cards at once
+2. **Card entries** - Inside `Scroll View/Viewport/EntryRoot` (need deeper exploration to find card structure)
+3. **ModalFade** - CustomButton on BoosterChamber (possibly close/dismiss function)
+
+**Implementation Plan:**
+1. Detect `BoosterOpenToScrollListController` GameObject becoming active
+2. Find all `EntryRoot` containers and their card children
+3. Extract card info from entries (likely have CardView or similar components)
+4. Add RevealAll button to navigation
+5. Allow Tab/arrow navigation through cards
+6. Cards should announce their name, rarity, etc.
+
+**Debug Tool Added:** Press F12 in GeneralMenuNavigator to dump UI hierarchy (useful for further exploration).
+
+---
+
 ## Planned Features
 
 ### Immediate

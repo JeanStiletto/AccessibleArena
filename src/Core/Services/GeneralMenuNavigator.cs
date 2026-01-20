@@ -333,6 +333,13 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // F12: Debug dump of current UI hierarchy (for development)
+            if (Input.GetKeyDown(KeyCode.F12))
+            {
+                DumpUIHierarchy();
+                return true;
+            }
+
             // Backspace: Universal back - goes back one level in menus
             // But NOT when an input field is focused - let Backspace delete characters
             if (Input.GetKeyDown(KeyCode.Backspace))
@@ -730,6 +737,92 @@ namespace AccessibleArena.Core.Services
             _activePanels.RemoveWhere(p => p.Contains("Blade:"));
             _foregroundPanel = null;
             TriggerRescan(force: true);
+        }
+
+        /// <summary>
+        /// Debug: Dump current UI hierarchy to log for development.
+        /// Press F12 to trigger this after opening a new UI overlay.
+        /// </summary>
+        private void DumpUIHierarchy()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] === F12 DEBUG: UI HIERARCHY DUMP ===");
+
+            // Find all active Canvases
+            var canvases = GameObject.FindObjectsOfType<Canvas>();
+            MelonLogger.Msg($"[{NavigatorId}] Found {canvases.Length} active Canvases");
+
+            foreach (var canvas in canvases)
+            {
+                if (canvas == null || !canvas.gameObject.activeInHierarchy)
+                    continue;
+
+                MelonLogger.Msg($"[{NavigatorId}] Canvas: {canvas.name} (sortingOrder: {canvas.sortingOrder})");
+
+                // Dump first 2 levels of children
+                DumpGameObjectChildren(canvas.gameObject, 1, 3);
+            }
+
+            // Also check for any panel controllers that might be open
+            MelonLogger.Msg($"[{NavigatorId}] === Checking Panel Controllers ===");
+            var allMonoBehaviours = GameObject.FindObjectsOfType<MonoBehaviour>();
+            foreach (var mb in allMonoBehaviours)
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy)
+                    continue;
+
+                string typeName = mb.GetType().Name;
+                // Look for potential panel/controller types
+                if (typeName.Contains("Controller") || typeName.Contains("Panel") ||
+                    typeName.Contains("Overlay") || typeName.Contains("Browser") ||
+                    typeName.Contains("Popup") || typeName.Contains("Viewer"))
+                {
+                    // Check if it has IsOpen property
+                    var isOpenProp = mb.GetType().GetProperty("IsOpen");
+                    string isOpenStr = "";
+                    if (isOpenProp != null)
+                    {
+                        try
+                        {
+                            bool isOpen = (bool)isOpenProp.GetValue(mb);
+                            isOpenStr = $" (IsOpen: {isOpen})";
+                        }
+                        catch { }
+                    }
+
+                    MelonLogger.Msg($"[{NavigatorId}]   {typeName} on {mb.gameObject.name}{isOpenStr}");
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] === END DEBUG DUMP ===");
+            _announcer.Announce("Debug dump complete. Check log.", Models.AnnouncementPriority.High);
+        }
+
+        private void DumpGameObjectChildren(GameObject parent, int currentDepth, int maxDepth)
+        {
+            if (currentDepth > maxDepth || parent == null)
+                return;
+
+            string indent = new string(' ', currentDepth * 2);
+
+            foreach (Transform child in parent.transform)
+            {
+                if (child == null || !child.gameObject.activeInHierarchy)
+                    continue;
+
+                // Get component summary
+                var components = child.GetComponents<Component>();
+                var componentNames = new System.Collections.Generic.List<string>();
+                foreach (var c in components)
+                {
+                    if (c != null && !(c is Transform))
+                        componentNames.Add(c.GetType().Name);
+                }
+
+                string componentsStr = componentNames.Count > 0 ? $" [{string.Join(", ", componentNames)}]" : "";
+                MelonLogger.Msg($"[{NavigatorId}] {indent}{child.name}{componentsStr}");
+
+                DumpGameObjectChildren(child.gameObject, currentDepth + 1, maxDepth);
+            }
         }
 
         /// <summary>
