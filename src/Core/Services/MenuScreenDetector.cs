@@ -158,11 +158,24 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // BoosterChamber (pack opening screen) - elements ARE children of controller
+            // so we set _activeControllerGameObject to filter NavBar and show only pack elements
+            var boosterChamberObj = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
+            if (boosterChamberObj != null && boosterChamberObj.activeInHierarchy)
+            {
+                _activeControllerGameObject = boosterChamberObj;
+                _activeContentController = "BoosterChamber";
+                return "BoosterChamber";
+            }
+
             // Fallback: Check for rewards/claim overlay by object name pattern
+            // Note: We do NOT set _activeControllerGameObject for rewards overlays because
+            // the interactive elements (Continue button, etc.) are siblings of the controller,
+            // not children. Setting it as controller would filter out all navigable elements.
+            // This is the same approach used for NPE rewards below.
             var rewardsObj = GameObject.Find("ContentController - Rewards_Desktop_16x9(Clone)");
             if (rewardsObj != null && rewardsObj.activeInHierarchy)
             {
-                _activeControllerGameObject = rewardsObj;
                 _activeContentController = "RewardsOverlay";
                 return "RewardsOverlay";
             }
@@ -292,6 +305,7 @@ namespace AccessibleArena.Core.Services
                 "ConstructedDeckSelectController" => "Deck Selection",
                 "EventPageContentController" => "Event",
                 "RewardsOverlay" => "Rewards",
+                "BoosterChamber" => "Packs",
                 "NPERewards" => "Card Unlocked",
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
             };

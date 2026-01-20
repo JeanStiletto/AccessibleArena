@@ -4,6 +4,32 @@ All notable changes to the Accessible Arena.
 
 ## January 2026
 
+### Booster Chamber (Packs Screen) - Base Implementation
+
+Added accessibility support for the Booster Chamber screen where players open booster packs.
+
+**Features:**
+- BoosterChamber screen detection (`ContentController - BoosterChamber_v2_Desktop_16x9(Clone)`)
+- NavBar elements filtered out when in pack opening screen
+- Pack hitboxes (`Hitbox_BoosterMesh`) navigable with arrow keys
+- Pack labels show "Open x10 (count)" format with pack quantity
+- Open All button accessible
+- Screen announced as "Packs" when entering
+
+**Technical Details:**
+- Added `BoosterChamber` detection in `MenuScreenDetector.CheckContentController()`
+- Added `IsInsideBoosterCarousel()` classifier exception to allow hitbox elements
+- Added `TryGetBoosterPackName()` in `UITextExtractor` to extract pack count and "Open x10" label from CarouselBooster hierarchy
+- Fixed `RewardsOverlay` not setting `_activeControllerGameObject` (interactive elements are siblings, not children)
+
+**Known Limitations:**
+- Pack set names (like "Foundations") are 3D graphics, not extractable as text
+- Card list overlay after pack activation not yet detected
+
+**Files:** `MenuScreenDetector.cs`, `UIElementClassifier.cs`, `UITextExtractor.cs`, `GeneralMenuNavigator.cs`
+
+---
+
 ### Selection Mode Fix - Consolidated DiscardNavigator into HotHighlightNavigator
 
 Fixed discard mode not working with German localization and consolidated DiscardNavigator into HotHighlightNavigator.

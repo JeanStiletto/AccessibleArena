@@ -596,6 +596,29 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Check if element is inside a BoosterCarousel (pack opening screen).
+        /// Elements inside the carousel are the clickable pack items.
+        /// </summary>
+        private static bool IsInsideBoosterCarousel(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+
+            while (current != null && levels < MaxFriendsWidgetSearchDepth)
+            {
+                string name = current.name;
+                if (ContainsIgnoreCase(name, "CarouselBooster") || ContainsIgnoreCase(name, "BoosterChamber"))
+                    return true;
+                current = current.parent;
+                levels++;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Check if element is inside a VS_screen (NPE/pre-game screen).
         /// These contain decorative elements like NPC portraits that shouldn't be navigable.
         /// </summary>
@@ -814,7 +837,9 @@ namespace AccessibleArena.Core.Services
 
             // Hitboxes without actual text content
             // BUT: Allow hitboxes inside FriendsWidget (they ARE the clickable friend items)
-            if (ContainsIgnoreCase(name, "hitbox") && !UITextExtractor.HasActualText(obj) && !IsInsideFriendsWidget(obj))
+            // BUT: Allow hitboxes inside BoosterCarousel (they ARE the clickable pack items)
+            if (ContainsIgnoreCase(name, "hitbox") && !UITextExtractor.HasActualText(obj)
+                && !IsInsideFriendsWidget(obj) && !IsInsideBoosterCarousel(obj))
                 return true;
 
             // Backer elements from social panel (internal hitboxes)

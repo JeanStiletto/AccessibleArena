@@ -71,6 +71,13 @@ namespace AccessibleArena.Core.Services
                 return deckName;
             }
 
+            // Check if this is a booster pack element - look for CarouselBooster parent with pack name
+            string boosterName = TryGetBoosterPackName(gameObject);
+            if (!string.IsNullOrEmpty(boosterName))
+            {
+                return boosterName;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -238,6 +245,90 @@ namespace AccessibleArena.Core.Services
 
                 current = current.parent;
                 maxLevels--;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Tries to extract a booster pack name from a CarouselBooster element.
+        /// Booster pack hitboxes don't have text - the pack name is in a sibling TMP_Text.
+        /// </summary>
+        private static string TryGetBoosterPackName(GameObject gameObject)
+        {
+            // Only process elements that look like booster hitboxes
+            string objName = gameObject.name.ToLower();
+            if (!objName.Contains("hitbox") && !objName.Contains("booster"))
+                return null;
+
+            // Walk up the hierarchy looking for CarouselBooster parent
+            Transform current = gameObject.transform;
+            int maxLevels = 6; // CarouselBooster can be several levels up
+            Transform carouselBooster = null;
+
+            while (current != null && maxLevels > 0)
+            {
+                string name = current.gameObject.name;
+
+                // Found the CarouselBooster container
+                if (name.Contains("CarouselBooster"))
+                {
+                    carouselBooster = current;
+                    break;
+                }
+
+                // Stop if we hit the main chamber controller (went too far)
+                if (name.Contains("BoosterChamber") || name.Contains("ContentController"))
+                    break;
+
+                current = current.parent;
+                maxLevels--;
+            }
+
+            if (carouselBooster == null)
+                return null;
+
+            // Search CarouselBooster's children for TMP_Text with pack name
+            // Use includeInactive=true to find text in inactive children too
+            string packName = null;
+            string packCount = null;
+
+            var allTmpTexts = carouselBooster.GetComponentsInChildren<TMP_Text>(true);
+
+            foreach (var tmpText in allTmpTexts)
+            {
+                if (tmpText == null)
+                    continue;
+
+                string text = tmpText.text?.Trim();
+
+                if (string.IsNullOrEmpty(text))
+                    continue;
+
+                // Skip if it's just a number (count) or too short
+                if (text.Length <= 2 && int.TryParse(text, out _))
+                {
+                    packCount = text;
+                    continue;
+                }
+
+                // Skip placeholder/internal text
+                if (text.ToLower().Contains("hitbox") || text.ToLower().Contains("booster mesh"))
+                    continue;
+
+                // This is likely the pack name
+                if (text.Length > 2 && packName == null)
+                {
+                    packName = text;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(packName))
+            {
+                // Include count if available
+                if (!string.IsNullOrEmpty(packCount))
+                    return $"{packName} ({packCount})";
+                return packName;
             }
 
             return null;

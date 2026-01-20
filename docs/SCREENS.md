@@ -100,6 +100,33 @@ Back button (Button_Back) does not respond to keyboard activation. See KNOWN_ISS
 
 Terms/consent checkboxes screen. Unity's native Tab navigation works correctly here.
 
+## Booster Chamber (Packs Screen)
+
+### Pack Opening Screen
+**Controller:** `ContentController - BoosterChamber_v2_Desktop_16x9(Clone)`
+**Navigator:** `GeneralMenuNavigator`
+
+The Booster Chamber screen displays available booster packs in a horizontal carousel.
+
+**Elements Detected:**
+- Pack hitboxes (`Hitbox_BoosterMesh`) - Clickable pack elements, labeled "Open x10 (count)"
+- Open All button (`Button_OpenMultiple`) - Opens all packs at once
+
+**Navigation:**
+- Left/Right arrows: Navigate between packs
+- Enter: Activate selected pack (opens card list)
+- Home/End: Jump to first/last pack
+
+**Technical Notes:**
+- NavBar is filtered out when BoosterChamber is active
+- Pack names (like "Foundations", "Aetherdrift") are rendered as 3D graphics on the pack model, not as UI text - OCR can read them but text extraction cannot
+- Pack count is extracted from `Text_Quantity` child element
+- "Open x10" label extracted from inactive `Text` child element
+
+**Known Limitations:**
+- The card list that appears after clicking a pack is not yet accessible (no panel state change detected)
+- Pack set names cannot be extracted - only "Open x10 (count)" is announced
+
 ## NPE Screens
 
 ### Reward Chest Screen
