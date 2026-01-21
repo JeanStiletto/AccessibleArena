@@ -271,6 +271,71 @@ When clicking Play or Bot Match on the HomePage, the PlayBlade system opens.
 **Important:** Deck selection in PlayBlade does NOT use `DeckSelectBlade.Show()`.
 The deck list is embedded directly in the blade views.
 
+## Panel Lifecycle Methods and Harmony Timing
+
+**Critical for accessibility mod**: Understanding when Harmony patches fire relative to animations.
+
+### Classes WITH Post-Animation Events
+
+**NavContentController** (and descendants like HomePageContentController, DeckManagerController):
+- `BeginOpen()` - Fires at animation START
+- `FinishOpen()` - Fires AFTER animation completes, `IsReadyToShow` becomes true
+- `BeginClose()` - Fires at animation START
+- `FinishClose()` - Fires AFTER animation completes, panel fully invisible
+- `IsReadyToShow` property - True when animation complete and UI ready for interaction
+
+**Timing implication**: Patch `FinishOpen`/`FinishClose` for post-animation events. Current code patches `BeginClose` for early notification.
+
+### Classes WITHOUT Post-Animation Events
+
+**PopupBase**:
+- Properties: `IsShowing`
+- Methods: `OnEscape()`, `OnEnter()`, `Activate(bool)`
+- **NO FinishOpen/FinishClose** - Only know when popup activates, not when animation done
+
+**SystemMessageView** (confirmation dialogs):
+- Properties: `IsOpen`, `Priority`
+- Methods: `Show()`, `Hide()`, `HandleKeyDown()`
+- **NO FinishShow/FinishHide** - `Show()`/`Hide()` fire at animation START
+
+**BladeContentView** (EventBladeContentView, FindMatchBladeContentView, etc.):
+- Properties: `Type` (BladeType enum)
+- Methods: `Show()`, `Hide()`, `TickUpdate()`
+- **NO FinishShow/FinishHide** - `Show()`/`Hide()` fire at animation START
+
+**PlayBladeController**:
+- Properties: `PlayBladeVisualState` (enum), `IsDeckSelected`
+- **NO animation lifecycle methods** - Only property setters
+- Uses SLIDE animation (position change), not alpha fade
+
+### Timing Summary Table
+
+| Class | Open Event | Close Event | Post-Animation? |
+|-------|------------|-------------|-----------------|
+| NavContentController | BeginOpen/FinishOpen | BeginClose/FinishClose | YES |
+| PopupBase | Activate(true) | Activate(false) | NO |
+| SystemMessageView | Show() | Hide() | NO |
+| BladeContentView | Show() | Hide() | NO |
+| PlayBladeController | PlayBladeVisualState setter | PlayBladeVisualState=Hidden | NO |
+| SettingsMenu | Open() | Close() | NO (but has IsOpen) |
+
+### Workaround for Missing Post-Animation Events
+
+For classes without post-animation events, use alpha detection to confirm visual state:
+1. Harmony patch fires (animation starting)
+2. Poll CanvasGroup alpha until it crosses threshold (>= 0.5 visible, < 0.5 hidden)
+3. Only then update navigation
+
+**Alternative**: Use fixed delay after event (less reliable, animation durations vary).
+
+### PopupManager (Potential Alternative Hook)
+
+The game has a `PopupManager` singleton:
+- `RegisterPopup(PopupBase popup)` - Called when popup registers
+- `UnregisterPopup(PopupBase popup)` - Called when popup unregisters
+
+These could be patched for popup lifecycle, but timing relative to animation is unknown.
+
 ## Deck Entry Structure (MetaDeckView)
 
 Each deck entry in selection lists uses `MetaDeckView`:
@@ -284,8 +349,8 @@ Each deck entry in selection lists uses `MetaDeckView`:
 **UI Hierarchy:**
 ```
 DeckView_Base(Clone)
-└── UI (CustomButton) <- Main selection button
-    └── TextBox <- Name edit area
+â””â”€â”€ UI (CustomButton) <- Main selection button
+    â””â”€â”€ TextBox <- Name edit area
 ```
 
 ## Button Types
@@ -429,29 +494,29 @@ Use Harmony Postfix/Prefix patches on:
 
 ```
 BattleFieldStaticElementsLayout_Desktop_16x9(Clone)
-└── Base
-    ├── LocalPlayer
-    │   ├── HandContainer/LifeFrameContainer
-    │   ├── LeftContainer/AvatarContainer
-    │   │   ├── WinPipsAnchorPoint
-    │   │   ├── UserNameContainer
-    │   │   ├── MatchTimerContainer
-    │   │   └── RankAnchorPoint
-    │   └── PrompButtonsContainer
-    └── Opponent
-        ├── LifeFrameContainer
-        └── AvatarContainer
+â””â”€â”€ Base
+    â”œâ”€â”€ LocalPlayer
+    â”‚   â”œâ”€â”€ HandContainer/LifeFrameContainer
+    â”‚   â”œâ”€â”€ LeftContainer/AvatarContainer
+    â”‚   â”‚   â”œâ”€â”€ WinPipsAnchorPoint
+    â”‚   â”‚   â”œâ”€â”€ UserNameContainer
+    â”‚   â”‚   â”œâ”€â”€ MatchTimerContainer
+    â”‚   â”‚   â””â”€â”€ RankAnchorPoint
+    â”‚   â””â”€â”€ PrompButtonsContainer
+    â””â”€â”€ Opponent
+        â”œâ”€â”€ LifeFrameContainer
+        â””â”€â”€ AvatarContainer
 ```
 
 ### Match Timer Structure
 
 ```
 LocalPlayerMatchTimer_Desktop_16x9(Clone)
-├── Icon
-│   ├── Pulse
-│   └── HoverArea <- Clickable for emotes
-├── Text <- Shows "00:00" format
-└── WarningPrompt
+â”œâ”€â”€ Icon
+â”‚   â”œâ”€â”€ Pulse
+â”‚   â””â”€â”€ HoverArea <- Clickable for emotes
+â”œâ”€â”€ Text <- Shows "00:00" format
+â””â”€â”€ WarningPrompt
 ```
 
 ### GameManager Properties

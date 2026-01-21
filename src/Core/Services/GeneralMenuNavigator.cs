@@ -304,12 +304,12 @@ namespace AccessibleArena.Core.Services
                 TriggerRescan(force: true);
             }
 
-            // CheckForPanelChanges disabled - using UnifiedPanelDetector alpha-based detection only
-            // This eliminates race conditions between two competing detection systems
-            // if (_rescanDelay <= 0)
-            // {
-            //     CheckForPanelChanges();
-            // }
+            // Hybrid detection: CheckForPanelChanges for PlayBlade/controllers, UnifiedPanelDetector for popups
+            // Both systems work together for comprehensive panel detection
+            if (_rescanDelay <= 0)
+            {
+                CheckForPanelChanges();
+            }
 
             // Call base Update for normal navigation handling
             base.Update();
@@ -366,11 +366,11 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Handle Backspace key - navigates back one level in the menu hierarchy.
         /// Priority order:
-        /// 1. Settings submenu → Settings main menu
-        /// 2. Settings main menu → Close settings
-        /// 3. Friends panel open → Close it
-        /// 4. PlayBlade open → Close it
-        /// 5. In content panel (not Home) → Navigate to Home
+        /// 1. Settings submenu â†’ Settings main menu
+        /// 2. Settings main menu â†’ Close settings
+        /// 3. Friends panel open â†’ Close it
+        /// 4. PlayBlade open â†’ Close it
+        /// 5. In content panel (not Home) â†’ Navigate to Home
         /// </summary>
         private bool HandleBackNavigation()
         {
@@ -933,7 +933,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if any panel containers have appeared or disappeared.
-        /// Also detects content panel changes within overlays (e.g., Settings main → Gameplay submenu).
+        /// Also detects content panel changes within overlays (e.g., Settings main â†’ Gameplay submenu).
         /// </summary>
         private void CheckForPanelChanges()
         {

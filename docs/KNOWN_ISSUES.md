@@ -24,36 +24,48 @@ Added to filter wrapper objects like `NPE-Rewards_Container` that have CustomBut
 
 **Current Architecture: Hybrid Detection (Working)**
 
-The panel detection uses TWO complementary systems that handle different UI types:
+The panel detection uses THREE complementary systems:
 
-1. **CheckForPanelChanges()** in GeneralMenuNavigator
+1. **Harmony Patches** (`PanelStatePatch.cs`) - CRITICAL for PlayBlade
+   - Event-driven notifications when panel state changes
+   - Fires `OnPanelStateChanged` event to `NavigatorManager` -> `GeneralMenuNavigator.OnPanelStateChangedExternal()`
+   - Detects `PlayBladeVisualState` setter immediately (PlayBlade uses SLIDE animation, not alpha fade)
+
+2. **CheckForPanelChanges()** in GeneralMenuNavigator
    - Uses `MenuPanelTracker.GetActivePanelsWithObjects()`
    - Detects via reflection on `IsOpen` property of controller classes
    - Handles: NavContentController, SettingsMenu, SettingsMenuHost, PopupBase, Login panels
-   - **Critical for PlayBlade** - PlayBladeController uses visual state, not alpha
 
-2. **UnifiedPanelDetector.cs** - Alpha-based detection
-   - Scans for name patterns: Popup, SystemMessageView, Dialog, Modal, SettingsMenu, FriendsWidget, SocialUI, InviteFriend, PlayBlade, Blade
+3. **UnifiedPanelDetector.cs** - Alpha-based detection
+   - Scans for name patterns: Popup, SystemMessageView, Dialog, Modal, etc.
    - Tracks CanvasGroup alpha state every 10 frames
    - Handles: True popups (SystemMessageView), social panels, dialogs
-   - **Cannot detect PlayBlade reliably** - see failed experiment below
+   - **Cannot detect PlayBlade** - PlayBlade uses SLIDE animation (no alpha change)
 
-**Why Both Systems Are Needed:**
+**Why All Three Systems Are Needed:**
 
-| UI Type | CheckForPanelChanges | UnifiedPanelDetector |
-|---------|---------------------|---------------------|
-| NavContentController (Home, Decks) | YES (via IsOpen) | NO |
-| SettingsMenu | YES (via IsOpen) | YES (via alpha) |
-| SystemMessageView (dialogs) | NO | YES (via alpha) |
-| PlayBlade | YES (via visual state) | UNRELIABLE |
-| SocialUI | NO | YES (via alpha) |
-| Login panels | YES (by name) | NO |
+- **Harmony patches**: Immediate event-driven detection (PlayBlade, Settings, Blades)
+- **CheckForPanelChanges**: Reflection polling for IsOpen state (backup, edge cases)
+- **UnifiedPanelDetector**: Visual alpha detection for popups that fade in/out
+
+**Detection by UI Type:**
+
+- NavContentController: Harmony (FinishOpen/Close) + CheckForPanelChanges
+- SettingsMenu: Harmony + CheckForPanelChanges + UnifiedPanelDetector
+- SystemMessageView: UnifiedPanelDetector only (alpha fade)
+- **PlayBlade: Harmony ONLY** (slide animation, alpha stays 1.0)
+- SocialUI: Harmony + UnifiedPanelDetector
+- Login panels: CheckForPanelChanges (by name pattern)
 
 ---
 
 ### Failed Experiment: Alpha-Only Detection (Jan 2026)
 
-**Goal:** Unify all panel detection on alpha-based approach to eliminate race conditions between competing systems.
+**Goal:** Unify all panel detection on alpha-based approach to eliminate race conditions.
+
+**Fundamental Issue: PlayBlade uses SLIDE animation, not ALPHA fade**
+
+PlayBlade slides in from the side while alpha stays at 1.0 the entire time. Alpha-based detection can NEVER work for it because there's no alpha change to detect. This is why Harmony patches on `PlayBladeVisualState` are essential.
 
 **What We Tried:**
 1. Disabled `CheckForPanelChanges()` entirely in GeneralMenuNavigator.Update()
@@ -101,20 +113,25 @@ Kept from experiment:
 - Added "PlayBlade", "Blade" to tracked patterns (helps with some detection)
 
 Reverted:
-- Re-enabled `CheckForPanelChanges()` - needed for PlayBlade/controller detection
+- Re-enabled `PanelStatePatch.Initialize()` in AccessibleArenaMod.cs
+- Re-enabled event subscription in NavigatorManager.cs
+- Re-enabled `CheckForPanelChanges()` in GeneralMenuNavigator.cs
 - Removed stability tracking - caused more problems than it solved
-- Back to simple alpha threshold check (alpha >= 0.5 = visible)
 
-**Current State:**
+**Current State (Jan 2026 - Restored):**
 
-Hybrid approach is working:
-- CheckForPanelChanges handles controller-based panels (PlayBlade, Settings, Nav content)
-- UnifiedPanelDetector handles alpha-based panels (popups, dialogs, social)
-- Some overlap on SettingsMenu (both detect it) but this is acceptable
+Hybrid approach with Harmony patches is working:
+- **Harmony patches** provide immediate event-driven detection for PlayBlade, Settings, Blades
+- **CheckForPanelChanges** handles controller-based panels via reflection (backup)
+- **UnifiedPanelDetector** handles alpha-based panels (popups, dialogs, social)
+
+The key insight: PlayBlade REQUIRES Harmony patches because it uses slide animation (alpha stays 1.0).
 
 **Files:**
-- `src/Core/Services/UnifiedPanelDetector.cs` - Alpha detection for popups
-- `src/Core/Services/GeneralMenuNavigator.cs` - CheckForPanelChanges() re-enabled
+- `src/Patches/PanelStatePatch.cs` - Harmony patches (CRITICAL for PlayBlade)
+- `src/Core/Services/NavigatorManager.cs` - Event subscription (OnPanelStateChanged)
+- `src/Core/Services/GeneralMenuNavigator.cs` - OnPanelStateChangedExternal, CheckForPanelChanges
+- `src/Core/Services/UnifiedPanelDetector.cs` - Alpha detection for popups/dialogs
 - `src/Core/Services/MenuPanelTracker.cs` - Controller reflection utilities
 
 ---

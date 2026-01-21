@@ -62,9 +62,9 @@ namespace AccessibleArena
             // This patch intercepts game events and passes them to DuelAnnouncer
             UXEventQueuePatch.Initialize();
 
-            // PanelStatePatch disabled - using UnifiedPanelDetector alpha-based detection instead
-            // This patch was used to intercept panel Show/Hide but is no longer needed
-            // PanelStatePatch.Initialize();
+            // PanelStatePatch for Harmony-based panel detection (PlayBlade, Settings, etc.)
+            // Used alongside UnifiedPanelDetector for hybrid detection
+            PanelStatePatch.Initialize();
 
             LoggerInstance.Msg("Harmony patches initialized");
         }
