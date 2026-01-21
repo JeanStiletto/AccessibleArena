@@ -1113,17 +1113,12 @@ namespace AccessibleArena.Core.Services
             // Check for new panels
             foreach (var (panelName, panelObj) in currentPanels)
             {
-                // Skip if already tracked (either exact match or via Harmony's ContentPanel: format)
+                // Skip if already tracked
                 if (_activePanels.Contains(panelName))
                     continue;
 
-                // Skip SettingsMenu if Harmony already tracked it via ContentPanel:SettingsMenu
-                // This prevents duplicate tracking from two systems
-                if (panelName.StartsWith("SettingsMenu:") && _activePanels.Any(p => p == "ContentPanel:SettingsMenu"))
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Skipping {panelName} - already tracked by Harmony");
-                    continue;
-                }
+                // Phase 4: Deduplication now handled by PanelStateManager via detector ownership
+                // Each detector only reports panels it owns per PanelRegistry.GetDetectionMethod()
 
                 MelonLogger.Msg($"[{NavigatorId}] Panel opened: {panelName}");
                 _activePanels.Add(panelName);
@@ -1152,11 +1147,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Check for closed panels
-            // Exclude ContentPanel:* entries - those are managed by Harmony (OnPanelStateChangedExternal)
-            // and use a different ID format than reflection-based detection
+            // Phase 4: Simplified - no longer need ContentPanel: prefix exclusion
+            // Detectors now handle their own panels via PanelRegistry ownership
             var currentPanelNames = currentPanels.Select(p => p.name).ToHashSet();
             var closedPanels = _activePanels
-                .Where(p => !p.StartsWith("ContentPanel:") && !currentPanelNames.Contains(p))
+                .Where(p => !currentPanelNames.Contains(p))
                 .ToList();
             if (closedPanels.Count > 0)
             {
@@ -2499,25 +2494,24 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle content panel open/close events.
+        /// Phase 4: Simplified - HarmonyPanelDetector now reports to PanelStateManager.
+        /// This method just maintains local navigator state for element filtering.
         /// </summary>
         private void HandleContentPanelChange(string panelTypeName, bool isOpen)
         {
             if (isOpen)
             {
-                _activePanels.Add($"ContentPanel:{panelTypeName}");
+                // Phase 4: Use panel name directly, no ContentPanel: prefix needed
+                _activePanels.Add(panelTypeName);
                 MelonLogger.Msg($"[{NavigatorId}] Content panel opened: {panelTypeName}");
 
                 // For SettingsMenu, set foreground panel to filter elements correctly
                 if (panelTypeName.Contains("SettingsMenu"))
                 {
-                    // Update cached Settings panel reference and set as foreground
                     if (CheckSettingsMenuOpen() && SettingsContentPanel != null)
                     {
                         _foregroundPanel = SettingsContentPanel;
                         MelonLogger.Msg($"[{NavigatorId}] Set foreground panel to Settings: {_foregroundPanel.name}");
-
-                        // Report to PanelStateManager (Phase 1: dual-write)
-                        ReportPanelOpened("Settings", SettingsContentPanel, PanelDetectionMethod.Harmony);
                     }
                 }
 
@@ -2529,9 +2523,6 @@ namespace AccessibleArena.Core.Services
                     {
                         _foregroundPanel = socialPanel;
                         MelonLogger.Msg($"[{NavigatorId}] Set foreground panel to Social: {_foregroundPanel.name}");
-
-                        // Report to PanelStateManager (Phase 1: dual-write)
-                        ReportPanelOpened("Social", socialPanel, PanelDetectionMethod.Harmony);
                     }
                 }
 
@@ -2544,14 +2535,8 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _activePanels.RemoveWhere(p => p.StartsWith("ContentPanel:"));
-
-                // Report to PanelStateManager before clearing (Phase 1: dual-write)
-                if (_foregroundPanel != null)
-                {
-                    ReportPanelClosed(_foregroundPanel);
-                }
-
+                // Phase 4: Just remove matching panel, no prefix logic
+                _activePanels.Remove(panelTypeName);
                 _foregroundPanel = null;
                 MelonLogger.Msg($"[{NavigatorId}] Content panel closed: {panelTypeName}");
             }
@@ -2559,14 +2544,17 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle blade open/close/state change events.
+        /// Phase 4: Simplified - HarmonyPanelDetector now reports to PanelStateManager.
+        /// This method just maintains local navigator state for element filtering.
         /// </summary>
         private void HandleBladeChange(string panelTypeName, bool isOpen)
         {
             if (isOpen)
             {
+                // Phase 4: Use simplified panel key
                 string panelKey = panelTypeName.Contains("EventBlade") || panelTypeName.Contains("DirectChallenge")
-                    ? $"EventBlade:External:{panelTypeName}"
-                    : $"PlayBlade:External:{panelTypeName}";
+                    ? $"EventBlade:{panelTypeName}"
+                    : $"PlayBlade:{panelTypeName}";
 
                 _activePanels.Add(panelKey);
                 _playBladeActive = true;
@@ -2580,54 +2568,29 @@ namespace AccessibleArena.Core.Services
                     _playBladeState = panelTypeName;
 
                 MelonLogger.Msg($"[{NavigatorId}] Blade opened: {panelTypeName}");
-
-                // Report to PanelStateManager (Phase 1: dual-write)
-                var bladeObj = GameObject.Find("ContentController - PlayBladeV3_Desktop_16x9(Clone)");
-                if (bladeObj != null)
-                {
-                    ReportPanelOpened("PlayBlade", bladeObj, PanelDetectionMethod.Harmony);
-                    // Also report PlayBlade visual state
-                    int state = panelTypeName.Contains("Hidden") ? 0 :
-                                panelTypeName.Contains("Events") ? 1 :
-                                panelTypeName.Contains("DirectChallenge") ? 2 :
-                                panelTypeName.Contains("FriendChallenge") ? 3 : 1;
-                    PanelStateManager.Instance?.SetPlayBladeState(state);
-                }
+                // HarmonyPanelDetector handles PanelStateManager reporting
             }
             else
             {
                 // Determine if this is a close event or just a state transition
-                // - PlayBlade:Hidden = close (PlayBladeController visual state)
-                // - Blade:* with isOpen=false = close (BladeContentView.Hide() was called)
-                // - PlayBlade:<non-Hidden> with isOpen=false = state transition (e.g., Events -> DirectChallenge)
-                bool isPlayBladeVisualState = panelTypeName.StartsWith("PlayBlade:");
                 bool isBladeContentViewHide = panelTypeName.StartsWith("Blade:");
                 bool isClosing = panelTypeName.Contains("Hidden") || isBladeContentViewHide;
 
                 if (isClosing)
                 {
-                    _activePanels.RemoveWhere(p => p.Contains("Blade:"));
+                    _activePanels.RemoveWhere(p => p.Contains("Blade:") || p.Contains("PlayBlade:") || p.Contains("EventBlade:"));
                     _playBladeActive = false;
                     _playBladeState = null;
                     _foregroundPanel = null;
                     MelonLogger.Msg($"[{NavigatorId}] Blade closed: {panelTypeName}");
-
-                    // Report to PanelStateManager (Phase 1: dual-write)
-                    ReportPanelClosedByName("PlayBlade");
-                    PanelStateManager.Instance?.SetPlayBladeState(0);
+                    // HarmonyPanelDetector handles PanelStateManager reporting
                 }
                 else
                 {
                     // State transition within blade - keep blade active
                     _playBladeState = panelTypeName;
                     MelonLogger.Msg($"[{NavigatorId}] Blade state change: {panelTypeName}");
-
-                    // Report state change to PanelStateManager
-                    int state = panelTypeName.Contains("Hidden") ? 0 :
-                                panelTypeName.Contains("Events") ? 1 :
-                                panelTypeName.Contains("DirectChallenge") ? 2 :
-                                panelTypeName.Contains("FriendChallenge") ? 3 : 1;
-                    PanelStateManager.Instance?.SetPlayBladeState(state);
+                    // HarmonyPanelDetector handles PanelStateManager reporting
                 }
             }
         }

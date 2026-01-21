@@ -15,10 +15,28 @@
 - Added `ForceRescan()` to IScreenNavigator interface
 - NavigatorManager coordinates scene-change handling centrally
 
-**Phase 3-5: Pending** - Not started
-- Refactor detectors as plugins
-- Eliminate duplicate detection
-- Simplify GeneralMenuNavigator
+**Phase 3: Refactor Detectors as Plugins** - COMPLETED
+- Created `IPanelDetector.cs` interface with Initialize/Update/Reset/HandlesPanel
+- Created `HarmonyPanelDetector.cs` - wraps PanelStatePatch, handles PlayBlade/Settings/Blades/SocialUI
+- Created `ReflectionPanelDetector.cs` - polls IsOpen properties, handles Login panels/PopupBase
+- Created `AlphaPanelDetector.cs` - uses CanvasGroup alpha, handles Popup/Dialog/Modal
+- Created `PanelDetectorManager.cs` - coordinates all detectors, calls Update on each
+- Each detector reports to PanelStateManager, never triggers rescans directly
+- AccessibleArenaMod initializes PanelDetectorManager after PanelStateManager
+
+**Phase 4: Eliminate Duplicate Detection** - COMPLETED
+- Updated all detectors to use `PanelRegistry.GetDetectionMethod()` for ownership checks
+- Removed scattered panel patterns from detectors (now centralized in PanelRegistry)
+- Removed `ContentPanel:` prefix naming from GeneralMenuNavigator
+- Removed deduplication hacks ("skip if already tracked by Harmony")
+- Simplified HandleContentPanelChange and HandleBladeChange (removed dual-write reporting)
+- Each panel is now detected by exactly one detector per PanelRegistry assignment
+
+**Phase 5: Simplify GeneralMenuNavigator** - Not started
+- Remove CheckForPanelChanges() - let detectors handle all detection
+- Remove OnPanelStateChangedExternal() - HarmonyPanelDetector handles this
+- Navigator responds only to PanelStateManager events
+- Remove direct _foregroundPanel management (use PanelStateManager.GetFilterPanel())
 
 ---
 

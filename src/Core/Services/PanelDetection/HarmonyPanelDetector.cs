@@ -1,0 +1,214 @@
+using System;
+using System.Collections.Generic;
+using MelonLoader;
+using UnityEngine;
+using AccessibleArena.Patches;
+
+namespace AccessibleArena.Core.Services.PanelDetection
+{
+    /// <summary>
+    /// Detector that uses Harmony patches to detect panel state changes.
+    /// Event-driven detection for panels that use Show/Hide methods or property setters.
+    ///
+    /// Handles: PlayBlade, Settings, Blades, SocialUI, NavContentController
+    /// </summary>
+    public class HarmonyPanelDetector : IPanelDetector
+    {
+        public string DetectorId => "HarmonyDetector";
+
+        private PanelStateManager _stateManager;
+        private bool _initialized;
+
+        // Track controller instances to their GameObjects for proper panel tracking
+        private readonly Dictionary<object, GameObject> _controllerToGameObject = new Dictionary<object, GameObject>();
+
+        public void Initialize(PanelStateManager stateManager)
+        {
+            if (_initialized)
+            {
+                MelonLogger.Warning($"[{DetectorId}] Already initialized");
+                return;
+            }
+
+            _stateManager = stateManager;
+
+            // Subscribe to Harmony patch events
+            PanelStatePatch.OnPanelStateChanged += OnHarmonyPanelStateChanged;
+
+            _initialized = true;
+            MelonLogger.Msg($"[{DetectorId}] Initialized, subscribed to PanelStatePatch events");
+        }
+
+        public void Update()
+        {
+            // Event-driven detector - no polling needed
+            // Periodically clean up stale controller references
+            CleanupStaleReferences();
+        }
+
+        public void Reset()
+        {
+            _controllerToGameObject.Clear();
+            MelonLogger.Msg($"[{DetectorId}] Reset");
+        }
+
+        public bool HandlesPanel(string panelName)
+        {
+            if (string.IsNullOrEmpty(panelName))
+                return false;
+
+            // Use PanelRegistry as single source of truth for detector assignment
+            return PanelRegistry.GetDetectionMethod(panelName) == PanelDetectionMethod.Harmony;
+        }
+
+        private void OnHarmonyPanelStateChanged(object controller, bool isOpen, string typeName)
+        {
+            if (_stateManager == null || controller == null)
+                return;
+
+            try
+            {
+                // Get or find the GameObject for this controller
+                GameObject gameObject = GetGameObjectForController(controller);
+                if (gameObject == null)
+                {
+                    MelonLogger.Msg($"[{DetectorId}] Could not find GameObject for {typeName}, skipping");
+                    return;
+                }
+
+                // Determine panel type from the type name
+                PanelType panelType = DeterminePanelType(typeName);
+
+                if (isOpen)
+                {
+                    // Create PanelInfo and report to state manager
+                    var panelInfo = new PanelInfo(
+                        typeName,
+                        panelType,
+                        gameObject,
+                        PanelDetectionMethod.Harmony
+                    );
+
+                    // Handle special case for PlayBlade state
+                    if (typeName.StartsWith("PlayBlade:"))
+                    {
+                        var statePart = typeName.Substring("PlayBlade:".Length);
+                        int bladeState = ParsePlayBladeState(statePart);
+                        _stateManager.SetPlayBladeState(bladeState);
+                    }
+
+                    _stateManager.ReportPanelOpened(panelInfo);
+                    MelonLogger.Msg($"[{DetectorId}] Reported panel opened: {typeName}");
+                }
+                else
+                {
+                    // Handle PlayBlade closing
+                    if (typeName.StartsWith("PlayBlade:"))
+                    {
+                        var statePart = typeName.Substring("PlayBlade:".Length);
+                        if (statePart == "Hidden" || ParsePlayBladeState(statePart) == 0)
+                        {
+                            _stateManager.SetPlayBladeState(0);
+                        }
+                    }
+
+                    // Report panel closed
+                    _stateManager.ReportPanelClosed(gameObject);
+                    MelonLogger.Msg($"[{DetectorId}] Reported panel closed: {typeName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[{DetectorId}] Error handling panel state change: {ex.Message}");
+            }
+        }
+
+        private GameObject GetGameObjectForController(object controller)
+        {
+            // Check cache first
+            if (_controllerToGameObject.TryGetValue(controller, out var cached) && cached != null)
+                return cached;
+
+            // Try to get GameObject from MonoBehaviour
+            if (controller is MonoBehaviour mb && mb != null)
+            {
+                _controllerToGameObject[controller] = mb.gameObject;
+                return mb.gameObject;
+            }
+
+            // Try to get gameObject via reflection
+            var type = controller.GetType();
+            var gameObjectProp = type.GetProperty("gameObject",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            if (gameObjectProp != null)
+            {
+                try
+                {
+                    var go = gameObjectProp.GetValue(controller) as GameObject;
+                    if (go != null)
+                    {
+                        _controllerToGameObject[controller] = go;
+                        return go;
+                    }
+                }
+                catch
+                {
+                    // Ignore reflection errors
+                }
+            }
+
+            return null;
+        }
+
+        private PanelType DeterminePanelType(string typeName)
+        {
+            if (typeName.Contains("Settings"))
+                return PanelType.Settings;
+            if (typeName.Contains("PlayBlade") || typeName.Contains("Blade"))
+                return PanelType.Blade;
+            if (typeName.Contains("Social"))
+                return PanelType.Social;
+            if (typeName.Contains("HomePage") || typeName.Contains("Home"))
+                return PanelType.ContentPanel;
+            if (typeName.Contains("DeckSelect"))
+                return PanelType.Blade;
+
+            return PanelType.ContentPanel;
+        }
+
+        private int ParsePlayBladeState(string stateName)
+        {
+            // PlayBladeVisualStates: Hidden=0, Events=1, DirectChallenge=2, FriendChallenge=3
+            switch (stateName)
+            {
+                case "Hidden":
+                    return 0;
+                case "Events":
+                    return 1;
+                case "DirectChallenge":
+                    return 2;
+                case "FriendChallenge":
+                    return 3;
+                default:
+                    return 0;
+            }
+        }
+
+        private void CleanupStaleReferences()
+        {
+            // Remove entries where the GameObject has been destroyed
+            var toRemove = new List<object>();
+            foreach (var kvp in _controllerToGameObject)
+            {
+                if (kvp.Value == null)
+                    toRemove.Add(kvp.Key);
+            }
+
+            foreach (var key in toRemove)
+            {
+                _controllerToGameObject.Remove(key);
+            }
+        }
+    }
+}
