@@ -40,6 +40,12 @@ namespace AccessibleArena.Core.Interfaces
         void OnSceneChanged(string sceneName);
 
         /// <summary>
+        /// Force element rediscovery. Called by NavigatorManager after scene change
+        /// if the navigator stayed active.
+        /// </summary>
+        void ForceRescan();
+
+        /// <summary>
         /// Gets the GameObjects of all navigable elements in order.
         /// Used by Tab navigation fallback to use the same elements as arrow key navigation.
         /// </summary>

@@ -98,6 +98,9 @@ namespace AccessibleArena.Core.Services
             {
                 _activeNavigator = null;
             }
+            // Note: Don't ForceRescan immediately - wait for panel detection to confirm
+            // the new screen is ready (IsReadyToShow). PanelStateManager.OnPanelChanged
+            // will trigger the rescan when the screen is fully loaded.
         }
 
         /// <summary>Force deactivate current navigator</summary>

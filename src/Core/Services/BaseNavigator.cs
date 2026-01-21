@@ -206,6 +206,34 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Force element rediscovery. Called by NavigatorManager after scene change
+        /// if the navigator stayed active in the new scene.
+        /// </summary>
+        public virtual void ForceRescan()
+        {
+            if (!_isActive) return;
+
+            MelonLogger.Msg($"[{NavigatorId}] ForceRescan triggered");
+
+            // Clear and rediscover elements
+            _elements.Clear();
+            _currentIndex = -1;
+
+            DiscoverElements();
+
+            if (_elements.Count > 0)
+            {
+                _currentIndex = 0;
+                MelonLogger.Msg($"[{NavigatorId}] Rescan found {_elements.Count} elements");
+                _announcer.AnnounceInterrupt(GetActivationAnnouncement());
+            }
+            else
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Rescan found no elements");
+            }
+        }
+
         #endregion
 
         #region Constructor

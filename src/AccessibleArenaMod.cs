@@ -3,6 +3,7 @@ using UnityEngine;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services;
+using AccessibleArena.Core.Services.PanelDetection;
 using AccessibleArena.Contexts.Login;
 using AccessibleArena.Contexts.MainMenu;
 using AccessibleArena.Patches;
@@ -25,6 +26,7 @@ namespace AccessibleArena
         private NavigatorManager _navigatorManager;
         private HelpNavigator _helpNavigator;
         private PanelAnimationDiagnostic _panelDiagnostic;
+        private PanelStateManager _panelStateManager;
 
         private bool _initialized;
 
@@ -79,6 +81,9 @@ namespace AccessibleArena
             _cardInfoNavigator = new CardInfoNavigator(_announcer);
             _helpNavigator = new HelpNavigator(_announcer);
             _panelDiagnostic = new PanelAnimationDiagnostic();
+
+            // Initialize panel state manager (single source of truth for panel state)
+            _panelStateManager = new PanelStateManager();
 
             // Initialize navigator manager with all screen navigators
             // LoginPanelNavigator removed - GeneralMenuNavigator now handles Login scene with password masking

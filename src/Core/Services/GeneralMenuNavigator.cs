@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -102,6 +103,41 @@ namespace AccessibleArena.Core.Services
             return typeName == "CustomButton" || typeName == "CustomButtonWithTooltip";
         }
 
+        /// <summary>
+        /// Report a panel opened to PanelStateManager (Phase 1: dual-write with existing system).
+        /// </summary>
+        private void ReportPanelOpened(string panelName, GameObject panelObj, PanelDetectionMethod detectedBy)
+        {
+            if (PanelStateManager.Instance == null || panelObj == null)
+                return;
+
+            var panelType = PanelRegistry.ClassifyPanel(panelName);
+            var panelInfo = new PanelInfo(panelName, panelType, panelObj, detectedBy);
+            PanelStateManager.Instance.ReportPanelOpened(panelInfo);
+        }
+
+        /// <summary>
+        /// Report a panel closed to PanelStateManager (Phase 1: dual-write with existing system).
+        /// </summary>
+        private void ReportPanelClosed(GameObject panelObj)
+        {
+            if (PanelStateManager.Instance == null || panelObj == null)
+                return;
+
+            PanelStateManager.Instance.ReportPanelClosed(panelObj);
+        }
+
+        /// <summary>
+        /// Report a panel closed by name to PanelStateManager.
+        /// </summary>
+        private void ReportPanelClosedByName(string panelName)
+        {
+            if (PanelStateManager.Instance == null || string.IsNullOrEmpty(panelName))
+                return;
+
+            PanelStateManager.Instance.ReportPanelClosedByName(panelName);
+        }
+
         #endregion
 
         public override string NavigatorId => "GeneralMenu";
@@ -139,6 +175,36 @@ namespace AccessibleArena.Core.Services
             _screenDetector = new MenuScreenDetector();
             _panelTracker = new MenuPanelTracker(announcer, NavigatorId);
             _panelDetector = new UnifiedPanelDetector(NavigatorId);
+
+            // Subscribe to PanelStateManager for unified rescan triggers (Phase 2)
+            if (PanelStateManager.Instance != null)
+            {
+                PanelStateManager.Instance.OnPanelChanged += OnPanelStateManagerActiveChanged;
+                PanelStateManager.Instance.OnAnyPanelOpened += OnPanelStateManagerAnyOpened;
+            }
+        }
+
+        /// <summary>
+        /// Handler for PanelStateManager.OnPanelChanged - fires when active (filtering) panel changes.
+        /// </summary>
+        private void OnPanelStateManagerActiveChanged(PanelInfo oldPanel, PanelInfo newPanel)
+        {
+            if (!_isActive) return;
+
+            MelonLogger.Msg($"[{NavigatorId}] PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
+            TriggerRescan(force: true);
+        }
+
+        /// <summary>
+        /// Handler for PanelStateManager.OnAnyPanelOpened - fires when ANY panel opens.
+        /// Used for triggering rescans on screens that don't filter (e.g., HomePage).
+        /// </summary>
+        private void OnPanelStateManagerAnyOpened(PanelInfo panel)
+        {
+            if (!_isActive) return;
+
+            MelonLogger.Msg($"[{NavigatorId}] PanelStateManager panel opened: {panel?.Name ?? "none"}");
+            TriggerRescan(force: true);
         }
 
         protected virtual string GetMenuScreenName()
@@ -226,6 +292,9 @@ namespace AccessibleArena.Core.Services
             _panelTracker.Reset();
             _panelDetector.ResetForSceneChange();
 
+            // Full reset PanelStateManager for scene change
+            PanelStateManager.Instance?.Reset();
+
             if (_isActive)
             {
                 // Check if we should stay active
@@ -233,6 +302,8 @@ namespace AccessibleArena.Core.Services
                 {
                     Deactivate();
                 }
+                // Note: ForceRescan is called by NavigatorManager after OnSceneChanged
+                // if navigator stays active - no need to handle it here
             }
         }
 
@@ -249,6 +320,9 @@ namespace AccessibleArena.Core.Services
             _screenDetector.Reset();
             _panelTracker.Reset();
             _panelDetector.Reset();
+
+            // Soft reset PanelStateManager (preserve tracking, clear announced state)
+            PanelStateManager.Instance?.SoftReset();
         }
 
         /// <summary>
@@ -289,10 +363,24 @@ namespace AccessibleArena.Core.Services
                 var newTopmost = panelChange.TopmostPanel;
                 if (newTopmost != _foregroundPanel)
                 {
+                    // Report to PanelStateManager (Phase 1: dual-write)
+                    // PanelStateManager.OnPanelChanged will trigger rescan (Phase 2)
+                    if (_foregroundPanel != null && newTopmost == null)
+                    {
+                        // Popup closed
+                        ReportPanelClosed(_foregroundPanel);
+                    }
+                    else if (newTopmost != null)
+                    {
+                        // New popup appeared
+                        var popupName = PanelRegistry.ExtractCanonicalName(newTopmost.name);
+                        ReportPanelOpened(popupName, newTopmost, PanelDetectionMethod.Alpha);
+                    }
+
                     _foregroundPanel = newTopmost;
                     MelonLogger.Msg($"[{NavigatorId}] Popup detected, topmost: {_foregroundPanel?.name ?? "none"}");
                 }
-                TriggerRescan(force: true);
+                // TriggerRescan removed - handled by OnPanelStateManagerChanged (Phase 2)
             }
 
             // Reflection-based polling for panel changes
@@ -722,6 +810,11 @@ namespace AccessibleArena.Core.Services
             _playBladeState = null;
             _activePanels.RemoveWhere(p => p.Contains("Blade:"));
             _foregroundPanel = null;
+
+            // Report to PanelStateManager (triggers rescan via event)
+            ReportPanelClosedByName("PlayBlade");
+            PanelStateManager.Instance?.SetPlayBladeState(0);
+            // Keep TriggerRescan as backup for user action response
             TriggerRescan(force: true);
         }
 
@@ -848,8 +941,10 @@ namespace AccessibleArena.Core.Services
                         closeMethod.Invoke(socialUI, null);
                         MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.CloseFriendsWidget()");
 
-                        // Clear foreground and rescan to return to Home elements
+                        // Report to PanelStateManager and clear foreground
+                        ReportPanelClosed(socialPanel);
                         _foregroundPanel = null;
+                        // Keep TriggerRescan as backup for user action (F4)
                         TriggerRescan(force: true);
                     }
                 }
@@ -863,9 +958,11 @@ namespace AccessibleArena.Core.Services
                         showMethod.Invoke(socialUI, null);
                         MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.ShowSocialEntitiesList()");
 
-                        // Set foreground to social panel so elements are filtered correctly
+                        // Set foreground and report to PanelStateManager
                         _foregroundPanel = socialPanel;
                         MelonLogger.Msg($"[{NavigatorId}] Set foreground to Social panel");
+                        ReportPanelOpened("Social", socialPanel, PanelDetectionMethod.Reflection);
+                        // Keep TriggerRescan as backup for user action (F4)
                         TriggerRescan(force: true);
                     }
                 }
@@ -937,10 +1034,10 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_foregroundPanel.activeInHierarchy)
                     {
-                        // Panel came back - rescan to refresh elements
+                        // Panel came back - report to PanelStateManager (triggers rescan via event)
                         MelonLogger.Msg($"[{NavigatorId}] Login panel returned after {Time.time - _loginPanelInactiveTime:F1}s");
                         _loginPanelInactiveTime = 0;
-                        TriggerRescan();
+                        ReportPanelOpened(_foregroundPanel.name, _foregroundPanel, PanelDetectionMethod.Reflection);
                         return;
                     }
 
@@ -955,8 +1052,9 @@ namespace AccessibleArena.Core.Services
                             {
                                 MelonLogger.Msg($"[{NavigatorId}] Different Login panel detected: {child.name}");
                                 _loginPanelInactiveTime = 0;
+                                ReportPanelClosed(_foregroundPanel);
                                 _foregroundPanel = child.gameObject;
-                                TriggerRescan();
+                                ReportPanelOpened(child.name, child.gameObject, PanelDetectionMethod.Reflection);
                                 return;
                             }
                         }
@@ -974,8 +1072,12 @@ namespace AccessibleArena.Core.Services
                     {
                         // Navigated to a different Settings submenu
                         MelonLogger.Msg($"[{NavigatorId}] Settings content panel changed: {_foregroundPanel.name} -> {SettingsContentPanel?.name}");
+                        ReportPanelClosed(_foregroundPanel);
                         _foregroundPanel = SettingsContentPanel;
-                        TriggerRescan();
+                        if (SettingsContentPanel != null)
+                        {
+                            ReportPanelOpened("Settings", SettingsContentPanel, PanelDetectionMethod.Reflection);
+                        }
                         return;
                     }
 
@@ -998,9 +1100,10 @@ namespace AccessibleArena.Core.Services
 
                     // Overlay actually closed (non-Login panels)
                     MelonLogger.Msg($"[{NavigatorId}] Foreground panel closed: {_foregroundPanel.name}");
+                    ReportPanelClosed(_foregroundPanel);
                     _foregroundPanel = null;
                     _activePanels.Clear();
-                    TriggerRescan();
+                    // TriggerRescan removed - handled by OnPanelStateManagerChanged (Phase 2)
                     return;
                 }
             }
@@ -1025,6 +1128,13 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Panel opened: {panelName}");
                 _activePanels.Add(panelName);
 
+                // Report ALL panels to PanelStateManager (triggers rescan via OnPanelChanged)
+                // PanelStateManager handles filtering logic - non-overlay panels trigger rescan but don't filter
+                if (panelObj != null)
+                {
+                    ReportPanelOpened(panelName, panelObj, PanelDetectionMethod.Reflection);
+                }
+
                 // Only set foreground filter for overlay panels (Settings, Popups)
                 // NavContentController descendants (HomePage, etc.) should NOT filter
                 // BUT don't overwrite popup foreground - popups take highest priority
@@ -1037,7 +1147,7 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Preserving popup foreground: {_foregroundPanel?.name}");
                 }
-                TriggerRescan();
+                // TriggerRescan removed - handled by OnPanelStateManagerChanged (Phase 2)
                 return;
             }
 
@@ -1060,6 +1170,12 @@ namespace AccessibleArena.Core.Services
                 // Only update foreground if current one is NOT a popup overlay
                 if (_foregroundPanel == null || !IsPopupOverlay(_foregroundPanel))
                 {
+                    // Report closed panels to PanelStateManager
+                    foreach (var panel in closedPanels)
+                    {
+                        ReportPanelClosedByName(panel);
+                    }
+
                     // Check if any remaining panel is an overlay that should filter
                     var overlayPanel = currentPanels.LastOrDefault(p => IsOverlayPanel(p.name));
                     _foregroundPanel = overlayPanel.obj; // Will be null if no overlay
@@ -1069,7 +1185,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Preserving popup foreground: {_foregroundPanel.name}");
                 }
 
-                TriggerRescan();
+                // TriggerRescan removed - handled by OnPanelStateManagerChanged (Phase 2)
             }
         }
 
@@ -2351,8 +2467,7 @@ namespace AccessibleArena.Core.Services
                 HandleBladeChange(panelTypeName, isOpen);
             }
 
-            // Trigger rescan when panel opens or closes
-            TriggerRescan();
+            // TriggerRescan removed - handled by OnPanelStateManagerChanged (Phase 2)
         }
 
         /// <summary>
@@ -2400,6 +2515,9 @@ namespace AccessibleArena.Core.Services
                     {
                         _foregroundPanel = SettingsContentPanel;
                         MelonLogger.Msg($"[{NavigatorId}] Set foreground panel to Settings: {_foregroundPanel.name}");
+
+                        // Report to PanelStateManager (Phase 1: dual-write)
+                        ReportPanelOpened("Settings", SettingsContentPanel, PanelDetectionMethod.Harmony);
                     }
                 }
 
@@ -2411,6 +2529,9 @@ namespace AccessibleArena.Core.Services
                     {
                         _foregroundPanel = socialPanel;
                         MelonLogger.Msg($"[{NavigatorId}] Set foreground panel to Social: {_foregroundPanel.name}");
+
+                        // Report to PanelStateManager (Phase 1: dual-write)
+                        ReportPanelOpened("Social", socialPanel, PanelDetectionMethod.Harmony);
                     }
                 }
 
@@ -2424,6 +2545,13 @@ namespace AccessibleArena.Core.Services
             else
             {
                 _activePanels.RemoveWhere(p => p.StartsWith("ContentPanel:"));
+
+                // Report to PanelStateManager before clearing (Phase 1: dual-write)
+                if (_foregroundPanel != null)
+                {
+                    ReportPanelClosed(_foregroundPanel);
+                }
+
                 _foregroundPanel = null;
                 MelonLogger.Msg($"[{NavigatorId}] Content panel closed: {panelTypeName}");
             }
@@ -2452,6 +2580,19 @@ namespace AccessibleArena.Core.Services
                     _playBladeState = panelTypeName;
 
                 MelonLogger.Msg($"[{NavigatorId}] Blade opened: {panelTypeName}");
+
+                // Report to PanelStateManager (Phase 1: dual-write)
+                var bladeObj = GameObject.Find("ContentController - PlayBladeV3_Desktop_16x9(Clone)");
+                if (bladeObj != null)
+                {
+                    ReportPanelOpened("PlayBlade", bladeObj, PanelDetectionMethod.Harmony);
+                    // Also report PlayBlade visual state
+                    int state = panelTypeName.Contains("Hidden") ? 0 :
+                                panelTypeName.Contains("Events") ? 1 :
+                                panelTypeName.Contains("DirectChallenge") ? 2 :
+                                panelTypeName.Contains("FriendChallenge") ? 3 : 1;
+                    PanelStateManager.Instance?.SetPlayBladeState(state);
+                }
             }
             else
             {
@@ -2470,12 +2611,23 @@ namespace AccessibleArena.Core.Services
                     _playBladeState = null;
                     _foregroundPanel = null;
                     MelonLogger.Msg($"[{NavigatorId}] Blade closed: {panelTypeName}");
+
+                    // Report to PanelStateManager (Phase 1: dual-write)
+                    ReportPanelClosedByName("PlayBlade");
+                    PanelStateManager.Instance?.SetPlayBladeState(0);
                 }
                 else
                 {
                     // State transition within blade - keep blade active
                     _playBladeState = panelTypeName;
                     MelonLogger.Msg($"[{NavigatorId}] Blade state change: {panelTypeName}");
+
+                    // Report state change to PanelStateManager
+                    int state = panelTypeName.Contains("Hidden") ? 0 :
+                                panelTypeName.Contains("Events") ? 1 :
+                                panelTypeName.Contains("DirectChallenge") ? 2 :
+                                panelTypeName.Contains("FriendChallenge") ? 3 : 1;
+                    PanelStateManager.Instance?.SetPlayBladeState(state);
                 }
             }
         }
