@@ -20,42 +20,41 @@ Added to filter wrapper objects like `NPE-Rewards_Container` that have CustomBut
 
 ## Active Bugs
 
-### Panel Detection System (Jan 2026)
+### Panel Detection System (Jan 2026) - REFACTORED
 
-**Current Architecture: Hybrid Detection (Working)**
+**Current Architecture: Centralized Plugin System (Working)**
 
-The panel detection uses THREE complementary systems:
+Panel detection was refactored into a clean plugin architecture with PanelStateManager as single source of truth:
 
-1. **Harmony Patches** (`PanelStatePatch.cs`) - CRITICAL for PlayBlade
-   - Event-driven notifications when panel state changes
-   - Fires `OnPanelStateChanged` event to `NavigatorManager` -> `GeneralMenuNavigator.OnPanelStateChangedExternal()`
-   - Detects `PlayBladeVisualState` setter immediately (PlayBlade uses SLIDE animation, not alpha fade)
+1. **PanelDetectorManager** - Coordinates all detectors, called from main mod Update()
 
-2. **CheckForPanelChanges()** in GeneralMenuNavigator
-   - Uses `MenuPanelTracker.GetActivePanelsWithObjects()`
-   - Detects via reflection on `IsOpen` property of controller classes
-   - Handles: NavContentController, SettingsMenu, SettingsMenuHost, PopupBase, Login panels
+2. **HarmonyPanelDetector** - Event-driven via Harmony patches
+   - Handles: PlayBlade, Settings, Blades, SocialUI, NavContentController
+   - CRITICAL for PlayBlade (uses SLIDE animation, alpha stays 1.0)
+   - Reports to PanelStateManager
 
-3. **UnifiedPanelDetector.cs** - Alpha-based detection
-   - Scans for name patterns: Popup, SystemMessageView, Dialog, Modal, etc.
-   - Tracks CanvasGroup alpha state every 10 frames
-   - Handles: True popups (SystemMessageView), social panels, dialogs
-   - **Cannot detect PlayBlade** - PlayBlade uses SLIDE animation (no alpha change)
+3. **ReflectionPanelDetector** - Polls IsOpen properties
+   - Handles: Login panels, PopupBase
+   - Reports to PanelStateManager
 
-**Why All Three Systems Are Needed:**
+4. **AlphaPanelDetector** - Watches CanvasGroup alpha
+   - Handles: SystemMessageView, Dialog, Modal, Popups
+   - Reports to PanelStateManager
 
-- **Harmony patches**: Immediate event-driven detection (PlayBlade, Settings, Blades)
-- **CheckForPanelChanges**: Reflection polling for IsOpen state (backup, edge cases)
-- **UnifiedPanelDetector**: Visual alpha detection for popups that fade in/out
+**Key Design:**
+
+- Each panel type is detected by exactly ONE detector (per PanelRegistry)
+- All detectors report to PanelStateManager (single source of truth)
+- GeneralMenuNavigator subscribes to PanelStateManager events for rescans
+- No more scattered TriggerRescan calls or duplicate detection
 
 **Detection by UI Type:**
 
-- NavContentController: Harmony (FinishOpen/Close) + CheckForPanelChanges
-- SettingsMenu: Harmony + CheckForPanelChanges + UnifiedPanelDetector
-- SystemMessageView: UnifiedPanelDetector only (alpha fade)
-- **PlayBlade: Harmony ONLY** (slide animation, alpha stays 1.0)
-- SocialUI: Harmony + UnifiedPanelDetector
-- Login panels: CheckForPanelChanges (by name pattern)
+- PlayBlade: HarmonyPanelDetector ONLY (slide animation)
+- Settings/Blades: HarmonyPanelDetector
+- SystemMessageView/Dialogs: AlphaPanelDetector
+- Login panels: ReflectionPanelDetector
+- SocialUI: HarmonyPanelDetector (filtered from triggering rescans)
 
 ---
 
@@ -138,17 +137,17 @@ The key insight: PlayBlade REQUIRES Harmony patches because it uses slide animat
 
 ### Confirmation Dialogs (SystemMessageView)
 
-**Cancel button click doesn't actually close popup (Jan 2026)**
+**Cancel button requires double-click to activate (Jan 2026)**
 
-Confirmation dialogs (e.g., Logout confirmation from Settings) are detected and navigable with OK/Cancel buttons. The mod correctly shows the popup elements and navigation works. However, pressing Enter on the Cancel (Abbrechen) button doesn't actually close the popup in the game - the mod's navigation returns to the previous screen but OCR shows the popup is still visible.
+Confirmation dialogs (e.g., Logout confirmation from Settings) are detected and navigable with OK/Cancel buttons. However, pressing Enter on the Cancel (Abbrechen) button requires two presses - the first press doesn't close the popup, but the mod correctly reports this (shows popup still active). The second press closes it successfully.
 
 **Technical details:**
 - SystemMessageButtonView component has both CustomButton and SystemMessageButtonView
-- Tried: pointer simulation, CustomButton.onClick, SystemMessageButtonView.OnClick/OnButtonClicked
-- None of these trigger the actual game close logic
-- The popup's alpha detection works correctly (no more double announcements or loops)
+- UIActivator tries direct SystemMessageButtonView.OnClick first, which fails
+- Falls back to pointer simulation which may require two attempts
+- The OK button appears to work on first click
 
-**Workaround:** Press Escape to close the popup, or click OK to confirm the action.
+**Workaround:** Press Enter twice on Cancel, or press Escape to close the popup.
 
 ### Login Screen Back Button
 

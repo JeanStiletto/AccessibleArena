@@ -23,8 +23,10 @@ namespace AccessibleArena.Core.Services
         {
             Instance = this;
 
-            // Subscribe to Harmony-based panel state changes (hybrid detection system)
-            PanelStatePatch.OnPanelStateChanged += OnPanelStateChanged;
+            // Phase 5: Removed PanelStatePatch subscription
+            // HarmonyPanelDetector now subscribes to PanelStatePatch.OnPanelStateChanged
+            // and reports to PanelStateManager. GeneralMenuNavigator subscribes to
+            // PanelStateManager events (OnPanelChanged, OnAnyPanelOpened) for rescans.
         }
 
         /// <summary>Currently active navigator, if any</summary>
@@ -134,28 +136,8 @@ namespace AccessibleArena.Core.Services
         /// <summary>Check if any navigator is active</summary>
         public bool HasActiveNavigator => _activeNavigator != null;
 
-        /// <summary>
-        /// Called by Harmony patch when a panel's state changes.
-        /// Notifies the active navigator to rescan elements.
-        /// </summary>
-        private void OnPanelStateChanged(object controller, bool isOpen, string typeName)
-        {
-            MelonLogger.Msg($"[NavigatorManager] Panel state changed: {typeName} isOpen={isOpen}");
-
-            // Notify active navigator to rescan
-            if (_activeNavigator != null)
-            {
-                // Check if navigator has a rescan method
-                if (_activeNavigator is GeneralMenuNavigator generalMenu)
-                {
-                    generalMenu.OnPanelStateChangedExternal(typeName, isOpen);
-                }
-                else
-                {
-                    // For other navigators, force a recheck
-                    MelonLogger.Msg($"[NavigatorManager] Active navigator {_activeNavigator.NavigatorId} will recheck on next update");
-                }
-            }
-        }
+        // Phase 5: OnPanelStateChanged method removed
+        // HarmonyPanelDetector now handles panel state changes and reports to PanelStateManager.
+        // GeneralMenuNavigator subscribes to PanelStateManager events for rescans.
     }
 }

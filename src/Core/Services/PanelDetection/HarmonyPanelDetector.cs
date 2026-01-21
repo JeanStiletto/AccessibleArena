@@ -90,11 +90,24 @@ namespace AccessibleArena.Core.Services.PanelDetection
                     );
 
                     // Handle special case for PlayBlade state
+                    // Both "PlayBlade:" and "Blade:" prefixes indicate blade is active
                     if (typeName.StartsWith("PlayBlade:"))
                     {
                         var statePart = typeName.Substring("PlayBlade:".Length);
                         int bladeState = ParsePlayBladeState(statePart);
                         _stateManager.SetPlayBladeState(bladeState);
+                    }
+                    else if (typeName.StartsWith("Blade:"))
+                    {
+                        // BladeContentView panels (LastPlayed, Events, FindMatch, etc.)
+                        // Set PlayBlade active based on content view type
+                        var contentView = typeName.Substring("Blade:".Length);
+                        int bladeState = ParseBladeContentViewState(contentView);
+                        if (bladeState > 0)
+                        {
+                            _stateManager.SetPlayBladeState(bladeState);
+                            MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState={bladeState} from content view: {contentView}");
+                        }
                     }
 
                     _stateManager.ReportPanelOpened(panelInfo);
@@ -110,6 +123,12 @@ namespace AccessibleArena.Core.Services.PanelDetection
                         {
                             _stateManager.SetPlayBladeState(0);
                         }
+                    }
+                    else if (typeName.StartsWith("Blade:"))
+                    {
+                        // BladeContentView hiding - blade is closing
+                        _stateManager.SetPlayBladeState(0);
+                        MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=0 from content view closing: {typeName}");
                     }
 
                     // Report panel closed
@@ -193,6 +212,32 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 default:
                     return 0;
             }
+        }
+
+        /// <summary>
+        /// Maps BladeContentView names to PlayBlade states.
+        /// Returns the blade state (1-3) or 0 if not a recognized blade content view.
+        /// </summary>
+        private int ParseBladeContentViewState(string contentViewName)
+        {
+            if (string.IsNullOrEmpty(contentViewName))
+                return 0;
+
+            // Map content view names to PlayBlade states
+            // LastPlayedBladeContentView, EventBladeContentView, FindMatchBladeContentView, etc.
+            if (contentViewName.Contains("LastPlayed"))
+                return 1; // Treat as Events state (general play mode)
+            if (contentViewName.Contains("Event"))
+                return 1; // Events
+            if (contentViewName.Contains("FindMatch"))
+                return 1; // Find Match (part of Events)
+            if (contentViewName.Contains("DirectChallenge"))
+                return 2; // Direct Challenge
+            if (contentViewName.Contains("FriendChallenge"))
+                return 3; // Friend Challenge
+
+            // Any other blade content view - assume blade is active
+            return 1;
         }
 
         private void CleanupStaleReferences()

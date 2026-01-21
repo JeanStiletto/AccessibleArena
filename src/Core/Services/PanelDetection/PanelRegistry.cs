@@ -34,7 +34,8 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
             // ALPHA - CanvasGroup alpha polling
             // These panels fade in/out and don't have IsOpen properties
-            if (lower.Contains("systemmessage")) return PanelDetectionMethod.Alpha;
+            // SystemMessageView is the popup, SystemMessageButton is just the button inside - exclude it
+            if (lower.Contains("systemmessageview")) return PanelDetectionMethod.Alpha;
             if (lower.Contains("dialog")) return PanelDetectionMethod.Alpha;
             if (lower.Contains("modal")) return PanelDetectionMethod.Alpha;
             if (lower.Contains("popup") && !lower.Contains("popupbase")) return PanelDetectionMethod.Alpha;

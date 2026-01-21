@@ -32,11 +32,14 @@
 - Simplified HandleContentPanelChange and HandleBladeChange (removed dual-write reporting)
 - Each panel is now detected by exactly one detector per PanelRegistry assignment
 
-**Phase 5: Simplify GeneralMenuNavigator** - Not started
-- Remove CheckForPanelChanges() - let detectors handle all detection
-- Remove OnPanelStateChangedExternal() - HarmonyPanelDetector handles this
-- Navigator responds only to PanelStateManager events
-- Remove direct _foregroundPanel management (use PanelStateManager.GetFilterPanel())
+**Phase 5: Simplify GeneralMenuNavigator** - COMPLETED
+- Removed CheckForPanelChanges() - detection handled by ReflectionPanelDetector via PanelDetectorManager
+- Removed OnPanelStateChangedExternal() and related handlers - HarmonyPanelDetector handles this
+- Navigator now responds only to PanelStateManager events (OnPanelChanged, OnAnyPanelOpened)
+- Removed direct _foregroundPanel management - uses PanelStateManager.GetFilterPanel()
+- Removed _panelDetector, _panelTracker instances - detection handled centrally
+- Removed _playBladeActive/_playBladeState local state - uses PanelStateManager.IsPlayBladeActive
+- Removed NavigatorManager.OnPanelStateChanged routing - detectors report directly to PanelStateManager
 
 ---
 
