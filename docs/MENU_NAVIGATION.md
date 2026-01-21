@@ -22,6 +22,17 @@ This document describes how MTGA handles menus and how the accessibility mod nav
 1. **Multiple Announcements on Load**
    - Menu announces multiple times as panels load sequentially
    - NavBar loads first, then HomePage triggers rescan
+   - **Root cause:** Three independent panel detection systems can each trigger rescans:
+     - **Harmony patches** (`PanelStatePatch.cs`) - event-driven, fires on IsOpen/Show/Hide
+     - **Reflection polling** (`CheckForPanelChanges()`) - polls MenuPanelTracker for IsOpen
+     - **Alpha-based polling** (`UnifiedPanelDetector`) - tracks CanvasGroup.alpha for popups
+   - SocialUI toggles `SetVisible(True/False)` during HomePage initialization, triggering rescans
+   - Each system independently calls `TriggerRescan()` without coordination
+   - **Attempted fixes:**
+     - Harmony only: stuck on 17 items (didn't detect HomePage fully loading)
+     - Reflection only: works but popups need alpha detection
+     - Filtering SocialUI from both Harmony and alpha: reduces but doesn't eliminate duplicates
+   - **Needs:** Architecture consolidation - single source of truth for panel state
 
 2. **Unclear Labels**
    - Some NavBar items use internal names ("nav wild card" instead of "Wildcards")

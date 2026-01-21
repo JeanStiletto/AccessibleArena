@@ -282,26 +282,20 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Unified panel detection - checks alpha state every N frames
-            // Replaces complex cooldown/animation wait logic with simple state comparison
+            // Alpha-based detection for popups only (SocialUI removed from patterns)
             var panelChange = _panelDetector.CheckForChanges();
             if (panelChange.HasChange)
             {
-                // Update foreground panel from unified detector
                 var newTopmost = panelChange.TopmostPanel;
                 if (newTopmost != _foregroundPanel)
                 {
                     _foregroundPanel = newTopmost;
-                    MelonLogger.Msg($"[{NavigatorId}] Panel change detected, topmost: {_foregroundPanel?.name ?? "none"}");
+                    MelonLogger.Msg($"[{NavigatorId}] Popup detected, topmost: {_foregroundPanel?.name ?? "none"}");
                 }
-
-                // Don't announce here - let navigation's GetActivationAnnouncement() be the single
-                // announcement source after rescan completes (see BEST_PRACTICES.md Panel Detection Strategy)
                 TriggerRescan(force: true);
             }
 
-            // Hybrid detection: CheckForPanelChanges for PlayBlade/controllers, UnifiedPanelDetector for popups
-            // Both systems work together for comprehensive panel detection
+            // Reflection-based polling for panel changes
             if (_rescanDelay <= 0)
             {
                 CheckForPanelChanges();
@@ -2326,7 +2320,6 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Called by NavigatorManager when Harmony patch detects a panel state change.
-        /// This is event-driven - no polling needed.
         /// </summary>
         public void OnPanelStateChangedExternal(string panelTypeName, bool isOpen)
         {
@@ -2338,6 +2331,13 @@ namespace AccessibleArena.Core.Services
             if (panelTypeName.Contains("HomePage") || panelTypeName.Contains("HomeContent"))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Ignoring HomePage content controller");
+                return;
+            }
+
+            // Ignore SocialUI - causes spurious rescans during page load
+            if (panelTypeName.Contains("SocialUI"))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Ignoring SocialUI");
                 return;
             }
 

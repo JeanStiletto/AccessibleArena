@@ -33,13 +33,12 @@ namespace AccessibleArena.Core.Services
         private const float MinPanelSize = 100f;
 
         // Name patterns for UI elements we track via alpha detection
-        // ONLY for panels without IsOpen property or Harmony patches
-        // Do NOT include: SettingsMenu (has IsOpen), PlayBlade/Blade (Harmony patches, slide animation)
-        // See docs/BEST_PRACTICES.md "Panel Detection Strategy" for decision tree
+        // ONLY for actual popups/dialogs without IsOpen property
+        // Do NOT include: SettingsMenu (has IsOpen), PlayBlade/Blade (Harmony patches)
+        // Do NOT include: SocialUI, FriendsWidget (handled by Harmony, causes spurious rescans)
         private static readonly string[] TrackedPanelPatterns = new[]
         {
-            "Popup", "SystemMessageView", "Dialog", "Modal",
-            "FriendsWidget", "SocialUI", "InviteFriend"
+            "Popup", "SystemMessageView", "Dialog", "Modal", "InviteFriend"
         };
 
         #endregion
