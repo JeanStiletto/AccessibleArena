@@ -169,6 +169,22 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // Plain Up/Down (without shift) - re-announce current card or empty row
+            // This prevents fall-through to base menu navigation when in battlefield
+            if (!shift && inBattlefield && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)))
+            {
+                var cards = _rows[_currentRow];
+                if (cards.Count == 0)
+                {
+                    _announcer.AnnounceInterrupt(Strings.RowEmpty(GetRowName(_currentRow)));
+                }
+                else
+                {
+                    AnnounceCurrentCard();
+                }
+                return true;
+            }
+
             // Home/End for jumping to first/last card in row
             if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.Home))
             {

@@ -305,24 +305,59 @@ namespace AccessibleArena.Core.Services
             }
 
             // Left/Right arrows for navigating cards within current zone
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            // Skip if current zone is Battlefield - that's handled by BattlefieldNavigator
+            if (_currentZone != ZoneType.Battlefield)
             {
-                ClearEventSystemSelection();
-                if (HasCardsInCurrentZone())
+                if (Input.GetKeyDown(KeyCode.LeftArrow))
                 {
-                    PreviousCard();
+                    ClearEventSystemSelection();
+                    if (HasCardsInCurrentZone())
+                    {
+                        PreviousCard();
+                    }
+                    else
+                    {
+                        // Announce empty zone so user knows why nothing happened
+                        _announcer.AnnounceInterrupt(Strings.ZoneEmpty(GetZoneName(_currentZone)));
+                    }
+                    return true;
                 }
-                return true;
+
+                if (Input.GetKeyDown(KeyCode.RightArrow))
+                {
+                    ClearEventSystemSelection();
+                    if (HasCardsInCurrentZone())
+                    {
+                        NextCard();
+                    }
+                    else
+                    {
+                        // Announce empty zone so user knows why nothing happened
+                        _announcer.AnnounceInterrupt(Strings.ZoneEmpty(GetZoneName(_currentZone)));
+                    }
+                    return true;
+                }
             }
 
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            // Up/Down arrows - consume for non-Battlefield zones to prevent menu navigation
+            // Battlefield has its own Up/Down handling in BattlefieldNavigator
+            if (_currentZone != ZoneType.Battlefield)
             {
-                ClearEventSystemSelection();
-                if (HasCardsInCurrentZone())
+                if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
                 {
-                    NextCard();
+                    // For zones with cards, CardInfoNavigator handles Up/Down for card details
+                    // For empty zones, just announce empty and consume the input
+                    if (!HasCardsInCurrentZone())
+                    {
+                        _announcer.AnnounceInterrupt(Strings.ZoneEmpty(GetZoneName(_currentZone)));
+                    }
+                    // If zone has cards but CardInfoNavigator isn't active, re-announce current card
+                    else
+                    {
+                        AnnounceCurrentCard();
+                    }
+                    return true;
                 }
-                return true;
             }
 
             // Home/End for jumping to first/last card in zone
@@ -333,6 +368,10 @@ namespace AccessibleArena.Core.Services
                 {
                     FirstCard();
                 }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.ZoneEmpty(GetZoneName(_currentZone)));
+                }
                 return true;
             }
 
@@ -342,6 +381,10 @@ namespace AccessibleArena.Core.Services
                 if (HasCardsInCurrentZone())
                 {
                     LastCard();
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.ZoneEmpty(GetZoneName(_currentZone)));
                 }
                 return true;
             }
