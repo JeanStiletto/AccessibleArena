@@ -158,6 +158,24 @@ The UIActivator contains ~47 lines of commented WinAPI code (mouse_event, SetCur
 
 ## Needs Testing
 
+### NPE Rewards "Take Reward" Button (Jan 2026)
+
+**Issue:** The NullClaimButton ("Take reward" button) on NPE rewards screen isn't being added to navigable elements, even though reward cards are found correctly.
+
+**Investigation:** The original code used `Transform.Find("ActiveContainer")` then `Find("NullClaimButton")` which was failing silently (no logging for the failure case).
+
+**Fix attempted:** Changed to search entire `npeContainer` hierarchy using `GetComponentsInChildren<Transform>` - the same pattern that successfully finds reward cards.
+
+**Debug logging added:** Extra logging to identify which failure case occurs:
+- "Adding NullClaimButton as 'Take reward' button (path: ...)" - success
+- "NullClaimButton not found in NPE-Rewards_Container hierarchy" - button missing
+- "NullClaimButton already in addedObjects" - duplicate detection issue
+- "NPE-Rewards_Container not found" - container missing
+
+**TODO:** Remove debug logging once fix is confirmed working.
+
+**Location:** `src/Core/Services/GeneralMenuNavigator.cs` - `FindNPERewardCards()` method
+
 ### Menu Navigation
 
 - Card name extraction for various reward types

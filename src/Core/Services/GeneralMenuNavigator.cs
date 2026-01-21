@@ -1927,23 +1927,37 @@ namespace AccessibleArena.Core.Services
             // This button has a CustomButton that dismisses the reward screen when clicked
             // NOTE: The button name starts with "Null" which is normally filtered out,
             // so we explicitly add it here to make NPE rewards accessible
+            // Search within entire npeContainer hierarchy (more robust than Transform.Find)
             if (npeContainer != null)
             {
-                var activeContainer = npeContainer.transform.Find("ActiveContainer");
-                if (activeContainer != null)
+                Transform claimButton = null;
+                foreach (var transform in npeContainer.GetComponentsInChildren<Transform>(false))
                 {
-                    var claimButton = activeContainer.Find("NullClaimButton");
-                    if (claimButton != null && !addedObjects.Contains(claimButton.gameObject))
+                    if (transform != null && transform.name == "NullClaimButton" && transform.gameObject.activeInHierarchy)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Adding NullClaimButton as 'Take reward' button");
-                        AddElement(claimButton.gameObject, "Take reward, button");
-                        addedObjects.Add(claimButton.gameObject);
-                    }
-                    else if (claimButton == null)
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] NullClaimButton not found in ActiveContainer");
+                        claimButton = transform;
+                        break;
                     }
                 }
+
+                if (claimButton != null && !addedObjects.Contains(claimButton.gameObject))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Adding NullClaimButton as 'Take reward' button (path: {GetFullPath(claimButton)})");
+                    AddElement(claimButton.gameObject, "Take reward, button");
+                    addedObjects.Add(claimButton.gameObject);
+                }
+                else if (claimButton == null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] NullClaimButton not found in NPE-Rewards_Container hierarchy");
+                }
+                else
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] NullClaimButton already in addedObjects (ID:{claimButton.gameObject.GetInstanceID()})");
+                }
+            }
+            else
+            {
+                MelonLogger.Msg($"[{NavigatorId}] NPE-Rewards_Container not found for NullClaimButton lookup");
             }
         }
 
