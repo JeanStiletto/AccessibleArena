@@ -8,8 +8,9 @@ using System.Text.RegularExpressions;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
-    /// Tracks panel state changes, popup appearances, and overlay management
-    /// for the MTGA menu navigation system.
+    /// Tracks active menu panels and provides content controller detection.
+    /// Note: Popup detection has been moved to UnifiedPanelDetector which uses
+    /// alpha-based visibility tracking instead of cooldowns/timers.
     /// </summary>
     public class MenuPanelTracker
     {
@@ -23,251 +24,6 @@ namespace AccessibleArena.Core.Services
             "SettingsMenuHost",
             "PopupBase"
         };
-
-        #endregion
-
-        #region State
-
-        private readonly HashSet<string> _activePanels = new HashSet<string>();
-        private readonly HashSet<int> _knownPopupIds = new HashSet<int>();
-        private GameObject _foregroundPanel;
-        private readonly IAnnouncementService _announcer;
-        private readonly string _logPrefix;
-
-        // Cooldown for dismissed popups to prevent re-detection during close animation
-        private float _popupDismissCooldown;
-        private const float PopupDismissCooldownDuration = 1.0f; // 1 second cooldown
-
-        // Remember the panel that was active before popup opened
-        private GameObject _panelBeforePopup;
-
-        #endregion
-
-        #region Public Properties
-
-        /// <summary>
-        /// The current foreground panel that should filter navigation elements.
-        /// </summary>
-        public GameObject ForegroundPanel
-        {
-            get => _foregroundPanel;
-            set => _foregroundPanel = value;
-        }
-
-        /// <summary>
-        /// True if popup dismiss cooldown is active (skip panel detection during this time).
-        /// </summary>
-        public bool IsPopupCooldownActive => _popupDismissCooldown > 0;
-
-        /// <summary>
-        /// Set of currently active panel identifiers.
-        /// </summary>
-        public HashSet<string> ActivePanels => _activePanels;
-
-        #endregion
-
-        #region Constructor
-
-        /// <summary>
-        /// Create a new MenuPanelTracker.
-        /// </summary>
-        /// <param name="announcer">Announcement service for popup notifications.</param>
-        /// <param name="logPrefix">Prefix for log messages (e.g., navigator ID).</param>
-        public MenuPanelTracker(IAnnouncementService announcer, string logPrefix = "PanelTracker")
-        {
-            _announcer = announcer;
-            _logPrefix = logPrefix;
-        }
-
-        #endregion
-
-        #region Public Methods
-
-        /// <summary>
-        /// Clear all tracked state. Call on scene change or deactivation.
-        /// </summary>
-        public void Reset()
-        {
-            _activePanels.Clear();
-            _knownPopupIds.Clear();
-            _foregroundPanel = null;
-            _popupDismissCooldown = 0;
-        }
-
-        /// <summary>
-        /// Start cooldown to prevent re-detection of a popup during close animation.
-        /// Call this when a popup button (OK/Cancel) is activated.
-        /// Restores the foreground to the panel that was active before the popup opened.
-        /// </summary>
-        public void StartPopupDismissCooldown()
-        {
-            _popupDismissCooldown = PopupDismissCooldownDuration;
-            // Restore foreground to the panel that was active before popup
-            if (_panelBeforePopup != null && _panelBeforePopup.activeInHierarchy)
-            {
-                MelonLogger.Msg($"[{_logPrefix}] Restoring foreground to: {_panelBeforePopup.name}");
-                _foregroundPanel = _panelBeforePopup;
-            }
-            else
-            {
-                MelonLogger.Msg($"[{_logPrefix}] No panel to restore, clearing foreground");
-                _foregroundPanel = null;
-            }
-            _panelBeforePopup = null; // Clear saved panel
-            _activePanels.RemoveWhere(p => p.StartsWith("Popup:"));
-            MelonLogger.Msg($"[{_logPrefix}] Popup dismiss cooldown started ({PopupDismissCooldownDuration}s)");
-        }
-
-        /// <summary>
-        /// Check for active popups and manage foreground panel.
-        /// Detects new popups, tracks reopened popups, and clears when closed.
-        /// </summary>
-        /// <returns>True if popup state changed and rescan should be triggered.</returns>
-        public bool CheckForNewPopups()
-        {
-            // Update cooldown timer
-            if (_popupDismissCooldown > 0)
-            {
-                _popupDismissCooldown -= Time.deltaTime;
-                if (_popupDismissCooldown > 0)
-                {
-                    // During cooldown, don't detect popups - let the close animation finish
-                    return false;
-                }
-                // Cooldown just ended - trigger a rescan to update the UI
-                MelonLogger.Msg($"[{_logPrefix}] Popup dismiss cooldown ended, triggering rescan");
-                _activePanels.RemoveWhere(p => p.StartsWith("Popup:"));
-                return true; // Signal rescan needed
-            }
-
-            bool stateChanged = false;
-            GameObject activePopup = null;
-            string activePopupName = null;
-
-            // Find the first active popup/dialog
-            // Use whitelist approach - only detect specific modal dialog patterns
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                // Only detect actual modal dialogs:
-                // 1. SystemMessageView - confirmation dialogs (Exit Game, etc.)
-                // 2. Names containing "Popup" and ending with "(Clone)" - actual popup prefabs
-                bool isModalPopup = false;
-
-                if (go.name.Contains("SystemMessageView"))
-                {
-                    // For SystemMessageView, verify it has active button children
-                    // The container may stay active but hide buttons when closed
-                    if (HasActiveButtonChild(go, "SystemMessageButton"))
-                    {
-                        isModalPopup = true;
-                    }
-                }
-                else if (go.name.Contains("Popup") && go.name.EndsWith("(Clone)"))
-                {
-                    // Actual popup prefab instances, but skip certain types
-                    // Skip: WildcardPopup (tooltip), ObjectivePopupCONTAINER (always present), SettingsPopup (container)
-                    if (!go.name.Contains("Wildcard") &&
-                        !go.name.Contains("ObjectivePopup") &&
-                        !go.name.Equals("SettingsPopup"))
-                    {
-                        isModalPopup = true;
-                    }
-                }
-
-                if (!isModalPopup) continue;
-
-                activePopup = go;
-                activePopupName = go.name;
-                break; // Take the first one found
-            }
-
-            // Check if we found an active popup that should be foreground
-            if (activePopup != null)
-            {
-                int id = activePopup.GetInstanceID();
-                bool isNewPopup = !_knownPopupIds.Contains(id);
-
-                // If popup is active but not currently the foreground, set it
-                if (_foregroundPanel != activePopup)
-                {
-                    // Save the current foreground before switching to popup
-                    // (only if current foreground is not already a popup)
-                    if (_foregroundPanel != null && !IsPopupName(_foregroundPanel.name))
-                    {
-                        _panelBeforePopup = _foregroundPanel;
-                        MelonLogger.Msg($"[{_logPrefix}] Saved panel before popup: {_panelBeforePopup.name}");
-                    }
-
-                    _foregroundPanel = activePopup;
-                    _activePanels.RemoveWhere(p => p.StartsWith("Popup:"));
-                    _activePanels.Add($"Popup:{activePopupName}");
-                    stateChanged = true;
-
-                    if (isNewPopup)
-                    {
-                        _knownPopupIds.Add(id);
-                        MelonLogger.Msg($"[{_logPrefix}] New popup detected: {activePopupName}");
-                        string cleanName = CleanPopupName(activePopupName);
-                        _announcer?.AnnounceInterrupt($"{cleanName} opened.");
-                    }
-                    else
-                    {
-                        MelonLogger.Msg($"[{_logPrefix}] Popup reopened: {activePopupName}");
-                    }
-
-                    MelonLogger.Msg($"[{_logPrefix}] Set foreground panel to popup: {activePopupName}");
-                }
-            }
-            else
-            {
-                // No active popup - clear foreground if it was a popup
-                if (_foregroundPanel != null && IsPopupName(_foregroundPanel.name))
-                {
-                    MelonLogger.Msg($"[{_logPrefix}] Popup closed: {_foregroundPanel.name}");
-                    _activePanels.RemoveWhere(p => p.StartsWith("Popup:"));
-                    _foregroundPanel = null;
-                    stateChanged = true;
-                }
-            }
-
-            // Clean up IDs of popups that no longer exist
-            _knownPopupIds.RemoveWhere(id =>
-            {
-                var go = FindObjectFromInstanceID(id);
-                return go == null || !go.activeInHierarchy;
-            });
-
-            return stateChanged;
-        }
-
-        /// <summary>
-        /// Check if a name indicates a popup/dialog.
-        /// </summary>
-        private static bool IsPopupName(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return false;
-            return name.Contains("Popup") || name.Contains("SystemMessageView");
-        }
-
-        /// <summary>
-        /// Check if a GameObject has an active child containing the specified name pattern.
-        /// Used to verify popups are actually showing content, not just hidden containers.
-        /// </summary>
-        private static bool HasActiveButtonChild(GameObject parent, string namePattern)
-        {
-            if (parent == null) return false;
-
-            // Check all descendants recursively
-            foreach (Transform child in parent.GetComponentsInChildren<Transform>(false))
-            {
-                if (child == null || !child.gameObject.activeInHierarchy) continue;
-                if (child.name.Contains(namePattern))
-                    return true;
-            }
-            return false;
-        }
 
         // Login scene panel name patterns (these are simple prefabs without controllers)
         private static readonly string[] LoginPanelPatterns = new[]
@@ -285,6 +41,59 @@ namespace AccessibleArena.Core.Services
             "Panel - Privacy",
             "Panel - UpdatePolicies"
         };
+
+        #endregion
+
+        #region State
+
+        private readonly HashSet<string> _activePanels = new HashSet<string>();
+        private GameObject _foregroundPanel;
+        private readonly string _logPrefix;
+
+        #endregion
+
+        #region Public Properties
+
+        /// <summary>
+        /// The current foreground panel that should filter navigation elements.
+        /// </summary>
+        public GameObject ForegroundPanel
+        {
+            get => _foregroundPanel;
+            set => _foregroundPanel = value;
+        }
+
+        /// <summary>
+        /// Set of currently active panel identifiers.
+        /// </summary>
+        public HashSet<string> ActivePanels => _activePanels;
+
+        #endregion
+
+        #region Constructor
+
+        /// <summary>
+        /// Create a new MenuPanelTracker.
+        /// </summary>
+        /// <param name="announcer">Announcement service (kept for API compatibility).</param>
+        /// <param name="logPrefix">Prefix for log messages.</param>
+        public MenuPanelTracker(IAnnouncementService announcer, string logPrefix = "PanelTracker")
+        {
+            _logPrefix = logPrefix;
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// Clear all tracked state. Call on scene change or deactivation.
+        /// </summary>
+        public void Reset()
+        {
+            _activePanels.Clear();
+            _foregroundPanel = null;
+        }
 
         /// <summary>
         /// Get currently active panels by checking game's internal menu controllers.
@@ -353,7 +162,6 @@ namespace AccessibleArena.Core.Services
             }
 
             // PASS 3: Detect Login scene panels (simple prefabs without controllers)
-            // These panels don't have IsOpen/Show/Hide, just GameObject activation
             DetectLoginPanels(activePanels);
 
             return activePanels;
@@ -361,11 +169,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Detect Login scene panels by GameObject name patterns.
-        /// These are simple prefab instances without controller classes.
         /// </summary>
         private void DetectLoginPanels(List<(string name, GameObject obj)> activePanels)
         {
-            // Find PanelParent which contains Login scene panels
             var panelParent = GameObject.Find("Canvas - Camera/PanelParent");
             if (panelParent == null) return;
 
@@ -375,7 +181,6 @@ namespace AccessibleArena.Core.Services
 
                 string childName = child.name;
 
-                // Check if this matches a Login panel pattern
                 foreach (var pattern in LoginPanelPatterns)
                 {
                     if (childName.StartsWith(pattern))
@@ -393,7 +198,6 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if a MonoBehaviour has IsOpen = true AND is ready (animation complete).
-        /// Uses reflection to check various properties/methods on game controller types.
         /// </summary>
         public bool CheckIsOpen(MonoBehaviour mb, System.Type type)
         {
@@ -452,7 +256,7 @@ namespace AccessibleArena.Core.Services
                     bool isReady = (bool)isReadyProp.GetValue(mb);
                     if (!isReady)
                     {
-                        return false; // Not ready yet, animation still playing
+                        return false;
                     }
                 }
                 catch (System.Exception ex)
@@ -473,7 +277,7 @@ namespace AccessibleArena.Core.Services
                     bool isMainActive = (bool)isMainPanelActiveProp.GetValue(mb);
                     if (!isMainActive)
                     {
-                        return false; // Main panel not active (might be in sub-menu or closing)
+                        return false;
                     }
                 }
                 catch (System.Exception ex)
@@ -483,19 +287,6 @@ namespace AccessibleArena.Core.Services
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Check if a panel name represents an overlay that should filter elements.
-        /// Settings, Popups, SystemMessage dialogs, and Login panels are overlays.
-        /// NavContentController (HomePage, etc.) are not.
-        /// </summary>
-        public static bool IsOverlayPanel(string panelName)
-        {
-            return panelName.StartsWith("SettingsMenu:") ||
-                   panelName.StartsWith("PopupBase:") ||
-                   panelName.StartsWith("LoginPanel:") ||
-                   panelName.Contains("SystemMessageView");
         }
 
         /// <summary>
@@ -535,19 +326,26 @@ namespace AccessibleArena.Core.Services
         #region Static Utility Methods
 
         /// <summary>
+        /// Check if a panel name represents an overlay that should filter elements.
+        /// </summary>
+        public static bool IsOverlayPanel(string panelName)
+        {
+            return panelName.StartsWith("SettingsMenu:") ||
+                   panelName.StartsWith("PopupBase:") ||
+                   panelName.StartsWith("LoginPanel:") ||
+                   panelName.Contains("SystemMessageView");
+        }
+
+        /// <summary>
         /// Clean up a popup name for announcement.
-        /// E.g., "InviteFriendPopup(Clone)" -> "Invite Friend"
-        /// E.g., "SystemMessageView_Desktop_16x9(Clone)" -> "Confirmation"
         /// </summary>
         public static string CleanPopupName(string popupName)
         {
             if (string.IsNullOrEmpty(popupName)) return "Popup";
 
-            // Special case for SystemMessageView - it's a confirmation dialog
             if (popupName.Contains("SystemMessageView"))
                 return "Confirmation";
 
-            // Remove common suffixes
             string clean = popupName
                 .Replace("(Clone)", "")
                 .Replace("Popup", "")
@@ -555,27 +353,12 @@ namespace AccessibleArena.Core.Services
                 .Replace("_", " ")
                 .Trim();
 
-            // Add spaces before capital letters (InviteFriend -> Invite Friend)
             clean = Regex.Replace(clean, "([a-z])([A-Z])", "$1 $2");
 
-            // Handle empty result
             if (string.IsNullOrWhiteSpace(clean))
                 return "Popup";
 
             return clean;
-        }
-
-        /// <summary>
-        /// Find a GameObject by its instance ID.
-        /// </summary>
-        public static GameObject FindObjectFromInstanceID(int instanceId)
-        {
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go.GetInstanceID() == instanceId)
-                    return go;
-            }
-            return null;
         }
 
         /// <summary>

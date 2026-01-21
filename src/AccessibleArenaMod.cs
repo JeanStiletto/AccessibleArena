@@ -24,6 +24,7 @@ namespace AccessibleArena
         private CardInfoNavigator _cardInfoNavigator;
         private NavigatorManager _navigatorManager;
         private HelpNavigator _helpNavigator;
+        private PanelAnimationDiagnostic _panelDiagnostic;
 
         private bool _initialized;
 
@@ -61,9 +62,9 @@ namespace AccessibleArena
             // This patch intercepts game events and passes them to DuelAnnouncer
             UXEventQueuePatch.Initialize();
 
-            // Initialize the PanelState patch for menu navigation
-            // This patch intercepts panel Show/Hide to trigger navigator rescans
-            PanelStatePatch.Initialize();
+            // PanelStatePatch disabled - using UnifiedPanelDetector alpha-based detection instead
+            // This patch was used to intercept panel Show/Hide but is no longer needed
+            // PanelStatePatch.Initialize();
 
             LoggerInstance.Msg("Harmony patches initialized");
         }
@@ -77,6 +78,7 @@ namespace AccessibleArena
             _focusTracker = new UIFocusTracker(_announcer);
             _cardInfoNavigator = new CardInfoNavigator(_announcer);
             _helpNavigator = new HelpNavigator(_announcer);
+            _panelDiagnostic = new PanelAnimationDiagnostic();
 
             // Initialize navigator manager with all screen navigators
             // LoginPanelNavigator removed - GeneralMenuNavigator now handles Login scene with password masking
@@ -265,6 +267,24 @@ namespace AccessibleArena
         {
             if (!_initialized)
                 return;
+
+            // F11: Panel animation diagnostic (for development)
+            if (Input.GetKeyDown(KeyCode.F11))
+            {
+                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                {
+                    // Shift+F11: One-time dump of panel analysis
+                    _panelDiagnostic?.DumpPanelAnalysis();
+                }
+                else
+                {
+                    // F11: Toggle animation tracking
+                    _panelDiagnostic?.ToggleTracking();
+                }
+            }
+
+            // Update diagnostic tracking if active
+            _panelDiagnostic?.Update();
 
             // Help menu has highest priority - blocks all other input when active
             if (_helpNavigator != null && _helpNavigator.IsActive)

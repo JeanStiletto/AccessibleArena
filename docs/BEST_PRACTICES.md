@@ -1394,6 +1394,156 @@ Use the CardGroupProvider pattern when:
 - Scry/Surveil reordering
 - Other card browsers with drag-based interaction
 
+## Animation Detection Patterns
+
+**Added January 2026:**
+
+When waiting for UI animations to complete before scanning/interacting, there are two approaches:
+
+### 1. CanvasGroup Alpha Check (RECOMMENDED for popups/fade animations)
+
+```csharp
+/// <summary>
+/// Get the minimum alpha value from all CanvasGroups on an element.
+/// </summary>
+private float GetMinCanvasGroupAlpha(GameObject element)
+{
+    if (element == null) return -1f;
+
+    float minAlpha = 1f;
+    var canvasGroups = element.GetComponentsInChildren<CanvasGroup>();
+    foreach (var cg in canvasGroups)
+    {
+        if (cg == null) continue;
+        if (cg.alpha < minAlpha)
+            minAlpha = cg.alpha;
+    }
+
+    return canvasGroups.Length > 0 ? minAlpha : -1f;
+}
+
+// Usage:
+float alpha = GetMinCanvasGroupAlpha(popup);
+if (alpha >= 0.5f)
+{
+    // Popup is visible - safe to scan/interact
+}
+else if (alpha < 0.1f)
+{
+    // Popup is closing/closed
+}
+```
+
+**Characteristics:**
+- Alpha changes quickly during fade animations (~0.2-0.3 seconds to reach 1.0)
+- Reliable indicator of visual visibility
+- Works for both fade-in (alpha rising) and fade-out (alpha dropping)
+- Simple to implement, no reflection needed
+- **Use for:** Popup open/close detection, fade animations, visibility checks
+
+### 2. Animator IsInTransition Check (USE WITH CAUTION)
+
+```csharp
+/// <summary>
+/// Check if any Animator on the element is currently transitioning.
+/// Uses reflection to avoid requiring AnimationModule reference.
+/// </summary>
+private bool IsAnimatorTransitioning(GameObject element)
+{
+    if (element == null) return false;
+
+    var components = element.GetComponentsInChildren<Component>();
+    foreach (var component in components)
+    {
+        if (component == null) continue;
+        var type = component.GetType();
+        if (type.Name != "Animator") continue;
+
+        // Check if animator is enabled
+        var enabledProp = type.GetProperty("isActiveAndEnabled");
+        if (enabledProp != null)
+        {
+            bool enabled = (bool)enabledProp.GetValue(component);
+            if (!enabled) continue;
+        }
+
+        // Check if animator is in transition
+        var isInTransitionMethod = type.GetMethod("IsInTransition");
+        if (isInTransitionMethod != null)
+        {
+            try
+            {
+                bool inTransition = (bool)isInTransitionMethod.Invoke(component, new object[] { 0 });
+                if (inTransition) return true;
+            }
+            catch { }
+        }
+
+        // Check normalizedTime for animation progress
+        var getStateInfo = type.GetMethod("GetCurrentAnimatorStateInfo");
+        if (getStateInfo != null)
+        {
+            try
+            {
+                var stateInfo = getStateInfo.Invoke(component, new object[] { 0 });
+                var normalizedTimeProp = stateInfo.GetType().GetProperty("normalizedTime");
+                if (normalizedTimeProp != null)
+                {
+                    float normalizedTime = (float)normalizedTimeProp.GetValue(stateInfo);
+                    if (normalizedTime < 1.0f) return true;
+                }
+            }
+            catch { }
+        }
+    }
+
+    return false;
+}
+```
+
+**Characteristics:**
+- **UNRELIABLE for popup fade animations** - tested to return true for ~1.2 seconds even after popup is fully visible
+- Popup animators have looping idle animations that keep "transitioning" state active
+- Requires reflection to access Animator methods (AnimationModule not referenced in project)
+- **May be useful for:** Button press animations, panel slide animations, discrete state transitions
+- **Do NOT use for:** Popup open/close timing, fade-in detection
+
+### Recommendation Summary
+
+| Animation Type | Recommended Method | Why |
+|----------------|-------------------|-----|
+| Popup fade-in/fade-out | Alpha check | Fast, reliable, simple |
+| Modal dialog visibility | Alpha check | Direct visibility indicator |
+| Button press feedback | Animator check | Discrete state, no looping |
+| Panel slide animations | Animator check | Position-based, not alpha |
+| Element hover effects | Animator check | Short, discrete animations |
+
+### Popup Detection with Alpha
+
+When detecting if a popup is ready for interaction:
+
+```csharp
+// In popup detection (CheckForNewPopups)
+if (HasActiveButtonChild(popup, "SystemMessageButton") && GetMinCanvasGroupAlpha(popup) >= 0.5f)
+{
+    // Popup is visible AND has interactive buttons
+    isModalPopup = true;
+}
+
+// In animation wait completion check
+float minAlpha = GetMinCanvasGroupAlpha(popup);
+if (minAlpha >= 0.5f)
+{
+    // Popup visible - trigger rescan to find buttons
+    CompleteAnimationWait();
+}
+else if (minAlpha < 0.1f && waitTimer > 0.5f)
+{
+    // Popup closing - cancel wait without rescan
+    CancelAnimationWait();
+}
+```
+
 ## Common Gotchas
 
 - MelonGame attribute is case sensitive: `"Wizards Of The Coast"`

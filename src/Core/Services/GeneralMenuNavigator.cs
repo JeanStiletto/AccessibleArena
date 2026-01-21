@@ -59,6 +59,7 @@ namespace AccessibleArena.Core.Services
         // Helper instances
         private readonly MenuScreenDetector _screenDetector;
         private readonly MenuPanelTracker _panelTracker;
+        private readonly UnifiedPanelDetector _panelDetector;
 
         // Rescan timing
         private float _rescanDelay;
@@ -137,6 +138,7 @@ namespace AccessibleArena.Core.Services
         {
             _screenDetector = new MenuScreenDetector();
             _panelTracker = new MenuPanelTracker(announcer, NavigatorId);
+            _panelDetector = new UnifiedPanelDetector(NavigatorId);
         }
 
         protected virtual string GetMenuScreenName()
@@ -222,6 +224,7 @@ namespace AccessibleArena.Core.Services
             // Reset helpers
             _screenDetector.Reset();
             _panelTracker.Reset();
+            _panelDetector.Reset();
 
             if (_isActive)
             {
@@ -245,6 +248,7 @@ namespace AccessibleArena.Core.Services
             // Reset helpers
             _screenDetector.Reset();
             _panelTracker.Reset();
+            _panelDetector.Reset();
         }
 
         /// <summary>
@@ -278,42 +282,34 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Check for new popups - this detects popups that appear after button clicks
-            // (e.g., InviteFriendPopup appearing after clicking Add Friend, SystemMessageView for confirmations)
-            if (_rescanDelay <= 0)
+            // Unified panel detection - checks alpha state every N frames
+            // Replaces complex cooldown/animation wait logic with simple state comparison
+            var panelChange = _panelDetector.CheckForChanges();
+            if (panelChange.HasChange)
             {
-                bool newPopup = _panelTracker.CheckForNewPopups();
-                var trackerForeground = _panelTracker.ForegroundPanel;
+                // Update foreground panel from unified detector
+                var newTopmost = panelChange.TopmostPanel;
+                if (newTopmost != _foregroundPanel)
+                {
+                    _foregroundPanel = newTopmost;
+                    MelonLogger.Msg($"[{NavigatorId}] Panel change detected, topmost: {_foregroundPanel?.name ?? "none"}");
+                }
 
-                // Sync foreground panel from tracker if it changed (popup opened or closed)
-                if (trackerForeground != _foregroundPanel && IsPopupOverlay(trackerForeground))
+                // Announce if a panel appeared
+                if (!string.IsNullOrEmpty(panelChange.AppearedPanelName))
                 {
-                    _foregroundPanel = trackerForeground;
-                    MelonLogger.Msg($"[{NavigatorId}] Popup foreground changed: {_foregroundPanel?.name ?? "null"}, triggering rescan");
-                    TriggerRescan(force: true);
+                    _announcer.AnnounceInterrupt($"{panelChange.AppearedPanelName} opened.");
                 }
-                else if (newPopup)
-                {
-                    _foregroundPanel = trackerForeground;
-                    MelonLogger.Msg($"[{NavigatorId}] New popup detected, foreground: {_foregroundPanel?.name ?? "null"}, triggering rescan");
-                    TriggerRescan(force: true);
-                }
-                // Clear popup foreground if popup closed
-                else if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel) && !_foregroundPanel.activeInHierarchy)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup closed: {_foregroundPanel.name}, clearing foreground");
-                    _foregroundPanel = null;
-                    TriggerRescan(force: true);
-                }
+
+                TriggerRescan(force: true);
             }
 
-            // Check for panel changes (e.g., Settings submenu navigation)
-            // This detects when foreground panel becomes inactive or changes
-            // Skip during popup cooldown to avoid overriding restored foreground
-            if (_rescanDelay <= 0 && !_panelTracker.IsPopupCooldownActive)
-            {
-                CheckForPanelChanges();
-            }
+            // CheckForPanelChanges disabled - using UnifiedPanelDetector alpha-based detection only
+            // This eliminates race conditions between two competing detection systems
+            // if (_rescanDelay <= 0)
+            // {
+            //     CheckForPanelChanges();
+            // }
 
             // Call base Update for normal navigation handling
             base.Update();
@@ -1031,10 +1027,15 @@ namespace AccessibleArena.Core.Services
 
                     // Only set foreground filter for overlay panels (Settings, Popups)
                     // NavContentController descendants (HomePage, etc.) should NOT filter
-                    if (IsOverlayPanel(panelName))
+                    // BUT don't overwrite popup foreground - popups take highest priority
+                    if (IsOverlayPanel(panelName) && !IsPopupOverlay(_foregroundPanel))
                     {
                         _foregroundPanel = panelObj;
                         MelonLogger.Msg($"[{NavigatorId}] Filtering to panel: {panelObj?.name}");
+                    }
+                    else if (IsPopupOverlay(_foregroundPanel))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Preserving popup foreground: {_foregroundPanel?.name}");
                     }
                     TriggerRescan();
                     return;
@@ -1043,7 +1044,9 @@ namespace AccessibleArena.Core.Services
 
             // Check for closed panels
             var currentPanelNames = currentPanels.Select(p => p.name).ToHashSet();
-            var closedPanels = _activePanels.Where(p => !currentPanelNames.Contains(p)).ToList();
+            var closedPanels = _activePanels
+                .Where(p => !currentPanelNames.Contains(p))
+                .ToList();
             if (closedPanels.Count > 0)
             {
                 foreach (var panel in closedPanels)
@@ -1648,15 +1651,8 @@ namespace AccessibleArena.Core.Services
                 if (obj == null || !obj.activeInHierarchy) return;
                 if (addedObjects.Contains(obj)) return;
 
-                // Debug: log Friends panel elements
-                bool isFriendsElement = obj.name.Contains("Backer") || obj.name.Contains("AddFriend");
-
                 if (!IsInForegroundPanel(obj))
-                {
-                    if (isFriendsElement)
-                        MelonLogger.Msg($"[{NavigatorId}] Friends element REJECTED by IsInForegroundPanel: {obj.name}");
                     return;
-                }
 
                 var classification = UIElementClassifier.Classify(obj);
                 if (classification.IsNavigable && classification.ShouldAnnounce)
@@ -1665,12 +1661,6 @@ namespace AccessibleArena.Core.Services
                     float sortOrder = -pos.y * 1000 + pos.x;
                     discoveredElements.Add((obj, classification, sortOrder));
                     addedObjects.Add(obj);
-                    if (isFriendsElement)
-                        MelonLogger.Msg($"[{NavigatorId}] Friends element ADDED: {obj.name} -> {classification.Label}");
-                }
-                else if (isFriendsElement)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Friends element REJECTED by Classifier: {obj.name} IsNavigable={classification.IsNavigable} ShouldAnnounce={classification.ShouldAnnounce}");
                 }
             }
 
@@ -2280,17 +2270,12 @@ namespace AccessibleArena.Core.Services
             }
 
             // For popup/dialog button activations (OK, Cancel), the popup closes with animation
-            // Start cooldown to prevent popup re-detection during close animation
+            // Popup button click - unified detector will handle the visibility change
+            // No cooldown needed - alpha state comparison will detect when popup closes
             if (isPopupButton)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup button activated ({element.name}) - dismissing popup");
-                // Start cooldown in tracker (restores tracker's foreground to panel before popup)
-                _panelTracker.StartPopupDismissCooldown();
-                // Sync our foreground from tracker (restored to panel before popup)
-                _foregroundPanel = _panelTracker.ForegroundPanel;
-                MelonLogger.Msg($"[{NavigatorId}] Synced foreground: {_foregroundPanel?.name ?? "null"}");
-                // Trigger immediate rescan
-                TriggerRescan(force: true);
+                MelonLogger.Msg($"[{NavigatorId}] Popup button activated ({element.name})");
+                // Unified detector will detect popup close via alpha change
                 return true;
             }
 

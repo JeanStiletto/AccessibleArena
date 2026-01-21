@@ -23,8 +23,8 @@ namespace AccessibleArena.Core.Services
         {
             Instance = this;
 
-            // Subscribe to panel state changes from Harmony patch
-            PanelStatePatch.OnPanelStateChanged += OnPanelStateChanged;
+            // PanelStatePatch disabled - using UnifiedPanelDetector alpha-based detection instead
+            // PanelStatePatch.OnPanelStateChanged += OnPanelStateChanged;
         }
 
         /// <summary>Currently active navigator, if any</summary>

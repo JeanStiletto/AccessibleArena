@@ -536,11 +536,12 @@ namespace AccessibleArena.Core.Services
                         }
                         if (!parentCG.interactable && !parentCG.ignoreParentGroups)
                         {
-                            // Allow FriendsWidget elements through - they use non-standard interactable patterns
-                            // where parent CanvasGroups may be non-interactable but children should still be navigable
+                            // Allow elements with meaningful text content through - they should be navigable
+                            // even if parent CanvasGroup is non-interactable (e.g., popup buttons, FriendsWidget)
+                            bool hasMeaningfulContent = UITextExtractor.HasActualText(obj);
                             bool isFriendsElement = IsInsideFriendsWidget(obj)
                                 && !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
-                            if (!isFriendsElement)
+                            if (!hasMeaningfulContent && !isFriendsElement)
                             {
                                 if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup interactable=false");
                                 return false;

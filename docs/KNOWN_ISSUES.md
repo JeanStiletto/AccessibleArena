@@ -20,15 +20,112 @@ Added to filter wrapper objects like `NPE-Rewards_Container` that have CustomBut
 
 ## Active Bugs
 
+### Panel Detection System (Jan 2026)
+
+**Current Architecture: Hybrid Detection (Working)**
+
+The panel detection uses TWO complementary systems that handle different UI types:
+
+1. **CheckForPanelChanges()** in GeneralMenuNavigator
+   - Uses `MenuPanelTracker.GetActivePanelsWithObjects()`
+   - Detects via reflection on `IsOpen` property of controller classes
+   - Handles: NavContentController, SettingsMenu, SettingsMenuHost, PopupBase, Login panels
+   - **Critical for PlayBlade** - PlayBladeController uses visual state, not alpha
+
+2. **UnifiedPanelDetector.cs** - Alpha-based detection
+   - Scans for name patterns: Popup, SystemMessageView, Dialog, Modal, SettingsMenu, FriendsWidget, SocialUI, InviteFriend, PlayBlade, Blade
+   - Tracks CanvasGroup alpha state every 10 frames
+   - Handles: True popups (SystemMessageView), social panels, dialogs
+   - **Cannot detect PlayBlade reliably** - see failed experiment below
+
+**Why Both Systems Are Needed:**
+
+| UI Type | CheckForPanelChanges | UnifiedPanelDetector |
+|---------|---------------------|---------------------|
+| NavContentController (Home, Decks) | YES (via IsOpen) | NO |
+| SettingsMenu | YES (via IsOpen) | YES (via alpha) |
+| SystemMessageView (dialogs) | NO | YES (via alpha) |
+| PlayBlade | YES (via visual state) | UNRELIABLE |
+| SocialUI | NO | YES (via alpha) |
+| Login panels | YES (by name) | NO |
+
+---
+
+### Failed Experiment: Alpha-Only Detection (Jan 2026)
+
+**Goal:** Unify all panel detection on alpha-based approach to eliminate race conditions between competing systems.
+
+**What We Tried:**
+1. Disabled `CheckForPanelChanges()` entirely in GeneralMenuNavigator.Update()
+2. Added PlayBlade/Blade patterns to UnifiedPanelDetector
+3. Reduced cache refresh interval from 5 seconds to 1 second
+4. Removed ExcludedNamePatterns that were blocking ContentController panels
+5. Tried stability-based detection (wait for alpha to settle before reporting)
+
+**Why It Failed:**
+
+1. **PlayBlade not detected properly**
+   - `ContentController - PlayBladeV3_Desktop_16x9(Clone)` wasn't being registered
+   - Child elements like `Blade_FilterListItem_Base(Clone)` were detected instead
+   - Result: Wrong foreground panel (SocialUI instead of PlayBlade)
+   - Elements from main menu mixed with PlayBlade elements
+
+2. **Stability tracking caused delays**
+   - Waiting for alpha to be stable (3 consecutive checks with < 2% change)
+   - Made home menu load slowly
+   - Blade opening/closing unreliable
+   - Some panels never reached "stable" state
+
+3. **Home menu loading issues**
+   - Initial load very slow
+   - Elements appearing inconsistently
+
+**Key Learning:**
+
+Alpha detection works well for true popups (SystemMessageView, dialogs) that:
+- Fade in/out with clear alpha transitions
+- Are independent GameObjects with their own CanvasGroup
+- Don't have complex controller hierarchies
+
+Alpha detection is unreliable for:
+- PlayBlade - nested inside HomePageContentController, uses visual state enum
+- Content controllers - may not have CanvasGroup at root level
+- Panels that appear instantly (alpha=1 from start)
+
+**Code Changes (Reverted/Kept):**
+
+Kept from experiment:
+- `TrackedPanelPatterns` renamed from `PopupPatterns` (clearer naming)
+- `IsTrackedPanel()` renamed from `IsPopupPanel()`
+- Removed `ExcludedNamePatterns` - was blocking legitimate panels
+- Added "PlayBlade", "Blade" to tracked patterns (helps with some detection)
+
+Reverted:
+- Re-enabled `CheckForPanelChanges()` - needed for PlayBlade/controller detection
+- Removed stability tracking - caused more problems than it solved
+- Back to simple alpha threshold check (alpha >= 0.5 = visible)
+
+**Current State:**
+
+Hybrid approach is working:
+- CheckForPanelChanges handles controller-based panels (PlayBlade, Settings, Nav content)
+- UnifiedPanelDetector handles alpha-based panels (popups, dialogs, social)
+- Some overlap on SettingsMenu (both detect it) but this is acceptable
+
+**Files:**
+- `src/Core/Services/UnifiedPanelDetector.cs` - Alpha detection for popups
+- `src/Core/Services/GeneralMenuNavigator.cs` - CheckForPanelChanges() re-enabled
+- `src/Core/Services/MenuPanelTracker.cs` - Controller reflection utilities
+
+---
+
 ### Confirmation Dialogs (SystemMessageView)
 
-**Cancel button navigation issue**
+**Cancel button requires double press**
 
-Confirmation dialogs (e.g., Exit Game confirmation) are now detected and navigable with OK/Cancel buttons. However, after pressing Cancel, the mod doesn't properly return to the previous menu (Settings). The popup closes visually (confirmed via OCR), but the mod gets confused about panel hierarchy (Home → Settings → Popup) and enters a loop.
+Confirmation dialogs (e.g., Exit Game confirmation) are detected and navigable with OK/Cancel buttons. Pressing Cancel once dismisses the dialog but may require a second press.
 
-Attempted fixes included: popup detection cooldowns, saving/restoring previous foreground panel, skipping panel detection during cooldown. The underlying issue is complex interaction between multiple panel tracking systems (popup detection, Settings overlay detection, foreground panel management) that need refactoring.
-
-**Workaround:** Press OK to confirm, or use mouse to click Cancel.
+**Workaround:** Press Cancel twice, or use OK to confirm.
 
 ### Login Screen Back Button
 
