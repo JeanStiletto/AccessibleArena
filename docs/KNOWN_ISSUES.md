@@ -138,11 +138,17 @@ The key insight: PlayBlade REQUIRES Harmony patches because it uses slide animat
 
 ### Confirmation Dialogs (SystemMessageView)
 
-**Cancel button requires double press**
+**Cancel button click doesn't actually close popup (Jan 2026)**
 
-Confirmation dialogs (e.g., Exit Game confirmation) are detected and navigable with OK/Cancel buttons. Pressing Cancel once dismisses the dialog but may require a second press.
+Confirmation dialogs (e.g., Logout confirmation from Settings) are detected and navigable with OK/Cancel buttons. The mod correctly shows the popup elements and navigation works. However, pressing Enter on the Cancel (Abbrechen) button doesn't actually close the popup in the game - the mod's navigation returns to the previous screen but OCR shows the popup is still visible.
 
-**Workaround:** Press Cancel twice, or use OK to confirm.
+**Technical details:**
+- SystemMessageButtonView component has both CustomButton and SystemMessageButtonView
+- Tried: pointer simulation, CustomButton.onClick, SystemMessageButtonView.OnClick/OnButtonClicked
+- None of these trigger the actual game close logic
+- The popup's alpha detection works correctly (no more double announcements or loops)
+
+**Workaround:** Press Escape to close the popup, or click OK to confirm the action.
 
 ### Login Screen Back Button
 

@@ -221,10 +221,10 @@ namespace AccessibleArena.Core.Services
             _playBladeActive = false;
             _playBladeState = null;
 
-            // Reset helpers
+            // Reset helpers - full reset for scene change clears announced panels too
             _screenDetector.Reset();
             _panelTracker.Reset();
-            _panelDetector.Reset();
+            _panelDetector.ResetForSceneChange();
 
             if (_isActive)
             {

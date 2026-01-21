@@ -191,6 +191,24 @@ namespace AccessibleArena.Core.Services
                 if (TryInvokeUpdatePoliciesAccept(element, out var acceptResult))
                     return acceptResult;
 
+                // Special handling for SystemMessageButtonView (popup dialog buttons like OK/Cancel)
+                // These buttons have CustomButton but the game logic is in SystemMessageButtonView.OnClick
+                var systemMsgButton = FindComponentByName(element, "SystemMessageButtonView");
+                if (systemMsgButton != null)
+                {
+                    Log($"SystemMessageButtonView with CustomButton detected, trying OnClick method");
+                    if (TryInvokeMethod(systemMsgButton, "OnClick"))
+                    {
+                        return new ActivationResult(true, "Activated", ActivationType.Button);
+                    }
+                    if (TryInvokeMethod(systemMsgButton, "OnButtonClicked"))
+                    {
+                        return new ActivationResult(true, "Activated", ActivationType.Button);
+                    }
+                    // Fall through to pointer simulation if direct invoke fails
+                    Log($"SystemMessageButtonView direct invoke failed, trying pointer simulation");
+                }
+
                 var pointerResult = SimulatePointerClick(element);
 
                 // Also try onClick reflection as additional handler

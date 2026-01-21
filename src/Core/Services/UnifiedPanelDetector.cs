@@ -54,6 +54,10 @@ namespace AccessibleArena.Core.Services
         // Note: _previouslyVisible removed - now tracking state per-panel with IsStableVisible
         private GameObject _topmostPanel;
 
+        // Track panels that have already been announced as "appeared" to prevent double announcements
+        // This persists across Reset() calls - only cleared on scene change via ResetForSceneChange()
+        private readonly HashSet<string> _announcedPanelNames = new HashSet<string>();
+
         #endregion
 
         #region Public Types
@@ -93,13 +97,27 @@ namespace AccessibleArena.Core.Services
         #region Public Methods
 
         /// <summary>
-        /// Reset all tracked state. Call on scene change.
+        /// Soft reset - clears panel tracking but preserves announced state.
+        /// Call on navigator activate/deactivate.
         /// </summary>
         public void Reset()
         {
             _knownPanels.Clear();
             _topmostPanel = null;
             _frameCounter = 0;
+            // Note: Do NOT clear _announcedPanelNames here - prevents double announcement
+            // after navigator deactivate/reactivate cycles
+        }
+
+        /// <summary>
+        /// Full reset for scene changes - clears all state including announced panels.
+        /// Call when changing scenes.
+        /// </summary>
+        public void ResetForSceneChange()
+        {
+            Reset();
+            _announcedPanelNames.Clear();
+            MelonLogger.Msg($"[{_logPrefix}] Full reset for scene change");
         }
 
         /// <summary>
@@ -164,6 +182,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (isFullyHidden && info.WasVisible)
                 {
+                    MelonLogger.Msg($"[{_logPrefix}] Panel going hidden: {info.Name} (alpha={currentAlpha:F2}, isActive={isActive})");
                     disappeared.Add(kvp.Key);
                     info.WasVisible = false;
                 }
@@ -194,11 +213,12 @@ namespace AccessibleArena.Core.Services
             if (hasChange)
             {
                 // Get the most significant appeared panel (prefer popups, higher hierarchy depth)
+                // Skip panels that have already been announced (prevents double announcement after Reset)
                 if (appeared.Count > 0)
                 {
                     var appearInfo = appeared
                         .Select(id => _knownPanels.TryGetValue(id, out var info) ? info : null)
-                        .Where(i => i != null)
+                        .Where(i => i != null && !_announcedPanelNames.Contains(i.Name))
                         .OrderByDescending(i => i.IsPopup ? 1 : 0)
                         .ThenByDescending(i => i.HierarchyDepth)
                         .FirstOrDefault();
@@ -206,11 +226,18 @@ namespace AccessibleArena.Core.Services
                     if (appearInfo != null)
                     {
                         result.AppearedPanelName = CleanPanelName(appearInfo.Name);
+                        _announcedPanelNames.Add(appearInfo.Name);
                         MelonLogger.Msg($"[{_logPrefix}] Panel appeared: {appearInfo.Name} -> {result.AppearedPanelName}");
+                    }
+                    else
+                    {
+                        // All appeared panels were already announced - not a real change for UI
+                        MelonLogger.Msg($"[{_logPrefix}] Appeared panels already announced, skipping");
                     }
                 }
 
                 // Get the most significant disappeared panel
+                // Also remove from announced set so it can be announced again if it reappears
                 if (disappeared.Count > 0)
                 {
                     var disappearInfo = disappeared
@@ -223,11 +250,19 @@ namespace AccessibleArena.Core.Services
                     if (disappearInfo != null)
                     {
                         result.DisappearedPanelName = CleanPanelName(disappearInfo.Name);
+                        _announcedPanelNames.Remove(disappearInfo.Name);
                         MelonLogger.Msg($"[{_logPrefix}] Panel disappeared: {disappearInfo.Name}");
                     }
                 }
 
-                MelonLogger.Msg($"[{_logPrefix}] Topmost panel: {_topmostPanel?.name ?? "none"}");
+                // Recalculate HasChange - only true if we have actual new appearances or disappearances
+                result.HasChange = !string.IsNullOrEmpty(result.AppearedPanelName) ||
+                                   !string.IsNullOrEmpty(result.DisappearedPanelName);
+
+                if (result.HasChange)
+                {
+                    MelonLogger.Msg($"[{_logPrefix}] Topmost panel: {_topmostPanel?.name ?? "none"}");
+                }
             }
 
             // Clean up destroyed panels
@@ -284,6 +319,8 @@ namespace AccessibleArena.Core.Services
                     cg = go.GetComponentInChildren<CanvasGroup>();
 
                 // Add to known panels (cg may be null, we'll check alpha differently)
+                // WasVisible starts as false - CheckForChanges will detect "appeared" on next cycle
+                // Double announcement is prevented by _announcedPanelNames check
                 var info = new PanelInfo
                 {
                     GameObject = go,
@@ -393,6 +430,7 @@ namespace AccessibleArena.Core.Services
                 var parentCg = parent.GetComponent<CanvasGroup>();
                 if (parentCg != null && parentCg.alpha <= HiddenThreshold)
                 {
+                    MelonLogger.Msg($"[{_logPrefix}] Parent {parent.name} has alpha={parentCg.alpha:F2}, marking {go.name} as hidden");
                     return 0f; // Parent is invisible
                 }
                 parent = parent.parent;
