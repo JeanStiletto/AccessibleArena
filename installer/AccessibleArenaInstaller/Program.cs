@@ -1,11 +1,19 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Security.Principal;
 using System.Windows.Forms;
 
 namespace AccessibleArenaInstaller
 {
+    public enum UpdateChoice
+    {
+        Close,
+        UpdateOnly,
+        FullInstall
+    }
+
     static class Program
     {
         public const string DefaultMtgaPath = @"C:\Program Files\Wizards of the Coast\MTGA";
@@ -104,21 +112,121 @@ namespace AccessibleArenaInstaller
             }
             else
             {
-                // Install mode - show welcome dialog first
-                var welcomeForm = new WelcomeForm();
-                Application.Run(welcomeForm);
+                // Install mode - check for updates first
+                string mtgaPath = pathArg ?? DefaultMtgaPath;
+                string modPath = Path.Combine(mtgaPath, "Mods", Config.ModDllName);
 
-                if (!welcomeForm.ProceedWithInstall)
+                bool modExists = File.Exists(modPath);
+                bool updateAvailable = false;
+                string installedVersion = null;
+                string latestVersion = null;
+
+                if (modExists)
                 {
-                    Logger.Info("Installation cancelled from welcome dialog");
-                    return;
+                    Logger.Info("Mod found in default location, checking for updates...");
+
+                    // Get installed version
+                    try
+                    {
+                        var assemblyName = AssemblyName.GetAssemblyName(modPath);
+                        installedVersion = assemblyName.Version.ToString();
+                        Logger.Info($"Installed version: {installedVersion}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warning($"Could not read installed mod version: {ex.Message}");
+                    }
+
+                    // Get latest version from GitHub
+                    if (installedVersion != null)
+                    {
+                        try
+                        {
+                            using (var client = new GitHubClient())
+                            {
+                                latestVersion = client.GetLatestModVersionAsync(Config.ModRepositoryUrl).GetAwaiter().GetResult();
+                                Logger.Info($"Latest version: {latestVersion}");
+
+                                if (latestVersion != null)
+                                {
+                                    updateAvailable = IsNewerVersion(latestVersion, installedVersion);
+                                    Logger.Info($"Update available: {updateAvailable}");
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Warning($"Could not check for updates: {ex.Message}");
+                        }
+                    }
                 }
 
-                // Proceed with installation
-                string mtgaPath = pathArg ?? DetectMtgaPath();
-                Logger.Info($"Detected MTGA path: {mtgaPath ?? "Not found"}");
+                // Show appropriate dialog based on update check
+                if (modExists && updateAvailable)
+                {
+                    // Show update dialog with three options
+                    Logger.Info("Showing update dialog");
+                    var updateForm = new UpdateAvailableForm(installedVersion, latestVersion);
+                    Application.Run(updateForm);
 
-                Application.Run(new MainForm(mtgaPath));
+                    switch (updateForm.UserChoice)
+                    {
+                        case UpdateChoice.UpdateOnly:
+                            // Go directly to MainForm for update
+                            Logger.Info("User chose to update mod only");
+                            Application.Run(new MainForm(mtgaPath, updateOnly: true));
+                            break;
+
+                        case UpdateChoice.FullInstall:
+                            // Continue with full install flow
+                            Logger.Info("User chose full install");
+                            var welcomeForm = new WelcomeForm();
+                            Application.Run(welcomeForm);
+                            if (welcomeForm.ProceedWithInstall)
+                            {
+                                mtgaPath = pathArg ?? DetectMtgaPath();
+                                Application.Run(new MainForm(mtgaPath));
+                            }
+                            break;
+
+                        case UpdateChoice.Close:
+                        default:
+                            Logger.Info("User cancelled from update dialog");
+                            break;
+                    }
+                }
+                else
+                {
+                    // No mod installed or no update available - show default welcome dialog
+                    var welcomeResult = MessageBox.Show(
+                        "Welcome to Accessible Arena!\n\n" +
+                        "This will install the accessibility mod for playing Magic: The Gathering Arena on your computer.",
+                        "Accessible Arena Installer",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Information);
+
+                    if (welcomeResult != DialogResult.OK)
+                    {
+                        Logger.Info("Installation cancelled from welcome message");
+                        return;
+                    }
+
+                    // Show main welcome form with options
+                    var welcomeForm = new WelcomeForm();
+                    Application.Run(welcomeForm);
+
+                    if (!welcomeForm.ProceedWithInstall)
+                    {
+                        Logger.Info("Installation cancelled from welcome dialog");
+                        return;
+                    }
+
+                    // Proceed with installation
+                    mtgaPath = pathArg ?? DetectMtgaPath();
+                    Logger.Info($"Detected MTGA path: {mtgaPath ?? "Not found"}");
+
+                    Application.Run(new MainForm(mtgaPath));
+                }
             }
         }
 
@@ -313,6 +421,32 @@ namespace AccessibleArenaInstaller
 
             string exePath = Path.Combine(path, MtgaExeName);
             return File.Exists(exePath);
+        }
+
+        /// <summary>
+        /// Compares two version strings and returns true if the latest version is newer.
+        /// Handles version formats like "1.0.0" or "1.0.0.0".
+        /// </summary>
+        private static bool IsNewerVersion(string latestVersion, string installedVersion)
+        {
+            try
+            {
+                // Normalize versions - strip leading 'v' if present
+                latestVersion = latestVersion.TrimStart('v', 'V');
+                installedVersion = installedVersion.TrimStart('v', 'V');
+
+                // Parse as Version objects for proper comparison
+                var latest = new Version(latestVersion);
+                var installed = new Version(installedVersion);
+
+                return latest > installed;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Version comparison failed: {ex.Message}");
+                // If we can't parse, do simple string comparison
+                return !string.Equals(latestVersion, installedVersion, StringComparison.OrdinalIgnoreCase);
+            }
         }
     }
 }

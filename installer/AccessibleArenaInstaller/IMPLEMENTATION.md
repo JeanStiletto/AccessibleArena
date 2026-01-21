@@ -35,9 +35,10 @@ Single-file C# WinForms installer that:
 installer/AccessibleArenaInstaller/
 ├── AccessibleArenaInstaller.csproj   # Project file
 ├── app.manifest                         # UAC admin elevation request
-├── Program.cs                           # Entry point, CLI args, uninstall logic
-├── WelcomeForm.cs                       # Welcome dialog (first screen)
-├── MainForm.cs                          # Main installer UI
+├── Program.cs                           # Entry point, CLI args, update check, uninstall logic
+├── WelcomeForm.cs                       # Welcome dialog with download options
+├── UpdateAvailableForm.cs               # Update available dialog (update/full install/close)
+├── MainForm.cs                          # Main installer/updater UI
 ├── UninstallForm.cs                     # Uninstall UI
 ├── InstallationManager.cs               # Core file operations
 ├── MelonLoaderInstaller.cs              # MelonLoader download/extraction
@@ -52,34 +53,53 @@ installer/AccessibleArenaInstaller/
 
 ## Installation Flow
 
-### Step 1: Welcome Dialog
-- Shows mod name and description
-- Offers "Download MTGA" button (opens browser) for users without MTGA
-- "Install Mod" button proceeds to installation
-
-### Step 2: Pre-flight Checks (in Program.cs)
+### Step 1: Pre-flight Checks (in Program.cs)
 1. Check if running as admin (via manifest, should always be true)
 2. Check if MTGA.exe is running → Block with message
-3. Detect MTGA installation path:
-   - Check registry for previous install location
-   - Check default: `C:\Program Files\Wizards of the Coast\MTGA`
-   - Check x86 Program Files as fallback
-   - If not found: User selects via FolderBrowserDialog
 
-### Step 3: Main Installation (MainForm.cs)
+### Step 2: Update Check
+1. Check if mod DLL exists in default MTGA location
+2. If exists: Compare installed version with latest GitHub version
+3. If update available: Show **Update Available Dialog** with options:
+   - **Update Mod** - Quick update (skips MelonLoader/Tolk, only updates mod DLL)
+   - **Full Install** - Proceeds to full installation flow
+   - **Close** - Exit installer
+4. If no mod or no update: Show welcome confirmation dialog
+
+### Step 3: Welcome Confirmation
+- Shows "Welcome to Accessible Arena!" message
+- User confirms with OK to proceed, or Cancel to exit
+
+### Step 4: Welcome Dialog
+- Shows mod description and MTGA download options
+- Three buttons:
+  - **Direct Download** - Downloads MTGAInstaller.exe directly
+  - **Download Page** - Opens MTGA website
+  - **Install Mod** - Proceeds to installation
+
+### Step 5: Path Detection
+- Check registry for previous install location
+- Check default: `C:\Program Files\Wizards of the Coast\MTGA`
+- Check x86 Program Files as fallback
+- If not found: User selects via FolderBrowserDialog
+
+### Step 6: Main Installation (MainForm.cs)
+**Full Install Mode:**
 1. **Copy Tolk DLLs** - Extract embedded resources to MTGA root
 2. **MelonLoader Check/Install:**
    - If not installed: Ask user, then download ZIP and extract
    - If already installed: Ask if user wants to reinstall or keep existing
 3. **Create Mods folder** if it doesn't exist
-4. **Download Mod DLL:**
-   - Check installed version vs GitHub latest
-   - If update available: Ask user
-   - Download and install to Mods folder
+4. **Download Mod DLL** from GitHub releases
 5. **Register in Add/Remove Programs** (registry)
 
-### Step 4: Completion
-- Show success message with first-launch warning (if MelonLoader was installed)
+**Update Only Mode:**
+1. Skip Tolk DLLs and MelonLoader
+2. **Download Mod DLL** from GitHub releases
+3. **Update registry** with new version
+
+### Step 7: Completion
+- Show success message (with first-launch warning if MelonLoader was installed)
 - Ask about log file only if there were errors/warnings
 - Optionally launch MTGA
 
@@ -211,6 +231,27 @@ Common errors handled:
 - GitHub rate limit / repo not found (warns user, continues)
 - Permission denied (shouldn't happen with admin manifest)
 
+## Known Issues
+
+### MelonLoader doesn't load when using "Launch MTGA after installation"
+
+**Symptom:** User has MelonLoader already installed, skips the reinstall prompt, checks "Launch MTGA after installation", but when the game starts MelonLoader doesn't load. However, launching MTGA manually afterwards works fine.
+
+**Cause:** The installer runs with administrator privileges (required for writing to Program Files). When `Process.Start()` launches MTGA.exe from the installer, the game inherits the elevated admin context. MelonLoader or the game may behave differently when running with unexpected admin privileges.
+
+**Workarounds:**
+1. Don't use "Launch MTGA after installation" - launch the game manually instead
+2. Launch MTGA from the Start Menu or desktop shortcut after installation completes
+
+**Possible fixes (not yet implemented):**
+- Launch via Explorer: `Process.Start("explorer.exe", exePath)` - this runs the game in normal user context
+- Use `CreateProcessAsUser` API to launch as the normal user
+- Show a warning when the checkbox is checked explaining this limitation
+
+**Status:** Documented, not yet fixed. Users should launch MTGA manually after installation.
+
+---
+
 ## Future Enhancements
 
 Not yet implemented:
@@ -218,6 +259,7 @@ Not yet implemented:
 - In-mod update checker (notify user on game launch if update available)
 - Code signing (reduces Windows SmartScreen warnings)
 - Checksum verification of downloads
+- Fix for "Launch MTGA" admin context issue (see Known Issues)
 
 ## Implementation History
 
@@ -248,3 +290,22 @@ Not yet implemented:
 - Welcome dialog with MTGA download option
 - MelonLoader "already installed" dialog with reinstall option
 - Optional logging (only saves on errors or user request)
+
+## Changelog
+
+### Version 1.1
+- Added welcome confirmation dialog at startup
+- Added automatic update check on launch (compares installed vs GitHub version)
+- Added Update Available dialog with Update/Full Install/Close options
+- Added quick update mode (skips MelonLoader/Tolk, only updates mod DLL)
+- WelcomeForm: Added "Direct Download" button for MTGA installer
+- WelcomeForm: Renamed download button to "Download Page"
+- MainForm: Support for update-only mode with appropriate UI changes
+- Documented known issue: MelonLoader not loading when using auto-launch
+
+### Version 1.0
+- Initial release
+- Full installation of MelonLoader, Tolk DLLs, and mod
+- Uninstaller with Add/Remove Programs integration
+- Welcome dialog with MTGA download option
+- Optional logging

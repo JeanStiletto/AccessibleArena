@@ -9,6 +9,7 @@ namespace AccessibleArenaInstaller
     public class MainForm : Form
     {
         private string _mtgaPath;
+        private bool _updateOnly;
         private Label _titleLabel;
         private Label _statusLabel;
         private Label _pathLabel;
@@ -19,17 +20,18 @@ namespace AccessibleArenaInstaller
         private ProgressBar _progressBar;
         private CheckBox _launchCheckBox;
 
-        public MainForm(string detectedMtgaPath)
+        public MainForm(string detectedMtgaPath, bool updateOnly = false)
         {
             _mtgaPath = detectedMtgaPath;
+            _updateOnly = updateOnly;
             InitializeComponents();
-            Logger.Info("MainForm initialized");
+            Logger.Info($"MainForm initialized (updateOnly: {updateOnly})");
         }
 
         private void InitializeComponents()
         {
             // Form settings
-            Text = "Accessible Arena Installer";
+            Text = _updateOnly ? "Accessible Arena Updater" : "Accessible Arena Installer";
             Size = new Size(500, 320);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -38,7 +40,7 @@ namespace AccessibleArenaInstaller
             // Title
             _titleLabel = new Label
             {
-                Text = "Accessible Arena Installer",
+                Text = _updateOnly ? "Accessible Arena Updater" : "Accessible Arena Installer",
                 Font = new Font(Font.FontFamily, 14, FontStyle.Bold),
                 Location = new Point(20, 20),
                 Size = new Size(440, 30),
@@ -48,7 +50,9 @@ namespace AccessibleArenaInstaller
             // Status label
             _statusLabel = new Label
             {
-                Text = "This will install the accessibility mod for Magic: The Gathering Arena.\nThe mod enables blind players to play using NVDA screen reader.",
+                Text = _updateOnly
+                    ? "This will update the accessibility mod to the latest version."
+                    : "This will install the accessibility mod for Magic: The Gathering Arena.\nThe mod enables blind players to play using NVDA screen reader.",
                 Location = new Point(20, 60),
                 Size = new Size(440, 50),
                 TextAlign = ContentAlignment.TopLeft
@@ -101,7 +105,7 @@ namespace AccessibleArenaInstaller
             // Install button
             _installButton = new Button
             {
-                Text = "Install",
+                Text = _updateOnly ? "Update" : "Install",
                 Location = new Point(280, 245),
                 Size = new Size(90, 30)
             };
@@ -178,9 +182,14 @@ namespace AccessibleArenaInstaller
             _mtgaPath = _pathTextBox.Text;
 
             // Confirm installation
+            string confirmMessage = _updateOnly
+                ? $"Update Accessible Arena mod at:\n{_mtgaPath}\n\nContinue?"
+                : $"Install Accessible Arena to:\n{_mtgaPath}\n\nContinue?";
+            string confirmTitle = _updateOnly ? "Confirm Update" : "Confirm Installation";
+
             var result = MessageBox.Show(
-                $"Install Accessible Arena to:\n{_mtgaPath}\n\nContinue?",
-                "Confirm Installation",
+                confirmMessage,
+                confirmTitle,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 
@@ -196,90 +205,102 @@ namespace AccessibleArenaInstaller
             {
                 try
                 {
-                    Logger.Info($"Starting installation to: {_mtgaPath}");
+                    Logger.Info($"Starting {(_updateOnly ? "update" : "installation")} to: {_mtgaPath}");
                     var installationManager = new InstallationManager(_mtgaPath);
-                    var melonLoaderInstaller = new MelonLoaderInstaller(_mtgaPath, githubClient);
+                    bool melonLoaderInstalled = true; // Assume installed for update mode
 
-                    // Step 1: Copy Tolk DLLs
-                    UpdateStatus("Copying screen reader libraries...");
-                    UpdateProgress(5);
-                    await Task.Run(() => installationManager.CopyTolkDlls());
-                    UpdateProgress(15);
-
-                    // Step 2: Check and install MelonLoader
-                    bool melonLoaderInstalled = melonLoaderInstaller.IsInstalled();
-                    Logger.Info($"MelonLoader installed: {melonLoaderInstalled}");
-
-                    if (!melonLoaderInstalled)
+                    if (_updateOnly)
                     {
-                        // Ask user if they want to install MelonLoader
-                        var mlResult = MessageBox.Show(
-                            "MelonLoader is required but not installed.\n\n" +
-                            "MelonLoader is a mod loader that allows the accessibility mod to work.\n\n" +
-                            "Do you want to download and install MelonLoader now?",
-                            "MelonLoader Required",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Question);
-
-                        if (mlResult == DialogResult.Yes)
-                        {
-                            UpdateStatus("Installing MelonLoader...");
-                            await melonLoaderInstaller.InstallAsync((progress, status) =>
-                            {
-                                // Map MelonLoader progress (0-100) to overall progress (15-70)
-                                int overallProgress = 15 + (progress * 55 / 100);
-                                UpdateProgress(overallProgress);
-                                UpdateStatus(status);
-                            });
-                        }
-                        else
-                        {
-                            Logger.Warning("User declined MelonLoader installation");
-                            MessageBox.Show(
-                                "MelonLoader is required for the accessibility mod to work.\n\n" +
-                                "The installer will continue, but the mod will not function until MelonLoader is installed.\n\n" +
-                                "You can install MelonLoader manually from:\nhttps://github.com/LavaGang/MelonLoader/releases",
-                                "MelonLoader Skipped",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                        }
+                        // Update mode - skip Tolk DLLs and MelonLoader
+                        UpdateStatus("Preparing update...");
+                        UpdateProgress(70);
                     }
                     else
                     {
-                        Logger.Info("MelonLoader already installed");
+                        // Full install mode
+                        var melonLoaderInstaller = new MelonLoaderInstaller(_mtgaPath, githubClient);
 
-                        // Ask user if they want to reinstall or continue
-                        var mlResult = MessageBox.Show(
-                            "MelonLoader is already installed.\n\n" +
-                            "Do you want to reinstall MelonLoader?\n\n" +
-                            "Click 'Yes' to reinstall, or 'No' to continue with the existing installation.",
-                            "MelonLoader Found",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Information);
+                        // Step 1: Copy Tolk DLLs
+                        UpdateStatus("Copying screen reader libraries...");
+                        UpdateProgress(5);
+                        await Task.Run(() => installationManager.CopyTolkDlls());
+                        UpdateProgress(15);
 
-                        if (mlResult == DialogResult.Yes)
+                        // Step 2: Check and install MelonLoader
+                        melonLoaderInstalled = melonLoaderInstaller.IsInstalled();
+                        Logger.Info($"MelonLoader installed: {melonLoaderInstalled}");
+
+                        if (!melonLoaderInstalled)
                         {
-                            Logger.Info("User chose to reinstall MelonLoader");
-                            UpdateStatus("Reinstalling MelonLoader...");
-                            await melonLoaderInstaller.InstallAsync((progress, status) =>
+                            // Ask user if they want to install MelonLoader
+                            var mlResult = MessageBox.Show(
+                                "MelonLoader is required but not installed.\n\n" +
+                                "MelonLoader is a mod loader that allows the accessibility mod to work.\n\n" +
+                                "Do you want to download and install MelonLoader now?",
+                                "MelonLoader Required",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question);
+
+                            if (mlResult == DialogResult.Yes)
                             {
-                                int overallProgress = 15 + (progress * 55 / 100);
-                                UpdateProgress(overallProgress);
-                                UpdateStatus(status);
-                            });
+                                UpdateStatus("Installing MelonLoader...");
+                                await melonLoaderInstaller.InstallAsync((progress, status) =>
+                                {
+                                    // Map MelonLoader progress (0-100) to overall progress (15-70)
+                                    int overallProgress = 15 + (progress * 55 / 100);
+                                    UpdateProgress(overallProgress);
+                                    UpdateStatus(status);
+                                });
+                            }
+                            else
+                            {
+                                Logger.Warning("User declined MelonLoader installation");
+                                MessageBox.Show(
+                                    "MelonLoader is required for the accessibility mod to work.\n\n" +
+                                    "The installer will continue, but the mod will not function until MelonLoader is installed.\n\n" +
+                                    "You can install MelonLoader manually from:\nhttps://github.com/LavaGang/MelonLoader/releases",
+                                    "MelonLoader Skipped",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+                            }
                         }
                         else
                         {
-                            Logger.Info("User chose to keep existing MelonLoader");
-                            UpdateStatus("Keeping existing MelonLoader");
-                            UpdateProgress(70);
-                        }
-                    }
+                            Logger.Info("MelonLoader already installed");
 
-                    // Step 3: Create Mods folder
-                    UpdateStatus("Creating Mods folder...");
-                    UpdateProgress(72);
-                    installationManager.EnsureModsFolderExists();
+                            // Ask user if they want to reinstall or continue
+                            var mlResult = MessageBox.Show(
+                                "MelonLoader is already installed.\n\n" +
+                                "Do you want to reinstall MelonLoader?\n\n" +
+                                "Click 'Yes' to reinstall, or 'No' to continue with the existing installation.",
+                                "MelonLoader Found",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Information);
+
+                            if (mlResult == DialogResult.Yes)
+                            {
+                                Logger.Info("User chose to reinstall MelonLoader");
+                                UpdateStatus("Reinstalling MelonLoader...");
+                                await melonLoaderInstaller.InstallAsync((progress, status) =>
+                                {
+                                    int overallProgress = 15 + (progress * 55 / 100);
+                                    UpdateProgress(overallProgress);
+                                    UpdateStatus(status);
+                                });
+                            }
+                            else
+                            {
+                                Logger.Info("User chose to keep existing MelonLoader");
+                                UpdateStatus("Keeping existing MelonLoader");
+                                UpdateProgress(70);
+                            }
+                        }
+
+                        // Step 3: Create Mods folder
+                        UpdateStatus("Creating Mods folder...");
+                        UpdateProgress(72);
+                        installationManager.EnsureModsFolderExists();
+                    }
 
                     // Step 4: Download and install mod DLL
                     UpdateStatus("Checking mod version...");
@@ -380,14 +401,16 @@ namespace AccessibleArenaInstaller
                     RegistryManager.Register(_mtgaPath, installedModVersion);
 
                     UpdateProgress(100);
-                    UpdateStatus("Installation complete!");
+                    UpdateStatus(_updateOnly ? "Update complete!" : "Installation complete!");
 
-                    Logger.Info("Installation completed successfully");
+                    Logger.Info($"{(_updateOnly ? "Update" : "Installation")} completed successfully");
 
                     // Show completion message with first-launch warning
-                    string completionMessage = "Accessible Arena installation complete!\n\n";
+                    string completionMessage = _updateOnly
+                        ? "Accessible Arena update complete!\n\n"
+                        : "Accessible Arena installation complete!\n\n";
 
-                    if (!melonLoaderInstalled)
+                    if (!_updateOnly && !melonLoaderInstalled)
                     {
                         completionMessage +=
                             "IMPORTANT: The first time you launch MTGA after installing MelonLoader,\n" +
@@ -397,7 +420,9 @@ namespace AccessibleArenaInstaller
 
                     if (modInstalled)
                     {
-                        completionMessage += "The accessibility mod has been installed successfully.";
+                        completionMessage += _updateOnly
+                            ? "The accessibility mod has been updated successfully."
+                            : "The accessibility mod has been installed successfully.";
                     }
                     else
                     {
@@ -408,7 +433,7 @@ namespace AccessibleArenaInstaller
 
                     MessageBox.Show(
                         completionMessage,
-                        "Installation Complete",
+                        _updateOnly ? "Update Complete" : "Installation Complete",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
 
@@ -424,11 +449,11 @@ namespace AccessibleArenaInstaller
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error("Installation failed", ex);
+                    Logger.Error($"{(_updateOnly ? "Update" : "Installation")} failed", ex);
 
                     MessageBox.Show(
-                        $"Installation failed: {ex.Message}",
-                        "Installation Error",
+                        $"{(_updateOnly ? "Update" : "Installation")} failed: {ex.Message}",
+                        _updateOnly ? "Update Error" : "Installation Error",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
 

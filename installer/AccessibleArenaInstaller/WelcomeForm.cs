@@ -7,7 +7,8 @@ namespace AccessibleArenaInstaller
 {
     public class WelcomeForm : Form
     {
-        private const string MtgaDownloadUrl = "https://magic.wizards.com/en/mtgarena";
+        private const string MtgaDownloadPageUrl = "https://magic.wizards.com/en/mtgarena";
+        private const string MtgaDirectDownloadUrl = "https://mtgarena.downloads.wizards.com/Live/Windows64/MTGAInstaller.exe";
 
         public bool ProceedWithInstall { get; private set; } = false;
 
@@ -20,7 +21,7 @@ namespace AccessibleArenaInstaller
         {
             // Form settings
             Text = Config.DisplayName;
-            Size = new Size(450, 280);
+            Size = new Size(500, 300);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -32,7 +33,7 @@ namespace AccessibleArenaInstaller
                 Text = $"Welcome to {Config.DisplayName}",
                 Font = new Font(Font.FontFamily, 14, FontStyle.Bold),
                 Location = new Point(20, 20),
-                Size = new Size(400, 30),
+                Size = new Size(450, 30),
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
@@ -44,29 +45,42 @@ namespace AccessibleArenaInstaller
                        "using the NVDA screen reader.\n\n" +
                        "If you don't have MTGA installed yet, please download and install it first.",
                 Location = new Point(20, 60),
-                Size = new Size(400, 100),
+                Size = new Size(450, 100),
                 TextAlign = ContentAlignment.TopLeft
             };
 
-            // Download MTGA button
-            var downloadButton = new Button
+            // Direct Download button
+            var directDownloadButton = new Button
             {
-                Text = "Download MTGA",
-                Location = new Point(80, 180),
-                Size = new Size(130, 35)
+                Text = "Direct Download",
+                Location = new Point(20, 180),
+                Size = new Size(140, 35)
             };
-            downloadButton.Click += (s, e) =>
+            directDownloadButton.Click += (s, e) =>
             {
-                Logger.Info($"Opening MTGA download page: {MtgaDownloadUrl}");
-                Process.Start(MtgaDownloadUrl);
+                Logger.Info($"Starting direct MTGA download: {MtgaDirectDownloadUrl}");
+                Process.Start(MtgaDirectDownloadUrl);
+            };
+
+            // Download Page button
+            var downloadPageButton = new Button
+            {
+                Text = "Download Page",
+                Location = new Point(175, 180),
+                Size = new Size(140, 35)
+            };
+            downloadPageButton.Click += (s, e) =>
+            {
+                Logger.Info($"Opening MTGA download page: {MtgaDownloadPageUrl}");
+                Process.Start(MtgaDownloadPageUrl);
             };
 
             // Install Mod button
             var installButton = new Button
             {
                 Text = "Install Mod",
-                Location = new Point(230, 180),
-                Size = new Size(130, 35)
+                Location = new Point(330, 180),
+                Size = new Size(140, 35)
             };
             installButton.Click += (s, e) =>
             {
@@ -79,7 +93,8 @@ namespace AccessibleArenaInstaller
             {
                 titleLabel,
                 descriptionLabel,
-                downloadButton,
+                directDownloadButton,
+                downloadPageButton,
                 installButton
             });
 
