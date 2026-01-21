@@ -295,12 +295,8 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Panel change detected, topmost: {_foregroundPanel?.name ?? "none"}");
                 }
 
-                // Announce if a panel appeared
-                if (!string.IsNullOrEmpty(panelChange.AppearedPanelName))
-                {
-                    _announcer.AnnounceInterrupt($"{panelChange.AppearedPanelName} opened.");
-                }
-
+                // Don't announce here - let navigation's GetActivationAnnouncement() be the single
+                // announcement source after rescan completes (see BEST_PRACTICES.md Panel Detection Strategy)
                 TriggerRescan(force: true);
             }
 
@@ -1020,32 +1016,43 @@ namespace AccessibleArena.Core.Services
             // Check for new panels
             foreach (var (panelName, panelObj) in currentPanels)
             {
-                if (!_activePanels.Contains(panelName))
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Panel opened: {panelName}");
-                    _activePanels.Add(panelName);
+                // Skip if already tracked (either exact match or via Harmony's ContentPanel: format)
+                if (_activePanels.Contains(panelName))
+                    continue;
 
-                    // Only set foreground filter for overlay panels (Settings, Popups)
-                    // NavContentController descendants (HomePage, etc.) should NOT filter
-                    // BUT don't overwrite popup foreground - popups take highest priority
-                    if (IsOverlayPanel(panelName) && !IsPopupOverlay(_foregroundPanel))
-                    {
-                        _foregroundPanel = panelObj;
-                        MelonLogger.Msg($"[{NavigatorId}] Filtering to panel: {panelObj?.name}");
-                    }
-                    else if (IsPopupOverlay(_foregroundPanel))
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] Preserving popup foreground: {_foregroundPanel?.name}");
-                    }
-                    TriggerRescan();
-                    return;
+                // Skip SettingsMenu if Harmony already tracked it via ContentPanel:SettingsMenu
+                // This prevents duplicate tracking from two systems
+                if (panelName.StartsWith("SettingsMenu:") && _activePanels.Any(p => p == "ContentPanel:SettingsMenu"))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Skipping {panelName} - already tracked by Harmony");
+                    continue;
                 }
+
+                MelonLogger.Msg($"[{NavigatorId}] Panel opened: {panelName}");
+                _activePanels.Add(panelName);
+
+                // Only set foreground filter for overlay panels (Settings, Popups)
+                // NavContentController descendants (HomePage, etc.) should NOT filter
+                // BUT don't overwrite popup foreground - popups take highest priority
+                if (IsOverlayPanel(panelName) && !IsPopupOverlay(_foregroundPanel))
+                {
+                    _foregroundPanel = panelObj;
+                    MelonLogger.Msg($"[{NavigatorId}] Filtering to panel: {panelObj?.name}");
+                }
+                else if (IsPopupOverlay(_foregroundPanel))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Preserving popup foreground: {_foregroundPanel?.name}");
+                }
+                TriggerRescan();
+                return;
             }
 
             // Check for closed panels
+            // Exclude ContentPanel:* entries - those are managed by Harmony (OnPanelStateChangedExternal)
+            // and use a different ID format than reflection-based detection
             var currentPanelNames = currentPanels.Select(p => p.name).ToHashSet();
             var closedPanels = _activePanels
-                .Where(p => !currentPanelNames.Contains(p))
+                .Where(p => !p.StartsWith("ContentPanel:") && !currentPanelNames.Contains(p))
                 .ToList();
             if (closedPanels.Count > 0)
             {

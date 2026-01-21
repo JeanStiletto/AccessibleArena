@@ -11,26 +11,35 @@ namespace AccessibleArena.Core.Services
     /// and overlays using CanvasGroup alpha state comparison.
     ///
     /// Replaces complex cooldown/timer-based detection with simple state comparison:
-    /// - Every N frames, scan for visible panels (alpha >= 0.5)
+    /// - Every N frames, scan for visible panels
     /// - Compare to previous state
     /// - If changed, report what appeared/disappeared
+    ///
+    /// Uses alpha thresholds at extremes (0.01/0.99) to detect only when animations
+    /// are complete, avoiding false triggers during fade transitions.
     /// </summary>
     public class UnifiedPanelDetector
     {
         #region Configuration
 
-        private const float AlphaThreshold = 0.5f;
+        // Only detect visibility changes at animation endpoints
+        // >= 0.99 = fully visible (fade-in complete)
+        // <= 0.01 = fully hidden (fade-out complete)
+        // Between = animating, don't change state
+        private const float VisibleThreshold = 0.99f;
+        private const float HiddenThreshold = 0.01f;
         private const int CheckIntervalFrames = 10;
         private const int CacheRefreshMultiplier = 6; // Refresh cache every 60 frames (~1 second at 60fps)
         private const float MinPanelSize = 100f;
 
         // Name patterns for UI elements we track via alpha detection
-        // Includes: popups, overlays, blades, social panels - anything that appears/disappears dynamically
-        // This is now the ONLY detection system - CheckForPanelChanges is disabled
+        // ONLY for panels without IsOpen property or Harmony patches
+        // Do NOT include: SettingsMenu (has IsOpen), PlayBlade/Blade (Harmony patches, slide animation)
+        // See docs/BEST_PRACTICES.md "Panel Detection Strategy" for decision tree
         private static readonly string[] TrackedPanelPatterns = new[]
         {
-            "Popup", "SystemMessageView", "Dialog", "Modal", "SettingsMenu",
-            "FriendsWidget", "SocialUI", "InviteFriend", "PlayBlade", "Blade"
+            "Popup", "SystemMessageView", "Dialog", "Modal",
+            "FriendsWidget", "SocialUI", "InviteFriend"
         };
 
         #endregion
@@ -130,27 +139,38 @@ namespace AccessibleArena.Core.Services
 
                 // Check current visibility state
                 bool isActive = info.GameObject.activeInHierarchy;
-                float currentAlpha = isActive && info.CanvasGroup != null
+
+                // Get alpha from CanvasGroup if available
+                // Don't force to 0 when inactive - let alpha be the source of truth
+                // Some panels briefly become inactive during animations
+                float currentAlpha = info.CanvasGroup != null
                     ? GetEffectiveAlpha(info.GameObject, info.CanvasGroup)
-                    : 0f;
+                    : (isActive ? 1f : -1f); // -1 means "unknown, skip hidden check"
 
-                bool isVisible = isActive && currentAlpha >= AlphaThreshold;
+                // Only detect state changes at animation endpoints
+                // This avoids false triggers during fade transitions
+                // Note: For "hidden" check, ONLY use alpha threshold, not activeInHierarchy
+                // Some panels briefly become inactive during animations but come back
+                // currentAlpha == -1 means no CanvasGroup and inactive - skip hidden check
+                bool isFullyVisible = isActive && currentAlpha >= VisibleThreshold;
+                bool isFullyHidden = currentAlpha >= 0 && currentAlpha <= HiddenThreshold;
 
-                // Detect changes
-                if (isVisible && !info.WasVisible)
+                // Detect changes only at stable states
+                if (isFullyVisible && !info.WasVisible)
                 {
                     appeared.Add(kvp.Key);
+                    info.WasVisible = true;
                     MelonLogger.Msg($"[{_logPrefix}] Panel now visible: {info.Name} (alpha={currentAlpha:F2})");
                 }
-                else if (!isVisible && info.WasVisible)
+                else if (isFullyHidden && info.WasVisible)
                 {
                     disappeared.Add(kvp.Key);
+                    info.WasVisible = false;
                 }
+                // Between thresholds = animating, don't change WasVisible
 
-                info.WasVisible = isVisible;
-
-                // Track topmost among visible panels
-                if (isVisible)
+                // Track topmost among visible panels (use WasVisible since it reflects stable state)
+                if (info.WasVisible)
                 {
                     int priority = CalculatePanelPriority(info);
                     if (priority > highestPriority)
@@ -366,12 +386,12 @@ namespace AccessibleArena.Core.Services
 
             float alpha = cg.alpha;
 
-            // Check parent CanvasGroups - if any parent is invisible, so is this
+            // Check parent CanvasGroups - if any parent is fully hidden, so is this
             Transform parent = go.transform.parent;
             while (parent != null)
             {
                 var parentCg = parent.GetComponent<CanvasGroup>();
-                if (parentCg != null && parentCg.alpha < AlphaThreshold)
+                if (parentCg != null && parentCg.alpha <= HiddenThreshold)
                 {
                     return 0f; // Parent is invisible
                 }

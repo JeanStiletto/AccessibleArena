@@ -18,7 +18,9 @@ namespace AccessibleArena.Core.Services
     {
         #region Configuration
 
-        private const float AlphaThreshold = 0.5f;
+        // Match production thresholds - only detect at animation endpoints
+        private const float VisibleThreshold = 0.99f;
+        private const float HiddenThreshold = 0.01f;
         private const int TrackingIntervalFrames = 5; // Check every 5 frames for fine-grained tracking
 
         // Patterns to find popup/overlay panels
@@ -117,8 +119,8 @@ namespace AccessibleArena.Core.Services
 
                 panel.Snapshots.Add(snapshot);
 
-                // Track first visible time
-                if (!panel.FirstVisibleTime.HasValue && snapshot.Alpha >= AlphaThreshold)
+                // Track first visible time (using production threshold)
+                if (!panel.FirstVisibleTime.HasValue && snapshot.Alpha >= VisibleThreshold)
                 {
                     panel.FirstVisibleTime = currentTime;
                     MelonLogger.Msg($"[Diagnostic] {panel.Name} became visible at {currentTime:F3}s (alpha={snapshot.Alpha:F2})");
@@ -267,7 +269,7 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"  Snapshots recorded: {panel.Snapshots.Count}");
 
                 if (panel.FirstVisibleTime.HasValue)
-                    MelonLogger.Msg($"  First visible (alpha>=0.5): {panel.FirstVisibleTime:F3}s");
+                    MelonLogger.Msg($"  First visible (alpha>=0.99): {panel.FirstVisibleTime:F3}s");
                 else
                     MelonLogger.Msg($"  First visible: NOT REACHED");
 

@@ -1149,6 +1149,120 @@ When `_playBladeActive` is true, `IsInBackgroundPanel()` uses special logic:
 - `ConstructedDeckSelectController` - IsOpen getter only (no setter to patch)
 - `DeckManagerController` - IsOpen getter only
 
+## Panel Detection Strategy (January 2026)
+
+MTGA's UI is inconsistent - different panels were built by different developers with different
+patterns. There is no single detection method that works for everything. This section documents
+the decision tree for choosing the right detection approach.
+
+### Available Detection Methods
+
+| Method | Trigger Type | Best For | Limitations |
+|--------|-------------|----------|-------------|
+| **Harmony** | Event-driven | Panels with property setters | No post-animation signal for some panels |
+| **Reflection** | Polling IsOpen | Controller-based panels | Expensive FindObjectsOfType, no alpha-only panels |
+| **Alpha** | Polling CanvasGroup | Fade-in popups/dialogs | Cannot detect slide animations (PlayBlade) |
+| **Direct** | Custom navigator | Unique screens | Per-screen implementation needed |
+
+### Panel Properties Reference
+
+| Panel Type | Has IsOpen | Has IsReadyToShow | Animation Type | Recommended Method |
+|------------|-----------|-------------------|----------------|-------------------|
+| NavContentController | YES | YES | Fade | Reflection (waits for animation) |
+| SettingsMenu | YES | NO | Fade | Reflection or Harmony |
+| PlayBlade | PlayBladeVisualState | NO | Slide | Harmony ONLY |
+| SystemMessageView | NO | NO | Fade | Alpha ONLY |
+| PopupBase | YES | NO | Fade | Reflection |
+| BoosterChamber | NO | NO | Custom | Direct (custom navigator) |
+| Login panels | NO | NO | Instant | Direct (name patterns) |
+
+### Decision Tree for New Panels
+
+When adding support for a new panel/screen, follow this decision tree:
+
+```
+1. Does it have IsReadyToShow property?
+   └── YES → Use Reflection (best case - game tells us when animation complete)
+   └── NO → Continue to step 2
+
+2. Does it have IsOpen property (or similar boolean state)?
+   └── YES → Use Reflection (may need small delay for animation)
+   └── NO → Continue to step 3
+
+3. Does it have a property setter we can Harmony patch?
+   └── YES → Use Harmony
+   │         Note: Check if it's slide or fade animation
+   │         - Fade: Can combine with alpha wait for animation complete
+   │         - Slide: May need fixed delay or position check
+   └── NO → Continue to step 4
+
+4. Does it use alpha fade for visibility?
+   └── YES → Use Alpha detection (0.99/0.01 thresholds)
+   └── NO → Continue to step 5
+
+5. Create a custom navigator with Direct detection
+   └── Use GameObject.Find() with specific name patterns
+   └── Check for unique child elements to confirm state
+```
+
+### Current Panel Registry
+
+**Harmony-detected (event-driven):**
+- PlayBladeController → PlayBladeVisualState setter
+- BladeContentView → Show/Hide methods
+- EventBladeContentView → Show/Hide methods
+- SocialUI → Various methods
+
+**Reflection-detected (polling IsOpen):**
+- NavContentController descendants (IsOpen + IsReadyToShow)
+- SettingsMenu (IsOpen)
+- SettingsMenuHost (IsOpen)
+- PopupBase (IsOpen)
+
+**Alpha-detected (polling CanvasGroup):**
+- SystemMessageView
+- Dialog/Modal popups
+- Panels without IsOpen property
+
+**Direct-detected (custom navigators):**
+- BoosterChamber → BoosterOpenNavigator
+- Login panels → GeneralMenuNavigator name patterns
+
+### Critical Rules
+
+1. **ONE method per panel** - Never detect the same panel with multiple methods (causes double announcements)
+
+2. **Harmony for PlayBlade is mandatory** - PlayBlade uses slide animation (alpha stays 1.0), so alpha detection cannot work
+
+3. **Alpha thresholds at extremes** - Use 0.99 for "visible" and 0.01 for "hidden" to detect only when animations are complete, not mid-animation
+
+4. **IsReadyToShow is gold standard** - When available, it's the game's official "animation complete" signal. Only NavContentController descendants have it.
+
+5. **Single announcement source** - Let the navigation system's `GetActivationAnnouncement()` be the single source of screen announcements. Don't announce from detection callbacks.
+
+### Adding a New Panel
+
+1. **Analyze the panel** - Check what properties it has:
+   ```csharp
+   // Use PanelAnimationDiagnostic (F11) or manual inspection
+   var type = panel.GetType();
+   bool hasIsOpen = type.GetProperty("IsOpen") != null;
+   bool hasIsReadyToShow = type.GetProperty("IsReadyToShow") != null;
+   var canvasGroup = panel.GetComponent<CanvasGroup>();
+   ```
+
+2. **Choose detection method** using decision tree above
+
+3. **Register with ONE system only:**
+   - Harmony: Add patch in `PanelStatePatch.cs`
+   - Reflection: Add type to `MenuControllerTypes` in `MenuPanelTracker.cs`
+   - Alpha: Add pattern to `TrackedPanelPatterns` in `UnifiedPanelDetector.cs`
+   - Direct: Create custom navigator extending `BaseNavigator`
+
+4. **Document in this registry** - Add entry to the Panel Registry section above
+
+5. **Test for double announcements** - Ensure only ONE system detects the panel
+
 ## Debugging Tips
 
 1. **Scan for panel by name:** `GameObject.Find("Panel - Name(Clone)")`
