@@ -427,11 +427,10 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Handle Backspace key - navigates back one level in the menu hierarchy.
         /// Priority order:
-        /// 1. Settings submenu â†’ Settings main menu
-        /// 2. Settings main menu â†’ Close settings
-        /// 3. Friends panel open â†’ Close it
-        /// 4. PlayBlade open â†’ Close it
-        /// 5. In content panel (not Home) â†’ Navigate to Home
+        /// 1. Settings â†' Handle settings back/close
+        /// 2. PlayBlade open â†' Close it
+        /// 3. Generic back button on screen â†' Click it (includes MainButtonOutline)
+        /// 4. In content panel (not Home) â†' Navigate to Home
         /// </summary>
         private bool HandleBackNavigation()
         {
@@ -443,18 +442,22 @@ namespace AccessibleArena.Core.Services
                 return HandleSettingsBack();
             }
 
-            // 2. If Friends panel is open, close it
-            if (IsSocialPanelOpen())
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Closing Friends panel");
-                ToggleFriendsPanel();
-                return true;
-            }
-
-            // 3. If PlayBlade is open, close it (Phase 5: use PanelStateManager)
+            // 2. If PlayBlade is open, close it (Phase 5: use PanelStateManager)
             if (PanelStateManager.Instance?.IsPlayBladeActive == true)
             {
                 return ClosePlayBlade();
+            }
+
+            // 3. Try to find a back/close button on screen (before navigating Home)
+            // This handles PlayBlade close/arrow buttons on EventPage submenus
+            var backButton = FindGenericBackButton();
+            if (backButton != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found back button: {backButton.name}");
+                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                UIActivator.Activate(backButton);
+                TriggerRescan(force: true);
+                return true;
             }
 
             // 4. If in a content panel (not Home), navigate to Home
@@ -465,54 +468,55 @@ namespace AccessibleArena.Core.Services
                 return NavigateToHome();
             }
 
-            // 5. Try to find a generic back button on screen (icon buttons named *Back*)
-            var genericBackButton = FindGenericBackButton();
-            if (genericBackButton != null)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Found generic back button: {genericBackButton.name}");
-                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
-                ActivateBackButton(genericBackButton);
-                return true;
-            }
-
-            // 6. Already at top level, nothing to do
+            // 5. Already at top level, nothing to do
             MelonLogger.Msg($"[{NavigatorId}] Already at top level, no back action");
             return false;
         }
 
         /// <summary>
-        /// Find a generic back button on the current screen.
-        /// Looks for icon buttons (no text) with "Back" in the name.
+        /// Find a generic back/close button on the current screen.
+        /// Looks for buttons with Back/Close/Arrow/MainButtonOutline patterns.
+        /// Excludes DismissButton (that closes entire blade).
         /// </summary>
         private GameObject FindGenericBackButton()
         {
-            // Look for CustomButtons with "Back" in name that have no actual text (icon buttons)
-            // Note: GetActiveCustomButtons() already filters for activeInHierarchy
-            foreach (var btn in GetActiveCustomButtons())
-            {
-                if (btn == null) continue;
-
-                if (btn.name.IndexOf("back", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
-                    !UITextExtractor.HasActualText(btn))
-                {
-                    return btn;
-                }
-            }
-
-            // Also check standard Unity Buttons
+            // Check standard Unity Buttons first (includes MainButtonOutline on EventPage)
             foreach (var btn in GameObject.FindObjectsOfType<Button>())
             {
                 if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
+                if (btn.gameObject.name.Contains("DismissButton")) continue;
 
-                string btnName = btn.gameObject.name;
-                if (btnName.IndexOf("back", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
-                    !UITextExtractor.HasActualText(btn.gameObject))
+                if (IsBackButtonName(btn.gameObject.name))
                 {
                     return btn.gameObject;
                 }
             }
 
+            // Also check CustomButtons (icon-only back buttons)
+            foreach (var btn in GetActiveCustomButtons())
+            {
+                if (btn == null) continue;
+                if (btn.name.Contains("DismissButton")) continue;
+
+                if (IsBackButtonName(btn.name) && !UITextExtractor.HasActualText(btn))
+                {
+                    return btn;
+                }
+            }
+
             return null;
+        }
+
+        /// <summary>
+        /// Check if a button name matches back/close patterns.
+        /// Includes MainButtonOutline which is used as "back" button on EventPage.
+        /// </summary>
+        private static bool IsBackButtonName(string name)
+        {
+            return name.IndexOf("back", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name == "MainButtonOutline" ||
+                   name.IndexOf("Blade_Close", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("Blade_Arrow", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
@@ -547,9 +551,8 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Activating Settings submenu back button");
                     _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
-
-                    // Try multiple activation methods for better compatibility
-                    ActivateBackButton(backButton);
+                    UIActivator.Activate(backButton);
+                    TriggerRescan(force: true);
                     return true;
                 }
                 else
@@ -590,79 +593,6 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[{NavigatorId}] BackButton not found or not active");
             return null;
-        }
-
-        /// <summary>
-        /// Activate a back button using multiple methods for better compatibility.
-        /// Some buttons respond to pointer events, others to onClick, others to Button.onClick.
-        /// </summary>
-        private void ActivateBackButton(GameObject backButton)
-        {
-            // Method 1: Check for standard Unity Button component first
-            var unityButton = backButton.GetComponent<Button>();
-            if (unityButton != null)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Activating via Unity Button.onClick");
-                unityButton.onClick.Invoke();
-                return;
-            }
-
-            // Method 2: Try to find and invoke OnPointerClick directly
-            var pointerClickHandlers = backButton.GetComponents<IPointerClickHandler>();
-            if (pointerClickHandlers.Length > 0)
-            {
-                var pointer = new PointerEventData(EventSystem.current)
-                {
-                    button = PointerEventData.InputButton.Left,
-                    pointerPress = backButton
-                };
-
-                foreach (var handler in pointerClickHandlers)
-                {
-                    // Skip TooltipTrigger as it's just for tooltips
-                    if (handler.GetType().Name != "TooltipTrigger")
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] Invoking IPointerClickHandler: {handler.GetType().Name}");
-                        handler.OnPointerClick(pointer);
-                        return;
-                    }
-                }
-            }
-
-            // Method 3: Try Animator triggers via reflection (some buttons use animation-based navigation)
-            foreach (var component in backButton.GetComponents<Component>())
-            {
-                if (component == null) continue;
-                var typeName = component.GetType().Name;
-                if (typeName == "Animator")
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Trying Animator triggers on: {backButton.name}");
-                    var type = component.GetType();
-
-                    // Try SetTrigger with common trigger names
-                    var setTrigger = type.GetMethod("SetTrigger", new[] { typeof(string) });
-                    if (setTrigger != null)
-                    {
-                        setTrigger.Invoke(component, new object[] { "Pressed" });
-                        setTrigger.Invoke(component, new object[] { "Click" });
-                        setTrigger.Invoke(component, new object[] { "Selected" });
-                    }
-
-                    // Try Play method
-                    var play = type.GetMethod("Play", new[] { typeof(string) });
-                    if (play != null)
-                    {
-                        play.Invoke(component, new object[] { "Pressed" });
-                    }
-
-                    MelonLogger.Msg($"[{NavigatorId}] Animator triggers sent");
-                    break;
-                }
-            }
-
-            // Method 4: Fall back to UIActivator (comprehensive approach)
-            MelonLogger.Msg($"[{NavigatorId}] Falling back to UIActivator.Activate");
-            UIActivator.Activate(backButton);
         }
 
         /// <summary>
