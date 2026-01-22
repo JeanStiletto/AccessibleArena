@@ -181,10 +181,11 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            // Ignore SocialUI changes - it's just the corner icon, causes spurious rescans during page load
-            if (oldPanel?.Name?.Contains("SocialUI") == true || newPanel?.Name?.Contains("SocialUI") == true)
+            // Ignore SocialUI as SOURCE of change - it's just the corner icon, causes spurious rescans
+            // But DO rescan when something closes and falls back to SocialUI (e.g., popup closes)
+            if (oldPanel?.Name?.Contains("SocialUI") == true)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Ignoring SocialUI active change");
+                MelonLogger.Msg($"[{NavigatorId}] Ignoring SocialUI as source of change");
                 return;
             }
 
