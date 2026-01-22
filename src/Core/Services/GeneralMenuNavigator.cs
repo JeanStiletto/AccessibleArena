@@ -643,7 +643,46 @@ namespace AccessibleArena.Core.Services
         {
             MelonLogger.Msg($"[{NavigatorId}] Attempting to close PlayBlade");
 
-            // Method 1: Find the Blade_DismissButton
+            // Method 1: Find Btn_BladeIsOpen (Stage 3 - fully expanded)
+            var bladeIsOpenButton = GameObject.Find("Btn_BladeIsOpen");
+            if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found Btn_BladeIsOpen, activating to close blade (Stage 3 -> Stage 2)");
+                _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
+                UIActivator.Activate(bladeIsOpenButton);
+
+                // Immediately clear blade state and rescan - don't wait for animation
+                ClearBladeStateAndRescan();
+                return true;
+            }
+
+            // Method 2: CampaignGraph Stage 2 (all colors visible, Btn_BladeIsClosed exists) -> press Home to return
+            var bladeIsClosed = GameObject.Find("Btn_BladeIsClosed");
+            if (bladeIsClosed != null && bladeIsClosed.activeInHierarchy)
+            {
+                // Check if it's under CampaignGraphPage
+                var parent = bladeIsClosed.transform;
+                bool isCampaignGraph = false;
+                while (parent != null)
+                {
+                    if (parent.name.Contains("CampaignGraphPage"))
+                    {
+                        isCampaignGraph = true;
+                        break;
+                    }
+                    parent = parent.parent;
+                }
+
+                if (isCampaignGraph)
+                {
+                    // Stage 2: Blade is open showing all colors - press Home to close entirely
+                    MelonLogger.Msg($"[{NavigatorId}] CampaignGraph Stage 2 detected, pressing Home to return (Stage 2 -> Stage 1)");
+                    ClearBladeStateAndRescan();
+                    return NavigateToHome();
+                }
+            }
+
+            // Method 3: Find the Blade_DismissButton
             var dismissButton = GameObject.Find("Blade_DismissButton");
             if (dismissButton != null && dismissButton.activeInHierarchy)
             {
@@ -656,8 +695,27 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Method 2: Search for dismiss button in PlayBlade hierarchy
+            // Method 4: Search for Btn_BladeIsOpen in PlayBlade hierarchy
             var playBladeController = GameObject.Find("ContentController - PlayBladeV3_Desktop_16x9(Clone)");
+            if (playBladeController == null)
+                playBladeController = GameObject.Find("ContentController - PlayBlade");
+
+            if (playBladeController != null)
+            {
+                var bladeIsOpenTransform = playBladeController.transform.Find("Dismiss/Btn_BladeIsOpen");
+                if (bladeIsOpenTransform != null && bladeIsOpenTransform.gameObject.activeInHierarchy)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Found Btn_BladeIsOpen via path, activating");
+                    _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(bladeIsOpenTransform.gameObject);
+
+                    // Immediately clear blade state and rescan - don't wait for animation
+                    ClearBladeStateAndRescan();
+                    return true;
+                }
+            }
+
+            // Method 5: Search for dismiss button in PlayBlade hierarchy
             if (playBladeController != null)
             {
                 var dismissTransform = playBladeController.transform.Find("SafeArea/Popout/BackButton_CONTAINER/Blade_DismissButton");
@@ -673,7 +731,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Method 3: Try to find BladeContentView and call Hide
+            // Method 6: Try to find BladeContentView and call Hide
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null) continue;

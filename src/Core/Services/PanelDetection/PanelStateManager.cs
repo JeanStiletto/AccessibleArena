@@ -60,9 +60,41 @@ namespace AccessibleArena.Core.Services.PanelDetection
         public int PlayBladeState { get; private set; }
 
         /// <summary>
-        /// Whether PlayBlade is currently visible (state != 0).
+        /// Whether PlayBlade is currently visible.
+        /// Primary: checks tracked state from Harmony events.
+        /// Fallback: checks for Btn_BladeIsOpen button (catches blades without lifecycle events, e.g. CampaignGraph).
         /// </summary>
-        public bool IsPlayBladeActive => PlayBladeState != 0;
+        public bool IsPlayBladeActive
+        {
+            get
+            {
+                // Primary: check Harmony-tracked state
+                if (PlayBladeState != 0)
+                    return true;
+
+                // Fallback: check for blade buttons (not tracked via events)
+                // Stage 3: Btn_BladeIsOpen exists
+                var bladeIsOpenButton = UnityEngine.GameObject.Find("Btn_BladeIsOpen");
+                if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
+                    return true;
+
+                // Stage 2: Btn_BladeIsClosed exists in CampaignGraph context
+                var bladeIsClosed = UnityEngine.GameObject.Find("Btn_BladeIsClosed");
+                if (bladeIsClosed != null && bladeIsClosed.activeInHierarchy)
+                {
+                    // Check if it's under CampaignGraphPage (not Home page blade)
+                    var parent = bladeIsClosed.transform;
+                    while (parent != null)
+                    {
+                        if (parent.name.Contains("CampaignGraphPage"))
+                            return true;
+                        parent = parent.parent;
+                    }
+                }
+
+                return false;
+            }
+        }
 
         /// <summary>
         /// Debounce: Time of last panel change (to prevent rapid-fire events).

@@ -94,8 +94,17 @@ namespace AccessibleArena.Core.Services.PanelDetection
                     if (typeName.StartsWith("PlayBlade:"))
                     {
                         var statePart = typeName.Substring("PlayBlade:".Length);
-                        int bladeState = ParsePlayBladeState(statePart);
-                        _stateManager.SetPlayBladeState(bladeState);
+                        if (statePart == "Generic")
+                        {
+                            // Generic PlayBlade detected via GameObject name (e.g., CampaignGraph blade)
+                            _stateManager.SetPlayBladeState(1);
+                            MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=1 from generic PlayBlade");
+                        }
+                        else
+                        {
+                            int bladeState = ParsePlayBladeState(statePart);
+                            _stateManager.SetPlayBladeState(bladeState);
+                        }
                     }
                     else if (typeName.StartsWith("Blade:"))
                     {
@@ -119,9 +128,10 @@ namespace AccessibleArena.Core.Services.PanelDetection
                     if (typeName.StartsWith("PlayBlade:"))
                     {
                         var statePart = typeName.Substring("PlayBlade:".Length);
-                        if (statePart == "Hidden" || ParsePlayBladeState(statePart) == 0)
+                        if (statePart == "Hidden" || statePart == "Generic" || ParsePlayBladeState(statePart) == 0)
                         {
                             _stateManager.SetPlayBladeState(0);
+                            MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=0 from PlayBlade closing: {statePart}");
                         }
                     }
                     else if (typeName.StartsWith("Blade:"))

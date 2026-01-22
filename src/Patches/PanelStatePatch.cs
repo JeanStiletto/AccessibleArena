@@ -780,6 +780,13 @@ namespace AccessibleArena.Patches
                 var typeName = __instance?.GetType().Name ?? "Unknown";
                 MelonLogger.Msg($"[PanelStatePatch] Panel Show: {typeName}");
                 OnPanelStateChanged?.Invoke(__instance, true, typeName);
+
+                // Check if this is a PlayBlade controller by GameObject name
+                if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
+                {
+                    MelonLogger.Msg($"[PanelStatePatch] Detected PlayBlade Show via GameObject name: {mb.gameObject.name}");
+                    OnPanelStateChanged?.Invoke(__instance, true, "PlayBlade:Generic");
+                }
             }
             catch (Exception ex)
             {
@@ -794,6 +801,13 @@ namespace AccessibleArena.Patches
                 var typeName = __instance?.GetType().Name ?? "Unknown";
                 MelonLogger.Msg($"[PanelStatePatch] Panel Hide: {typeName}");
                 OnPanelStateChanged?.Invoke(__instance, false, typeName);
+
+                // Check if this is a PlayBlade controller by GameObject name
+                if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
+                {
+                    MelonLogger.Msg($"[PanelStatePatch] Detected PlayBlade Hide via GameObject name: {mb.gameObject.name}");
+                    OnPanelStateChanged?.Invoke(__instance, false, "PlayBlade:Generic");
+                }
             }
             catch (Exception ex)
             {
@@ -808,6 +822,13 @@ namespace AccessibleArena.Patches
                 var typeName = __instance?.GetType().Name ?? "Unknown";
                 MelonLogger.Msg($"[PanelStatePatch] Panel IsOpen = {value}: {typeName}");
                 OnPanelStateChanged?.Invoke(__instance, value, typeName);
+
+                // Check if this is a PlayBlade controller by GameObject name
+                if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
+                {
+                    MelonLogger.Msg($"[PanelStatePatch] Detected PlayBlade IsOpen={value} via GameObject name: {mb.gameObject.name}");
+                    OnPanelStateChanged?.Invoke(__instance, value, "PlayBlade:Generic");
+                }
             }
             catch (Exception ex)
             {
@@ -874,6 +895,13 @@ namespace AccessibleArena.Patches
                 var typeName = __instance?.GetType().Name ?? "Unknown";
                 MelonLogger.Msg($"[PanelStatePatch] Panel BeginOpen: {typeName}");
                 // Don't fire event yet - wait for FinishOpen when UI is ready
+
+                // But for PlayBlade, fire early so we track blade state
+                if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
+                {
+                    MelonLogger.Msg($"[PanelStatePatch] Detected PlayBlade BeginOpen via GameObject name: {mb.gameObject.name}");
+                    OnPanelStateChanged?.Invoke(__instance, true, "PlayBlade:Generic");
+                }
             }
             catch (Exception ex)
             {
@@ -889,6 +917,13 @@ namespace AccessibleArena.Patches
                 MelonLogger.Msg($"[PanelStatePatch] Panel BeginClose: {typeName}");
                 // Fire event early so navigator knows panel is closing
                 OnPanelStateChanged?.Invoke(__instance, false, typeName);
+
+                // Check if this is a PlayBlade controller by GameObject name
+                if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
+                {
+                    MelonLogger.Msg($"[PanelStatePatch] Detected PlayBlade BeginClose via GameObject name: {mb.gameObject.name}");
+                    OnPanelStateChanged?.Invoke(__instance, false, "PlayBlade:Generic");
+                }
             }
             catch (Exception ex)
             {

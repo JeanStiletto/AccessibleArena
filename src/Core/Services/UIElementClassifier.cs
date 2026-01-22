@@ -833,8 +833,10 @@ namespace AccessibleArena.Core.Services
             // Small image-only buttons without text (decorative icons, NPC portraits)
             // BUT: Allow inside FriendsWidget (Backer_Hitbox elements are clickable friend items)
             // BUT: Allow inside NavBar RightSideContainer (Learn, Mail, Settings, DirectChallenge icons)
-            if (IsSmallImageOnlyButton(obj) && !IsInsideFriendsWidget(obj) && !IsInsideNavBarRightSide(obj))
-                return true;
+            // DISABLED: CustomButton means element is functional - filtering these is too aggressive
+            // TODO: Re-enable with more specific criteria if decorative elements appear in navigation
+            // if (IsSmallImageOnlyButton(obj) && !IsInsideFriendsWidget(obj) && !IsInsideNavBarRightSide(obj))
+            //     return true;
 
             // Hitboxes without actual text content
             // BUT: Allow hitboxes inside FriendsWidget (they ARE the clickable friend items)

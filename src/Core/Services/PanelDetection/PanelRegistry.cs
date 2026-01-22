@@ -130,9 +130,12 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 // HomePage is always present, never filters
                 if (lower.Contains("homepage")) return false;
 
+                // SocialUI is just a corner icon, never filters
+                if (lower.Contains("socialui")) return false;
+
                 // These specific panels DO filter
                 if (lower.Contains("settings")) return true;
-                if (lower.Contains("social") || lower.Contains("friend")) return true;
+                if (lower.Contains("friend")) return true;  // Friend challenge panels
                 if (lower.Contains("popup") || lower.Contains("dialog") || lower.Contains("modal")) return true;
                 if (lower.Contains("systemmessage")) return true;
             }
@@ -141,7 +144,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             return type switch
             {
                 PanelType.Settings => true,
-                PanelType.Social => true,
+                PanelType.Social => false,  // Social corner icon doesn't filter
                 PanelType.Popup => true,
                 PanelType.Blade => true,      // PlayBlade filters to show only deck selection
                 PanelType.Campaign => false,  // Campaign shows along with PlayBlade
