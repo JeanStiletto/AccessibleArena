@@ -112,8 +112,6 @@ namespace AccessibleArena.Core.Services
 
         // Helper instances
         private readonly MenuScreenDetector _screenDetector;
-        // Phase 5: _panelTracker kept for utility methods (IsOverlayPanel, etc.)
-        // Phase 5: _panelDetector removed - AlphaPanelDetector handles this via PanelDetectorManager
 
         // Rescan timing
         private float _rescanDelay;
@@ -122,9 +120,6 @@ namespace AccessibleArena.Core.Services
 
         // Element tracking
         private float _bladeAutoExpandDelay;
-
-        // Phase 5: _playBladeActive/_playBladeState removed - use PanelStateManager.IsPlayBladeActive
-        // Phase 5: _loginPanelInactiveTime removed - ReflectionPanelDetector handles Login panel tracking
 
         #endregion
 
@@ -152,7 +147,7 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Report a panel opened to PanelStateManager (Phase 1: dual-write with existing system).
+        /// Report a panel opened to PanelStateManager.
         /// </summary>
         private void ReportPanelOpened(string panelName, GameObject panelObj, PanelDetectionMethod detectedBy)
         {
@@ -165,7 +160,7 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Report a panel closed to PanelStateManager (Phase 1: dual-write with existing system).
+        /// Report a panel closed to PanelStateManager.
         /// </summary>
         private void ReportPanelClosed(GameObject panelObj)
         {
@@ -211,15 +206,13 @@ namespace AccessibleArena.Core.Services
         private string _activeContentController => _screenDetector.ActiveContentController;
         private GameObject _activeControllerGameObject => _screenDetector.ActiveControllerGameObject;
         private GameObject _navBarGameObject => _screenDetector.NavBarGameObject;
-        // Phase 5: _foregroundPanel now uses PanelStateManager as source of truth
         private GameObject _foregroundPanel => PanelStateManager.Instance?.GetFilterPanel();
 
         public GeneralMenuNavigator(IAnnouncementService announcer) : base(announcer)
         {
             _screenDetector = new MenuScreenDetector();
-            // Phase 5: _panelTracker and _panelDetector removed - detection handled by PanelDetectorManager
 
-            // Subscribe to PanelStateManager for unified rescan triggers (Phase 2)
+            // Subscribe to PanelStateManager for rescan triggers
             if (PanelStateManager.Instance != null)
             {
                 PanelStateManager.Instance.OnPanelChanged += OnPanelStateManagerActiveChanged;
@@ -352,8 +345,6 @@ namespace AccessibleArena.Core.Services
             _hasLoggedUIOnce = false;
             _activationDelay = ActivationDelaySeconds;
 
-            // Phase 5: Local blade state removed - PanelStateManager is source of truth
-            // Reset helpers
             _screenDetector.Reset();
 
             // Full reset PanelStateManager for scene change
@@ -379,20 +370,10 @@ namespace AccessibleArena.Core.Services
         {
             base.OnDeactivating();
 
-            // Phase 5: Local blade state removed - PanelStateManager is source of truth
-            // Reset helpers
             _screenDetector.Reset();
 
             // Soft reset PanelStateManager (preserve tracking, clear announced state)
             PanelStateManager.Instance?.SoftReset();
-        }
-
-        /// <summary>
-        /// Called when navigator activates.
-        /// </summary>
-        protected override void OnActivated()
-        {
-            base.OnActivated();
         }
 
         public override void Update()
@@ -418,14 +399,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Phase 5: Panel detection is now handled entirely by PanelDetectorManager
-            // - AlphaPanelDetector handles popup visibility via CanvasGroup alpha
-            // - ReflectionPanelDetector handles Login panels and PopupBase
-            // - HarmonyPanelDetector handles PlayBlade, Settings, Blades via patches
-            // All detectors report to PanelStateManager, which fires OnPanelChanged/OnAnyPanelOpened
-            // GeneralMenuNavigator subscribes to those events for triggering rescans
-
-            // Call base Update for normal navigation handling
+            // Panel detection handled by PanelDetectorManager via events (OnPanelChanged/OnAnyPanelOpened)
             base.Update();
         }
 
@@ -494,7 +468,7 @@ namespace AccessibleArena.Core.Services
                 ForegroundLayer.PlayBlade => ClosePlayBlade(),
                 ForegroundLayer.NPE => HandleNPEBack(),
                 ForegroundLayer.ContentPanel => HandleContentPanelBack(),
-                ForegroundLayer.Home => TryGenericBackButton(), // Try back button, or nothing to do
+                ForegroundLayer.Home => TryGenericBackButton(),
                 ForegroundLayer.None => TryGenericBackButton(),
                 _ => false
             };
@@ -506,7 +480,6 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HandleContentPanelBack()
         {
-            // Try generic back button first (for submenus within content panels)
             var backButton = FindGenericBackButton();
             if (backButton != null)
             {
@@ -517,7 +490,6 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // No back button, navigate to Home
             return NavigateToHome();
         }
 
@@ -549,7 +521,6 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Dismissing popup");
             if (_foregroundPanel != null)
             {
-                // Try to find close/dismiss button in the popup
                 var closeButton = FindCloseButtonInPanel(_foregroundPanel);
                 if (closeButton != null)
                 {
@@ -560,7 +531,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Try generic approach
             return TryGenericBackButton();
         }
 
@@ -592,7 +562,6 @@ namespace AccessibleArena.Core.Services
         private bool HandleNPEBack()
         {
             MelonLogger.Msg($"[{NavigatorId}] Handling NPE back");
-            // NPE screens often have continue/close buttons
             return TryGenericBackButton();
         }
 
@@ -611,7 +580,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Also check CustomButtons
             foreach (var mb in panel.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
@@ -628,12 +596,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Find a generic back/close button on the current screen.
-        /// Looks for buttons with Back/Close/Arrow/MainButtonOutline patterns.
-        /// Excludes DismissButton (that closes entire blade).
         /// </summary>
         private GameObject FindGenericBackButton()
         {
-            // Check standard Unity Buttons first (includes MainButtonOutline on EventPage)
             foreach (var btn in GameObject.FindObjectsOfType<Button>())
             {
                 if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
@@ -645,7 +610,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Also check CustomButtons (icon-only back buttons)
             foreach (var btn in GetActiveCustomButtons())
             {
                 if (btn == null) continue;
@@ -662,7 +626,6 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if a button name matches back/close patterns.
-        /// Includes MainButtonOutline which is used as "back" button on EventPage.
         /// </summary>
         private static bool IsBackButtonName(string name)
         {
@@ -674,8 +637,6 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle back navigation within Settings menu.
-        /// If in a submenu (Audio, Graphics, Gameplay), navigate back to main menu.
-        /// If in main menu, close Settings entirely.
         /// </summary>
         private bool HandleSettingsBack()
         {
@@ -689,7 +650,6 @@ namespace AccessibleArena.Core.Services
             string panelName = settingsPanel.name;
             MelonLogger.Msg($"[{NavigatorId}] Settings back from panel: {panelName}");
 
-            // Check if we're in a submenu (not the main menu)
             bool isInSubmenu = panelName != "Content - MainMenu" &&
                               (panelName == "Content - Audio" ||
                                panelName == "Content - Graphics" ||
@@ -697,8 +657,6 @@ namespace AccessibleArena.Core.Services
 
             if (isInSubmenu)
             {
-                // Navigate back to main Settings menu by clicking the back button
-                // Find the BackButton in the current submenu
                 var backButton = FindSettingsBackButton(settingsPanel);
                 if (backButton != null)
                 {
@@ -714,7 +672,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Close Settings entirely via SettingsMenu.Close()
             return CloseSettingsMenu();
         }
 
@@ -723,7 +680,6 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private GameObject FindSettingsBackButton(GameObject settingsPanel)
         {
-            // BackButton is typically at: Content - X/Header/Back/BackButton
             var headerTransform = settingsPanel.transform.Find("Header");
             if (headerTransform == null)
             {
@@ -755,13 +711,11 @@ namespace AccessibleArena.Core.Services
         {
             MelonLogger.Msg($"[{NavigatorId}] Attempting to close Settings menu via SettingsMenu.Close()");
 
-            // Find the SettingsMenu component
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || mb.GetType().Name != "SettingsMenu")
                     continue;
 
-                // Call the Close method
                 var closeMethod = mb.GetType().GetMethod("Close",
                     System.Reflection.BindingFlags.Public |
                     System.Reflection.BindingFlags.NonPublic |
@@ -789,13 +743,11 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Close the PlayBlade by finding and activating the dismiss button.
-        /// Simplified to 3 reliable approaches (was 6).
         /// </summary>
         private bool ClosePlayBlade()
         {
             MelonLogger.Msg($"[{NavigatorId}] Attempting to close PlayBlade");
 
-            // Primary: Find Btn_BladeIsOpen (Stage 3 - fully expanded blade)
             var bladeIsOpenButton = GameObject.Find("Btn_BladeIsOpen");
             if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
             {
@@ -806,7 +758,6 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Secondary: Find Blade_DismissButton
             var dismissButton = GameObject.Find("Blade_DismissButton");
             if (dismissButton != null && dismissButton.activeInHierarchy)
             {
@@ -817,11 +768,9 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Special: CampaignGraph Stage 2 - press Home to exit
             var bladeIsClosed = GameObject.Find("Btn_BladeIsClosed");
             if (bladeIsClosed != null && bladeIsClosed.activeInHierarchy)
             {
-                // Check if it's under CampaignGraphPage
                 var parent = bladeIsClosed.transform;
                 while (parent != null)
                 {
@@ -835,27 +784,18 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // If foreground detection says blade is active but we can't close it,
-            // log warning - may indicate detection/close mismatch
             MelonLogger.Warning($"[{NavigatorId}] ClosePlayBlade called but no close button found - check foreground detection");
             return false;
         }
 
         /// <summary>
         /// Clear blade state and trigger immediate rescan.
-        /// Called when user presses Backspace to close PlayBlade.
-        /// This allows navigation of Home elements while blade animation plays.
         /// </summary>
         private void ClearBladeStateAndRescan()
         {
             MelonLogger.Msg($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
-            // Phase 5: Local _playBladeActive/_playBladeState removed - use PanelStateManager
-            // _activePanels tracking no longer needed - PanelStateManager tracks panel stack
-
-            // Report to PanelStateManager (triggers rescan via event)
             ReportPanelClosedByName("PlayBlade");
             PanelStateManager.Instance?.SetPlayBladeState(0);
-            // Keep TriggerRescan as backup for user action response
             TriggerRescan(force: true);
         }
 
@@ -865,84 +805,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DumpUIHierarchy()
         {
-            MelonLogger.Msg($"[{NavigatorId}] === F12 DEBUG: UI HIERARCHY DUMP ===");
-
-            // Find all active Canvases
-            var canvases = GameObject.FindObjectsOfType<Canvas>();
-            MelonLogger.Msg($"[{NavigatorId}] Found {canvases.Length} active Canvases");
-
-            foreach (var canvas in canvases)
-            {
-                if (canvas == null || !canvas.gameObject.activeInHierarchy)
-                    continue;
-
-                MelonLogger.Msg($"[{NavigatorId}] Canvas: {canvas.name} (sortingOrder: {canvas.sortingOrder})");
-
-                // Dump first 2 levels of children
-                DumpGameObjectChildren(canvas.gameObject, 1, 3);
-            }
-
-            // Also check for any panel controllers that might be open
-            MelonLogger.Msg($"[{NavigatorId}] === Checking Panel Controllers ===");
-            var allMonoBehaviours = GameObject.FindObjectsOfType<MonoBehaviour>();
-            foreach (var mb in allMonoBehaviours)
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy)
-                    continue;
-
-                string typeName = mb.GetType().Name;
-                // Look for potential panel/controller types
-                if (typeName.Contains("Controller") || typeName.Contains("Panel") ||
-                    typeName.Contains("Overlay") || typeName.Contains("Browser") ||
-                    typeName.Contains("Popup") || typeName.Contains("Viewer"))
-                {
-                    // Check if it has IsOpen property
-                    var isOpenProp = mb.GetType().GetProperty("IsOpen");
-                    string isOpenStr = "";
-                    if (isOpenProp != null)
-                    {
-                        try
-                        {
-                            bool isOpen = (bool)isOpenProp.GetValue(mb);
-                            isOpenStr = $" (IsOpen: {isOpen})";
-                        }
-                        catch { }
-                    }
-
-                    MelonLogger.Msg($"[{NavigatorId}]   {typeName} on {mb.gameObject.name}{isOpenStr}");
-                }
-            }
-
-            MelonLogger.Msg($"[{NavigatorId}] === END DEBUG DUMP ===");
-            _announcer.Announce("Debug dump complete. Check log.", Models.AnnouncementPriority.High);
-        }
-
-        private void DumpGameObjectChildren(GameObject parent, int currentDepth, int maxDepth)
-        {
-            if (currentDepth > maxDepth || parent == null)
-                return;
-
-            string indent = new string(' ', currentDepth * 2);
-
-            foreach (Transform child in parent.transform)
-            {
-                if (child == null || !child.gameObject.activeInHierarchy)
-                    continue;
-
-                // Get component summary
-                var components = child.GetComponents<Component>();
-                var componentNames = new System.Collections.Generic.List<string>();
-                foreach (var c in components)
-                {
-                    if (c != null && !(c is Transform))
-                        componentNames.Add(c.GetType().Name);
-                }
-
-                string componentsStr = componentNames.Count > 0 ? $" [{string.Join(", ", componentNames)}]" : "";
-                MelonLogger.Msg($"[{NavigatorId}] {indent}{child.name}{componentsStr}");
-
-                DumpGameObjectChildren(child.gameObject, currentDepth + 1, maxDepth);
-            }
+            MenuDebugHelper.DumpUIHierarchy(NavigatorId, _announcer);
         }
 
         /// <summary>
@@ -981,10 +844,7 @@ namespace AccessibleArena.Core.Services
                     {
                         closeMethod.Invoke(socialUI, null);
                         MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.CloseFriendsWidget()");
-
-                        // Phase 5: Report to PanelStateManager (it manages foreground panel)
                         ReportPanelClosed(socialPanel);
-                        // Keep TriggerRescan as backup for user action (F4)
                         TriggerRescan(force: true);
                     }
                 }
@@ -997,11 +857,7 @@ namespace AccessibleArena.Core.Services
                     {
                         showMethod.Invoke(socialUI, null);
                         MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.ShowSocialEntitiesList()");
-
-                        // Phase 5: Report to PanelStateManager (it manages foreground panel)
                         ReportPanelOpened("Social", socialPanel, PanelDetectionMethod.Reflection);
-                        MelonLogger.Msg($"[{NavigatorId}] Opened Social panel");
-                        // Keep TriggerRescan as backup for user action (F4)
                         TriggerRescan(force: true);
                     }
                 }
@@ -1014,11 +870,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Find and activate the Home button to return to the main menu.
-        /// The Home button may be filtered out of navigation but is still in the scene.
         /// </summary>
         private bool NavigateToHome()
         {
-            // Find NavBar and its Home button
             var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)");
             if (navBar == null)
             {
@@ -1032,12 +886,10 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Find Nav_Home button
             var homeButtonTransform = navBar.transform.Find("Base/Nav_Home");
             GameObject homeButton = homeButtonTransform?.gameObject;
             if (homeButton == null)
             {
-                // Try alternative paths
                 homeButton = FindChildByName(navBar.transform, "Nav_Home");
             }
 
@@ -1050,24 +902,10 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[{NavigatorId}] Navigating to Home via Backspace");
             _announcer.Announce(Models.Strings.ReturningHome, Models.AnnouncementPriority.High);
-
-            // Activate the Home button
             UIActivator.Activate(homeButton);
 
             return true;
         }
-
-        // Phase 5: CheckForPanelChanges() removed - detection handled by PanelDetectorManager
-        // - ReflectionPanelDetector handles Login panels and PopupBase
-        // - AlphaPanelDetector handles popup visibility
-        // - HarmonyPanelDetector handles PlayBlade, Settings, Blades
-        // All report to PanelStateManager, which fires events that trigger rescans
-
-        /// <summary>
-        /// Check if a panel name represents an overlay that should filter elements.
-        /// </summary>
-        private static bool IsOverlayPanel(string panelName) =>
-            MenuPanelTracker.IsOverlayPanel(panelName);
 
         /// <summary>
         /// Check if element should be shown based on current foreground layer.
@@ -1141,9 +979,6 @@ namespace AccessibleArena.Core.Services
                 return true;
             return false;
         }
-
-        // Keep old method name as alias for compatibility
-        private bool IsInForegroundPanel(GameObject obj) => ShouldShowElement(obj);
 
         /// <summary>
         /// Check if a GameObject is a child of (or the same as) a parent GameObject.
@@ -1270,9 +1105,6 @@ namespace AccessibleArena.Core.Services
             // Detect active controller BEFORE discovering elements so filtering works correctly
             DetectActiveContentController();
             MelonLogger.Msg($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
-
-            // Phase 5: Foreground panel management handled by PanelStateManager
-            // _foregroundPanel now reads from PanelStateManager.GetFilterPanel()
 
             // Remember the navigator's current selection before clearing
             GameObject previousSelection = null;
@@ -1418,193 +1250,7 @@ namespace AccessibleArena.Core.Services
 
         protected virtual void LogAvailableUIElements()
         {
-            MelonLogger.Msg($"[{NavigatorId}] === UI DUMP FOR {_currentScene} ===");
-
-            // Find all CustomButtons
-            var customButtons = GetActiveCustomButtons()
-                .Select(obj => (obj, text: UITextExtractor.GetText(obj) ?? "(no text)", path: GetGameObjectPath(obj)))
-                .ToList();
-
-            MelonLogger.Msg($"[{NavigatorId}] Found {customButtons.Count} CustomButtons:");
-            foreach (var (obj, text, path) in customButtons.OrderBy(x => x.path).Take(40))
-            {
-                // Get detailed component info for analysis
-                bool hasActualText = UITextExtractor.HasActualText(obj);
-                var componentTypes = obj.GetComponents<Component>()
-                    .Where(c => c != null)
-                    .Select(c => c.GetType().Name)
-                    .ToList();
-                string components = string.Join(", ", componentTypes);
-
-                // Get size from RectTransform
-                string sizeInfo = "";
-                var rectTransform = obj.GetComponent<RectTransform>();
-                if (rectTransform != null)
-                {
-                    sizeInfo = $" | Size: {rectTransform.sizeDelta.x:F0}x{rectTransform.sizeDelta.y:F0}";
-                }
-
-                // Check for Image components
-                bool hasImage = obj.GetComponent<Image>() != null || obj.GetComponent<RawImage>() != null;
-                bool hasTextChild = obj.GetComponentInChildren<TMPro.TMP_Text>() != null;
-
-                // Get sprite name if this is a Color Challenge button
-                string spriteInfo = "";
-                if (path.Contains("ColorMastery") || path.Contains("PlayBlade_Item"))
-                {
-                    var image = obj.GetComponent<Image>();
-                    if (image != null && image.sprite != null)
-                    {
-                        spriteInfo = $" | Sprite: {image.sprite.name}";
-                    }
-                    // Also check parent for color info
-                    var parent = obj.transform.parent;
-                    if (parent != null)
-                    {
-                        spriteInfo += $" | Parent: {parent.name}";
-                        // Check siblings for text
-                        foreach (Transform sibling in parent)
-                        {
-                            if (sibling.gameObject != obj)
-                            {
-                                var sibText = UITextExtractor.GetText(sibling.gameObject);
-                                if (!string.IsNullOrEmpty(sibText) && sibText.Length > 1)
-                                {
-                                    spriteInfo += $" | Sibling[{sibling.name}]: {sibText}";
-                                }
-                            }
-                        }
-                    }
-                }
-
-                MelonLogger.Msg($"[{NavigatorId}]   {path}");
-                MelonLogger.Msg($"[{NavigatorId}]     Text: '{text}' | HasActualText: {hasActualText} | HasImage: {hasImage} | HasTextChild: {hasTextChild}{sizeInfo}{spriteInfo}");
-                MelonLogger.Msg($"[{NavigatorId}]     Components: {components}");
-            }
-
-            // Find EventTriggers
-            var eventTriggers = GameObject.FindObjectsOfType<UnityEngine.EventSystems.EventTrigger>()
-                .Where(e => e.gameObject.activeInHierarchy)
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {eventTriggers.Count} EventTriggers:");
-            foreach (var et in eventTriggers.Take(15))
-            {
-                string text = UITextExtractor.GetText(et.gameObject);
-                MelonLogger.Msg($"[{NavigatorId}]   {et.gameObject.name} - '{text ?? "(no text)"}'");
-            }
-
-            // Find standard Buttons
-            var buttons = GameObject.FindObjectsOfType<Button>()
-                .Where(b => b.gameObject.activeInHierarchy && b.interactable)
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {buttons.Count} standard Buttons:");
-            foreach (var btn in buttons.Take(20))
-            {
-                string text = UITextExtractor.GetText(btn.gameObject);
-                string path = GetGameObjectPath(btn.gameObject);
-
-                // For Increment/Decrement buttons, show parent info to understand stepper structure
-                string parentInfo = "";
-                if (btn.gameObject.name.Contains("Increment") || btn.gameObject.name.Contains("Decrement"))
-                {
-                    var parent = btn.transform.parent;
-                    if (parent != null)
-                    {
-                        parentInfo = $" | Parent: {parent.name}";
-                        // Look for sibling elements that might have the setting name
-                        foreach (Transform sibling in parent)
-                        {
-                            if (sibling.gameObject != btn.gameObject)
-                            {
-                                var sibText = sibling.GetComponentInChildren<TMP_Text>();
-                                if (sibText != null && !string.IsNullOrEmpty(sibText.text) && sibText.text.Length > 1)
-                                {
-                                    parentInfo += $" | Sibling[{sibling.name}]: '{sibText.text}'";
-                                }
-                            }
-                        }
-                    }
-                }
-
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - '{text ?? "(no text)"}'{parentInfo}");
-            }
-
-            // Find CustomToggle components (game-specific toggle type)
-            var customToggles = GameObject.FindObjectsOfType<MonoBehaviour>()
-                .Where(mb => mb != null && mb.gameObject.activeInHierarchy &&
-                       mb.GetType().Name.Contains("CustomToggle"))
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {customToggles.Count} CustomToggle components:");
-            foreach (var ct in customToggles)
-            {
-                string text = UITextExtractor.GetText(ct.gameObject);
-                string path = GetGameObjectPath(ct.gameObject);
-                var toggle = ct.gameObject.GetComponent<Toggle>();
-                string toggleState = toggle != null ? (toggle.isOn ? "ON" : "OFF") : "no Toggle component";
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - '{text ?? "(no text)"}' - {toggleState}");
-            }
-
-            // Find Scrollbars
-            var scrollbars = GameObject.FindObjectsOfType<Scrollbar>()
-                .Where(sb => sb != null && sb.gameObject.activeInHierarchy)
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {scrollbars.Count} Scrollbars:");
-            foreach (var sb in scrollbars)
-            {
-                string path = GetGameObjectPath(sb.gameObject);
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - value: {sb.value:F2}, size: {sb.size:F2}, interactable: {sb.interactable}");
-            }
-
-            // Find ScrollRect components
-            var scrollRects = GameObject.FindObjectsOfType<ScrollRect>()
-                .Where(sr => sr != null && sr.gameObject.activeInHierarchy)
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {scrollRects.Count} ScrollRect components:");
-            foreach (var sr in scrollRects)
-            {
-                string path = GetGameObjectPath(sr.gameObject);
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - vertical: {sr.vertical}, horizontal: {sr.horizontal}");
-            }
-
-            // Find standard Unity Toggles
-            var toggles = GameObject.FindObjectsOfType<Toggle>()
-                .Where(t => t != null && t.gameObject.activeInHierarchy)
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {toggles.Count} standard Unity Toggles:");
-            foreach (var t in toggles)
-            {
-                string text = UITextExtractor.GetText(t.gameObject);
-                string path = GetGameObjectPath(t.gameObject);
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - '{text ?? "(no text)"}' - {(t.isOn ? "ON" : "OFF")} - interactable: {t.interactable}");
-            }
-
-            // Find TMP_Dropdown components
-            var tmpDropdowns = GameObject.FindObjectsOfType<TMP_Dropdown>()
-                .Where(d => d != null && d.gameObject.activeInHierarchy)
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {tmpDropdowns.Count} TMP_Dropdown components:");
-            foreach (var d in tmpDropdowns)
-            {
-                string path = GetGameObjectPath(d.gameObject);
-                string selectedText = d.options.Count > d.value ? d.options[d.value].text : "(no selection)";
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - selected: '{selectedText}' - interactable: {d.interactable}");
-            }
-
-            // Find any MonoBehaviour with "Dropdown" or "Selector" in the type name (custom dropdowns)
-            var customDropdowns = GameObject.FindObjectsOfType<MonoBehaviour>()
-                .Where(mb => mb != null && mb.gameObject.activeInHierarchy &&
-                       (mb.GetType().Name.Contains("Dropdown") || mb.GetType().Name.Contains("Selector")))
-                .ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {customDropdowns.Count} Custom Dropdown/Selector components:");
-            foreach (var cd in customDropdowns)
-            {
-                string path = GetGameObjectPath(cd.gameObject);
-                string typeName = cd.GetType().Name;
-                string text = UITextExtractor.GetText(cd.gameObject);
-                MelonLogger.Msg($"[{NavigatorId}]   {path} - Type: {typeName} - '{text ?? "(no text)"}'");
-            }
-
-            MelonLogger.Msg($"[{NavigatorId}] === END UI DUMP ===");
+            MenuDebugHelper.LogAvailableUIElements(NavigatorId, _currentScene, GetActiveCustomButtons);
         }
 
         protected override void DiscoverElements()
@@ -1631,7 +1277,7 @@ namespace AccessibleArena.Core.Services
                 if (obj == null || !obj.activeInHierarchy) return;
                 if (addedObjects.Contains(obj)) return;
 
-                if (!IsInForegroundPanel(obj))
+                if (!ShouldShowElement(obj))
                     return;
 
                 var classification = UIElementClassifier.Classify(obj);
@@ -1936,28 +1582,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void LogHierarchy(Transform parent, string indent, int maxDepth)
         {
-            if (maxDepth <= 0) return;
-
-            foreach (Transform child in parent)
-            {
-                if (child == null) continue;
-                string active = child.gameObject.activeInHierarchy ? "" : " [INACTIVE]";
-                string text = UITextExtractor.GetText(child.gameObject);
-                string textInfo = string.IsNullOrEmpty(text) ? "" : $" - \"{text}\"";
-                MelonLogger.Msg($"[{NavigatorId}] {indent}{child.name}{active}{textInfo}");
-                LogHierarchy(child, indent + "  ", maxDepth - 1);
-            }
+            MenuDebugHelper.LogHierarchy(NavigatorId, parent, indent, maxDepth);
         }
 
         /// <summary>
         /// Get the full path of a transform in the hierarchy.
         /// </summary>
-        private string GetFullPath(Transform t)
-        {
-            if (t == null) return "null";
-            if (t.parent == null) return t.name;
-            return GetFullPath(t.parent) + "/" + t.name;
-        }
+        private string GetFullPath(Transform t) => MenuDebugHelper.GetFullPath(t);
 
         /// <summary>
         /// Find Settings custom controls (dropdowns and steppers) in a single iteration.
@@ -2162,21 +1793,7 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
-        protected string GetGameObjectPath(GameObject obj)
-        {
-            string path = obj.name;
-            Transform parent = obj.transform.parent;
-            int depth = 0;
-            while (parent != null && depth < 4)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-                depth++;
-            }
-            if (parent != null)
-                path = ".../" + path;
-            return path;
-        }
+        protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);
 
         protected override string GetActivationAnnouncement()
         {
@@ -2297,14 +1914,6 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
-        // Phase 5: OnPanelStateChangedExternal and related handlers removed
-        // Detection is now handled entirely by PanelDetectorManager:
-        // - HarmonyPanelDetector handles PlayBlade, Settings, Blades, SocialUI, NavContentController
-        // - ReflectionPanelDetector handles Login panels and PopupBase
-        // - AlphaPanelDetector handles popup visibility via CanvasGroup alpha
-        // All detectors report to PanelStateManager, which fires OnPanelChanged/OnAnyPanelOpened events.
-        // GeneralMenuNavigator subscribes to those events for triggering rescans.
-
         /// <summary>
         /// Auto-expand the play blade when it's in collapsed state.
         /// Used for panels like Color Challenge where the blade starts collapsed.
@@ -2357,11 +1966,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Get a human-readable name for the current PlayBlade state.
-        /// Phase 5: Uses PanelStateManager as source of truth.
         /// </summary>
         private string GetPlayBladeStateName()
         {
-            // Use PanelStateManager as source of truth
             if (PanelStateManager.Instance == null || !PanelStateManager.Instance.IsPlayBladeActive)
                 return null;
 
