@@ -43,6 +43,9 @@ namespace AccessibleArena.Core.Services
         // Track user's turn count (game turn number counts each half-turn, we want full cycles)
         private int _userTurnCount = 0;
 
+        // Track whose turn it currently is
+        private bool _isUserTurn = true;
+
         // Current combat phase tracking
         private string _currentPhase;
         private string _currentStep;
@@ -56,6 +59,62 @@ namespace AccessibleArena.Core.Services
         /// Returns true if currently in Declare Blockers phase.
         /// </summary>
         public bool IsInDeclareBlockersPhase => _currentPhase == "Combat" && _currentStep == "DeclareBlock";
+
+        /// <summary>
+        /// Gets the current turn and phase information for announcement (T key).
+        /// Returns a formatted string like "Your first main phase, turn 5"
+        /// </summary>
+        public string GetTurnPhaseInfo()
+        {
+            string owner = _isUserTurn ? "Your" : "Opponent's";
+            string phaseDescription = GetPhaseDescription() ?? "turn";
+
+            if (_userTurnCount > 0)
+            {
+                return $"{owner} {phaseDescription}, turn {_userTurnCount}";
+            }
+            else
+            {
+                return $"{owner} {phaseDescription}";
+            }
+        }
+
+        /// <summary>
+        /// Gets a human-readable description of the current phase and step.
+        /// </summary>
+        private string GetPhaseDescription()
+        {
+            if (string.IsNullOrEmpty(_currentPhase))
+                return null;
+
+            switch (_currentPhase)
+            {
+                case "Main1":
+                    return "first main phase";
+                case "Main2":
+                    return "second main phase";
+                case "Combat":
+                    switch (_currentStep)
+                    {
+                        case "DeclareAttack":
+                            return "declare attackers";
+                        case "DeclareBlock":
+                            return "declare blockers";
+                        case "CombatDamage":
+                            return "combat damage";
+                        case "EndCombat":
+                            return "end of combat";
+                        default:
+                            return "combat phase";
+                    }
+                case "Ending":
+                    if (_currentStep == "End")
+                        return "end step";
+                    return "ending phase";
+                default:
+                    return _currentPhase.ToLower();
+            }
+        }
 
         /// <summary>
         /// Returns true if a spell resolved or a permanent entered battlefield within the last specified milliseconds.
@@ -97,6 +156,7 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _currentPhase = null;
             _currentStep = null;
+            _isUserTurn = true;
         }
 
         #region Zone Count Accessors
@@ -233,6 +293,9 @@ namespace AccessibleArena.Core.Services
                     if (playerObj != null)
                         isYourTurn = playerObj.ToString().Contains("LocalPlayer");
                 }
+
+                // Track whose turn it is
+                _isUserTurn = isYourTurn;
 
                 // Track our own turn count (game counts each half-turn, we want full cycles)
                 if (isYourTurn)
@@ -1158,10 +1221,15 @@ namespace AccessibleArena.Core.Services
                 // Log zone strings for debugging ownership detection
                 MelonLogger.Msg($"[DuelAnnouncer] Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
 
-                if (zoneToCheck.Contains("Opponent") || zoneToCheck.Contains("Player: 2") || zoneToCheck.Contains("Player:2"))
+                // Check zone strings for ownership - use _localPlayerId dynamically, don't hardcode Player 1/2
+                if (zoneToCheck.Contains("Opponent"))
                     isOpponent = true;
-                else if (zoneToCheck.Contains("LocalPlayer") || zoneToCheck.Contains("Player: 1") || zoneToCheck.Contains("Player:1"))
+                else if (zoneToCheck.Contains("LocalPlayer"))
                     isOpponent = false;
+                else if (zoneToCheck.Contains($"Player: {_localPlayerId}") || zoneToCheck.Contains($"Player:{_localPlayerId}"))
+                    isOpponent = false;
+                else if (zoneToCheck.Contains("Player: ") || zoneToCheck.Contains("Player:"))
+                    isOpponent = true; // Contains a player reference but not our ID, so it's opponent
 
                 // Log for debugging
                 MelonLogger.Msg($"[DuelAnnouncer] ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");

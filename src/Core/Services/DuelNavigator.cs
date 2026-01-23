@@ -348,6 +348,14 @@ namespace AccessibleArena.Core.Services
             if (_portraitNavigator.HandleInput())
                 return true;
 
+            // T key: Announce current turn and phase info
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                string turnPhaseInfo = _duelAnnouncer.GetTurnPhaseInfo();
+                _announcer.AnnounceInterrupt(turnPhaseInfo);
+                return true;
+            }
+
             // Battlefield navigation (A/R/B shortcuts and row-based navigation)
             if (_battlefieldNavigator.HandleInput())
                 return true;
