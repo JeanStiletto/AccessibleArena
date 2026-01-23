@@ -131,7 +131,7 @@ The Booster Chamber screen displays available booster packs in a horizontal caro
 
 ### Reward Chest Screen
 **Container:** `NPE-Rewards_Container`
-**Navigator:** `EventTriggerNavigator`
+**Navigator:** `GeneralMenuNavigator`
 
 Elements:
 - `NPE_RewardChest` - Chest (needs controller reflection)
@@ -145,7 +145,7 @@ Special handling: Chest and deck boxes require `NPEContentControllerRewards` met
 Note: `NPEMetaDeckView.Model` is null - no deck data available. These are placeholder boxes.
 
 ### Card Reveal Screen
-Handled by `EventTriggerNavigator`.
+Handled by `GeneralMenuNavigator`.
 
 Cards detected via CardDetector. Enter on card activates CardInfoNavigator for detail browsing.
 

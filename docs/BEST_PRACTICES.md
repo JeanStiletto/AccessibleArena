@@ -232,7 +232,7 @@ This helper is used by `AnnounceCharacterAtCursor()` and `AnnounceCurrentInputFi
 - `EventSystem.currentSelectedGameObject` is often null in MTGA
 - Most screens use CustomButton/EventTrigger which don't register with EventSystem
 - UIFocusTracker's OnFocusChanged event rarely fires due to this
-- Navigation is handled by custom Navigator classes (EventTriggerNavigator, etc.)
+- Navigation is handled by custom Navigator classes (GeneralMenuNavigator, DuelNavigator, etc.)
 - Card navigation preparation must happen in navigators, not via focus events
 
 ## Centralized Strings (Localization-Ready)
@@ -1013,7 +1013,7 @@ Some elements have a secondary action accessible via Shift+Enter. For example:
 Some elements (NPE chest/deck boxes) need controller reflection:
 - Find controller via `GameObject.FindObjectOfType<NPEContentControllerRewards>()`
 - Call methods like `Coroutine_UnlockAnimation()`, `OnClaimClicked_Unity()`
-- See `EventTriggerNavigator.HandleSpecialNPEElement()` for example
+- See `GeneralMenuNavigator.FindNPERewardCards()` for NPE reward handling
 
 ## Card Handling in Navigators
 
@@ -1668,5 +1668,5 @@ else if (minAlpha < 0.1f && waitTimer > 0.5f)
 - CardDetector cache must be cleared on scene changes (stale references)
 - CustomButton.OnClick may have 0 listeners - direct invocation does nothing
 - EventSystem.currentSelectedGameObject is often null - game uses custom navigation
-- Card navigation must be prepared by navigators (EventTriggerNavigator), not UIFocusTracker
+- Card navigation must be prepared by navigators (GeneralMenuNavigator, DuelNavigator), not UIFocusTracker
 - CardInfoNavigator uses lazy loading - PrepareForCard() is fast, LoadBlocks() extracts info
