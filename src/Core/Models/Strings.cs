@@ -322,6 +322,12 @@ namespace AccessibleArena.Core.Models
         public const string HelpEnterToggle = "Enter: Toggle card between zones";
         public const string HelpSpaceConfirm = "Space: Confirm selection";
 
+        // Debug keys
+        public const string HelpCategoryDebug = "Debug keys (developers)";
+        public const string HelpF4Refresh = "F4: Refresh current navigator";
+        public const string HelpF11CardDump = "F11: Dump card details to log (pack opening)";
+        public const string HelpF12UIDump = "F12: Dump UI hierarchy to log";
+
         // ===========================================
         // BROWSER (Scry, Surveil, Mulligan, etc.)
         // ===========================================

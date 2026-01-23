@@ -385,5 +385,88 @@ namespace AccessibleArena.Core.Services
             if (t.parent == null) return t.name;
             return GetFullPath(t.parent) + "/" + t.name;
         }
+
+        /// <summary>
+        /// Dump detailed information about a card GameObject. Triggered by F11 key.
+        /// Useful for debugging cards that fail text extraction (e.g., "Unknown card").
+        /// </summary>
+        /// <param name="tag">Log tag</param>
+        /// <param name="cardObj">The card GameObject to inspect</param>
+        /// <param name="announcer">Announcement service for completion message</param>
+        public static void DumpCardDetails(string tag, GameObject cardObj, IAnnouncementService announcer)
+        {
+            if (cardObj == null)
+            {
+                MelonLogger.Msg($"[{tag}] DumpCardDetails: No card object provided");
+                announcer?.Announce("No card to inspect.", Models.AnnouncementPriority.High);
+                return;
+            }
+
+            MelonLogger.Msg($"[{tag}] === F11 DEBUG: CARD DETAILS DUMP ===");
+            MelonLogger.Msg($"[{tag}] Card object: {cardObj.name}");
+            MelonLogger.Msg($"[{tag}] Full path: {GetFullPath(cardObj.transform)}");
+            MelonLogger.Msg($"[{tag}] Active: {cardObj.activeInHierarchy}");
+
+            // Dump all components on the card root
+            MelonLogger.Msg($"[{tag}] === Components on root ===");
+            foreach (var comp in cardObj.GetComponents<Component>())
+            {
+                if (comp == null) continue;
+                MelonLogger.Msg($"[{tag}]   {comp.GetType().FullName}");
+            }
+
+            // Dump all TMP_Text elements
+            MelonLogger.Msg($"[{tag}] === TMP_Text elements (includeInactive=true) ===");
+            var texts = cardObj.GetComponentsInChildren<TMP_Text>(true);
+            if (texts.Length == 0)
+            {
+                MelonLogger.Msg($"[{tag}]   (none found)");
+            }
+            foreach (var text in texts)
+            {
+                if (text == null) continue;
+                string objName = text.gameObject.name;
+                string rawContent = text.text ?? "(null)";
+                bool isActive = text.gameObject.activeInHierarchy;
+                string parentPath = GetGameObjectPath(text.gameObject);
+
+                // Truncate very long text
+                if (rawContent.Length > 200)
+                    rawContent = rawContent.Substring(0, 200) + "...";
+
+                MelonLogger.Msg($"[{tag}]   [{(isActive ? "ON" : "OFF")}] '{objName}' @ {parentPath}");
+                MelonLogger.Msg($"[{tag}]       Content: '{rawContent}'");
+            }
+
+            // Dump key MonoBehaviour components that might indicate card type
+            MelonLogger.Msg($"[{tag}] === Card-related MonoBehaviours ===");
+            var monoBehaviours = cardObj.GetComponentsInChildren<MonoBehaviour>(true);
+            string[] cardPatterns = { "Card", "Meta", "CDC", "Booster", "View", "Display" };
+            foreach (var mb in monoBehaviours)
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                bool isRelevant = false;
+                foreach (var pattern in cardPatterns)
+                {
+                    if (typeName.Contains(pattern))
+                    {
+                        isRelevant = true;
+                        break;
+                    }
+                }
+                if (isRelevant)
+                {
+                    MelonLogger.Msg($"[{tag}]   {typeName} on {mb.gameObject.name}");
+                }
+            }
+
+            // Dump immediate children hierarchy (2 levels deep)
+            MelonLogger.Msg($"[{tag}] === Child hierarchy (2 levels) ===");
+            DumpGameObjectChildren(tag, cardObj, 1, 2);
+
+            MelonLogger.Msg($"[{tag}] === END CARD DETAILS DUMP ===");
+            announcer?.Announce("Card details dumped to log.", Models.AnnouncementPriority.High);
+        }
     }
 }

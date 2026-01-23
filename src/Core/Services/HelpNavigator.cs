@@ -95,7 +95,13 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpTabBrowser,
                 Strings.HelpCDZones,
                 Strings.HelpEnterToggle,
-                Strings.HelpSpaceConfirm
+                Strings.HelpSpaceConfirm,
+
+                // Debug keys
+                Strings.HelpCategoryDebug,
+                Strings.HelpF4Refresh,
+                Strings.HelpF11CardDump,
+                Strings.HelpF12UIDump
             };
         }
 

@@ -199,6 +199,12 @@ namespace AccessibleArena.Core.Services
                 string displayName = !string.IsNullOrEmpty(cardName) ? cardName :
                                      (cardInfo.IsValid ? cardInfo.Name : "Unknown card");
 
+                // Log unknown cards for debugging (use F11 on this card for full details)
+                if (displayName == "Unknown card")
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Card {cardNum} extraction failed: {cardObj.name} - press F11 while focused for details");
+                }
+
                 string label = $"Card {cardNum}: {displayName}";
                 if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
                 {
@@ -403,6 +409,20 @@ namespace AccessibleArena.Core.Services
             // Handle custom input first (F1 help, etc.)
             if (HandleCustomInput()) return;
 
+            // F11: Dump current card details for debugging (helps identify "Unknown card" issues)
+            if (Input.GetKeyDown(KeyCode.F11))
+            {
+                if (IsValidIndex && _elements[_currentIndex].GameObject != null)
+                {
+                    MenuDebugHelper.DumpCardDetails(NavigatorId, _elements[_currentIndex].GameObject, _announcer);
+                }
+                else
+                {
+                    _announcer?.Announce("No card selected to inspect.", Models.AnnouncementPriority.High);
+                }
+                return;
+            }
+
             // Left/Right arrows for navigation between cards (horizontal layout)
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
             {
@@ -443,6 +463,12 @@ namespace AccessibleArena.Core.Services
             // Enter activates (view card details)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                MelonLogger.Msg($"[{NavigatorId}] Enter pressed - index={_currentIndex}, count={_elements.Count}, valid={IsValidIndex}");
+                if (IsValidIndex)
+                {
+                    var elem = _elements[_currentIndex];
+                    MelonLogger.Msg($"[{NavigatorId}] Current element: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
+                }
                 ActivateCurrentElement();
                 return;
             }
