@@ -235,7 +235,59 @@ Card selection uses the `LondonBrowser` API via reflection:
 Card lists retrieved via `GetHandCards()` and `GetLibraryCards()` from LondonBrowser.
 See BEST_PRACTICES.md "Browser Card Interactions" for reusable patterns.
 
+## Active Bugs
+
+### Backspace Navigation Gaps (Jan 2026)
+
+**Profile screen:** Backspace doesn't navigate back from Profile screen.
+
+**Opened pack screen:** Backspace doesn't close the pack opening view.
+
+Both need investigation in HandleBackNavigation/GetCurrentForeground to add proper layer detection.
+
+---
+
 ## Technical Debt
+
+### GeneralMenuNavigator Improvements (Jan 2026)
+
+Remaining improvements identified during code quality review:
+
+**Medium Effort:**
+
+1. **Conditional debug logging**
+   - ~50+ `MelonLogger.Msg` calls throughout the file
+   - Wrap verbose logs in a debug flag check: `if (DebugLogging) MelonLogger.Msg(...)`
+   - Reduces log noise in production
+
+2. **Button search pattern consolidation**
+   - `FindCloseButtonInPanel()` and `FindGenericBackButton()` have similar loops
+   - Could consolidate into a shared helper method
+
+3. **Rescan debounce review**
+   - Almost every `TriggerRescan` call uses `force: true`
+   - The debounce mechanism is rarely effective
+   - Review if debounce is needed or should be removed
+
+**Efficiency Concerns (Lower Priority):**
+
+4. **Multiple FindObjectsOfType in DiscoverElements**
+   - 6 separate calls for Button, EventTrigger, Toggle, Slider, TMP_InputField, TMP_Dropdown
+   - Could potentially optimize with single-pass collection
+
+5. **Repeated GameObject.Find calls**
+   - `FindGenericBackButton()`, `CloseSocialPanel()`, `ClosePlayBlade()` all use `GameObject.Find()`
+   - These are O(n) scene searches each time
+
+**Logic Review Needed:**
+
+6. **IsOverlayActive() potentially disconnected**
+   - Checks for blockers but may not align with `GetCurrentForeground()`
+   - Could cause inconsistent behavior
+
+**Location:** `src/Core/Services/GeneralMenuNavigator.cs`
+
+---
 
 ### Code Archaeology Review Needed
 
