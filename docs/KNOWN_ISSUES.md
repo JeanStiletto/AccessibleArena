@@ -237,41 +237,33 @@ See BEST_PRACTICES.md "Browser Card Interactions" for reusable patterns.
 
 ## Technical Debt
 
-### GeneralMenuNavigator Improvements (Jan 2026)
+### GeneralMenuNavigator Improvements (Jan 2026) - COMPLETED
 
-Remaining improvements identified during code quality review:
+Code quality improvements completed:
 
-**Medium Effort:**
-
-1. **Conditional debug logging**
-   - ~50+ `MelonLogger.Msg` calls throughout the file
-   - Wrap verbose logs in a debug flag check: `if (DebugLogging) MelonLogger.Msg(...)`
+1. **Conditional debug logging** - DONE
+   - Added `DebugLogging` flag (default: false)
+   - All 50+ verbose `MelonLogger.Msg` calls wrapped in `LogDebug()` helper
    - Reduces log noise in production
 
-2. **Button search pattern consolidation**
-   - `FindCloseButtonInPanel()` and `FindGenericBackButton()` have similar loops
-   - Could consolidate into a shared helper method
+2. **Button search pattern consolidation** - DONE
+   - Created `FindButtonByPredicate()` helper method
+   - Both `FindCloseButtonInPanel()` and `FindGenericBackButton()` now use shared helper
 
-3. **Rescan debounce review**
-   - Almost every `TriggerRescan` call uses `force: true`
-   - The debounce mechanism is rarely effective
-   - Review if debounce is needed or should be removed
+3. **Rescan debounce removed** - DONE
+   - Removed ineffective debounce mechanism (all calls used `force: true`)
+   - Simplified `TriggerRescan()` - just schedules delay for UI to settle
+   - Removed unused `_forceRescan`, `_lastRescanTime`, `RescanDebounceSeconds`
 
-**Efficiency Concerns (Lower Priority):**
+4. **IsOverlayActive() removed** - DONE
+   - Was checking stale blocker patterns disconnected from `GetCurrentForeground()`
+   - Now trusts `GetCurrentForeground()` to handle all overlay filtering
+   - If there are navigable buttons, navigator activates and filters correctly
 
-4. **Multiple FindObjectsOfType in DiscoverElements**
-   - 6 separate calls for Button, EventTrigger, Toggle, Slider, TMP_InputField, TMP_Dropdown
-   - Could potentially optimize with single-pass collection
+**Remaining (Lower Priority):**
 
-5. **Repeated GameObject.Find calls**
-   - `FindGenericBackButton()`, `CloseSocialPanel()`, `ClosePlayBlade()` all use `GameObject.Find()`
-   - These are O(n) scene searches each time
-
-**Logic Review Needed:**
-
-6. **IsOverlayActive() potentially disconnected**
-   - Checks for blockers but may not align with `GetCurrentForeground()`
-   - Could cause inconsistent behavior
+- **Multiple FindObjectsOfType in DiscoverElements** - 6 separate calls could be optimized
+- **Repeated GameObject.Find calls** - O(n) scene searches in back navigation
 
 **Location:** `src/Core/Services/GeneralMenuNavigator.cs`
 

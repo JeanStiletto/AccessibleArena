@@ -98,12 +98,16 @@ namespace AccessibleArena.Core.Services
 
         private const float ActivationDelaySeconds = 0.5f;
         private const float RescanDelaySeconds = 0.5f;
-        private const float RescanDebounceSeconds = 1.0f;
         private const float BladeAutoExpandDelay = 0.8f;
 
         #endregion
 
         #region State Fields
+
+        /// <summary>
+        /// Enable verbose debug logging. Set to false to reduce log noise in production.
+        /// </summary>
+        private static readonly bool DebugLogging = false;
 
         protected string _currentScene;
         protected string _detectedMenuType;
@@ -115,8 +119,6 @@ namespace AccessibleArena.Core.Services
 
         // Rescan timing
         private float _rescanDelay;
-        private float _lastRescanTime;
-        private bool _forceRescan;
 
         // Element tracking
         private float _bladeAutoExpandDelay;
@@ -124,6 +126,15 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Helper Methods
+
+        /// <summary>
+        /// Log a debug message only if DebugLogging is enabled.
+        /// </summary>
+        private void LogDebug(string message)
+        {
+            if (DebugLogging)
+                MelonLogger.Msg(message);
+        }
 
         /// <summary>
         /// Get all active CustomButton GameObjects in the scene.
@@ -231,12 +242,12 @@ namespace AccessibleArena.Core.Services
             // But DO rescan when something closes and falls back to SocialUI (e.g., popup closes)
             if (oldPanel?.Name?.Contains("SocialUI") == true)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Ignoring SocialUI as source of change");
+                LogDebug($"[{NavigatorId}] Ignoring SocialUI as source of change");
                 return;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
-            TriggerRescan(force: true);
+            LogDebug($"[{NavigatorId}] PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
+            TriggerRescan();
         }
 
         /// <summary>
@@ -251,20 +262,20 @@ namespace AccessibleArena.Core.Services
             // Ignore SocialUI - it's always present as corner icon, causes spurious rescans during page load
             if (panel?.Name?.Contains("SocialUI") == true)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Ignoring SocialUI panel opened");
+                LogDebug($"[{NavigatorId}] Ignoring SocialUI panel opened");
                 return;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] PanelStateManager panel opened: {panel?.Name ?? "none"}");
+            LogDebug($"[{NavigatorId}] PanelStateManager panel opened: {panel?.Name ?? "none"}");
 
             // Auto-expand blade for Color Challenge menu
             if (panel?.Name?.Contains("CampaignGraph") == true)
             {
                 _bladeAutoExpandDelay = BladeAutoExpandDelay;
-                MelonLogger.Msg($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
+                LogDebug($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
             }
 
-            TriggerRescan(force: true);
+            TriggerRescan();
         }
 
         protected virtual string GetMenuScreenName()
@@ -412,7 +423,7 @@ namespace AccessibleArena.Core.Services
             // F4: Toggle Friends panel
             if (Input.GetKeyDown(KeyCode.F4))
             {
-                MelonLogger.Msg($"[{NavigatorId}] F4 pressed - toggling Friends panel");
+                LogDebug($"[{NavigatorId}] F4 pressed - toggling Friends panel");
                 ToggleFriendsPanel();
                 return true;
             }
@@ -430,7 +441,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (UIFocusTracker.IsAnyInputFieldFocused())
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Backspace pressed but input field focused - passing through");
+                    LogDebug($"[{NavigatorId}] Backspace pressed but input field focused - passing through");
                     return false; // Let it pass through to the input field
                 }
                 return HandleBackNavigation();
@@ -441,7 +452,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (UIFocusTracker.IsAnyInputFieldFocused())
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Escape pressed while input field focused - deactivating field");
+                    LogDebug($"[{NavigatorId}] Escape pressed while input field focused - deactivating field");
                     UIFocusTracker.DeactivateFocusedInputField();
                     _announcer.Announce("Exited input field", Models.AnnouncementPriority.Normal);
                     return true;
@@ -458,7 +469,7 @@ namespace AccessibleArena.Core.Services
         private bool HandleBackNavigation()
         {
             var layer = GetCurrentForeground();
-            MelonLogger.Msg($"[{NavigatorId}] Backspace: current layer = {layer}");
+            LogDebug($"[{NavigatorId}] Backspace: current layer = {layer}");
 
             return layer switch
             {
@@ -486,10 +497,10 @@ namespace AccessibleArena.Core.Services
                 var dismissButton = FindDismissButtonInPanel(_activeControllerGameObject);
                 if (dismissButton != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Found dismiss button in content panel: {dismissButton.name}");
+                    LogDebug($"[{NavigatorId}] Found dismiss button in content panel: {dismissButton.name}");
                     _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(dismissButton);
-                    TriggerRescan(force: true);
+                    TriggerRescan();
                     return true;
                 }
             }
@@ -497,7 +508,7 @@ namespace AccessibleArena.Core.Services
             // Content panels (Store, Collection, BoosterChamber, etc.) don't have back buttons.
             // Navigate to Home instead. Don't use FindGenericBackButton() here as it finds
             // buttons from unrelated panels (e.g., FullscreenZFBrowserCanvas).
-            MelonLogger.Msg($"[{NavigatorId}] No dismiss button in content panel, navigating to Home");
+            LogDebug($"[{NavigatorId}] No dismiss button in content panel, navigating to Home");
             return NavigateToHome();
         }
 
@@ -538,14 +549,14 @@ namespace AccessibleArena.Core.Services
             var backButton = FindGenericBackButton();
             if (backButton != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Found back button: {backButton.name}");
+                LogDebug($"[{NavigatorId}] Found back button: {backButton.name}");
                 _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                 UIActivator.Activate(backButton);
-                TriggerRescan(force: true);
+                TriggerRescan();
                 return true;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] At top level, no back action");
+            LogDebug($"[{NavigatorId}] At top level, no back action");
             return false;
         }
 
@@ -554,7 +565,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool DismissPopup()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Dismissing popup");
+            LogDebug($"[{NavigatorId}] Dismissing popup");
             if (_foregroundPanel != null)
             {
                 var closeButton = FindCloseButtonInPanel(_foregroundPanel);
@@ -562,7 +573,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(closeButton);
-                    TriggerRescan(force: true);
+                    TriggerRescan();
                     return true;
                 }
             }
@@ -575,7 +586,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool CloseSocialPanel()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Closing Social panel");
+            LogDebug($"[{NavigatorId}] Closing Social panel");
             var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
             if (socialPanel != null)
             {
@@ -584,7 +595,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(closeButton);
-                    TriggerRescan(force: true);
+                    TriggerRescan();
                     return true;
                 }
             }
@@ -597,8 +608,58 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HandleNPEBack()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Handling NPE back");
+            LogDebug($"[{NavigatorId}] Handling NPE back");
             return TryGenericBackButton();
+        }
+
+        /// <summary>
+        /// Find a button matching the given predicate within a panel or scene-wide.
+        /// Searches both Unity Button and CustomButton components.
+        /// </summary>
+        /// <param name="panel">Panel to search within, or null for scene-wide search</param>
+        /// <param name="namePredicate">Predicate to match button names</param>
+        /// <param name="customButtonFilter">Optional extra filter for CustomButtons (e.g., no text)</param>
+        private GameObject FindButtonByPredicate(
+            GameObject panel,
+            System.Func<string, bool> namePredicate,
+            System.Func<GameObject, bool> customButtonFilter = null)
+        {
+            // Search Unity Buttons
+            var buttons = panel != null
+                ? panel.GetComponentsInChildren<Button>(true)
+                : GameObject.FindObjectsOfType<Button>();
+
+            foreach (var btn in buttons)
+            {
+                if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
+                if (namePredicate(btn.gameObject.name))
+                    return btn.gameObject;
+            }
+
+            // Search CustomButtons
+            if (panel != null)
+            {
+                foreach (var mb in panel.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                    if (!IsCustomButtonType(mb.GetType().Name)) continue;
+                    if (customButtonFilter != null && !customButtonFilter(mb.gameObject)) continue;
+                    if (namePredicate(mb.gameObject.name))
+                        return mb.gameObject;
+                }
+            }
+            else
+            {
+                foreach (var btn in GetActiveCustomButtons())
+                {
+                    if (btn == null) continue;
+                    if (customButtonFilter != null && !customButtonFilter(btn)) continue;
+                    if (namePredicate(btn.name))
+                        return btn;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -606,28 +667,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private GameObject FindCloseButtonInPanel(GameObject panel)
         {
-            foreach (var btn in panel.GetComponentsInChildren<Button>(true))
+            return FindButtonByPredicate(panel, name =>
             {
-                if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
-                var name = btn.gameObject.name.ToLowerInvariant();
-                if (name.Contains("close") || name.Contains("dismiss") || name.Contains("cancel") || name.Contains("back"))
-                {
-                    return btn.gameObject;
-                }
-            }
-
-            foreach (var mb in panel.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (!IsCustomButtonType(mb.GetType().Name)) continue;
-                var name = mb.gameObject.name.ToLowerInvariant();
-                if (name.Contains("close") || name.Contains("dismiss") || name.Contains("cancel") || name.Contains("back"))
-                {
-                    return mb.gameObject;
-                }
-            }
-
-            return null;
+                var lower = name.ToLowerInvariant();
+                return lower.Contains("close") || lower.Contains("dismiss") ||
+                       lower.Contains("cancel") || lower.Contains("back");
+            });
         }
 
         /// <summary>
@@ -635,29 +680,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private GameObject FindGenericBackButton()
         {
-            foreach (var btn in GameObject.FindObjectsOfType<Button>())
-            {
-                if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
-                if (btn.gameObject.name.Contains("DismissButton")) continue;
-
-                if (IsBackButtonName(btn.gameObject.name))
-                {
-                    return btn.gameObject;
-                }
-            }
-
-            foreach (var btn in GetActiveCustomButtons())
-            {
-                if (btn == null) continue;
-                if (btn.name.Contains("DismissButton")) continue;
-
-                if (IsBackButtonName(btn.name) && !UITextExtractor.HasActualText(btn))
-                {
-                    return btn;
-                }
-            }
-
-            return null;
+            return FindButtonByPredicate(
+                panel: null,
+                namePredicate: name => !name.Contains("DismissButton") && IsBackButtonName(name),
+                customButtonFilter: btn => !UITextExtractor.HasActualText(btn)
+            );
         }
 
         /// <summary>
@@ -679,12 +706,12 @@ namespace AccessibleArena.Core.Services
             var settingsPanel = SettingsContentPanel;
             if (settingsPanel == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Settings panel not found");
+                LogDebug($"[{NavigatorId}] Settings panel not found");
                 return false;
             }
 
             string panelName = settingsPanel.name;
-            MelonLogger.Msg($"[{NavigatorId}] Settings back from panel: {panelName}");
+            LogDebug($"[{NavigatorId}] Settings back from panel: {panelName}");
 
             bool isInSubmenu = panelName != "Content - MainMenu" &&
                               (panelName == "Content - Audio" ||
@@ -696,15 +723,15 @@ namespace AccessibleArena.Core.Services
                 var backButton = FindSettingsBackButton(settingsPanel);
                 if (backButton != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Activating Settings submenu back button");
+                    LogDebug($"[{NavigatorId}] Activating Settings submenu back button");
                     _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(backButton);
-                    TriggerRescan(force: true);
+                    TriggerRescan();
                     return true;
                 }
                 else
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Could not find Settings submenu back button");
+                    LogDebug($"[{NavigatorId}] Could not find Settings submenu back button");
                 }
             }
 
@@ -719,14 +746,14 @@ namespace AccessibleArena.Core.Services
             var headerTransform = settingsPanel.transform.Find("Header");
             if (headerTransform == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Header not found in {settingsPanel.name}");
+                LogDebug($"[{NavigatorId}] Header not found in {settingsPanel.name}");
                 return null;
             }
 
             var backContainer = headerTransform.Find("Back");
             if (backContainer == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Back container not found in Header");
+                LogDebug($"[{NavigatorId}] Back container not found in Header");
                 return null;
             }
 
@@ -736,7 +763,7 @@ namespace AccessibleArena.Core.Services
                 return backButton.gameObject;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] BackButton not found or not active");
+            LogDebug($"[{NavigatorId}] BackButton not found or not active");
             return null;
         }
 
@@ -745,7 +772,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool CloseSettingsMenu()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Attempting to close Settings menu via SettingsMenu.Close()");
+            LogDebug($"[{NavigatorId}] Attempting to close Settings menu via SettingsMenu.Close()");
 
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
@@ -761,7 +788,7 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Calling SettingsMenu.Close()");
+                        LogDebug($"[{NavigatorId}] Calling SettingsMenu.Close()");
                         _announcer.Announce(Models.Strings.ClosingSettings, Models.AnnouncementPriority.High);
                         closeMethod.Invoke(mb, null);
                         return true;
@@ -773,7 +800,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Warning($"[{NavigatorId}] Could not find SettingsMenu.Close() method");
+            LogDebug($"[{NavigatorId}] Could not find SettingsMenu.Close() method");
             return false;
         }
 
@@ -782,12 +809,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool ClosePlayBlade()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Attempting to close PlayBlade");
+            LogDebug($"[{NavigatorId}] Attempting to close PlayBlade");
 
             var bladeIsOpenButton = GameObject.Find("Btn_BladeIsOpen");
             if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Found Btn_BladeIsOpen, activating");
+                LogDebug($"[{NavigatorId}] Found Btn_BladeIsOpen, activating");
                 _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                 UIActivator.Activate(bladeIsOpenButton);
                 ClearBladeStateAndRescan();
@@ -797,7 +824,7 @@ namespace AccessibleArena.Core.Services
             var dismissButton = GameObject.Find("Blade_DismissButton");
             if (dismissButton != null && dismissButton.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Found Blade_DismissButton, activating");
+                LogDebug($"[{NavigatorId}] Found Blade_DismissButton, activating");
                 _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                 UIActivator.Activate(dismissButton);
                 ClearBladeStateAndRescan();
@@ -812,7 +839,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (parent.name.Contains("CampaignGraphPage"))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] CampaignGraph blade detected, navigating Home");
+                        LogDebug($"[{NavigatorId}] CampaignGraph blade detected, navigating Home");
                         ClearBladeStateAndRescan();
                         return NavigateToHome();
                     }
@@ -820,7 +847,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Warning($"[{NavigatorId}] ClosePlayBlade called but no close button found - check foreground detection");
+            LogDebug($"[{NavigatorId}] ClosePlayBlade called but no close button found - check foreground detection");
             return false;
         }
 
@@ -829,10 +856,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ClearBladeStateAndRescan()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
+            LogDebug($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
             ReportPanelClosedByName("PlayBlade");
             PanelStateManager.Instance?.SetPlayBladeState(0);
-            TriggerRescan(force: true);
+            TriggerRescan();
         }
 
         /// <summary>
@@ -849,12 +876,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ToggleFriendsPanel()
         {
-            MelonLogger.Msg($"[{NavigatorId}] ToggleFriendsPanel called");
+            LogDebug($"[{NavigatorId}] ToggleFriendsPanel called");
 
             var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
             if (socialPanel == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Social UI panel not found");
+                LogDebug($"[{NavigatorId}] Social UI panel not found");
                 return;
             }
 
@@ -862,12 +889,12 @@ namespace AccessibleArena.Core.Services
             var socialUI = socialPanel.GetComponent("SocialUI");
             if (socialUI == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] SocialUI component not found");
+                LogDebug($"[{NavigatorId}] SocialUI component not found");
                 return;
             }
 
             bool isOpen = IsSocialPanelOpen();
-            MelonLogger.Msg($"[{NavigatorId}] Toggling Friends panel (isOpen: {isOpen})");
+            LogDebug($"[{NavigatorId}] Toggling Friends panel (isOpen: {isOpen})");
 
             try
             {
@@ -879,9 +906,9 @@ namespace AccessibleArena.Core.Services
                     if (closeMethod != null)
                     {
                         closeMethod.Invoke(socialUI, null);
-                        MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.CloseFriendsWidget()");
+                        LogDebug($"[{NavigatorId}] Called SocialUI.CloseFriendsWidget()");
                         ReportPanelClosed(socialPanel);
-                        TriggerRescan(force: true);
+                        TriggerRescan();
                     }
                 }
                 else
@@ -892,9 +919,9 @@ namespace AccessibleArena.Core.Services
                     if (showMethod != null)
                     {
                         showMethod.Invoke(socialUI, null);
-                        MelonLogger.Msg($"[{NavigatorId}] Called SocialUI.ShowSocialEntitiesList()");
+                        LogDebug($"[{NavigatorId}] Called SocialUI.ShowSocialEntitiesList()");
                         ReportPanelOpened("Social", socialPanel, PanelDetectionMethod.Reflection);
-                        TriggerRescan(force: true);
+                        TriggerRescan();
                     }
                 }
             }
@@ -917,7 +944,7 @@ namespace AccessibleArena.Core.Services
 
             if (navBar == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] NavBar not found for Home navigation");
+                LogDebug($"[{NavigatorId}] NavBar not found for Home navigation");
                 _announcer.Announce(Models.Strings.CannotNavigateHome, Models.AnnouncementPriority.High);
                 return true;
             }
@@ -931,12 +958,12 @@ namespace AccessibleArena.Core.Services
 
             if (homeButton == null || !homeButton.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Home button not found or inactive");
+                LogDebug($"[{NavigatorId}] Home button not found or inactive");
                 _announcer.Announce(Models.Strings.HomeNotAvailable, Models.AnnouncementPriority.High);
                 return true;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Navigating to Home via Backspace");
+            LogDebug($"[{NavigatorId}] Navigating to Home via Backspace");
             _announcer.Announce(Models.Strings.ReturningHome, Models.AnnouncementPriority.High);
             UIActivator.Activate(homeButton);
 
@@ -1113,34 +1140,19 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Schedule a rescan after a short delay to let UI settle.
         /// </summary>
-        /// <param name="force">If true, bypasses the debounce check (used for toggle activations)</param>
-        private void TriggerRescan(bool force = false)
+        private void TriggerRescan()
         {
             _rescanDelay = RescanDelaySeconds;
-            if (force)
-            {
-                _forceRescan = true;
-            }
         }
 
         /// <summary>
-        /// Force rescan of available elements
+        /// Perform rescan of available elements.
         /// </summary>
         private void PerformRescan()
         {
-            // Debounce: skip if we just rescanned recently (unless forced)
-            float currentTime = Time.time;
-            if (!_forceRescan && currentTime - _lastRescanTime < RescanDebounceSeconds)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Skipping rescan - debounce active");
-                return;
-            }
-            _lastRescanTime = currentTime;
-            _forceRescan = false; // Reset force flag
-
             // Detect active controller BEFORE discovering elements so filtering works correctly
             DetectActiveContentController();
-            MelonLogger.Msg($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
+            LogDebug($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
 
             // Remember the navigator's current selection before clearing
             GameObject previousSelection = null;
@@ -1166,7 +1178,7 @@ namespace AccessibleArena.Core.Services
                     if (_elements[i].GameObject == previousSelection)
                     {
                         _currentIndex = i;
-                        MelonLogger.Msg($"[{NavigatorId}] Preserved selection at index {i}: {previousSelection.name}");
+                        LogDebug($"[{NavigatorId}] Preserved selection at index {i}: {previousSelection.name}");
                         break;
                     }
                 }
@@ -1193,11 +1205,9 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            // Check if there's an overlay blocking us
-            if (IsOverlayActive())
-            {
-                return false;
-            }
+            // Note: We don't check for overlay blockers here because GetCurrentForeground()
+            // handles all overlay filtering when we're active. If there are navigable
+            // buttons, we should activate and let the foreground layer system handle filtering.
 
             // Count CustomButtons to determine if this is a menu
             int customButtonCount = CountActiveCustomButtons();
@@ -1217,25 +1227,8 @@ namespace AccessibleArena.Core.Services
             // Determine menu type based on what we find
             _detectedMenuType = DetectMenuType();
 
-            MelonLogger.Msg($"[{NavigatorId}] Detected menu: {_detectedMenuType} with {customButtonCount} CustomButtons");
+            LogDebug($"[{NavigatorId}] Detected menu: {_detectedMenuType} with {customButtonCount} CustomButtons");
             return true;
-        }
-
-        protected virtual bool IsOverlayActive()
-        {
-            // Check for common overlay indicators
-            var overlayPatterns = new[] { "Background_ClickBlocker", "ModalBlocker", "PopupBlocker" };
-
-            foreach (var pattern in overlayPatterns)
-            {
-                var blocker = GameObject.Find(pattern);
-                if (blocker != null && blocker.activeInHierarchy)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         protected int CountActiveCustomButtons()
@@ -1300,11 +1293,11 @@ namespace AccessibleArena.Core.Services
             // Log panel filter state
             if (_foregroundPanel != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Filtering to panel: {_foregroundPanel.name}");
+                LogDebug($"[{NavigatorId}] Filtering to panel: {_foregroundPanel.name}");
             }
             else if (_activeControllerGameObject != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Filtering to controller: {_activeContentController}");
+                LogDebug($"[{NavigatorId}] Filtering to controller: {_activeContentController}");
             }
 
             // Helper to process and classify a UI element
@@ -1452,7 +1445,7 @@ namespace AccessibleArena.Core.Services
             // These are not buttons but should be navigable to read card info
             FindNPERewardCards(addedObjects);
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
+            LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
 
             // On MatchEndScene, auto-focus the Continue button (ExitMatchOverlayButton)
             AutoFocusContinueButton();
@@ -1475,7 +1468,7 @@ namespace AccessibleArena.Core.Services
             if (!_screenDetector.IsNPERewardsScreenActive())
                 return;
 
-            MelonLogger.Msg($"[{NavigatorId}] NPE Rewards screen detected, searching for reward cards...");
+            LogDebug($"[{NavigatorId}] NPE Rewards screen detected, searching for reward cards...");
 
             // Debug: Log the RewardsCONTAINER specifically (where the actual cards are)
             var npeContainer = GameObject.Find("NPE-Rewards_Container");
@@ -1487,13 +1480,13 @@ namespace AccessibleArena.Core.Services
                     var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
                     if (rewardsContainer != null)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] RewardsCONTAINER hierarchy (depth 6):");
-                        LogHierarchy(rewardsContainer, "  ", 6);
+                        LogDebug($"[{NavigatorId}] RewardsCONTAINER hierarchy (depth 6):");
+                        if (DebugLogging) LogHierarchy(rewardsContainer, "  ", 6);
                     }
                     else
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] ActiveContainer hierarchy (depth 5):");
-                        LogHierarchy(activeContainer, "  ", 5);
+                        LogDebug($"[{NavigatorId}] ActiveContainer hierarchy (depth 5):");
+                        if (DebugLogging) LogHierarchy(activeContainer, "  ", 5);
                     }
                 }
             }
@@ -1524,7 +1517,7 @@ namespace AccessibleArena.Core.Services
                         name.Contains("MetaCardView") ||
                         name.Contains("CDC"))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Found potential NPE card element: {name} at {path}");
+                        LogDebug($"[{NavigatorId}] Found potential NPE card element: {name} at {path}");
                         if (!addedObjects.Contains(transform.gameObject))
                         {
                             cardPrefabs.Add(transform.gameObject);
@@ -1535,14 +1528,14 @@ namespace AccessibleArena.Core.Services
 
             if (cardPrefabs.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] No NPE reward cards found in NPE-Rewards_Container");
+                LogDebug($"[{NavigatorId}] No NPE reward cards found in NPE-Rewards_Container");
                 return;
             }
 
             // Sort cards by X position (left to right)
             cardPrefabs = cardPrefabs.OrderBy(c => c.transform.position.x).ToList();
 
-            MelonLogger.Msg($"[{NavigatorId}] Found {cardPrefabs.Count} NPE reward card(s)");
+            LogDebug($"[{NavigatorId}] Found {cardPrefabs.Count} NPE reward card(s)");
 
             int cardNum = 1;
             foreach (var cardPrefab in cardPrefabs)
@@ -1566,7 +1559,7 @@ namespace AccessibleArena.Core.Services
                     label += $", {cardInfo.TypeLine}";
                 }
 
-                MelonLogger.Msg($"[{NavigatorId}] Adding NPE reward card: {label}");
+                LogDebug($"[{NavigatorId}] Adding NPE reward card: {label}");
 
                 // Add as navigable element (even though it's not a button)
                 // Using the card prefab so arrow up/down can read card info blocks
@@ -1594,22 +1587,22 @@ namespace AccessibleArena.Core.Services
 
                 if (claimButton != null && !addedObjects.Contains(claimButton.gameObject))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Adding NullClaimButton as 'Take reward' button (path: {GetFullPath(claimButton)})");
+                    LogDebug($"[{NavigatorId}] Adding NullClaimButton as 'Take reward' button (path: {GetFullPath(claimButton)})");
                     AddElement(claimButton.gameObject, "Take reward, button");
                     addedObjects.Add(claimButton.gameObject);
                 }
                 else if (claimButton == null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] NullClaimButton not found in NPE-Rewards_Container hierarchy");
+                    LogDebug($"[{NavigatorId}] NullClaimButton not found in NPE-Rewards_Container hierarchy");
                 }
                 else
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] NullClaimButton already in addedObjects (ID:{claimButton.gameObject.GetInstanceID()})");
+                    LogDebug($"[{NavigatorId}] NullClaimButton already in addedObjects (ID:{claimButton.gameObject.GetInstanceID()})");
                 }
             }
             else
             {
-                MelonLogger.Msg($"[{NavigatorId}] NPE-Rewards_Container not found for NullClaimButton lookup");
+                LogDebug($"[{NavigatorId}] NPE-Rewards_Container not found for NullClaimButton lookup");
             }
         }
 
@@ -1657,7 +1650,7 @@ namespace AccessibleArena.Core.Services
                     GameObject clickableElement = FindClickableInDropdownControl(transform.gameObject);
                     if (clickableElement != null)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Found Settings dropdown (non-TMP): {name} -> clickable: {clickableElement.name}");
+                        LogDebug($"[{NavigatorId}] Found Settings dropdown (non-TMP): {name} -> clickable: {clickableElement.name}");
                         tryAddElement(clickableElement);
                     }
                     continue;
@@ -1696,7 +1689,7 @@ namespace AccessibleArena.Core.Services
                 // Only add if it has stepper buttons
                 if (hasIncrement || hasDecrement)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Found Settings stepper control: {name}");
+                    LogDebug($"[{NavigatorId}] Found Settings stepper control: {name}");
                     tryAddElement(transform.gameObject);
                 }
             }
@@ -1757,7 +1750,7 @@ namespace AccessibleArena.Core.Services
                         var continueButton = _elements[i];
                         _elements.RemoveAt(i);
                         _elements.Insert(0, continueButton);
-                        MelonLogger.Msg($"[{NavigatorId}] Moved Continue button to first position");
+                        LogDebug($"[{NavigatorId}] Moved Continue button to first position");
                     }
                     _currentIndex = 0;
                     break;
@@ -1787,7 +1780,7 @@ namespace AccessibleArena.Core.Services
                         var cardElement = _elements[i];
                         _elements.RemoveAt(i);
                         _elements.Insert(0, cardElement);
-                        MelonLogger.Msg($"[{NavigatorId}] Moved unlocked card to first position: {cardElement.Label}");
+                        LogDebug($"[{NavigatorId}] Moved unlocked card to first position: {cardElement.Label}");
                     }
                     _currentIndex = 0;
                     break;
@@ -1875,12 +1868,12 @@ namespace AccessibleArena.Core.Services
                 bool isLoginPanel = _foregroundPanel != null && _foregroundPanel.name.StartsWith("Panel -");
                 if (!isLoginPanel)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
-                    TriggerRescan(force: true);
+                    LogDebug($"[{NavigatorId}] Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
+                    TriggerRescan();
                 }
                 else
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Toggle activated on Login panel - skipping rescan");
+                    LogDebug($"[{NavigatorId}] Toggle activated on Login panel - skipping rescan");
                 }
                 return true;
             }
@@ -1889,8 +1882,8 @@ namespace AccessibleArena.Core.Services
             // The UI might change (e.g., Send button appearing) when entering an input field
             if (isInputField)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Input field activated - scheduling rescan");
-                TriggerRescan(force: true);
+                LogDebug($"[{NavigatorId}] Input field activated - scheduling rescan");
+                TriggerRescan();
                 return true;
             }
 
@@ -1898,7 +1891,7 @@ namespace AccessibleArena.Core.Services
             // When focus goes to dropdown items, we automatically enter dropdown mode
             if (isDropdown)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Dropdown activated ({element.name})");
+                LogDebug($"[{NavigatorId}] Dropdown activated ({element.name})");
                 return true;
             }
 
@@ -1907,7 +1900,7 @@ namespace AccessibleArena.Core.Services
             // No cooldown needed - alpha state comparison will detect when popup closes
             if (isPopupButton)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup button activated ({element.name})");
+                LogDebug($"[{NavigatorId}] Popup button activated ({element.name})");
                 // Unified detector will detect popup close via alpha change
                 return true;
             }
@@ -1916,8 +1909,8 @@ namespace AccessibleArena.Core.Services
             // trigger a rescan to pick up the new content panel
             if (isInSettingsMenu && IsSettingsSubmenuButton(element))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Settings submenu button activated ({element.name}) - scheduling rescan");
-                TriggerRescan(force: true);
+                LogDebug($"[{NavigatorId}] Settings submenu button activated ({element.name}) - scheduling rescan");
+                TriggerRescan();
                 return true;
             }
 
@@ -1956,7 +1949,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void AutoExpandBlade()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Attempting blade auto-expand");
+            LogDebug($"[{NavigatorId}] Attempting blade auto-expand");
 
             // Find the blade expand button (Btn_BladeIsClosed or its arrow child)
             var bladeButton = GetActiveCustomButtons()
@@ -1964,7 +1957,7 @@ namespace AccessibleArena.Core.Services
 
             if (bladeButton != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Auto-expanding blade via {bladeButton.name}");
+                LogDebug($"[{NavigatorId}] Auto-expanding blade via {bladeButton.name}");
                 _announcer.Announce(Models.Strings.OpeningColorChallenges, Models.AnnouncementPriority.High);
                 UIActivator.Activate(bladeButton);
 
@@ -1973,7 +1966,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                MelonLogger.Msg($"[{NavigatorId}] Could not find blade expand button");
+                LogDebug($"[{NavigatorId}] Could not find blade expand button");
             }
         }
 
