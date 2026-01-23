@@ -27,7 +27,6 @@ namespace AccessibleArena
         private HelpNavigator _helpNavigator;
         private PanelAnimationDiagnostic _panelDiagnostic;
         private PanelStateManager _panelStateManager;
-        private PanelDetectorManager _panelDetectorManager;
 
         private bool _initialized;
 
@@ -84,11 +83,9 @@ namespace AccessibleArena
             _panelDiagnostic = new PanelAnimationDiagnostic();
 
             // Initialize panel state manager (single source of truth for panel state)
+            // PanelStateManager now owns all detectors directly (simplified from plugin system)
             _panelStateManager = new PanelStateManager();
-
-            // Initialize panel detector manager (coordinates all panel detectors)
-            _panelDetectorManager = new PanelDetectorManager();
-            _panelDetectorManager.Initialize(_panelStateManager);
+            _panelStateManager.Initialize();
 
             // Initialize navigator manager with all screen navigators
             // LoginPanelNavigator removed - GeneralMenuNavigator now handles Login scene with password masking
@@ -221,8 +218,8 @@ namespace AccessibleArena
             // Clear card detection cache on scene change
             CardDetector.ClearCache();
 
-            // Reset panel detectors on scene change
-            _panelDetectorManager?.Reset();
+            // Reset panel state and detectors on scene change
+            _panelStateManager?.Reset();
 
             // Notify navigator manager of scene change
             _navigatorManager?.OnSceneChanged(sceneName);
@@ -322,8 +319,8 @@ namespace AccessibleArena
             // Always track focus changes for card navigation
             _focusTracker?.Update();
 
-            // Update panel detectors (Phase 3: detectors report to PanelStateManager)
-            _panelDetectorManager?.Update();
+            // Update panel state manager (handles all detector updates)
+            _panelStateManager?.Update();
 
             // NavigatorManager handles all screen navigators
             _navigatorManager?.Update();

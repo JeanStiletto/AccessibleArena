@@ -41,6 +41,59 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Foreground Layer System
+
+        /// <summary>
+        /// The layers that can be "in front", in priority order.
+        /// Higher priority layers block lower ones.
+        /// Used for both element filtering AND backspace navigation.
+        /// </summary>
+        private enum ForegroundLayer
+        {
+            None,           // No specific layer active
+            Home,           // Home screen (base state)
+            ContentPanel,   // A content page like Collection, Store
+            NPE,            // New Player Experience overlay
+            PlayBlade,      // Play blade expanded
+            Social,         // Friends panel
+            Popup,          // Modal popup/dialog
+            Settings        // Settings menu (highest priority)
+        }
+
+        /// <summary>
+        /// Single source of truth: what's currently in foreground?
+        /// Both element filtering (ShouldShowElement) and backspace navigation (HandleBackNavigation)
+        /// derive their behavior from this method.
+        /// </summary>
+        private ForegroundLayer GetCurrentForeground()
+        {
+            // Priority order - first match wins
+            if (CheckSettingsMenuOpen())
+                return ForegroundLayer.Settings;
+
+            if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel))
+                return ForegroundLayer.Popup;
+
+            if (IsSocialPanelOpen())
+                return ForegroundLayer.Social;
+
+            if (PanelStateManager.Instance?.IsPlayBladeActive == true)
+                return ForegroundLayer.PlayBlade;
+
+            if (_screenDetector.IsNPERewardsScreenActive())
+                return ForegroundLayer.NPE;
+
+            if (_activeControllerGameObject != null && _activeContentController != "HomePageContentController")
+                return ForegroundLayer.ContentPanel;
+
+            if (_activeContentController == "HomePageContentController")
+                return ForegroundLayer.Home;
+
+            return ForegroundLayer.None;
+        }
+
+        #endregion
+
         #region Timing Constants
 
         private const float ActivationDelaySeconds = 0.5f;
@@ -106,7 +159,7 @@ namespace AccessibleArena.Core.Services
             if (PanelStateManager.Instance == null || panelObj == null)
                 return;
 
-            var panelType = PanelRegistry.ClassifyPanel(panelName);
+            var panelType = PanelInfo.ClassifyPanel(panelName);
             var panelInfo = new PanelInfo(panelName, panelType, panelObj, detectedBy);
             PanelStateManager.Instance.ReportPanelOpened(panelInfo);
         }
@@ -426,30 +479,34 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle Backspace key - navigates back one level in the menu hierarchy.
-        /// Priority order:
-        /// 1. Settings â†' Handle settings back/close
-        /// 2. PlayBlade open â†' Close it
-        /// 3. Generic back button on screen â†' Click it (includes MainButtonOutline)
-        /// 4. In content panel (not Home) â†' Navigate to Home
+        /// Uses GetCurrentForeground() to determine what to close, keeping it in sync with element filtering.
         /// </summary>
         private bool HandleBackNavigation()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Backspace pressed - handling back navigation");
+            var layer = GetCurrentForeground();
+            MelonLogger.Msg($"[{NavigatorId}] Backspace: current layer = {layer}");
 
-            // 1. If Settings is open, handle Settings navigation
-            if (CheckSettingsMenuOpen())
+            return layer switch
             {
-                return HandleSettingsBack();
-            }
+                ForegroundLayer.Settings => HandleSettingsBack(),
+                ForegroundLayer.Popup => DismissPopup(),
+                ForegroundLayer.Social => CloseSocialPanel(),
+                ForegroundLayer.PlayBlade => ClosePlayBlade(),
+                ForegroundLayer.NPE => HandleNPEBack(),
+                ForegroundLayer.ContentPanel => HandleContentPanelBack(),
+                ForegroundLayer.Home => TryGenericBackButton(), // Try back button, or nothing to do
+                ForegroundLayer.None => TryGenericBackButton(),
+                _ => false
+            };
+        }
 
-            // 2. If PlayBlade is open, close it (Phase 5: use PanelStateManager)
-            if (PanelStateManager.Instance?.IsPlayBladeActive == true)
-            {
-                return ClosePlayBlade();
-            }
-
-            // 3. Try to find a back/close button on screen (before navigating Home)
-            // This handles PlayBlade close/arrow buttons on EventPage submenus
+        /// <summary>
+        /// Handle back navigation in content panels.
+        /// First try generic back button, then navigate to Home.
+        /// </summary>
+        private bool HandleContentPanelBack()
+        {
+            // Try generic back button first (for submenus within content panels)
             var backButton = FindGenericBackButton();
             if (backButton != null)
             {
@@ -460,17 +517,113 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // 4. If in a content panel (not Home), navigate to Home
-            bool isInContentPanel = !string.IsNullOrEmpty(_activeContentController) &&
-                                    _activeContentController != "HomePageContentController";
-            if (isInContentPanel)
+            // No back button, navigate to Home
+            return NavigateToHome();
+        }
+
+        /// <summary>
+        /// Try to find and click a generic back button.
+        /// Returns false if no back button found (nothing to do).
+        /// </summary>
+        private bool TryGenericBackButton()
+        {
+            var backButton = FindGenericBackButton();
+            if (backButton != null)
             {
-                return NavigateToHome();
+                MelonLogger.Msg($"[{NavigatorId}] Found back button: {backButton.name}");
+                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                UIActivator.Activate(backButton);
+                TriggerRescan(force: true);
+                return true;
             }
 
-            // 5. Already at top level, nothing to do
-            MelonLogger.Msg($"[{NavigatorId}] Already at top level, no back action");
+            MelonLogger.Msg($"[{NavigatorId}] At top level, no back action");
             return false;
+        }
+
+        /// <summary>
+        /// Dismiss the current popup/dialog.
+        /// </summary>
+        private bool DismissPopup()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Dismissing popup");
+            if (_foregroundPanel != null)
+            {
+                // Try to find close/dismiss button in the popup
+                var closeButton = FindCloseButtonInPanel(_foregroundPanel);
+                if (closeButton != null)
+                {
+                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(closeButton);
+                    TriggerRescan(force: true);
+                    return true;
+                }
+            }
+
+            // Try generic approach
+            return TryGenericBackButton();
+        }
+
+        /// <summary>
+        /// Close the Social (Friends) panel.
+        /// </summary>
+        private bool CloseSocialPanel()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Closing Social panel");
+            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+            if (socialPanel != null)
+            {
+                var closeButton = FindCloseButtonInPanel(socialPanel);
+                if (closeButton != null)
+                {
+                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(closeButton);
+                    TriggerRescan(force: true);
+                    return true;
+                }
+            }
+
+            return TryGenericBackButton();
+        }
+
+        /// <summary>
+        /// Handle back navigation in NPE (New Player Experience) screens.
+        /// </summary>
+        private bool HandleNPEBack()
+        {
+            MelonLogger.Msg($"[{NavigatorId}] Handling NPE back");
+            // NPE screens often have continue/close buttons
+            return TryGenericBackButton();
+        }
+
+        /// <summary>
+        /// Find a close/dismiss button within a panel.
+        /// </summary>
+        private GameObject FindCloseButtonInPanel(GameObject panel)
+        {
+            foreach (var btn in panel.GetComponentsInChildren<Button>(true))
+            {
+                if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
+                var name = btn.gameObject.name.ToLowerInvariant();
+                if (name.Contains("close") || name.Contains("dismiss") || name.Contains("cancel") || name.Contains("back"))
+                {
+                    return btn.gameObject;
+                }
+            }
+
+            // Also check CustomButtons
+            foreach (var mb in panel.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (!IsCustomButtonType(mb.GetType().Name)) continue;
+                var name = mb.gameObject.name.ToLowerInvariant();
+                if (name.Contains("close") || name.Contains("dismiss") || name.Contains("cancel") || name.Contains("back"))
+                {
+                    return mb.gameObject;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -636,136 +789,55 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Close the PlayBlade by finding and activating the dismiss button.
-        /// Immediately clears blade state and triggers rescan so user can navigate
-        /// Home elements right away, even while the blade animation is still playing.
+        /// Simplified to 3 reliable approaches (was 6).
         /// </summary>
         private bool ClosePlayBlade()
         {
             MelonLogger.Msg($"[{NavigatorId}] Attempting to close PlayBlade");
 
-            // Method 1: Find Btn_BladeIsOpen (Stage 3 - fully expanded)
+            // Primary: Find Btn_BladeIsOpen (Stage 3 - fully expanded blade)
             var bladeIsOpenButton = GameObject.Find("Btn_BladeIsOpen");
             if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Found Btn_BladeIsOpen, activating to close blade (Stage 3 -> Stage 2)");
+                MelonLogger.Msg($"[{NavigatorId}] Found Btn_BladeIsOpen, activating");
                 _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                 UIActivator.Activate(bladeIsOpenButton);
-
-                // Immediately clear blade state and rescan - don't wait for animation
                 ClearBladeStateAndRescan();
                 return true;
             }
 
-            // Method 2: CampaignGraph Stage 2 (all colors visible, Btn_BladeIsClosed exists) -> press Home to return
-            var bladeIsClosed = GameObject.Find("Btn_BladeIsClosed");
-            if (bladeIsClosed != null && bladeIsClosed.activeInHierarchy)
-            {
-                // Check if it's under CampaignGraphPage
-                var parent = bladeIsClosed.transform;
-                bool isCampaignGraph = false;
-                while (parent != null)
-                {
-                    if (parent.name.Contains("CampaignGraphPage"))
-                    {
-                        isCampaignGraph = true;
-                        break;
-                    }
-                    parent = parent.parent;
-                }
-
-                if (isCampaignGraph)
-                {
-                    // Stage 2: Blade is open showing all colors - press Home to close entirely
-                    MelonLogger.Msg($"[{NavigatorId}] CampaignGraph Stage 2 detected, pressing Home to return (Stage 2 -> Stage 1)");
-                    ClearBladeStateAndRescan();
-                    return NavigateToHome();
-                }
-            }
-
-            // Method 3: Find the Blade_DismissButton
+            // Secondary: Find Blade_DismissButton
             var dismissButton = GameObject.Find("Blade_DismissButton");
             if (dismissButton != null && dismissButton.activeInHierarchy)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Found Blade_DismissButton, activating");
                 _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                 UIActivator.Activate(dismissButton);
-
-                // Immediately clear blade state and rescan - don't wait for animation
                 ClearBladeStateAndRescan();
                 return true;
             }
 
-            // Method 4: Search for Btn_BladeIsOpen in PlayBlade hierarchy
-            var playBladeController = GameObject.Find("ContentController - PlayBladeV3_Desktop_16x9(Clone)");
-            if (playBladeController == null)
-                playBladeController = GameObject.Find("ContentController - PlayBlade");
-
-            if (playBladeController != null)
+            // Special: CampaignGraph Stage 2 - press Home to exit
+            var bladeIsClosed = GameObject.Find("Btn_BladeIsClosed");
+            if (bladeIsClosed != null && bladeIsClosed.activeInHierarchy)
             {
-                var bladeIsOpenTransform = playBladeController.transform.Find("Dismiss/Btn_BladeIsOpen");
-                if (bladeIsOpenTransform != null && bladeIsOpenTransform.gameObject.activeInHierarchy)
+                // Check if it's under CampaignGraphPage
+                var parent = bladeIsClosed.transform;
+                while (parent != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Found Btn_BladeIsOpen via path, activating");
-                    _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
-                    UIActivator.Activate(bladeIsOpenTransform.gameObject);
-
-                    // Immediately clear blade state and rescan - don't wait for animation
-                    ClearBladeStateAndRescan();
-                    return true;
-                }
-            }
-
-            // Method 5: Search for dismiss button in PlayBlade hierarchy
-            if (playBladeController != null)
-            {
-                var dismissTransform = playBladeController.transform.Find("SafeArea/Popout/BackButton_CONTAINER/Blade_DismissButton");
-                if (dismissTransform != null && dismissTransform.gameObject.activeInHierarchy)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Found Blade_DismissButton via path, activating");
-                    _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
-                    UIActivator.Activate(dismissTransform.gameObject);
-
-                    // Immediately clear blade state and rescan - don't wait for animation
-                    ClearBladeStateAndRescan();
-                    return true;
-                }
-            }
-
-            // Method 6: Try to find BladeContentView and call Hide
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null) continue;
-
-                string typeName = mb.GetType().Name;
-                if (!typeName.Contains("BladeContentView") && !typeName.Contains("PlayBladeController"))
-                    continue;
-
-                // Try Hide method
-                var hideMethod = mb.GetType().GetMethod("Hide",
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance);
-
-                if (hideMethod != null)
-                {
-                    try
+                    if (parent.name.Contains("CampaignGraphPage"))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Calling {typeName}.Hide()");
-                        _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
-                        hideMethod.Invoke(mb, null);
-
-                        // Immediately clear blade state and rescan - don't wait for animation
+                        MelonLogger.Msg($"[{NavigatorId}] CampaignGraph blade detected, navigating Home");
                         ClearBladeStateAndRescan();
-                        return true;
+                        return NavigateToHome();
                     }
-                    catch (System.Exception ex)
-                    {
-                        MelonLogger.Warning($"[{NavigatorId}] Error calling {typeName}.Hide(): {ex.Message}");
-                    }
+                    parent = parent.parent;
                 }
             }
 
-            MelonLogger.Warning($"[{NavigatorId}] Could not close PlayBlade");
+            // If foreground detection says blade is active but we can't close it,
+            // log warning - may indicate detection/close mismatch
+            MelonLogger.Warning($"[{NavigatorId}] ClosePlayBlade called but no close button found - check foreground detection");
             return false;
         }
 
@@ -998,81 +1070,80 @@ namespace AccessibleArena.Core.Services
             MenuPanelTracker.IsOverlayPanel(panelName);
 
         /// <summary>
-        /// Check if element should be shown based on current panel state.
-        /// Uses the active content controller to determine visibility.
+        /// Check if element should be shown based on current foreground layer.
+        /// Unified with GetCurrentForeground() to ensure filtering and back navigation stay in sync.
         /// </summary>
-        private bool IsInForegroundPanel(GameObject obj)
+        private bool ShouldShowElement(GameObject obj)
         {
-            // Settings overlay takes highest priority - only show Settings elements
-            if (_foregroundPanel != null && CheckSettingsMenuOpen())
-            {
-                return IsChildOf(obj, _foregroundPanel);
-            }
+            var layer = GetCurrentForeground();
 
-            // Popup/dialog overlay - takes priority over Social panel
-            // (e.g., InviteFriendPopup opens on top of Friends panel)
-            if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel))
+            return layer switch
             {
-                return IsChildOf(obj, _foregroundPanel);
-            }
+                ForegroundLayer.Settings => _foregroundPanel != null && IsChildOf(obj, _foregroundPanel),
 
-            // Social panel overlay - only show Social elements when open
-            // Check IsSocialPanelOpen() directly since _foregroundPanel may not be set reliably
-            bool socialOpen = IsSocialPanelOpen();
-            if (socialOpen)
-            {
-                var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
-                if (socialPanel != null)
-                    return IsChildOf(obj, socialPanel);
-            }
+                ForegroundLayer.Popup => _foregroundPanel != null && IsChildOf(obj, _foregroundPanel),
 
-            // NPE (New Player Experience) overlay - show NPE elements when tutorial UI is active
-            // This handles Sparky dialogue, reward chests, etc. that overlay other screens
-            // But NOT when Settings is open - Settings takes priority as a modal overlay
-            if (!CheckSettingsMenuOpen() && _screenDetector.IsNPERewardsScreenActive() && IsInsideNPEOverlay(obj))
-            {
-                return true;
-            }
+                ForegroundLayer.Social => IsChildOfSocialPanel(obj),
 
-            // If no active controller detected, show all elements
+                ForegroundLayer.PlayBlade => IsInsideBlade(obj),
+
+                ForegroundLayer.NPE => IsInsideNPEOverlay(obj),
+
+                ForegroundLayer.ContentPanel => IsChildOfContentPanel(obj),
+
+                ForegroundLayer.Home => IsChildOfHomeOrNavBar(obj),
+
+                ForegroundLayer.None => true, // Show everything
+
+                _ => true
+            };
+        }
+
+        /// <summary>
+        /// Check if element is inside the Social panel.
+        /// </summary>
+        private bool IsChildOfSocialPanel(GameObject obj)
+        {
+            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+            return socialPanel != null && IsChildOf(obj, socialPanel);
+        }
+
+        /// <summary>
+        /// Check if element is inside the current content panel.
+        /// Special handling for CampaignGraph which allows blade elements.
+        /// </summary>
+        private bool IsChildOfContentPanel(GameObject obj)
+        {
             if (_activeControllerGameObject == null)
                 return true;
 
-            // Special case: HomePage with PlayBlade active
-            // Only show blade elements, hide carousel/other HomePage content and NavBar
-            // Phase 5: Use PanelStateManager as source of truth for blade state
-            if (_activeContentController == "HomePageContentController" &&
-                PanelStateManager.Instance?.IsPlayBladeActive == true)
-            {
-                return IsInsideBlade(obj);
-            }
-
-            // HomePage without PlayBlade: show HomePage content + NavBar
-            if (_activeContentController == "HomePageContentController")
-            {
-                if (IsChildOf(obj, _activeControllerGameObject))
-                    return true;
-                if (_navBarGameObject != null && IsChildOf(obj, _navBarGameObject))
-                    return true;
-                return false;
-            }
-
-            // Special case: Color Challenge (CampaignGraphContentController)
+            // Special case: Color Challenge allows blade elements and main buttons
             if (_activeContentController == "CampaignGraphContentController")
             {
-                if (IsChildOf(obj, _activeControllerGameObject))
-                    return true;
-                if (IsInsideBlade(obj))
-                    return true;
-                if (IsMainButton(obj))
-                    return true;
+                if (IsChildOf(obj, _activeControllerGameObject)) return true;
+                if (IsInsideBlade(obj)) return true;
+                if (IsMainButton(obj)) return true;
                 return false;
             }
 
-            // Any other content controller (Decks, Store, Profile, etc.):
-            // Show ONLY that controller's elements, hide NavBar
+            // Normal content panel: only show its elements
             return IsChildOf(obj, _activeControllerGameObject);
         }
+
+        /// <summary>
+        /// Check if element is inside Home page content or NavBar.
+        /// </summary>
+        private bool IsChildOfHomeOrNavBar(GameObject obj)
+        {
+            if (_activeControllerGameObject != null && IsChildOf(obj, _activeControllerGameObject))
+                return true;
+            if (_navBarGameObject != null && IsChildOf(obj, _navBarGameObject))
+                return true;
+            return false;
+        }
+
+        // Keep old method name as alias for compatibility
+        private bool IsInForegroundPanel(GameObject obj) => ShouldShowElement(obj);
 
         /// <summary>
         /// Check if a GameObject is a child of (or the same as) a parent GameObject.

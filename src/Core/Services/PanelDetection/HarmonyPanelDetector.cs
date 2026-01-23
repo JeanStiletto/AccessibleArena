@@ -12,7 +12,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
     ///
     /// Handles: PlayBlade, Settings, Blades, SocialUI, NavContentController
     /// </summary>
-    public class HarmonyPanelDetector : IPanelDetector
+    public class HarmonyPanelDetector
     {
         public string DetectorId => "HarmonyDetector";
 
@@ -52,13 +52,32 @@ namespace AccessibleArena.Core.Services.PanelDetection
             MelonLogger.Msg($"[{DetectorId}] Reset");
         }
 
+        // Patterns handled by Harmony detector (event-driven via property setters)
+        // These panels have patchable setters and/or use animations
+        private static readonly string[] HarmonyPatterns = new[]
+        {
+            "playblade",
+            "settings",
+            "socialui",
+            "friendswidget",
+            "eventblade",
+            "findmatchblade",
+            "deckselectblade",
+            "bladecontentview"
+        };
+
         public bool HandlesPanel(string panelName)
         {
             if (string.IsNullOrEmpty(panelName))
                 return false;
 
-            // Use PanelRegistry as single source of truth for detector assignment
-            return PanelRegistry.GetDetectionMethod(panelName) == PanelDetectionMethod.Harmony;
+            var lower = panelName.ToLowerInvariant();
+            foreach (var pattern in HarmonyPatterns)
+            {
+                if (lower.Contains(pattern))
+                    return true;
+            }
+            return false;
         }
 
         private void OnHarmonyPanelStateChanged(object controller, bool isOpen, string typeName)

@@ -14,7 +14,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
     /// Handles: Login scene panels, PopupBase descendants
     /// Note: NavContentController is handled by HarmonyDetector via FinishOpen/FinishClose patches.
     /// </summary>
-    public class ReflectionPanelDetector : IPanelDetector
+    public class ReflectionPanelDetector
     {
         public string DetectorId => "ReflectionDetector";
 
@@ -89,8 +89,25 @@ namespace AccessibleArena.Core.Services.PanelDetection
             if (string.IsNullOrEmpty(panelName))
                 return false;
 
-            // Use PanelRegistry as single source of truth for detector assignment
-            return PanelRegistry.GetDetectionMethod(panelName) == PanelDetectionMethod.Reflection;
+            // Reflection handles everything NOT handled by Harmony or Alpha
+            // This is the fallback detector for panels with IsOpen properties
+            var lower = panelName.ToLowerInvariant();
+
+            // Harmony patterns (exclude these)
+            if (lower.Contains("playblade") || lower.Contains("settings") ||
+                lower.Contains("socialui") || lower.Contains("friendswidget") ||
+                lower.Contains("eventblade") || lower.Contains("findmatchblade") ||
+                lower.Contains("deckselectblade") || lower.Contains("bladecontentview"))
+                return false;
+
+            // Alpha patterns (exclude these)
+            if (lower.Contains("systemmessageview") || lower.Contains("dialog") ||
+                lower.Contains("modal") || lower.Contains("invitefriend") ||
+                (lower.Contains("popup") && !lower.Contains("popupbase")))
+                return false;
+
+            // Everything else is handled by Reflection
+            return true;
         }
 
         private void CheckForPanelChanges()

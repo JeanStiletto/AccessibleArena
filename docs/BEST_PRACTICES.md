@@ -1113,30 +1113,36 @@ EventBladeContentView:
 The critical insight: Harmony events are 100% reliable (method was definitely called),
 but our reflection-based panel detection during rescan was unreliable. Solution:
 
-1. When Harmony fires (e.g., `SettingsMenu.Open()` postfix), immediately set overlay flags:
+1. When Harmony fires (e.g., `SettingsMenu.Open()` postfix), PanelStateManager tracks the state.
+
+2. During element discovery, `ShouldShowElement()` uses a unified foreground layer system:
    ```csharp
-   _settingsOverlayActive = true;  // Set in OnPanelStateChangedExternal()
+   private bool ShouldShowElement(GameObject obj)
+   {
+       var layer = GetCurrentForeground();  // Single source of truth
+       return layer switch
+       {
+           ForegroundLayer.Settings => IsChildOfSettings(obj),
+           ForegroundLayer.Popup => IsChildOfPopup(obj),
+           ForegroundLayer.Social => IsChildOfSocialPanel(obj),
+           ForegroundLayer.PlayBlade => IsInsideBlade(obj),
+           ForegroundLayer.NPE => IsInsideNPEOverlay(obj),
+           ForegroundLayer.ContentPanel => IsChildOfContentPanel(obj),
+           _ => true  // Home, None - show all
+       };
+   }
    ```
 
-2. During element discovery, `IsInForegroundPanel()` checks these flags:
-   ```csharp
-   bool overlayActive = _foregroundPanel != null || _settingsOverlayActive || _deckSelectOverlayActive || _playBladeActive;
-   if (!overlayActive) return true;  // No overlay, show all elements
-   return !IsInBackgroundPanel(obj); // Filter out NavBar, HomePage elements
-   ```
+3. Backspace navigation uses the same `GetCurrentForeground()` to determine what to close.
 
-3. This ensures background elements are filtered even before the content panel is detected.
+**Unified Foreground/Backspace System (January 2026):**
 
-**PlayBlade Filtering Logic:**
+The `ForegroundLayer` enum defines all overlay states in priority order:
+- Settings (highest) > Popup > Social > PlayBlade > NPE > ContentPanel > Home
 
-When `_playBladeActive` is true, `IsInBackgroundPanel()` uses special logic:
-- Elements inside "Blade", "PlayBlade", "FindMatch", "EventBlade", "CampaignGraph" hierarchies are NOT filtered
-- Elements inside "HomePage", "HomeContent" but NOT inside a Blade ARE filtered
-- This shows only the blade's deck selection elements, hiding the HomePage buttons behind it
-
-**CampaignGraph (Color Challenge) - Added January 2026:**
-- `CampaignGraph` added to non-background list for Color Challenge panel support
-- NOTE: This is potentially overspecific - may need generalization later
+Both element filtering AND backspace navigation derive from `GetCurrentForeground()`:
+- Adding a new screen type: add to enum + GetCurrentForeground() + both switch statements
+- Filtering and navigation can never get out of sync
 
 **Discovered Controller Types (via DiscoverPanelTypes()):**
 - `NavContentController` - Base class, lifecycle methods patched
@@ -1390,7 +1396,7 @@ May extract unintended sibling text in some cases.
 
 **Key Implementation Details:**
 
-1. **Content Controller Filtering** (`IsInForegroundPanel`):
+1. **Content Controller Filtering** (`ShouldShowElement` + `IsChildOfContentPanel`):
    - Special case for `CampaignGraphContentController` to include:
      - Elements inside the controller
      - Elements inside the PlayBlade

@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Exclude archived code from compilation -->
+  <ItemGroup>
+    <Compile Remove="**/old/**/*.cs" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>AccessibleArena</AssemblyName>

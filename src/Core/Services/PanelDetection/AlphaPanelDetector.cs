@@ -13,7 +13,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
     ///
     /// Handles: SystemMessageView, Dialog, Modal, Popups (alpha-based visibility)
     /// </summary>
-    public class AlphaPanelDetector : IPanelDetector
+    public class AlphaPanelDetector
     {
         public string DetectorId => "AlphaDetector";
 
@@ -85,13 +85,33 @@ namespace AccessibleArena.Core.Services.PanelDetection
             MelonLogger.Msg($"[{DetectorId}] Reset");
         }
 
+        // Patterns handled by Alpha detector (CanvasGroup alpha polling)
+        // These panels fade in/out and don't have IsOpen properties
+        private static readonly string[] AlphaPatterns = new[]
+        {
+            "systemmessageview",
+            "dialog",
+            "modal",
+            "invitefriend"
+        };
+
         public bool HandlesPanel(string panelName)
         {
             if (string.IsNullOrEmpty(panelName))
                 return false;
 
-            // Use PanelRegistry as single source of truth for detector assignment
-            return PanelRegistry.GetDetectionMethod(panelName) == PanelDetectionMethod.Alpha;
+            var lower = panelName.ToLowerInvariant();
+
+            // Special case: popup but NOT popupbase
+            if (lower.Contains("popup") && !lower.Contains("popupbase"))
+                return true;
+
+            foreach (var pattern in AlphaPatterns)
+            {
+                if (lower.Contains(pattern))
+                    return true;
+            }
+            return false;
         }
 
         private void RefreshPanelCache()
@@ -190,11 +210,8 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
         private bool IsTrackedPanel(string name)
         {
-            if (string.IsNullOrEmpty(name))
-                return false;
-
-            // Use PanelRegistry as single source of truth
-            return PanelRegistry.GetDetectionMethod(name) == PanelDetectionMethod.Alpha;
+            // Reuse HandlesPanel logic
+            return HandlesPanel(name);
         }
 
         private bool HasInteractiveChild(GameObject go)

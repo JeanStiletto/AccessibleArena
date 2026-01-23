@@ -20,41 +20,42 @@ Added to filter wrapper objects like `NPE-Rewards_Container` that have CustomBut
 
 ## Active Bugs
 
-### Panel Detection System (Jan 2026) - REFACTORED
+### Panel Detection System (Jan 2026) - SIMPLIFIED
 
-**Current Architecture: Centralized Plugin System (Working)**
+**Current Architecture: Direct Detector Ownership (Simplified Jan 2026)**
 
-Panel detection was refactored into a clean plugin architecture with PanelStateManager as single source of truth:
+Panel detection was simplified by removing the plugin architecture:
 
-1. **PanelDetectorManager** - Coordinates all detectors, called from main mod Update()
+1. **PanelStateManager** - Owns all 3 detectors directly, called from main mod Update()
+   - No more IPanelDetector interface or PanelDetectorManager
+   - Detectors initialized in constructor, Update() called directly
 
 2. **HarmonyPanelDetector** - Event-driven via Harmony patches
-   - Handles: PlayBlade, Settings, Blades, SocialUI, NavContentController
+   - Self-contained patterns: playblade, settings, socialui, blades
    - CRITICAL for PlayBlade (uses SLIDE animation, alpha stays 1.0)
-   - Reports to PanelStateManager
 
 3. **ReflectionPanelDetector** - Polls IsOpen properties
-   - Handles: Login panels, PopupBase
-   - Reports to PanelStateManager
+   - Self-contained patterns: Login panels, PopupBase
+   - Fallback for panels not handled by Harmony or Alpha
 
 4. **AlphaPanelDetector** - Watches CanvasGroup alpha
-   - Handles: SystemMessageView, Dialog, Modal, Popups
-   - Reports to PanelStateManager
+   - Self-contained patterns: SystemMessageView, Dialog, Modal, Popups
 
-**Key Design:**
+**Key Design (Simplified):**
 
-- Each panel type is detected by exactly ONE detector (per PanelRegistry)
-- All detectors report to PanelStateManager (single source of truth)
-- GeneralMenuNavigator subscribes to PanelStateManager events for rescans
-- No more scattered TriggerRescan calls or duplicate detection
+- Each detector has its own inline pattern list (no central PanelRegistry)
+- PanelStateManager owns detectors directly (no plugin abstraction)
+- Panel metadata methods (ClassifyPanel, GetPriority, etc.) moved to PanelInfo class
+- Archived files: IPanelDetector.cs, PanelDetectorManager.cs, PanelRegistry.cs
 
-**Detection by UI Type:**
+**Unified Foreground/Backspace System (Jan 2026):**
 
-- PlayBlade: HarmonyPanelDetector ONLY (slide animation)
-- Settings/Blades: HarmonyPanelDetector
-- SystemMessageView/Dialogs: AlphaPanelDetector
-- Login panels: ReflectionPanelDetector
-- SocialUI: HarmonyPanelDetector (filtered from triggering rescans)
+GeneralMenuNavigator uses a unified `ForegroundLayer` enum for both element filtering AND backspace navigation:
+- `GetCurrentForeground()` - Single source of truth for what's "in front"
+- `ShouldShowElement()` - Element filtering derived from foreground layer
+- `HandleBackNavigation()` - Back navigation derived from foreground layer
+
+This ensures filtering and back navigation can never get out of sync.
 
 ---
 

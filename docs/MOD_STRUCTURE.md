@@ -53,6 +53,15 @@ C:\Users\fabia\arena\
           EventTriggerNavigator.cs - OLD: NPE screens (replaced by GeneralMenuNavigator, Jan 2026)
           DiscardNavigator.cs    - OLD: Discard selection (consolidated into HotHighlightNavigator, Jan 2026)
 
+        PanelDetection/          - Panel state tracking system
+          PanelStateManager.cs   - Single source of truth, owns all detectors directly
+          PanelInfo.cs           - Panel data model + static metadata methods
+          PanelType.cs           - Panel type enum
+          HarmonyPanelDetector.cs   - Event-driven detection (PlayBlade, Settings, Blades)
+          ReflectionPanelDetector.cs - IsOpen property polling (Login, PopupBase)
+          AlphaPanelDetector.cs     - CanvasGroup alpha watching (Dialogs, Popups)
+          old/detector-plugin-system/ - Archived: IPanelDetector, PanelDetectorManager, PanelRegistry
+
         # Navigator Infrastructure
         BaseNavigator.cs         - Abstract base for screen navigators
         NavigatorManager.cs      - Manages navigator lifecycle and priority

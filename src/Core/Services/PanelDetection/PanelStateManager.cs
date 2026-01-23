@@ -39,6 +39,15 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
         #endregion
 
+        #region Detectors
+
+        // Detectors owned directly by PanelStateManager (simplified from plugin system)
+        private HarmonyPanelDetector _harmonyDetector;
+        private ReflectionPanelDetector _reflectionDetector;
+        private AlphaPanelDetector _alphaDetector;
+
+        #endregion
+
         #region State
 
         /// <summary>
@@ -114,7 +123,39 @@ namespace AccessibleArena.Core.Services.PanelDetection
         public PanelStateManager()
         {
             _instance = this;
-            MelonLogger.Msg("[PanelStateManager] Initialized");
+        }
+
+        /// <summary>
+        /// Initialize all panel detectors.
+        /// Call this once after construction.
+        /// </summary>
+        public void Initialize()
+        {
+            // Create and initialize detectors
+            _harmonyDetector = new HarmonyPanelDetector();
+            _harmonyDetector.Initialize(this);
+
+            _reflectionDetector = new ReflectionPanelDetector();
+            _reflectionDetector.Initialize(this);
+
+            _alphaDetector = new AlphaPanelDetector();
+            _alphaDetector.Initialize(this);
+
+            MelonLogger.Msg("[PanelStateManager] Initialized with 3 detectors");
+        }
+
+        /// <summary>
+        /// Update all detectors. Call this every frame.
+        /// </summary>
+        public void Update()
+        {
+            // Update each detector
+            _harmonyDetector?.Update();
+            _reflectionDetector?.Update();
+            _alphaDetector?.Update();
+
+            // Periodically validate panel state
+            ValidatePanels();
         }
 
         #endregion
@@ -136,7 +177,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             }
 
             // Check if this panel should be ignored
-            if (PanelRegistry.ShouldIgnorePanel(panel.Name))
+            if (PanelInfo.ShouldIgnorePanel(panel.Name))
             {
                 MelonLogger.Msg($"[PanelStateManager] Ignoring panel (in ignore list): {panel.Name}");
                 return false;
@@ -348,6 +389,11 @@ namespace AccessibleArena.Core.Services.PanelDetection
         public void Reset()
         {
             MelonLogger.Msg("[PanelStateManager] Reset");
+
+            // Reset all detectors
+            _harmonyDetector?.Reset();
+            _reflectionDetector?.Reset();
+            _alphaDetector?.Reset();
 
             var oldActive = ActivePanel;
             _panelStack.Clear();
