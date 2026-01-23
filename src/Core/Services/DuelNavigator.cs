@@ -159,9 +159,8 @@ namespace AccessibleArena.Core.Services
             // 3. Activate unified highlight navigator for Tab cycling (playable cards AND targets)
             _hotHighlightNavigator.Activate();
 
-            // 4. Activate duel announcer with local player ID
-            // We detect local player by finding LocalHand zone and getting its OwnerId
-            uint localPlayerId = DetectLocalPlayerId();
+            // 4. Activate duel announcer with local player ID from ZoneNavigator
+            uint localPlayerId = _zoneNavigator.GetLocalPlayerId();
             _duelAnnouncer.Activate(localPlayerId);
 
             // 5. Find all Selectables (StyledButton, Button, Toggle, etc.)
@@ -348,11 +347,19 @@ namespace AccessibleArena.Core.Services
             if (_portraitNavigator.HandleInput())
                 return true;
 
-            // T key: Announce current turn and phase info
+            // T key: Announce browser name if active, otherwise turn and phase info
             if (Input.GetKeyDown(KeyCode.T))
             {
-                string turnPhaseInfo = _duelAnnouncer.GetTurnPhaseInfo();
-                _announcer.AnnounceInterrupt(turnPhaseInfo);
+                if (_browserNavigator.IsActive)
+                {
+                    string browserName = BrowserDetector.GetFriendlyBrowserName(_browserNavigator.ActiveBrowserType);
+                    _announcer.AnnounceInterrupt(browserName);
+                }
+                else
+                {
+                    string turnPhaseInfo = _duelAnnouncer.GetTurnPhaseInfo();
+                    _announcer.AnnounceInterrupt(turnPhaseInfo);
+                }
                 return true;
             }
 
@@ -368,37 +375,6 @@ namespace AccessibleArena.Core.Services
         }
 
         #region Helper Methods
-
-        /// <summary>
-        /// Detects the local player ID by finding the LocalHand zone.
-        /// The OwnerId of LocalHand is always the local player.
-        /// </summary>
-        private uint DetectLocalPlayerId()
-        {
-            // Look for LocalHand or LocalLibrary zone holders
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                string name = go.name;
-                if (name.Contains("LocalHand") || name.Contains("LocalLibrary"))
-                {
-                    // Parse OwnerId from zone metadata in name
-                    // Format: "LocalHand_Desktop_16x9 ZoneId: #31 | Type: Hand | OwnerId: #1"
-                    var match = System.Text.RegularExpressions.Regex.Match(name, @"OwnerId:\s*#(\d+)");
-                    if (match.Success && uint.TryParse(match.Groups[1].Value, out uint ownerId))
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] Detected local player ID: #{ownerId}");
-                        return ownerId;
-                    }
-                }
-            }
-
-            // Default to 1 if not found (usually correct)
-            MelonLogger.Warning($"[{NavigatorId}] Could not detect local player ID, defaulting to #1");
-            return 1;
-        }
 
         private bool HasPreGameCancelButton()
         {

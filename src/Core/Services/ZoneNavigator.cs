@@ -107,6 +107,32 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets the local player's ID from the discovered zones.
+        /// Uses the OwnerId from LocalHand or LocalLibrary zone.
+        /// Call this after Activate() to ensure zones are discovered.
+        /// </summary>
+        public uint GetLocalPlayerId()
+        {
+            // Try Hand zone first (most reliable)
+            if (_zones.TryGetValue(ZoneType.Hand, out var handZone) && handZone.OwnerId > 0)
+            {
+                MelonLogger.Msg($"[ZoneNavigator] Local player ID from Hand zone: #{handZone.OwnerId}");
+                return (uint)handZone.OwnerId;
+            }
+
+            // Fallback to Library zone
+            if (_zones.TryGetValue(ZoneType.Library, out var libZone) && libZone.OwnerId > 0)
+            {
+                MelonLogger.Msg($"[ZoneNavigator] Local player ID from Library zone: #{libZone.OwnerId}");
+                return (uint)libZone.OwnerId;
+            }
+
+            // Default to 1 if not found
+            MelonLogger.Warning("[ZoneNavigator] Could not detect local player ID from zones, defaulting to #1");
+            return 1;
+        }
+
+        /// <summary>
         /// Sets the EventSystem focus to a GameObject with logging.
         /// All navigators should use this instead of direct EventSystem.SetSelectedGameObject calls.
         /// </summary>
