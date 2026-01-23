@@ -235,18 +235,6 @@ Card selection uses the `LondonBrowser` API via reflection:
 Card lists retrieved via `GetHandCards()` and `GetLibraryCards()` from LondonBrowser.
 See BEST_PRACTICES.md "Browser Card Interactions" for reusable patterns.
 
-## Active Bugs
-
-### Backspace Navigation Gaps (Jan 2026)
-
-**Profile screen:** Backspace doesn't navigate back from Profile screen.
-
-**Opened pack screen:** Backspace doesn't close the pack opening view.
-
-Both need investigation in HandleBackNavigation/GetCurrentForeground to add proper layer detection.
-
----
-
 ## Technical Debt
 
 ### GeneralMenuNavigator Improvements (Jan 2026)

@@ -480,17 +480,53 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HandleContentPanelBack()
         {
-            var backButton = FindGenericBackButton();
-            if (backButton != null)
+            // First try to find a dismiss button within the current content panel
+            if (_activeControllerGameObject != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Found back button: {backButton.name}");
-                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
-                UIActivator.Activate(backButton);
-                TriggerRescan(force: true);
-                return true;
+                var dismissButton = FindDismissButtonInPanel(_activeControllerGameObject);
+                if (dismissButton != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Found dismiss button in content panel: {dismissButton.name}");
+                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(dismissButton);
+                    TriggerRescan(force: true);
+                    return true;
+                }
             }
 
+            // Content panels (Store, Collection, BoosterChamber, etc.) don't have back buttons.
+            // Navigate to Home instead. Don't use FindGenericBackButton() here as it finds
+            // buttons from unrelated panels (e.g., FullscreenZFBrowserCanvas).
+            MelonLogger.Msg($"[{NavigatorId}] No dismiss button in content panel, navigating to Home");
             return NavigateToHome();
+        }
+
+        /// <summary>
+        /// Find a dismiss/close button within a specific panel.
+        /// Only matches explicit Close/Dismiss/Back buttons, not ModalFade
+        /// (which is ambiguous - sometimes dismiss, sometimes other actions).
+        /// </summary>
+        private GameObject FindDismissButtonInPanel(GameObject panel)
+        {
+            if (panel == null) return null;
+
+            // Look for explicit close/dismiss/back buttons within the panel
+            // Note: ModalFade is NOT included - it's ambiguous (e.g., in BoosterChamber it's "Open x 10")
+            foreach (var mb in panel.GetComponentsInChildren<MonoBehaviour>(false))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name != "CustomButton") continue;
+
+                string name = mb.gameObject.name;
+                if (name.Contains("Close") ||
+                    name.Contains("Dismiss") ||
+                    (name.Contains("Back") && !name.Contains("Background")))
+                {
+                    return mb.gameObject;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

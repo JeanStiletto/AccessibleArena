@@ -476,15 +476,21 @@ namespace AccessibleArena.Core.Services
             // Backspace to go back/close
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                // Try to activate the Close button
+                // Try to activate any dismiss button (Close, Continue, Done)
+                string[] dismissPatterns = { "Close", "Continue", "Done" };
                 foreach (var element in _elements)
                 {
-                    if (element.Label.Contains("Close"))
+                    foreach (var pattern in dismissPatterns)
                     {
-                        UIActivator.Activate(element.GameObject);
-                        return;
+                        if (element.Label.Contains(pattern))
+                        {
+                            UIActivator.Activate(element.GameObject);
+                            return;
+                        }
                     }
                 }
+                // Consume the key even if no dismiss button found
+                return;
             }
         }
 
