@@ -192,6 +192,29 @@ The game's native Space keybinding for passing priority doesn't work reliably af
 
 **Strange behavior observed:** This needs more testing in real duels. The issue appeared suddenly and the root cause is unclear - could be related to game state, UI focus, or internal game keybinding system. The direct button click works reliably but we don't fully understand why the native handler stopped working.
 
+**Tap abilities cannot be activated via keyboard (Jan 2026)**
+
+When a creature with a tap ability (like Ilysian Caryatid, Spectral Sailor) is highlighted, pressing Enter does not activate the tap ability. The creature stays untapped and can still attack.
+
+**What we tried:**
+1. **Single click** (original) - Simple, doesn't activate ability
+2. **Three-click (PlayCardViaTwoClick)** - Broke game state (Step 3 clicked screen center, hand cards became unplayable)
+3. **Two-click only** - Still broke game state, hand cards unplayable after
+4. **Two-click on AbilityAnchor child** - Stable (doesn't break game), but still doesn't tap creature
+
+**Current state:** Using two-click on AbilityAnchor. This is stable and doesn't break the game, but abilities are not activated. Cards can still be played manually with mouse.
+
+**Technical notes:**
+- AbilityAnchor is just a positioning transform for ability UI, not a clickable element
+- The game may expect a specific gesture (drag?) or interaction method we haven't discovered
+- This is NOT game-breaking - workaround is to use mouse for tap abilities
+
+**Targeting mode deactivated (Jan 2026)**
+
+The "targeting mode" concept and its Backspace cancel handler were commented out. No gameplay limitations observed - the game handles targeting cancel via its own undo functionality. This code may be completely unnecessary and could be removed in future cleanup.
+
+**Location:** `src/Core/Services/HotHighlightNavigator.cs` - commented sections around lines 167-180 and 705-710
+
 ### Combat
 
 **Blocker selection after targeting**

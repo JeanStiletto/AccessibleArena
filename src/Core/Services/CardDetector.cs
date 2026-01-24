@@ -268,6 +268,36 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// DIAGNOSTIC: Checks HotHighlight status with detailed logging.
+        /// Returns (hasActive, hasInactive, childName) to understand why detection might fail.
+        /// </summary>
+        public static (bool hasActive, bool hasInactive, string childName) GetHotHighlightDiagnostic(GameObject obj)
+        {
+            bool hasActive = false;
+            bool hasInactive = false;
+            string foundName = null;
+
+            foreach (Transform child in obj.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || child.gameObject == obj) continue;
+
+                if (child.name.Contains("HotHighlight"))
+                {
+                    foundName = child.name;
+                    if (child.gameObject.activeInHierarchy)
+                    {
+                        hasActive = true;
+                    }
+                    else
+                    {
+                        hasInactive = true;
+                    }
+                }
+            }
+            return (hasActive, hasInactive, foundName);
+        }
+
+        /// <summary>
         /// Detects zone from parent hierarchy for diagnostic logging.
         /// </summary>
         private static string DetectZone(GameObject obj)

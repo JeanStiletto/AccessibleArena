@@ -164,19 +164,20 @@ namespace AccessibleArena.Core.Services
                 return false; // Let other handlers deal with Enter
             }
 
-            // Backspace - cancel/dismiss (game handles what this means in context)
-            if (Input.GetKeyDown(KeyCode.Backspace))
-            {
-                if (HasTargetsHighlighted)
-                {
-                    _announcer.Announce(Strings.TargetingCancelled, AnnouncementPriority.Normal);
-                    MelonLogger.Msg("[HotHighlightNavigator] Cancel requested");
-                    // Clear our state - game will update highlights
-                    _items.Clear();
-                    _currentIndex = -1;
-                    return true;
-                }
-            }
+            // COMMENTED OUT: This was consuming Backspace input and potentially blocking
+            // the game's actual undo/cancel functionality. The game handles cancel itself.
+            // if (Input.GetKeyDown(KeyCode.Backspace))
+            // {
+            //     if (HasTargetsHighlighted)
+            //     {
+            //         _announcer.Announce(Strings.TargetingCancelled, AnnouncementPriority.Normal);
+            //         MelonLogger.Msg("[HotHighlightNavigator] Cancel requested");
+            //         // Clear our state - game will update highlights
+            //         _items.Clear();
+            //         _currentIndex = -1;
+            //         return true;
+            //     }
+            // }
 
             // Space - click primary button when no highlights are available
             // The game's native Space handler doesn't work reliably when our mod has navigated
@@ -211,9 +212,45 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg("[HotHighlightNavigator] Discovering highlights...");
 
+            // DIAGNOSTIC: Count hand cards and their HotHighlight status
+            int handCardsTotal = 0;
+            int handCardsWithHighlight = 0;
+            int battlefieldCardsWithHighlight = 0;
+
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy) continue;
+
+                // DIAGNOSTIC: Check if this is a hand card
+                bool isInHand = false;
+                Transform current = go.transform;
+                while (current != null)
+                {
+                    if (current.name.Contains("LocalHand"))
+                    {
+                        isInHand = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+
+                // Count all hand cards for diagnostic
+                if (isInHand && CardDetector.IsCard(go))
+                {
+                    handCardsTotal++;
+                    // Check HotHighlight status specifically for hand cards - including inactive ones
+                    var (hasActive, hasInactive, highlightName) = CardDetector.GetHotHighlightDiagnostic(go);
+                    if (hasActive)
+                    {
+                        handCardsWithHighlight++;
+                        MelonLogger.Msg($"[HotHighlightNavigator] DIAG: Hand card WITH ACTIVE highlight: {go.name}, type={highlightName}");
+                    }
+                    else if (hasInactive)
+                    {
+                        // This is the key diagnostic - HotHighlight exists but is INACTIVE
+                        MelonLogger.Warning($"[HotHighlightNavigator] DIAG: Hand card has INACTIVE highlight: {go.name}, type={highlightName}");
+                    }
+                }
 
                 // Check for HotHighlight
                 string highlightType = CardDetector.GetHotHighlightType(go);
@@ -221,6 +258,20 @@ namespace AccessibleArena.Core.Services
 
                 // Only process actual cards (skip parent containers that also have the highlight)
                 if (!CardDetector.IsCard(go)) continue;
+
+                // DIAGNOSTIC: Track battlefield cards
+                bool isOnBattlefield = false;
+                current = go.transform;
+                while (current != null)
+                {
+                    if (current.name.Contains("BattlefieldCardHolder"))
+                    {
+                        isOnBattlefield = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+                if (isOnBattlefield) battlefieldCardsWithHighlight++;
 
                 // Avoid duplicates
                 int id = go.GetInstanceID();
@@ -233,6 +284,9 @@ namespace AccessibleArena.Core.Services
                     addedIds.Add(id);
                 }
             }
+
+            // DIAGNOSTIC: Log summary
+            MelonLogger.Msg($"[HotHighlightNavigator] DIAG: Hand cards total={handCardsTotal}, withHighlight={handCardsWithHighlight}, battlefield withHighlight={battlefieldCardsWithHighlight}");
 
             // Also check for player targets
             DiscoverPlayerTargets(addedIds);
@@ -500,19 +554,28 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                // Battlefield/Stack/Player target - single click to select
-                var result = UIActivator.SimulatePointerClick(item.GameObject);
-
-                if (result.Success)
+                // Battlefield/Stack/Player - handle activation
+                if (item.IsPlayer)
                 {
-                    string action = item.IsPlayer ? "Targeted" : "Selected";
-                    _announcer.Announce($"{action} {item.Name}", AnnouncementPriority.Normal);
-                    MelonLogger.Msg($"[HotHighlightNavigator] {action} {item.Name}");
+                    // Player targets use single click
+                    var result = UIActivator.SimulatePointerClick(item.GameObject);
+                    if (result.Success)
+                    {
+                        _announcer.Announce($"Targeted {item.Name}", AnnouncementPriority.Normal);
+                        MelonLogger.Msg($"[HotHighlightNavigator] Targeted {item.Name}");
+                    }
+                    else
+                    {
+                        _announcer.Announce(Strings.CouldNotTarget(item.Name), AnnouncementPriority.High);
+                        MelonLogger.Warning($"[HotHighlightNavigator] Click failed: {result.Message}");
+                    }
                 }
                 else
                 {
-                    _announcer.Announce(Strings.CouldNotTarget(item.Name), AnnouncementPriority.High);
-                    MelonLogger.Warning($"[HotHighlightNavigator] Click failed: {result.Message}");
+                    // Battlefield/Stack cards - use two clicks only (no screen center click)
+                    // This activates abilities without the "confirm play" step that breaks game state
+                    MelonLogger.Msg($"[HotHighlightNavigator] Trying two-click on battlefield card: {item.Name}");
+                    MelonCoroutines.Start(ActivateBattlefieldCardTwoClick(item));
                 }
             }
 
@@ -639,9 +702,12 @@ namespace AccessibleArena.Core.Services
             if (buttonInfo == null)
                 return false;
 
-            // If there are valid targets on battlefield/stack, it's targeting mode, not selection
-            if (CardDetector.HasValidTargetsOnBattlefield())
-                return false;
+            // COMMENTED OUT: "Targeting mode" concept removed - we just check for Submit button with number
+            // The distinction between targeting and selection wasn't useful since:
+            // - Game handles targeting cancel via its own undo
+            // - Battlefield HotHighlight can be activated abilities, not just spell targets
+            // if (CardDetector.HasValidTargetsOnBattlefield())
+            //     return false;
 
             return true;
         }
@@ -688,6 +754,134 @@ namespace AccessibleArena.Core.Services
             {
                 _announcer.Announce(Strings.CardsSelected(info.Value.count), AnnouncementPriority.Normal);
             }
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC: Checks what UI elements appear after clicking a battlefield card.
+        /// Looking for ability bars, popups, or other selection UI.
+        /// </summary>
+        private IEnumerator DiagnoseAfterBattlefieldClick(string cardName)
+        {
+            yield return new WaitForSeconds(0.3f);
+
+            MelonLogger.Msg($"[HotHighlightNavigator] DIAG: Checking UI after clicking {cardName}...");
+
+            // Check EventSystem current selection
+            var currentSelected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
+            if (currentSelected != null)
+            {
+                MelonLogger.Msg($"[HotHighlightNavigator] DIAG: EventSystem selected: {currentSelected.name}");
+                // Log parent hierarchy
+                var parent = currentSelected.transform.parent;
+                if (parent != null)
+                {
+                    MelonLogger.Msg($"[HotHighlightNavigator] DIAG:   Parent: {parent.name}");
+                    if (parent.parent != null)
+                        MelonLogger.Msg($"[HotHighlightNavigator] DIAG:   Grandparent: {parent.parent.name}");
+                }
+            }
+
+            // Look for ability-related UI elements
+            var allObjects = GameObject.FindObjectsOfType<GameObject>();
+            foreach (var go in allObjects)
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+
+                string name = go.name.ToLower();
+                // Look for ability bars, action bars, or similar UI
+                if (name.Contains("ability") || name.Contains("action") || name.Contains("activat") ||
+                    name.Contains("modal") || name.Contains("popup") || name.Contains("prompt"))
+                {
+                    MelonLogger.Msg($"[HotHighlightNavigator] DIAG: Found potential ability UI: {go.name}");
+
+                    // Check for buttons inside
+                    var buttons = go.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+                    foreach (var btn in buttons)
+                    {
+                        if (btn.gameObject.activeInHierarchy)
+                        {
+                            string btnText = UITextExtractor.GetButtonText(btn.gameObject);
+                            MelonLogger.Msg($"[HotHighlightNavigator] DIAG:   Button: {btn.name} - '{btnText}'");
+                        }
+                    }
+
+                    // Check for Selectables
+                    var selectables = go.GetComponentsInChildren<UnityEngine.UI.Selectable>(true);
+                    foreach (var sel in selectables)
+                    {
+                        if (sel.gameObject.activeInHierarchy && sel.interactable)
+                        {
+                            string selText = UITextExtractor.GetText(sel.gameObject);
+                            MelonLogger.Msg($"[HotHighlightNavigator] DIAG:   Selectable: {sel.name} - '{selText}'");
+                        }
+                    }
+                }
+            }
+
+            // Check for any new HotHighlights that appeared
+            int highlightCount = 0;
+            foreach (var go in allObjects)
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (CardDetector.HasHotHighlight(go))
+                {
+                    highlightCount++;
+                    string goName = CardDetector.GetCardName(go) ?? go.name;
+                    MelonLogger.Msg($"[HotHighlightNavigator] DIAG: HotHighlight present on: {goName}");
+                }
+            }
+            MelonLogger.Msg($"[HotHighlightNavigator] DIAG: Total objects with HotHighlight: {highlightCount}");
+        }
+
+        /// <summary>
+        /// Activates a battlefield card with two clicks only (no screen center click).
+        /// This is for activated abilities where the third "confirm play" click breaks game state.
+        /// </summary>
+        private IEnumerator ActivateBattlefieldCardTwoClick(HighlightedItem item)
+        {
+            // DIAGNOSTIC: Look for AbilityAnchor or other ability-specific children
+            MelonLogger.Msg($"[HotHighlightNavigator] Examining children of {item.Name} for ability elements:");
+            GameObject abilityAnchor = null;
+            foreach (Transform child in item.GameObject.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.gameObject == item.GameObject) continue;
+                string childName = child.name.ToLower();
+                if (childName.Contains("ability") || childName.Contains("action") || childName.Contains("tap"))
+                {
+                    MelonLogger.Msg($"[HotHighlightNavigator]   Found: {child.name} (active={child.gameObject.activeInHierarchy})");
+                    if (child.name.Contains("AbilityAnchor") && child.gameObject.activeInHierarchy)
+                    {
+                        abilityAnchor = child.gameObject;
+                    }
+                }
+            }
+
+            // Try clicking on AbilityAnchor if found, otherwise the card itself
+            GameObject targetObject = abilityAnchor ?? item.GameObject;
+            string targetName = abilityAnchor != null ? $"AbilityAnchor of {item.Name}" : item.Name;
+
+            MelonLogger.Msg($"[HotHighlightNavigator] Step 1: First click on {targetName}");
+            UIActivator.SimulatePointerClick(targetObject);
+
+            yield return new WaitForSeconds(0.1f);
+
+            MelonLogger.Msg($"[HotHighlightNavigator] Step 2: Second click on {targetName}");
+            var result = UIActivator.SimulatePointerClick(targetObject);
+
+            if (result.Success)
+            {
+                _announcer.Announce($"Activated {item.Name}", AnnouncementPriority.Normal);
+                MelonLogger.Msg($"[HotHighlightNavigator] Activated {item.Name}");
+            }
+            else
+            {
+                _announcer.Announce($"Selected {item.Name}", AnnouncementPriority.Normal);
+                MelonLogger.Msg($"[HotHighlightNavigator] Two-click result: {result.Message}");
+            }
+
+            // DIAGNOSTIC: Check for ability UI after clicking
+            yield return new WaitForSeconds(0.2f);
+            MelonCoroutines.Start(DiagnoseAfterBattlefieldClick(item.Name));
         }
 
         #endregion
