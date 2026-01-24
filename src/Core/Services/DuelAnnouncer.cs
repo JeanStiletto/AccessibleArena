@@ -1340,9 +1340,10 @@ namespace AccessibleArena.Core.Services
             string owner = isOpponent ? "Opponent" : "You";
 
             // Token creation (from None zone with CardCreated reason)
+            // Note: Game doesn't provide ownership info for tokens, so we don't announce who created it
             if ((fromZone == "None" || string.IsNullOrEmpty(fromZone)) && reason == "CardCreated")
             {
-                return $"{owner} created {cardName} token";
+                return $"{cardName} token created";
             }
 
             // Land played (from Hand, not from Stack)
