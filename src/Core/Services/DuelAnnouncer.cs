@@ -812,6 +812,7 @@ namespace AccessibleArena.Core.Services
                 // Track current phase/step for combat navigation
                 _currentPhase = phase;
                 _currentStep = step;
+                MelonLogger.Msg($"[DuelAnnouncer] Phase change: {phase}/{step}");
 
                 string phaseAnnouncement = null;
                 if (phase == "Main1") phaseAnnouncement = "First main phase";

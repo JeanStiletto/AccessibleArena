@@ -477,16 +477,21 @@ namespace AccessibleArena.Core.Services
                 return $"{name}, player, {position} of {total}";
             }
 
-            // Hand card - simple format
+            // Hand card - include selection state if in selection mode
             if (item.Zone == "Hand")
             {
-                return $"{item.Name}, in hand, {position} of {total}";
+                bool selectionMode = IsSelectionModeActive();
+                if (selectionMode && IsCardSelected(item.GameObject))
+                {
+                    return $"{item.Name}, {Strings.Selected}, {Strings.InHand}, {position} of {total}";
+                }
+                return $"{item.Name}, {Strings.InHand}, {position} of {total}";
             }
 
             // Stack card
             if (item.Zone == "Stack")
             {
-                return $"{item.Name}, on stack, {position} of {total}";
+                return $"{item.Name}, {Strings.OnStack}, {position} of {total}";
             }
 
             // Battlefield target - rich format with P/T and owner
@@ -523,12 +528,15 @@ namespace AccessibleArena.Core.Services
                 if (selectionMode)
                 {
                     // Selection mode (discard, etc.) - single click to toggle selection
-                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name}");
+                    // Check current state before clicking
+                    bool wasSelected = IsCardSelected(item.GameObject);
+                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name} (was selected: {wasSelected})");
+
                     var result = UIActivator.SimulatePointerClick(item.GameObject);
                     if (result.Success)
                     {
-                        // Announce selection count after game updates
-                        MelonCoroutines.Start(AnnounceSelectionCountDelayed());
+                        // Announce toggle result after game updates
+                        MelonCoroutines.Start(AnnounceSelectionToggleDelayed(item.Name, wasSelected));
                     }
                     else
                     {
@@ -734,17 +742,53 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// After toggling a card selection, announces the current count.
+        /// After toggling a card selection, announces the toggle result and current count.
         /// </summary>
-        private IEnumerator AnnounceSelectionCountDelayed()
+        /// <param name="cardName">Name of the card that was toggled</param>
+        /// <param name="wasSelected">Whether the card was selected before the click</param>
+        private IEnumerator AnnounceSelectionToggleDelayed(string cardName, bool wasSelected)
         {
             yield return new WaitForSeconds(0.2f);
+
+            // Announce toggle action (opposite of what it was)
+            string action = wasSelected ? Strings.Deselected : Strings.Selected;
+            string toggleAnnouncement = $"{cardName} {action}";
 
             var info = GetSubmitButtonInfo();
             if (info != null)
             {
-                _announcer.Announce(Strings.CardsSelected(info.Value.count), AnnouncementPriority.Normal);
+                // Announce both the toggle and the count
+                _announcer.Announce($"{toggleAnnouncement}, {Strings.CardsSelected(info.Value.count)}", AnnouncementPriority.Normal);
             }
+            else
+            {
+                _announcer.Announce(toggleAnnouncement, AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Checks if a card is currently selected (for discard, exile, etc.).
+        /// The game adds visual indicator children to selected cards with names containing
+        /// "select", "chosen", or "pick".
+        /// </summary>
+        private bool IsCardSelected(GameObject card)
+        {
+            if (card == null) return false;
+
+            foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
+            {
+                if (!child.gameObject.activeInHierarchy)
+                    continue;
+
+                string childName = child.name.ToLower();
+                if (childName.Contains("select") || childName.Contains("chosen") || childName.Contains("pick"))
+                {
+                    MelonLogger.Msg($"[HotHighlightNavigator] Found selection indicator: {child.name} on {card.name}");
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         #endregion

@@ -336,6 +336,9 @@ namespace AccessibleArena.Core.Models
         public const string NoButtonsAvailable = "No buttons available";
         public const string CouldNotTogglePosition = "Could not toggle position";
         public const string Selected = "selected";
+        public const string Deselected = "deselected";
+        public const string InHand = "in hand";
+        public const string OnStack = "on stack";
         public const string Confirmed = "Confirmed";
         public const string Cancelled = "Cancelled";
         public const string NoConfirmButton = "No confirm button found";

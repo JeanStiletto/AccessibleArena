@@ -492,9 +492,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Activates (clicks) the current card.
         /// Allows activation if:
-        /// - Card has HotHighlight (activatable ability or valid target), OR
-        /// - Card is a land (can be tapped for mana without HotHighlight)
-        /// Non-land cards without HotHighlight are blocked to prevent confusing game states.
+        /// Sends a click to the game - the game decides what happens.
         /// </summary>
         private void ActivateCurrentCard()
         {
@@ -507,26 +505,9 @@ namespace AccessibleArena.Core.Services
             }
 
             string cardName = CardDetector.GetCardName(card);
-            bool hasHighlight = CardDetector.HasHotHighlight(card);
-            bool isLand = CardDetector.IsLandCard(card);
+            MelonLogger.Msg($"[BattlefieldNavigator] Clicking card: {cardName}");
 
-            // Allow activation if card has HotHighlight OR is a land (tappable for mana)
-            if (!hasHighlight && !isLand)
-            {
-                _announcer.Announce(Strings.NoAbilityAvailable(cardName), AnnouncementPriority.High);
-                MelonLogger.Msg($"[BattlefieldNavigator] Card has no HotHighlight and is not a land, skipping activation: {cardName}");
-                return;
-            }
-
-            MelonLogger.Msg($"[BattlefieldNavigator] Activating card: {cardName} (highlight={hasHighlight}, land={isLand})");
-
-            var result = UIActivator.SimulatePointerClick(card);
-
-            if (!result.Success)
-            {
-                _announcer.Announce(Strings.CannotActivate(cardName), AnnouncementPriority.High);
-                MelonLogger.Msg($"[BattlefieldNavigator] Card activation failed: {result.Message}");
-            }
+            UIActivator.SimulatePointerClick(card);
         }
 
         /// <summary>
