@@ -184,9 +184,8 @@ namespace AccessibleArena.Core.Services
 
             // Sort cards by position (top to bottom, left to right)
             cardEntries = cardEntries.OrderBy(x => x.sortOrder).ToList();
-            _totalCards = cardEntries.Count;
 
-            MelonLogger.Msg($"[{NavigatorId}] Found {_totalCards} cards");
+            MelonLogger.Msg($"[{NavigatorId}] Found {cardEntries.Count} entries (cards + vault progress)");
 
             // Add cards to navigation
             int cardNum = 1;
@@ -205,24 +204,43 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Card {cardNum} extraction failed: {cardObj.name} - press F11 while focused for details");
                 }
 
-                string label = $"Card {cardNum}: {displayName}";
-                if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
+                // Check if this is vault progress (not a real card)
+                bool isVaultProgress = displayName.StartsWith("Vault Progress");
+
+                string label;
+                if (isVaultProgress)
                 {
-                    label += $", {cardInfo.TypeLine}";
+                    // Vault progress doesn't need "Card X:" prefix or type line
+                    label = displayName;
+                }
+                else
+                {
+                    label = $"Card {cardNum}: {displayName}";
+                    if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
+                    {
+                        label += $", {cardInfo.TypeLine}";
+                    }
+                    cardNum++;
                 }
 
                 AddElement(cardObj, label);
-                cardNum++;
             }
+
+            // Set total cards count (excluding vault progress)
+            _totalCards = cardNum - 1;
+            MelonLogger.Msg($"[{NavigatorId}] Total: {_totalCards} cards");
         }
 
         private string ExtractCardName(GameObject cardObj)
         {
             // Try to find the Title text element directly
+            string title = null;
+            string progressQuantity = null;
+
             var texts = cardObj.GetComponentsInChildren<TMPro.TMP_Text>(true);
             foreach (var text in texts)
             {
-                if (text == null) continue;
+                if (text == null || !text.gameObject.activeInHierarchy) continue;
 
                 string objName = text.gameObject.name;
 
@@ -235,9 +253,29 @@ namespace AccessibleArena.Core.Services
                         // Clean up any markup
                         content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
                         if (!string.IsNullOrEmpty(content))
-                            return content;
+                            title = content;
                     }
                 }
+
+                // Check for vault/duplicate progress indicator (e.g., "+99")
+                // This appears when you get a 5th+ copy of a common/uncommon
+                if (objName.Contains("Progress") && objName.Contains("Quantity"))
+                {
+                    string content = text.text?.Trim();
+                    if (!string.IsNullOrEmpty(content))
+                        progressQuantity = content;
+                }
+            }
+
+            // If we have a title, return it
+            if (!string.IsNullOrEmpty(title))
+                return title;
+
+            // If no title but we have progress quantity, this is vault progress (duplicate protection)
+            if (!string.IsNullOrEmpty(progressQuantity))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Detected vault progress: {progressQuantity}");
+                return $"Vault Progress {progressQuantity}";
             }
 
             return null;
