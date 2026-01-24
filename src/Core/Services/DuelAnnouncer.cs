@@ -841,7 +841,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Counts creatures currently declared as attackers.
-        /// Looks for cards with active "IsAttacking" child indicator.
+        /// Looks for cards with "IsAttacking" child indicator (existence, not active state).
         /// </summary>
         private int CountAttackingCreatures()
         {
@@ -855,10 +855,12 @@ namespace AccessibleArena.Core.Services
                 if (!go.name.StartsWith("CDC "))
                     continue;
 
-                // Check if this card has an active "IsAttacking" indicator
+                // Check if this card has an "IsAttacking" indicator
+                // Note: The indicator may be inactive (activeInHierarchy=false) but still present,
+                // which means the creature IS attacking. We count if the child EXISTS, not just if active.
                 foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
                 {
-                    if (child.gameObject.activeInHierarchy && child.name == "IsAttacking")
+                    if (child.name == "IsAttacking")
                     {
                         count++;
                         break;

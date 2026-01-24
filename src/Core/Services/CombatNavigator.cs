@@ -60,17 +60,19 @@ namespace AccessibleArena.Core.Services
 
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
+                // IsAttacking: Check if child EXISTS (not just if active)
+                // The indicator may be inactive but present, meaning the creature IS attacking
+                if (child.name == "IsAttacking")
+                    return true;
+
+                // For other indicators, require them to be active
                 if (!child.gameObject.activeInHierarchy)
                     continue;
 
-                // Check multiple possible indicators:
-                // - "IsAttacking" might activate when declared
-                // - There might be a "Selected" or "Declared" indicator
-                // - The card might be tapped/rotated
-                if (child.name == "IsAttacking" ||
-                    child.name.Contains("Declared") ||
+                // Check other possible indicators
+                if (child.name.Contains("Declared") ||
                     child.name.Contains("Selected") ||
-                    child.name.Contains("Lobbed"))  // "Lobbed" from AttackLobUXEvent might be relevant
+                    child.name.Contains("Lobbed"))
                 {
                     return true;
                 }
@@ -108,7 +110,8 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Checks if a creature is currently assigned as a blocker.
-        /// Looks for the active "IsBlocking" child within the card hierarchy.
+        /// Looks for the "IsBlocking" child within the card hierarchy.
+        /// Note: The indicator may exist but be inactive - existence means blocking.
         /// </summary>
         public bool IsCreatureBlocking(GameObject card)
         {
@@ -116,10 +119,8 @@ namespace AccessibleArena.Core.Services
 
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                if (!child.gameObject.activeInHierarchy)
-                    continue;
-
-                // "IsBlocking" child activates when the creature is assigned as a blocker
+                // "IsBlocking" child exists when the creature is assigned as a blocker
+                // Check existence, not active state (same pattern as IsAttacking)
                 if (child.name == "IsBlocking")
                 {
                     return true;
@@ -188,7 +189,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Finds all creatures currently assigned as blockers.
-        /// Returns a list of card GameObjects that have the IsBlocking indicator active.
+        /// Returns a list of card GameObjects that have the IsBlocking indicator present.
         /// </summary>
         private List<GameObject> FindAssignedBlockers()
         {
@@ -384,14 +385,16 @@ namespace AccessibleArena.Core.Services
 
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                if (!child.gameObject.activeInHierarchy)
-                    continue;
-
-                // Check for specific state indicators
+                // IsAttacking/IsBlocking: Check if child EXISTS (not just if active)
+                // The indicator may be inactive but present, meaning the creature IS attacking/blocking
                 if (child.name == "IsAttacking")
                     isAttacking = true;
                 if (child.name == "IsBlocking")
                     isBlocking = true;
+
+                // For other indicators, require them to be active
+                if (!child.gameObject.activeInHierarchy)
+                    continue;
 
                 // Track combat frames
                 if (child.name.Contains("CombatIcon_AttackerFrame"))
