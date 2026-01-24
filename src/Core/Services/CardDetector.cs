@@ -174,12 +174,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Checks if a GameObject has an active HotHighlight child, indicating it's a valid target
+        /// Checks if a GameObject has a HotHighlight child, indicating it's a valid target
         /// or can be played/activated. This is the unified method - all callers should use this
         /// instead of implementing their own check.
+        ///
+        /// Note: Checks for EXISTENCE of the HotHighlight child, not its active state.
+        /// The game may create HotHighlight objects but set them inactive for visual optimization
+        /// while the card is still logically playable/targetable (same pattern as IsAttacking/IsBlocking).
         /// </summary>
         /// <param name="obj">The GameObject to check (typically a card or player portrait)</param>
-        /// <returns>True if an active HotHighlight child exists</returns>
+        /// <returns>True if a HotHighlight child exists (regardless of active state)</returns>
         public static bool HasHotHighlight(GameObject obj)
         {
             if (obj == null) return false;
@@ -188,10 +192,10 @@ namespace AccessibleArena.Core.Services
             {
                 // Skip null and the object itself
                 if (child == null || child.gameObject == obj) continue;
-                // Skip inactive children
-                if (!child.gameObject.activeInHierarchy) continue;
 
-                // HotHighlight variants: HotHighlightBattlefield, HotHighlightHand, etc.
+                // HotHighlight: Check if child EXISTS (not just if active)
+                // The indicator may be inactive but present, meaning the card IS playable/targetable
+                // Same pattern as IsAttacking/IsBlocking detection
                 if (child.name.Contains("HotHighlight"))
                 {
                     return true;
@@ -251,14 +255,16 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Gets the specific HotHighlight type if present.
         /// Returns the name like "HotHighlightBattlefield(Clone)" or null if none.
+        ///
+        /// Note: Checks for EXISTENCE, not active state (same pattern as IsAttacking/IsBlocking).
         /// </summary>
         public static string GetHotHighlightType(GameObject obj)
         {
             foreach (Transform child in obj.GetComponentsInChildren<Transform>(true))
             {
                 if (child == null || child.gameObject == obj) continue;
-                if (!child.gameObject.activeInHierarchy) continue;
 
+                // Check existence, not active state
                 if (child.name.Contains("HotHighlight"))
                 {
                     return child.name; // Return full name like "HotHighlightBattlefield(Clone)"
