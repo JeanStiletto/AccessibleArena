@@ -332,6 +332,9 @@ namespace AccessibleArena.Core.Services
 
             string zoneStr = zoneObj.ToString();
 
+            // Try to auto-correct local player ID from zone strings containing "(LocalPlayer)"
+            TryUpdateLocalPlayerIdFromZoneString(zoneStr);
+
             bool isLocal = zoneStr.Contains("LocalPlayer") || (!zoneStr.Contains("Opponent") && zoneStr.Contains("Player,"));
             bool isOpponent = zoneStr.Contains("Opponent");
 
@@ -434,16 +437,51 @@ namespace AccessibleArena.Core.Services
 
                 if (change == 0) return null;
 
-                // AffectedId of 0 might mean local player - check avatar field
-                bool isLocal = affectedId == _localPlayerId || affectedId == 0;
+                // Determine ownership - prioritize avatar field with "LocalPlayer"/"Opponent" strings
+                // This is the same pattern that works correctly for combat damage
+                bool isLocal = false;
+                bool ownershipDetermined = false;
 
-                // Double-check by looking at avatar field
+                // First, check avatar field for explicit LocalPlayer/Opponent markers
                 var avatar = GetFieldValue<object>(uxEvent, "_avatar");
                 if (avatar != null)
                 {
                     var avatarStr = avatar.ToString();
-                    // Check for local player ID - don't hardcode Player #1 as local could be #2
-                    isLocal = avatarStr.Contains("Player #" + _localPlayerId) || avatarStr.Contains("#" + _localPlayerId);
+                    MelonLogger.Msg($"[DuelAnnouncer] Life event avatar: {avatarStr}");
+
+                    if (avatarStr.Contains("LocalPlayer"))
+                    {
+                        isLocal = true;
+                        ownershipDetermined = true;
+                    }
+                    else if (avatarStr.Contains("Opponent"))
+                    {
+                        isLocal = false;
+                        ownershipDetermined = true;
+                    }
+                }
+
+                // Fallback to AffectedId comparison (only if not 0, since 0 is ambiguous)
+                if (!ownershipDetermined && affectedId != 0)
+                {
+                    isLocal = affectedId == _localPlayerId;
+                    ownershipDetermined = true;
+                }
+
+                // If still not determined, try to extract from avatar string with player ID
+                if (!ownershipDetermined && avatar != null)
+                {
+                    var avatarStr = avatar.ToString();
+                    // Check if avatar contains our local player ID
+                    if (avatarStr.Contains($"#{_localPlayerId}") || avatarStr.Contains($"Player {_localPlayerId}"))
+                    {
+                        isLocal = true;
+                    }
+                    else
+                    {
+                        // If it contains any player reference that isn't ours, it's opponent
+                        isLocal = false;
+                    }
                 }
 
                 string who = isLocal ? "You" : "Opponent";
@@ -1220,6 +1258,10 @@ namespace AccessibleArena.Core.Services
 
                 // Log zone strings for debugging ownership detection
                 MelonLogger.Msg($"[DuelAnnouncer] Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
+
+                // Try to auto-correct local player ID from zone strings containing "(LocalPlayer)"
+                TryUpdateLocalPlayerIdFromZoneString(fromZoneStr);
+                TryUpdateLocalPlayerIdFromZoneString(toZoneStr);
 
                 // Check zone strings for ownership - use _localPlayerId dynamically, don't hardcode Player 1/2
                 if (zoneToCheck.Contains("Opponent"))
@@ -2050,6 +2092,28 @@ namespace AccessibleArena.Core.Services
             }
 
             return default;
+        }
+
+        /// <summary>
+        /// Extracts and updates the local player ID from zone strings containing "(LocalPlayer)" marker.
+        /// Zone format example: "Library (PlayerPlayer: 2 (LocalPlayer), 0 cards)"
+        /// This self-corrects the _localPlayerId if it was incorrectly detected at startup.
+        /// </summary>
+        private void TryUpdateLocalPlayerIdFromZoneString(string zoneStr)
+        {
+            if (string.IsNullOrEmpty(zoneStr) || !zoneStr.Contains("(LocalPlayer)"))
+                return;
+
+            // Extract player number from pattern like "Player: 2 (LocalPlayer)" or "PlayerPlayer: 2 (LocalPlayer)"
+            var match = System.Text.RegularExpressions.Regex.Match(zoneStr, @"Player[^:]*:\s*(\d+)\s*\(LocalPlayer\)");
+            if (match.Success && uint.TryParse(match.Groups[1].Value, out uint detectedId))
+            {
+                if (detectedId != _localPlayerId && detectedId > 0)
+                {
+                    MelonLogger.Msg($"[DuelAnnouncer] Updating local player ID: {_localPlayerId} -> {detectedId} (detected from zone string)");
+                    _localPlayerId = detectedId;
+                }
+            }
         }
 
         private bool IsDuplicateAnnouncement(string announcement)

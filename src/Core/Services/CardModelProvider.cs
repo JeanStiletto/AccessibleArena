@@ -1590,13 +1590,15 @@ namespace AccessibleArena.Core.Services
             if (card == null) return false;
 
             // Check parent hierarchy for ownership indicators
+            // Only use "local"/"opponent" markers, not hardcoded player numbers
+            // (local player could be player 1 or 2 depending on game state)
             Transform current = card.transform;
             while (current != null)
             {
                 string name = current.name.ToLower();
                 if (name.Contains("opponent"))
                     return true;
-                if (name.Contains("local") || name.Contains("player1"))
+                if (name.Contains("local"))
                     return false;
 
                 current = current.parent;
