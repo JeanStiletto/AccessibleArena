@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -141,6 +142,18 @@ namespace AccessibleArena.Core.Services
             if (!_isWatching) return false;
             if (HasPreGameCancelButton()) return false;
             return HasDuelElements();
+        }
+
+        protected override bool ValidateElements()
+        {
+            // Deactivate if settings menu is open - let SettingsMenuNavigator handle it
+            if (PanelStateManager.Instance?.IsSettingsMenuOpen == true)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Settings menu detected - deactivating to let SettingsMenuNavigator take over");
+                return false;
+            }
+
+            return base.ValidateElements();
         }
 
         protected override void DiscoverElements()

@@ -1009,6 +1009,95 @@ Some elements have a secondary action accessible via Shift+Enter. For example:
   - `AcceptSpaceKey` - Whether Space triggers activation (default: true)
   - `SupportsCardNavigation` - Whether to integrate with CardInfoNavigator
 
+### Overlay Navigator Pattern (January 2026)
+
+Overlay navigators handle UI that can appear on top of ANY scene (e.g., Settings menu during duels).
+They require special integration with lower-priority navigators to ensure proper handoff.
+
+**Key Concept:** Higher-priority navigators take control when overlays appear. Lower-priority navigators
+must explicitly yield by checking overlay state in both `DetectScreen()` and `ValidateElements()`.
+
+**Implementation Pattern:**
+
+1. **Create the overlay navigator** with high priority:
+```csharp
+public class SettingsMenuNavigator : BaseNavigator
+{
+    public override int Priority => 90;  // Higher than DuelNavigator (70), GeneralMenuNavigator (15)
+
+    protected override bool DetectScreen()
+    {
+        // Use Harmony-tracked state from PanelStateManager for precise timing
+        if (PanelStateManager.Instance?.IsSettingsMenuOpen != true)
+            return false;
+        // ... find content panel for element discovery
+        return true;
+    }
+}
+```
+
+2. **Update lower-priority navigators** to yield when overlay is open:
+```csharp
+// In GeneralMenuNavigator and DuelNavigator:
+protected override bool DetectScreen()
+{
+    // Don't activate when overlay is open
+    if (PanelStateManager.Instance?.IsSettingsMenuOpen == true)
+        return false;
+    // ... normal detection logic
+}
+
+protected override bool ValidateElements()
+{
+    // Deactivate if overlay opens while we're active
+    if (PanelStateManager.Instance?.IsSettingsMenuOpen == true)
+    {
+        LogDebug($"[{NavigatorId}] Settings menu detected - deactivating");
+        return false;
+    }
+    return base.ValidateElements();
+}
+```
+
+3. **Handle 0-element activation** - Overlays may need to activate before elements are discovered:
+```csharp
+public override void Update()
+{
+    if (!_isActive)
+    {
+        if (DetectScreen())
+        {
+            _elements.Clear();
+            _currentIndex = -1;
+            DiscoverElements();
+            _isActive = true;  // Allow activation with 0 elements
+            _currentIndex = _elements.Count > 0 ? 0 : -1;
+            if (_elements.Count == 0)
+                TriggerRescan();  // Schedule rescan to find elements
+        }
+        return;
+    }
+    base.Update();
+}
+```
+
+**Why Both DetectScreen() AND ValidateElements():**
+- `DetectScreen()` prevents activation when overlay is open
+- `ValidateElements()` causes deactivation if overlay opens while navigator is active
+- Without both, flip-flopping between navigators can occur during frame timing edge cases
+
+**Using PanelStateManager for Detection:**
+Always prefer `PanelStateManager.IsSettingsMenuOpen` over polling `GameObject.Find()`:
+- PanelStateManager uses Harmony patches for precise event-driven detection
+- No timing issues from polling during animations
+- Single source of truth for panel state
+
+**Files to modify when adding a new overlay navigator:**
+1. Create `NewOverlayNavigator.cs` extending BaseNavigator
+2. Add property to PanelStateManager (e.g., `IsNewOverlayOpen`)
+3. Update lower-priority navigators to check the new property in both methods
+4. Register navigator in AccessibleArenaMod.cs with appropriate priority
+
 ### Special Activation Cases
 Some elements (NPE chest/deck boxes) need controller reflection:
 - Find controller via `GameObject.FindObjectOfType<NPEContentControllerRewards>()`

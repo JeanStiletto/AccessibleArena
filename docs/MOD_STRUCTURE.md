@@ -79,6 +79,7 @@ C:\Users\fabia\arena\
         DuelNavigator.cs             - Duel gameplay screen (delegates to ZoneNavigator)
         # EventTriggerNavigator removed - GeneralMenuNavigator handles NPE screens
         OverlayNavigator.cs          - Modal overlays (What's New, announcements)
+        SettingsMenuNavigator.cs     - Settings menu (works in all scenes including duels)
         GeneralMenuNavigator.cs      - Main menu, NPE, and general menu screens
 
         # UI Classification
@@ -119,6 +120,7 @@ C:\Users\fabia\arena\
 - [x] DuelNavigator - Duel gameplay (zone navigation working)
 - [x] EventTriggerNavigator - Deprecated, GeneralMenuNavigator handles NPE screens
 - [~] OverlayNavigator - Modal overlays (What's New carousel) - basic implementation
+- [x] SettingsMenuNavigator - Settings menu accessible in all scenes including duels
 - [x] GeneralMenuNavigator - Main menu, NPE screens, and general menu navigation
 
 ### Menu Panel Detection (Harmony Patches)

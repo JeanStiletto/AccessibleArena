@@ -356,6 +356,21 @@ namespace AccessibleArena.Core.Services.PanelDetection
         }
 
         /// <summary>
+        /// Check if a panel with the given name is currently active.
+        /// Uses Harmony-tracked panel state for precise detection.
+        /// </summary>
+        public bool IsPanelActive(string panelName)
+        {
+            return _panelStack.Exists(p => p.Name == panelName && p.IsValid);
+        }
+
+        /// <summary>
+        /// Check if Settings menu is currently open.
+        /// Uses Harmony-tracked panel state for precise detection.
+        /// </summary>
+        public bool IsSettingsMenuOpen => _panelStack.Exists(p => p.Name == "SettingsMenu" && p.IsValid);
+
+        /// <summary>
         /// Get all currently tracked panels (for debugging).
         /// </summary>
         public IReadOnlyList<PanelInfo> GetPanelStack()

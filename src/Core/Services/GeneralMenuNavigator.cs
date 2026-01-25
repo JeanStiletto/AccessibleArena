@@ -47,6 +47,7 @@ namespace AccessibleArena.Core.Services
         /// The layers that can be "in front", in priority order.
         /// Higher priority layers block lower ones.
         /// Used for both element filtering AND backspace navigation.
+        /// Note: Settings is handled by dedicated SettingsMenuNavigator.
         /// </summary>
         private enum ForegroundLayer
         {
@@ -56,20 +57,19 @@ namespace AccessibleArena.Core.Services
             NPE,            // New Player Experience overlay
             PlayBlade,      // Play blade expanded
             Social,         // Friends panel
-            Popup,          // Modal popup/dialog
-            Settings        // Settings menu (highest priority)
+            Popup           // Modal popup/dialog (highest priority for GeneralMenuNavigator)
         }
 
         /// <summary>
         /// Single source of truth: what's currently in foreground?
         /// Both element filtering (ShouldShowElement) and backspace navigation (HandleBackNavigation)
         /// derive their behavior from this method.
+        /// Note: Settings is handled by dedicated SettingsMenuNavigator.
         /// </summary>
         private ForegroundLayer GetCurrentForeground()
         {
             // Priority order - first match wins
-            if (CheckSettingsMenuOpen())
-                return ForegroundLayer.Settings;
+            // Note: Settings check removed - handled by SettingsMenuNavigator
 
             if (_foregroundPanel != null && IsPopupOverlay(_foregroundPanel))
                 return ForegroundLayer.Popup;
@@ -200,13 +200,10 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if Settings menu is currently open.
+        /// Uses Harmony-tracked panel state for precise detection.
+        /// Used to deactivate this navigator so SettingsMenuNavigator can take over.
         /// </summary>
-        protected bool CheckSettingsMenuOpen() => _screenDetector.CheckSettingsMenuOpen();
-
-        /// <summary>
-        /// Cached Settings content panel.
-        /// </summary>
-        protected GameObject SettingsContentPanel => _screenDetector.SettingsContentPanel;
+        private bool IsSettingsMenuOpen() => PanelStateManager.Instance?.IsSettingsMenuOpen == true;
 
         /// <summary>
         /// Check if the Social/Friends panel is currently open.
@@ -246,6 +243,13 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Ignore Settings panel changes - handled by SettingsMenuNavigator
+            if (oldPanel?.Name?.Contains("SettingsMenu") == true || newPanel?.Name?.Contains("SettingsMenu") == true)
+            {
+                LogDebug($"[{NavigatorId}] Ignoring SettingsMenu panel change");
+                return;
+            }
+
             LogDebug($"[{NavigatorId}] PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
             TriggerRescan();
         }
@@ -266,6 +270,13 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Ignore Settings panel - handled by SettingsMenuNavigator
+            if (panel?.Name?.Contains("SettingsMenu") == true)
+            {
+                LogDebug($"[{NavigatorId}] Ignoring SettingsMenu panel opened");
+                return;
+            }
+
             LogDebug($"[{NavigatorId}] PanelStateManager panel opened: {panel?.Name ?? "none"}");
 
             // Auto-expand blade for Color Challenge menu
@@ -280,11 +291,7 @@ namespace AccessibleArena.Core.Services
 
         protected virtual string GetMenuScreenName()
         {
-            // Check if Settings menu is open (highest priority overlay)
-            if (CheckSettingsMenuOpen())
-            {
-                return "Settings";
-            }
+            // Note: Settings check removed - handled by SettingsMenuNavigator
 
             // Check if Social/Friends panel is open
             if (IsSocialPanelOpen())
@@ -387,6 +394,22 @@ namespace AccessibleArena.Core.Services
             PanelStateManager.Instance?.SoftReset();
         }
 
+        /// <summary>
+        /// Validate that we should remain active.
+        /// Returns false if settings menu opens, allowing SettingsMenuNavigator to take over.
+        /// </summary>
+        protected override bool ValidateElements()
+        {
+            // Deactivate if settings menu is open - let SettingsMenuNavigator handle it
+            if (IsSettingsMenuOpen())
+            {
+                LogDebug($"[{NavigatorId}] Settings menu detected - deactivating to let SettingsMenuNavigator take over");
+                return false;
+            }
+
+            return base.ValidateElements();
+        }
+
         public override void Update()
         {
             // Handle rescan delay after button activation
@@ -473,7 +496,6 @@ namespace AccessibleArena.Core.Services
 
             return layer switch
             {
-                ForegroundLayer.Settings => HandleSettingsBack(),
                 ForegroundLayer.Popup => DismissPopup(),
                 ForegroundLayer.Social => CloseSocialPanel(),
                 ForegroundLayer.PlayBlade => ClosePlayBlade(),
@@ -698,111 +720,8 @@ namespace AccessibleArena.Core.Services
                    name.IndexOf("Blade_Arrow", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        /// <summary>
-        /// Handle back navigation within Settings menu.
-        /// </summary>
-        private bool HandleSettingsBack()
-        {
-            var settingsPanel = SettingsContentPanel;
-            if (settingsPanel == null)
-            {
-                LogDebug($"[{NavigatorId}] Settings panel not found");
-                return false;
-            }
-
-            string panelName = settingsPanel.name;
-            LogDebug($"[{NavigatorId}] Settings back from panel: {panelName}");
-
-            bool isInSubmenu = panelName != "Content - MainMenu" &&
-                              (panelName == "Content - Audio" ||
-                               panelName == "Content - Graphics" ||
-                               panelName == "Content - Gameplay");
-
-            if (isInSubmenu)
-            {
-                var backButton = FindSettingsBackButton(settingsPanel);
-                if (backButton != null)
-                {
-                    LogDebug($"[{NavigatorId}] Activating Settings submenu back button");
-                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
-                    UIActivator.Activate(backButton);
-                    TriggerRescan();
-                    return true;
-                }
-                else
-                {
-                    LogDebug($"[{NavigatorId}] Could not find Settings submenu back button");
-                }
-            }
-
-            return CloseSettingsMenu();
-        }
-
-        /// <summary>
-        /// Find the back button within a Settings panel.
-        /// </summary>
-        private GameObject FindSettingsBackButton(GameObject settingsPanel)
-        {
-            var headerTransform = settingsPanel.transform.Find("Header");
-            if (headerTransform == null)
-            {
-                LogDebug($"[{NavigatorId}] Header not found in {settingsPanel.name}");
-                return null;
-            }
-
-            var backContainer = headerTransform.Find("Back");
-            if (backContainer == null)
-            {
-                LogDebug($"[{NavigatorId}] Back container not found in Header");
-                return null;
-            }
-
-            var backButton = backContainer.Find("BackButton");
-            if (backButton != null && backButton.gameObject.activeInHierarchy)
-            {
-                return backButton.gameObject;
-            }
-
-            LogDebug($"[{NavigatorId}] BackButton not found or not active");
-            return null;
-        }
-
-        /// <summary>
-        /// Close the Settings menu by calling SettingsMenu.Close() directly.
-        /// </summary>
-        private bool CloseSettingsMenu()
-        {
-            LogDebug($"[{NavigatorId}] Attempting to close Settings menu via SettingsMenu.Close()");
-
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || mb.GetType().Name != "SettingsMenu")
-                    continue;
-
-                var closeMethod = mb.GetType().GetMethod("Close",
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance);
-
-                if (closeMethod != null)
-                {
-                    try
-                    {
-                        LogDebug($"[{NavigatorId}] Calling SettingsMenu.Close()");
-                        _announcer.Announce(Models.Strings.ClosingSettings, Models.AnnouncementPriority.High);
-                        closeMethod.Invoke(mb, null);
-                        return true;
-                    }
-                    catch (System.Exception ex)
-                    {
-                        MelonLogger.Warning($"[{NavigatorId}] Error calling SettingsMenu.Close(): {ex.Message}");
-                    }
-                }
-            }
-
-            LogDebug($"[{NavigatorId}] Could not find SettingsMenu.Close() method");
-            return false;
-        }
+        // Note: HandleSettingsBack(), FindSettingsBackButton(), CloseSettingsMenu() removed
+        // Settings navigation is now handled by SettingsMenuNavigator
 
         /// <summary>
         /// Close the PlayBlade by finding and activating the dismiss button.
@@ -980,8 +899,6 @@ namespace AccessibleArena.Core.Services
 
             return layer switch
             {
-                ForegroundLayer.Settings => _foregroundPanel != null && IsChildOf(obj, _foregroundPanel),
-
                 ForegroundLayer.Popup => _foregroundPanel != null && IsChildOf(obj, _foregroundPanel),
 
                 ForegroundLayer.Social => IsChildOfSocialPanel(obj),
@@ -1198,6 +1115,10 @@ namespace AccessibleArena.Core.Services
             if (ExcludedScenes.Contains(_currentScene))
                 return false;
 
+            // Don't activate when Settings is open - let SettingsMenuNavigator handle it
+            if (IsSettingsMenuOpen())
+                return false;
+
             // Wait for UI to settle after scene change
             if (_activationDelay > 0)
             {
@@ -1364,12 +1285,7 @@ namespace AccessibleArena.Core.Services
                     TryAddElement(dropdown.gameObject);
             }
 
-            // Find Settings custom controls (dropdowns, steppers)
-            // These are custom implementations in MTGA Settings that need special handling
-            if (CheckSettingsMenuOpen())
-            {
-                FindSettingsCustomControls(TryAddElement);
-            }
+            // Note: Settings custom controls (dropdowns, steppers) now handled by SettingsMenuNavigator
 
             // Process deck entries: pair main buttons with their TextBox edit buttons
             // Each deck entry has UI (CustomButton for selection) and TextBox (for editing name)
@@ -1460,9 +1376,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void FindNPERewardCards(HashSet<GameObject> addedObjects)
         {
-            // Don't add NPE cards if Settings menu is open - Settings takes priority
-            if (CheckSettingsMenuOpen())
-                return;
+            // Note: Settings check removed - SettingsMenuNavigator takes priority when settings is open
 
             // Check if we're on the NPE rewards screen
             if (!_screenDetector.IsNPERewardsScreenActive())
@@ -1619,118 +1533,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string GetFullPath(Transform t) => MenuDebugHelper.GetFullPath(t);
 
-        /// <summary>
-        /// Find Settings custom controls (dropdowns and steppers) in a single iteration.
-        /// - Dropdowns: "Control - *_Dropdown" pattern (only if no TMP_Dropdown child)
-        /// - Steppers: "Control - Setting:*" or "Control - *_Selector" with Increment/Decrement buttons
-        /// </summary>
-        private void FindSettingsCustomControls(System.Action<GameObject> tryAddElement)
-        {
-            // Single iteration through all transforms for both control types
-            foreach (var transform in GameObject.FindObjectsOfType<Transform>())
-            {
-                if (transform == null || !transform.gameObject.activeInHierarchy)
-                    continue;
-
-                string name = transform.name;
-
-                // All Settings controls start with "Control - "
-                if (!name.StartsWith("Control - ", System.StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                // Check for dropdown pattern: "Control - *_Dropdown"
-                if (name.EndsWith("_Dropdown", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    // Skip if there's a TMP_Dropdown child - those are detected separately
-                    var tmpDropdown = transform.GetComponentInChildren<TMP_Dropdown>();
-                    if (tmpDropdown != null)
-                        continue;
-
-                    // Find the clickable element inside this control
-                    GameObject clickableElement = FindClickableInDropdownControl(transform.gameObject);
-                    if (clickableElement != null)
-                    {
-                        LogDebug($"[{NavigatorId}] Found Settings dropdown (non-TMP): {name} -> clickable: {clickableElement.name}");
-                        tryAddElement(clickableElement);
-                    }
-                    continue;
-                }
-
-                // Check for stepper pattern: "Control - Setting:*" or "Control - *_Selector"
-                bool isSettingControl = name.StartsWith("Control - Setting:", System.StringComparison.OrdinalIgnoreCase);
-                bool isSelectorControl = name.EndsWith("_Selector", System.StringComparison.OrdinalIgnoreCase);
-
-                if (!isSettingControl && !isSelectorControl)
-                    continue;
-
-                // Check if this control has Increment/Decrement buttons (stepper pattern)
-                bool hasIncrement = false;
-                bool hasDecrement = false;
-
-                foreach (Transform child in transform.GetComponentsInChildren<Transform>(true))
-                {
-                    if (child == transform || !child.gameObject.activeInHierarchy)
-                        continue;
-
-                    var button = child.GetComponent<Button>();
-                    if (button != null)
-                    {
-                        string childName = child.name;
-                        if (childName.IndexOf("increment", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                            hasIncrement = true;
-                        else if (childName.IndexOf("decrement", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                            hasDecrement = true;
-                    }
-
-                    if (hasIncrement && hasDecrement)
-                        break;
-                }
-
-                // Only add if it has stepper buttons
-                if (hasIncrement || hasDecrement)
-                {
-                    LogDebug($"[{NavigatorId}] Found Settings stepper control: {name}");
-                    tryAddElement(transform.gameObject);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Find the clickable element inside a Settings dropdown control.
-        /// </summary>
-        private GameObject FindClickableInDropdownControl(GameObject control)
-        {
-            // First check if the control itself has a CustomButton
-            if (UIElementClassifier.HasCustomButton(control))
-                return control;
-
-            // Look for a Button component
-            var button = control.GetComponent<Button>();
-            if (button != null)
-                return control;
-
-            // Search children for a CustomButton or Button
-            foreach (Transform child in control.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.gameObject == control || !child.gameObject.activeInHierarchy)
-                    continue;
-
-                // Check for CustomButton
-                if (UIElementClassifier.HasCustomButton(child.gameObject))
-                    return child.gameObject;
-
-                // Check for Button
-                var childButton = child.GetComponent<Button>();
-                if (childButton != null && childButton.interactable)
-                    return child.gameObject;
-            }
-
-            // Fallback: return the control itself if it has meaningful text
-            if (UITextExtractor.HasActualText(control))
-                return control;
-
-            return null;
-        }
+        // Note: FindSettingsCustomControls() and FindClickableInDropdownControl() removed
+        // Settings controls are now handled by SettingsMenuNavigator
 
         /// <summary>
         /// Auto-focus the Continue button on MatchEndScene for better UX.
@@ -1848,10 +1652,7 @@ namespace AccessibleArena.Core.Services
             // Check if this is a popup/dialog button (SystemMessageButton) - popup will close with animation
             bool isPopupButton = element.name.Contains("SystemMessageButton");
 
-            // Check if we're in the Settings menu - submenu button clicks need rescan
-            // because the content panel changes but no panel state event fires
-            bool isInSettingsMenu = CheckSettingsMenuOpen();
-            string currentSettingsPanel = SettingsContentPanel?.name;
+            // Note: Settings submenu button handling removed - handled by SettingsMenuNavigator
 
             // Use UIActivator for CustomButtons
             var result = UIActivator.Activate(element);
@@ -1905,43 +1706,10 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // For Settings menu button clicks (Audio, Gameplay, Graphics submenu buttons),
-            // trigger a rescan to pick up the new content panel
-            if (isInSettingsMenu && IsSettingsSubmenuButton(element))
-            {
-                LogDebug($"[{NavigatorId}] Settings submenu button activated ({element.name}) - scheduling rescan");
-                TriggerRescan();
-                return true;
-            }
-
             return true;
         }
 
-        /// <summary>
-        /// Check if element is a Settings submenu button (Audio, Gameplay, Graphics, etc.)
-        /// </summary>
-        private bool IsSettingsSubmenuButton(GameObject element)
-        {
-            if (element == null) return false;
-
-            string name = element.name;
-
-            // Settings submenu buttons follow the pattern "Button_*" in the CenterMenu
-            // e.g., Button_Audio, Button_Gameplay, Button_Graphics
-            if (name.StartsWith("Button_"))
-            {
-                // Verify it's in the Settings menu structure
-                Transform parent = element.transform.parent;
-                while (parent != null)
-                {
-                    if (parent.name == "CenterMenu" || parent.name.Contains("Settings"))
-                        return true;
-                    parent = parent.parent;
-                }
-            }
-
-            return false;
-        }
+        // Note: IsSettingsSubmenuButton() removed - handled by SettingsMenuNavigator
 
         /// <summary>
         /// Auto-expand the play blade when it's in collapsed state.

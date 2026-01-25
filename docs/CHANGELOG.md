@@ -2,6 +2,21 @@
 
 All notable changes to Accessible Arena.
 
+## v0.2.3 - 2026-01-25
+
+### New Features
+- Add Settings menu accessibility during duels
+  - Press Escape to open Settings menu in any scene (menus, duels, drafts, sealed)
+  - New dedicated SettingsMenuNavigator handles all Settings navigation
+  - Settings code removed from GeneralMenuNavigator for cleaner separation
+
+### Architecture
+- New overlay navigator integration pattern
+  - Higher-priority navigators take control when overlays appear
+  - Lower-priority navigators (DuelNavigator, GeneralMenuNavigator) yield via ValidateElements()
+  - Uses Harmony-based PanelStateManager.IsSettingsMenuOpen for precise timing
+  - Pattern documented in BEST_PRACTICES.md for future similar integrations
+
 ## v0.2.2 - 2026-01-25
 
 ### Bug Fixes
