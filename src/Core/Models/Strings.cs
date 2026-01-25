@@ -105,7 +105,14 @@ namespace AccessibleArena.Core.Models
         // ===========================================
         public const string NoPlayableCards = "No playable cards";
         public const string SpellCast = "Spell cast";
+        public const string SpellCastPrefix = "Cast";
+        public const string SpellUnknown = "unknown spell";
         public const string ResolveStackFirst = "Resolve stack first. Press Space to resolve or Tab to select targets.";
+
+        // Ability announcements (for triggered/activated abilities on stack)
+        public const string AbilityTriggered = "triggered";
+        public const string AbilityActivated = "activated";
+        public const string AbilityUnknown = "Ability";
 
         // ===========================================
         // DISCARD

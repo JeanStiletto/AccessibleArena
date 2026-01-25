@@ -1480,6 +1480,100 @@ namespace AccessibleArena.Core.Services
         #region Card Categorization
 
         /// <summary>
+        /// Checks if a card on the stack is a triggered or activated ability rather than a spell.
+        /// Returns: (isAbility, isTriggered) - isTriggered distinguishes triggered vs activated.
+        /// Language-agnostic: checks CardTypes enum values, not localized type line.
+        /// </summary>
+        public static (bool isAbility, bool isTriggered) IsAbilityOnStack(GameObject cardObj)
+        {
+            if (cardObj == null) return (false, false);
+
+            var cdcComponent = GetDuelSceneCDC(cardObj);
+            if (cdcComponent == null) return (false, false);
+
+            var model = GetCardModel(cdcComponent);
+            if (model == null) return (false, false);
+
+            var modelType = model.GetType();
+
+            // Log model properties once to discover ability-specific fields
+            LogModelProperties(model);
+
+            // Check CardTypes - spells have Instant, Sorcery, Creature, etc.
+            // Abilities on the stack won't have these standard spell types
+            var cardTypes = GetModelPropertyValue(model, modelType, "CardTypes") as IEnumerable;
+            if (cardTypes != null)
+            {
+                bool hasSpellType = false;
+                bool hasAbilityType = false;
+
+                foreach (var ct in cardTypes)
+                {
+                    if (ct == null) continue;
+                    string typeStr = ct.ToString();
+
+                    // Check for standard spell types (language-agnostic enum values)
+                    if (typeStr == "Instant" || typeStr == "Sorcery" ||
+                        typeStr == "Creature" || typeStr == "Artifact" ||
+                        typeStr == "Enchantment" || typeStr == "Planeswalker" ||
+                        typeStr == "Land" || typeStr == "Battle" ||
+                        typeStr == "Kindred")
+                    {
+                        hasSpellType = true;
+                    }
+
+                    // Check for Ability type
+                    if (typeStr == "Ability" || typeStr.Contains("Ability"))
+                    {
+                        hasAbilityType = true;
+                    }
+                }
+
+                MelonLogger.Msg($"[CardModelProvider] IsAbilityOnStack: hasSpellType={hasSpellType}, hasAbilityType={hasAbilityType}");
+
+                // If has explicit Ability type or no spell types, it's an ability
+                if (hasAbilityType || !hasSpellType)
+                {
+                    // Try to determine if triggered vs activated
+                    // Check for AbilityType, TriggerType, or similar properties
+                    var abilityType = GetModelPropertyValue(model, modelType, "AbilityType");
+                    var triggerType = GetModelPropertyValue(model, modelType, "TriggerType");
+                    var abilityCategory = GetModelPropertyValue(model, modelType, "AbilityCategory");
+
+                    MelonLogger.Msg($"[CardModelProvider] Ability properties: AbilityType={abilityType}, TriggerType={triggerType}, AbilityCategory={abilityCategory}");
+
+                    if (abilityType != null)
+                    {
+                        string typeVal = abilityType.ToString();
+                        bool isTriggered = typeVal.Contains("Trigger") || typeVal.Contains("Triggered");
+                        return (true, isTriggered);
+                    }
+
+                    if (triggerType != null)
+                    {
+                        // If TriggerType exists and is not None/null, it's a triggered ability
+                        string triggerVal = triggerType.ToString();
+                        bool isTriggered = !string.IsNullOrEmpty(triggerVal) && triggerVal != "None";
+                        return (true, isTriggered);
+                    }
+
+                    if (abilityCategory != null)
+                    {
+                        string categoryVal = abilityCategory.ToString();
+                        bool isTriggered = categoryVal.Contains("Trigger") || categoryVal.Contains("Triggered");
+                        return (true, isTriggered);
+                    }
+
+                    // Fallback: if no spell types found, assume triggered ability
+                    // (most common case for things going on stack automatically)
+                    return (true, true);
+                }
+            }
+
+            return (false, false);
+        }
+
+        /// <summary>
         /// Gets card category info (creature, land, opponent) in a single Model lookup.
         /// More efficient than calling IsCreatureCard/IsLandCard/IsOpponentCard separately.
         /// </summary>

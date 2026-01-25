@@ -2,6 +2,22 @@
 
 All notable changes to Accessible Arena.
 
+## v0.2.2 - 2026-01-25
+
+### Bug Fixes
+- Fix false "countered" announcements for resolving spells
+  - Instants/sorceries going to graveyard after normal resolution no longer announced as "countered"
+  - Only actual counterspells trigger "was countered" announcement
+  - Added "countered and exiled" for exile-on-counter effects (Dissipate, etc.)
+
+### Improvements
+- Distinguish triggered/activated abilities from cast spells on stack
+  - Abilities now announced as "[Name] triggered, [rules]" instead of "Cast [Name]"
+  - Spells still announced as "Cast [Name], [P/T], [rules]"
+- Enhanced attacker announcements when leaving Declare Attackers phase
+  - Now announces each attacker with name and P/T
+  - Example: "2 attackers. Sheoldred 4/5. Graveyard Trespasser 3/4. Declare blockers"
+
 ## v0.2.1 - 2026-01-25
 
 ### Bug Fixes

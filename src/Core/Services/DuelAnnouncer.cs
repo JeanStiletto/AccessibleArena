@@ -797,14 +797,18 @@ namespace AccessibleArena.Core.Services
                 var stepField = type.GetField("<Step>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance);
                 string step = stepField?.GetValue(uxEvent)?.ToString();
 
-                // Check if we're leaving Declare Attackers phase - announce attacker count
+                // Check if we're leaving Declare Attackers phase - announce attacker count and details
                 string attackerAnnouncement = null;
                 if (_currentStep == "DeclareAttack" && step != "DeclareAttack")
                 {
-                    int attackerCount = CountAttackingCreatures();
-                    if (attackerCount > 0)
+                    var attackers = GetAttackingCreaturesInfo();
+                    if (attackers.Count > 0)
                     {
-                        attackerAnnouncement = $"{attackerCount} attacker{(attackerCount != 1 ? "s" : "")}";
+                        // Build announcement: "X attackers. Name P/T. Name P/T."
+                        var parts = new List<string>();
+                        parts.Add($"{attackers.Count} attacker{(attackers.Count != 1 ? "s" : "")}");
+                        parts.AddRange(attackers);
+                        attackerAnnouncement = string.Join(". ", parts);
                         MelonLogger.Msg($"[DuelAnnouncer] Leaving declare attackers: {attackerAnnouncement}");
                     }
                 }
@@ -841,12 +845,12 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Counts creatures currently declared as attackers.
+        /// Gets all creatures currently declared as attackers with their name and P/T.
         /// Looks for cards with "IsAttacking" child indicator (existence, not active state).
         /// </summary>
-        private int CountAttackingCreatures()
+        private List<string> GetAttackingCreaturesInfo()
         {
-            int count = 0;
+            var attackers = new List<string>();
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy)
@@ -859,16 +863,29 @@ namespace AccessibleArena.Core.Services
                 // Check if this card has an "IsAttacking" indicator
                 // Note: The indicator may be inactive (activeInHierarchy=false) but still present,
                 // which means the creature IS attacking. We count if the child EXISTS, not just if active.
+                bool isAttacking = false;
                 foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
                 {
                     if (child.name == "IsAttacking")
                     {
-                        count++;
+                        isAttacking = true;
                         break;
                     }
                 }
+
+                if (isAttacking)
+                {
+                    // Get card name and P/T
+                    var info = CardDetector.ExtractCardInfo(go);
+                    string attackerInfo = info.Name ?? "Unknown";
+                    if (!string.IsNullOrEmpty(info.PowerToughness))
+                    {
+                        attackerInfo += $" {info.PowerToughness}";
+                    }
+                    attackers.Add(attackerInfo);
+                }
             }
-            return count;
+            return attackers;
         }
 
         private string BuildRevealAnnouncement(object uxEvent)
@@ -965,29 +982,33 @@ namespace AccessibleArena.Core.Services
 
                 string cardName = null;
                 string powerToughness = null;
+                bool isOpponent = false;
 
                 // Look up card by InstanceId
                 if (attackerId != 0)
                 {
                     cardName = FindCardNameByInstanceId(attackerId);
 
-                    // Get P/T from the card model
-                    var (power, toughness) = GetCardPowerToughnessByInstanceId(attackerId);
+                    // Get P/T and ownership from the card model
+                    var (power, toughness, isOpp) = GetCardPowerToughnessAndOwnerByInstanceId(attackerId);
                     if (power >= 0 && toughness >= 0)
                     {
                         powerToughness = $"{power}/{toughness}";
                     }
+                    isOpponent = isOpp;
                 }
 
-                // Build announcement
+                // Build announcement with ownership prefix for opponent's attackers
+                string ownerPrefix = isOpponent ? "Opponent's " : "";
+
                 if (!string.IsNullOrEmpty(cardName))
                 {
                     if (!string.IsNullOrEmpty(powerToughness))
-                        return $"{cardName} {powerToughness} attacking";
-                    return $"{cardName} attacking";
+                        return $"{ownerPrefix}{cardName} {powerToughness} attacking";
+                    return $"{ownerPrefix}{cardName} attacking";
                 }
 
-                return "Attacker declared";
+                return isOpponent ? "Opponent's attacker declared" : "Attacker declared";
             }
             catch (Exception ex)
             {
@@ -998,7 +1019,13 @@ namespace AccessibleArena.Core.Services
 
         private (int power, int toughness) GetCardPowerToughnessByInstanceId(uint instanceId)
         {
-            if (instanceId == 0) return (-1, -1);
+            var (power, toughness, _) = GetCardPowerToughnessAndOwnerByInstanceId(instanceId);
+            return (power, toughness);
+        }
+
+        private (int power, int toughness, bool isOpponent) GetCardPowerToughnessAndOwnerByInstanceId(uint instanceId)
+        {
+            if (instanceId == 0) return (-1, -1, false);
 
             try
             {
@@ -1021,26 +1048,42 @@ namespace AccessibleArena.Core.Services
                     if (!(cardInstanceId is uint cid) || cid != instanceId) continue;
 
                     // Found the card, get P/T
+                    int power = -1;
+                    int toughness = -1;
+                    bool isOpponent = false;
+
                     var powerProp = modelType.GetProperty("Power");
                     var toughnessProp = modelType.GetProperty("Toughness");
 
                     if (powerProp != null && toughnessProp != null)
                     {
-                        var power = powerProp.GetValue(model);
-                        var toughness = toughnessProp.GetValue(model);
+                        var powerVal = powerProp.GetValue(model);
+                        var toughnessVal = toughnessProp.GetValue(model);
 
-                        if (power is int p && toughness is int t)
-                            return (p, t);
+                        if (powerVal is int p && toughnessVal is int t)
+                        {
+                            power = p;
+                            toughness = t;
+                        }
                     }
-                    break;
+
+                    // Check ownership from ControllerNum property
+                    var controllerProp = modelType.GetProperty("ControllerNum");
+                    if (controllerProp != null)
+                    {
+                        var controller = controllerProp.GetValue(model);
+                        isOpponent = controller?.ToString() == "Opponent";
+                    }
+
+                    return (power, toughness, isOpponent);
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error getting P/T by InstanceId: {ex.Message}");
+                MelonLogger.Warning($"[DuelAnnouncer] Error getting P/T and owner by InstanceId: {ex.Message}");
             }
 
-            return (-1, -1);
+            return (-1, -1, false);
         }
 
         private string HandleTargetSelectionEvent(object uxEvent)
@@ -1420,7 +1463,10 @@ namespace AccessibleArena.Core.Services
                 case "Hand":
                     return $"{ownerPrefix}{cardName} was discarded";
                 case "Stack":
-                    return $"{ownerPrefix}{cardName} was countered";
+                    // Don't announce "countered" as fallback - countering is only when reason == "Countered"
+                    // Normal spell resolution (instant/sorcery) also goes Stack -> Graveyard
+                    // "Spell resolved" is already announced via UpdateZoneUXEvent, so skip here
+                    return null;
                 case "Library":
                     return $"{ownerPrefix}{cardName} was milled";
                 default:
@@ -1433,6 +1479,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string ProcessExileEntry(string fromZone, string reason, string cardName, string ownerPrefix)
         {
+            // Check for countered spells that exile (e.g., Dissipate, Syncopate)
+            if (reason == "Countered")
+            {
+                return $"{ownerPrefix}{cardName} was countered and exiled";
+            }
+
             if (fromZone == "Battlefield")
             {
                 return $"{ownerPrefix}{cardName} was exiled";
@@ -1448,6 +1500,12 @@ namespace AccessibleArena.Core.Services
             if (fromZone == "Library")
             {
                 return $"{ownerPrefix}{cardName} was exiled from library";
+            }
+            if (fromZone == "Stack")
+            {
+                // Spell from stack to exile without Countered reason - could be an effect
+                // Skip announcement since "Spell resolved" handles the stack clearing
+                return null;
             }
             return $"{ownerPrefix}{cardName} was exiled";
         }
@@ -2041,11 +2099,25 @@ namespace AccessibleArena.Core.Services
             var info = CardDetector.ExtractCardInfo(cardObj);
             var parts = new List<string>();
 
-            parts.Add($"Cast {info.Name ?? "unknown spell"}");
+            // Check if this is an ability rather than a spell
+            var (isAbility, isTriggered) = CardModelProvider.IsAbilityOnStack(cardObj);
 
-            if (!string.IsNullOrEmpty(info.PowerToughness))
-                parts.Add(info.PowerToughness);
+            if (isAbility)
+            {
+                // Format: "[Name] triggered, [rules text]" or "[Name] activated, [rules text]"
+                string abilityVerb = isTriggered ? Strings.AbilityTriggered : Strings.AbilityActivated;
+                parts.Add($"{info.Name ?? Strings.AbilityUnknown} {abilityVerb}");
+            }
+            else
+            {
+                // Original behavior for spells
+                parts.Add($"{Strings.SpellCastPrefix} {info.Name ?? Strings.SpellUnknown}");
 
+                if (!string.IsNullOrEmpty(info.PowerToughness))
+                    parts.Add(info.PowerToughness);
+            }
+
+            // Rules text is relevant for both spells and abilities
             if (!string.IsNullOrEmpty(info.RulesText))
                 parts.Add(info.RulesText);
 
