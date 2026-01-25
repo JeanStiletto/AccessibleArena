@@ -1354,6 +1354,10 @@ namespace AccessibleArena.Core.Services
 
             // Note: Settings custom controls (dropdowns, steppers) now handled by SettingsMenuNavigator
 
+            // Find deck toolbar buttons for attached actions (Delete, Edit, Export)
+            // These are in DeckManager_Desktop_16x9(Clone)/SafeArea/MainButtons/
+            var deckToolbarButtons = FindDeckToolbarButtons();
+
             // Process deck entries: pair main buttons with their TextBox edit buttons
             // Each deck entry has UI (CustomButton for selection) and TextBox (for editing name)
             // Multiple elements per deck may have ", deck" label - we only keep the "UI" one
@@ -1382,7 +1386,7 @@ namespace AccessibleArena.Core.Services
                 {
                     deckPairs[deckViewParent] = (obj, pair.editButton);
                 }
-                else if (obj.name == "TextBox" && obj.GetComponent<TMP_InputField>() != null)
+                else if (obj.name == "TextBox" && obj.GetComponentInChildren<TMP_InputField>() != null)
                 {
                     deckPairs[deckViewParent] = (pair.mainButton, obj);
                 }
@@ -1421,14 +1425,27 @@ namespace AccessibleArena.Core.Services
                     }
                     : default;
 
-                // Check if this deck button has an associated edit button
-                GameObject alternateAction = null;
-                if (deckEditButtons.TryGetValue(obj, out var editButton))
+                // Check if this is a deck button - attach actions for left/right cycling
+                List<AttachedAction> attachedActions = null;
+                if (deckMainButtons.Contains(obj))
                 {
-                    alternateAction = editButton;
+                    // Check if deck is selected and add to announcement
+                    if (UIActivator.IsDeckSelected(obj))
+                    {
+                        announcement += ", selected";
+                    }
+
+                    // Get the rename button (TextBox) for this deck
+                    GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
+                    attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
+
+                    if (attachedActions.Count > 0)
+                    {
+                        LogDebug($"[{NavigatorId}] Deck '{announcement}' has {attachedActions.Count} attached actions");
+                    }
                 }
 
-                AddElement(obj, announcement, carouselInfo, alternateAction);
+                AddElement(obj, announcement, carouselInfo, null, attachedActions);
             }
 
             // Find NPE reward cards (displayed cards on reward screens)
@@ -1705,6 +1722,93 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Structure to hold deck toolbar buttons for attached actions.
+        /// </summary>
+        private struct DeckToolbarButtons
+        {
+            public GameObject EditButton;   // EditDeck_MainButtonBlue
+            public GameObject DeleteButton; // Delete_MainButton_Round
+            public GameObject ExportButton; // Export_MainButton_Round
+        }
+
+        /// <summary>
+        /// Find the deck toolbar buttons (Delete, Edit, Export) in the DeckManager screen.
+        /// These buttons act on the currently selected deck.
+        /// </summary>
+        private DeckToolbarButtons FindDeckToolbarButtons()
+        {
+            var result = new DeckToolbarButtons();
+
+            // Find MainButtons container in DeckManager
+            var mainButtonsContainer = GameObject.FindObjectsOfType<Transform>()
+                .FirstOrDefault(t => t.name == "MainButtons" &&
+                                    t.parent != null &&
+                                    t.parent.name == "SafeArea" &&
+                                    t.gameObject.activeInHierarchy);
+
+            if (mainButtonsContainer == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] DeckManager MainButtons container not found");
+                return result;
+            }
+
+            // Find each button by name
+            foreach (Transform child in mainButtonsContainer)
+            {
+                if (!child.gameObject.activeInHierarchy) continue;
+
+                if (child.name.Contains("Delete"))
+                {
+                    result.DeleteButton = child.gameObject;
+                }
+                else if (child.name.Contains("EditDeck"))
+                {
+                    result.EditButton = child.gameObject;
+                }
+                else if (child.name.Contains("Export"))
+                {
+                    result.ExportButton = child.gameObject;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Build attached actions list for a deck element.
+        /// </summary>
+        private List<AttachedAction> BuildDeckAttachedActions(DeckToolbarButtons toolbarButtons, GameObject renameButton)
+        {
+            var actions = new List<AttachedAction>();
+
+            // Rename (TextBox button on the deck)
+            if (renameButton != null)
+            {
+                actions.Add(new AttachedAction { Label = "Rename", TargetButton = renameButton });
+            }
+
+            // Edit (open deck builder)
+            if (toolbarButtons.EditButton != null)
+            {
+                actions.Add(new AttachedAction { Label = "Edit", TargetButton = toolbarButtons.EditButton });
+            }
+
+            // Export
+            if (toolbarButtons.ExportButton != null)
+            {
+                actions.Add(new AttachedAction { Label = "Export", TargetButton = toolbarButtons.ExportButton });
+            }
+
+            // Delete (last, as it's destructive)
+            if (toolbarButtons.DeleteButton != null)
+            {
+                actions.Add(new AttachedAction { Label = "Delete", TargetButton = toolbarButtons.DeleteButton });
+            }
+
+            return actions;
         }
 
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);

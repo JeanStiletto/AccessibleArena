@@ -22,6 +22,13 @@ namespace AccessibleArena.Core.Services
         protected int _currentIndex = -1;
         protected bool _isActive;
 
+        /// <summary>
+        /// Current action index for elements with attached actions.
+        /// 0 = the element itself, 1+ = attached actions.
+        /// Reset to 0 when navigating to a different element.
+        /// </summary>
+        protected int _currentActionIndex = 0;
+
         /// <summary>Whether current index points to a valid element</summary>
         protected bool IsValidIndex => _currentIndex >= 0 && _currentIndex < _elements.Count;
 
@@ -33,6 +40,18 @@ namespace AccessibleArena.Core.Services
         private GameObject _editingInputField;
 
         /// <summary>
+        /// Represents a virtual action attached to an element (e.g., Delete, Edit for decks).
+        /// These are cycled through with left/right arrows.
+        /// </summary>
+        protected struct AttachedAction
+        {
+            /// <summary>Display name announced to user (e.g., "Delete", "Edit")</summary>
+            public string Label { get; set; }
+            /// <summary>The actual button to activate when this action is triggered</summary>
+            public GameObject TargetButton { get; set; }
+        }
+
+        /// <summary>
         /// Represents a navigable UI element with its label and optional carousel info
         /// </summary>
         protected struct NavigableElement
@@ -42,6 +61,8 @@ namespace AccessibleArena.Core.Services
             public CarouselInfo Carousel { get; set; }
             /// <summary>Optional alternate action object (e.g., edit button for deck entries, activated with Shift+Enter)</summary>
             public GameObject AlternateActionObject { get; set; }
+            /// <summary>Virtual actions that can be cycled through with left/right arrows</summary>
+            public List<AttachedAction> AttachedActions { get; set; }
         }
 
         /// <summary>
@@ -807,7 +828,7 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Handle left/right arrow keys for carousel/stepper/slider elements.
+        /// Handle left/right arrow keys for carousel/stepper/slider elements or attached actions.
         /// Returns true if the current element supports arrow navigation and the key was handled.
         /// </summary>
         protected virtual bool HandleCarouselArrow(bool isNext)
@@ -815,7 +836,15 @@ namespace AccessibleArena.Core.Services
             if (!IsValidIndex)
                 return false;
 
-            var info = _elements[_currentIndex].Carousel;
+            var element = _elements[_currentIndex];
+
+            // Check for attached actions first (e.g., deck actions: Delete, Edit, Export)
+            if (element.AttachedActions != null && element.AttachedActions.Count > 0)
+            {
+                return HandleAttachedActionArrow(element, isNext);
+            }
+
+            var info = element.Carousel;
             if (!info.HasArrowNavigation)
                 return false;
 
@@ -875,6 +904,50 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Slider {(isNext ? "increase" : "decrease")}: {percent}%");
             _announcer.AnnounceInterrupt($"{percent} percent");
 
+            return true;
+        }
+
+        /// <summary>
+        /// Handle left/right arrow keys for cycling through attached actions.
+        /// Action index 0 = the element itself, 1+ = attached actions.
+        /// </summary>
+        private bool HandleAttachedActionArrow(NavigableElement element, bool isNext)
+        {
+            int actionCount = element.AttachedActions.Count;
+            int totalOptions = 1 + actionCount; // Element itself + attached actions
+
+            int newActionIndex = _currentActionIndex + (isNext ? 1 : -1);
+
+            // Clamp to valid range (no wrapping)
+            if (newActionIndex < 0)
+            {
+                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return true;
+            }
+            if (newActionIndex >= totalOptions)
+            {
+                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            _currentActionIndex = newActionIndex;
+
+            // Announce current action
+            string announcement;
+            if (_currentActionIndex == 0)
+            {
+                // Back to the element itself
+                announcement = element.Label;
+            }
+            else
+            {
+                // Attached action
+                var action = element.AttachedActions[_currentActionIndex - 1];
+                announcement = action.Label;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Action cycle: index {_currentActionIndex}, announcing: {announcement}");
+            _announcer.AnnounceInterrupt(announcement);
             return true;
         }
 
@@ -942,6 +1015,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _currentIndex = newIndex;
+            _currentActionIndex = 0; // Reset action index when moving to new element
             AnnounceCurrentElement();
             UpdateCardNavigation();
         }
@@ -962,6 +1036,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _currentIndex = 0;
+            _currentActionIndex = 0; // Reset action index
             AnnounceCurrentElement();
             UpdateCardNavigation();
         }
@@ -980,6 +1055,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _currentIndex = lastIndex;
+            _currentActionIndex = 0; // Reset action index
             AnnounceCurrentElement();
             UpdateCardNavigation();
         }
@@ -997,10 +1073,30 @@ namespace AccessibleArena.Core.Services
         {
             if (!IsValidIndex) return;
 
-            var element = _elements[_currentIndex].GameObject;
+            var navElement = _elements[_currentIndex];
+            var element = navElement.GameObject;
             if (element == null) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] Activating: {element.name} (ID:{element.GetInstanceID()}, Label:{_elements[_currentIndex].Label})");
+            // Check if we're on an attached action (not the element itself)
+            if (_currentActionIndex > 0 && navElement.AttachedActions != null &&
+                _currentActionIndex <= navElement.AttachedActions.Count)
+            {
+                var action = navElement.AttachedActions[_currentActionIndex - 1];
+                if (action.TargetButton != null && action.TargetButton.activeInHierarchy)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Activating attached action: {action.Label} -> {action.TargetButton.name}");
+                    var actionResult = UIActivator.Activate(action.TargetButton);
+                    _announcer.Announce(actionResult.Message, AnnouncementPriority.Normal);
+                    return;
+                }
+                else
+                {
+                    _announcer.Announce("Action not available", AnnouncementPriority.Normal);
+                    return;
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Activating: {element.name} (ID:{element.GetInstanceID()}, Label:{navElement.Label})");
 
             // Check if this is an input field - enter edit mode
             if (UIFocusTracker.IsInputField(element))
@@ -1094,6 +1190,12 @@ namespace AccessibleArena.Core.Services
         /// <summary>Add an element with label, carousel info, and optional alternate action (prevents duplicates)</summary>
         protected void AddElement(GameObject element, string label, CarouselInfo carouselInfo, GameObject alternateAction)
         {
+            AddElement(element, label, carouselInfo, alternateAction, null);
+        }
+
+        /// <summary>Add an element with label, carousel info, alternate action, and attached actions (prevents duplicates)</summary>
+        protected void AddElement(GameObject element, string label, CarouselInfo carouselInfo, GameObject alternateAction, List<AttachedAction> attachedActions)
+        {
             if (element == null) return;
 
             // Prevent duplicates by instance ID
@@ -1109,11 +1211,13 @@ namespace AccessibleArena.Core.Services
                 GameObject = element,
                 Label = label,
                 Carousel = carouselInfo,
-                AlternateActionObject = alternateAction
+                AlternateActionObject = alternateAction,
+                AttachedActions = attachedActions
             });
 
             string altInfo = alternateAction != null ? $" [Alt: {alternateAction.name}]" : "";
-            MelonLogger.Msg($"[{NavigatorId}] Added (ID:{instanceId}): {label}{altInfo}");
+            string actionsInfo = attachedActions != null && attachedActions.Count > 0 ? $" [Actions: {attachedActions.Count}]" : "";
+            MelonLogger.Msg($"[{NavigatorId}] Added (ID:{instanceId}): {label}{altInfo}{actionsInfo}");
         }
 
         /// <summary>Add a button, auto-extracting label from text</summary>

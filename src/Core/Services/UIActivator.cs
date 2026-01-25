@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
 using System.Collections;
+using System.Linq;
 using System.Text.RegularExpressions;
 // NOTE: System.Runtime.InteropServices kept for potential WinAPI reactivation
 // using System.Runtime.InteropServices;
@@ -956,10 +957,15 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Checks if an element is a deck entry (for specialized handling).
+        /// TextBox elements are excluded - they're for renaming, not selecting.
         /// </summary>
         public static bool IsDeckEntry(GameObject element)
         {
             if (element == null) return false;
+
+            // TextBox is for renaming the deck, not selecting it
+            if (element.name == "TextBox")
+                return false;
 
             // Check parent hierarchy for DeckView_Base
             Transform current = element.transform;
@@ -994,6 +1000,124 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Check if a deck is currently selected.
+        /// Compares the deck's DeckView with DeckViewSelector._selectedDeckView.
+        /// </summary>
+        /// <param name="deckElement">The deck UI element (CustomButton on DeckView_Base/UI)</param>
+        /// <returns>True if the deck is selected, false otherwise or if not a deck</returns>
+        public static bool IsDeckSelected(GameObject deckElement)
+        {
+            if (deckElement == null) return false;
+
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null) return false;
+
+            // Find DeckViewSelector and get _selectedDeckView
+            var selectedDeckView = GetSelectedDeckView();
+            if (selectedDeckView == null) return false;
+
+            // Compare if this deck's DeckView matches the selected one
+            return deckView == selectedDeckView;
+        }
+
+        /// <summary>
+        /// Get the currently selected DeckView from DeckViewSelector.
+        /// </summary>
+        private static MonoBehaviour GetSelectedDeckView()
+        {
+            // Find DeckViewSelector_Base
+            var selectorTransform = GameObject.FindObjectsOfType<Transform>()
+                .FirstOrDefault(t => t.name.Contains("DeckViewSelector_Base") && t.gameObject.activeInHierarchy);
+
+            if (selectorTransform == null) return null;
+
+            // Find DeckViewSelector component
+            MonoBehaviour selector = null;
+            foreach (var mb in selectorTransform.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "DeckViewSelector")
+                {
+                    selector = mb;
+                    break;
+                }
+            }
+
+            if (selector == null) return null;
+
+            // Read _selectedDeckView field
+            try
+            {
+                var field = selector.GetType().GetField("_selectedDeckView",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                if (field != null)
+                {
+                    return field.GetValue(selector) as MonoBehaviour;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Log($"Error getting selected deck: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// DEBUG: Inspect a DeckView component to find selection-related properties.
+        /// </summary>
+        public static void DebugInspectDeckView(GameObject deckElement)
+        {
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null)
+            {
+                MelonLogger.Msg("[DeckView DEBUG] No DeckView found");
+                return;
+            }
+
+            var type = deckView.GetType();
+            MelonLogger.Msg($"[DeckView DEBUG] === Inspecting {type.Name} on {deckView.gameObject.name} ===");
+
+            // List all properties
+            MelonLogger.Msg("[DeckView DEBUG] Properties:");
+            foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance))
+            {
+                try
+                {
+                    var value = prop.GetValue(deckView);
+                    MelonLogger.Msg($"[DeckView DEBUG]   {prop.Name} ({prop.PropertyType.Name}) = {value}");
+                }
+                catch
+                {
+                    MelonLogger.Msg($"[DeckView DEBUG]   {prop.Name} ({prop.PropertyType.Name}) = <error reading>");
+                }
+            }
+
+            // List all fields
+            MelonLogger.Msg("[DeckView DEBUG] Fields:");
+            foreach (var field in type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance))
+            {
+                try
+                {
+                    var value = field.GetValue(deckView);
+                    // For complex objects, just show type
+                    string valueStr = value == null ? "null" :
+                        (value is string || value is bool || value is int || value is float || value is System.Enum)
+                            ? value.ToString()
+                            : $"<{value.GetType().Name}>";
+                    MelonLogger.Msg($"[DeckView DEBUG]   {field.Name} ({field.FieldType.Name}) = {valueStr}");
+                }
+                catch
+                {
+                    MelonLogger.Msg($"[DeckView DEBUG]   {field.Name} ({field.FieldType.Name}) = <error reading>");
+                }
+            }
+
+            MelonLogger.Msg("[DeckView DEBUG] === End Inspection ===");
         }
 
         #endregion

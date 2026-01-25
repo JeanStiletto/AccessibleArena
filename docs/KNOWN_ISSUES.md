@@ -460,6 +460,114 @@ Card counts for hidden zones are now accessible:
 
 Counts are tracked via UpdateZoneUXEvent and announced on demand.
 
+## In Progress Features
+
+### Deck Selection State Detection (Jan 2026)
+
+**Goal:** Announce "selected" when navigating to a deck that is currently selected in the game.
+
+**Investigation findings:**
+
+1. **DeckView._animateIsSelected** - Boolean field exists on each DeckView, but it's only `true` during selection animation, not as persistent state. Always returns `false` when queried.
+
+2. **DeckViewSelector._selectedDeckView** - The DeckViewSelector component has this field which holds a reference to the currently selected DeckView. This IS the correct way to detect selection.
+
+**Implementation added (UIActivator.cs):**
+- `IsDeckSelected(deckElement)` - Compares deck's DeckView with `DeckViewSelector._selectedDeckView`
+- `GetSelectedDeckView()` - Finds DeckViewSelector and reads `_selectedDeckView` field
+
+**Current limitation: Backspace deselects decks**
+
+When user presses Backspace to exit a group in our navigation, the game also receives the Backspace and deselects the deck. This makes it impossible to:
+1. Select a deck with Enter
+2. Press Backspace to exit the deck folder group
+3. Re-enter the folder and see the deck still selected
+
+The game deselects on Backspace before our re-scan can detect the selection state.
+
+**Possible solutions (not implemented):**
+1. **Track selection internally** - Remember which deck was selected via Enter, ignore game state
+2. **Re-select after Backspace** - After exiting group, re-invoke deck selection (may cause UI flicker)
+3. **Use different key** - Don't use Backspace for group navigation (breaks consistency)
+
+**Current status:** Detection code is in place but effectively non-functional due to Backspace deselection. Left as-is for future improvement.
+
+**Files:**
+- `src/Core/Services/UIActivator.cs` - `IsDeckSelected()`, `GetSelectedDeckView()`
+- `src/Core/Services/GeneralMenuNavigator.cs` - Selection check during deck discovery
+
+---
+
+### Enchantment/Attachment Announcement (Jan 2026)
+
+**Goal:** Announce when cards are enchanted/equipped and show attachment info when navigating.
+
+**Desired behavior:**
+1. When an aura resolves: "Pacifism enchanted Serra Angel"
+2. When navigating to enchanted creature: "Serra Angel, enchanted by Pacifism, 1 of 3"
+3. When navigating to the aura itself: "Pacifism, attached to Serra Angel, 1 of 1"
+
+**Implementation added (CardModelProvider.cs):**
+- `GetAttachments(card)` - Returns list of cards attached to this card (enchantments, equipment)
+- `GetAttachedTo(card)` - Returns the card this card is attached to (for auras/equipment)
+- `GetAttachmentText(card)` - Formatted text for announcements
+- `GetAttachmentsFromVisualLayer(card)` - Checks child/sibling GameObjects for attachments
+
+**Integration points:**
+- `BattlefieldNavigator.AnnounceCurrentCard()` - Calls `GetAttachmentText()`
+- `ZoneNavigator.AnnounceCurrentCard()` - Calls `GetAttachmentText()` for battlefield
+- `DuelAnnouncer.ProcessBattlefieldEntry()` - Calls `GetAttachedToName()` for aura resolution
+
+**Current issue: Parent/Children properties are always null/empty**
+
+From game logs, CardData model has these properties:
+```
+Property: Parent = null (MtgCardInstance)
+Property: Children = System.Collections.Generic.List`1[GreClient.Rules.MtgCardInstance]
+```
+
+But when querying an aura (Wasserschlinge) on the battlefield:
+- `Model.Parent` returns null
+- `Model.Children` returns empty list
+- `Instance.Parent` also returns null
+
+The game clearly tracks attachments (auras work correctly, tapping enchanted creatures, etc.) but the data isn't exposed through these properties.
+
+**Investigation approaches tried:**
+1. Check `Model.Parent` directly - null
+2. Check `Model.Instance.Parent` - null
+3. Check `Model.Children` - empty list
+4. Check child GameObjects for CDC components - none found
+5. Check sibling GameObjects with matching Parent.InstanceId - all siblings have null Parent
+
+**Debug logging added:**
+- `GetAttachments for X: parent=Y, children=Z` - Shows GameObject hierarchy
+- `GetAttachedTo(X): Model.Parent = ...` - Shows Parent property value
+- `Sibling X has Parent.InstanceId=Y, looking for Z` - Shows sibling Parent values
+
+**Next steps to investigate:**
+1. Check if `IBattlefieldStack.AttachmentCount` property is accessible on the visual layer
+2. Look for alternative properties on CardData that track attachments
+3. Check if there's a separate attachment registry/manager in the game
+4. Examine zone transfer events more closely - maybe attachment info is only available during resolution
+5. Look at the CDC component itself for attachment-related methods/properties
+
+**Files modified:**
+- `src/Core/Services/CardModelProvider.cs` - New attachment methods
+- `src/Core/Services/BattlefieldNavigator.cs` - Added attachment text to announcements
+- `src/Core/Services/ZoneNavigator.cs` - Added attachment text for battlefield
+- `src/Core/Services/DuelAnnouncer.cs` - Added `GetAttachedToName()` and attachment announcements
+
+**Related game architecture (from GAME_ARCHITECTURE.md):**
+```
+IBattlefieldStack
+- Property: Int32 AttachmentCount
+```
+
+This interface exists but we haven't found how to access it from the CDC component.
+
+---
+
 ## Planned Features
 
 ### Immediate
