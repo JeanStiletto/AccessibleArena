@@ -2,6 +2,21 @@
 
 All notable changes to Accessible Arena.
 
+## v0.2.1 - 2026-01-25
+
+### Bug Fixes
+- Fix combat state display during Declare Attackers/Blockers phases
+  - Creatures no longer incorrectly show as "attacking" or "blocking" before being assigned
+  - Game pre-creates IsBlocking on all potential blockers (inactive) - now correctly checks active state
+  - Display checks active state while internal counting checks existence (for token compatibility)
+
+### Improvements
+- Add "can attack" state during Declare Attackers phase (matches "can block" pattern)
+- Combat states now correctly show:
+  - Attackers: "can attack" → "attacking"
+  - Blockers: "can block" → "selected to block" → "blocking"
+- Remove unused debug field
+
 ## v0.2 - 2026-01-24
 
 ### Bug Fixes

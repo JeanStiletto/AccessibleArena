@@ -24,9 +24,6 @@ namespace AccessibleArena.Core.Services
         private readonly IAnnouncementService _announcer;
         private readonly DuelAnnouncer _duelAnnouncer;
 
-        // Debug flag for logging card children (set to true for debugging)
-        private bool _debugBlockerCards = false;
-
         // Track selected blockers by instance ID for change detection
         private HashSet<int> _previousSelectedBlockerIds = new HashSet<int>();
 
@@ -111,7 +108,9 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Checks if a creature is currently assigned as a blocker.
         /// Looks for the "IsBlocking" child within the card hierarchy.
-        /// Note: The indicator may exist but be inactive - existence means blocking.
+        /// Note: Unlike IsAttacking, we must check ACTIVE state because the game
+        /// pre-creates IsBlocking children on all potential blockers (inactive)
+        /// and only activates them when actually assigned.
         /// </summary>
         public bool IsCreatureBlocking(GameObject card)
         {
@@ -119,9 +118,9 @@ namespace AccessibleArena.Core.Services
 
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                // "IsBlocking" child exists when the creature is assigned as a blocker
-                // Check existence, not active state (same pattern as IsAttacking)
-                if (child.name == "IsBlocking")
+                // "IsBlocking" child is ACTIVE when the creature is assigned as a blocker
+                // Must check active state - game pre-creates inactive IsBlocking on all potential blockers
+                if (child.name == "IsBlocking" && child.gameObject.activeInHierarchy)
                 {
                     return true;
                 }
@@ -385,11 +384,11 @@ namespace AccessibleArena.Core.Services
 
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                // IsAttacking/IsBlocking: Check if child EXISTS (not just if active)
-                // The indicator may be inactive but present, meaning the creature IS attacking/blocking
-                if (child.name == "IsAttacking")
+                // For display purposes, check ACTIVE state for IsAttacking/IsBlocking
+                // (Internal tracking methods use existence check for correct counting)
+                if (child.name == "IsAttacking" && child.gameObject.activeInHierarchy)
                     isAttacking = true;
-                if (child.name == "IsBlocking")
+                if (child.name == "IsBlocking" && child.gameObject.activeInHierarchy)
                     isBlocking = true;
 
                 // For other indicators, require them to be active
@@ -409,9 +408,11 @@ namespace AccessibleArena.Core.Services
                     isTapped = true;
             }
 
-            // Attacking state
+            // Attacking states (priority: is attacking > can attack)
             if (isAttacking)
                 states.Add("attacking");
+            else if (hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase)
+                states.Add("can attack");
 
             // Blocking states (priority: is blocking > selected to block > can block)
             if (isBlocking)
