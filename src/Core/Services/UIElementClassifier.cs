@@ -620,6 +620,29 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Check if element is inside a TAG_PreferredPrinting (card style selector in collection view).
+        /// These expand buttons should be filtered as they flood the navigation.
+        /// </summary>
+        private static bool IsInsidePreferredPrintingTag(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+
+            while (current != null && levels < MaxParentSearchDepth)
+            {
+                string name = current.name;
+                if (ContainsIgnoreCase(name, "PreferredPrinting") || ContainsIgnoreCase(name, "TAG_Preferred"))
+                    return true;
+                current = current.parent;
+                levels++;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Check if element is inside a VS_screen (NPE/pre-game screen).
         /// These contain decorative elements like NPC portraits that shouldn't be navigable.
         /// </summary>
@@ -897,6 +920,14 @@ namespace AccessibleArena.Core.Services
 
                 // Navigation arrows (leftover from duel)
                 if (IsNavigationArrow(obj, name, null))
+                    return true;
+            }
+
+            // Expand buttons in collection view (card style/printing selection)
+            // These are inside TAG_PreferredPrinting and flood the navigation
+            if (EqualsIgnoreCase(name, "ExpandButton") || EqualsIgnoreCase(name, "expand button"))
+            {
+                if (IsInsidePreferredPrintingTag(obj))
                     return true;
             }
 
@@ -1451,6 +1482,13 @@ namespace AccessibleArena.Core.Services
 
         private static string GetCleanLabel(string text, string objName)
         {
+            // Special case: Clear Search Button picks up placeholder text from sibling input field
+            // Force use of cleaned object name instead
+            if (EqualsIgnoreCase(objName, "Clear Search Button"))
+            {
+                return CleanObjectName(objName);
+            }
+
             // Prefer text content if available and meaningful (not too short or too long)
             // Text over MaxLabelLength is likely paragraph content, fall back to object name
             if (!string.IsNullOrEmpty(text) && text.Length > 1 && text.Length < MaxLabelLength)
@@ -1474,6 +1512,26 @@ namespace AccessibleArena.Core.Services
         private static string CleanObjectName(string name)
         {
             if (string.IsNullOrEmpty(name)) return "Unknown";
+
+            // Special handling for color filter toggles: "CardFilterView Color_White" -> "White"
+            if (name.StartsWith("CardFilterView Color_", System.StringComparison.OrdinalIgnoreCase))
+            {
+                string color = name.Substring(21); // After "CardFilterView Color_"
+                return color;
+            }
+
+            // Special handling for multicolor filter: "CardFilterView Multicolor" -> "Multicolor"
+            if (name.StartsWith("CardFilterView ", System.StringComparison.OrdinalIgnoreCase))
+            {
+                string filterType = name.Substring(15); // After "CardFilterView "
+                return filterType.Replace("_", " ");
+            }
+
+            // Special handling for clear search button
+            if (EqualsIgnoreCase(name, "Clear Search Button"))
+            {
+                return "Clear search";
+            }
 
             name = name.Replace("(Clone)", "");
             name = name.Replace("_", " ");

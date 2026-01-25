@@ -1208,6 +1208,25 @@ namespace AccessibleArena.Core.Services
             // Detect active controller first so filtering works correctly
             DetectActiveContentController();
 
+            // Debug: Dump DeckFolder hierarchy on DeckManager screen
+            if (DebugLogging && _activeContentController == "DeckManagerController")
+            {
+                LogDebug($"[{NavigatorId}] === DECK FOLDER HIERARCHY ===");
+                var deckFolders = GameObject.FindObjectsOfType<Transform>()
+                    .Where(t => t.name.Contains("DeckFolder_Base"))
+                    .ToArray();
+                LogDebug($"[{NavigatorId}] Found {deckFolders.Length} DeckFolder_Base instances");
+                foreach (var folder in deckFolders)
+                {
+                    if (folder.gameObject.activeInHierarchy)
+                    {
+                        LogDebug($"[{NavigatorId}] DeckFolder: {folder.name} (active)");
+                        LogHierarchy(folder, "  ", 5);
+                    }
+                }
+                LogDebug($"[{NavigatorId}] === END DECK FOLDER HIERARCHY ===");
+            }
+
             var addedObjects = new HashSet<GameObject>();
             var discoveredElements = new List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)>();
 
@@ -1289,14 +1308,18 @@ namespace AccessibleArena.Core.Services
 
             // Process deck entries: pair main buttons with their TextBox edit buttons
             // Each deck entry has UI (CustomButton for selection) and TextBox (for editing name)
-            var deckElements = discoveredElements.Where(x => x.classification.Label.Contains(", deck")).ToList();
+            // Multiple elements per deck may have ", deck" label - we only keep the "UI" one
             var deckPairs = new Dictionary<Transform, (GameObject mainButton, GameObject editButton)>();
+            var allDeckElements = new HashSet<GameObject>(); // Track ALL elements inside deck entries
 
-            foreach (var (obj, classification, _) in deckElements)
+            foreach (var (obj, classification, _) in discoveredElements)
             {
                 // Find the DeckView_Base parent to group elements by deck entry
                 Transform deckViewParent = FindDeckViewParent(obj.transform);
                 if (deckViewParent == null) continue;
+
+                // Track all elements that are part of a deck entry
+                allDeckElements.Add(obj);
 
                 if (!deckPairs.ContainsKey(deckViewParent))
                 {
@@ -1305,22 +1328,25 @@ namespace AccessibleArena.Core.Services
 
                 var pair = deckPairs[deckViewParent];
 
-                // UI element (CustomButton) is the main selection button
-                // TextBox element is for editing the deck name
-                if (obj.name == "UI")
+                // UI element (CustomButton) is the main selection button - this is what we keep
+                // TextBox element is for editing the deck name (has TMP_InputField)
+                if (obj.name == "UI" && classification.Label.Contains(", deck"))
                 {
                     deckPairs[deckViewParent] = (obj, pair.editButton);
                 }
-                else if (obj.name == "TextBox")
+                else if (obj.name == "TextBox" && obj.GetComponent<TMP_InputField>() != null)
                 {
                     deckPairs[deckViewParent] = (pair.mainButton, obj);
                 }
             }
 
-            // Build set of TextBox objects to skip (they'll be added as alternate actions)
-            var textBoxesToSkip = new HashSet<GameObject>(deckPairs.Values
-                .Where(p => p.editButton != null)
-                .Select(p => p.editButton));
+            // Build set of elements to keep (only the UI main buttons)
+            var deckMainButtons = new HashSet<GameObject>(deckPairs.Values
+                .Where(p => p.mainButton != null)
+                .Select(p => p.mainButton));
+
+            // Elements to skip = all deck elements EXCEPT the main buttons we're keeping
+            var deckElementsToSkip = new HashSet<GameObject>(allDeckElements.Where(e => !deckMainButtons.Contains(e)));
 
             // Map main deck buttons to their edit buttons for alternate action
             var deckEditButtons = deckPairs
@@ -1330,8 +1356,8 @@ namespace AccessibleArena.Core.Services
             // Sort by position and add elements with proper labels
             foreach (var (obj, classification, _) in discoveredElements.OrderBy(x => x.sortOrder))
             {
-                // Skip TextBox elements - they're added as alternate actions on their main button
-                if (textBoxesToSkip.Contains(obj))
+                // Skip deck elements that aren't the main UI button (TextBox, duplicates, etc.)
+                if (deckElementsToSkip.Contains(obj))
                     continue;
 
                 string announcement = BuildAnnouncement(classification);
