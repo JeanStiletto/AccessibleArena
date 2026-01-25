@@ -250,8 +250,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
                 if (nonFolderElements.TryGetValue(groupType, out var elementList) && elementList.Count > 0)
                 {
-                    // Primary elements become standalone items at group level
-                    if (groupType == ElementGroup.Primary)
+                    // Primary and Content elements become standalone items at group level
+                    if (groupType == ElementGroup.Primary || groupType == ElementGroup.Content)
                     {
                         foreach (var element in elementList)
                         {

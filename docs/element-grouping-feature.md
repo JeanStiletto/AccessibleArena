@@ -39,6 +39,7 @@ Break long menu lists into smaller, contextual groups for better blind user navi
 |----------|----------|---------|
 | Secondary group | Planned | **Removed** - elements fall to Content or Navigation |
 | Primary group | Auto-enter first | **Standalone items** - shown directly at group level, not inside a group |
+| Content group | Grouped together | **Standalone items** - each element shown directly at group level (like Primary) |
 | Auto-enter | Primary + single-item groups | **Only when 1 total group** exists |
 | ForegroundLayer | Remove entirely | **Kept for now** - still used for ContentPanel/Home filtering |
 | Folder grouping | Not planned | **Added** - Decks screen folders become their own groups |
@@ -95,7 +96,7 @@ public enum ElementGroup
     Primary,          // Main actions: Play, Submit, Continue (shown as standalone)
     Navigation,       // Nav bar, tabs, back buttons
     Filters,          // Search, sort, filter toggles
-    Content,          // Deck entries, cards, list items, dropdowns, buttons
+    Content,          // Deck entries, cards, list items, dropdowns, buttons (shown as standalone)
     Settings,         // Settings controls (when not full overlay)
     Secondary,        // (REMOVED - not used)
 
@@ -139,7 +140,7 @@ src/Core/Services/ElementGrouping/
 - [x] Pending folder entry (preserves state across rescan)
 - [x] Content group always available (filters, dropdowns, buttons)
 - [x] Test with multiple folders
-- [ ] Review color filter classification (currently in Content, should be Filters?)
+- [x] Color filters classified as Filters (added DeckColorFilters pattern)
 
 **Collection Screen:**
 - [ ] Tune mana color filters
@@ -220,7 +221,7 @@ These can potentially be replaced with group-based filtering later, but require 
 
 3. **Auto-enter behavior** - Only triggers when exactly 1 group. Single-item groups within multiple groups require Enter to activate.
 
-4. **Color filters classification** - DeckColorFilters (CardFilterView Color_*) are classified as Content, not Filters. Pattern matching doesn't catch "DeckColorFilters" parent path. May want to add pattern for better grouping.
+4. ~~**Color filters classification**~~ - Fixed: Added `DeckColorFilters` pattern to `IsFilterElement()`.
 
 ---
 

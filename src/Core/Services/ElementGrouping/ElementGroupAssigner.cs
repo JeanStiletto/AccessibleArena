@@ -154,7 +154,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             // Filter bars and containers
             if (parentPath.Contains("FilterBar") || parentPath.Contains("CardFilter") ||
-                parentPath.Contains("FilterPanel") || parentPath.Contains("SearchBar"))
+                parentPath.Contains("FilterPanel") || parentPath.Contains("SearchBar") ||
+                parentPath.Contains("DeckColorFilters"))
                 return true;
 
             // Filter toggles and buttons
