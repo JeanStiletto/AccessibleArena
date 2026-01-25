@@ -5,6 +5,7 @@ using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Services.PanelDetection;
+using AccessibleArena.Core.Services.ElementGrouping;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -117,6 +118,17 @@ namespace AccessibleArena.Core.Services
         // Helper instances
         private readonly MenuScreenDetector _screenDetector;
 
+        // Element grouping infrastructure (Phase 2 of element grouping feature)
+        private readonly OverlayDetector _overlayDetector;
+        private readonly ElementGroupAssigner _groupAssigner;
+        private readonly GroupedNavigator _groupedNavigator;
+
+        /// <summary>
+        /// Whether grouped (hierarchical) navigation is enabled.
+        /// When true, elements are organized into groups for two-level navigation.
+        /// </summary>
+        private bool _groupedNavigationEnabled = true;
+
         // Rescan timing
         private float _rescanDelay;
 
@@ -219,6 +231,11 @@ namespace AccessibleArena.Core.Services
         public GeneralMenuNavigator(IAnnouncementService announcer) : base(announcer)
         {
             _screenDetector = new MenuScreenDetector();
+
+            // Initialize element grouping infrastructure
+            _overlayDetector = new OverlayDetector(_screenDetector);
+            _groupAssigner = new ElementGroupAssigner(_overlayDetector);
+            _groupedNavigator = new GroupedNavigator(announcer, _groupAssigner);
 
             // Subscribe to PanelStateManager for rescan triggers
             if (PanelStateManager.Instance != null)
@@ -458,6 +475,14 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // Enter: In grouped navigation mode, handle both group entry and element activation
+            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            if (enterPressed && _groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                if (HandleGroupedEnter())
+                    return true;
+            }
+
             // Backspace: Universal back - goes back one level in menus
             // But NOT when an input field is focused - let Backspace delete characters
             if (Input.GetKeyDown(KeyCode.Backspace))
@@ -467,6 +492,12 @@ namespace AccessibleArena.Core.Services
                     LogDebug($"[{NavigatorId}] Backspace pressed but input field focused - passing through");
                     return false; // Let it pass through to the input field
                 }
+
+                // In grouped navigation mode inside a group, exit to group level first
+                if (HandleGroupedBackspace())
+                    return true;
+
+                // Otherwise, use normal back navigation
                 return HandleBackNavigation();
             }
 
@@ -487,19 +518,33 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle Backspace key - navigates back one level in the menu hierarchy.
-        /// Uses GetCurrentForeground() to determine what to close, keeping it in sync with element filtering.
+        /// Uses OverlayDetector for overlay cases, GetCurrentForeground() for content panel cases.
         /// </summary>
         private bool HandleBackNavigation()
         {
+            // First check if an overlay is active using the new OverlayDetector
+            var activeOverlay = _overlayDetector.GetActiveOverlay();
+            LogDebug($"[{NavigatorId}] Backspace: activeOverlay = {activeOverlay?.ToString() ?? "none"}");
+
+            if (activeOverlay != null)
+            {
+                return activeOverlay switch
+                {
+                    ElementGroup.Popup => DismissPopup(),
+                    ElementGroup.Social => CloseSocialPanel(),
+                    ElementGroup.PlayBlade => ClosePlayBlade(),
+                    ElementGroup.NPE => HandleNPEBack(),
+                    ElementGroup.SettingsMenu => false, // Settings handled by SettingsMenuNavigator
+                    _ => false
+                };
+            }
+
+            // No overlay - check content panel layer
             var layer = GetCurrentForeground();
-            LogDebug($"[{NavigatorId}] Backspace: current layer = {layer}");
+            LogDebug($"[{NavigatorId}] Backspace: layer = {layer}");
 
             return layer switch
             {
-                ForegroundLayer.Popup => DismissPopup(),
-                ForegroundLayer.Social => CloseSocialPanel(),
-                ForegroundLayer.PlayBlade => ClosePlayBlade(),
-                ForegroundLayer.NPE => HandleNPEBack(),
                 ForegroundLayer.ContentPanel => HandleContentPanelBack(),
                 ForegroundLayer.Home => TryGenericBackButton(),
                 ForegroundLayer.None => TryGenericBackButton(),
@@ -891,22 +936,25 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if element should be shown based on current foreground layer.
-        /// Unified with GetCurrentForeground() to ensure filtering and back navigation stay in sync.
+        /// Uses OverlayDetector for overlay detection, falls back to content panel filtering.
         /// </summary>
         private bool ShouldShowElement(GameObject obj)
         {
+            // Check if an overlay is active using the new OverlayDetector
+            var activeOverlay = _overlayDetector.GetActiveOverlay();
+
+            if (activeOverlay != null)
+            {
+                // An overlay is active - use OverlayDetector to filter
+                return _overlayDetector.IsInsideActiveOverlay(obj);
+            }
+
+            // No overlay active - fall back to content panel filtering
+            // This keeps existing behavior for ContentPanel and Home cases
             var layer = GetCurrentForeground();
 
             return layer switch
             {
-                ForegroundLayer.Popup => _foregroundPanel != null && IsChildOf(obj, _foregroundPanel),
-
-                ForegroundLayer.Social => IsChildOfSocialPanel(obj),
-
-                ForegroundLayer.PlayBlade => IsInsideBlade(obj),
-
-                ForegroundLayer.NPE => IsInsideNPEOverlay(obj),
-
                 ForegroundLayer.ContentPanel => IsChildOfContentPanel(obj),
 
                 ForegroundLayer.Home => IsChildOfHomeOrNavBar(obj),
@@ -1389,6 +1437,13 @@ namespace AccessibleArena.Core.Services
 
             LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
 
+            // Organize elements into groups for hierarchical navigation
+            if (_groupedNavigationEnabled && _elements.Count > 0)
+            {
+                var elementsForGrouping = _elements.Select(e => (e.GameObject, e.Label));
+                _groupedNavigator.OrganizeIntoGroups(elementsForGrouping);
+            }
+
             // On MatchEndScene, auto-focus the Continue button (ExitMatchOverlayButton)
             AutoFocusContinueButton();
 
@@ -1661,8 +1716,178 @@ namespace AccessibleArena.Core.Services
             {
                 return $"{menuName}. No navigable items found.";
             }
+
+            // Use grouped navigator announcement when enabled
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                return _groupedNavigator.GetActivationAnnouncement(menuName);
+            }
+
             return $"{menuName}. {_elements.Count} items. {Models.Strings.NavigateWithArrows}, Enter to select.";
         }
+
+        #region Grouped Navigation Overrides
+
+        /// <summary>
+        /// Override MoveNext to use GroupedNavigator when grouped navigation is enabled.
+        /// </summary>
+        protected override void MoveNext()
+        {
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                _groupedNavigator.MoveNext();
+                return;
+            }
+            base.MoveNext();
+        }
+
+        /// <summary>
+        /// Override MovePrevious to use GroupedNavigator when grouped navigation is enabled.
+        /// </summary>
+        protected override void MovePrevious()
+        {
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                _groupedNavigator.MovePrevious();
+                return;
+            }
+            base.MovePrevious();
+        }
+
+        /// <summary>
+        /// Override MoveFirst to use GroupedNavigator when grouped navigation is enabled.
+        /// </summary>
+        protected override void MoveFirst()
+        {
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                _groupedNavigator.MoveFirst();
+                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                return;
+            }
+            base.MoveFirst();
+        }
+
+        /// <summary>
+        /// Override MoveLast to use GroupedNavigator when grouped navigation is enabled.
+        /// </summary>
+        protected override void MoveLast()
+        {
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                _groupedNavigator.MoveLast();
+                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                return;
+            }
+            base.MoveLast();
+        }
+
+        /// <summary>
+        /// Handle Enter key for grouped navigation.
+        /// When at group level with standalone element, activates it directly.
+        /// When at group level with normal group, enters the group.
+        /// When inside a group, activates the element.
+        /// </summary>
+        private bool HandleGroupedEnter()
+        {
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return false;
+
+            if (_groupedNavigator.Level == NavigationLevel.GroupList)
+            {
+                // Check if this is a standalone element (Primary action button)
+                if (_groupedNavigator.IsCurrentGroupStandalone)
+                {
+                    // Standalone element - activate directly without entering group
+                    var standaloneObj = _groupedNavigator.GetStandaloneElement();
+                    if (standaloneObj != null)
+                    {
+                        // Find the element in our _elements list and activate it
+                        for (int i = 0; i < _elements.Count; i++)
+                        {
+                            if (_elements[i].GameObject == standaloneObj)
+                            {
+                                _currentIndex = i;
+                                ActivateCurrentElement();
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Check if this is a folder group - activate its toggle through normal path
+                var currentGroup = _groupedNavigator.CurrentGroup;
+                if (currentGroup.HasValue && currentGroup.Value.IsFolderGroup && currentGroup.Value.FolderToggle != null)
+                {
+                    // Find the folder toggle in our _elements list and activate it normally
+                    // This goes through OnElementActivated which triggers rescan for toggles
+                    var toggleObj = currentGroup.Value.FolderToggle;
+                    for (int i = 0; i < _elements.Count; i++)
+                    {
+                        if (_elements[i].GameObject == toggleObj)
+                        {
+                            _currentIndex = i;
+                            ActivateCurrentElement();
+                            // Enter the group after activating the toggle
+                            _groupedNavigator.EnterGroup();
+                            return true;
+                        }
+                    }
+                }
+
+                // Normal group - enter it
+                if (_groupedNavigator.EnterGroup())
+                {
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                    return true;
+                }
+            }
+            else
+            {
+                // Inside a group - activate the current element
+                var currentElement = _groupedNavigator.CurrentElement;
+                if (currentElement.HasValue && currentElement.Value.GameObject != null)
+                {
+                    // Find the element in our _elements list and activate it
+                    for (int i = 0; i < _elements.Count; i++)
+                    {
+                        if (_elements[i].GameObject == currentElement.Value.GameObject)
+                        {
+                            _currentIndex = i;
+                            ActivateCurrentElement();
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Handle Backspace key for grouped navigation.
+        /// When inside a group, exits to group level. Otherwise, uses normal back navigation.
+        /// </summary>
+        private bool HandleGroupedBackspace()
+        {
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return false;
+
+            if (_groupedNavigator.Level == NavigationLevel.InsideGroup)
+            {
+                // Inside a group - exit to group level
+                if (_groupedNavigator.ExitGroup())
+                {
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                    return true;
+                }
+            }
+
+            // At group level or exit failed - fall through to normal back navigation
+            return false;
+        }
+
+        #endregion
 
         protected override bool OnElementActivated(int index, GameObject element)
         {
