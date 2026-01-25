@@ -31,24 +31,32 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (overlayGroup != ElementGroup.Unknown)
                 return overlayGroup;
 
-            // 2. Check for Primary actions (main CTA buttons)
+            // 2. Check for Play-related elements (Play button, events, direct challenge, rankings)
+            if (IsPlayElement(element, name, parentPath))
+                return ElementGroup.Play;
+
+            // 3. Check for Progress-related elements (boosters, mastery, gems, gold, wildcards)
+            if (IsProgressElement(name, parentPath))
+                return ElementGroup.Progress;
+
+            // 4. Check for Primary actions (main CTA buttons, but not Play button)
             // Primary elements are shown as standalone items at group level
             if (IsPrimaryAction(element, name, parentPath))
                 return ElementGroup.Primary;
 
-            // 3. Check for Navigation elements
+            // 5. Check for Navigation elements
             if (IsNavigationElement(name, parentPath))
                 return ElementGroup.Navigation;
 
-            // 4. Check for Filter controls
+            // 6. Check for Filter controls
             if (IsFilterElement(name, parentPath))
                 return ElementGroup.Filters;
 
-            // 5. Check for Settings controls (when settings panel is not overlay)
+            // 7. Check for Settings controls (when settings panel is not overlay)
             if (IsSettingsControl(name, parentPath))
                 return ElementGroup.Settings;
 
-            // 6. Default to Content for everything else
+            // 8. Default to Content for everything else
             // (Secondary group removed - those elements now go to Content or Navigation)
             return ElementGroup.Content;
         }
@@ -91,13 +99,98 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Check if element is a primary action button (main CTA).
+        /// Check if element is a Play-related element (Play button, events, direct challenge, rankings, learn).
+        /// </summary>
+        private bool IsPlayElement(GameObject element, string name, string parentPath)
+        {
+            // Main play button on home screen
+            if (name == "MainButton" || name == "MainButtonOutline")
+                return true;
+
+            // Check for MainButton component (the big Play button)
+            var components = element.GetComponents<MonoBehaviour>();
+            foreach (var comp in components)
+            {
+                if (comp != null && comp.GetType().Name == "MainButton")
+                    return true;
+            }
+
+            // Direct Challenge button
+            if (name.Contains("DirectChallenge"))
+                return true;
+
+            // Rankings / Rangliste
+            if (name.Contains("Ranking") || name.Contains("Leaderboard") || name.Contains("Rangliste"))
+                return true;
+
+            // Events on home screen (Starter Duel, Color Challenge, etc.)
+            if (parentPath.Contains("EventWidget") || parentPath.Contains("EventPanel") ||
+                parentPath.Contains("HomeEvent") || parentPath.Contains("FeaturedEvent"))
+                return true;
+
+            // Home page banners (right side events like Starter Deck Duel, Color Challenge, Ranked)
+            if (parentPath.Contains("HomeBanner_Right") || parentPath.Contains("Banners_Right"))
+                return true;
+
+            // Event entries by name patterns
+            if (name.Contains("StarterDuel") || name.Contains("ColorChallenge") ||
+                name.Contains("Event_") || name.Contains("_Event"))
+                return true;
+
+            // Campaign entries (Color Challenge is part of campaign)
+            if (name.Contains("Campaign") && !parentPath.Contains("CampaignGraph"))
+                return true;
+
+            // Learn / Tutorial elements
+            if (name.Contains("Learn") || name.Contains("Tutorial"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is a Progress-related element (boosters, mastery, gems, gold, wildcards).
+        /// </summary>
+        private bool IsProgressElement(string name, string parentPath)
+        {
+            // Booster/Pack elements
+            if (name.Contains("Booster") || name.Contains("Pack"))
+                return true;
+
+            // Mastery elements
+            if (name.Contains("Mastery"))
+                return true;
+
+            // Currency buttons (gems, gold, coins)
+            if (name.Contains("Gem") || name.Contains("Gold") || name.Contains("Coin") || name.Contains("Currency"))
+                return true;
+
+            // Wildcard elements
+            if (name.Contains("Wildcard") || name.Contains("WildCard"))
+                return true;
+
+            // Vault progress
+            if (name.Contains("Vault"))
+                return true;
+
+            // Resource/wallet area
+            if (parentPath.Contains("Wallet") || parentPath.Contains("ResourceBar") ||
+                parentPath.Contains("CurrencyDisplay"))
+                return true;
+
+            // Quest/daily rewards
+            if (name.Contains("Quest") || name.Contains("DailyReward") || name.Contains("DailyWins"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is a primary action button (main CTA, but not Play button).
         /// </summary>
         private bool IsPrimaryAction(GameObject element, string name, string parentPath)
         {
-            // Main play button
-            if (name == "MainButton" || name == "MainButtonOutline")
-                return true;
+            // Note: MainButton/Play button is now handled by IsPlayElement
 
             // Submit/Confirm/Continue buttons
             if (name.Contains("Submit") || name.Contains("Confirm") || name.Contains("Continue"))
@@ -110,14 +203,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // New Deck button in Decks screen
             if (name.Contains("NewDeck") || name.Contains("CreateDeck"))
                 return true;
-
-            // Check for MainButton component
-            var components = element.GetComponents<MonoBehaviour>();
-            foreach (var comp in components)
-            {
-                if (comp != null && comp.GetType().Name == "MainButton")
-                    return true;
-            }
 
             return false;
         }
@@ -220,9 +305,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (name.Contains("Info") && name.Contains("Button"))
                 return true;
 
-            // Direct Challenge button
-            if (name.Contains("DirectChallenge"))
-                return true;
+            // Note: DirectChallenge moved to Play group
 
             // Profile/Avatar buttons
             if (name.Contains("Profile") || name.Contains("Avatar"))

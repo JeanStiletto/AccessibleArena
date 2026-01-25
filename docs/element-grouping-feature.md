@@ -50,11 +50,11 @@ Break long menu lists into smaller, contextual groups for better blind user navi
 ## Current Behavior
 
 ### Home Screen Navigation
-1. Enter screen: "Home. 3 groups. Play, button." (standalone Primary element)
-2. Press Arrow Down: "Navigation, 14 items."
-3. Press Enter: "1 of 14. Home nav item."
-4. Press Backspace: "Navigation, 14 items." (back to group level)
-5. Press Arrow Down: "Content, 4 items."
+1. Enter screen: "Home. X groups. Play, X items." (Play group with all play-related elements)
+2. Press Enter: "1 of X. Play, button."
+3. Navigate: Direct Challenge, Rankings, Events inside the group
+4. Press Backspace: "Play, X items." (back to group level)
+5. Press Arrow Down: "Navigation, 14 items."
 
 ### Decks Screen Navigation
 1. Enter screen: "Decks. 4 groups. Filters, 2 items."
@@ -93,7 +93,8 @@ Break long menu lists into smaller, contextual groups for better blind user navi
 public enum ElementGroup
 {
     Unknown = 0,      // Hidden in grouped mode
-    Primary,          // Main actions: Play, Submit, Continue (shown as standalone)
+    Primary,          // Main actions: Submit, Continue (shown as standalone)
+    Play,             // Play-related: Play button, Direct Challenge, Rankings, Events (grouped together)
     Navigation,       // Nav bar, tabs, back buttons
     Filters,          // Search, sort, filter toggles
     Content,          // Deck entries, cards, list items, dropdowns, buttons (shown as standalone)
@@ -103,7 +104,7 @@ public enum ElementGroup
     // Overlay groups (only one visible at a time)
     Popup,            // Modal dialog elements
     Social,           // Friends panel elements
-    PlayBlade,        // Play blade elements
+    PlayBlade,        // Play blade elements (inside play menu)
     SettingsMenu,     // Settings menu overlay
     NPE,              // New Player Experience overlay
 }
@@ -128,9 +129,9 @@ src/Core/Services/ElementGrouping/
 ### Phase 4: Screen-Specific Tuning (MOSTLY COMPLETE)
 
 **Home Screen:**
-- [x] Play button as standalone Primary
+- [x] Play group containing Play button, Direct Challenge, Rankings, Events
 - [x] Navigation group (navbar items)
-- [x] Content group (carousel, events)
+- [x] Content group (carousel, other items)
 - [ ] Review if any elements are misclassified
 
 **Decks Screen:**
@@ -204,7 +205,7 @@ These can potentially be replaced with group-based filtering later, but require 
 - [x] Content group available while in folder view
 
 ### Screen-Specific
-- [x] Home: Play button as standalone
+- [x] Home: Play group (Play button, Direct Challenge, Rankings, Events)
 - [x] Home: Navigation and Content groups
 - [x] Decks: Folder grouping with toggle activation
 - [x] Decks: Content group with filters/buttons

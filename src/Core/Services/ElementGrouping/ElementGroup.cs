@@ -12,10 +12,22 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         Unknown = 0,
 
         /// <summary>
-        /// Main actions: Play button, Submit, Continue, primary CTA buttons.
+        /// Main actions: Submit, Continue, primary CTA buttons (not Play - that has its own group).
         /// Single-item groups auto-enter directly to the element.
         /// </summary>
         Primary,
+
+        /// <summary>
+        /// Play-related elements: Play button, Direct Challenge, Rankings, Events, Learn/Tutorial.
+        /// Grouped together for easy access to all play options.
+        /// </summary>
+        Play,
+
+        /// <summary>
+        /// Progress-related elements: Boosters, Mastery, Gems, Gold, Wildcards, currency buttons.
+        /// Grouped together for easy access to progress/resource indicators.
+        /// </summary>
+        Progress,
 
         /// <summary>
         /// Navigation elements: Nav bar items, tabs, back buttons.
@@ -97,6 +109,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             switch (group)
             {
                 case ElementGroup.Primary: return "Primary Actions";
+                case ElementGroup.Play: return "Play";
+                case ElementGroup.Progress: return "Progress";
                 case ElementGroup.Navigation: return "Navigation";
                 case ElementGroup.Filters: return "Filters";
                 case ElementGroup.Content: return "Content";

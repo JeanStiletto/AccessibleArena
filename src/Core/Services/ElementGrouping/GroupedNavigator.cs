@@ -225,6 +225,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Build ordered group list
             var groupOrder = new[]
             {
+                ElementGroup.Play,
+                ElementGroup.Progress,
                 ElementGroup.Primary,
                 ElementGroup.Navigation,
                 ElementGroup.Filters,
@@ -251,6 +253,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (nonFolderElements.TryGetValue(groupType, out var elementList) && elementList.Count > 0)
                 {
                     // Primary and Content elements become standalone items at group level
+                    // Note: Play is a regular group (not standalone) containing all play-related elements
                     if (groupType == ElementGroup.Primary || groupType == ElementGroup.Content)
                     {
                         foreach (var element in elementList)
