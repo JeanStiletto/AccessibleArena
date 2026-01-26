@@ -372,17 +372,21 @@ Hierarchical navigation for menu screens. Elements are organized into groups for
 - Folder groups for deck folders (auto-expand toggle on Enter)
 
 **PlayBlade Navigation:**
-PlayBladeNavigationHelper manages the state machine for PlayBlade navigation:
-- `None` → `Tabs` (blade opens)
-- `Tabs` → `EventsContent`/`FindMatchModes`/`RecentContent` (tab selected)
-- `FindMatchModes` → `FindMatchDecks` (mode selected)
-- Backspace reverses: Content→Tabs, Decks→Modes, Tabs→Close blade
+PlayBladeNavigationHelper handles all PlayBlade-specific Enter/Backspace logic:
+- Derives state from `GroupedNavigator.CurrentGroup` (no separate state machine)
+- `HandleEnter(element, group)` → returns `PlayBladeResult` (NotHandled/Handled/RescanNeeded/CloseBlade)
+- `HandleBackspace()` → returns `PlayBladeResult`
+
+Navigation flow:
+- Tabs → Play Options (tab selected) → Deck Folders (mode activated)
+- Backspace: Folders/Content → Tabs → Close blade
 
 **Integration:**
 - GeneralMenuNavigator creates GroupedNavigator and PlayBladeNavigationHelper
 - DiscoverElements calls `_groupedNavigator.OrganizeIntoGroups()`
 - Navigation methods (MoveNext, MovePrevious, etc.) delegate to GroupedNavigator when active
-- PlayBladeHelper syncs state with GroupedNavigator's current group before handling backspace
+- Backspace handling: calls `_playBladeHelper.HandleBackspace()` first, acts on result
+- Enter handling: calls `_playBladeHelper.HandleEnter()` before activation, triggers rescan if needed
 
 ---
 

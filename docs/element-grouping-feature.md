@@ -86,6 +86,34 @@ Break long menu lists into smaller, contextual groups for better blind user navi
 - Play blade shows only PlayBlade group elements
 - Social panel shows only Social group elements
 
+### PlayBlade Navigation (via PlayBladeNavigationHelper)
+
+The PlayBlade has a custom navigation hierarchy handled by `PlayBladeNavigationHelper`:
+
+**Groups in PlayBlade:**
+- `PlayBladeTabs` (display: "Tabs") - Events, Find Match, Recent tabs
+- `PlayBladeContent` (display: "Play Options") - Ranked, Play, Brawl mode selectors
+- Folder groups - Meine Decks, Starterdecks (deck folders)
+
+**Navigation Flow:**
+1. PlayBlade opens → auto-enter Tabs group
+2. Enter on "Find Match" tab → auto-enter Play Options group (Ranked/Play/Brawl)
+3. Enter on "Ranked" mode → auto-enter first deck folder (Meine Decks)
+4. Backspace in folder → back to Tabs
+5. Backspace in Tabs → close blade
+
+**Technical Implementation:**
+- Helper derives state from `GroupedNavigator.CurrentGroup` (no separate state tracking)
+- `HandleEnter(element, group)` - handles tab/mode activation, returns `PlayBladeResult`
+- `HandleBackspace()` - handles all backspace in PlayBlade context, returns `PlayBladeResult`
+- `PlayBladeResult` enum: `NotHandled`, `Handled`, `RescanNeeded`, `CloseBlade`
+- GeneralMenuNavigator calls helper first, then acts on the result
+
+**Why special handling needed:**
+- Tab clicks cause rapid blade Hide/Show events that would reset normal state tracking
+- Mode selection (Ranked/Play/Brawl) doesn't trigger panel changes, so manual rescan needed
+- Backspace behavior differs from normal groups (always goes to Tabs first, then closes)
+
 ---
 
 ## ElementGroup Enum (Current)
@@ -121,6 +149,8 @@ src/Core/Services/ElementGrouping/
   OverlayDetector.cs              - Overlay detection (replaces some ForegroundLayer)
   ElementGroupAssigner.cs         - Group assignment via parent patterns
   GroupedNavigator.cs             - Two-level navigation state machine with folder support
+  PlayBladeNavigationHelper.cs    - PlayBlade-specific Enter/Backspace handling
+                                    (includes PlayBladeResult enum)
 ```
 
 ---
