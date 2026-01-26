@@ -28,21 +28,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private readonly GroupedNavigator _groupedNavigator;
 
         /// <summary>
-        /// Whether currently in a PlayBlade context (any PlayBlade group).
+        /// Whether currently in a PlayBlade context.
+        /// Uses the context flag set by OnPlayBladeOpened/OnPlayBladeClosed.
         /// </summary>
-        public bool IsActive
-        {
-            get
-            {
-                var group = _groupedNavigator.CurrentGroup;
-                if (!group.HasValue) return false;
-
-                var groupType = group.Value.Group;
-                return groupType == ElementGroup.PlayBladeTabs ||
-                       groupType == ElementGroup.PlayBladeContent ||
-                       group.Value.IsFolderGroup;
-            }
-        }
+        public bool IsActive => _groupedNavigator.IsPlayBladeContext;
 
         public PlayBladeNavigationHelper(GroupedNavigator groupedNavigator)
         {
@@ -54,7 +43,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Called BEFORE UIActivator.Activate so we can set up pending entries.
         /// </summary>
         /// <param name="element">The element being activated.</param>
-        /// <param name="elementGroup">The element's group type.</param>
+        /// <param name="elementGroup">The element's group type (from DetermineGroup, based on parent hierarchy).</param>
         /// <returns>Result indicating what action to take.</returns>
         public PlayBladeResult HandleEnter(GameObject element, ElementGroup elementGroup)
         {
@@ -69,14 +58,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
 
             // PlayBlade content activation (Ranked, Play, Brawl modes)
-            // -> Navigate to first deck folder
+            // -> Navigate to folders list (not directly to first folder)
             if (elementGroup == ElementGroup.PlayBladeContent)
             {
-                _groupedNavigator.RequestFirstFolderEntry();
-                MelonLogger.Msg($"[PlayBladeHelper] Mode activated -> requesting folder entry");
+                _groupedNavigator.RequestFoldersEntry();
+                MelonLogger.Msg($"[PlayBladeHelper] Mode activated -> requesting folders list entry");
                 // Rescan needed since mode selection doesn't cause panel changes
                 return PlayBladeResult.RescanNeeded;
             }
+
+            // Folder handling is done by HandleGroupedEnter in GeneralMenuNavigator
+            // using default folder group entry logic - no special handling needed here
 
             return PlayBladeResult.NotHandled;
         }
@@ -84,10 +76,16 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// <summary>
         /// Handle Backspace key press.
         /// Called BEFORE generic grouped navigation handling.
+        /// Navigation hierarchy: Tabs -> Content -> Folders -> Folder (decks)
+        /// Backspace goes up the hierarchy.
         /// </summary>
         /// <returns>Result indicating what action to take.</returns>
         public PlayBladeResult HandleBackspace()
         {
+            // Only handle if we're in PlayBlade context
+            if (!_groupedNavigator.IsPlayBladeContext)
+                return PlayBladeResult.NotHandled;
+
             var currentGroup = _groupedNavigator.CurrentGroup;
             if (!currentGroup.HasValue)
                 return PlayBladeResult.NotHandled;
@@ -95,6 +93,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var groupType = currentGroup.Value.Group;
             bool isPlayBladeGroup = groupType == ElementGroup.PlayBladeTabs ||
                                     groupType == ElementGroup.PlayBladeContent ||
+                                    groupType == ElementGroup.PlayBladeFolders ||
                                     currentGroup.Value.IsFolderGroup;
 
             if (!isPlayBladeGroup)
@@ -106,11 +105,25 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 // Exit the group first
                 _groupedNavigator.ExitGroup();
 
-                if (groupType == ElementGroup.PlayBladeContent || currentGroup.Value.IsFolderGroup)
+                if (currentGroup.Value.IsFolderGroup)
                 {
-                    // Was in content or folder -> go back to tabs
+                    // Was inside a folder (viewing decks) -> go back to Folders list
+                    _groupedNavigator.RequestFoldersEntry();
+                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited folder, going to folders list");
+                    return PlayBladeResult.RescanNeeded;
+                }
+                else if (groupType == ElementGroup.PlayBladeFolders)
+                {
+                    // Was inside Folders list -> go back to content (play modes)
+                    _groupedNavigator.RequestPlayBladeContentEntry();
+                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited folders list, going to content");
+                    return PlayBladeResult.RescanNeeded;
+                }
+                else if (groupType == ElementGroup.PlayBladeContent)
+                {
+                    // Was in content (play modes) -> go back to tabs
                     _groupedNavigator.RequestPlayBladeTabsEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited {groupType}, going to tabs");
+                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited content, going to tabs");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeTabs)
@@ -122,12 +135,26 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             else
             {
-                // At group level in PlayBlade
-                if (groupType == ElementGroup.PlayBladeContent || currentGroup.Value.IsFolderGroup)
+                // At group level in PlayBlade (navigating between groups)
+                if (currentGroup.Value.IsFolderGroup)
                 {
-                    // At content/folder group level -> go to tabs
+                    // At folder group level -> go to folders list
+                    _groupedNavigator.RequestFoldersEntry();
+                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at folder group level, going to folders list");
+                    return PlayBladeResult.RescanNeeded;
+                }
+                else if (groupType == ElementGroup.PlayBladeFolders)
+                {
+                    // At folders list level -> go to content (play modes)
+                    _groupedNavigator.RequestPlayBladeContentEntry();
+                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at folders list level, going to content");
+                    return PlayBladeResult.RescanNeeded;
+                }
+                else if (groupType == ElementGroup.PlayBladeContent)
+                {
+                    // At content group level -> go to tabs
                     _groupedNavigator.RequestPlayBladeTabsEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at {groupType} group level, going to tabs");
+                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at content group level, going to tabs");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeTabs)
@@ -142,20 +169,22 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Called when PlayBlade opens. Requests tabs entry for initial navigation.
+        /// Called when PlayBlade opens. Sets context and requests tabs entry.
         /// </summary>
         public void OnPlayBladeOpened(string bladeViewName)
         {
+            _groupedNavigator.SetPlayBladeContext(true);
             _groupedNavigator.RequestPlayBladeTabsEntry();
-            MelonLogger.Msg($"[PlayBladeHelper] Blade opened, requesting tabs entry");
+            MelonLogger.Msg($"[PlayBladeHelper] Blade opened, set context and requesting tabs entry");
         }
 
         /// <summary>
-        /// Called when PlayBlade closes. No-op since we don't track state.
+        /// Called when PlayBlade closes. Clears the PlayBlade context.
         /// </summary>
         public void OnPlayBladeClosed()
         {
-            MelonLogger.Msg($"[PlayBladeHelper] Blade closed");
+            _groupedNavigator.SetPlayBladeContext(false);
+            MelonLogger.Msg($"[PlayBladeHelper] Blade closed, cleared context");
         }
 
         /// <summary>

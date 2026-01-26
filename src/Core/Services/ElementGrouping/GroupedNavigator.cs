@@ -98,6 +98,25 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private bool _pendingFirstFolderEntry = false;
 
         /// <summary>
+        /// When true, auto-enter PlayBladeFolders group after next OrganizeIntoGroups.
+        /// Set when a play mode is activated in PlayBlade context.
+        /// </summary>
+        private bool _pendingFoldersEntry = false;
+
+        /// <summary>
+        /// Specific folder name to auto-enter after entering PlayBladeFolders.
+        /// Set when user selects a folder from the folders list.
+        /// </summary>
+        private string _pendingSpecificFolderEntry = null;
+
+        /// <summary>
+        /// Whether we're currently in a PlayBlade context (blade is open).
+        /// Set by PlayBladeNavigationHelper when blade opens/closes.
+        /// Used to determine whether to create PlayBladeFolders wrapper group.
+        /// </summary>
+        private bool _isPlayBladeContext = false;
+
+        /// <summary>
         /// Whether grouped navigation is currently active.
         /// </summary>
         public bool IsActive => _groups.Count > 0;
@@ -208,6 +227,48 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeTabsEntry = false;
             MelonLogger.Msg("[GroupedNavigator] Requested first folder auto-entry");
         }
+
+        /// <summary>
+        /// Request auto-entry into PlayBladeFolders group after next rescan.
+        /// Call when a play mode is activated in PlayBlade context.
+        /// </summary>
+        public void RequestFoldersEntry()
+        {
+            _pendingFoldersEntry = true;
+            _pendingFirstFolderEntry = false;
+            _pendingPlayBladeContentEntry = false;
+            _pendingPlayBladeTabsEntry = false;
+            MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeFolders auto-entry");
+        }
+
+        /// <summary>
+        /// Request auto-entry into a specific folder after next rescan.
+        /// Call when user selects a folder from the PlayBladeFolders list.
+        /// </summary>
+        public void RequestSpecificFolderEntry(string folderName)
+        {
+            _pendingSpecificFolderEntry = folderName;
+            _pendingFoldersEntry = false;
+            _pendingFirstFolderEntry = false;
+            _pendingPlayBladeContentEntry = false;
+            _pendingPlayBladeTabsEntry = false;
+            MelonLogger.Msg($"[GroupedNavigator] Requested specific folder auto-entry: {folderName}");
+        }
+
+        /// <summary>
+        /// Set whether we're in a PlayBlade context.
+        /// Call when PlayBlade opens (true) or closes (false).
+        /// </summary>
+        public void SetPlayBladeContext(bool isActive)
+        {
+            _isPlayBladeContext = isActive;
+            MelonLogger.Msg($"[GroupedNavigator] PlayBlade context set to: {isActive}");
+        }
+
+        /// <summary>
+        /// Whether we're currently in a PlayBlade context.
+        /// </summary>
+        public bool IsPlayBladeContext => _isPlayBladeContext;
 
         /// <summary>
         /// Organize discovered elements into groups.
@@ -357,31 +418,87 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
             }
 
-            // Add folder groups (each folder becomes its own group)
-            // NOTE: We create folder groups even when they appear empty, because the decks inside
-            // may not be activeInHierarchy when the folder toggle is OFF (collapsed).
-            // When user enters the folder (Enter key), we activate the toggle which makes decks visible.
-            foreach (var kvp in folderDecks.OrderBy(x => x.Key))
+            // Add folder groups
+            // In PlayBlade context: Create a single PlayBladeFolders group containing folder selectors
+            // Outside PlayBlade: Each folder becomes its own group (current behavior for Decks screen)
+            if (_isPlayBladeContext && folderToggles.Count > 0)
             {
-                string folderName = kvp.Key;
-                var deckList = kvp.Value;
-
-                // Always create folder group if we found the toggle, even if deck list is empty
-                // (decks may be hidden because folder is collapsed)
-                GameObject toggle = folderToggles.TryGetValue(folderName, out var t) ? t : null;
-                if (toggle == null && deckList.Count == 0) continue; // Skip only if no toggle AND no decks
-
-                _groups.Add(new ElementGroupInfo
+                // Create folder selector elements for the PlayBladeFolders group
+                var folderSelectors = new List<GroupedElement>();
+                foreach (var kvp in folderToggles.OrderBy(x => x.Key))
                 {
-                    Group = ElementGroup.Content, // Use Content as base group type
-                    DisplayName = folderName,
-                    Elements = deckList,
-                    IsFolderGroup = true,
-                    FolderToggle = toggle,
-                    IsStandaloneElement = false
-                });
+                    string folderName = kvp.Key;
+                    var toggle = kvp.Value;
+                    int deckCount = folderDecks.TryGetValue(folderName, out var decks) ? decks.Count : 0;
 
-                MelonLogger.Msg($"[GroupedNavigator] Created folder group: {folderName} with {deckList.Count} decks (toggle: {(toggle != null ? "found" : "none")})");
+                    folderSelectors.Add(new GroupedElement
+                    {
+                        GameObject = toggle,
+                        Label = $"{folderName}, {deckCount} {(deckCount == 1 ? "deck" : "decks")}",
+                        Group = ElementGroup.PlayBladeFolders,
+                        FolderName = folderName
+                    });
+                }
+
+                if (folderSelectors.Count > 0)
+                {
+                    _groups.Add(new ElementGroupInfo
+                    {
+                        Group = ElementGroup.PlayBladeFolders,
+                        DisplayName = "Folders",
+                        Elements = folderSelectors,
+                        IsFolderGroup = false,
+                        FolderToggle = null,
+                        IsStandaloneElement = false
+                    });
+                    MelonLogger.Msg($"[GroupedNavigator] Created PlayBladeFolders group with {folderSelectors.Count} folders");
+                }
+
+                // Also create individual folder groups (hidden at top level, but needed for folder entry)
+                foreach (var kvp in folderDecks.OrderBy(x => x.Key))
+                {
+                    string folderName = kvp.Key;
+                    var deckList = kvp.Value;
+                    GameObject toggle = folderToggles.TryGetValue(folderName, out var t) ? t : null;
+                    if (toggle == null && deckList.Count == 0) continue;
+
+                    _groups.Add(new ElementGroupInfo
+                    {
+                        Group = ElementGroup.Content,
+                        DisplayName = folderName,
+                        Elements = deckList,
+                        IsFolderGroup = true,
+                        FolderToggle = toggle,
+                        IsStandaloneElement = false
+                    });
+                    MelonLogger.Msg($"[GroupedNavigator] Created folder group: {folderName} with {deckList.Count} decks");
+                }
+            }
+            else
+            {
+                // Not in PlayBlade context: each folder becomes its own group at top level
+                // NOTE: We create folder groups even when they appear empty, because the decks inside
+                // may not be activeInHierarchy when the folder toggle is OFF (collapsed).
+                foreach (var kvp in folderDecks.OrderBy(x => x.Key))
+                {
+                    string folderName = kvp.Key;
+                    var deckList = kvp.Value;
+
+                    GameObject toggle = folderToggles.TryGetValue(folderName, out var t) ? t : null;
+                    if (toggle == null && deckList.Count == 0) continue;
+
+                    _groups.Add(new ElementGroupInfo
+                    {
+                        Group = ElementGroup.Content,
+                        DisplayName = folderName,
+                        Elements = deckList,
+                        IsFolderGroup = true,
+                        FolderToggle = toggle,
+                        IsStandaloneElement = false
+                    });
+
+                    MelonLogger.Msg($"[GroupedNavigator] Created folder group: {folderName} with {deckList.Count} decks (toggle: {(toggle != null ? "found" : "none")})");
+                }
             }
 
             // Set initial position
@@ -463,6 +580,43 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _navigationLevel = NavigationLevel.InsideGroup;
                         _currentElementIndex = 0;
                         MelonLogger.Msg($"[GroupedNavigator] Auto-entered folder '{_groups[i].DisplayName}' with {_groups[i].Count} items");
+                        break;
+                    }
+                }
+            }
+
+            // Check for pending PlayBladeFolders entry (set when a play mode is activated in PlayBlade)
+            if (_pendingFoldersEntry)
+            {
+                _pendingFoldersEntry = false;
+                // Find PlayBladeFolders group and auto-enter it
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group == ElementGroup.PlayBladeFolders && _groups[i].Count > 0)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        _currentElementIndex = 0;
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeFolders with {_groups[i].Count} folders");
+                        break;
+                    }
+                }
+            }
+
+            // Check for pending specific folder entry (set when user selects a folder from PlayBladeFolders)
+            if (!string.IsNullOrEmpty(_pendingSpecificFolderEntry))
+            {
+                string folderName = _pendingSpecificFolderEntry;
+                _pendingSpecificFolderEntry = null;
+                // Find the specific folder group and auto-enter it
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].IsFolderGroup && _groups[i].DisplayName == folderName)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        _currentElementIndex = 0;
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered specific folder '{folderName}' with {_groups[i].Count} items");
                         break;
                     }
                 }

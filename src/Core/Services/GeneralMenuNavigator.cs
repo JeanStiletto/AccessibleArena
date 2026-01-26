@@ -2019,6 +2019,22 @@ namespace AccessibleArena.Core.Services
                 var currentElement = _groupedNavigator.CurrentElement;
                 if (currentElement.HasValue && currentElement.Value.GameObject != null)
                 {
+                    // Special case: Inside PlayBladeFolders with a folder toggle element
+                    // Find and enter the corresponding folder GROUP instead of just toggling
+                    var insideGroup = _groupedNavigator.CurrentGroup;
+                    if (insideGroup.HasValue && insideGroup.Value.Group == ElementGroup.PlayBladeFolders)
+                    {
+                        string folderName = ElementGroupAssigner.GetFolderNameFromToggle(currentElement.Value.GameObject);
+                        if (!string.IsNullOrEmpty(folderName))
+                        {
+                            // Find the matching folder group and enter it
+                            // Folder groups are already expanded in PlayBlade, so no toggle needed
+                            _groupedNavigator.RequestSpecificFolderEntry(folderName);
+                            TriggerRescan();
+                            return true;
+                        }
+                    }
+
                     // Find the element in our _elements list and activate it
                     for (int i = 0; i < _elements.Count; i++)
                     {

@@ -79,6 +79,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         PlayBladeContent,
 
         /// <summary>
+        /// Play blade folders container. Groups all deck folders when in PlayBlade context.
+        /// User selects a folder from this group, then enters the folder to see decks.
+        /// </summary>
+        PlayBladeFolders,
+
+        /// <summary>
         /// Settings menu elements. Suppresses all other groups when active.
         /// </summary>
         SettingsMenu,
@@ -103,6 +109,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.Social
                 || group == ElementGroup.PlayBladeTabs
                 || group == ElementGroup.PlayBladeContent
+                || group == ElementGroup.PlayBladeFolders
                 || group == ElementGroup.SettingsMenu
                 || group == ElementGroup.NPE;
         }
@@ -126,6 +133,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.Social: return "Social";
                 case ElementGroup.PlayBladeTabs: return "Tabs";
                 case ElementGroup.PlayBladeContent: return "Play Options";
+                case ElementGroup.PlayBladeFolders: return "Folders";
                 case ElementGroup.SettingsMenu: return "Settings Menu";
                 case ElementGroup.NPE: return "Tutorial";
                 default: return "Other";

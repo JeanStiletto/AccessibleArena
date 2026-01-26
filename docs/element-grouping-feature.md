@@ -93,17 +93,26 @@ The PlayBlade has a custom navigation hierarchy handled by `PlayBladeNavigationH
 **Groups in PlayBlade:**
 - `PlayBladeTabs` (display: "Tabs") - Events, Find Match, Recent tabs
 - `PlayBladeContent` (display: "Play Options") - Ranked, Play, Brawl mode selectors
-- Folder groups - Meine Decks, Starterdecks (deck folders)
+- `PlayBladeFolders` (display: "Folders") - Container showing all deck folders as selectable items
+- Folder groups - Meine Decks, Starterdecks (individual deck folder contents)
 
 **Navigation Flow:**
 1. PlayBlade opens → auto-enter Tabs group
 2. Enter on "Find Match" tab → auto-enter Play Options group (Ranked/Play/Brawl)
-3. Enter on "Ranked" mode → auto-enter first deck folder (Meine Decks)
-4. Backspace in folder → back to Tabs
-5. Backspace in Tabs → close blade
+3. Enter on "Ranked" mode → auto-enter Folders group (list of all deck folders)
+4. Navigate folders: "1 of 2: Meine Decks, 8 decks", "2 of 2: Starterdecks, 15 decks"
+5. Enter on "Meine Decks" → enter that folder group, see decks
+6. Backspace in folder → back to Folders list
+7. Backspace in Folders → back to Play Options (Content)
+8. Backspace in Content → back to Tabs
+9. Backspace in Tabs → close blade
 
 **Technical Implementation:**
-- Helper derives state from `GroupedNavigator.CurrentGroup` (no separate state tracking)
+- Helper uses `GroupedNavigator.IsPlayBladeContext` flag (set on blade open/close)
+- In PlayBlade context, deck folders are wrapped in a `PlayBladeFolders` group
+- `PlayBladeFolders` contains folder toggles as elements; entering uses default folder logic
+- `HandleGroupedEnter` in GeneralMenuNavigator detects PlayBladeFolders context and enters the corresponding folder GROUP
+- Outside PlayBlade (Decks screen), folders remain as individual groups at top level
 - `HandleEnter(element, group)` - handles tab/mode activation, returns `PlayBladeResult`
 - `HandleBackspace()` - handles all backspace in PlayBlade context, returns `PlayBladeResult`
 - `PlayBladeResult` enum: `NotHandled`, `Handled`, `RescanNeeded`, `CloseBlade`
@@ -112,7 +121,8 @@ The PlayBlade has a custom navigation hierarchy handled by `PlayBladeNavigationH
 **Why special handling needed:**
 - Tab clicks cause rapid blade Hide/Show events that would reset normal state tracking
 - Mode selection (Ranked/Play/Brawl) doesn't trigger panel changes, so manual rescan needed
-- Backspace behavior differs from normal groups (always goes to Tabs first, then closes)
+- Backspace behavior differs from normal groups (hierarchical: folder→folders→content→tabs→close)
+- Folder groups need to be presented as a list in PlayBlade, not as individual top-level groups
 
 ---
 
@@ -133,7 +143,9 @@ public enum ElementGroup
     // Overlay groups (only one visible at a time)
     Popup,            // Modal dialog elements
     Social,           // Friends panel elements
-    PlayBlade,        // Play blade elements (inside play menu)
+    PlayBladeTabs,    // Play blade tabs (Events, Find Match, Recent)
+    PlayBladeContent, // Play blade mode selectors (Ranked, Play, Brawl)
+    PlayBladeFolders, // Play blade folders container (groups deck folders)
     SettingsMenu,     // Settings menu overlay
     NPE,              // New Player Experience overlay
 }
