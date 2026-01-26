@@ -92,6 +92,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private bool _pendingPlayBladeContentEntry = false;
 
         /// <summary>
+        /// When true, auto-enter first folder group after next OrganizeIntoGroups.
+        /// Set when a play mode (Ranked/Play/Brawl) is activated.
+        /// </summary>
+        private bool _pendingFirstFolderEntry = false;
+
+        /// <summary>
         /// Whether grouped navigation is currently active.
         /// </summary>
         public bool IsActive => _groups.Count > 0;
@@ -189,6 +195,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeContentEntry = true;
             _pendingPlayBladeTabsEntry = false; // Clear tabs flag
             MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeContent auto-entry");
+        }
+
+        /// <summary>
+        /// Request auto-entry into first folder group after next rescan.
+        /// Call when a play mode is activated (Ranked/Play/Brawl).
+        /// </summary>
+        public void RequestFirstFolderEntry()
+        {
+            _pendingFirstFolderEntry = true;
+            _pendingPlayBladeContentEntry = false;
+            _pendingPlayBladeTabsEntry = false;
+            MelonLogger.Msg("[GroupedNavigator] Requested first folder auto-entry");
         }
 
         /// <summary>
@@ -427,6 +445,24 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _navigationLevel = NavigationLevel.InsideGroup;
                         _currentElementIndex = 0;
                         MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items");
+                        break;
+                    }
+                }
+            }
+
+            // Check for pending first folder entry (set when a play mode is activated)
+            if (_pendingFirstFolderEntry)
+            {
+                _pendingFirstFolderEntry = false;
+                // Find first folder group and auto-enter it
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].IsFolderGroup && _groups[i].Count > 0)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        _currentElementIndex = 0;
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered folder '{_groups[i].DisplayName}' with {_groups[i].Count} items");
                         break;
                     }
                 }
