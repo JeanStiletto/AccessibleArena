@@ -559,6 +559,55 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Arrow Left/Right: Navigate between collection cards (like duel zones)
+            // In deck builder collection, cards should navigate with Left/Right
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                if (IsInCollectionCardContext())
+                {
+                    bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
+                    if (isRight)
+                        MoveNext();
+                    else
+                        MovePrevious();
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if we're in a context where cards should navigate with Left/Right arrows.
+        /// This includes DeckBuilderCollection and similar card-grid contexts.
+        /// </summary>
+        private bool IsInCollectionCardContext()
+        {
+            // Check if current element is in DeckBuilderCollection group
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                var currentGroup = _groupedNavigator.CurrentGroup;
+                if (currentGroup?.Group == ElementGroup.DeckBuilderCollection)
+                    return true;
+            }
+
+            // Also check if current element is a card (for ungrouped mode)
+            if (IsValidIndex && _elements[_currentIndex].GameObject != null)
+            {
+                var currentElement = _elements[_currentIndex].GameObject;
+                if (CardDetector.IsCard(currentElement))
+                {
+                    // Check if parent hierarchy contains PoolHolder (collection cards)
+                    Transform t = currentElement.transform;
+                    while (t != null)
+                    {
+                        if (t.name.Contains("PoolHolder"))
+                            return true;
+                        t = t.parent;
+                    }
+                }
+            }
+
             return false;
         }
 
@@ -1547,6 +1596,10 @@ namespace AccessibleArena.Core.Services
             // These are not buttons but should be navigable to read card info
             FindNPERewardCards(addedObjects);
 
+            // Find deck builder collection cards (PoolHolder canvas)
+            // These are cards you can add to your deck
+            FindPoolHolderCards(addedObjects);
+
             LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
 
             // Organize elements into groups for hierarchical navigation
@@ -1710,6 +1763,107 @@ namespace AccessibleArena.Core.Services
             else
             {
                 LogDebug($"[{NavigatorId}] NPE-Rewards_Container not found for NullClaimButton lookup");
+            }
+        }
+
+        /// <summary>
+        /// Find collection cards in the deck builder's PoolHolder canvas.
+        /// These cards use PagesMetaCardView component and are navigable for accessibility.
+        /// </summary>
+        private void FindPoolHolderCards(HashSet<GameObject> addedObjects)
+        {
+            // Only active in deck builder
+            if (_activeContentController != "WrapperDeckBuilder")
+                return;
+
+            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for collection cards in PoolHolder...");
+
+            // Find the PoolHolder canvas which contains collection cards
+            var poolHolder = GameObject.Find("PoolHolder");
+            if (poolHolder == null)
+            {
+                LogDebug($"[{NavigatorId}] PoolHolder not found");
+                return;
+            }
+
+            LogDebug($"[{NavigatorId}] Found PoolHolder canvas");
+
+            // Find all PagesMetaCardView components inside PoolHolder
+            var cardViews = new List<(GameObject obj, float sortOrder)>();
+
+            foreach (var mb in poolHolder.GetComponentsInChildren<MonoBehaviour>(false))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName == "PagesMetaCardView" || typeName == "MetaCardView")
+                {
+                    var cardObj = mb.gameObject;
+                    if (!addedObjects.Contains(cardObj))
+                    {
+                        // Sort by X position (left to right), then by Y (top to bottom)
+                        float sortOrder = cardObj.transform.position.x + (-cardObj.transform.position.y * 1000);
+                        cardViews.Add((cardObj, sortOrder));
+                        addedObjects.Add(cardObj);
+                    }
+                }
+            }
+
+            // Also check by name patterns for cards
+            foreach (var t in poolHolder.GetComponentsInChildren<Transform>(false))
+            {
+                if (t == null || !t.gameObject.activeInHierarchy) continue;
+
+                string name = t.name;
+                if (name.Contains("PagesMetaCardView") || name.Contains("MetaCardView"))
+                {
+                    if (!addedObjects.Contains(t.gameObject))
+                    {
+                        float sortOrder = t.position.x + (-t.position.y * 1000);
+                        cardViews.Add((t.gameObject, sortOrder));
+                        addedObjects.Add(t.gameObject);
+                    }
+                }
+            }
+
+            if (cardViews.Count == 0)
+            {
+                LogDebug($"[{NavigatorId}] No collection cards found in PoolHolder");
+                return;
+            }
+
+            // Sort by position
+            cardViews = cardViews.OrderBy(c => c.sortOrder).ToList();
+
+            LogDebug($"[{NavigatorId}] Found {cardViews.Count} collection card(s) in PoolHolder");
+
+            int cardNum = 1;
+            foreach (var (cardObj, _) in cardViews)
+            {
+                // Extract card info using CardDetector
+                var cardInfo = CardDetector.ExtractCardInfo(cardObj);
+                string cardName = cardInfo.IsValid ? cardInfo.Name : "Unknown card";
+
+                // Build label with card name
+                string label = cardName;
+
+                // Add type line if available
+                if (!string.IsNullOrEmpty(cardInfo.TypeLine))
+                {
+                    label += $", {cardInfo.TypeLine}";
+                }
+
+                // Add mana cost if available
+                if (!string.IsNullOrEmpty(cardInfo.ManaCost))
+                {
+                    label += $", {cardInfo.ManaCost}";
+                }
+
+                LogDebug($"[{NavigatorId}] Adding collection card {cardNum}: {label}");
+
+                // Add as navigable element
+                AddElement(cardObj, label);
+                cardNum++;
             }
         }
 

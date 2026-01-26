@@ -66,6 +66,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         private ElementGroup DetermineOverlayGroup(GameObject element, string name, string parentPath)
         {
+            // Deck Builder collection cards (PoolHolder canvas)
+            if (parentPath.Contains("PoolHolder") &&
+                (name.Contains("MetaCardView") || name.Contains("PagesMetaCardView")))
+                return ElementGroup.DeckBuilderCollection;
+
             // Popup/Dialog - be specific to avoid matching "Screenspace Popups" canvas
             // Look for actual popup panel patterns, not just "Popup" substring
             if (parentPath.Contains("SystemMessageView") ||

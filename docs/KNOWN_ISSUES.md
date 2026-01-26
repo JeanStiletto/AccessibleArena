@@ -108,6 +108,45 @@ The sync mechanism may not be detecting the correct state. Need to investigate:
 
 ---
 
+### Deck Builder Collection Card Reading
+
+Collection cards (cards you can add to your deck) are now navigable but card info extraction is incomplete.
+
+**What's Working:**
+- **Navigation:** Arrow Left/Right navigates between collection cards
+- **Card Name:** Extracted from Model via GrpId → localization lookup
+- **Type Line:** Extracted from Model.Types
+- **Power/Toughness:** Extracted from Model.Power/Model.Toughness
+- **Artist:** Extracted from Model.Artist
+
+**Partially Working:**
+- **Mana Cost:** Shows as "3 White" instead of "{3}{W}" - needs symbol formatting
+
+**Not Working:**
+- **Rules Text:** AbilityTextProvider not found in Meta scenes. Need to find the provider instance used by Meta canvases
+- **Flavor Text:** FlavorTextId lookup returns empty string. Different lookup mechanism than duels
+
+**Technical Details:**
+- Collection cards use `PagesMetaCardView` component (similar to `BoosterMetaCardView`)
+- Located in `PoolHolder` canvas when browsing deck builder collection
+- Card data accessed via `Meta_CDC` component (analogous to `DuelScene_CDC` in duels)
+- Meta_CDC found on CardView child object, not on PagesMetaCardView itself
+- CardModelProvider updated to search for Meta_CDC in children
+- Cards with GrpId = 0 are unloaded and show as "Unknown"
+
+**Where to Look:**
+- Rules Text: Find AbilityTextProvider instance in Meta assembly (try `AssetBundleAssetLoader` or `Meta_CardObjectVisual`)
+- Flavor Text: Check if Meta cards use different FlavorText property or lookup method
+- Mana Cost Symbols: Format ManaCost as MTG symbols like "{2}{B}{B}" instead of "4 Black"
+
+**Files:**
+- `CardModelProvider.cs` - `GetDuelSceneCDC()`, `ExtractCardInfoFromModel()`, `FindIdNameProvider()`
+- `GeneralMenuNavigator.cs` - `FindPoolHolderCards()`, `IsInCollectionCardContext()`
+- `CardDetector.cs` - `IsUILabelText()` filter for UI noise
+- `ElementGroupAssigner.cs` - `DeckBuilderCollection` group detection
+
+---
+
 ### Enchantment/Attachment Announcements
 
 Code added but `Model.Parent` and `Model.Children` properties always return null/empty.
@@ -156,6 +195,20 @@ Accumulated defensive fallback code needs review:
 - Repeated `GameObject.Find` calls in back navigation
 
 ## Potential Issues (Monitor)
+
+### Card Info Navigation (Up/Down Arrows)
+
+Reported once: Up/Down arrows stopped reading card details during a duel. Cards were announced correctly when navigating with Left/Right, but pressing Up/Down to read card properties (mana cost, type, rules text, etc.) did nothing.
+
+**Could not reproduce.** Diagnostic logging added to track if issue recurs:
+- Logs when Up/Down pressed but CardInfoNavigator is not active
+- Logs when HandleInput fails due to null card or modifier keys held
+
+**If it happens again:** Check log for `[CardInfo]` entries around the time of the issue.
+
+**Files:** `CardInfoNavigator.cs`, `AccessibleArenaMod.cs`
+
+---
 
 ### Container Element Filtering
 
@@ -226,6 +279,5 @@ Both regular and London mulligan working. C/D for zone navigation, Enter to togg
 
 ### Future
 
-1. Deck building interface
-2. Collection browser
-3. Draft/sealed events
+1. Draft/sealed events
+2. Full deck editing workflow (add/remove cards, save deck)

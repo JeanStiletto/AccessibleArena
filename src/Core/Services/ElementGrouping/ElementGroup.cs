@@ -92,7 +92,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// <summary>
         /// New Player Experience overlay elements. Suppresses all other groups when active.
         /// </summary>
-        NPE
+        NPE,
+
+        /// <summary>
+        /// Deck Builder collection cards (PoolHolder). Cards available to add to your deck.
+        /// </summary>
+        DeckBuilderCollection
     }
 
     /// <summary>
@@ -111,7 +116,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.PlayBladeContent
                 || group == ElementGroup.PlayBladeFolders
                 || group == ElementGroup.SettingsMenu
-                || group == ElementGroup.NPE;
+                || group == ElementGroup.NPE
+                || group == ElementGroup.DeckBuilderCollection;
         }
 
         /// <summary>
@@ -136,6 +142,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.PlayBladeFolders: return "Folders";
                 case ElementGroup.SettingsMenu: return "Settings Menu";
                 case ElementGroup.NPE: return "Tutorial";
+                case ElementGroup.DeckBuilderCollection: return "Collection";
                 default: return "Other";
             }
         }

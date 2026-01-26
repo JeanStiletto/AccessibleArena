@@ -314,6 +314,13 @@ namespace AccessibleArena
                 }
                 // Input not handled (e.g., Tab) - continue to let other handlers process
             }
+            else if (_cardInfoNavigator != null &&
+                     (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.UpArrow) ||
+                      UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.DownArrow)))
+            {
+                // Debug: Log when Up/Down is pressed but CardInfoNavigator is not active
+                LoggerInstance.Msg($"[CardInfo] Up/Down pressed but CardInfoNavigator.IsActive={_cardInfoNavigator.IsActive}, CurrentCard={(_cardInfoNavigator.CurrentCard != null ? _cardInfoNavigator.CurrentCard.name : "null")}");
+            }
 
             _inputHandler?.OnUpdate();
 

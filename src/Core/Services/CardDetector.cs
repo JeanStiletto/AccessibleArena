@@ -542,10 +542,12 @@ namespace AccessibleArena.Core.Services
                     default:
                         // Fallback for reward cards: capture first meaningful text that looks like a card name
                         // Skip numeric indicators like "+99", "x4", etc.
+                        // Skip UI labels like "Faction", "NEW", "expand button", etc.
                         if (fallbackName == null && content.Length > 2 &&
                             !Regex.IsMatch(content, @"^[\+\-]?\d+$") &&  // Skip "+99", "99", "-5"
                             !Regex.IsMatch(content, @"^x\d+$", RegexOptions.IgnoreCase) &&  // Skip "x4"
-                            !Regex.IsMatch(content, @"^\d+/\d+$"))  // Skip "2/3" (P/T)
+                            !Regex.IsMatch(content, @"^\d+/\d+$") &&  // Skip "2/3" (P/T)
+                            !IsUILabelText(content))  // Skip UI labels
                         {
                             fallbackName = content;
                         }
@@ -561,6 +563,38 @@ namespace AccessibleArena.Core.Services
 
             info.IsValid = !string.IsNullOrEmpty(info.Name);
             return info;
+        }
+
+        /// <summary>
+        /// Checks if text is a UI label that should not be used as a card name.
+        /// These are common UI labels found in card views that are not card names.
+        /// </summary>
+        private static bool IsUILabelText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return true;
+
+            // Common UI labels to skip (case-insensitive comparison)
+            string lowerText = text.ToLowerInvariant();
+
+            // Faction/set labels
+            if (lowerText == "faction" || lowerText == "new" || lowerText == "neu")
+                return true;
+
+            // Button labels
+            if (lowerText.Contains("expand") || lowerText.Contains("button") ||
+                lowerText.Contains("toggle") || lowerText.Contains("close"))
+                return true;
+
+            // Navigation labels
+            if (lowerText == "back" || lowerText == "next" || lowerText == "done" ||
+                lowerText == "fertig" || lowerText == "weiter" || lowerText == "zurück")
+                return true;
+
+            // Filter labels
+            if (lowerText == "filter" || lowerText == "search" || lowerText == "suche")
+                return true;
+
+            return false;
         }
 
         /// <summary>

@@ -111,7 +111,20 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public bool HandleInput()
         {
-            if (!_isActive || _currentCard == null) return false;
+            // Debug: Log why HandleInput might return false early
+            if (!_isActive)
+            {
+                // Only log occasionally to avoid spam - check if arrow pressed
+                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
+                    MelonLogger.Msg($"[CardInfo] HandleInput: Not active, ignoring arrow key");
+                return false;
+            }
+            if (_currentCard == null)
+            {
+                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
+                    MelonLogger.Msg($"[CardInfo] HandleInput: CurrentCard is null, ignoring arrow key");
+                return false;
+            }
 
             // Check for modifier keys - don't handle if any modifier is pressed
             bool hasModifier = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt) ||
@@ -120,6 +133,8 @@ namespace AccessibleArena.Core.Services
 
             if (hasModifier)
             {
+                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
+                    MelonLogger.Msg($"[CardInfo] HandleInput: Modifier key held, ignoring arrow key");
                 return false; // Let other navigators handle modified arrow keys
             }
 

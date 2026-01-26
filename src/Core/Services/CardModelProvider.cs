@@ -68,17 +68,66 @@ namespace AccessibleArena.Core.Services
         #region Component Access
 
         /// <summary>
-        /// Gets the DuelScene_CDC component from a card GameObject.
-        /// Returns null if not a DuelScene card (e.g., Meta scene cards like rewards, deck building).
+        /// Gets the DuelScene_CDC or Meta_CDC component from a card GameObject.
+        /// DuelScene_CDC is for duel cards, Meta_CDC is for menu cards (deck builder, collection).
+        /// Returns null if neither is found.
         /// </summary>
         public static Component GetDuelSceneCDC(GameObject card)
         {
             if (card == null) return null;
 
+            // Check this object
             foreach (var component in card.GetComponents<Component>())
             {
-                if (component != null && component.GetType().Name == "DuelScene_CDC")
+                if (component == null) continue;
+                string typeName = component.GetType().Name;
+                if (typeName == "DuelScene_CDC" || typeName == "Meta_CDC")
                 {
+                    return component;
+                }
+            }
+
+            // For Meta cards, the CDC might be on a child named "CardView" or accessed via CardView property
+            // Check children for Meta_CDC
+            foreach (var component in card.GetComponentsInChildren<Component>(true))
+            {
+                if (component == null) continue;
+                string typeName = component.GetType().Name;
+                if (typeName == "Meta_CDC")
+                {
+                    return component;
+                }
+            }
+
+            return null;
+        }
+
+        // Flag for one-time component logging
+        private static bool _metaCardViewComponentsLogged = false;
+
+        /// <summary>
+        /// Gets a MetaCardView component (PagesMetaCardView, BoosterMetaCardView, etc.) from a card GameObject.
+        /// These are used in Meta scenes like deck builder, booster opening, rewards.
+        /// </summary>
+        public static Component GetMetaCardView(GameObject card)
+        {
+            if (card == null) return null;
+
+            foreach (var component in card.GetComponents<Component>())
+            {
+                if (component == null) continue;
+                string typeName = component.GetType().Name;
+                if (typeName == "PagesMetaCardView" ||
+                    typeName == "MetaCardView" ||
+                    typeName == "BoosterMetaCardView" ||
+                    typeName == "ListMetaCardView")
+                {
+                    // Log once when we find a MetaCardView
+                    if (!_metaCardViewComponentsLogged)
+                    {
+                        _metaCardViewComponentsLogged = true;
+                        MelonLogger.Msg($"[CardModelProvider] === FOUND MetaCardView: {typeName} on '{card.name}' ===");
+                    }
                     return component;
                 }
             }
@@ -107,6 +156,85 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Gets the card data from a MetaCardView component.
+        /// MetaCardView typically has a Model property with CardPrintingData or similar.
+        /// </summary>
+        public static object GetMetaCardModel(Component metaCardView)
+        {
+            if (metaCardView == null) return null;
+
+            try
+            {
+                var viewType = metaCardView.GetType();
+
+                // Try Model property first (common pattern)
+                var modelProp = viewType.GetProperty("Model");
+                if (modelProp != null)
+                {
+                    var model = modelProp.GetValue(metaCardView);
+                    if (model != null) return model;
+                }
+
+                // Try CardData property
+                var cardDataProp = viewType.GetProperty("CardData");
+                if (cardDataProp != null)
+                {
+                    var cardData = cardDataProp.GetValue(metaCardView);
+                    if (cardData != null) return cardData;
+                }
+
+                // Try Data property
+                var dataProp = viewType.GetProperty("Data");
+                if (dataProp != null)
+                {
+                    var data = dataProp.GetValue(metaCardView);
+                    if (data != null) return data;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] Error getting MetaCardView Model: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Flag to only log MetaCardView properties once
+        private static bool _metaCardViewPropertiesLogged = false;
+
+        /// <summary>
+        /// Logs all properties available on a MetaCardView component for discovery.
+        /// Only logs once per session.
+        /// </summary>
+        public static void LogMetaCardViewProperties(Component metaCardView)
+        {
+            if (_metaCardViewPropertiesLogged || metaCardView == null) return;
+            _metaCardViewPropertiesLogged = true;
+
+            var viewType = metaCardView.GetType();
+            MelonLogger.Msg($"[CardModelProvider] === METACARDVIEW TYPE: {viewType.FullName} ===");
+
+            // Log properties
+            var properties = viewType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var prop in properties)
+            {
+                try
+                {
+                    var value = prop.GetValue(metaCardView);
+                    string valueStr = value?.ToString() ?? "null";
+                    if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
+                    MelonLogger.Msg($"[CardModelProvider] MetaCardView Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] MetaCardView Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
+                }
+            }
+            MelonLogger.Msg($"[CardModelProvider] === END METACARDVIEW PROPERTIES ===");
+        }
+
         #endregion
 
         #region Name Lookup
@@ -117,7 +245,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static void FindIdNameProvider()
         {
-            if (_idNameProviderSearched) return;
+            // Retry search if we haven't found a method yet
+            if (_idNameProviderSearched && _getNameMethod != null) return;
             _idNameProviderSearched = true;
 
             try
@@ -295,6 +424,62 @@ namespace AccessibleArena.Core.Services
                             }
                         }
                         break;
+                    }
+                }
+
+                // Approach 4: Search for any component with CardDatabase or Title/Name provider
+                MelonLogger.Msg("[CardModelProvider] Searching for Meta scene localization providers...");
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb == null) continue;
+                    var type = mb.GetType();
+                    string typeName = type.Name;
+
+                    // Log interesting types for discovery
+                    if (typeName.Contains("Card") || typeName.Contains("Title") ||
+                        typeName.Contains("Name") || typeName.Contains("Loc") ||
+                        typeName.Contains("Database") || typeName.Contains("Provider"))
+                    {
+                        MelonLogger.Msg($"[CardModelProvider] Found potential provider: {typeName}");
+
+                        // Check for CardDatabase property
+                        var cardDbProp = type.GetProperty("CardDatabase");
+                        if (cardDbProp != null)
+                        {
+                            MelonLogger.Msg($"[CardModelProvider] {typeName} has CardDatabase property");
+                            try
+                            {
+                                var cardDb = cardDbProp.GetValue(mb);
+                                if (cardDb != null)
+                                {
+                                    var cardDbType = cardDb.GetType();
+                                    MelonLogger.Msg($"[CardModelProvider] CardDatabase type: {cardDbType.FullName}");
+
+                                    // Try CardTitleProvider
+                                    var titleProviderProp = cardDbType.GetProperty("CardTitleProvider");
+                                    if (titleProviderProp != null)
+                                    {
+                                        var titleProvider = titleProviderProp.GetValue(cardDb);
+                                        if (titleProvider != null)
+                                        {
+                                            var providerType = titleProvider.GetType();
+                                            var getMethod = providerType.GetMethod("GetCardTitle", new[] { typeof(uint), typeof(bool), typeof(string) });
+                                            if (getMethod != null)
+                                            {
+                                                _idNameProvider = titleProvider;
+                                                _getNameMethod = getMethod;
+                                                MelonLogger.Msg($"[CardModelProvider] Using {typeName}.CardDatabase.CardTitleProvider for name lookup");
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                MelonLogger.Msg($"[CardModelProvider] Error accessing {typeName}.CardDatabase: {ex.Message}");
+                            }
+                        }
                     }
                 }
 
@@ -517,8 +702,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static string GetAbilityTextFromProvider(uint cardGrpId, uint abilityId, uint[] abilityIds, uint cardTitleId)
         {
-            // First try to find the ability text provider if we haven't already
-            if (!_abilityTextProviderSearched)
+            // Try to find the ability text provider - retry if not found
+            if (!_abilityTextProviderSearched || _getAbilityTextMethod == null)
             {
                 _abilityTextProviderSearched = true;
                 FindAbilityTextProvider();
@@ -626,6 +811,60 @@ namespace AccessibleArena.Core.Services
                         }
                     }
                     break;
+                }
+            }
+
+            // Search for other components that might have CardDatabase (Meta scenes)
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+                string typeName = type.Name;
+
+                // Look for components that might have CardDatabase
+                if (typeName.Contains("Card") || typeName.Contains("Wrapper") || typeName.Contains("Manager"))
+                {
+                    var cardDbProp = type.GetProperty("CardDatabase");
+                    if (cardDbProp != null)
+                    {
+                        try
+                        {
+                            var cardDb = cardDbProp.GetValue(mb);
+                            if (cardDb != null)
+                            {
+                                var cardDbType = cardDb.GetType();
+
+                                // Look for AbilityTextProvider
+                                foreach (var prop in cardDbType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                                {
+                                    if (prop.Name.Contains("Text") || prop.Name.Contains("Ability"))
+                                    {
+                                        var provider = prop.GetValue(cardDb);
+                                        if (provider != null)
+                                        {
+                                            var providerType = provider.GetType();
+                                            foreach (var m in providerType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                                            {
+                                                if (m.DeclaringType == typeof(object)) continue;
+                                                if (m.ReturnType == typeof(string))
+                                                {
+                                                    var mParams = m.GetParameters();
+                                                    if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
+                                                    {
+                                                        _abilityTextProvider = provider;
+                                                        _getAbilityTextMethod = m;
+                                                        MelonLogger.Msg($"[CardModelProvider] Using {typeName}.CardDatabase.{prop.Name}.{m.Name} for ability text lookup");
+                                                        return;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
                 }
             }
 
@@ -1217,16 +1456,64 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Extracts card information from the game's internal Model data.
         /// This works for battlefield cards that may have hidden/compacted UI text.
-        /// Returns null if Model data is not available (e.g., Meta scene cards).
+        /// Also supports Meta scene cards (deck builder, booster, rewards) via MetaCardView.
+        /// Returns null if Model data is not available.
         /// </summary>
+        // Flag for one-time object name logging
+        private static bool _cardObjNameLogged = false;
+
         public static CardInfo? ExtractCardInfoFromModel(GameObject cardObj)
         {
             if (cardObj == null) return null;
 
-            var cdcComponent = GetDuelSceneCDC(cardObj);
-            if (cdcComponent == null) return null;
+            // Log what object we're processing (once)
+            if (!_cardObjNameLogged)
+            {
+                _cardObjNameLogged = true;
+                MelonLogger.Msg($"[CardModelProvider] ExtractCardInfoFromModel called with: '{cardObj.name}'");
+            }
 
-            var model = GetCardModel(cdcComponent);
+            object model = null;
+
+            // Try DuelScene_CDC first (for duel cards)
+            var cdcComponent = GetDuelSceneCDC(cardObj);
+            if (cdcComponent != null)
+            {
+                model = GetCardModel(cdcComponent);
+            }
+
+            // Try MetaCardView if no CDC (for deck builder, booster, rewards)
+            if (model == null)
+            {
+                var metaCardView = GetMetaCardView(cardObj);
+
+                // Also try parent if not found on this object
+                if (metaCardView == null && cardObj.transform.parent != null)
+                {
+                    metaCardView = GetMetaCardView(cardObj.transform.parent.gameObject);
+                }
+
+                if (metaCardView != null)
+                {
+                    // Log properties for discovery (once)
+                    LogMetaCardViewProperties(metaCardView);
+
+                    model = GetMetaCardModel(metaCardView);
+
+                    // Log result once
+                    if (!_metaCardViewPropertiesLogged)
+                    {
+                        MelonLogger.Msg($"[CardModelProvider] GetMetaCardModel returned: {(model != null ? model.GetType().Name : "null")}");
+                    }
+
+                    // Log the model properties if we found one
+                    if (model != null)
+                    {
+                        LogModelProperties(model);
+                    }
+                }
+            }
+
             if (model == null) return null;
 
             // Log properties for discovery (only once)
