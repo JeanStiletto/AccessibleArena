@@ -269,6 +269,19 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                             });
                         }
                     }
+                    else if (elementList.Count == 1)
+                    {
+                        // Single element - show standalone instead of creating a group
+                        _groups.Add(new ElementGroupInfo
+                        {
+                            Group = groupType,
+                            DisplayName = elementList[0].Label,
+                            Elements = elementList,
+                            IsFolderGroup = false,
+                            FolderToggle = null,
+                            IsStandaloneElement = true
+                        });
+                    }
                     else
                     {
                         _groups.Add(new ElementGroupInfo

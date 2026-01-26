@@ -41,6 +41,7 @@ Break long menu lists into smaller, contextual groups for better blind user navi
 | Primary group | Auto-enter first | **Standalone items** - shown directly at group level, not inside a group |
 | Content group | Grouped together | **Standalone items** - each element shown directly at group level (like Primary) |
 | Auto-enter | Primary + single-item groups | **Only when 1 total group** exists |
+| Single-element groups | Created as groups | **Standalone** - groups with exactly 1 element become standalone items |
 | ForegroundLayer | Remove entirely | **Kept for now** - still used for ContentPanel/Home filtering |
 | Folder grouping | Not planned | **Added** - Decks screen folders become their own groups |
 | Content with folders | Skip Content group | **Always show** - Content has filters/buttons even when inside folders |
@@ -220,11 +221,13 @@ These can potentially be replaced with group-based filtering later, but require 
 
 2. **Secondary group removed** - Elements that would have been Secondary now fall to Content or Navigation. May need to revisit if this causes issues.
 
-3. **Auto-enter behavior** - Only triggers when exactly 1 group. Single-item groups within multiple groups require Enter to activate.
+3. **Auto-enter behavior** - Only triggers when exactly 1 group. Standalone elements at group level are directly activatable.
 
-4. ~~**Color filters classification**~~ - Fixed: Added `DeckColorFilters` pattern to `IsFilterElement()`.
+4. **Single-element groups** - Non-folder groups with exactly 1 element become standalone (shown directly at group level). Folder groups always remain groups regardless of element count (0 elements allowed for collapsed folders, 1+ elements keep folder context and exit behavior).
 
-5. ~~**Folder toggle on already-visible folder**~~ - Fixed: Now checks `toggle.isOn` before activating. Entering an already-visible folder no longer toggles it off.
+5. ~~**Color filters classification**~~ - Fixed: Added `DeckColorFilters` pattern to `IsFilterElement()`.
+
+6. ~~**Folder toggle on already-visible folder**~~ - Fixed: Now checks `toggle.isOn` before activating. Entering an already-visible folder no longer toggles it off.
 
 ---
 
