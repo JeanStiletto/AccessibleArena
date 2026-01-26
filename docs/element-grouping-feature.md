@@ -224,6 +224,8 @@ These can potentially be replaced with group-based filtering later, but require 
 
 4. ~~**Color filters classification**~~ - Fixed: Added `DeckColorFilters` pattern to `IsFilterElement()`.
 
+5. ~~**Folder toggle on already-visible folder**~~ - Fixed: Now checks `toggle.isOn` before activating. Entering an already-visible folder no longer toggles it off.
+
 ---
 
 ## Success Criteria

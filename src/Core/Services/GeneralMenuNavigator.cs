@@ -1923,20 +1923,29 @@ namespace AccessibleArena.Core.Services
                 var currentGroup = _groupedNavigator.CurrentGroup;
                 if (currentGroup.HasValue && currentGroup.Value.IsFolderGroup && currentGroup.Value.FolderToggle != null)
                 {
-                    // Find the folder toggle in our _elements list and activate it normally
-                    // This goes through OnElementActivated which triggers rescan for toggles
                     var toggleObj = currentGroup.Value.FolderToggle;
-                    for (int i = 0; i < _elements.Count; i++)
+                    var toggle = toggleObj.GetComponent<Toggle>();
+
+                    // Only activate (toggle on) if not already checked
+                    // This prevents toggling OFF a folder that's already visible
+                    if (toggle != null && !toggle.isOn)
                     {
-                        if (_elements[i].GameObject == toggleObj)
+                        // Find the folder toggle in our _elements list and activate it normally
+                        // This goes through OnElementActivated which triggers rescan for toggles
+                        for (int i = 0; i < _elements.Count; i++)
                         {
-                            _currentIndex = i;
-                            ActivateCurrentElement();
-                            // Enter the group after activating the toggle
-                            _groupedNavigator.EnterGroup();
-                            return true;
+                            if (_elements[i].GameObject == toggleObj)
+                            {
+                                _currentIndex = i;
+                                ActivateCurrentElement();
+                                break;
+                            }
                         }
                     }
+
+                    // Always enter the group (whether we toggled or not)
+                    _groupedNavigator.EnterGroup();
+                    return true;
                 }
 
                 // Normal group - enter it
