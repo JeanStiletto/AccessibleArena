@@ -39,6 +39,11 @@ namespace AccessibleArena.Core.Services
         // Cached input field being edited (set when entering edit mode)
         private GameObject _editingInputField;
 
+        // Track previous frame's input field state for Backspace character announcement
+        // (By the time we detect Backspace, Unity has already deleted the character and moved caret)
+        private string _prevInputFieldText = "";
+        private int _prevInputFieldCaretPos = 0;
+
         /// <summary>
         /// Represents a virtual action attached to an element (e.g., Delete, Edit for decks).
         /// These are cycled through with left/right arrows.
@@ -294,8 +299,34 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Handle input
+            // Handle input (uses _prevInputFieldText from last frame for Backspace)
             HandleInput();
+
+            // Track input field text for NEXT frame's Backspace character announcement
+            // Must be done AFTER HandleInput so we capture current state for next frame
+            // (By the time we detect Backspace, Unity has already processed it)
+            TrackInputFieldState();
+        }
+
+        /// <summary>
+        /// Track current input field state for next frame's Backspace detection.
+        /// Called each frame to maintain previous state.
+        /// </summary>
+        private void TrackInputFieldState()
+        {
+            if (!UIFocusTracker.IsAnyInputFieldFocused() && !UIFocusTracker.IsEditingInputField())
+            {
+                _prevInputFieldText = "";
+                _prevInputFieldCaretPos = 0;
+                return;
+            }
+
+            var info = GetAnyFocusedInputFieldInfo();
+            if (info.IsValid)
+            {
+                _prevInputFieldText = info.Text ?? "";
+                _prevInputFieldCaretPos = info.CaretPosition;
+            }
         }
 
         private void TryActivate()
@@ -392,8 +423,14 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Backspace: announce the character being deleted, then let it pass through
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                AnnounceDeletedCharacter();
+                // Don't return - let key pass through to input field for actual deletion
+            }
             // Up or Down arrow: announce the current input field content
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            else if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {
                 AnnounceCurrentInputFieldContent();
             }
@@ -494,6 +531,123 @@ namespace AccessibleArena.Core.Services
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Get info about any focused input field in the scene.
+        /// Used when the field might have been activated by mouse click rather than our navigation.
+        /// </summary>
+        private InputFieldInfo GetAnyFocusedInputFieldInfo()
+        {
+            // First try the cached/navigated field
+            var result = GetFocusedInputFieldInfo();
+            if (result.IsValid) return result;
+
+            // Scan scene for any focused input field (handles mouse-clicked fields)
+            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
+            foreach (var field in tmpInputFields)
+            {
+                if (field.isFocused)
+                {
+                    return new InputFieldInfo
+                    {
+                        IsValid = true,
+                        Text = field.text,
+                        CaretPosition = field.stringPosition,
+                        IsPassword = field.inputType == TMPro.TMP_InputField.InputType.Password,
+                        GameObject = field.gameObject
+                    };
+                }
+            }
+
+            var legacyInputFields = GameObject.FindObjectsOfType<UnityEngine.UI.InputField>();
+            foreach (var field in legacyInputFields)
+            {
+                if (field.isFocused)
+                {
+                    return new InputFieldInfo
+                    {
+                        IsValid = true,
+                        Text = field.text,
+                        CaretPosition = field.caretPosition,
+                        IsPassword = field.inputType == UnityEngine.UI.InputField.InputType.Password,
+                        GameObject = field.gameObject
+                    };
+                }
+            }
+
+            return new InputFieldInfo { IsValid = false };
+        }
+
+        /// <summary>
+        /// Announce the character being deleted by Backspace.
+        /// Called BEFORE Unity processes the deletion so character is still in the text.
+        /// </summary>
+        private void AnnounceDeletedCharacter()
+        {
+            var info = GetAnyFocusedInputFieldInfo();
+            if (!info.IsValid) return;
+
+            string currentText = info.Text ?? "";
+            string prevText = _prevInputFieldText ?? "";
+
+            // Compare previous and current text to find deleted character
+            // By the time we detect Backspace, Unity has already processed it
+            if (prevText.Length <= currentText.Length)
+            {
+                // Text didn't get shorter - nothing was deleted (or text was added)
+                return;
+            }
+
+            // Handle password fields - don't reveal characters
+            if (info.IsPassword)
+            {
+                _announcer.AnnounceInterrupt(Strings.InputFieldStar);
+                return;
+            }
+
+            // Find the deleted character by comparing strings
+            // Typically it's at the caret position in the previous text
+            char deletedChar = FindDeletedCharacter(prevText, currentText, _prevInputFieldCaretPos);
+            string charName = GetCharacterName(deletedChar);
+            _announcer.AnnounceInterrupt(charName);
+        }
+
+        /// <summary>
+        /// Find the character that was deleted by comparing previous and current text.
+        /// </summary>
+        private char FindDeletedCharacter(string prevText, string currentText, int prevCaretPos)
+        {
+            // Backspace deletes the character before the caret
+            // So if caret was at position N, the deleted char was at N-1
+            int deletedIndex = prevCaretPos - 1;
+
+            // Sanity check
+            if (deletedIndex >= 0 && deletedIndex < prevText.Length)
+            {
+                return prevText[deletedIndex];
+            }
+
+            // Fallback: find first difference between strings
+            for (int i = 0; i < currentText.Length; i++)
+            {
+                if (i >= prevText.Length || prevText[i] != currentText[i])
+                {
+                    // Found difference - the deleted char was at position i in prevText
+                    if (i < prevText.Length)
+                        return prevText[i];
+                    break;
+                }
+            }
+
+            // If current is a prefix of prev, the deleted char is the one after current ends
+            if (currentText.Length < prevText.Length)
+            {
+                return prevText[currentText.Length];
+            }
+
+            // Couldn't determine - return placeholder
+            return '?';
         }
 
         /// <summary>
@@ -711,6 +865,11 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
+                    // Backspace: announce the character being deleted before passing through
+                    if (Input.GetKeyDown(KeyCode.Backspace))
+                    {
+                        AnnounceDeletedCharacter();
+                    }
                     // All other keys (arrows for cursor, Backspace for delete) pass through to input field
                     return;
                 }
@@ -1103,7 +1262,7 @@ namespace AccessibleArena.Core.Services
             {
                 _editingInputField = element;
                 UIFocusTracker.EnterInputFieldEditMode(element);
-                _announcer.Announce("Editing. Type to enter text, Backspace on empty to exit.", AnnouncementPriority.Normal);
+                _announcer.Announce("Editing. Type to enter text, Escape to exit.", AnnouncementPriority.Normal);
 
                 // Also activate the field so it receives keyboard input
                 UIActivator.Activate(element);

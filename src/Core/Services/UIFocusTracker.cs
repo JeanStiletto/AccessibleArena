@@ -64,29 +64,44 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Returns true if the EventSystem selection is an input field.
-        /// This is true when user has navigated to an input field (Tab or arrow keys),
-        /// regardless of whether the caret is visible (isFocused).
+        /// Returns true if any input field is focused (caret visible, user can type).
+        /// This handles both cases:
+        /// 1. User navigated to input field via Tab (EventSystem selection is the field)
+        /// 2. User clicked on input field with mouse (field.isFocused is true but EventSystem may differ)
         /// Use this to avoid intercepting keys like Backspace/Escape that should go to the input field.
         /// </summary>
         public static bool IsAnyInputFieldFocused()
         {
+            // First check: EventSystem selection is an input field
             var eventSystem = EventSystem.current;
-            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
-                return false;
+            if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
+            {
+                var selected = eventSystem.currentSelectedGameObject;
 
-            var selected = eventSystem.currentSelectedGameObject;
+                var tmpInput = selected.GetComponent<TMPro.TMP_InputField>();
+                if (tmpInput != null && tmpInput.interactable)
+                    return true;
 
-            // Check if selection IS an input field (not just if it's "focused" for editing)
-            // MTGA auto-activates input fields when selected, so any input field selection
-            // should be treated as "in input mode" for key blocking purposes
-            var tmpInput = selected.GetComponent<TMPro.TMP_InputField>();
-            if (tmpInput != null && tmpInput.interactable)
-                return true;
+                var legacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
+                if (legacyInput != null && legacyInput.interactable)
+                    return true;
+            }
 
-            var legacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
-            if (legacyInput != null && legacyInput.interactable)
-                return true;
+            // Second check: Any input field has isFocused = true (caret visible)
+            // This catches mouse-clicked input fields where EventSystem selection may differ
+            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
+            foreach (var field in tmpInputFields)
+            {
+                if (field.isFocused)
+                    return true;
+            }
+
+            var legacyInputFields = GameObject.FindObjectsOfType<UnityEngine.UI.InputField>();
+            foreach (var field in legacyInputFields)
+            {
+                if (field.isFocused)
+                    return true;
+            }
 
             return false;
         }
