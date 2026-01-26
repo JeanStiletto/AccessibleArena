@@ -1134,6 +1134,43 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Auto-press the Play button in PlayBlade after deck selection.
+        /// Finds the MainButton (named "MainButton" without MainButton component) and activates it.
+        /// </summary>
+        private void AutoPressPlayButtonInPlayBlade()
+        {
+            // Find the PlayBlade Play button - it's named "MainButton" but does NOT have the MainButton component
+            // (The Home page Play button has the MainButton component, PlayBlade's doesn't)
+            foreach (var elem in _elements)
+            {
+                if (elem.GameObject != null && elem.GameObject.name == "MainButton")
+                {
+                    // Verify it's NOT the Home page MainButton (which has MainButton component)
+                    bool hasMainButtonComponent = false;
+                    var components = elem.GameObject.GetComponents<MonoBehaviour>();
+                    foreach (var comp in components)
+                    {
+                        if (comp != null && comp.GetType().Name == "MainButton")
+                        {
+                            hasMainButtonComponent = true;
+                            break;
+                        }
+                    }
+
+                    // PlayBlade's Play button doesn't have MainButton component
+                    if (!hasMainButtonComponent)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Auto-pressing Play button after deck selection");
+                        UIActivator.Activate(elem.GameObject);
+                        return;
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] PlayBlade Play button not found for auto-press");
+        }
+
+        /// <summary>
         /// Check if element is inside the NPE (New Player Experience) overlay UI.
         /// This includes Sparky dialogue, reward chests, and other tutorial elements.
         /// </summary>
@@ -2100,6 +2137,12 @@ namespace AccessibleArena.Core.Services
             // Use UIActivator for CustomButtons
             var result = UIActivator.Activate(element);
             _announcer.Announce(result.Message, Models.AnnouncementPriority.Normal);
+
+            // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
+            if (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            {
+                AutoPressPlayButtonInPlayBlade();
+            }
 
             // PlayBlade mode activation needs rescan (mode selection doesn't trigger panel changes)
             if (playBladeResult == PlayBladeResult.RescanNeeded)

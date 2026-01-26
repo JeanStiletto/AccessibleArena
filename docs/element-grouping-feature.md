@@ -102,10 +102,15 @@ The PlayBlade has a custom navigation hierarchy handled by `PlayBladeNavigationH
 3. Enter on "Ranked" mode → auto-enter Folders group (list of all deck folders)
 4. Navigate folders: "1 of 2: Meine Decks, 8 decks", "2 of 2: Starterdecks, 15 decks"
 5. Enter on "Meine Decks" → enter that folder group, see decks
-6. Backspace in folder → back to Folders list
-7. Backspace in Folders → back to Play Options (Content)
-8. Backspace in Content → back to Tabs
-9. Backspace in Tabs → close blade
+6. Enter on a deck → deck selected AND match automatically starts (auto-play)
+7. Backspace in folder → back to Folders list
+8. Backspace in Folders → back to Play Options (Content)
+9. Backspace in Content → back to Tabs
+10. Backspace in Tabs → close blade
+
+**Auto-Play Feature:**
+When a deck is selected in PlayBlade, the Play button is automatically pressed to start the match.
+This streamlines the workflow - user just navigates to a deck and presses Enter to play.
 
 **Technical Implementation:**
 - Helper uses `GroupedNavigator.IsPlayBladeContext` flag (set on blade open/close)
