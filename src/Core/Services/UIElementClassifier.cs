@@ -833,6 +833,8 @@ namespace AccessibleArena.Core.Services
             // Conditional filters that require additional checks:
 
             // Fade overlays (but not nav fades)
+            // Note: ModalFade in PlayBlade just calls PlayBladeV3.Hide() - NOT a play button
+            // The actual play button is HomeBanner_Right showing "Funken mit Rangliste"
             if (ContainsIgnoreCase(name, "fade") && !ContainsIgnoreCase(name, "nav"))
                 return true;
 

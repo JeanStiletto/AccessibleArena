@@ -2016,6 +2016,7 @@ namespace AccessibleArena.Core.Services
             // Check if this is a popup/dialog button (SystemMessageButton) - popup will close with animation
             bool isPopupButton = element.name.Contains("SystemMessageButton");
 
+
             // Note: Settings submenu button handling removed - handled by SettingsMenuNavigator
 
             // Use UIActivator for CustomButtons

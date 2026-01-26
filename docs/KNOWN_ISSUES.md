@@ -2,593 +2,195 @@
 
 Active bugs and limitations in the MTGA Accessibility Mod.
 
+## Active Bugs
+
+### Bot Match Button Not Visible
+
+Bot Match button not visible when PlayBlade is open.
+
+**Likely cause:** May not match PlayBlade parent path patterns in `IsInsidePlayBlade()`
+
+**Files:** `OverlayDetector.cs`, `ElementGroupAssigner.cs`
+
+---
+
+### Confirmation Dialog Cancel Button
+
+Cancel button in confirmation dialogs (e.g., Logout) requires two Enter presses. First press doesn't close the popup, second press works.
+
+**Workaround:** Press Enter twice, or use Escape to close.
+
+---
+
+### Login Screen Back Button
+
+Back button on login panel doesn't respond to keyboard activation (Enter or Backspace). Likely uses undiscovered activation mechanism.
+
+**Workaround:** Use mouse, or restart game to return to Welcome screen.
+
+---
+
+### Registration Screen
+
+Dropdown auto-advance causes navigation confusion. Basic dropdown navigation works, but full registration flow needs more testing.
+
+---
+
+### Space Key Pass Priority
+
+Game's native Space keybinding doesn't work reliably after using mod navigation. HotHighlightNavigator now clicks the primary button directly as workaround.
+
+---
+
+### Rapid Card Play
+
+Multiple rapid Enter presses can trigger card play sequence multiple times.
+
+---
+
+### Combat Blocker Selection
+
+Strange interactions may occur after selecting a target for blocks. Needs testing.
+
+## Needs Testing
+
+### NPE Rewards Button
+
+NullClaimButton ("Take reward") not being added to navigation. Fix attempted - searching entire hierarchy instead of specific path.
+
+**Location:** `GeneralMenuNavigator.cs` - `FindNPERewardCards()`
+
+---
+
+### Targeting Mode
+
+- Player targets (V key zone)
+- "Any target" spells
+- Stack spell targets
+- Triggered abilities requiring targets
+
+## In Progress
+
+---
+
+### Enchantment/Attachment Announcements
+
+Code added but `Model.Parent` and `Model.Children` properties always return null/empty.
+
+**Research completed:** The game uses `UniversalBattlefieldStack` system instead of Model properties. See `docs/ATTACHMENT_RESEARCH.md` for implementation plan.
+
+**Key insight:** Access `IBattlefieldStack` from card's CDC component to get `StackParent`, `StackedCards`, and `AttachmentCount`.
+
+**Files:** `CardModelProvider.cs`, `BattlefieldNavigator.cs`, `ZoneNavigator.cs`, `DuelAnnouncer.cs`
+
+## Limitations
+
+### Browser Navigator
+
+Toggle mechanism for scry/surveil needs API discovery. Detection and navigation work.
+
+### Color Challenge (Tutorial)
+
+- No player targeting support
+- MatchTimer UI disabled
+
+## Technical Debt
+
+### Code Archaeology
+
+Accumulated defensive fallback code needs review:
+- `ActivateBackButton()` has 4 activation methods - test which are needed
+- `LogAvailableUIElements()` (~150 lines) could be behind debug flag
+- Extensive logging throughout - review what's still needed
+
+**Priority:** Low
+
+---
+
+### WinAPI Fallback (UIActivator.cs)
+
+~47 lines of commented WinAPI code. Test if still needed, remove if stable without it.
+
+**Location:** `UIActivator.cs` lines 13-59
+
+---
+
+### Performance
+
+- Multiple `FindObjectsOfType` calls in `DiscoverElements`
+- Repeated `GameObject.Find` calls in back navigation
+
 ## Potential Issues (Monitor)
 
 ### Container Element Filtering
 
-**Filter: Elements with "Container" in name + 0x0 sizeDelta are skipped**
+Elements with "Container" in name + 0x0 sizeDelta are skipped. Some legitimate containers might be incorrectly filtered.
 
-Added to filter wrapper objects like `NPE-Rewards_Container` that have CustomButton but aren't real interactive buttons. These have 0x0 sizeDelta and text inherited from children.
-
-**Risk:** Some legitimate clickable containers might use anchor-based sizing (sizeDelta=0) and would be incorrectly filtered.
-
-**If a button stops working:** Check if its name contains "Container" and if the element uses anchor-based sizing. May need to revert or refine the filter in `UIElementClassifier.ShouldBeFiltered()`.
-
-**Location:** `UIElementClassifier.cs` - search for "container" in `ShouldBeFiltered` method.
-
----
-
-## Active Bugs
-
-### Panel Detection System (Jan 2026) - SIMPLIFIED
-
-**Current Architecture: Direct Detector Ownership (Simplified Jan 2026)**
-
-Panel detection was simplified by removing the plugin architecture:
-
-1. **PanelStateManager** - Owns all 3 detectors directly, called from main mod Update()
-   - No more IPanelDetector interface or PanelDetectorManager
-   - Detectors initialized in constructor, Update() called directly
-
-2. **HarmonyPanelDetector** - Event-driven via Harmony patches
-   - Self-contained patterns: playblade, settings, socialui, blades
-   - CRITICAL for PlayBlade (uses SLIDE animation, alpha stays 1.0)
-
-3. **ReflectionPanelDetector** - Polls IsOpen properties
-   - Self-contained patterns: Login panels, PopupBase
-   - Fallback for panels not handled by Harmony or Alpha
-
-4. **AlphaPanelDetector** - Watches CanvasGroup alpha
-   - Self-contained patterns: SystemMessageView, Dialog, Modal, Popups
-
-**Key Design (Simplified):**
-
-- Each detector has its own inline pattern list (no central PanelRegistry)
-- PanelStateManager owns detectors directly (no plugin abstraction)
-- Panel metadata methods (ClassifyPanel, GetPriority, etc.) moved to PanelInfo class
-- Archived files: IPanelDetector.cs, PanelDetectorManager.cs, PanelRegistry.cs
-
-**Unified Foreground/Backspace System (Jan 2026):**
-
-GeneralMenuNavigator uses a unified `ForegroundLayer` enum for both element filtering AND backspace navigation:
-- `GetCurrentForeground()` - Single source of truth for what's "in front"
-- `ShouldShowElement()` - Element filtering derived from foreground layer
-- `HandleBackNavigation()` - Back navigation derived from foreground layer
-
-This ensures filtering and back navigation can never get out of sync.
-
----
-
-### Failed Experiment: Alpha-Only Detection (Jan 2026)
-
-**Goal:** Unify all panel detection on alpha-based approach to eliminate race conditions.
-
-**Fundamental Issue: PlayBlade uses SLIDE animation, not ALPHA fade**
-
-PlayBlade slides in from the side while alpha stays at 1.0 the entire time. Alpha-based detection can NEVER work for it because there's no alpha change to detect. This is why Harmony patches on `PlayBladeVisualState` are essential.
-
-**What We Tried:**
-1. Disabled `CheckForPanelChanges()` entirely in GeneralMenuNavigator.Update()
-2. Added PlayBlade/Blade patterns to UnifiedPanelDetector
-3. Reduced cache refresh interval from 5 seconds to 1 second
-4. Removed ExcludedNamePatterns that were blocking ContentController panels
-5. Tried stability-based detection (wait for alpha to settle before reporting)
-
-**Why It Failed:**
-
-1. **PlayBlade not detected properly**
-   - `ContentController - PlayBladeV3_Desktop_16x9(Clone)` wasn't being registered
-   - Child elements like `Blade_FilterListItem_Base(Clone)` were detected instead
-   - Result: Wrong foreground panel (SocialUI instead of PlayBlade)
-   - Elements from main menu mixed with PlayBlade elements
-
-2. **Stability tracking caused delays**
-   - Waiting for alpha to be stable (3 consecutive checks with < 2% change)
-   - Made home menu load slowly
-   - Blade opening/closing unreliable
-   - Some panels never reached "stable" state
-
-3. **Home menu loading issues**
-   - Initial load very slow
-   - Elements appearing inconsistently
-
-**Key Learning:**
-
-Alpha detection works well for true popups (SystemMessageView, dialogs) that:
-- Fade in/out with clear alpha transitions
-- Are independent GameObjects with their own CanvasGroup
-- Don't have complex controller hierarchies
-
-Alpha detection is unreliable for:
-- PlayBlade - nested inside HomePageContentController, uses visual state enum
-- Content controllers - may not have CanvasGroup at root level
-- Panels that appear instantly (alpha=1 from start)
-
-**Code Changes (Reverted/Kept):**
-
-Kept from experiment:
-- `TrackedPanelPatterns` renamed from `PopupPatterns` (clearer naming)
-- `IsTrackedPanel()` renamed from `IsPopupPanel()`
-- Removed `ExcludedNamePatterns` - was blocking legitimate panels
-- Added "PlayBlade", "Blade" to tracked patterns (helps with some detection)
-
-Reverted:
-- Re-enabled `PanelStatePatch.Initialize()` in AccessibleArenaMod.cs
-- Re-enabled event subscription in NavigatorManager.cs
-- Re-enabled `CheckForPanelChanges()` in GeneralMenuNavigator.cs
-- Removed stability tracking - caused more problems than it solved
-
-**Current State (Jan 2026 - Restored):**
-
-Hybrid approach with Harmony patches is working:
-- **Harmony patches** provide immediate event-driven detection for PlayBlade, Settings, Blades
-- **CheckForPanelChanges** handles controller-based panels via reflection (backup)
-- **UnifiedPanelDetector** handles alpha-based panels (popups, dialogs, social)
-
-The key insight: PlayBlade REQUIRES Harmony patches because it uses slide animation (alpha stays 1.0).
-
-**Files:**
-- `src/Patches/PanelStatePatch.cs` - Harmony patches (CRITICAL for PlayBlade)
-- `src/Core/Services/NavigatorManager.cs` - Event subscription (OnPanelStateChanged)
-- `src/Core/Services/GeneralMenuNavigator.cs` - OnPanelStateChangedExternal, CheckForPanelChanges
-- `src/Core/Services/UnifiedPanelDetector.cs` - Alpha detection for popups/dialogs
-- `src/Core/Services/MenuPanelTracker.cs` - Controller reflection utilities
-
----
-
-### Confirmation Dialogs (SystemMessageView)
-
-**Cancel button requires double-click to activate (Jan 2026)**
-
-Confirmation dialogs (e.g., Logout confirmation from Settings) are detected and navigable with OK/Cancel buttons. However, pressing Enter on the Cancel (Abbrechen) button requires two presses - the first press doesn't close the popup, but the mod correctly reports this (shows popup still active). The second press closes it successfully.
-
-**Technical details:**
-- SystemMessageButtonView component has both CustomButton and SystemMessageButtonView
-- UIActivator tries direct SystemMessageButtonView.OnClick first, which fails
-- Falls back to pointer simulation which may require two attempts
-- The OK button appears to work on first click
-
-**Workaround:** Press Enter twice on Cancel, or press Escape to close the popup.
-
-### Login Screen Back Button
-
-**Back button does not respond to keyboard activation**
-
-The back button on the login panel (Button_Back) cannot be activated via keyboard (Enter or Backspace). The button has CustomButton and Animator components but doesn't respond to:
-- Pointer event simulation
-- CustomButton.onClick invocation
-- Animator triggers (Pressed, Click, Selected)
-- Submit events
-
-The button likely uses a mechanism we haven't discovered (possibly parent panel controller or input system integration).
-
-**Workaround:** Use mouse to click the back button, or restart the game to return to Welcome screen.
-
-### Registration Screen
-
-**Registration not fully working**
-
-The registration screen dropdowns (birth date, country, experience) are navigable and selectable. However, the screen has auto-advance behavior where selecting a value automatically opens the next dropdown and moves focus. The mod tracks this via focus-based dropdown mode detection, but:
-
-- The auto-advance can cause brief navigation confusion
-- After completing all dropdowns, the final submit flow is untested
-- Some edge cases with rapid navigation may not be handled
-
-**Current status:** Basic dropdown navigation works, but full registration flow needs more testing.
-
-### HotHighlightNavigator
-
-**Activatable creatures take priority over playable cards**
-
-When you have both activatable creatures on battlefield (like mana creatures) and playable cards in hand, the game only highlights the activatable creatures. This is game behavior, not a mod bug - the game wants you to tap mana first. After activating the creature's ability, hand cards become highlighted.
-
-Example: Ilysian Caryatid highlighted but Forest in hand not highlighted until Caryatid is tapped.
-
-**Space key pass priority - manual button click required (Jan 2026)**
-
-The game's native Space keybinding for passing priority doesn't work reliably after using mod navigation (C key to hand, arrow keys, etc.). Even clearing EventSystem focus doesn't help - the game checks something else internally.
-
-**Fix:** HotHighlightNavigator now clicks the primary button directly when Space is pressed with no highlights, bypassing the game's native handler entirely.
-
-**Strange behavior observed:** This needs more testing in real duels. The issue appeared suddenly and the root cause is unclear - could be related to game state, UI focus, or internal game keybinding system. The direct button click works reliably but we don't fully understand why the native handler stopped working.
-
-**Tap abilities cannot be activated via keyboard (Jan 2026)**
-
-When a creature with a tap ability (like Ilysian Caryatid, Spectral Sailor) is highlighted, pressing Enter does not activate the tap ability. The creature stays untapped and can still attack.
-
-**What we tried:**
-1. **Single click** (original) - Simple, doesn't activate ability
-2. **Three-click (PlayCardViaTwoClick)** - Broke game state (Step 3 clicked screen center, hand cards became unplayable)
-3. **Two-click only** - Still broke game state, hand cards unplayable after
-4. **Two-click on AbilityAnchor child** - Stable (doesn't break game), but still doesn't tap creature
-
-**Current state:** Using two-click on AbilityAnchor. This is stable and doesn't break the game, but abilities are not activated. Cards can still be played manually with mouse.
-
-**Technical notes:**
-- AbilityAnchor is just a positioning transform for ability UI, not a clickable element
-- The game may expect a specific gesture (drag?) or interaction method we haven't discovered
-- This is NOT game-breaking - workaround is to use mouse for tap abilities
-
-**Targeting mode deactivated (Jan 2026)**
-
-The "targeting mode" concept and its Backspace cancel handler were commented out. No gameplay limitations observed - the game handles targeting cancel via its own undo functionality. This code may be completely unnecessary and could be removed in future cleanup.
-
-**Location:** `src/Core/Services/HotHighlightNavigator.cs` - commented sections around lines 167-180 and 705-710
-
-### Combat
-
-**Blocker selection after targeting**
-
-Strange interactions may occur after selecting a target for blocks. Needs further testing.
-
-### Card Playing
-
-**Rapid Enter presses**
-
-Multiple rapid Enter presses can trigger card play sequence multiple times, potentially causing issues if game enters targeting mode.
-
-### Mulligan
-
-**Regular Mulligan: Working**
-- BrowserScaffold_Mulligan detected properly
-- Space → clicks KeepButton ("X behalten" / "Keep X")
-- Backspace → clicks MulliganButton to take new hand
-- Tab navigates through cards in opening hand
-- Fallback detection waits for mulligan buttons before entering browser mode
-
-**London Mulligan (putting cards on bottom): WORKING (Jan 2026)**
-- After mulliganing, you must put 1 card on bottom of library per mulligan taken
-- BrowserScaffold_London detected, cards navigable in two zones
-
-**Zone Navigation:**
-- **C** - Enter keep pile (cards you're keeping)
-- **D** - Enter bottom pile (cards going to bottom of library)
-- **Left/Right** - Navigate between cards within current zone
-- **Enter** - Toggle card to the other pile (keep ↔ bottom)
-- **Space** - Confirm selection (click Submit button)
-
-**Technical Implementation:**
-Card selection uses the `LondonBrowser` API via reflection:
-1. Get `LondonBrowser` instance from `BrowserCardHolder_Default.CardGroupProvider`
-2. Check card position with `IsInHand()` / `IsInLibrary()`
-3. Get target zone position from `LibraryScreenSpace` / `HandScreenSpace`
-4. Move card transform to target position
-5. Call `HandleDrag(cardCDC)` then `OnDragRelease(cardCDC)`
-
-Card lists retrieved via `GetHandCards()` and `GetLibraryCards()` from LondonBrowser.
-See BEST_PRACTICES.md "Browser Card Interactions" for reusable patterns.
-
-## Technical Debt
-
-### GeneralMenuNavigator Improvements (Jan 2026) - COMPLETED
-
-Code quality improvements completed:
-
-1. **Conditional debug logging** - DONE
-   - Added `DebugLogging` flag (default: false)
-   - All 50+ verbose `MelonLogger.Msg` calls wrapped in `LogDebug()` helper
-   - Reduces log noise in production
-
-2. **Button search pattern consolidation** - DONE
-   - Created `FindButtonByPredicate()` helper method
-   - Both `FindCloseButtonInPanel()` and `FindGenericBackButton()` now use shared helper
-
-3. **Rescan debounce removed** - DONE
-   - Removed ineffective debounce mechanism (all calls used `force: true`)
-   - Simplified `TriggerRescan()` - just schedules delay for UI to settle
-   - Removed unused `_forceRescan`, `_lastRescanTime`, `RescanDebounceSeconds`
-
-4. **IsOverlayActive() removed** - DONE
-   - Was checking stale blocker patterns disconnected from `GetCurrentForeground()`
-   - Now trusts `GetCurrentForeground()` to handle all overlay filtering
-   - If there are navigable buttons, navigator activates and filters correctly
-
-**Remaining (Lower Priority):**
-
-- **Multiple FindObjectsOfType in DiscoverElements** - 6 separate calls could be optimized
-- **Repeated GameObject.Find calls** - O(n) scene searches in back navigation
-
-**Location:** `src/Core/Services/GeneralMenuNavigator.cs`
-
----
-
-### Code Archaeology Review Needed
-
-The codebase has accumulated defensive fallback code and verbose patterns from iterative reverse-engineering of MTGA's custom UI. A cleanup pass should test and potentially remove:
-
-**Defensive fallback chains:**
-- `ActivateBackButton()` in GeneralMenuNavigator has 4 activation methods (Unity Button → IPointerClickHandler → Animator triggers → UIActivator). Test which are actually needed.
-- Multiple detection fallbacks throughout navigators - some may be obsolete after we understood MTGA's patterns better.
-
-**Debug/logging code:**
-- `LogAvailableUIElements()` (~150 lines) - useful during development, could be behind a debug flag or removed.
-- Extensive `MelonLogger.Msg()` calls throughout - review which are still needed for troubleshooting vs just noise.
-
-**Potential dead patterns:**
-- Settings control discovery methods were consolidated but may have edge cases we no longer encounter.
-- Panel detection fallbacks that were added for specific bugs that may be fixed.
-
-**AI-induced verbosity:**
-- Overly verbose comments explaining obvious code
-- Redundant null checks where nulls can't occur
-- Long method names that could be shorter
-
-**Approach:** Pick one file at a time, remove suspected dead code, test thoroughly in-game. If something breaks, restore it. Document which fallbacks are actually required.
-
-**Priority:** Low - code works, this is optimization/maintainability.
-
-### WinAPI Fallback Code (UIActivator.cs)
-
-The UIActivator contains ~47 lines of commented WinAPI code (mouse_event, SetCursorPos, etc.) that was a working fallback when Unity pointer event simulation failed. This was kept because:
-- Unity event approach stopped working at some point (unknown cause)
-- WinAPI approach worked reliably at the time
-- After PC restart, Unity events worked again
-
-**TODO:** Test if this fallback is still needed:
-1. Run prolonged tests with Unity events approach
-2. Check if overlapping overlays or mouse positioning issues recur
-3. If stable for several months, the WinAPI code can be removed
-
-**Location:** `src/Core/Services/UIActivator.cs` lines 13-59
-
-## Needs Testing
-
-### NPE Rewards "Take Reward" Button (Jan 2026)
-
-**Issue:** The NullClaimButton ("Take reward" button) on NPE rewards screen isn't being added to navigable elements, even though reward cards are found correctly.
-
-**Investigation:** The original code used `Transform.Find("ActiveContainer")` then `Find("NullClaimButton")` which was failing silently (no logging for the failure case).
-
-**Fix attempted:** Changed to search entire `npeContainer` hierarchy using `GetComponentsInChildren<Transform>` - the same pattern that successfully finds reward cards.
-
-**Debug logging added:** Extra logging to identify which failure case occurs:
-- "Adding NullClaimButton as 'Take reward' button (path: ...)" - success
-- "NullClaimButton not found in NPE-Rewards_Container hierarchy" - button missing
-- "NullClaimButton already in addedObjects" - duplicate detection issue
-- "NPE-Rewards_Container not found" - container missing
-
-**TODO:** Remove debug logging once fix is confirmed working.
-
-**Location:** `src/Core/Services/GeneralMenuNavigator.cs` - `FindNPERewardCards()` method
-
-### Menu Navigation
-
-- Card name extraction for various reward types
-- Rewards screen detection
-
-### Targeting Mode
-
-- Player targets (V key zone with targeting spells like Shock)
-- "Any target" spells (creatures + players)
-- Stack spell targets (Counterspell-type effects)
-- Triggered abilities requiring targets
-
-## Limitations
-
-### Player Info Zone
-
-- Life total query via L key may not work reliably - MtgPlayer doesn't expose Life property directly
-- Life changes ARE announced via events, but on-demand query is inconsistent
-
-**Investigation options for fixing life totals:**
-1. Query `CurrentGameState.LocalPlayer` on-demand (GameState is null at startup but populated during gameplay)
-2. Find 3D life counter component in `PlayerHpContainer` children at runtime
-3. Extract absolute value from `LifeTotalUpdateUXEvent` fields
-4. Search MtgPlayer for `GetLifeTotal()` method instead of property
-
-### Browser Navigator
-
-- Toggle mechanism for scry/surveil (moving cards between keep/bottom) needs API discovery
-- Current status: detection and navigation work, toggle in progress
-
-### Color Challenge (Tutorial)
-
-- Does NOT support player targeting - only creatures receive HotHighlight
-- MatchTimer UI is disabled in tutorial mode
+**If a button stops working:** Check `UIElementClassifier.ShouldBeFiltered()`.
 
 ## Design Decisions
 
-### Tab and Arrow Navigation (Jan 2026)
+### Panel Detection Architecture
 
-**Current State:** Both Tab and Arrow keys navigate menu elements identically.
+Hybrid approach using three detectors:
+- **HarmonyPanelDetector** - Event-driven for PlayBlade, Settings, Blades (critical for PlayBlade which uses SLIDE animation, not alpha fade)
+- **ReflectionPanelDetector** - Polls IsOpen properties for Login panels, PopupBase
+- **AlphaPanelDetector** - Watches CanvasGroup alpha for dialogs, modals, popups
 
-- Tab/Shift+Tab = Arrow Down/Up (same `MoveNext()`/`MovePrevious()` calls)
-- Both use the navigator's curated element list
-- No Unity EventSystem fallback - we handle Tab directly in BaseNavigator
+`GetCurrentForeground()` is single source of truth for both element filtering and backspace navigation.
 
-**Why:** Unity's EventSystem Tab navigation was unreliable:
-- Moved to wrong elements (especially buttons)
-- Ignored Shift key (went forward instead of backward)
-- Required complex fallback/correction logic
+---
 
-**Future Consideration:** May simplify to arrow-only navigation, removing Tab support in menus. Tab would remain for duel highlights (HotHighlightNavigator). This would:
-- Reduce code complexity
-- Avoid confusion between two navigation methods
-- Match screen reader conventions (arrows for menus)
+### Tab and Arrow Navigation
 
-**Current Status:** Both work, keeping Tab for familiarity with standard form navigation.
+Both Tab and Arrow keys navigate menu elements identically. Unity's EventSystem was unreliable. May simplify to arrow-only in future.
 
 ## Recently Completed
 
-### Booster Pack Card List (Jan 2026)
+### PlayBlade Ranked Match Start
 
-Pack opening card list is now accessible via BoosterOpenNavigator.
+Deck selection was being lost when navigating away from the deck folder.
+Fix: Stop collapsing deck folder toggle when exiting group - setting `toggle.isOn = false` was causing the game to deselect the deck.
 
-**Status:** Partially tested - ran out of booster packs during development.
+Note: ModalFade button is NOT the play button (its onClick just calls Hide()). MainButton is the correct play button and respects the selected mode tab.
 
-**Known issues:**
-- Some cards show as "Unknown card" - possibly planeswalkers or other special card types
-- Card name extraction may pick up rules text instead of card name for some card layouts
-
-**Features:**
-- Detects when pack contents are displayed (via CardScroller or RevealAll button)
-- Navigates through all revealed cards with Left/Right arrows
-- Announces card name and type for each card
-- Includes "Reveal All" button navigation
-- Includes dismiss/continue button navigation
-- Full CardDetector integration for detailed card info (press Enter on card)
-
-**Keyboard shortcuts:**
-- Left/Right arrows (or A/D): Navigate between cards
-- Up/Down arrows: Read card details (handled by card navigator)
-- Enter: View detailed card info for selected card
-- Home/End: Jump to first/last item
-- Backspace: Close pack view
-
-**Location:** `src/Core/Services/BoosterOpenNavigator.cs`
-
-### Friends Panel Fixes (Jan 2026)
-
-Fixed Friends panel navigation that was broken after code quality refactoring.
-
-**Root causes found and fixed:**
-1. The "back" button filter was matching "Backer_Hitbox" elements (fixed by excluding "backer")
-2. Popup detection pattern didn't match resolution-suffixed names like `InviteFriendPopup_Desktop_16x9(Clone)` (fixed pattern)
-3. Popup elements were filtered to Social panel instead of the popup itself (fixed priority order)
-
-**Now working:**
-- F4 opens Friends panel with all elements (friend list, add friend, header)
-- Add Friend popup with input field and invite button
-- Full keyboard workflow: navigate to Add Friend → Enter → type name → Tab to invite button → Enter
-
-### Hidden Zone Card Counts (Jan 2026)
-
-Card counts for hidden zones are now accessible:
-- **D key**: Your library card count
-- **Shift+D**: Opponent's library card count
-- **Shift+C**: Opponent's hand card count
-
-Counts are tracked via UpdateZoneUXEvent and announced on demand.
-
-## In Progress Features
-
-### Deck Selection State Detection (Jan 2026)
-
-**Goal:** Announce "selected" when navigating to a deck that is currently selected in the game.
-
-**Investigation findings:**
-
-1. **DeckView._animateIsSelected** - Boolean field exists on each DeckView, but it's only `true` during selection animation, not as persistent state. Always returns `false` when queried.
-
-2. **DeckViewSelector._selectedDeckView** - The DeckViewSelector component has this field which holds a reference to the currently selected DeckView. This IS the correct way to detect selection.
-
-**Implementation added (UIActivator.cs):**
-- `IsDeckSelected(deckElement)` - Compares deck's DeckView with `DeckViewSelector._selectedDeckView`
-- `GetSelectedDeckView()` - Finds DeckViewSelector and reads `_selectedDeckView` field
-
-**Current limitation: Backspace deselects decks**
-
-When user presses Backspace to exit a group in our navigation, the game also receives the Backspace and deselects the deck. This makes it impossible to:
-1. Select a deck with Enter
-2. Press Backspace to exit the deck folder group
-3. Re-enter the folder and see the deck still selected
-
-The game deselects on Backspace before our re-scan can detect the selection state.
-
-**Possible solutions (not implemented):**
-1. **Track selection internally** - Remember which deck was selected via Enter, ignore game state
-2. **Re-select after Backspace** - After exiting group, re-invoke deck selection (may cause UI flicker)
-3. **Use different key** - Don't use Backspace for group navigation (breaks consistency)
-
-**Current status:** Detection code is in place but effectively non-functional due to Backspace deselection. Left as-is for future improvement.
-
-**Files:**
-- `src/Core/Services/UIActivator.cs` - `IsDeckSelected()`, `GetSelectedDeckView()`
-- `src/Core/Services/GeneralMenuNavigator.cs` - Selection check during deck discovery
+**Files:** `GroupedNavigator.cs`
 
 ---
 
-### Enchantment/Attachment Announcement (Jan 2026)
+### Booster Pack Navigation
 
-**Goal:** Announce when cards are enchanted/equipped and show attachment info when navigating.
+Pack opening accessible via BoosterOpenNavigator. Left/Right to navigate cards, Enter for details, Backspace to close.
 
-**Desired behavior:**
-1. When an aura resolves: "Pacifism enchanted Serra Angel"
-2. When navigating to enchanted creature: "Serra Angel, enchanted by Pacifism, 1 of 3"
-3. When navigating to the aura itself: "Pacifism, attached to Serra Angel, 1 of 1"
+### Friends Panel
 
-**Implementation added (CardModelProvider.cs):**
-- `GetAttachments(card)` - Returns list of cards attached to this card (enchantments, equipment)
-- `GetAttachedTo(card)` - Returns the card this card is attached to (for auras/equipment)
-- `GetAttachmentText(card)` - Formatted text for announcements
-- `GetAttachmentsFromVisualLayer(card)` - Checks child/sibling GameObjects for attachments
+Fixed navigation after refactoring. F4 opens panel, Add Friend popup works with full keyboard workflow.
 
-**Integration points:**
-- `BattlefieldNavigator.AnnounceCurrentCard()` - Calls `GetAttachmentText()`
-- `ZoneNavigator.AnnounceCurrentCard()` - Calls `GetAttachmentText()` for battlefield
-- `DuelAnnouncer.ProcessBattlefieldEntry()` - Calls `GetAttachedToName()` for aura resolution
+### Hidden Zone Card Counts
 
-**Current issue: Parent/Children properties are always null/empty**
+D (your library), Shift+D (opponent library), Shift+C (opponent hand).
 
-From game logs, CardData model has these properties:
-```
-Property: Parent = null (MtgCardInstance)
-Property: Children = System.Collections.Generic.List`1[GreClient.Rules.MtgCardInstance]
-```
+### Mulligan
 
-But when querying an aura (Wasserschlinge) on the battlefield:
-- `Model.Parent` returns null
-- `Model.Children` returns empty list
-- `Instance.Parent` also returns null
-
-The game clearly tracks attachments (auras work correctly, tapping enchanted creatures, etc.) but the data isn't exposed through these properties.
-
-**Investigation approaches tried:**
-1. Check `Model.Parent` directly - null
-2. Check `Model.Instance.Parent` - null
-3. Check `Model.Children` - empty list
-4. Check child GameObjects for CDC components - none found
-5. Check sibling GameObjects with matching Parent.InstanceId - all siblings have null Parent
-
-**Debug logging added:**
-- `GetAttachments for X: parent=Y, children=Z` - Shows GameObject hierarchy
-- `GetAttachedTo(X): Model.Parent = ...` - Shows Parent property value
-- `Sibling X has Parent.InstanceId=Y, looking for Z` - Shows sibling Parent values
-
-**Next steps to investigate:**
-1. Check if `IBattlefieldStack.AttachmentCount` property is accessible on the visual layer
-2. Look for alternative properties on CardData that track attachments
-3. Check if there's a separate attachment registry/manager in the game
-4. Examine zone transfer events more closely - maybe attachment info is only available during resolution
-5. Look at the CDC component itself for attachment-related methods/properties
-
-**Files modified:**
-- `src/Core/Services/CardModelProvider.cs` - New attachment methods
-- `src/Core/Services/BattlefieldNavigator.cs` - Added attachment text to announcements
-- `src/Core/Services/ZoneNavigator.cs` - Added attachment text for battlefield
-- `src/Core/Services/DuelAnnouncer.cs` - Added `GetAttachedToName()` and attachment announcements
-
-**Related game architecture (from GAME_ARCHITECTURE.md):**
-```
-IBattlefieldStack
-- Property: Int32 AttachmentCount
-```
-
-This interface exists but we haven't found how to access it from the CDC component.
-
----
+Both regular and London mulligan working. C/D for zone navigation, Enter to toggle cards, Space to confirm.
 
 ## Planned Features
 
 ### Immediate
 
-1. Life total announcements (L shortcut) - fix reliability
-2. Mana pool info (A shortcut or from ManaPoolString)
-3. Stepper control redesign - current increment/decrement buttons should be unified into a single navigable stepper with left/right arrows to change value
+1. Mana pool info
+2. Stepper control redesign
 
 ### Upcoming
 
-1. Creature death announcements with card names
-2. Exile announcements with card names
-3. Graveyard card announcements with names
-4. Emote menu trigger (click HoverArea on player portrait)
-5. Player username announcements
-6. Game wins display (WinPips) for best-of-3 matches
-7. Player rank information
+1. Creature death/exile/graveyard announcements with card names
+2. Emote menu
+3. Player username announcements
+4. Game wins display (WinPips)
+5. Player rank information
 
 ### Future
 
 1. Deck building interface
 2. Collection browser
 3. Draft/sealed events
-4. Detailed player breakdown mode (cycle through life, mana, timeouts, rank)
