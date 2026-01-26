@@ -43,9 +43,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_screenDetector.IsSocialPanelOpen())
                 return ElementGroup.Social;
 
-            // 4. Play blade expanded
+            // 4. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
             if (PanelStateManager.Instance?.IsPlayBladeActive == true)
-                return ElementGroup.PlayBlade;
+                return ElementGroup.PlayBladeTabs;
 
             // 5. NPE (New Player Experience) overlay
             if (_screenDetector.IsNPERewardsScreenActive())
@@ -79,7 +79,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.Popup => IsInsidePopup(obj),
                 ElementGroup.SettingsMenu => IsInsideSettingsMenu(obj),
                 ElementGroup.Social => IsInsideSocialPanel(obj),
-                ElementGroup.PlayBlade => IsInsidePlayBlade(obj),
+                ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
+                ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),
                 _ => true
             };

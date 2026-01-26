@@ -620,6 +620,29 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Check if element is inside an EventTile (PlayBlade event selection).
+        /// EventTile hitboxes are the clickable game mode tiles (Color Challenge, Ranked, etc.).
+        /// </summary>
+        private static bool IsInsideEventTile(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+
+            while (current != null && levels < MaxParentSearchDepth)
+            {
+                string name = current.name;
+                if (ContainsIgnoreCase(name, "EventTile"))
+                    return true;
+                current = current.parent;
+                levels++;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Check if element is inside a TAG_PreferredPrinting (card style selector in collection view).
         /// These expand buttons should be filtered as they flood the navigation.
         /// </summary>
@@ -866,8 +889,9 @@ namespace AccessibleArena.Core.Services
             // Hitboxes without actual text content
             // BUT: Allow hitboxes inside FriendsWidget (they ARE the clickable friend items)
             // BUT: Allow hitboxes inside BoosterCarousel (they ARE the clickable pack items)
+            // BUT: Allow hitboxes inside EventTile (they ARE the clickable game mode tiles)
             if (ContainsIgnoreCase(name, "hitbox") && !UITextExtractor.HasActualText(obj)
-                && !IsInsideFriendsWidget(obj) && !IsInsideBoosterCarousel(obj))
+                && !IsInsideFriendsWidget(obj) && !IsInsideBoosterCarousel(obj) && !IsInsideEventTile(obj))
                 return true;
 
             // Backer elements from social panel (internal hitboxes)

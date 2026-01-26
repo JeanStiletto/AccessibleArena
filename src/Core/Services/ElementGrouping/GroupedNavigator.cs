@@ -80,6 +80,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private string _pendingFolderEntry = null;
 
         /// <summary>
+        /// When true, auto-enter PlayBladeTabs group after next OrganizeIntoGroups.
+        /// Set when PlayBlade opens.
+        /// </summary>
+        private bool _pendingPlayBladeTabsEntry = false;
+
+        /// <summary>
+        /// When true, auto-enter PlayBladeContent group after next OrganizeIntoGroups.
+        /// Set when a PlayBlade tab is activated.
+        /// </summary>
+        private bool _pendingPlayBladeContentEntry = false;
+
+        /// <summary>
         /// Whether grouped navigation is currently active.
         /// </summary>
         public bool IsActive => _groups.Count > 0;
@@ -149,6 +161,34 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             _announcer = announcer;
             _groupAssigner = groupAssigner;
+        }
+
+        /// <summary>
+        /// Request auto-entry into PlayBladeTabs group after next rescan.
+        /// Call when PlayBlade opens.
+        /// Does NOT override a pending content entry (tab was just clicked).
+        /// </summary>
+        public void RequestPlayBladeTabsEntry()
+        {
+            // Don't override content entry - it means a tab was just clicked
+            if (_pendingPlayBladeContentEntry)
+            {
+                MelonLogger.Msg("[GroupedNavigator] Skipping PlayBladeTabs entry - content entry already pending");
+                return;
+            }
+            _pendingPlayBladeTabsEntry = true;
+            MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeTabs auto-entry");
+        }
+
+        /// <summary>
+        /// Request auto-entry into PlayBladeContent group after next rescan.
+        /// Call when a PlayBlade tab is activated.
+        /// </summary>
+        public void RequestPlayBladeContentEntry()
+        {
+            _pendingPlayBladeContentEntry = true;
+            _pendingPlayBladeTabsEntry = false; // Clear tabs flag
+            MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeContent auto-entry");
         }
 
         /// <summary>
@@ -223,6 +263,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
 
             // Build ordered group list
+            // Note: PlayBladeTabs comes before PlayBladeContent so tabs are shown first
             var groupOrder = new[]
             {
                 ElementGroup.Play,
@@ -235,7 +276,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.Secondary,
                 ElementGroup.Popup,
                 ElementGroup.Social,
-                ElementGroup.PlayBlade,
+                ElementGroup.PlayBladeTabs,
+                ElementGroup.PlayBladeContent,
                 ElementGroup.SettingsMenu,
                 ElementGroup.NPE,
                 ElementGroup.Unknown
@@ -352,6 +394,42 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     }
                 }
                 _pendingFolderEntry = null; // Clear after processing
+            }
+
+            // Check for pending PlayBlade tabs entry (set when PlayBlade opens)
+            if (_pendingPlayBladeTabsEntry)
+            {
+                _pendingPlayBladeTabsEntry = false;
+                // Find PlayBladeTabs group and auto-enter it
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group == ElementGroup.PlayBladeTabs && _groups[i].Count > 0)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        _currentElementIndex = 0;
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeTabs with {_groups[i].Count} items");
+                        break;
+                    }
+                }
+            }
+
+            // Check for pending PlayBlade content entry (set when a tab is activated)
+            if (_pendingPlayBladeContentEntry)
+            {
+                _pendingPlayBladeContentEntry = false;
+                // Find PlayBladeContent group and auto-enter it
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group == ElementGroup.PlayBladeContent && _groups[i].Count > 0)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        _currentElementIndex = 0;
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items");
+                        break;
+                    }
+                }
             }
 
             MelonLogger.Msg($"[GroupedNavigator] Organized into {_groups.Count} groups");

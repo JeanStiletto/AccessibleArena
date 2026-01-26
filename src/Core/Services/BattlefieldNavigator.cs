@@ -511,7 +511,7 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Announces the current card with position and combat state.
+        /// Announces the current card with position, combat state, and attachments.
         /// </summary>
         private void AnnounceCurrentCard()
         {
@@ -526,7 +526,10 @@ namespace AccessibleArena.Core.Services
             // Add combat state if available
             string combatState = _combatNavigator?.GetCombatStateText(card) ?? "";
 
-            _announcer.Announce($"{cardName}{combatState}, {position} of {total}", AnnouncementPriority.Normal);
+            // Add attachment info (enchantments, equipment attached to this card)
+            string attachmentText = CardModelProvider.GetAttachmentText(card);
+
+            _announcer.Announce($"{cardName}{combatState}{attachmentText}, {position} of {total}", AnnouncementPriority.Normal);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

@@ -707,12 +707,14 @@ namespace AccessibleArena.Core.Services
 
             // Add combat state if in declare attackers/blockers phase (battlefield only)
             string combatState = "";
+            string attachmentText = "";
             if (_currentZone == ZoneType.Battlefield)
             {
                 combatState = _combatNavigator?.GetCombatStateText(card) ?? "";
+                attachmentText = CardModelProvider.GetAttachmentText(card);
             }
 
-            _announcer.Announce($"{cardName}{selectionState}{combatState}, {position} of {total}", AnnouncementPriority.Normal);
+            _announcer.Announce($"{cardName}{selectionState}{combatState}{attachmentText}, {position} of {total}", AnnouncementPriority.Normal);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

@@ -70,6 +70,13 @@ C:\Users\fabia\arena\
         MenuScreenDetector.cs    - Content controller detection, screen name mapping
         MenuPanelTracker.cs      - Panel/popup state tracking, overlay management
 
+        ElementGrouping/         - Hierarchical menu navigation system
+          ElementGroup.cs        - Group enum (Primary, Play, Content, PlayBladeTabs, etc.)
+          ElementGroupAssigner.cs - Assigns elements to groups based on hierarchy
+          GroupedNavigator.cs    - Two-level navigation (groups → elements)
+          OverlayDetector.cs     - Detects active overlay (popup, social, PlayBlade, etc.)
+          PlayBladeNavigationHelper.cs - State machine for PlayBlade tab/content navigation
+
         # Screen Navigators (all extend BaseNavigator)
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
         AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
@@ -341,6 +348,43 @@ Cards announce their current state based on active UI indicators:
 - `src/Core/Services/PlayerPortraitNavigator.cs` - Main navigator with focus management
 - `src/Core/Services/InputManager.cs` - Key consumption infrastructure
 - `src/Patches/KeyboardManagerPatch.cs` - Harmony patch for game's KeyboardManager
+
+### Element Grouping System (Menu Navigation)
+
+Hierarchical navigation for menu screens. Elements are organized into groups for two-level navigation: first navigate between groups, then enter a group to navigate its elements.
+
+**Architecture:**
+- `ElementGroup.cs` - Enum defining group types (Primary, Play, Content, PlayBladeTabs, PlayBladeContent, etc.)
+- `ElementGroupAssigner.cs` - Assigns elements to groups based on parent hierarchy and naming patterns
+- `GroupedNavigator.cs` - Two-level navigation state machine (GroupList ↔ InsideGroup)
+- `OverlayDetector.cs` - Detects which overlay is active (popup, social, PlayBlade, settings)
+- `PlayBladeNavigationHelper.cs` - State machine for PlayBlade-specific navigation flow
+
+**Navigation Flow:**
+- Arrow keys navigate at current level (groups or elements)
+- Enter enters a group or activates an element
+- Backspace exits a group or closes an overlay
+
+**Group Types:**
+- Standard groups: Primary, Play, Progress, Navigation, Filters, Content, Settings, Secondary
+- Overlay groups (suppress others): Popup, Social, PlayBladeTabs, PlayBladeContent, SettingsMenu, NPE
+- Single-element groups become "standalone" (directly activatable at group level)
+- Folder groups for deck folders (auto-expand toggle on Enter)
+
+**PlayBlade Navigation:**
+PlayBladeNavigationHelper manages the state machine for PlayBlade navigation:
+- `None` → `Tabs` (blade opens)
+- `Tabs` → `EventsContent`/`FindMatchModes`/`RecentContent` (tab selected)
+- `FindMatchModes` → `FindMatchDecks` (mode selected)
+- Backspace reverses: Content→Tabs, Decks→Modes, Tabs→Close blade
+
+**Integration:**
+- GeneralMenuNavigator creates GroupedNavigator and PlayBladeNavigationHelper
+- DiscoverElements calls `_groupedNavigator.OrganizeIntoGroups()`
+- Navigation methods (MoveNext, MovePrevious, etc.) delegate to GroupedNavigator when active
+- PlayBladeHelper syncs state with GroupedNavigator's current group before handling backspace
+
+---
 
 ### Browser Navigator System (Complete)
 

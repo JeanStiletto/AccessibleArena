@@ -69,9 +69,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         Social,
 
         /// <summary>
-        /// Play blade elements. Suppresses all other groups when active.
+        /// Play blade tabs (Events, Find Match, Recent). Shown first when PlayBlade is active.
         /// </summary>
-        PlayBlade,
+        PlayBladeTabs,
+
+        /// <summary>
+        /// Play blade content elements (event tiles, decks, filters). Shown after selecting a tab.
+        /// </summary>
+        PlayBladeContent,
 
         /// <summary>
         /// Settings menu elements. Suppresses all other groups when active.
@@ -96,7 +101,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             return group == ElementGroup.Popup
                 || group == ElementGroup.Social
-                || group == ElementGroup.PlayBlade
+                || group == ElementGroup.PlayBladeTabs
+                || group == ElementGroup.PlayBladeContent
                 || group == ElementGroup.SettingsMenu
                 || group == ElementGroup.NPE;
         }
@@ -118,7 +124,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.Secondary: return "Secondary Actions";
                 case ElementGroup.Popup: return "Dialog";
                 case ElementGroup.Social: return "Social";
-                case ElementGroup.PlayBlade: return "Play Options";
+                case ElementGroup.PlayBladeTabs: return "Tabs";
+                case ElementGroup.PlayBladeContent: return "Play Options";
                 case ElementGroup.SettingsMenu: return "Settings Menu";
                 case ElementGroup.NPE: return "Tutorial";
                 default: return "Other";

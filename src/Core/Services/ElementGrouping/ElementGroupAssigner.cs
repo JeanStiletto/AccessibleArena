@@ -80,9 +80,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 parentPath.Contains("SocialPanel"))
                 return ElementGroup.Social;
 
-            // Play blade
+            // Play blade - distinguish tabs from content
             if (IsInsidePlayBlade(parentPath, name))
-                return ElementGroup.PlayBlade;
+            {
+                // Tabs are the navigation buttons at top of PlayBlade
+                if (IsPlayBladeTab(name, parentPath))
+                    return ElementGroup.PlayBladeTabs;
+                return ElementGroup.PlayBladeContent;
+            }
 
             // Settings menu (when it's the active overlay)
             if (parentPath.Contains("SettingsMenu") || parentPath.Contains("Content - MainMenu") ||
@@ -317,6 +322,22 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Options button
             if (name == "Options" || name.Contains("OptionsButton"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is a PlayBlade tab (Events, Find Match, Recent tabs at top).
+        /// </summary>
+        private bool IsPlayBladeTab(string name, string parentPath)
+        {
+            // Tabs have "Blade_Tab_Nav" in their name
+            if (name.Contains("Blade_Tab_Nav"))
+                return true;
+
+            // Also check parent path for tabs container
+            if (parentPath.Contains("Blade_NavTabs") && parentPath.Contains("Tabs_CONTAINER"))
                 return true;
 
             return false;

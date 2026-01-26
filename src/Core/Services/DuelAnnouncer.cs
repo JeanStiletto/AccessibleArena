@@ -1392,6 +1392,9 @@ namespace AccessibleArena.Core.Services
                 return $"{cardName} token created";
             }
 
+            // Check if this card is an aura/equipment attaching to another card
+            string attachedToName = GetAttachedToName(cardInstance);
+
             // Land played (from Hand, not from Stack)
             if (fromZone == "Hand")
             {
@@ -1401,12 +1404,21 @@ namespace AccessibleArena.Core.Services
                     return $"{owner} played {cardName}";
                 }
                 // Non-land from hand without going through stack (e.g., put onto battlefield effects)
+                if (!string.IsNullOrEmpty(attachedToName))
+                {
+                    return $"{cardName} enchanted {attachedToName}";
+                }
                 return $"{cardName} enters battlefield";
             }
 
             // From stack = spell resolved (creature/artifact/enchantment)
             if (fromZone == "Stack")
             {
+                // Check if it's an aura that attached to something
+                if (!string.IsNullOrEmpty(attachedToName))
+                {
+                    return $"{cardName} enchanted {attachedToName}";
+                }
                 // We already announce spell cast, so just note it entered
                 // Could skip this to avoid double announcement, or make it brief
                 return null; // Skip - UpdateZoneUXEvent handles "spell resolved"
@@ -1415,19 +1427,74 @@ namespace AccessibleArena.Core.Services
             // From graveyard = reanimation
             if (fromZone == "Graveyard")
             {
+                if (!string.IsNullOrEmpty(attachedToName))
+                {
+                    return $"{cardName} returned from graveyard, enchanting {attachedToName}";
+                }
                 return $"{cardName} returned from graveyard";
             }
 
             // From exile = returned from exile
             if (fromZone == "Exile")
             {
+                if (!string.IsNullOrEmpty(attachedToName))
+                {
+                    return $"{cardName} returned from exile, enchanting {attachedToName}";
+                }
                 return $"{cardName} returned from exile";
             }
 
             // From library = put onto battlefield from library
             if (fromZone == "Library")
             {
+                if (!string.IsNullOrEmpty(attachedToName))
+                {
+                    return $"{cardName} enters battlefield from library, enchanting {attachedToName}";
+                }
                 return $"{cardName} enters battlefield from library";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the name of the card that this card is attached to (for auras/equipment).
+        /// Returns null if not attached to anything.
+        /// </summary>
+        private string GetAttachedToName(object cardInstance)
+        {
+            if (cardInstance == null) return null;
+
+            try
+            {
+                // Get the Parent property which is the card this is attached to
+                var parent = GetNestedPropertyValue<object>(cardInstance, "Parent");
+                if (parent == null) return null;
+
+                // Get the GrpId from the parent to look up its name
+                uint parentGrpId = GetNestedPropertyValue<uint>(parent, "GrpId");
+                if (parentGrpId == 0)
+                {
+                    // Try via Printing object
+                    var printing = GetNestedPropertyValue<object>(parent, "Printing");
+                    if (printing != null)
+                    {
+                        parentGrpId = GetNestedPropertyValue<uint>(printing, "GrpId");
+                    }
+                }
+
+                if (parentGrpId == 0) return null;
+
+                string parentName = CardModelProvider.GetNameFromGrpId(parentGrpId);
+                if (!string.IsNullOrEmpty(parentName))
+                {
+                    MelonLogger.Msg($"[DuelAnnouncer] Card is attached to: {parentName} (GrpId={parentGrpId})");
+                    return parentName;
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[DuelAnnouncer] Error getting attached-to name: {ex.Message}");
             }
 
             return null;

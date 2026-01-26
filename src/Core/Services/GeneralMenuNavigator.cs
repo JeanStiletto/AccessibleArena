@@ -122,6 +122,7 @@ namespace AccessibleArena.Core.Services
         private readonly OverlayDetector _overlayDetector;
         private readonly ElementGroupAssigner _groupAssigner;
         private readonly GroupedNavigator _groupedNavigator;
+        private readonly PlayBladeNavigationHelper _playBladeHelper;
 
         /// <summary>
         /// Whether grouped (hierarchical) navigation is enabled.
@@ -236,6 +237,7 @@ namespace AccessibleArena.Core.Services
             _overlayDetector = new OverlayDetector(_screenDetector);
             _groupAssigner = new ElementGroupAssigner(_overlayDetector);
             _groupedNavigator = new GroupedNavigator(announcer, _groupAssigner);
+            _playBladeHelper = new PlayBladeNavigationHelper(_groupedNavigator);
 
             // Subscribe to PanelStateManager for rescan triggers
             if (PanelStateManager.Instance != null)
@@ -251,6 +253,10 @@ namespace AccessibleArena.Core.Services
         private void OnPanelStateManagerActiveChanged(PanelInfo oldPanel, PanelInfo newPanel)
         {
             if (!_isActive) return;
+
+            // ALWAYS check PlayBlade state first, before any early returns
+            // PlayBlade state can change even when panel source is SocialUI
+            CheckAndInitPlayBladeHelper("ActiveChanged");
 
             // Ignore SocialUI as SOURCE of change - it's just the corner icon, causes spurious rescans
             // But DO rescan when something closes and falls back to SocialUI (e.g., popup closes)
@@ -268,7 +274,31 @@ namespace AccessibleArena.Core.Services
             }
 
             LogDebug($"[{NavigatorId}] PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
+
             TriggerRescan();
+        }
+
+        /// <summary>
+        /// Check if PlayBlade became active and initialize the helper if needed.
+        /// Called from multiple event handlers to ensure we catch the blade opening.
+        /// </summary>
+        private void CheckAndInitPlayBladeHelper(string source)
+        {
+            bool isPlayBladeNowActive = PanelStateManager.Instance?.IsPlayBladeActive == true;
+            bool helperIsActive = _playBladeHelper.IsActive;
+
+            MelonLogger.Msg($"[{NavigatorId}] CheckPlayBlade({source}): IsPlayBladeActive={isPlayBladeNowActive}, HelperIsActive={helperIsActive}");
+
+            if (isPlayBladeNowActive && !helperIsActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] PlayBlade became active - initializing helper");
+                _playBladeHelper.OnPlayBladeOpened("PlayBlade");
+            }
+            else if (!isPlayBladeNowActive && helperIsActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] PlayBlade became inactive - resetting helper");
+                _playBladeHelper.OnPlayBladeClosed();
+            }
         }
 
         /// <summary>
@@ -279,6 +309,9 @@ namespace AccessibleArena.Core.Services
         private void OnPanelStateManagerAnyOpened(PanelInfo panel)
         {
             if (!_isActive) return;
+
+            // ALWAYS check PlayBlade state first, before any early returns
+            CheckAndInitPlayBladeHelper("AnyOpened");
 
             // Ignore SocialUI - it's always present as corner icon, causes spurious rescans during page load
             if (panel?.Name?.Contains("SocialUI") == true)
@@ -532,7 +565,8 @@ namespace AccessibleArena.Core.Services
                 {
                     ElementGroup.Popup => DismissPopup(),
                     ElementGroup.Social => CloseSocialPanel(),
-                    ElementGroup.PlayBlade => ClosePlayBlade(),
+                    ElementGroup.PlayBladeTabs => HandlePlayBladeBackspace(),
+                    ElementGroup.PlayBladeContent => HandlePlayBladeBackspace(),
                     ElementGroup.NPE => HandleNPEBack(),
                     ElementGroup.SettingsMenu => false, // Settings handled by SettingsMenuNavigator
                     _ => false
@@ -769,6 +803,62 @@ namespace AccessibleArena.Core.Services
         // Settings navigation is now handled by SettingsMenuNavigator
 
         /// <summary>
+        /// Handle Backspace within PlayBlade using the navigation helper.
+        /// Helper manages state-aware navigation: Content→Tabs, DeckSelection→Modes, etc.
+        /// If at Tabs level, closes the blade.
+        /// </summary>
+        private bool HandlePlayBladeBackspace()
+        {
+            // Sync helper state with what group user is actually viewing
+            // This handles the case where user used arrow keys to navigate between groups
+            // at GROUP LEVEL (not inside a group) without pressing Enter
+            SyncPlayBladeHelperWithCurrentGroup();
+
+            // Let the helper handle state-aware back navigation
+            if (_playBladeHelper.HandleBackspace())
+            {
+                // Helper handled it (navigated within PlayBlade)
+                // Trigger rescan to refresh the navigation list
+                TriggerRescan();
+                return true;
+            }
+
+            // Helper didn't handle (at Tabs level) - close the blade
+            return ClosePlayBlade();
+        }
+
+        /// <summary>
+        /// Sync the PlayBladeNavigationHelper's state with the GroupedNavigator's current group.
+        /// This handles arrow key navigation at GROUP LEVEL where user views different PlayBlade
+        /// groups without pressing Enter - the helper state needs to match what they're viewing.
+        /// </summary>
+        private void SyncPlayBladeHelperWithCurrentGroup()
+        {
+            if (!_groupedNavigator.IsActive || !_playBladeHelper.IsActive)
+                return;
+
+            var currentGroup = _groupedNavigator.CurrentGroup;
+            if (!currentGroup.HasValue)
+                return;
+
+            var groupType = currentGroup.Value.Group;
+
+            // Only sync for PlayBlade groups
+            if (groupType == ElementGroup.PlayBladeContent)
+            {
+                // User is viewing PlayBladeContent group - sync helper to content state
+                _playBladeHelper.SyncToContentState();
+                LogDebug($"[{NavigatorId}] Synced PlayBladeHelper to Content state (viewing PlayBladeContent group)");
+            }
+            else if (groupType == ElementGroup.PlayBladeTabs)
+            {
+                // User is viewing PlayBladeTabs group - sync helper to tabs state
+                _playBladeHelper.SyncToTabsState();
+                LogDebug($"[{NavigatorId}] Synced PlayBladeHelper to Tabs state (viewing PlayBladeTabs group)");
+            }
+        }
+
+        /// <summary>
         /// Close the PlayBlade by finding and activating the dismiss button.
         /// </summary>
         private bool ClosePlayBlade()
@@ -821,6 +911,7 @@ namespace AccessibleArena.Core.Services
         private void ClearBladeStateAndRescan()
         {
             LogDebug($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
+            _playBladeHelper.OnPlayBladeClosed();
             ReportPanelClosedByName("PlayBlade");
             PanelStateManager.Instance?.SetPlayBladeState(0);
             TriggerRescan();
@@ -2069,6 +2160,13 @@ namespace AccessibleArena.Core.Services
                 LogDebug($"[{NavigatorId}] Popup button activated ({element.name})");
                 // Unified detector will detect popup close via alpha change
                 return true;
+            }
+
+            // Delegate PlayBlade element activations to the helper
+            var elementGroup = _groupAssigner.DetermineGroup(element);
+            if (_playBladeHelper.IsActive)
+            {
+                _playBladeHelper.OnElementActivated(element, elementGroup);
             }
 
             return true;
