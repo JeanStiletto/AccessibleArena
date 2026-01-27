@@ -193,53 +193,93 @@ namespace AccessibleArena.Core.Services
                     return acceptResult;
 
                 // Special handling for SystemMessageButtonView (popup dialog buttons like OK/Cancel)
-                // These buttons have CustomButton but the game logic is in SystemMessageButtonView.OnClick
+                // These buttons have a callback stored via Init() that the Click() method invokes
                 var systemMsgButton = FindComponentByName(element, "SystemMessageButtonView");
                 if (systemMsgButton != null)
                 {
-                    Log($"SystemMessageButtonView with CustomButton detected, trying OnClick method");
+                    Log($"SystemMessageButtonView detected, using pointer simulation + Click()");
 
-                    // Debug: List all methods on SystemMessageButtonView
-                    var methods = systemMsgButton.GetType().GetMethods(
-                        System.Reflection.BindingFlags.Public |
-                        System.Reflection.BindingFlags.NonPublic |
-                        System.Reflection.BindingFlags.Instance);
-                    Log($"SystemMessageButtonView methods ({methods.Length} total):");
-                    foreach (var m in methods)
-                    {
-                        if (m.DeclaringType == systemMsgButton.GetType() ||
-                            m.Name.ToLower().Contains("click") ||
-                            m.Name.ToLower().Contains("button") ||
-                            m.Name.ToLower().Contains("invoke"))
-                        {
-                            var paramStr = string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name));
-                            Log($"  {m.Name}({paramStr})");
-                        }
-                    }
+                    // First do pointer simulation to set up UI state
+                    var pointerResult = SimulatePointerClick(element);
 
-                    // The method is called "Click", not "OnClick"
+                    // Then invoke Click() which triggers the actual callback
                     if (TryInvokeMethod(systemMsgButton, "Click"))
                     {
-                        return new ActivationResult(true, "Activated", ActivationType.Button);
+                        Log($"SystemMessageButtonView.Click() invoked successfully");
                     }
-                    if (TryInvokeMethod(systemMsgButton, "OnClick"))
+
+                    // Find and close the parent SystemMessageView popup
+                    // The popup doesn't auto-close when we call Click() via reflection
+                    // Look for the root popup which has "Clone" in its name
+                    var popupRoot = FindParentWithName(element, "SystemMessageView_Desktop");
+                    if (popupRoot == null)
                     {
-                        return new ActivationResult(true, "Activated", ActivationType.Button);
+                        // Fallback: try to find any SystemMessageView parent
+                        popupRoot = FindParentWithName(element, "SystemMessageView");
                     }
-                    if (TryInvokeMethod(systemMsgButton, "OnButtonClicked"))
+
+                    if (popupRoot != null)
                     {
-                        return new ActivationResult(true, "Activated", ActivationType.Button);
+                        Log($"Found popup root: {popupRoot.name}");
+
+                        // Try to find a Close/Hide method on the view
+                        var viewComponent = FindComponentByName(popupRoot, "SystemMessageView");
+                        if (viewComponent != null)
+                        {
+                            Log($"Found SystemMessageView component, listing methods:");
+                            var methods = viewComponent.GetType().GetMethods(
+                                System.Reflection.BindingFlags.Public |
+                                System.Reflection.BindingFlags.NonPublic |
+                                System.Reflection.BindingFlags.Instance);
+                            foreach (var m in methods)
+                            {
+                                if (m.DeclaringType == viewComponent.GetType())
+                                {
+                                    var paramStr = string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name));
+                                    Log($"  {m.Name}({paramStr})");
+                                }
+                            }
+
+                            if (TryInvokeMethod(viewComponent, "Close"))
+                            {
+                                Log($"SystemMessageView.Close() invoked");
+                            }
+                            else if (TryInvokeMethod(viewComponent, "Hide"))
+                            {
+                                Log($"SystemMessageView.Hide() invoked");
+                            }
+                            else if (TryInvokeMethod(viewComponent, "Dismiss"))
+                            {
+                                Log($"SystemMessageView.Dismiss() invoked");
+                            }
+                            else
+                            {
+                                // Last resort: deactivate the GameObject
+                                Log($"No close method found, deactivating popup GameObject");
+                                popupRoot.SetActive(false);
+                            }
+                        }
+                        else
+                        {
+                            // No component found, just deactivate
+                            Log($"No SystemMessageView component on root, deactivating GameObject");
+                            popupRoot.SetActive(false);
+                        }
                     }
-                    // Fall through to pointer simulation if direct invoke fails
-                    Log($"SystemMessageButtonView direct invoke failed, trying pointer simulation");
+                    else
+                    {
+                        Log($"Could not find popup root to close");
+                    }
+
+                    return pointerResult;
                 }
 
-                var pointerResult = SimulatePointerClick(element);
+                var pointerResult2 = SimulatePointerClick(element);
 
                 // Also try onClick reflection as additional handler
                 TryInvokeCustomButtonOnClick(element);
 
-                return pointerResult;
+                return pointerResult2;
             }
 
             // Try standard Unity Button (only if no CustomButton)
@@ -767,6 +807,23 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb != null && mb.GetType().Name == typeName)
                     return mb;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Finds a parent GameObject whose name contains the specified string.
+        /// </summary>
+        private static GameObject FindParentWithName(GameObject obj, string nameContains)
+        {
+            if (obj == null) return null;
+
+            var current = obj.transform.parent;
+            while (current != null)
+            {
+                if (current.gameObject.name.Contains(nameContains))
+                    return current.gameObject;
+                current = current.parent;
             }
             return null;
         }

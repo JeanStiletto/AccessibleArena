@@ -1607,6 +1607,9 @@ namespace AccessibleArena.Core.Services
             {
                 var elementsForGrouping = _elements.Select(e => (e.GameObject, e.Label));
                 _groupedNavigator.OrganizeIntoGroups(elementsForGrouping);
+
+                // Update EventSystem selection to match the initial grouped element
+                UpdateEventSystemSelectionForGroupedElement();
             }
 
             // On MatchEndScene, auto-focus the Continue button (ExitMatchOverlayButton)
@@ -2089,6 +2092,7 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 _groupedNavigator.MoveNext();
+                UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
             }
@@ -2103,6 +2107,7 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 _groupedNavigator.MovePrevious();
+                UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
             }
@@ -2118,6 +2123,7 @@ namespace AccessibleArena.Core.Services
             {
                 _groupedNavigator.MoveFirst();
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
             }
@@ -2153,6 +2159,25 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Update EventSystem selection to match the current grouped element.
+        /// This ensures Unity's Submit events go to the correct element when Enter is pressed.
+        /// </summary>
+        private void UpdateEventSystemSelectionForGroupedElement()
+        {
+            var currentElement = _groupedNavigator.CurrentElement;
+            if (currentElement == null) return;
+
+            var gameObject = currentElement.Value.GameObject;
+            if (gameObject == null || !gameObject.activeInHierarchy) return;
+
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(gameObject);
+            }
+        }
+
+        /// <summary>
         /// Override MoveLast to use GroupedNavigator when grouped navigation is enabled.
         /// </summary>
         protected override void MoveLast()
@@ -2161,6 +2186,7 @@ namespace AccessibleArena.Core.Services
             {
                 _groupedNavigator.MoveLast();
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
             }

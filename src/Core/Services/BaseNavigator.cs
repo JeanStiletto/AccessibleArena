@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
@@ -252,6 +253,10 @@ namespace AccessibleArena.Core.Services
             {
                 _currentIndex = 0;
                 MelonLogger.Msg($"[{NavigatorId}] Rescan found {_elements.Count} elements");
+
+                // Update EventSystem selection to match our current element
+                UpdateEventSystemSelection();
+
                 _announcer.AnnounceInterrupt(GetActivationAnnouncement());
             }
             else
@@ -353,6 +358,9 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Activated with {_elements.Count} elements");
 
             OnActivated();
+
+            // Update EventSystem selection to match our current element
+            UpdateEventSystemSelection();
 
             // Announce screen
             _announcer.AnnounceInterrupt(GetActivationAnnouncement());
@@ -1175,8 +1183,31 @@ namespace AccessibleArena.Core.Services
 
             _currentIndex = newIndex;
             _currentActionIndex = 0; // Reset action index when moving to new element
+
+            // Update EventSystem selection to match our navigation
+            // This ensures Unity's Submit events go to the correct element
+            UpdateEventSystemSelection();
+
             AnnounceCurrentElement();
             UpdateCardNavigation();
+        }
+
+        /// <summary>
+        /// Update EventSystem.current.SetSelectedGameObject to match our current element.
+        /// This ensures that when Enter/Submit is pressed, Unity targets the correct element.
+        /// </summary>
+        protected virtual void UpdateEventSystemSelection()
+        {
+            if (!IsValidIndex) return;
+
+            var element = _elements[_currentIndex].GameObject;
+            if (element == null || !element.activeInHierarchy) return;
+
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(element);
+            }
         }
 
         protected virtual void MoveNext() => Move(1);
