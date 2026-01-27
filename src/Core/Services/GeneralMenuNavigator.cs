@@ -654,6 +654,16 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HandleContentPanelBack()
         {
+            // Refresh content controller detection to ensure we have current state
+            DetectActiveContentController();
+            LogDebug($"[{NavigatorId}] HandleContentPanelBack: controller = {_activeContentController ?? "null"}");
+
+            // Special case: Deck Builder uses MainButton (Fertig/Done) to exit
+            if (_activeContentController == "WrapperDeckBuilder")
+            {
+                return HandleDeckBuilderBack();
+            }
+
             // First try to find a dismiss button within the current content panel
             if (_activeControllerGameObject != null)
             {
@@ -672,6 +682,40 @@ namespace AccessibleArena.Core.Services
             // Navigate to Home instead. Don't use FindGenericBackButton() here as it finds
             // buttons from unrelated panels (e.g., FullscreenZFBrowserCanvas).
             LogDebug($"[{NavigatorId}] No dismiss button in content panel, navigating to Home");
+            return NavigateToHome();
+        }
+
+        /// <summary>
+        /// Handle back navigation in the deck builder.
+        /// The deck builder uses MainButton (labeled "Fertig"/"Done") to exit editing mode.
+        /// </summary>
+        private bool HandleDeckBuilderBack()
+        {
+            LogDebug($"[{NavigatorId}] Deck Builder detected, looking for Done button");
+
+            // Find MainButton within DeckBuilderWidget (not the Home page's MainButton)
+            // The deck builder's button is at: DeckBuilderWidget_Desktop_16x9/BottomRight/Buttons/MainButton
+            var deckBuilderWidget = GameObject.Find("DeckBuilderWidget_Desktop_16x9");
+            if (deckBuilderWidget != null)
+            {
+                var mainButton = deckBuilderWidget.transform.Find("BottomRight/Buttons/MainButton");
+                if (mainButton != null && mainButton.gameObject.activeInHierarchy)
+                {
+                    LogDebug($"[{NavigatorId}] Found deck builder Done button: {mainButton.name}");
+                    _announcer.Announce(Models.Strings.ExitingDeckBuilder, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(mainButton.gameObject);
+                    TriggerRescan();
+                    return true;
+                }
+                LogDebug($"[{NavigatorId}] DeckBuilderWidget found but MainButton not at expected path");
+            }
+            else
+            {
+                LogDebug($"[{NavigatorId}] DeckBuilderWidget_Desktop_16x9 not found");
+            }
+
+            // Fallback: navigate to Home if MainButton not found
+            LogDebug($"[{NavigatorId}] Deck Builder Done button not found, navigating to Home");
             return NavigateToHome();
         }
 

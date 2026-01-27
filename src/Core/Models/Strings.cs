@@ -46,6 +46,7 @@ namespace AccessibleArena.Core.Models
         public const string NavigatingBack = "Back";
         public const string ClosingSettings = "Closing settings";
         public const string ClosingPlayBlade = "Closing play menu";
+        public const string ExitingDeckBuilder = "Exiting deck builder";
 
         // ===========================================
         // LOGIN / ACCOUNT

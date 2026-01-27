@@ -185,8 +185,6 @@ namespace AccessibleArena.Core.Services
             bool hasCustomButton = HasCustomButtonComponent(element);
             if (hasCustomButton)
             {
-                Log($"CustomButton detected (early check), trying pointer simulation first");
-
                 // Special handling for UpdatePoliciesPanel - the button's onClick has broken listener reference
                 // so we invoke OnAccept directly on the panel controller
                 if (TryInvokeUpdatePoliciesAccept(element, out var acceptResult))
@@ -278,6 +276,29 @@ namespace AccessibleArena.Core.Services
 
                 // Also try onClick reflection as additional handler
                 TryInvokeCustomButtonOnClick(element);
+
+                // Special handling for deck builder MainButton - its onClick listener has NULL target
+                // We need to find the WrapperDeckBuilder component and invoke the method directly
+                if (element.name == "MainButton")
+                {
+                    var deckBuilderController = FindDeckBuilderController();
+                    if (deckBuilderController != null)
+                    {
+                        Log($"Found deck builder controller: {deckBuilderController.GetType().Name}");
+                        if (TryInvokeMethod(deckBuilderController, "OnDeckbuilderDoneButtonClicked"))
+                        {
+                            Log($"WrapperDeckBuilder.OnDeckbuilderDoneButtonClicked() invoked successfully");
+                        }
+                        else
+                        {
+                            Log($"Could not invoke OnDeckbuilderDoneButtonClicked");
+                        }
+                    }
+                    else
+                    {
+                        Log($"Could not find deck builder controller");
+                    }
+                }
 
                 return pointerResult2;
             }
@@ -825,6 +846,33 @@ namespace AccessibleArena.Core.Services
                     return current.gameObject;
                 current = current.parent;
             }
+            return null;
+        }
+
+        /// <summary>
+        /// Finds the WrapperDeckBuilder controller component which handles deck builder button clicks.
+        /// The MainButton's OnPlayButton listener has a NULL target, so we need to find it manually.
+        /// </summary>
+        private static MonoBehaviour FindDeckBuilderController()
+        {
+            // Look for WrapperDeckBuilder component in the scene
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "WrapperDeckBuilder")
+                {
+                    return mb;
+                }
+            }
+
+            // Fallback: try to find DeckBuilderController or similar
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name.Contains("DeckBuilder") && mb.GetType().Name.Contains("Controller"))
+                {
+                    return mb;
+                }
+            }
+
             return null;
         }
 
