@@ -2,6 +2,33 @@
 
 All notable changes to Accessible Arena.
 
+## v0.2.7 - 2026-01-27
+
+### Bug Fixes
+- **Dropdown closing**: Escape and Backspace now properly close dropdowns on login screens
+  - Previously Escape triggered back navigation instead of closing the dropdown
+  - Backspace now works as universal dismiss key for dropdowns
+  - Announces "Dropdown closed" when dismissed
+
+- **Input field content reading**: Fixed input fields not announcing their content when navigating
+  - Added fallback to `textComponent.text` when `.text` property is empty
+  - Added support for legacy Unity `InputField` (not just TMP_InputField)
+  - Content now reads correctly when Tab/Escape exits input field
+
+- **Tab navigation on Login screens**: Tab and arrow keys now navigate the same list consistently
+  - Tab key is now consumed to prevent game's Tab handling from interfering
+  - Disabled grouped navigation on Login scene (not needed for simple forms)
+  - Fixed double-navigation issue where game and mod both moved on Tab press
+
+### Technical
+- `BaseNavigator.HandleDropdownNavigation()` now intercepts Escape/Backspace and calls `CloseActiveDropdown()`
+- `CloseActiveDropdown()` finds parent TMP_Dropdown/Dropdown/cTMP_Dropdown and calls `Hide()`
+- `GetElementAnnouncement()` now handles legacy InputField and tries textComponent fallback
+- Tab handling uses `InputManager.GetKeyDownAndConsume(KeyCode.Tab)` to block game processing
+- `GeneralMenuNavigator.DiscoverElements()` disables grouped navigation when `_currentScene == "Login"`
+
+**Files:** `BaseNavigator.cs`, `GeneralMenuNavigator.cs`, `UITextExtractor.cs`, `SCREENS.md`
+
 ## v0.2.6 - 2026-01-27
 
 ### Bug Fixes

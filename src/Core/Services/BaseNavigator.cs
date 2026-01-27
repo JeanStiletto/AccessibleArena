@@ -175,7 +175,13 @@ namespace AccessibleArena.Core.Services
                 if (tmpInput != null)
                 {
                     string fieldLabel = GetInputFieldLabel(navElement.GameObject);
+
+                    // Try .text first, then fall back to textComponent.text (displayed text)
                     string content = tmpInput.text;
+                    if (string.IsNullOrEmpty(content) && tmpInput.textComponent != null)
+                    {
+                        content = tmpInput.textComponent.text;
+                    }
 
                     // Handle password fields - show character count instead of content
                     if (tmpInput.inputType == TMPro.TMP_InputField.InputType.Password)
@@ -192,6 +198,38 @@ namespace AccessibleArena.Core.Services
                             : $"{fieldLabel}: {content}";
                     }
                     label += ", text field";
+                }
+                else
+                {
+                    // Also handle legacy InputField
+                    var legacyInput = navElement.GameObject.GetComponent<InputField>();
+                    if (legacyInput != null)
+                    {
+                        string fieldLabel = GetInputFieldLabel(navElement.GameObject);
+
+                        // Try .text first, then fall back to textComponent.text (displayed text)
+                        string content = legacyInput.text;
+                        if (string.IsNullOrEmpty(content) && legacyInput.textComponent != null)
+                        {
+                            content = legacyInput.textComponent.text;
+                        }
+
+                        // Handle password fields - show character count instead of content
+                        if (legacyInput.inputType == InputField.InputType.Password)
+                        {
+                            label = string.IsNullOrEmpty(content)
+                                ? $"{fieldLabel}, empty"
+                                : $"{fieldLabel}, has {content.Length} characters";
+                        }
+                        else
+                        {
+                            // Regular field - show content or empty state
+                            label = string.IsNullOrEmpty(content)
+                                ? $"{fieldLabel}, empty"
+                                : $"{fieldLabel}: {content}";
+                        }
+                        label += ", text field";
+                    }
                 }
             }
 
@@ -419,7 +457,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab exits edit mode and navigates to next/previous element
-            if (Input.GetKeyDown(KeyCode.Tab))
+            // Consume Tab so game doesn't interfere
+            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
                 _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
@@ -453,16 +492,90 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Handle navigation while a dropdown is open.
         /// Arrow keys and Enter are handled by Unity's dropdown.
-        /// We just block our own input handling to avoid interference.
+        /// Escape and Backspace close the dropdown without triggering back navigation.
         /// Edit mode exits automatically when focus leaves dropdown items (detected by UIFocusTracker).
         /// </summary>
         protected virtual void HandleDropdownNavigation()
         {
-            // All keys pass through to Unity's dropdown handling
+            // Escape or Backspace: Close the dropdown explicitly
+            // We must intercept these because the game handles Escape as "back" which
+            // navigates to the previous screen instead of just closing the dropdown
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+            {
+                CloseActiveDropdown();
+                return;
+            }
+
+            // All other keys pass through to Unity's dropdown handling
             // - Arrow keys navigate items (FocusTracker announces them)
             // - Enter selects item and closes dropdown (focus leaves items, we auto-exit edit mode)
-            // - Escape may close dropdown (focus leaves items, we auto-exit edit mode)
-            // We don't handle any keys here - just block our normal input handling by returning
+        }
+
+        /// <summary>
+        /// Close the currently active dropdown by finding its parent TMP_Dropdown and calling Hide().
+        /// </summary>
+        private void CloseActiveDropdown()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
+            {
+                UIFocusTracker.ExitDropdownEditMode();
+                return;
+            }
+
+            var currentItem = eventSystem.currentSelectedGameObject;
+
+            // Find the TMP_Dropdown in parent hierarchy
+            var transform = currentItem.transform;
+            while (transform != null)
+            {
+                // Check for standard TMP_Dropdown
+                var tmpDropdown = transform.GetComponent<TMPro.TMP_Dropdown>();
+                if (tmpDropdown != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown via Escape/Backspace");
+                    tmpDropdown.Hide();
+                    UIFocusTracker.ExitDropdownEditMode();
+                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    return;
+                }
+
+                // Check for Unity legacy Dropdown
+                var legacyDropdown = transform.GetComponent<Dropdown>();
+                if (legacyDropdown != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown via Escape/Backspace");
+                    legacyDropdown.Hide();
+                    UIFocusTracker.ExitDropdownEditMode();
+                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    return;
+                }
+
+                // Check for game's custom cTMP_Dropdown
+                foreach (var component in transform.GetComponents<Component>())
+                {
+                    if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                    {
+                        // Try to call Hide() via reflection
+                        var hideMethod = component.GetType().GetMethod("Hide",
+                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        if (hideMethod != null)
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Closing cTMP_Dropdown via Escape/Backspace");
+                            hideMethod.Invoke(component, null);
+                            UIFocusTracker.ExitDropdownEditMode();
+                            _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                            return;
+                        }
+                    }
+                }
+
+                transform = transform.parent;
+            }
+
+            // Couldn't find dropdown - just exit edit mode
+            MelonLogger.Msg($"[{NavigatorId}] Could not find dropdown to close, exiting edit mode");
+            UIFocusTracker.ExitDropdownEditMode();
         }
 
         /// <summary>
@@ -850,12 +963,16 @@ namespace AccessibleArena.Core.Services
                 // Handle Escape to exit the input field
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
+                    // Sync index to current field BEFORE deactivating (focus will become null after)
+                    SyncIndexToFocusedElement();
                     UIFocusTracker.DeactivateFocusedInputField();
-                    _announcer.Announce("Exited input field", AnnouncementPriority.Normal);
+                    // Re-announce current element with its content
+                    AnnounceCurrentElement();
                     return;
                 }
-                // Handle Tab to navigate to next element (exit input field and move)
-                if (Input.GetKeyDown(KeyCode.Tab))
+                // Handle Tab when on an input field - use our navigation
+                // Consume Tab so game doesn't interfere with our navigation order
+                if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
                 {
                     UIFocusTracker.DeactivateFocusedInputField();
                     bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
@@ -919,7 +1036,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab/Shift+Tab navigation - same as arrow down/up
-            if (Input.GetKeyDown(KeyCode.Tab))
+            // Use GetKeyDownAndConsume to prevent game from also processing Tab
+            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
                 bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 if (shiftTab)

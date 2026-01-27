@@ -594,7 +594,12 @@ namespace AccessibleArena.Core.Services
             string fieldLabel = TryGetInputFieldLabel(inputField.gameObject);
 
             // If there's user input, report it
+            // Try .text first, then fall back to textComponent.text (displayed text)
             string userText = CleanText(inputField.text);
+            if (string.IsNullOrWhiteSpace(userText) && inputField.textComponent != null)
+            {
+                userText = CleanText(inputField.textComponent.text);
+            }
             if (!string.IsNullOrWhiteSpace(userText))
             {
                 // For password fields, don't read the actual text
@@ -643,12 +648,19 @@ namespace AccessibleArena.Core.Services
 
         private static string GetInputFieldText(InputField inputField)
         {
-            if (!string.IsNullOrWhiteSpace(inputField.text))
+            // Try .text first, then fall back to textComponent.text (displayed text)
+            string text = inputField.text;
+            if (string.IsNullOrWhiteSpace(text) && inputField.textComponent != null)
+            {
+                text = inputField.textComponent.text;
+            }
+
+            if (!string.IsNullOrWhiteSpace(text))
             {
                 if (inputField.inputType == InputField.InputType.Password)
                     return "password field, contains text";
 
-                return $"{CleanText(inputField.text)}, text field";
+                return $"{CleanText(text)}, text field";
             }
 
             if (inputField.placeholder != null)

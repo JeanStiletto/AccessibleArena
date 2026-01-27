@@ -86,6 +86,10 @@ Dropdowns (TMP_Dropdown and cTMP_Dropdown) are detected and classified automatic
 - When focus leaves dropdown items, normal navigation resumes
 - This handles both manual dropdowns (Enter to open, Enter to select) and auto-advancing dropdowns
 
+**Closing dropdowns:**
+- Press **Escape** or **Backspace** to close a dropdown without navigating back
+- Press **Enter** on an item to select it and close the dropdown
+
 **Password Masking:**
 Password fields announce "has X characters" instead of actual content for privacy.
 

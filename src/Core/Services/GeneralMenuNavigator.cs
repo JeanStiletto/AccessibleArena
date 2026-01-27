@@ -1441,6 +1441,10 @@ namespace AccessibleArena.Core.Services
 
         protected override void DiscoverElements()
         {
+            // Disable grouped navigation for Login scene - it's a simple form with no groups needed
+            // This ensures Tab and arrow keys navigate the same flat list of elements
+            _groupedNavigationEnabled = _currentScene != "Login";
+
             // Detect active controller first so filtering works correctly
             DetectActiveContentController();
 
