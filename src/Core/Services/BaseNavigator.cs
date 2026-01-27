@@ -443,16 +443,18 @@ namespace AccessibleArena.Core.Services
             {
                 _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
+                UIFocusTracker.DeactivateFocusedInputField();
                 HandleCustomInput();
                 return;
             }
 
-            // Escape exits edit mode (game's Escape is blocked while editing)
+            // Escape exits edit mode by deactivating the input field
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
-                _announcer.Announce("Exited input field", AnnouncementPriority.Normal);
+                UIFocusTracker.DeactivateFocusedInputField();
+                _announcer.Announce("Exited edit mode", AnnouncementPriority.Normal);
                 return;
             }
 
@@ -462,6 +464,7 @@ namespace AccessibleArena.Core.Services
             {
                 _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
+                UIFocusTracker.DeactivateFocusedInputField();
                 bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
@@ -948,30 +951,36 @@ namespace AccessibleArena.Core.Services
 
         protected virtual void HandleInput()
         {
-            // Special handling when user is editing an input field (explicit edit mode via Enter)
+            // Check if we're in explicit edit mode (user activated field or game focused it)
             if (UIFocusTracker.IsEditingInputField())
             {
                 HandleInputFieldNavigation();
                 return;
             }
 
-            // Also check if user is ON an input field (even without explicit edit mode)
+            // Check if user is ON an input field (selected but maybe not focused yet)
             // This handles MTGA's auto-activating input fields when selected via Tab
-            // In this case, don't process arrow keys as menu navigation - let them control the cursor
             if (UIFocusTracker.IsAnyInputFieldFocused())
             {
-                // Handle Escape to exit the input field
+                // Check if field is actually focused (isFocused = caret visible)
+                var info = GetAnyFocusedInputFieldInfo();
+                if (info.IsValid && info.GameObject != null)
+                {
+                    // Field is focused - enter edit mode
+                    _editingInputField = info.GameObject;
+                    UIFocusTracker.EnterInputFieldEditMode(info.GameObject);
+                    HandleInputFieldNavigation();
+                    return;
+                }
+
+                // Field is selected but not focused - handle Escape/Tab to exit, but don't enter full edit mode
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
-                    // Sync index to current field BEFORE deactivating (focus will become null after)
                     SyncIndexToFocusedElement();
                     UIFocusTracker.DeactivateFocusedInputField();
-                    // Re-announce current element with its content
                     AnnounceCurrentElement();
                     return;
                 }
-                // Handle Tab when on an input field - use our navigation
-                // Consume Tab so game doesn't interfere with our navigation order
                 if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
                 {
                     UIFocusTracker.DeactivateFocusedInputField();
@@ -982,22 +991,15 @@ namespace AccessibleArena.Core.Services
                         MoveNext();
                     return;
                 }
-                // F4 should work even in input fields (toggle Friends panel)
-                // Let it fall through to HandleCustomInput()
-                if (Input.GetKeyDown(KeyCode.F4))
-                {
-                    // Don't return - let HandleCustomInput process it
-                }
-                else
-                {
-                    // Backspace: announce the character being deleted before passing through
-                    if (Input.GetKeyDown(KeyCode.Backspace))
-                    {
-                        AnnounceDeletedCharacter();
-                    }
-                    // All other keys (arrows for cursor, Backspace for delete) pass through to input field
-                    return;
-                }
+                // Let other keys pass through (typing will focus the field)
+                return;
+            }
+
+            // Clear edit mode when no input field is focused
+            if (_editingInputField != null)
+            {
+                _editingInputField = null;
+                UIFocusTracker.ExitInputFieldEditMode();
             }
 
             // When a dropdown is open, let Unity handle arrow key navigation

@@ -73,6 +73,8 @@ namespace AccessibleArena.Core.Services
         public static bool IsAnyInputFieldFocused()
         {
             // First check: EventSystem selection is an input field
+            // Use interactable (not isFocused) so KeyboardManagerPatch can block Escape
+            // even before the field is fully focused
             var eventSystem = EventSystem.current;
             if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
             {
