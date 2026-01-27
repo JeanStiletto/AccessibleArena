@@ -1306,7 +1306,7 @@ namespace AccessibleArena.Core.Services
         /// Update card navigation state for current element.
         /// Checks SupportsCardNavigation internally - callers don't need to check.
         /// </summary>
-        private void UpdateCardNavigation()
+        protected void UpdateCardNavigation()
         {
             if (!SupportsCardNavigation) return;
 

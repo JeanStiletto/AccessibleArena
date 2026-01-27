@@ -2089,6 +2089,7 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 _groupedNavigator.MoveNext();
+                UpdateCardNavigationForGroupedElement();
                 return;
             }
             base.MoveNext();
@@ -2102,6 +2103,7 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 _groupedNavigator.MovePrevious();
+                UpdateCardNavigationForGroupedElement();
                 return;
             }
             base.MovePrevious();
@@ -2116,9 +2118,38 @@ namespace AccessibleArena.Core.Services
             {
                 _groupedNavigator.MoveFirst();
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                UpdateCardNavigationForGroupedElement();
                 return;
             }
             base.MoveFirst();
+        }
+
+        /// <summary>
+        /// Update CardInfoNavigator state for the current grouped element.
+        /// Called after grouped navigation moves to prepare card reading with Up/Down arrows.
+        /// </summary>
+        private void UpdateCardNavigationForGroupedElement()
+        {
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+            if (cardNavigator == null) return;
+
+            var currentElement = _groupedNavigator.CurrentElement;
+            if (currentElement == null)
+            {
+                cardNavigator.Deactivate();
+                return;
+            }
+
+            var gameObject = currentElement.Value.GameObject;
+            if (gameObject != null && CardDetector.IsCard(gameObject))
+            {
+                // Use DeckBuilderCollection zone type for collection cards
+                cardNavigator.PrepareForCard(gameObject, ZoneType.Hand);
+            }
+            else if (cardNavigator.IsActive)
+            {
+                cardNavigator.Deactivate();
+            }
         }
 
         /// <summary>
@@ -2130,6 +2161,7 @@ namespace AccessibleArena.Core.Services
             {
                 _groupedNavigator.MoveLast();
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                UpdateCardNavigationForGroupedElement();
                 return;
             }
             base.MoveLast();
@@ -2194,6 +2226,7 @@ namespace AccessibleArena.Core.Services
 
                     // Always enter the group (whether we toggled or not)
                     _groupedNavigator.EnterGroup();
+                    UpdateCardNavigationForGroupedElement();
                     return true;
                 }
 
@@ -2201,6 +2234,7 @@ namespace AccessibleArena.Core.Services
                 if (_groupedNavigator.EnterGroup())
                 {
                     _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                    UpdateCardNavigationForGroupedElement();
                     return true;
                 }
             }

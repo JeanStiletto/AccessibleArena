@@ -127,6 +127,47 @@ The Booster Chamber screen displays available booster packs in a horizontal caro
 - The card list that appears after clicking a pack is not yet accessible (no panel state change detected)
 - Pack set names cannot be extracted - only "Open x10 (count)" is announced
 
+## Deck Builder
+
+### Deck Builder Screen
+**Controller:** `WrapperDeckBuilder`
+**Navigator:** `GeneralMenuNavigator`
+
+The Deck Builder screen allows editing deck contents with access to the card collection.
+
+**Elements Detected:**
+- Collection cards in `PoolHolder` - Cards available to add to deck
+- Deck cards in `DeckHolder` - Cards currently in deck
+- Filter controls (color checkboxes, type filters, search)
+- "Fertig" (Done) button
+
+**Navigation:**
+- Arrow Up/Down: Navigate between groups (Collection, Filters, etc.)
+- Enter on group: Enter the group to navigate individual items
+- Backspace: Exit current group, return to group list
+
+**Collection Card Navigation:**
+- Left/Right arrows: Navigate between cards in collection
+- Up/Down arrows: Read card details (name, type, mana cost, rules text, etc.)
+- Enter: Add card to deck (activates the card)
+- Home/End: Jump to first/last card
+
+**Card Info Reading:**
+When focused on a card, Up/Down arrows cycle through card information blocks:
+- Name
+- Mana Cost
+- Type
+- Power/Toughness (if creature)
+- Rules Text
+- Flavor Text
+- Artist
+
+**Technical Notes:**
+- Collection cards are in `DeckBuilderCollection` group
+- Cards are extracted using Model-based detection when available
+- CardInfoNavigator is automatically prepared when navigating to cards
+- Some cards may show as "Unknown card" if Model data unavailable (edge cases)
+
 ## NPE Screens
 
 ### Reward Chest Screen

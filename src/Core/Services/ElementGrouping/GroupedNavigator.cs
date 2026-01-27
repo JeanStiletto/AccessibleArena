@@ -359,6 +359,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.PlayBladeContent,
                 ElementGroup.SettingsMenu,
                 ElementGroup.NPE,
+                ElementGroup.DeckBuilderCollection,
                 ElementGroup.Unknown
             };
 

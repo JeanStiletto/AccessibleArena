@@ -51,6 +51,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_screenDetector.IsNPERewardsScreenActive())
                 return ElementGroup.NPE;
 
+            // Note: DeckBuilderCollection is NOT an overlay - it's a group within the deck builder.
+            // If we made it an overlay, it would filter out save buttons, filters, etc.
+            // Instead, it's just added to groupOrder so cards get properly grouped.
+
             // No overlay active
             return null;
         }

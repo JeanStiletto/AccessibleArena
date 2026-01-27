@@ -2,6 +2,26 @@
 
 All notable changes to Accessible Arena.
 
+## v0.2.4 - 2026-01-27
+
+### New Features
+- Add deck builder collection card accessibility
+  - Collection cards now appear in navigable "Collection" group
+  - Left/Right arrows navigate between cards
+  - Up/Down arrows read card details (name, type, mana cost, rules text, etc.)
+  - CardInfoNavigator automatically activated when focusing on cards
+
+### Bug Fixes
+- Fix DeckBuilderCollection group not appearing in group list
+  - Added DeckBuilderCollection to groupOrder in GroupedNavigator
+- Fix CardInfoNavigator not prepared for collection cards
+  - Added UpdateCardNavigationForGroupedElement() helper method
+  - Called after grouped navigation moves to prepare card reading
+
+### Technical
+- Changed UpdateCardNavigation() from private to protected in BaseNavigator
+- Added card navigation integration to grouped navigation methods (MoveNext, MovePrevious, MoveFirst, MoveLast, HandleGroupedEnter)
+
 ## v0.2.3 - 2026-01-25
 
 ### New Features
