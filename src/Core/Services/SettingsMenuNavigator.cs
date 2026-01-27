@@ -706,7 +706,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Dismiss the current popup by finding and clicking the cancel/close button.
+        /// Dismiss the current popup by finding and clicking the cancel/close button,
+        /// or using OnBack() for proper game state handling.
         /// </summary>
         private bool DismissPopup()
         {
@@ -723,13 +724,100 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Fallback: try to close popup directly
-            MelonLogger.Msg($"[{NavigatorId}] No cancel button found, trying to close popup directly");
+            // Fallback: try to close popup using OnBack() for proper state handling
+            // This is better than SetActive(false) which corrupts game state
+            MelonLogger.Msg($"[{NavigatorId}] No cancel button found, trying OnBack() to close popup");
+
+            // Find SystemMessageView and call OnBack()
+            var systemMessageView = FindSystemMessageViewInPopup(_activePopup);
+            if (systemMessageView != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found SystemMessageView, invoking OnBack()");
+                if (TryInvokeOnBack(systemMessageView))
+                {
+                    _announcer.Announce("Cancelled", Models.AnnouncementPriority.High);
+                    _isPopupActive = false;
+                    _activePopup = null;
+                    TriggerRescan();
+                    return true;
+                }
+            }
+
+            // Last resort fallback - SetActive(false) may corrupt state but at least closes visually
+            MelonLogger.Warning($"[{NavigatorId}] OnBack() not available, using SetActive(false) fallback");
             _activePopup.SetActive(false);
             _isPopupActive = false;
             _activePopup = null;
             TriggerRescan();
             return true;
+        }
+
+        /// <summary>
+        /// Find SystemMessageView component within a popup hierarchy.
+        /// </summary>
+        private MonoBehaviour FindSystemMessageViewInPopup(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            // Search in the popup and all children
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView")
+                    return mb;
+            }
+
+            // Search up the hierarchy
+            var current = popup.transform.parent;
+            while (current != null)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "SystemMessageView")
+                        return mb;
+                }
+                current = current.parent;
+            }
+
+            // Find any active SystemMessageView in scene
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView" && mb.gameObject.activeInHierarchy)
+                    return mb;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Try to invoke OnBack(ActionContext) on a component.
+        /// </summary>
+        private bool TryInvokeOnBack(MonoBehaviour component)
+        {
+            if (component == null) return false;
+
+            var type = component.GetType();
+
+            // Find OnBack method with one parameter
+            foreach (var method in type.GetMethods(System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance))
+            {
+                if (method.Name == "OnBack" && method.GetParameters().Length == 1)
+                {
+                    try
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Invoking {type.Name}.OnBack(null)");
+                        method.Invoke(component, new object[] { null });
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Warning($"[{NavigatorId}] Error invoking OnBack: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -968,7 +1056,7 @@ namespace AccessibleArena.Core.Services
                     {
                         return $"{menuName}. {popupMessage}";
                     }
-                    return $"{menuName}. {popupMessage}. {_elements.Count} options. {Models.Strings.NavigateWithArrows}, Enter to select.";
+                    return $"{menuName}. {popupMessage}. {_elements.Count} options. {Models.Strings.NavigateWithArrows}, Enter to select, Escape to cancel.";
                 }
             }
 

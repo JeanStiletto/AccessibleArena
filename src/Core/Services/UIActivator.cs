@@ -190,86 +190,23 @@ namespace AccessibleArena.Core.Services
                 if (TryInvokeUpdatePoliciesAccept(element, out var acceptResult))
                     return acceptResult;
 
-                // Special handling for SystemMessageButtonView (popup dialog buttons like OK/Cancel)
-                // These buttons have a callback stored via Init() that the Click() method invokes
+                // Special handling for SystemMessageButtonView (popup dialog buttons)
+                // OK/Confirm buttons: Click() works - game handles action + close
+                // Cancel buttons: Click() triggers callback but popup stays visible - user presses Escape to close
                 var systemMsgButton = FindComponentByName(element, "SystemMessageButtonView");
                 if (systemMsgButton != null)
                 {
-                    Log($"SystemMessageButtonView detected, using pointer simulation + Click()");
+                    Log($"SystemMessageButtonView detected on: {element.name}");
+                    string buttonText = UITextExtractor.GetText(element)?.ToLower() ?? "";
+                    Log($"Button text: '{buttonText}'");
 
-                    // First do pointer simulation to set up UI state
-                    var pointerResult = SimulatePointerClick(element);
+                    // Call Click() to trigger the button's callback
+                    // For OK buttons: This triggers the action and game closes popup
+                    // For Cancel buttons: Callback fires but popup stays - user must press Escape
+                    Log($"Invoking SystemMessageButtonView.Click()");
+                    TryInvokeMethod(systemMsgButton, "Click");
 
-                    // Then invoke Click() which triggers the actual callback
-                    if (TryInvokeMethod(systemMsgButton, "Click"))
-                    {
-                        Log($"SystemMessageButtonView.Click() invoked successfully");
-                    }
-
-                    // Find and close the parent SystemMessageView popup
-                    // The popup doesn't auto-close when we call Click() via reflection
-                    // Look for the root popup which has "Clone" in its name
-                    var popupRoot = FindParentWithName(element, "SystemMessageView_Desktop");
-                    if (popupRoot == null)
-                    {
-                        // Fallback: try to find any SystemMessageView parent
-                        popupRoot = FindParentWithName(element, "SystemMessageView");
-                    }
-
-                    if (popupRoot != null)
-                    {
-                        Log($"Found popup root: {popupRoot.name}");
-
-                        // Try to find a Close/Hide method on the view
-                        var viewComponent = FindComponentByName(popupRoot, "SystemMessageView");
-                        if (viewComponent != null)
-                        {
-                            Log($"Found SystemMessageView component, listing methods:");
-                            var methods = viewComponent.GetType().GetMethods(
-                                System.Reflection.BindingFlags.Public |
-                                System.Reflection.BindingFlags.NonPublic |
-                                System.Reflection.BindingFlags.Instance);
-                            foreach (var m in methods)
-                            {
-                                if (m.DeclaringType == viewComponent.GetType())
-                                {
-                                    var paramStr = string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name));
-                                    Log($"  {m.Name}({paramStr})");
-                                }
-                            }
-
-                            if (TryInvokeMethod(viewComponent, "Close"))
-                            {
-                                Log($"SystemMessageView.Close() invoked");
-                            }
-                            else if (TryInvokeMethod(viewComponent, "Hide"))
-                            {
-                                Log($"SystemMessageView.Hide() invoked");
-                            }
-                            else if (TryInvokeMethod(viewComponent, "Dismiss"))
-                            {
-                                Log($"SystemMessageView.Dismiss() invoked");
-                            }
-                            else
-                            {
-                                // Last resort: deactivate the GameObject
-                                Log($"No close method found, deactivating popup GameObject");
-                                popupRoot.SetActive(false);
-                            }
-                        }
-                        else
-                        {
-                            // No component found, just deactivate
-                            Log($"No SystemMessageView component on root, deactivating GameObject");
-                            popupRoot.SetActive(false);
-                        }
-                    }
-                    else
-                    {
-                        Log($"Could not find popup root to close");
-                    }
-
-                    return pointerResult;
+                    return new ActivationResult(true, "Activated", ActivationType.Button);
                 }
 
                 var pointerResult2 = SimulatePointerClick(element);
@@ -833,20 +770,480 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Finds a parent GameObject whose name contains the specified string.
+        /// Finds the popup root GameObject by traversing up the hierarchy.
+        /// Looks for SystemMessageView or similar popup container names.
         /// </summary>
-        private static GameObject FindParentWithName(GameObject obj, string nameContains)
+        private static GameObject FindPopupRoot(GameObject element)
         {
-            if (obj == null) return null;
+            if (element == null) return null;
 
-            var current = obj.transform.parent;
+            var current = element.transform.parent;
             while (current != null)
             {
-                if (current.gameObject.name.Contains(nameContains))
+                string name = current.gameObject.name;
+                if (name.Contains("SystemMessageView") ||
+                    name.Contains("Popup") ||
+                    name.Contains("Dialog") ||
+                    name.Contains("Modal"))
+                {
                     return current.gameObject;
+                }
                 current = current.parent;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Finds the SystemMessageView component in the element's hierarchy.
+        /// Searches both up the hierarchy and in parent's children.
+        /// </summary>
+        private static MonoBehaviour FindSystemMessageView(GameObject element)
+        {
+            if (element == null) return null;
+
+            // First, search up the hierarchy
+            var current = element.transform;
+            while (current != null)
+            {
+                var systemMsgView = FindComponentByName(current.gameObject, "SystemMessageView");
+                if (systemMsgView != null)
+                    return systemMsgView;
+
+                current = current.parent;
+            }
+
+            // Also check the popup root and its children
+            var popupRoot = FindPopupRoot(element);
+            if (popupRoot != null)
+            {
+                // Search in the popup root's hierarchy
+                foreach (var mb in popupRoot.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "SystemMessageView")
+                        return mb;
+                }
+
+                // Also search in parent of popup root
+                var parent = popupRoot.transform.parent;
+                while (parent != null)
+                {
+                    foreach (var mb in parent.GetComponents<MonoBehaviour>())
+                    {
+                        if (mb != null && mb.GetType().Name == "SystemMessageView")
+                            return mb;
+                    }
+                    parent = parent.parent;
+                }
+            }
+
+            // Last resort: find any active SystemMessageView in scene
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView" && mb.gameObject.activeInHierarchy)
+                {
+                    Log($"Found SystemMessageView via scene search: {mb.gameObject.name}");
+                    return mb;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Try to find and invoke the internal handleOnClick callback stored in SystemMessageButtonView.
+        /// The callback is passed during Init() and stored in a private field.
+        /// </summary>
+        private static bool TryInvokeStoredCallback(MonoBehaviour systemMsgButton)
+        {
+            if (systemMsgButton == null) return false;
+
+            var type = systemMsgButton.GetType();
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            // Look for private fields that might store the callback
+            string[] possibleCallbackFields = { "_handleOnClick", "_callback", "_onClick", "handleOnClick", "callback", "m_handleOnClick" };
+            string[] possibleDataFields = { "_buttonData", "_data", "buttonData", "m_buttonData" };
+
+            object callbackObj = null;
+            object buttonDataObj = null;
+
+            // Find callback field
+            foreach (var fieldName in possibleCallbackFields)
+            {
+                var field = type.GetField(fieldName, flags);
+                if (field != null)
+                {
+                    callbackObj = field.GetValue(systemMsgButton);
+                    if (callbackObj != null)
+                    {
+                        Log($"Found callback in field '{fieldName}': {callbackObj.GetType().Name}");
+                        break;
+                    }
+                }
+            }
+
+            // Find buttonData field
+            foreach (var fieldName in possibleDataFields)
+            {
+                var field = type.GetField(fieldName, flags);
+                if (field != null)
+                {
+                    buttonDataObj = field.GetValue(systemMsgButton);
+                    if (buttonDataObj != null)
+                    {
+                        Log($"Found buttonData in field '{fieldName}': {buttonDataObj.GetType().Name}");
+                        break;
+                    }
+                }
+            }
+
+            // Log all fields for debugging
+            Log($"Listing all fields on {type.Name}:");
+            foreach (var field in type.GetFields(flags | System.Reflection.BindingFlags.Public))
+            {
+                var val = field.GetValue(systemMsgButton);
+                Log($"  Field: {field.Name} ({field.FieldType.Name}) = {(val != null ? val.ToString() : "null")}");
+            }
+
+            // Try to invoke the callback if found
+            if (callbackObj != null)
+            {
+                var invokeMethod = callbackObj.GetType().GetMethod("Invoke");
+                if (invokeMethod != null)
+                {
+                    try
+                    {
+                        var parameters = invokeMethod.GetParameters();
+                        if (parameters.Length == 0)
+                        {
+                            Log($"Invoking callback with no parameters");
+                            invokeMethod.Invoke(callbackObj, null);
+                            return true;
+                        }
+                        else if (parameters.Length == 1 && buttonDataObj != null)
+                        {
+                            Log($"Invoking callback with buttonData");
+                            invokeMethod.Invoke(callbackObj, new object[] { buttonDataObj });
+                            return true;
+                        }
+                        else if (parameters.Length == 1)
+                        {
+                            Log($"Invoking callback with null parameter");
+                            invokeMethod.Invoke(callbackObj, new object[] { null });
+                            return true;
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log($"Error invoking callback: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Try to invoke OnClickedReturnSource on CustomButton component.
+        /// </summary>
+        private static bool TryInvokeOnClickedReturnSource(GameObject element)
+        {
+            foreach (var mb in element.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null || mb.GetType().Name != "CustomButton") continue;
+
+                var type = mb.GetType();
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+
+                // Look for OnClickedReturnSource field
+                var field = type.GetField("OnClickedReturnSource", flags);
+                if (field == null)
+                    field = type.GetField("_onClickedReturnSource", flags);
+                if (field == null)
+                    field = type.GetField("onClickedReturnSource", flags);
+
+                if (field != null)
+                {
+                    var actionObj = field.GetValue(mb);
+                    if (actionObj != null)
+                    {
+                        Log($"Found OnClickedReturnSource: {actionObj.GetType().Name}");
+                        var invokeMethod = actionObj.GetType().GetMethod("Invoke");
+                        if (invokeMethod != null)
+                        {
+                            try
+                            {
+                                var parameters = invokeMethod.GetParameters();
+                                if (parameters.Length == 0)
+                                {
+                                    invokeMethod.Invoke(actionObj, null);
+                                    return true;
+                                }
+                                else if (parameters.Length == 1)
+                                {
+                                    // Pass the CustomButton itself as source
+                                    invokeMethod.Invoke(actionObj, new object[] { mb });
+                                    return true;
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                Log($"Error invoking OnClickedReturnSource: {ex.InnerException?.Message ?? ex.Message}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Log($"OnClickedReturnSource field found but value is null");
+                    }
+                }
+
+                // Log all fields on CustomButton for debugging
+                Log($"Listing all fields on CustomButton:");
+                foreach (var f in type.GetFields(flags))
+                {
+                    try
+                    {
+                        var val = f.GetValue(mb);
+                        string valStr = val?.ToString() ?? "null";
+                        if (valStr.Length > 50) valStr = valStr.Substring(0, 50) + "...";
+                        Log($"  Field: {f.Name} ({f.FieldType.Name}) = {valStr}");
+                    }
+                    catch
+                    {
+                        Log($"  Field: {f.Name} ({f.FieldType.Name}) = <error reading>");
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Try to find PopupManager and close the current popup.
+        /// </summary>
+        private static bool TryCloseViaPopupManager()
+        {
+            // Try to find PopupManager singleton
+            var popupManagerType = System.Type.GetType("Core.Meta.MainNavigation.PopUps.PopupManager, Core");
+            if (popupManagerType == null)
+            {
+                // Try to find it by searching all types
+                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    try
+                    {
+                        foreach (var t in assembly.GetTypes())
+                        {
+                            if (t.Name == "PopupManager")
+                            {
+                                popupManagerType = t;
+                                Log($"Found PopupManager type in {assembly.GetName().Name}");
+                                break;
+                            }
+                        }
+                    }
+                    catch { }
+                    if (popupManagerType != null) break;
+                }
+            }
+
+            if (popupManagerType == null)
+            {
+                Log($"PopupManager type not found");
+                return false;
+            }
+
+            // Get Instance property
+            var instanceProp = popupManagerType.GetProperty("Instance",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (instanceProp == null)
+            {
+                Log($"PopupManager.Instance property not found");
+                return false;
+            }
+
+            var instance = instanceProp.GetValue(null);
+            if (instance == null)
+            {
+                Log($"PopupManager.Instance is null");
+                return false;
+            }
+
+            Log($"Found PopupManager instance: {instance}");
+
+            // Try to find close/dismiss methods
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            string[] methodNames = { "Close", "ClosePopup", "Dismiss", "DismissPopup", "Hide", "HidePopup", "OnBack", "CloseCurrentPopup" };
+            foreach (var methodName in methodNames)
+            {
+                var method = popupManagerType.GetMethod(methodName, flags, null, System.Type.EmptyTypes, null);
+                if (method != null)
+                {
+                    try
+                    {
+                        Log($"Trying PopupManager.{methodName}()");
+                        method.Invoke(instance, null);
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log($"PopupManager.{methodName}() failed: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+            }
+
+            // Try OnBack with null ActionContext
+            var onBackMethod = popupManagerType.GetMethod("OnBack", flags);
+            if (onBackMethod != null)
+            {
+                try
+                {
+                    Log($"Trying PopupManager.OnBack(null)");
+                    onBackMethod.Invoke(instance, new object[] { null });
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"PopupManager.OnBack() failed: {ex.InnerException?.Message ?? ex.Message}");
+                }
+            }
+
+            // Log available methods
+            Log($"Available methods on PopupManager:");
+            foreach (var m in popupManagerType.GetMethods(flags))
+            {
+                Log($"  {m.Name}({string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name))})");
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Try to invoke HandleKeyDown(KeyCode, Modifiers) on a component.
+        /// This simulates a key press through the game's input handling.
+        /// </summary>
+        private static bool TryInvokeHandleKeyDown(MonoBehaviour component, KeyCode keyCode)
+        {
+            if (component == null) return false;
+
+            var type = component.GetType();
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            // Find HandleKeyDown method
+            foreach (var method in type.GetMethods(flags))
+            {
+                if (method.Name == "HandleKeyDown")
+                {
+                    var parameters = method.GetParameters();
+                    if (parameters.Length >= 1)
+                    {
+                        try
+                        {
+                            Log($"Found HandleKeyDown with {parameters.Length} params, invoking with {keyCode}");
+
+                            if (parameters.Length == 1)
+                            {
+                                // HandleKeyDown(KeyCode)
+                                method.Invoke(component, new object[] { keyCode });
+                                return true;
+                            }
+                            else if (parameters.Length == 2)
+                            {
+                                // HandleKeyDown(KeyCode, Modifiers) - pass default modifiers
+                                var modifiersType = parameters[1].ParameterType;
+                                object modifiersValue;
+
+                                if (modifiersType.IsEnum)
+                                {
+                                    modifiersValue = System.Enum.ToObject(modifiersType, 0);
+                                }
+                                else if (modifiersType.IsValueType)
+                                {
+                                    // Struct - create default instance
+                                    modifiersValue = System.Activator.CreateInstance(modifiersType);
+                                }
+                                else
+                                {
+                                    // Reference type - pass null
+                                    modifiersValue = null;
+                                }
+
+                                Log($"Modifiers type: {modifiersType.Name}, IsEnum: {modifiersType.IsEnum}, IsValueType: {modifiersType.IsValueType}");
+                                method.Invoke(component, new object[] { keyCode, modifiersValue });
+                                return true;
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Log($"HandleKeyDown error: {ex.InnerException?.Message ?? ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            Log($"HandleKeyDown method not found on {type.Name}");
+            return false;
+        }
+
+        /// <summary>
+        /// Tries to invoke OnBack(ActionContext) on a component.
+        /// ActionContext can be null - the game handles this gracefully.
+        /// </summary>
+        private static bool TryInvokeOnBack(MonoBehaviour component)
+        {
+            if (component == null) return false;
+
+            var type = component.GetType();
+
+            // Try OnBack(ActionContext) first - pass null for context
+            var onBackMethod = type.GetMethod("OnBack",
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance,
+                null,
+                new System.Type[] { typeof(object) }, // ActionContext
+                null);
+
+            if (onBackMethod == null)
+            {
+                // Try to find the method with any parameter type
+                foreach (var method in type.GetMethods(System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance))
+                {
+                    if (method.Name == "OnBack")
+                    {
+                        var parameters = method.GetParameters();
+                        if (parameters.Length == 1)
+                        {
+                            onBackMethod = method;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (onBackMethod != null)
+            {
+                try
+                {
+                    Log($"Invoking {type.Name}.OnBack(null)");
+                    onBackMethod.Invoke(component, new object[] { null });
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Error invoking OnBack: {ex.InnerException?.Message ?? ex.Message}");
+                }
+            }
+            else
+            {
+                Log($"OnBack method not found on {type.Name}");
+            }
+
+            return false;
         }
 
         /// <summary>

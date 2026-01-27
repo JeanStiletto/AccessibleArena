@@ -14,23 +14,159 @@ Bot Match button not visible when PlayBlade is open.
 
 ---
 
-### Confirmation Dialog Buttons (Popup Buttons)
+### Confirmation Dialog Buttons (Popup Buttons) - Settings Logout
 
-Popup buttons (e.g., "Continue editing", "Discard deck", Cancel/OK in dialogs) require two Enter presses. First press doesn't close the popup, second press works.
+Popup buttons in Settings menu (e.g., Logout confirmation with Abbrechen/OK) don't close properly or corrupt game state.
 
-**Attempted fixes (v0.2.5) - None resolved the issue:**
-1. Popup destruction detection - `CleanupDestroyedPanels()` now reports closed when GameObject destroyed during scene change
-2. Enter key consumption - Using `GetEnterAndConsume()` to prevent game processing Enter on wrong element
-3. Method name fix - Changed `OnClick()` to `Click()` (actual method name on SystemMessageButtonView)
+**The Core Problem:**
+- `SystemMessageButtonView.Click()` invokes the button's callback but doesn't close the popup
+- The game's popup system tracks internal state that we can't properly update via reflection
+- Forcibly hiding popups with `SetActive(false)` corrupts game state, preventing popup reopen
 
-**Current theory:** The `Click()` method invocation appears to succeed but doesn't trigger the expected popup dismissal. May need to investigate:
-- Whether `Click()` requires specific game state or preconditions
-- If there's a different activation path (e.g., via the button's Action callback from `Init()`)
-- Whether the popup's parent controller intercepts/handles the click differently
+**Attempted Approaches (January 2025):**
 
-**Workaround:** Press Enter twice, or use Escape to close.
+1. **Click() alone**
+   - Result: Callback invoked but popup stays open, no visual change
 
-**Files:** `UIActivator.cs`, `AlphaPanelDetector.cs`, `GeneralMenuNavigator.cs`
+2. **Click() + SetActive(false)** ⭐ BEST VISUAL RESULT
+   - Result: Popup closes visually
+   - Problem: Game state corrupted - popup cannot be triggered again until game restart
+   - The game thinks popup is still "active" internally
+
+3. **OnBack(null) alone** (on SystemMessageView)
+   - Result: Popup doesn't close at all
+
+4. **Click() + OnBack(null)**
+   - Result: Inconsistent behavior
+   - First attempt: Popup closed but immediately reopened
+   - Second attempt: Worked correctly
+   - Third attempt: OnBack() had no effect
+   - Theory: Click() may interfere with OnBack() state
+
+5. **OnBack(null) for Cancel buttons only, Click()+OnBack() for OK**
+   - Result: OnBack() alone doesn't close popup (needs Click() first for state setup)
+
+6. **Click() + SetActive(false) + ReportPanelClosedByName()** ⭐ BEST MOD INTEGRATION
+   - Result: Popup closes visually AND mod detects the close
+   - Problem: Same as #2 - game state corrupted, popup can't reopen
+
+7. **CustomButton._onClick.Invoke()** (directly invoke UnityEvent)
+   - Result: Nothing happens - event invokes but no popup close
+
+8. **CustomButton.OnPointerClick()** (simulate pointer click on inner button)
+   - Result: Not yet fully tested
+
+**Attempted Approaches (January 2026):**
+
+9. **Click() + OnBack(null)** (re-test)
+   - Result: First press closes popup visually but it immediately reopens (~100ms later)
+   - Second press on the reopened popup works correctly
+   - Confirms inconsistent behavior from attempt #4
+
+10. **OnBack(null) alone for Cancel buttons** (no Click() call)
+    - Result: Mod reports popup closed, but popup stays visible on screen
+    - OnBack() updates internal state but doesn't trigger visual close
+
+11. **SimulatePointerClick alone** (no Click(), no OnBack(), no SetActive)
+    - Result: Nothing happens - popup stays open
+    - Pointer events sent but no response
+
+12. **Normal CustomButton path** (SimulatePointerClick + TryInvokeCustomButtonOnClick)
+    - Result: Nothing happens - popup stays open
+    - This exact code path works for ALL other buttons in the game
+    - SystemMessageButtonView buttons somehow don't respond to standard activation
+
+13. **OnPointerDown() + OnPointerUp() on CustomButton**
+    - Result: Methods called successfully but no visual close
+    - CustomButton's internal _mouseDown state doesn't trigger close
+
+14. **_onClickDown + _onClick UnityEvents directly**
+    - Result: Events invoked (sound plays!) but popup doesn't close
+    - Confirms button receives input but close mechanism is elsewhere
+
+15. **ExecuteEvents.Execute with pointerClickHandler**
+    - Result: No effect on popup
+
+16. **ExecuteEvents.Execute with submitHandler**
+    - Result: No effect on popup
+
+17. **Combined: _onClickDown + _onClick + ExecuteEvents + Click()**
+    - Result: Sound plays (button responds) but popup stays open
+    - Button definitely receives our input but close is handled differently
+
+18. **HandleKeyDown(KeyCode.Escape) on SystemMessageView**
+    - Result: Method invokes successfully but popup doesn't close
+    - The game's HandleKeyDown likely checks actual Unity Input state internally
+    - Real Escape key works because Unity's input system detects it
+
+**Final Discovery (January 2026):**
+- **OK/Confirm buttons**: `Click()` WORKS! The action fires AND the game closes the popup automatically
+- **Cancel buttons**: `Click()` fires callback but popup stays visible - requires Escape key to dismiss
+
+**Why OK Works But Cancel Doesn't:**
+The OK button's callback triggers a game state change (e.g., logout) which causes the game to automatically close the popup as part of that state transition. The Cancel button's callback just signals "don't do the action" - it doesn't trigger any state change that would close the popup.
+
+**Current Solution:**
+- OK buttons: `Click()` triggers action, game handles popup close automatically
+- Cancel buttons: User presses **Escape** key to dismiss (game handles it natively)
+- Popup announcement includes "Escape to cancel" hint
+
+**SystemMessageView Internal Structure:**
+- Has `_button` field pointing to inner CustomButton
+- Has `HandleKeyDown(KeyCode, Modifiers)` method - but calling it via reflection doesn't work
+- The real Escape key works because Unity's input system detects the actual keypress
+- `HandleKeyDown` likely checks `Input.GetKeyDown()` internally, not just the parameter
+
+**SystemMessageButtonView Internal Structure:**
+- Has `_button (CustomButton)` field
+- Has `Init(SystemMessageButtonData, Action<SystemMessageButtonData>)` - stores callback
+- Has `Click()` method - invokes the stored callback
+- NO stored reference to `handleOnClick` callback accessible via reflection
+- The callback is likely stored in a compiler-generated closure class
+
+**SystemMessageView Methods Available:**
+- `Show()`, `Hide()` - Hide() doesn't close popup properly
+- `OnBack(ActionContext)` - Inconsistent results, doesn't close visually
+- `HandleKeyDown(KeyCode, Modifiers)` - Reflection call doesn't trigger close
+- `HandleOnClick(SystemMessageButtonData)` - Couldn't find ButtonData on button
+- `set_IsOpen(Boolean)` - Setting to false doesn't close popup
+
+**CustomButton Fields Examined:**
+- `_onClick (UnityEvent)` - Invoking plays sound but doesn't close popup
+- `_onClickDown (UnityEvent)` - Invoking doesn't close popup
+- `OnClickedReturnSource (Action)` - Was NULL, couldn't use
+- `_mouseDown (Boolean)` - Stays false even after our pointer simulation
+
+**PopupManager:**
+- Has `Instance` property but couldn't access it
+- Has `RegisterPopup/UnregisterPopup` methods
+- Has `OnBack(ActionContext)` method
+
+**Root Cause Theory:**
+The popup close mechanism is tied to the game's internal popup manager/queue system. When a popup button is clicked normally with a mouse:
+1. Unity's input system detects the click
+2. GraphicRaycaster determines what was clicked
+3. CustomButton receives pointer events and updates internal state (`_mouseDown = true`)
+4. Button callback fires
+5. Something in the click chain notifies the popup manager
+6. Popup manager handles close animation and state cleanup
+
+Our reflection-based calls can trigger step 4 (callback fires, action happens) but miss steps 1-3 and 5-6. The popup manager never gets notified that a button was clicked, so it doesn't close the popup.
+
+For OK buttons, step 4 triggers a game state change (logout, etc.) which causes the entire UI to reset, effectively closing the popup. For Cancel buttons, there's no state change, so the popup stays.
+
+**What Would Potentially Fix This (Future Investigation):**
+- Use Windows API (`user32.dll SendInput`) to simulate actual mouse click at button screen coordinates
+- Find and call the game's popup manager close method directly
+- Hook into the game's input system at a lower level
+- Find the correct way to invoke HandleOnClick with proper ButtonData
+
+**Current Workaround:**
+- OK/Confirm: Press Enter - works correctly
+- Cancel/Dismiss: Press **Escape** key (game handles it natively)
+- Popup announcement includes "Escape to cancel" instruction
+
+**Files:** `UIActivator.cs`, `SettingsMenuNavigator.cs`, `PanelStateManager.cs`
 
 ---
 
