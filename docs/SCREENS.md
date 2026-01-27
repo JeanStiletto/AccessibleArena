@@ -73,9 +73,9 @@ Login scene panels are detected by `MenuPanelTracker.DetectLoginPanels()` which 
 
 ### Input Field Navigation
 - Arrow keys navigate between elements (including input fields)
-- Press **Enter** on input field to start editing
-- While editing: type normally, arrows read content/characters
-- Press **Escape** to stop editing and return to navigation
+- Game auto-focuses input fields when navigated to (edit mode starts automatically)
+- While editing: type normally, Arrow Up/Down reads content, Arrow Left/Right reads character at cursor
+- Press **Escape** to stop editing and return to navigation (announces "Exited edit mode")
 - Press **Tab** to stop editing and move to next element
 
 ### Dropdown Navigation

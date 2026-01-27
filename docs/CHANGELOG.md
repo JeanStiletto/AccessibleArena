@@ -10,6 +10,13 @@ All notable changes to Accessible Arena.
   - Backspace now works as universal dismiss key for dropdowns
   - Announces "Dropdown closed" when dismissed
 
+- **Input field edit mode detection**: Fixed inconsistent edit mode behavior
+  - Game auto-focuses input fields on navigation; mod now properly detects this
+  - Separated "selected" state (field navigated to) from "focused" state (caret visible)
+  - Escape now properly exits edit mode without triggering back navigation
+  - Arrow key reading only activates when field is actually focused
+  - KeyboardManagerPatch blocks Escape when on any input field (selected or focused)
+
 - **Input field content reading**: Fixed input fields not announcing their content when navigating
   - Added fallback to `textComponent.text` when `.text` property is empty
   - Added support for legacy Unity `InputField` (not just TMP_InputField)
@@ -27,7 +34,7 @@ All notable changes to Accessible Arena.
 - Tab handling uses `InputManager.GetKeyDownAndConsume(KeyCode.Tab)` to block game processing
 - `GeneralMenuNavigator.DiscoverElements()` disables grouped navigation when `_currentScene == "Login"`
 
-**Files:** `BaseNavigator.cs`, `GeneralMenuNavigator.cs`, `UITextExtractor.cs`, `SCREENS.md`
+**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`, `GeneralMenuNavigator.cs`, `UITextExtractor.cs`, `SCREENS.md`
 
 ## v0.2.6 - 2026-01-27
 
