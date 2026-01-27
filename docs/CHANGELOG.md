@@ -2,6 +2,29 @@
 
 All notable changes to Accessible Arena.
 
+## v0.2.5 - 2026-01-27
+
+### Bug Fixes (Popup Button - Still Not Working)
+
+Three fixes attempted for popup button activation issue. Popup buttons (e.g., "Continue editing" / "Discard deck") still require two Enter presses despite these changes:
+
+1. **Popup destruction detection during scene change**
+   - `AlphaPanelDetector.CleanupDestroyedPanels()` now reports popups as closed when their GameObject is destroyed
+   - Previously, destroyed popups were silently removed from tracking without notifying PanelStateManager
+   - Uses `ReportPanelClosedByName()` since GameObject reference is null
+
+2. **Enter key consumption in menu navigation**
+   - `GeneralMenuNavigator` now uses `InputManager.GetEnterAndConsume()` instead of `Input.GetKeyDown()`
+   - Prevents game from processing Enter on EventSystem's selected object (e.g., Nav_Decks) simultaneously
+   - Enter key is marked as consumed so Harmony patch blocks it from game's KeyboardManager
+
+3. **SystemMessageButtonView method name fix**
+   - Changed from `OnClick()` to `Click()` - the actual method name on SystemMessageButtonView
+   - Debug logging revealed available methods: `Init(SystemMessageButtonData, Action)` and `Click()`
+   - `TryInvokeMethod` now tries `Click()` first, then `OnClick()`, then `OnButtonClicked()`
+
+**Files:** `AlphaPanelDetector.cs`, `GeneralMenuNavigator.cs`, `UIActivator.cs`
+
 ## v0.2.4 - 2026-01-27
 
 ### New Features

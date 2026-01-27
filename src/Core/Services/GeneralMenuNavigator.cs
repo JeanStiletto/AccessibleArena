@@ -509,8 +509,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter: In grouped navigation mode, handle both group entry and element activation
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-            if (enterPressed && _groupedNavigationEnabled && _groupedNavigator.IsActive)
+            // Use GetEnterAndConsume to prevent game from also processing Enter on EventSystem selected object
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive && InputManager.GetEnterAndConsume())
             {
                 if (HandleGroupedEnter())
                     return true;

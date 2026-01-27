@@ -198,6 +198,30 @@ namespace AccessibleArena.Core.Services
                 if (systemMsgButton != null)
                 {
                     Log($"SystemMessageButtonView with CustomButton detected, trying OnClick method");
+
+                    // Debug: List all methods on SystemMessageButtonView
+                    var methods = systemMsgButton.GetType().GetMethods(
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+                    Log($"SystemMessageButtonView methods ({methods.Length} total):");
+                    foreach (var m in methods)
+                    {
+                        if (m.DeclaringType == systemMsgButton.GetType() ||
+                            m.Name.ToLower().Contains("click") ||
+                            m.Name.ToLower().Contains("button") ||
+                            m.Name.ToLower().Contains("invoke"))
+                        {
+                            var paramStr = string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name));
+                            Log($"  {m.Name}({paramStr})");
+                        }
+                    }
+
+                    // The method is called "Click", not "OnClick"
+                    if (TryInvokeMethod(systemMsgButton, "Click"))
+                    {
+                        return new ActivationResult(true, "Activated", ActivationType.Button);
+                    }
                     if (TryInvokeMethod(systemMsgButton, "OnClick"))
                     {
                         return new ActivationResult(true, "Activated", ActivationType.Button);
@@ -245,16 +269,19 @@ namespace AccessibleArena.Core.Services
             }
 
             // Special handling for SystemMessageButtonView (confirmation dialog buttons)
-            // These buttons need their OnClick method invoked directly
+            // These buttons need their Click method invoked directly
             var systemMessageButton = FindComponentByName(element, "SystemMessageButtonView");
             if (systemMessageButton != null)
             {
-                Log($"SystemMessageButtonView detected, trying OnClick method");
+                Log($"SystemMessageButtonView detected, trying Click method");
+                if (TryInvokeMethod(systemMessageButton, "Click"))
+                {
+                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                }
                 if (TryInvokeMethod(systemMessageButton, "OnClick"))
                 {
                     return new ActivationResult(true, "Activated", ActivationType.Button);
                 }
-                // Also try OnButtonClicked pattern
                 if (TryInvokeMethod(systemMessageButton, "OnButtonClicked"))
                 {
                     return new ActivationResult(true, "Activated", ActivationType.Button);

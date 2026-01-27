@@ -262,12 +262,21 @@ namespace AccessibleArena.Core.Services.PanelDetection
         {
             var toRemove = _knownPanels
                 .Where(kvp => kvp.Value.GameObject == null)
-                .Select(kvp => kvp.Key)
                 .ToList();
 
-            foreach (var id in toRemove)
+            foreach (var kvp in toRemove)
             {
-                _knownPanels.Remove(id);
+                var panel = kvp.Value;
+
+                // Report as closed if it was visible - don't silently remove
+                if (panel.WasVisible)
+                {
+                    MelonLogger.Msg($"[{DetectorId}] Popup destroyed while visible, reporting closed: {panel.Name}");
+                    _stateManager.ReportPanelClosedByName(panel.Name);
+                    _announcedPanels.Remove(panel.Name);
+                }
+
+                _knownPanels.Remove(kvp.Key);
             }
         }
     }

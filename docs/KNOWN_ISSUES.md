@@ -14,11 +14,23 @@ Bot Match button not visible when PlayBlade is open.
 
 ---
 
-### Confirmation Dialog Cancel Button
+### Confirmation Dialog Buttons (Popup Buttons)
 
-Cancel button in confirmation dialogs (e.g., Logout) requires two Enter presses. First press doesn't close the popup, second press works.
+Popup buttons (e.g., "Continue editing", "Discard deck", Cancel/OK in dialogs) require two Enter presses. First press doesn't close the popup, second press works.
+
+**Attempted fixes (v0.2.5) - None resolved the issue:**
+1. Popup destruction detection - `CleanupDestroyedPanels()` now reports closed when GameObject destroyed during scene change
+2. Enter key consumption - Using `GetEnterAndConsume()` to prevent game processing Enter on wrong element
+3. Method name fix - Changed `OnClick()` to `Click()` (actual method name on SystemMessageButtonView)
+
+**Current theory:** The `Click()` method invocation appears to succeed but doesn't trigger the expected popup dismissal. May need to investigate:
+- Whether `Click()` requires specific game state or preconditions
+- If there's a different activation path (e.g., via the button's Action callback from `Init()`)
+- Whether the popup's parent controller intercepts/handles the click differently
 
 **Workaround:** Press Enter twice, or use Escape to close.
+
+**Files:** `UIActivator.cs`, `AlphaPanelDetector.cs`, `GeneralMenuNavigator.cs`
 
 ---
 
