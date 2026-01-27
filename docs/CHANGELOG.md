@@ -2,6 +2,26 @@
 
 All notable changes to Accessible Arena.
 
+## v0.2.6 - 2026-01-27
+
+### Bug Fixes
+- Fix confirmation popups not navigable in Settings menu
+  - Popups like logout confirmation now properly detected and announced
+  - Popup message is read aloud (e.g., "Confirmation. Are you sure you want to log out?")
+  - Popup buttons (OK/Cancel) navigable with arrow keys
+  - Enter activates selected button
+  - Backspace dismisses popup (finds cancel/close button)
+  - After popup closes, navigation returns to Settings menu
+
+### Technical
+- SettingsMenuNavigator now subscribes to PanelStateManager.OnPanelChanged
+- Added popup tracking state (_activePopup, _isPopupActive)
+- DiscoverPopupElements() finds SystemMessageButtonView, CustomButton, and Button components
+- ExtractPopupMessage() reads popup title/message for announcement
+- DismissPopup() and FindPopupCancelButton() handle backspace dismissal
+
+**Files:** `SettingsMenuNavigator.cs`
+
 ## v0.2.5 - 2026-01-27
 
 ### Bug Fixes (Popup Button - Still Not Working)
