@@ -256,41 +256,6 @@ The sync mechanism may not be detecting the correct state. Need to investigate:
 
 ---
 
-### Deck Builder Collection Card Reading
-
-Collection cards (cards you can add to your deck) are now navigable with most card info extraction working.
-
-**What's Working:**
-- **Navigation:** Arrow Left/Right navigates between collection cards
-- **Card Name:** Extracted from Model via GrpId → localization lookup
-- **Type Line:** Extracted from Model.Types (Supertypes + CardTypes + Subtypes)
-- **Power/Toughness:** Extracted from Model.Power/Model.Toughness
-- **Mana Cost:** Shows as "1, White" format (readable for screen readers)
-- **Rules Text:** Extracted via AbilityTextProvider with mana symbols parsed (e.g., "{oT}" → "Tap")
-- **Artist:** Extracted from Model.Printing.ArtistCredit
-
-**Not Working:**
-- **Flavor Text:** FlavorTextId lookup returns empty string despite valid IDs. GreLocProvider.GetLocalizedText() finds the provider but returns empty for all flavor text IDs.
-- **Virtualized Cards:** First ~4 cards in collection show "Unknown card" because they have GrpId = 0 (not yet loaded by game's virtualization system). Cards load when scrolled into view.
-
-**Technical Details:**
-- Collection cards use `PagesMetaCardView` component (similar to `BoosterMetaCardView`)
-- Located in `PoolHolder` canvas when browsing deck builder collection
-- Card data accessed via `Meta_CDC` component (analogous to `DuelScene_CDC` in duels)
-- Meta_CDC found on CardView child object, not on PagesMetaCardView itself
-- CardModelProvider updated to search for Meta_CDC in children
-
-**Investigation Needed:**
-- Flavor Text: GreLocProvider returns empty for valid FlavorTextIds (e.g., 823572 for Giada). May need different provider or lookup method in Meta scenes.
-
-**Files:**
-- `CardModelProvider.cs` - `GetDuelSceneCDC()`, `ExtractCardInfoFromModel()`, `FindFlavorTextProvider()`
-- `GeneralMenuNavigator.cs` - `FindPoolHolderCards()`, `IsInCollectionCardContext()`
-- `CardDetector.cs` - `IsUILabelText()` filter for UI noise
-- `ElementGroupAssigner.cs` - `DeckBuilderCollection` group detection
-
----
-
 ### Enchantment/Attachment Announcements
 
 Code added but `Model.Parent` and `Model.Children` properties always return null/empty.
@@ -441,6 +406,18 @@ Hybrid approach using three detectors:
 Both Tab and Arrow keys navigate menu elements identically. Unity's EventSystem was unreliable. May simplify to arrow-only in future.
 
 ## Recently Completed
+
+### Collection Card Reading
+
+Collection cards in deck builder are now fully accessible with complete card info extraction:
+- Navigation: Left/Right to browse cards, Up/Down to read card details
+- All card properties: Name, mana cost, type line, power/toughness, rules text, flavor text, artist
+
+**Technical note:** Cards use `PagesMetaCardView` with `Meta_CDC` component. Providers found via `ListMetaCardHolder_Expanding.CardDatabase` in Meta scenes.
+
+**Known limitation:** First ~4 cards may show "Unknown" due to game's virtualization (GrpId = 0 until loaded).
+
+---
 
 ### PlayBlade Ranked Match Start
 
