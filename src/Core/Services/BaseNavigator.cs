@@ -464,12 +464,11 @@ namespace AccessibleArena.Core.Services
             {
                 _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
+                // MTGA already moved focus to the new field - sync to it instead of moving
+                // (our _currentIndex may not match the actual focused element)
+                // Must sync BEFORE deactivating since deactivate clears EventSystem selection
+                SyncIndexToFocusedElement();
                 UIFocusTracker.DeactivateFocusedInputField();
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                if (shiftTab)
-                    MovePrevious();
-                else
-                    MoveNext();
                 return;
             }
 
@@ -987,12 +986,10 @@ namespace AccessibleArena.Core.Services
                 }
                 if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
                 {
+                    // MTGA already moved focus to the new field - sync to it instead of moving
+                    // (our _currentIndex may not match the actual focused element)
+                    SyncIndexToFocusedElement();
                     UIFocusTracker.DeactivateFocusedInputField();
-                    bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                    if (shiftTab)
-                        MovePrevious();
-                    else
-                        MoveNext();
                     return;
                 }
                 // Let other keys pass through (typing will focus the field)
