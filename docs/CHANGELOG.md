@@ -2,6 +2,69 @@
 
 All notable changes to Accessible Arena.
 
+## v0.3 - 2026-01-28
+
+### New Features
+
+#### NPE (New Player Experience) Reward Screen
+- New dedicated NPERewardNavigator for card unlock screens
+- Left/Right arrows navigate between unlocked cards and Take Reward button
+- Up/Down arrows read card details (name, type, mana cost, rules text)
+- Backspace activates Take Reward button for quick dismissal
+
+#### PlayBlade & Match Finding
+- Complete PlayBlade navigation with tabs, game modes, and deck folders
+- Auto-play after deck selection in ranked/standard queues
+- Deck selection properly preserved during match workflow
+- Centralized PlayBlade logic with clear state management
+
+#### Deck Builder & Collection
+- Collection cards now navigable with Left/Right arrows
+- Card info reading with Up/Down arrows in collection view
+- Deck action navigation (Delete, Edit, Export) with arrow keys
+- Fixed back navigation with Backspace in deck builder
+
+#### Element Grouping System
+- Hierarchical menu navigation with element groups
+- Play and Progress groups on home screen
+- Color filters as standalone groups
+- Single-element groups display cleanly
+
+#### Settings Menu Everywhere
+- Settings menu accessible via Escape in all scenes
+- Works in menus, duels, drafts, and sealed
+- Dedicated SettingsMenuNavigator with popup support
+- Logout confirmation and other popups fully navigable
+
+### Bug Fixes
+
+#### Input Fields & Dropdowns
+- Fixed input field edit mode detection (selected vs focused states)
+- Fixed Tab navigation skipping or announcing wrong fields
+- Fixed dropdown auto-open when navigating with arrow keys
+- Escape and Backspace properly close dropdowns
+- Fixed double announcements when navigating to dropdowns
+- Backspace in input fields announces deleted characters
+
+#### Popup & Button Activation
+- Fixed popup button activation and EventSystem selection sync
+- Fixed Settings menu popup navigation (logout confirmation)
+- Improved SystemMessageButtonView method detection
+
+#### Duel Improvements
+- Improved announcements for triggered/activated abilities
+- Enhanced attacker announcements with names and P/T
+- Fixed "countered" vs "resolved" detection for spells
+- Fixed combat state display during Declare Attackers/Blockers
+
+### Technical
+- Exclude Options_Button from navigation (accessible via Escape)
+- Add TooltipTrigger debug logging for future tooltip support
+- Document TooltipTrigger component structure in GAME_ARCHITECTURE.md
+- NullClaimButton activation via NPEContentControllerRewards.OnClaimClicked_Unity
+
+---
+
 ## v0.2.7 - 2026-01-28
 
 ### Bug Fixes
