@@ -65,16 +65,20 @@ namespace AccessibleArena.Patches
         /// </summary>
         private static bool ShouldBlockKey(KeyCode key)
         {
-            // When any input field is focused (regardless of how user got there),
-            // block Escape from game so we can use it to exit the input field
+            // When any input field is focused or a dropdown is open,
+            // block Escape from game so we can use it to exit edit mode / close dropdown
             // without the game closing the menu/panel
-            if (UIFocusTracker.IsAnyInputFieldFocused() || UIFocusTracker.IsEditingInputField())
+            if (UIFocusTracker.IsAnyInputFieldFocused() || UIFocusTracker.IsEditingInputField() || UIFocusTracker.IsEditingDropdown())
             {
                 if (key == KeyCode.Escape)
                 {
                     return true; // Block Escape so game doesn't close menu
                 }
-                return false; // Let typing keys through
+                // For input fields, let typing keys through
+                if (UIFocusTracker.IsAnyInputFieldFocused() || UIFocusTracker.IsEditingInputField())
+                {
+                    return false;
+                }
             }
 
             // In DuelScene, block Enter entirely - our mod handles all Enter presses
