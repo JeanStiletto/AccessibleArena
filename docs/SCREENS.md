@@ -146,15 +146,18 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - "Fertig" (Done) button
 
 **Navigation:**
-- Arrow Up/Down: Navigate between groups (Collection, Filters, etc.)
+- Arrow Up/Down: Navigate between groups and elements
+- Tab/Shift+Tab: Cycle between main groups (Collection, Filters, Deck) and auto-enter
 - Enter on group: Enter the group to navigate individual items
 - Backspace: Exit current group, return to group list
+- Number keys 1-0: Activate filter options 1-10 directly
 
 **Collection Card Navigation:**
 - Left/Right arrows: Navigate between cards in collection
 - Up/Down arrows: Read card details (name, type, mana cost, rules text, etc.)
 - Enter: Add card to deck (activates the card)
 - Home/End: Jump to first/last card
+- Page Up/Down: Navigate collection pages (shows only new cards)
 
 **Card Info Reading:**
 When focused on a card, Up/Down arrows cycle through card information blocks:
@@ -168,8 +171,12 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 
 **Technical Notes:**
 - Collection cards are in `DeckBuilderCollection` group
+- Filter controls (color checkboxes, type filters, advanced filters) are in `Filters` group
+- Deck cards are in `Content` or `PlayBladeContent` group
+- Tab cycling skips standalone elements, only cycles between actual groups
 - Cards are extracted using Model-based detection when available
 - CardInfoNavigator is automatically prepared when navigating to cards
+- Page navigation filters to show only newly visible cards (not entire 24-card page)
 - Some cards may show as "Unknown card" if Model data unavailable (edge cases)
 
 ## NPE Screens

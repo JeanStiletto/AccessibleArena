@@ -48,6 +48,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpArrowLeftRight,
                 Strings.HelpHomeEnd,
                 Strings.HelpPageUpDown,
+                Strings.HelpNumberKeysFilters,
                 Strings.HelpEnterSpace,
 
                 // Input fields

@@ -270,8 +270,33 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (name.Contains("ManaFilter") || name.Contains("ColorFilter"))
                 return true;
 
+            // CardFilterView elements (color filters, type filters in deck builder)
+            // These are the checkboxes like "CardFilterView Color_White", "CardFilterView Multicolor"
+            if (name.Contains("CardFilterView"))
+                return true;
+
+            // Advanced Filters button in deck builder
+            if (name.Contains("Advanced Filters"))
+                return true;
+
+            // Craft/Herstellen filter button
+            if (name.Contains("filterButton_Craft"))
+                return true;
+
+            // Magnify toggle (card size toggle in collection)
+            if (name.Contains("Toggle_Magnify"))
+                return true;
+
+            // DeckFilterToggle (show only cards in deck)
+            if (name.Contains("DeckFilterToggle"))
+                return true;
+
             // Search fields
             if (name.Contains("Search") && (name.Contains("Field") || name.Contains("Input")))
+                return true;
+
+            // Clear search button
+            if (name.Contains("Clear Search"))
                 return true;
 
             // Sort controls

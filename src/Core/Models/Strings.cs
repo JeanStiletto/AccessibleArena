@@ -283,10 +283,11 @@ namespace AccessibleArena.Core.Models
 
         // Menu navigation
         public const string HelpArrowUpDown = "Arrow Up or Down: Navigate menu items";
-        public const string HelpTabNavigation = "Tab or Shift plus Tab: Navigate menu items";
+        public const string HelpTabNavigation = "Tab or Shift plus Tab: Navigate menu items, or switch groups in collection";
         public const string HelpArrowLeftRight = "Arrow Left or Right: Carousel and stepper controls";
         public const string HelpHomeEnd = "Home or End: Jump to first or last item";
         public const string HelpPageUpDown = "Page Up or Page Down: Previous or next page in collection";
+        public const string HelpNumberKeysFilters = "Number keys 1 to 0: Activate filters 1 to 10 in collection";
         public const string HelpEnterSpace = "Enter or Space: Activate";
 
         // Input fields (text entry)

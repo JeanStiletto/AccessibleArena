@@ -585,6 +585,29 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Number keys 1-0: Activate filter options in deck builder
+            // 1-9 = options 1-9, 0 = option 10
+            if (_activeContentController == "WrapperDeckBuilder" && _groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                int filterIndex = -1;
+                if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) filterIndex = 0;
+                else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) filterIndex = 1;
+                else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) filterIndex = 2;
+                else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) filterIndex = 3;
+                else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5)) filterIndex = 4;
+                else if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.Keypad6)) filterIndex = 5;
+                else if (Input.GetKeyDown(KeyCode.Alpha7) || Input.GetKeyDown(KeyCode.Keypad7)) filterIndex = 6;
+                else if (Input.GetKeyDown(KeyCode.Alpha8) || Input.GetKeyDown(KeyCode.Keypad8)) filterIndex = 7;
+                else if (Input.GetKeyDown(KeyCode.Alpha9) || Input.GetKeyDown(KeyCode.Keypad9)) filterIndex = 8;
+                else if (Input.GetKeyDown(KeyCode.Alpha0) || Input.GetKeyDown(KeyCode.Keypad0)) filterIndex = 9;
+
+                if (filterIndex >= 0)
+                {
+                    if (ActivateFilterByIndex(filterIndex))
+                        return true;
+                }
+            }
+
             return false;
         }
 
@@ -696,6 +719,64 @@ namespace AccessibleArena.Core.Services
                             return true;
                         t = t.parent;
                     }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Activate a filter option by index (0-9 for options 1-10).
+        /// Number keys 1-9 activate options 1-9, 0 activates option 10.
+        /// </summary>
+        private bool ActivateFilterByIndex(int index)
+        {
+            var filterElement = _groupedNavigator.GetElementFromGroup(ElementGroup.Filters, index);
+            if (filterElement != null)
+            {
+                // Get the element label for announcement
+                var filterGroup = _groupedNavigator.GetGroupByType(ElementGroup.Filters);
+                string label = "Filter";
+                if (filterGroup.HasValue && index < filterGroup.Value.Count)
+                {
+                    label = filterGroup.Value.Elements[index].Label ?? "Filter";
+                }
+
+                LogDebug($"[{NavigatorId}] Activating filter {index + 1}: {label}");
+
+                // Activate the filter
+                var result = UIActivator.Activate(filterElement);
+                if (result.Success)
+                {
+                    // Check if it's a toggle to announce the new state
+                    var toggle = filterElement.GetComponent<UnityEngine.UI.Toggle>();
+                    if (toggle != null)
+                    {
+                        // Toggle state will be inverted after activation
+                        string state = toggle.isOn ? "off" : "on"; // Inverted because it hasn't changed yet
+                        _announcer.Announce($"{label}: {state}", Models.AnnouncementPriority.High);
+                    }
+                    else
+                    {
+                        _announcer.Announce($"Activated {label}", Models.AnnouncementPriority.High);
+                    }
+
+                    // Trigger rescan to update UI state
+                    TriggerRescan();
+                    return true;
+                }
+            }
+            else
+            {
+                // No filter at this index
+                int filterCount = _groupedNavigator.GetGroupElementCount(ElementGroup.Filters);
+                if (filterCount > 0)
+                {
+                    _announcer.Announce($"No filter {index + 1}. {filterCount} filters available.", Models.AnnouncementPriority.Normal);
+                }
+                else
+                {
+                    _announcer.Announce("No filters available", Models.AnnouncementPriority.Normal);
                 }
             }
 
@@ -2243,13 +2324,37 @@ namespace AccessibleArena.Core.Services
 
         #region Grouped Navigation Overrides
 
+        // Group types to cycle between in the deck builder with Tab/Shift+Tab
+        private static readonly ElementGroup[] DeckBuilderCycleGroups = new[]
+        {
+            ElementGroup.DeckBuilderCollection,  // Card pool (Collection)
+            ElementGroup.Filters,                // Filter controls
+            ElementGroup.Content,                // Deck cards (may be here)
+            ElementGroup.PlayBladeContent        // Deck cards (may be here as "Play Options")
+        };
+
         /// <summary>
         /// Override MoveNext to use GroupedNavigator when grouped navigation is enabled.
+        /// In deck builder with Tab, cycles between Collection, Filters, and Deck groups only.
         /// </summary>
         protected override void MoveNext()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
+                // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
+                // Only apply to Tab, not to arrow keys
+                bool isTabPressed = Input.GetKey(KeyCode.Tab);
+                if (_activeContentController == "WrapperDeckBuilder" && isTabPressed)
+                {
+                    if (_groupedNavigator.CycleToNextGroup(DeckBuilderCycleGroups))
+                    {
+                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        UpdateCardNavigationForGroupedElement();
+                        return;
+                    }
+                }
+
+                // Default behavior: navigate all groups/elements
                 _groupedNavigator.MoveNext();
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
@@ -2260,11 +2365,26 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Override MovePrevious to use GroupedNavigator when grouped navigation is enabled.
+        /// In deck builder with Shift+Tab, cycles between Collection, Filters, and Deck groups only.
         /// </summary>
         protected override void MovePrevious()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
+                // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
+                // Only apply to Tab, not to arrow keys
+                bool isTabPressed = Input.GetKey(KeyCode.Tab);
+                if (_activeContentController == "WrapperDeckBuilder" && isTabPressed)
+                {
+                    if (_groupedNavigator.CycleToPreviousGroup(DeckBuilderCycleGroups))
+                    {
+                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        UpdateCardNavigationForGroupedElement();
+                        return;
+                    }
+                }
+
+                // Default behavior: navigate all groups/elements
                 _groupedNavigator.MovePrevious();
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
@@ -2477,8 +2597,19 @@ namespace AccessibleArena.Core.Services
                 if (_groupedNavigator.ExitGroup())
                 {
                     _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                    UpdateCardNavigationForGroupedElement(); // Deactivate card navigator when exiting group
                     return true;
                 }
+            }
+
+            // At group level in deck builder - don't fall through to exit the deck builder
+            // User must use the Done button explicitly to exit. This prevents accidental exits
+            // when navigating groups with backspace.
+            if (_activeContentController == "WrapperDeckBuilder")
+            {
+                LogDebug($"[{NavigatorId}] At group level in deck builder - backspace blocked");
+                _announcer.Announce("At top level. Use Done button to exit.", Models.AnnouncementPriority.Normal);
+                return true;
             }
 
             // At group level or exit failed - fall through to normal back navigation

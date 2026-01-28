@@ -27,6 +27,10 @@ All notable changes to Accessible Arena.
 - Group state preserved across page changes
 - Deck action navigation (Delete, Edit, Export) with arrow keys
 - Fixed back navigation with Backspace in deck builder
+- Tab/Shift+Tab cycles between Collection, Filters, and Deck groups (auto-enters)
+- Number keys 1-0 activate filter options 1-10 directly
+- Page navigation shows only newly added cards (not entire page)
+- Color filters, advanced filters, and search controls grouped into Filters
 
 #### Element Grouping System
 - Hierarchical menu navigation with element groups

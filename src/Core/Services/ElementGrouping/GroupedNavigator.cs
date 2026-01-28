@@ -1153,5 +1153,200 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             return _groups.SelectMany(g => g.Elements);
         }
+
+        /// <summary>
+        /// Jump to a specific group by ElementGroup type.
+        /// Sets navigation to group level at the specified group.
+        /// </summary>
+        /// <returns>True if group was found and jumped to, false otherwise.</returns>
+        public bool JumpToGroup(ElementGroup groupType)
+        {
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (_groups[i].Group == groupType)
+                {
+                    _currentGroupIndex = i;
+                    _navigationLevel = NavigationLevel.GroupList;
+                    _currentElementIndex = -1;
+                    MelonLogger.Msg($"[GroupedNavigator] Jumped to group: {_groups[i].DisplayName}");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Jump to a specific group by display name.
+        /// Sets navigation to group level at the specified group.
+        /// </summary>
+        /// <returns>True if group was found and jumped to, false otherwise.</returns>
+        public bool JumpToGroupByName(string displayName)
+        {
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (_groups[i].DisplayName == displayName)
+                {
+                    _currentGroupIndex = i;
+                    _navigationLevel = NavigationLevel.GroupList;
+                    _currentElementIndex = -1;
+                    MelonLogger.Msg($"[GroupedNavigator] Jumped to group by name: {displayName}");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Jump to a specific group and enter it (inside group level).
+        /// </summary>
+        /// <returns>True if group was found and entered, false otherwise.</returns>
+        public bool JumpToGroupAndEnter(ElementGroup groupType)
+        {
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (_groups[i].Group == groupType && _groups[i].Count > 0)
+                {
+                    _currentGroupIndex = i;
+                    _navigationLevel = NavigationLevel.InsideGroup;
+                    _currentElementIndex = 0;
+                    MelonLogger.Msg($"[GroupedNavigator] Jumped and entered group: {_groups[i].DisplayName}");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Get group info by ElementGroup type.
+        /// </summary>
+        public ElementGroupInfo? GetGroupByType(ElementGroup groupType)
+        {
+            return _groups.FirstOrDefault(g => g.Group == groupType);
+        }
+
+        /// <summary>
+        /// Get group info by display name.
+        /// </summary>
+        public ElementGroupInfo? GetGroupByName(string displayName)
+        {
+            return _groups.FirstOrDefault(g => g.DisplayName == displayName);
+        }
+
+        /// <summary>
+        /// Get element at index from a specific group.
+        /// </summary>
+        /// <returns>The element's GameObject, or null if not found.</returns>
+        public GameObject GetElementFromGroup(ElementGroup groupType, int index)
+        {
+            var group = GetGroupByType(groupType);
+            if (group.HasValue && index >= 0 && index < group.Value.Count)
+            {
+                return group.Value.Elements[index].GameObject;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get element count for a specific group type.
+        /// </summary>
+        public int GetGroupElementCount(ElementGroup groupType)
+        {
+            var group = GetGroupByType(groupType);
+            return group?.Count ?? 0;
+        }
+
+        /// <summary>
+        /// Get all groups of a specific type (there may be multiple, e.g., folders).
+        /// </summary>
+        public IEnumerable<ElementGroupInfo> GetAllGroupsOfType(ElementGroup groupType)
+        {
+            return _groups.Where(g => g.Group == groupType);
+        }
+
+        /// <summary>
+        /// Find groups matching a predicate.
+        /// </summary>
+        public IEnumerable<ElementGroupInfo> FindGroups(System.Func<ElementGroupInfo, bool> predicate)
+        {
+            return _groups.Where(predicate);
+        }
+
+        /// <summary>
+        /// Cycle to the next group from a list of allowed group types.
+        /// Skips standalone elements (only cycles between actual groups).
+        /// Auto-enters the group after cycling.
+        /// </summary>
+        /// <returns>True if moved to a new group, false if no valid groups found.</returns>
+        public bool CycleToNextGroup(params ElementGroup[] allowedGroups)
+        {
+            if (allowedGroups == null || allowedGroups.Length == 0)
+                return false;
+
+            // Find indices of all allowed groups (skip standalone elements)
+            var allowedIndices = new List<int>();
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (System.Array.IndexOf(allowedGroups, _groups[i].Group) >= 0 &&
+                    !_groups[i].IsStandaloneElement && _groups[i].Count > 1)
+                    allowedIndices.Add(i);
+            }
+
+            if (allowedIndices.Count == 0)
+                return false;
+
+            // Find current position in allowed groups
+            int currentAllowedIndex = allowedIndices.IndexOf(_currentGroupIndex);
+
+            // Move to next allowed group (wrap around)
+            int nextAllowedIndex = (currentAllowedIndex + 1) % allowedIndices.Count;
+            _currentGroupIndex = allowedIndices[nextAllowedIndex];
+
+            // Auto-enter the group
+            _navigationLevel = NavigationLevel.InsideGroup;
+            _currentElementIndex = 0;
+
+            MelonLogger.Msg($"[GroupedNavigator] Cycled to next group and entered: {_groups[_currentGroupIndex].DisplayName}");
+            return true;
+        }
+
+        /// <summary>
+        /// Cycle to the previous group from a list of allowed group types.
+        /// Skips standalone elements (only cycles between actual groups).
+        /// Auto-enters the group after cycling.
+        /// </summary>
+        /// <returns>True if moved to a new group, false if no valid groups found.</returns>
+        public bool CycleToPreviousGroup(params ElementGroup[] allowedGroups)
+        {
+            if (allowedGroups == null || allowedGroups.Length == 0)
+                return false;
+
+            // Find indices of all allowed groups (skip standalone elements)
+            var allowedIndices = new List<int>();
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (System.Array.IndexOf(allowedGroups, _groups[i].Group) >= 0 &&
+                    !_groups[i].IsStandaloneElement && _groups[i].Count > 1)
+                    allowedIndices.Add(i);
+            }
+
+            if (allowedIndices.Count == 0)
+                return false;
+
+            // Find current position in allowed groups
+            int currentAllowedIndex = allowedIndices.IndexOf(_currentGroupIndex);
+
+            // Move to previous allowed group (wrap around)
+            int prevAllowedIndex = currentAllowedIndex <= 0
+                ? allowedIndices.Count - 1
+                : currentAllowedIndex - 1;
+            _currentGroupIndex = allowedIndices[prevAllowedIndex];
+
+            // Auto-enter the group
+            _navigationLevel = NavigationLevel.InsideGroup;
+            _currentElementIndex = 0;
+
+            MelonLogger.Msg($"[GroupedNavigator] Cycled to previous group and entered: {_groups[_currentGroupIndex].DisplayName}");
+            return true;
+        }
     }
 }
