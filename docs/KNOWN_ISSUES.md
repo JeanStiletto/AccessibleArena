@@ -378,6 +378,33 @@ MTGA auto-opens dropdowns when they receive EventSystem selection. When user nav
 - Single unified "dropdown operation in progress" flag
 - Consider if all this complexity is needed or if simpler approach exists
 
+---
+
+### Input Field Auto-Focus on Arrow Navigation (January 2026)
+
+When navigating to an input field with arrow keys, MTGA auto-focuses the field (sets `isFocused=true`), which causes the mod to enter edit mode automatically.
+
+**Current Behavior:**
+- Arrow navigating TO an input field auto-enters edit mode
+- User must press Escape to exit edit mode and continue navigating
+- Tab navigation works correctly (navigates through all elements)
+- Up/Down arrows read field content when in edit mode
+
+**Why It's Different From Dropdowns:**
+- Dropdowns: `IsExpanded` is set immediately when selected, so we can check and close in `UpdateEventSystemSelection()`
+- Input fields: `isFocused` is set asynchronously by the game (next frame), so our deactivation check doesn't catch it
+
+**Attempted Fix:**
+Added `DeactivateInputFieldOnElement()` in `UpdateEventSystemSelection()` (mirrors dropdown pattern), but it runs before the game sets `isFocused=true`.
+
+**Potential Future Fix:**
+Modify `HandleInput()` to not auto-enter edit mode when `IsAnyInputFieldFocused()` is true. Instead, require explicit Enter to activate the field. This would require:
+1. In `HandleInput()`, when field is focused but not in explicit edit mode, deactivate it
+2. Only enter edit mode when user presses Enter on an input field
+3. Risk: May break mouse-click behavior where user clicks directly on input field
+
+**Files:** `BaseNavigator.cs` (HandleInput, UpdateEventSystemSelection)
+
 ## Potential Issues (Monitor)
 
 ### Card Info Navigation (Up/Down Arrows)

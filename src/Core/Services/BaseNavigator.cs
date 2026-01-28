@@ -1349,6 +1349,14 @@ namespace AccessibleArena.Core.Services
                 {
                     CloseDropdownOnElement(element);
                 }
+
+                // MTGA auto-focuses input fields when they receive EventSystem selection.
+                // If we just navigated to an input field (not activated via Enter), deactivate it.
+                // We check isFocused via the real property, not assumptions.
+                if (UIFocusTracker.IsInputField(element))
+                {
+                    DeactivateInputFieldOnElement(element);
+                }
             }
         }
 
@@ -1414,6 +1422,33 @@ namespace AccessibleArena.Core.Services
                 UIFocusTracker.SuppressDropdownModeEntry();
                 _wasInDropdownMode = false;
                 _skipDropdownModeTracking = true; // Prevent _wasInDropdownMode from being re-set
+            }
+        }
+
+        /// <summary>
+        /// Deactivate an input field on the specified element if it was auto-focused.
+        /// Used to counteract MTGA's auto-focus behavior when navigating to input fields.
+        /// User must press Enter to explicitly activate the field.
+        /// </summary>
+        private void DeactivateInputFieldOnElement(GameObject element)
+        {
+            if (element == null) return;
+
+            // Check TMP_InputField
+            var tmpInput = element.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null && tmpInput.isFocused)
+            {
+                tmpInput.DeactivateInputField();
+                MelonLogger.Msg($"[{NavigatorId}] Deactivated auto-focused TMP_InputField: {element.name}");
+                return;
+            }
+
+            // Check legacy InputField
+            var legacyInput = element.GetComponent<UnityEngine.UI.InputField>();
+            if (legacyInput != null && legacyInput.isFocused)
+            {
+                legacyInput.DeactivateInputField();
+                MelonLogger.Msg($"[{NavigatorId}] Deactivated auto-focused InputField: {element.name}");
             }
         }
 
