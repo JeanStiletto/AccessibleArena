@@ -30,9 +30,39 @@ namespace AccessibleArena.Core.Services
         private static bool _inputFieldEditMode;
         private static GameObject _activeInputFieldObject;
 
-        // Dropdown edit mode - true when a dropdown is open and user is navigating its items
+        // Dropdown edit mode - kept for explicit close tracking via Escape/Backspace
+        // The actual "is dropdown open" state is queried from the dropdown's IsExpanded property
         private static bool _dropdownEditMode;
         private static GameObject _activeDropdownObject;
+
+        // Cache for IsExpanded property lookup (reflection is expensive)
+        private static System.Reflection.PropertyInfo _cachedIsExpandedProperty;
+        private static System.Type _cachedDropdownType;
+
+        // Flag to suppress focus announcements when navigator is handling the focus change
+        private static bool _suppressNextFocusAnnouncement;
+
+        // Flag to suppress dropdown mode re-entry after closing an auto-opened dropdown
+        private static bool _suppressDropdownModeEntry;
+
+        /// <summary>
+        /// Suppress the next focus change announcement. Called by navigators before they
+        /// change EventSystem selection, since they handle their own announcements.
+        /// </summary>
+        public static void SuppressNextFocusAnnouncement()
+        {
+            _suppressNextFocusAnnouncement = true;
+        }
+
+        /// <summary>
+        /// Suppress dropdown mode entry. Called after closing an auto-opened dropdown
+        /// to prevent FocusTracker from re-entering dropdown mode before IsExpanded updates.
+        /// </summary>
+        public static void SuppressDropdownModeEntry()
+        {
+            _suppressDropdownModeEntry = true;
+            MelonLogger.Msg($"[FocusTracker] Suppressing dropdown mode entry");
+        }
 
         /// <summary>
         /// Fired when focus changes. Parameters: (oldElement, newElement)
@@ -184,63 +214,195 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Returns true if user is navigating inside an open dropdown.
+        /// Returns true if any dropdown is currently expanded (open).
+        /// Uses the actual IsExpanded property from the dropdown component - no assumptions.
         /// When true, arrow keys control dropdown selection. When false, arrows navigate between elements.
         /// </summary>
         public static bool IsEditingDropdown()
         {
-            // Only return true if we're in dropdown mode AND focus is still on a dropdown item
-            if (!_dropdownEditMode)
-                return false;
-
-            // Verify focus is still on a dropdown item
-            var eventSystem = EventSystem.current;
-            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
-            {
-                ExitDropdownEditMode();
-                return false;
-            }
-
-            // If focus moved away from dropdown items, exit mode
-            if (!IsDropdownItem(eventSystem.currentSelectedGameObject))
-            {
-                ExitDropdownEditMode();
-                return false;
-            }
-
-            return true;
+            // Check the REAL state: is any dropdown actually expanded?
+            return IsAnyDropdownExpanded();
         }
 
         /// <summary>
-        /// Enter dropdown edit mode. Called when user presses Enter on a dropdown to open it.
+        /// Check if any dropdown in the scene has IsExpanded == true.
+        /// This queries the actual dropdown state, not assumptions based on focus.
+        /// </summary>
+        public static bool IsAnyDropdownExpanded()
+        {
+            // Check cTMP_Dropdown (MTGA's custom dropdown) - most common in MTGA
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+                if (type.Name == "cTMP_Dropdown")
+                {
+                    bool isExpanded = GetIsExpandedProperty(mb);
+                    if (isExpanded)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // Check standard TMP_Dropdown
+            foreach (var dropdown in GameObject.FindObjectsOfType<TMPro.TMP_Dropdown>())
+            {
+                if (dropdown == null) continue;
+                // TMP_Dropdown has a public IsExpanded property
+                if (IsDropdownExpanded(dropdown))
+                {
+                    return true;
+                }
+            }
+
+            // Check legacy Unity Dropdown
+            foreach (var dropdown in GameObject.FindObjectsOfType<UnityEngine.UI.Dropdown>())
+            {
+                if (dropdown == null) continue;
+                // Legacy Dropdown - check if dropdown list exists
+                if (IsLegacyDropdownExpanded(dropdown))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get IsExpanded property value from a cTMP_Dropdown via reflection.
+        /// </summary>
+        private static bool GetIsExpandedProperty(MonoBehaviour dropdown)
+        {
+            if (dropdown == null) return false;
+
+            try
+            {
+                var type = dropdown.GetType();
+
+                // Use cached property if same type
+                if (_cachedDropdownType != type)
+                {
+                    _cachedDropdownType = type;
+                    _cachedIsExpandedProperty = type.GetProperty("IsExpanded",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                }
+
+                if (_cachedIsExpandedProperty != null)
+                {
+                    return (bool)_cachedIsExpandedProperty.GetValue(dropdown);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Warning($"[FocusTracker] Error getting IsExpanded: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if a TMP_Dropdown is expanded by checking for its dropdown list child.
+        /// TMP_Dropdown creates a "Dropdown List" child when expanded.
+        /// </summary>
+        private static bool IsDropdownExpanded(TMPro.TMP_Dropdown dropdown)
+        {
+            if (dropdown == null) return false;
+
+            // TMP_Dropdown creates a child named "Dropdown List" when expanded
+            var dropdownList = dropdown.transform.Find("Dropdown List");
+            return dropdownList != null && dropdownList.gameObject.activeInHierarchy;
+        }
+
+        /// <summary>
+        /// Check if a legacy Unity Dropdown is expanded.
+        /// </summary>
+        private static bool IsLegacyDropdownExpanded(UnityEngine.UI.Dropdown dropdown)
+        {
+            if (dropdown == null) return false;
+
+            // Legacy Dropdown also creates a "Dropdown List" child when expanded
+            var dropdownList = dropdown.transform.Find("Dropdown List");
+            return dropdownList != null && dropdownList.gameObject.activeInHierarchy;
+        }
+
+        /// <summary>
+        /// Get the currently expanded dropdown GameObject, if any.
+        /// Returns null if no dropdown is expanded.
+        /// </summary>
+        public static GameObject GetExpandedDropdown()
+        {
+            // Check cTMP_Dropdown first (most common in MTGA)
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+                if (type.Name == "cTMP_Dropdown")
+                {
+                    if (GetIsExpandedProperty(mb))
+                    {
+                        return mb.gameObject;
+                    }
+                }
+            }
+
+            // Check standard TMP_Dropdown
+            foreach (var dropdown in GameObject.FindObjectsOfType<TMPro.TMP_Dropdown>())
+            {
+                if (dropdown != null && IsDropdownExpanded(dropdown))
+                {
+                    return dropdown.gameObject;
+                }
+            }
+
+            // Check legacy Unity Dropdown
+            foreach (var dropdown in GameObject.FindObjectsOfType<UnityEngine.UI.Dropdown>())
+            {
+                if (dropdown != null && IsLegacyDropdownExpanded(dropdown))
+                {
+                    return dropdown.gameObject;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Enter dropdown edit mode. Called when user explicitly activates a dropdown (Enter key).
+        /// Note: The real dropdown state is determined by IsExpanded property, this is for explicit tracking.
         /// </summary>
         public static void EnterDropdownEditMode(GameObject dropdownObject)
         {
             _dropdownEditMode = true;
             _activeDropdownObject = dropdownObject;
-            MelonLogger.Msg($"[FocusTracker] Entered dropdown edit mode: {dropdownObject?.name}");
+            MelonLogger.Msg($"[FocusTracker] User explicitly opened dropdown: {dropdownObject?.name}");
         }
 
         /// <summary>
-        /// Exit dropdown edit mode. Called when dropdown closes (focus leaves dropdown items).
+        /// Exit dropdown edit mode. Called when user explicitly closes dropdown (Escape/Backspace).
         /// Returns the name of the element that now has focus (so navigator can sync its index).
+        /// Note: The real dropdown state is determined by IsExpanded property.
         /// </summary>
         public static string ExitDropdownEditMode()
         {
             string newFocusName = null;
+
+            // Get the element that now has focus so navigator can sync to it
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
+            {
+                newFocusName = eventSystem.currentSelectedGameObject.name;
+            }
+
             if (_dropdownEditMode)
             {
-                // Get the element that now has focus so navigator can sync to it
-                var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-                if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
-                {
-                    newFocusName = eventSystem.currentSelectedGameObject.name;
-                }
-
-                MelonLogger.Msg($"[FocusTracker] Exited dropdown edit mode, new focus: {newFocusName ?? "null"}");
-                _dropdownEditMode = false;
-                _activeDropdownObject = null;
+                MelonLogger.Msg($"[FocusTracker] User explicitly closed dropdown, new focus: {newFocusName ?? "null"}");
             }
+
+            _dropdownEditMode = false;
+            _activeDropdownObject = null;
+
             return newFocusName;
         }
 
@@ -316,22 +478,37 @@ namespace AccessibleArena.Core.Services
             var previousSelected = _lastSelected;
             _lastSelected = selected;
 
-            // Track dropdown edit mode based on where focus is
-            // If focus is on a dropdown item, we're in dropdown mode (game is handling input)
-            // If focus is elsewhere, we're not in dropdown mode
+            // Check the REAL dropdown state using IsExpanded property
+            bool anyDropdownExpanded = IsAnyDropdownExpanded();
             bool focusOnDropdownItem = selected != null && IsDropdownItem(selected);
 
-            if (focusOnDropdownItem && !_dropdownEditMode)
+            // Log state changes for debugging
+            if (anyDropdownExpanded && !_dropdownEditMode)
             {
-                // Entering dropdown mode (game opened a dropdown)
-                _dropdownEditMode = true;
-                _activeDropdownObject = selected; // Track the item for reference
-                MelonLogger.Msg($"[FocusTracker] Entered dropdown mode (focus on item: {selected.name})");
+                // Check if we should suppress dropdown mode entry (after closing auto-opened dropdown)
+                if (_suppressDropdownModeEntry)
+                {
+                    _suppressDropdownModeEntry = false;
+                    MelonLogger.Msg($"[FocusTracker] Dropdown mode entry suppressed (IsExpanded=true but was auto-closed)");
+                }
+                else
+                {
+                    _dropdownEditMode = true;
+                    _activeDropdownObject = selected;
+                    MelonLogger.Msg($"[FocusTracker] Dropdown is now expanded (IsExpanded=true), focus: {selected?.name ?? "null"}");
+                }
             }
-            else if (!focusOnDropdownItem && _dropdownEditMode)
+            else if (!anyDropdownExpanded && _dropdownEditMode)
             {
-                // Exiting dropdown mode (focus left dropdown items)
-                ExitDropdownEditMode();
+                MelonLogger.Msg($"[FocusTracker] Dropdown closed (IsExpanded=false), focus: {selected?.name ?? "null"}");
+                _dropdownEditMode = false;
+                _activeDropdownObject = null;
+                _suppressDropdownModeEntry = false; // Clear flag when dropdown actually closes
+            }
+            else if (!anyDropdownExpanded)
+            {
+                // Dropdown is not expanded, clear any pending suppress flag
+                _suppressDropdownModeEntry = false;
             }
 
             OnFocusChanged?.Invoke(previousSelected, selected);
@@ -344,6 +521,14 @@ namespace AccessibleArena.Core.Services
 
         private void AnnounceElement(GameObject element)
         {
+            // Check if navigator suppressed this announcement (it handles its own)
+            if (_suppressNextFocusAnnouncement)
+            {
+                _suppressNextFocusAnnouncement = false;
+                Log($"Skipping announcement (suppressed by navigator): {element.name}");
+                return;
+            }
+
             string text = UITextExtractor.GetText(element);
             Log($"Extracted text: '{text}' from {element.name}");
 

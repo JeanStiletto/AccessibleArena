@@ -1326,7 +1326,82 @@ namespace AccessibleArena.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem != null)
             {
+                // Suppress FocusTracker's announcement since we handle our own via AnnounceCurrentElement()
+                UIFocusTracker.SuppressNextFocusAnnouncement();
+
                 eventSystem.SetSelectedGameObject(element);
+
+                // MTGA auto-opens dropdowns when they receive EventSystem selection.
+                // If we just navigated to a dropdown (not activated via Enter), close it.
+                // We check IsExpanded via the real property, not assumptions.
+                if (UIFocusTracker.IsDropdown(element) && UIFocusTracker.IsAnyDropdownExpanded())
+                {
+                    CloseDropdownOnElement(element);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Close a dropdown on the specified element without entering edit mode.
+        /// Used to counteract MTGA's auto-open behavior when navigating to dropdowns.
+        /// </summary>
+        private void CloseDropdownOnElement(GameObject element)
+        {
+            if (element == null) return;
+
+            bool closed = false;
+
+            // Try TMP_Dropdown
+            var tmpDropdown = element.GetComponent<TMPro.TMP_Dropdown>();
+            if (tmpDropdown != null)
+            {
+                tmpDropdown.Hide();
+                MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened TMP_Dropdown: {element.name}");
+                closed = true;
+            }
+
+            // Try legacy Dropdown
+            if (!closed)
+            {
+                var legacyDropdown = element.GetComponent<Dropdown>();
+                if (legacyDropdown != null)
+                {
+                    legacyDropdown.Hide();
+                    MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened legacy Dropdown: {element.name}");
+                    closed = true;
+                }
+            }
+
+            // Try cTMP_Dropdown via reflection
+            if (!closed)
+            {
+                foreach (var component in element.GetComponents<Component>())
+                {
+                    if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                    {
+                        var hideMethod = component.GetType().GetMethod("Hide",
+                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        if (hideMethod != null)
+                        {
+                            hideMethod.Invoke(component, null);
+                            MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened cTMP_Dropdown: {element.name}");
+                            closed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Reset dropdown mode tracking - the dropdown's IsExpanded property may not
+            // update immediately after Hide(), so we need to manually clear the state
+            // to prevent SyncIndexToFocusedElement from being triggered later.
+            // Also suppress dropdown mode re-entry since FocusTracker will see IsExpanded=true
+            // briefly before the dropdown fully closes.
+            if (closed)
+            {
+                UIFocusTracker.ExitDropdownEditMode();
+                UIFocusTracker.SuppressDropdownModeEntry();
+                _wasInDropdownMode = false;
             }
         }
 
@@ -1375,6 +1450,8 @@ namespace AccessibleArena.Core.Services
             string announcement = GetElementAnnouncement(_currentIndex);
             if (!string.IsNullOrEmpty(announcement))
             {
+                // Debug: Log call stack to trace duplicate announcements
+                MelonLogger.Msg($"[{NavigatorId}] AnnounceCurrentElement called: {announcement}");
                 _announcer.AnnounceInterrupt(announcement);
             }
         }
