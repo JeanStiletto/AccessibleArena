@@ -411,11 +411,14 @@ Both Tab and Arrow keys navigate menu elements identically. Unity's EventSystem 
 
 Collection cards in deck builder are now fully accessible with complete card info extraction:
 - Navigation: Left/Right to browse cards, Up/Down to read card details
+- Page Navigation: Page Up/Page Down to change collection pages
 - All card properties: Name, mana cost, type line, power/toughness, rules text, flavor text, artist
 
-**Technical note:** Cards use `PagesMetaCardView` with `Meta_CDC` component. Providers found via `ListMetaCardHolder_Expanding.CardDatabase` in Meta scenes.
-
-**Known limitation:** First ~4 cards may show "Unknown" due to game's virtualization (GrpId = 0 until loaded).
+**Technical notes:**
+- Cards use `PagesMetaCardView` with `Meta_CDC` component
+- Providers found via `ListMetaCardHolder_Expanding.CardDatabase` in Meta scenes
+- Placeholder cards (GrpId = 0, "CDC #0") are filtered out - these are empty pool slots from game's virtualization
+- Group state is preserved across page changes using `SaveCurrentGroupForRestore()` mechanism
 
 ---
 

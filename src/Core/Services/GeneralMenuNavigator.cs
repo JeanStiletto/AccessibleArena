@@ -574,6 +574,80 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Page Up/Down: Navigate collection pages (activate Previous/Next buttons)
+            if (Input.GetKeyDown(KeyCode.PageUp) || Input.GetKeyDown(KeyCode.PageDown))
+            {
+                if (_activeContentController == "WrapperDeckBuilder")
+                {
+                    bool isPageDown = Input.GetKeyDown(KeyCode.PageDown);
+                    if (ActivateCollectionPageButton(isPageDown))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Activates the Next or Previous page button in the collection view.
+        /// </summary>
+        private bool ActivateCollectionPageButton(bool next)
+        {
+            string targetLabel = next ? "Next" : "Previous";
+            LogDebug($"[{NavigatorId}] Looking for '{targetLabel}' page button...");
+
+            // Search through elements for the navigation button
+            foreach (var element in _elements)
+            {
+                if (element.GameObject == null) continue;
+
+                string label = element.Label?.ToLower() ?? "";
+                string objName = element.GameObject.name.ToLower();
+
+                // Check if this is the Next/Previous navigation button
+                bool isTarget = next
+                    ? (label.Contains("next") || objName.Contains("next"))
+                    : (label.Contains("previous") || label.Contains("prev") || objName.Contains("previous") || objName.Contains("prev"));
+
+                if (isTarget && (label.Contains("navigation") || objName.Contains("navigation") || objName.Contains("arrow") || objName.Contains("page")))
+                {
+                    LogDebug($"[{NavigatorId}] Found page button: {element.Label} ({element.GameObject.name})");
+
+                    // Activate the button
+                    var result = UIActivator.Activate(element.GameObject);
+                    if (result.Success)
+                    {
+                        _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
+                        // Rescan to refresh card list - group state will be restored automatically
+                        TriggerRescan();
+                        return true;
+                    }
+                }
+            }
+
+            // Also try finding by GameObject.Find for common patterns
+            var buttonNames = next
+                ? new[] { "NextPageButton", "Next_Button", "ArrowRight", "NextArrow" }
+                : new[] { "PreviousPageButton", "Previous_Button", "Prev_Button", "ArrowLeft", "PrevArrow" };
+
+            foreach (var btnName in buttonNames)
+            {
+                var btn = GameObject.Find(btnName);
+                if (btn != null && btn.activeInHierarchy)
+                {
+                    LogDebug($"[{NavigatorId}] Found page button by name: {btnName}");
+                    var result = UIActivator.Activate(btn);
+                    if (result.Success)
+                    {
+                        _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
+                        // Rescan to refresh card list - group state will be restored automatically
+                        TriggerRescan();
+                        return true;
+                    }
+                }
+            }
+
+            LogDebug($"[{NavigatorId}] No '{targetLabel}' page button found");
             return false;
         }
 
@@ -1318,6 +1392,12 @@ namespace AccessibleArena.Core.Services
                 previousSelection = _elements[_currentIndex].GameObject;
             }
 
+            // Save current group state for restoration after rescan
+            if (_groupedNavigationEnabled)
+            {
+                _groupedNavigator.SaveCurrentGroupForRestore();
+            }
+
             // Log UI elements during rescan to help debug component differences
             LogAvailableUIElements();
 
@@ -1893,11 +1973,21 @@ namespace AccessibleArena.Core.Services
             LogDebug($"[{NavigatorId}] Found {cardViews.Count} collection card(s) in PoolHolder");
 
             int cardNum = 1;
+            int skippedCount = 0;
             foreach (var (cardObj, _) in cardViews)
             {
                 // Extract card info using CardDetector
                 var cardInfo = CardDetector.ExtractCardInfo(cardObj);
-                string cardName = cardInfo.IsValid ? cardInfo.Name : "Unknown card";
+
+                // Skip unloaded/placeholder cards (GrpId = 0, typically named "CDC #0")
+                // These are empty pool slots that haven't been populated with card data yet
+                if (!cardInfo.IsValid)
+                {
+                    skippedCount++;
+                    continue;
+                }
+
+                string cardName = cardInfo.Name;
 
                 // Build label with card name
                 string label = cardName;

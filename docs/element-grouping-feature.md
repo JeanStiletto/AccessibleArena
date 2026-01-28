@@ -80,6 +80,27 @@ Break long menu lists into smaller, contextual groups for better blind user navi
 6. `OrganizeIntoGroups()` checks `_pendingFolderEntry`, auto-enters folder
 7. User is inside folder with decks visible
 
+### Group State Restoration (January 2026)
+
+When UI changes trigger a rescan (e.g., page navigation in collection), the group navigation state needs to be preserved so the user doesn't get kicked back to the group list.
+
+**Problem:** `OrganizeIntoGroups()` resets `_currentGroupIndex = -1` and rebuilds all groups. User loses their position.
+
+**Solution:** `SaveCurrentGroupForRestore()` / restore logic in `OrganizeIntoGroups()`:
+
+1. Before rescan: `PerformRescan()` calls `_groupedNavigator.SaveCurrentGroupForRestore()`
+2. Saves: current `ElementGroup` type and `NavigationLevel` (GroupList vs InsideGroup)
+3. After groups rebuilt: `OrganizeIntoGroups()` finds matching group by type and restores position
+4. If group no longer exists: falls back to first group
+
+**Key Fields:**
+- `_pendingGroupRestore` - ElementGroup to restore
+- `_pendingLevelRestore` - NavigationLevel to restore
+
+**Used by:**
+- Page Up/Down in collection - changes page without losing position in Collection group
+- Any rescan that should preserve user's current group context
+
 ### Overlay Handling
 - Popup dialogs suppress all other groups
 - Settings menu handled by SettingsMenuNavigator

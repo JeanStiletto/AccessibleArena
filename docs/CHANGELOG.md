@@ -21,6 +21,10 @@ All notable changes to Accessible Arena.
 #### Deck Builder & Collection
 - Collection cards now navigable with Left/Right arrows
 - Card info reading with Up/Down arrows in collection view
+- Page Up/Page Down for collection page navigation
+- Complete card info: name, mana cost, type, P/T, rules text, flavor text, artist
+- Placeholder cards (GrpId = 0) filtered out from navigation
+- Group state preserved across page changes
 - Deck action navigation (Delete, Edit, Export) with arrow keys
 - Fixed back navigation with Backspace in deck builder
 

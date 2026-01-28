@@ -81,6 +81,7 @@ Tab/Shift+Tab: Navigate menu items (same as Arrow Up/Down)
 Arrow Left/Right (or A/D): Carousel/stepper controls
 Home: Jump to first item
 End: Jump to last item
+Page Up/Page Down: Previous/next page in collection
 Enter/Space: Activate
 Backspace: Back one level
 
