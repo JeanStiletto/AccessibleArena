@@ -342,6 +342,42 @@ Accumulated defensive fallback code needs review:
 - Multiple `FindObjectsOfType` calls in `DiscoverElements`
 - Repeated `GameObject.Find` calls in back navigation
 
+---
+
+### Dropdown Auto-Open Suppression Mechanics (January 2025)
+
+Complex flag-based system to prevent unwanted behavior when MTGA auto-opens dropdowns during navigation. May need simplification in future refactoring.
+
+**The Problem:**
+MTGA auto-opens dropdowns when they receive EventSystem selection. When user navigates to a dropdown with arrow keys, we set EventSystem selection, game auto-opens it, and this caused:
+1. Unwanted dropdown mode entry
+2. Double announcements (from navigator + sync logic)
+
+**Solution - Multiple Suppression Flags:**
+
+**UIFocusTracker.cs:**
+- `_suppressNextFocusAnnouncement` - Prevents FocusTracker from announcing when navigator handles the focus change (navigator does its own announcement)
+- `_suppressDropdownModeEntry` - Prevents FocusTracker from entering dropdown mode when we just closed an auto-opened dropdown (IsExpanded may still be true briefly)
+
+**BaseNavigator.cs:**
+- `_wasInDropdownMode` - Tracks if we were in dropdown mode to trigger `SyncIndexToFocusedElement()` after exiting (for game's auto-advance like Month→Day→Year)
+- `_skipDropdownModeTracking` - Prevents `_wasInDropdownMode` from being re-set while IsExpanded is still true after closing auto-opened dropdown
+
+**Flow for closing auto-opened dropdown:**
+1. `CloseDropdownOnElement()` calls `Hide()` on dropdown
+2. Sets `_wasInDropdownMode = false`
+3. Sets `_skipDropdownModeTracking = true`
+4. Calls `UIFocusTracker.SuppressDropdownModeEntry()`
+5. Next frames: `IsExpanded` may still be true, but flags prevent unwanted mode entry
+6. Once `IsExpanded` becomes false, `_skipDropdownModeTracking` is cleared
+
+**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`
+
+**Future Simplification Ideas:**
+- Query dropdown state less frequently (cache with short TTL)
+- Single unified "dropdown operation in progress" flag
+- Consider if all this complexity is needed or if simpler approach exists
+
 ## Potential Issues (Monitor)
 
 ### Card Info Navigation (Up/Down Arrows)

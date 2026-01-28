@@ -949,6 +949,10 @@ namespace AccessibleArena.Core.Services
         // Track if we were in dropdown mode last frame
         private bool _wasInDropdownMode;
 
+        // Skip dropdown mode tracking after closing an auto-opened dropdown
+        // (prevents _wasInDropdownMode from being re-set while IsExpanded is still true)
+        private bool _skipDropdownModeTracking;
+
         protected virtual void HandleInput()
         {
             // Check if we're in explicit edit mode (user activated field or game focused it)
@@ -1006,10 +1010,17 @@ namespace AccessibleArena.Core.Services
             bool inDropdownMode = UIFocusTracker.IsEditingDropdown();
             if (inDropdownMode)
             {
-                _wasInDropdownMode = true;
+                // Only track dropdown mode if we're not skipping (i.e., we didn't just close an auto-opened dropdown)
+                if (!_skipDropdownModeTracking)
+                {
+                    _wasInDropdownMode = true;
+                }
                 HandleDropdownNavigation();
                 return;
             }
+
+            // Clear the skip flag once dropdown is actually closed
+            _skipDropdownModeTracking = false;
 
             // If we just exited dropdown mode, sync our index to where focus went
             // This handles game's auto-advance (Month -> Day -> Year)
@@ -1402,6 +1413,7 @@ namespace AccessibleArena.Core.Services
                 UIFocusTracker.ExitDropdownEditMode();
                 UIFocusTracker.SuppressDropdownModeEntry();
                 _wasInDropdownMode = false;
+                _skipDropdownModeTracking = true; // Prevent _wasInDropdownMode from being re-set
             }
         }
 
@@ -1450,8 +1462,6 @@ namespace AccessibleArena.Core.Services
             string announcement = GetElementAnnouncement(_currentIndex);
             if (!string.IsNullOrEmpty(announcement))
             {
-                // Debug: Log call stack to trace duplicate announcements
-                MelonLogger.Msg($"[{NavigatorId}] AnnounceCurrentElement called: {announcement}");
                 _announcer.AnnounceInterrupt(announcement);
             }
         }

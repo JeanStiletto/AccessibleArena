@@ -2,9 +2,16 @@
 
 All notable changes to Accessible Arena.
 
-## v0.2.7 - 2026-01-27
+## v0.2.7 - 2026-01-28
 
 ### Bug Fixes
+- **Dropdown auto-open on navigation**: Fixed dropdowns auto-opening when navigating to them with arrow keys
+  - MTGA auto-opens dropdowns when they receive EventSystem selection
+  - Now uses actual `IsExpanded` property from dropdown components instead of focus-based assumptions
+  - Auto-opened dropdowns are immediately closed, user must press Enter to open
+  - Added multiple suppression flags to prevent double announcements and unwanted mode entry
+  - See Technical Debt section in KNOWN_ISSUES.md for details on the flag mechanics
+
 - **Dropdown closing**: Escape and Backspace now properly close dropdowns on login screens
   - Previously Escape triggered back navigation instead of closing the dropdown
   - Backspace now works as universal dismiss key for dropdowns
@@ -28,6 +35,12 @@ All notable changes to Accessible Arena.
   - Fixed double-navigation issue where game and mod both moved on Tab press
 
 ### Technical
+- `UIFocusTracker.IsAnyDropdownExpanded()` queries actual `IsExpanded` property via reflection
+- `UIFocusTracker.GetExpandedDropdown()` returns currently expanded dropdown for closing
+- `BaseNavigator.CloseDropdownOnElement()` closes auto-opened dropdowns and sets suppression flags
+- `BaseNavigator._skipDropdownModeTracking` prevents `_wasInDropdownMode` re-entry after auto-close
+- `UIFocusTracker._suppressNextFocusAnnouncement` prevents duplicate announcements
+- `UIFocusTracker._suppressDropdownModeEntry` prevents dropdown mode re-entry after auto-close
 - `BaseNavigator.HandleDropdownNavigation()` now intercepts Escape/Backspace and calls `CloseActiveDropdown()`
 - `CloseActiveDropdown()` finds parent TMP_Dropdown/Dropdown/cTMP_Dropdown and calls `Hide()`
 - `GetElementAnnouncement()` now handles legacy InputField and tries textComponent fallback
