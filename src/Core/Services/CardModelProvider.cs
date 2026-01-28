@@ -965,6 +965,85 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Search for other components that might have CardDatabase (Meta scenes)
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+                string typeName = type.Name;
+
+                // Look for components that might have CardDatabase
+                if (typeName.Contains("Card") || typeName.Contains("Wrapper") || typeName.Contains("Manager"))
+                {
+                    var cardDbProp = type.GetProperty("CardDatabase");
+                    if (cardDbProp != null)
+                    {
+                        try
+                        {
+                            var cardDb = cardDbProp.GetValue(mb);
+                            if (cardDb != null)
+                            {
+                                var cardDbType = cardDb.GetType();
+
+                                // Try GreLocProvider first
+                                var greLocProp = cardDbType.GetProperty("GreLocProvider");
+                                if (greLocProp != null)
+                                {
+                                    var greLocProvider = greLocProp.GetValue(cardDb);
+                                    if (greLocProvider != null)
+                                    {
+                                        var providerType = greLocProvider.GetType();
+                                        foreach (var m in providerType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                                        {
+                                            if (m.DeclaringType == typeof(object)) continue;
+                                            if (m.ReturnType == typeof(string) &&
+                                                (m.Name == "GetString" || m.Name == "GetText" || m.Name == "Get" || m.Name.Contains("Loc")))
+                                            {
+                                                var mParams = m.GetParameters();
+                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
+                                                {
+                                                    _flavorTextProvider = greLocProvider;
+                                                    _getFlavorTextMethod = m;
+                                                    MelonLogger.Msg($"[CardModelProvider] Using {typeName}.CardDatabase.GreLocProvider.{m.Name} for flavor text lookup");
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Try ClientLocProvider as fallback
+                                var clientLocProp = cardDbType.GetProperty("ClientLocProvider");
+                                if (clientLocProp != null)
+                                {
+                                    var clientLocProvider = clientLocProp.GetValue(cardDb);
+                                    if (clientLocProvider != null)
+                                    {
+                                        var providerType = clientLocProvider.GetType();
+                                        foreach (var m in providerType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+                                        {
+                                            if (m.DeclaringType == typeof(object)) continue;
+                                            if (m.ReturnType == typeof(string))
+                                            {
+                                                var mParams = m.GetParameters();
+                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
+                                                {
+                                                    _flavorTextProvider = clientLocProvider;
+                                                    _getFlavorTextMethod = m;
+                                                    MelonLogger.Msg($"[CardModelProvider] Using {typeName}.CardDatabase.ClientLocProvider.{m.Name} for flavor text lookup");
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+
             MelonLogger.Msg("[CardModelProvider] No flavor text provider found");
         }
 

@@ -258,21 +258,20 @@ The sync mechanism may not be detecting the correct state. Need to investigate:
 
 ### Deck Builder Collection Card Reading
 
-Collection cards (cards you can add to your deck) are now navigable but card info extraction is incomplete.
+Collection cards (cards you can add to your deck) are now navigable with most card info extraction working.
 
 **What's Working:**
 - **Navigation:** Arrow Left/Right navigates between collection cards
 - **Card Name:** Extracted from Model via GrpId → localization lookup
-- **Type Line:** Extracted from Model.Types
+- **Type Line:** Extracted from Model.Types (Supertypes + CardTypes + Subtypes)
 - **Power/Toughness:** Extracted from Model.Power/Model.Toughness
-- **Artist:** Extracted from Model.Artist
-
-**Partially Working:**
-- **Mana Cost:** Shows as "3 White" instead of "{3}{W}" - needs symbol formatting
+- **Mana Cost:** Shows as "1, White" format (readable for screen readers)
+- **Rules Text:** Extracted via AbilityTextProvider with mana symbols parsed (e.g., "{oT}" → "Tap")
+- **Artist:** Extracted from Model.Printing.ArtistCredit
 
 **Not Working:**
-- **Rules Text:** AbilityTextProvider not found in Meta scenes. Need to find the provider instance used by Meta canvases
-- **Flavor Text:** FlavorTextId lookup returns empty string. Different lookup mechanism than duels
+- **Flavor Text:** FlavorTextId lookup returns empty string despite valid IDs. GreLocProvider.GetLocalizedText() finds the provider but returns empty for all flavor text IDs.
+- **Virtualized Cards:** First ~4 cards in collection show "Unknown card" because they have GrpId = 0 (not yet loaded by game's virtualization system). Cards load when scrolled into view.
 
 **Technical Details:**
 - Collection cards use `PagesMetaCardView` component (similar to `BoosterMetaCardView`)
@@ -280,15 +279,12 @@ Collection cards (cards you can add to your deck) are now navigable but card inf
 - Card data accessed via `Meta_CDC` component (analogous to `DuelScene_CDC` in duels)
 - Meta_CDC found on CardView child object, not on PagesMetaCardView itself
 - CardModelProvider updated to search for Meta_CDC in children
-- Cards with GrpId = 0 are unloaded and show as "Unknown"
 
-**Where to Look:**
-- Rules Text: Find AbilityTextProvider instance in Meta assembly (try `AssetBundleAssetLoader` or `Meta_CardObjectVisual`)
-- Flavor Text: Check if Meta cards use different FlavorText property or lookup method
-- Mana Cost Symbols: Format ManaCost as MTG symbols like "{2}{B}{B}" instead of "4 Black"
+**Investigation Needed:**
+- Flavor Text: GreLocProvider returns empty for valid FlavorTextIds (e.g., 823572 for Giada). May need different provider or lookup method in Meta scenes.
 
 **Files:**
-- `CardModelProvider.cs` - `GetDuelSceneCDC()`, `ExtractCardInfoFromModel()`, `FindIdNameProvider()`
+- `CardModelProvider.cs` - `GetDuelSceneCDC()`, `ExtractCardInfoFromModel()`, `FindFlavorTextProvider()`
 - `GeneralMenuNavigator.cs` - `FindPoolHolderCards()`, `IsInCollectionCardContext()`
 - `CardDetector.cs` - `IsUILabelText()` filter for UI noise
 - `ElementGroupAssigner.cs` - `DeckBuilderCollection` group detection
