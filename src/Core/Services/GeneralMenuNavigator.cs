@@ -590,11 +590,18 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Activates the Next or Previous page button in the collection view.
+        /// After page switch, only newly visible cards will be shown (cards that weren't visible before).
         /// </summary>
         private bool ActivateCollectionPageButton(bool next)
         {
             string targetLabel = next ? "Next" : "Previous";
             LogDebug($"[{NavigatorId}] Looking for '{targetLabel}' page button...");
+
+            // Save current collection cards before page switch so we can filter to show only new cards
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                _groupedNavigator.SaveCollectionCardsForPageFilter();
+            }
 
             // Search through elements for the navigation button
             foreach (var element in _elements)
@@ -618,6 +625,11 @@ namespace AccessibleArena.Core.Services
                     if (result.Success)
                     {
                         _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
+                        // Request filter to show only new cards after rescan
+                        if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                        {
+                            _groupedNavigator.RequestCollectionPageFilter();
+                        }
                         // Rescan to refresh card list - group state will be restored automatically
                         TriggerRescan();
                         return true;
@@ -640,6 +652,11 @@ namespace AccessibleArena.Core.Services
                     if (result.Success)
                     {
                         _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
+                        // Request filter to show only new cards after rescan
+                        if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                        {
+                            _groupedNavigator.RequestCollectionPageFilter();
+                        }
                         // Rescan to refresh card list - group state will be restored automatically
                         TriggerRescan();
                         return true;
