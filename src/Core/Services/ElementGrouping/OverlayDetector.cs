@@ -39,9 +39,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_screenDetector.CheckSettingsMenuOpen())
                 return ElementGroup.SettingsMenu;
 
-            // 3. Social/Friends panel
+            // 3. Friends panel overlay
             if (_screenDetector.IsSocialPanelOpen())
-                return ElementGroup.Social;
+                return ElementGroup.FriendsPanel;
 
             // 4. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
             if (PanelStateManager.Instance?.IsPlayBladeActive == true)
@@ -82,7 +82,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 ElementGroup.Popup => IsInsidePopup(obj),
                 ElementGroup.SettingsMenu => IsInsideSettingsMenu(obj),
-                ElementGroup.Social => IsInsideSocialPanel(obj),
+                ElementGroup.FriendsPanel => IsInsideSocialPanel(obj),
                 ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
                 ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),

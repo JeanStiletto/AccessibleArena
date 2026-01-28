@@ -26,6 +26,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             string name = element.name;
             string parentPath = GetParentPath(element);
 
+            // 0. Filter out Nav_Home (Startseite) - it's a back button handled by Backspace
+            if (name == "Nav_Home")
+                return ElementGroup.Unknown;
+
             // 1. Check overlay groups first (highest priority)
             var overlayGroup = DetermineOverlayGroup(element, name, parentPath);
             if (overlayGroup != ElementGroup.Unknown)
@@ -39,14 +43,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (IsProgressElement(name, parentPath))
                 return ElementGroup.Progress;
 
-            // 4. Check for Primary actions (main CTA buttons, but not Play button)
+            // 4. Check for Social elements (profile, achievements, mail)
+            if (IsSocialElement(name, parentPath))
+                return ElementGroup.Social;
+
+            // 5. Check for Primary actions (main CTA buttons, but not Play button)
             // Primary elements are shown as standalone items at group level
             if (IsPrimaryAction(element, name, parentPath))
                 return ElementGroup.Primary;
-
-            // 5. Check for Navigation elements
-            if (IsNavigationElement(name, parentPath))
-                return ElementGroup.Navigation;
 
             // 6. Check for Filter controls
             if (IsFilterElement(name, parentPath))
@@ -80,10 +84,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 (parentPath.Contains("Popup") && !parentPath.Contains("Screenspace Popups")))
                 return ElementGroup.Popup;
 
-            // Social/Friends panel
+            // Friends panel overlay
             if (parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
                 parentPath.Contains("SocialPanel"))
-                return ElementGroup.Social;
+                return ElementGroup.FriendsPanel;
 
             // Play blade - distinguish tabs from content
             if (IsInsidePlayBlade(parentPath, name))
@@ -159,10 +163,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Check if element is a Progress-related element (boosters, mastery, gems, gold, wildcards).
+        /// Check if element is a Progress-related element (boosters, mastery, gems, gold, wildcards, tokens).
         /// </summary>
         private bool IsProgressElement(string name, string parentPath)
         {
+            // Token controller (event tokens, draft tokens, etc.)
+            if (name.Contains("NavTokenController") || name.Contains("Nav_Token"))
+                return true;
+
             // Booster/Pack elements
             if (name.Contains("Booster") || name.Contains("Pack"))
                 return true;
@@ -196,6 +204,31 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Check if element is a Social element (profile, achievements, mail/notifications).
+        /// These are the social-related buttons on the home screen.
+        /// </summary>
+        private bool IsSocialElement(string name, string parentPath)
+        {
+            // Profile button
+            if (name.Contains("Profile") || name.Contains("Avatar"))
+                return true;
+
+            // Achievements
+            if (name.Contains("Achievement"))
+                return true;
+
+            // Mail/Notifications (the numbered entry)
+            if (name.Contains("Mail") || name.Contains("Notification") || name.Contains("Inbox"))
+                return true;
+
+            // Friends button (opens friends panel)
+            if (name.Contains("Friends") && name.Contains("Button"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
         /// Check if element is a primary action button (main CTA, but not Play button).
         /// </summary>
         private bool IsPrimaryAction(GameObject element, string name, string parentPath)
@@ -212,31 +245,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // New Deck button in Decks screen
             if (name.Contains("NewDeck") || name.Contains("CreateDeck"))
-                return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check if element is a navigation element.
-        /// </summary>
-        private bool IsNavigationElement(string name, string parentPath)
-        {
-            // NavBar elements
-            if (parentPath.Contains("NavBar") || name.StartsWith("Nav_") || name.Contains("NavItem"))
-                return true;
-
-            // Tabs and page selectors
-            if (parentPath.Contains("ContentPageSelector") || parentPath.Contains("TabBar") ||
-                name.Contains("Tab_") || name.Contains("_Tab"))
-                return true;
-
-            // Back buttons
-            if (name.Contains("Back") && name.Contains("Button") && !name.Contains("Backer"))
-                return true;
-
-            // Format selector tabs (Standard, Historic, etc.)
-            if (parentPath.Contains("FormatSelector") || name.Contains("Format_"))
                 return true;
 
             return false;
@@ -300,6 +308,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
         /// <summary>
         /// Check if element is a secondary action.
+        /// Note: Profile, Mail, Achievements moved to Social group.
         /// </summary>
         private bool IsSecondaryAction(string name, string parentPath)
         {
@@ -313,16 +322,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Info buttons
             if (name.Contains("Info") && name.Contains("Button"))
-                return true;
-
-            // Note: DirectChallenge moved to Play group
-
-            // Profile/Avatar buttons
-            if (name.Contains("Profile") || name.Contains("Avatar"))
-                return true;
-
-            // Mail/Notifications
-            if (name.Contains("Mail") || name.Contains("Notification"))
                 return true;
 
             // Options button

@@ -30,9 +30,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         Progress,
 
         /// <summary>
-        /// Navigation elements: Nav bar items, tabs, back buttons.
+        /// Social elements on home screen: Profile, Achievements, Mail/Notifications.
         /// </summary>
-        Navigation,
+        Social,
 
         /// <summary>
         /// Filter controls: Search fields, sort options, filter toggles, mana color filters.
@@ -64,9 +64,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         Popup,
 
         /// <summary>
-        /// Social/Friends panel elements. Suppresses all other groups when active.
+        /// Friends panel overlay elements. Suppresses all other groups when active.
         /// </summary>
-        Social,
+        FriendsPanel,
 
         /// <summary>
         /// Play blade tabs (Events, Find Match, Recent). Shown first when PlayBlade is active.
@@ -111,7 +111,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public static bool IsOverlay(this ElementGroup group)
         {
             return group == ElementGroup.Popup
-                || group == ElementGroup.Social
+                || group == ElementGroup.FriendsPanel
                 || group == ElementGroup.PlayBladeTabs
                 || group == ElementGroup.PlayBladeContent
                 || group == ElementGroup.PlayBladeFolders
@@ -130,13 +130,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.Primary: return "Primary Actions";
                 case ElementGroup.Play: return "Play";
                 case ElementGroup.Progress: return "Progress";
-                case ElementGroup.Navigation: return "Navigation";
+                case ElementGroup.Social: return "Social";
                 case ElementGroup.Filters: return "Filters";
                 case ElementGroup.Content: return "Content";
                 case ElementGroup.Settings: return "Settings";
                 case ElementGroup.Secondary: return "Secondary Actions";
                 case ElementGroup.Popup: return "Dialog";
-                case ElementGroup.Social: return "Social";
+                case ElementGroup.FriendsPanel: return "Friends";
                 case ElementGroup.PlayBladeTabs: return "Tabs";
                 case ElementGroup.PlayBladeContent: return "Play Options";
                 case ElementGroup.PlayBladeFolders: return "Folders";

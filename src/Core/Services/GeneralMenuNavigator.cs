@@ -626,7 +626,7 @@ namespace AccessibleArena.Core.Services
                 return activeOverlay switch
                 {
                     ElementGroup.Popup => DismissPopup(),
-                    ElementGroup.Social => CloseSocialPanel(),
+                    ElementGroup.FriendsPanel => CloseSocialPanel(),
                     ElementGroup.PlayBladeTabs => HandlePlayBladeBackspace(),
                     ElementGroup.PlayBladeContent => HandlePlayBladeBackspace(),
                     ElementGroup.NPE => HandleNPEBack(),
