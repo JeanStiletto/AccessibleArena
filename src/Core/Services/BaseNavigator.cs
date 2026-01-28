@@ -464,11 +464,13 @@ namespace AccessibleArena.Core.Services
             {
                 _editingInputField = null;
                 UIFocusTracker.ExitInputFieldEditMode();
-                // MTGA already moved focus to the new field - sync to it instead of moving
-                // (our _currentIndex may not match the actual focused element)
-                // Must sync BEFORE deactivating since deactivate clears EventSystem selection
-                SyncIndexToFocusedElement();
                 UIFocusTracker.DeactivateFocusedInputField();
+                // Tab is blocked from MTGA, so our _currentIndex is correct - just use MoveNext
+                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                if (shiftTab)
+                    MovePrevious();
+                else
+                    MoveNext();
                 return;
             }
 
@@ -610,6 +612,28 @@ namespace AccessibleArena.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] Could not sync to focused element: {focusedName}");
+        }
+
+        /// <summary>
+        /// Sync the navigator's index to a specific element (without announcing).
+        /// Used before MoveNext/MovePrevious to ensure _currentIndex is correct.
+        /// </summary>
+        private void SyncIndexToElement(GameObject element)
+        {
+            if (element == null) return;
+
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].GameObject == element)
+                {
+                    if (_currentIndex != i)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Synced index {_currentIndex} -> {i} ({element.name})");
+                        _currentIndex = i;
+                    }
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -986,10 +1010,14 @@ namespace AccessibleArena.Core.Services
                 }
                 if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
                 {
-                    // MTGA already moved focus to the new field - sync to it instead of moving
-                    // (our _currentIndex may not match the actual focused element)
-                    SyncIndexToFocusedElement();
+                    // User arrived here via arrow keys (we deactivated auto-focus), so _currentIndex is correct.
+                    // Use our navigation order (which includes all elements) instead of syncing to MTGA's focus.
                     UIFocusTracker.DeactivateFocusedInputField();
+                    bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    if (shiftTab)
+                        MovePrevious();
+                    else
+                        MoveNext();
                     return;
                 }
                 // Let other keys pass through (typing will focus the field)

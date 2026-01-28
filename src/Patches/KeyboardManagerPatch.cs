@@ -74,7 +74,11 @@ namespace AccessibleArena.Patches
                 {
                     return true; // Block Escape so game doesn't close menu
                 }
-                // For input fields, let typing keys through
+                if (key == KeyCode.Tab)
+                {
+                    return true; // Block Tab so game doesn't move focus - our mod handles Tab navigation
+                }
+                // For input fields, let other typing keys through
                 if (UIFocusTracker.IsAnyInputFieldFocused() || UIFocusTracker.IsEditingInputField())
                 {
                     return false;
