@@ -116,6 +116,96 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{tag}]   {path}");
             MelonLogger.Msg($"[{tag}]     Text: '{text}' | HasActualText: {hasActualText} | HasImage: {hasImage} | HasTextChild: {hasTextChild}{sizeInfo}{spriteInfo}");
             MelonLogger.Msg($"[{tag}]     Components: {components}");
+
+            // Log TooltipTrigger details if present
+            foreach (var comp in obj.GetComponents<MonoBehaviour>())
+            {
+                if (comp != null && comp.GetType().Name == "TooltipTrigger")
+                {
+                    LogTooltipTriggerDetails(tag, comp);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Logs all fields and properties of a TooltipTrigger component for debugging.
+        /// </summary>
+        private static void LogTooltipTriggerDetails(string tag, MonoBehaviour tooltipTrigger)
+        {
+            if (tooltipTrigger == null) return;
+
+            var type = tooltipTrigger.GetType();
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            MelonLogger.Msg($"[{tag}]     === TooltipTrigger Details ===");
+
+            // Log all fields
+            foreach (var field in type.GetFields(flags))
+            {
+                try
+                {
+                    var val = field.GetValue(tooltipTrigger);
+                    string valStr = FormatValueForLog(val);
+                    MelonLogger.Msg($"[{tag}]       Field: {field.Name} ({field.FieldType.Name}) = {valStr}");
+                }
+                catch (System.Exception ex)
+                {
+                    MelonLogger.Msg($"[{tag}]       Field: {field.Name} = <error: {ex.Message}>");
+                }
+            }
+
+            // Log all properties
+            foreach (var prop in type.GetProperties(flags))
+            {
+                if (!prop.CanRead) continue;
+                // Skip indexer properties
+                if (prop.GetIndexParameters().Length > 0) continue;
+
+                try
+                {
+                    var val = prop.GetValue(tooltipTrigger);
+                    string valStr = FormatValueForLog(val);
+                    MelonLogger.Msg($"[{tag}]       Property: {prop.Name} ({prop.PropertyType.Name}) = {valStr}");
+                }
+                catch (System.Exception ex)
+                {
+                    MelonLogger.Msg($"[{tag}]       Property: {prop.Name} = <error: {ex.Message}>");
+                }
+            }
+
+            MelonLogger.Msg($"[{tag}]     === End TooltipTrigger ===");
+        }
+
+        /// <summary>
+        /// Formats a value for logging, handling various types appropriately.
+        /// </summary>
+        private static string FormatValueForLog(object val)
+        {
+            if (val == null)
+                return "null";
+
+            if (val is string strVal)
+                return $"\"{strVal}\"";
+
+            if (val is bool || val is int || val is float || val is double || val is System.Enum)
+                return val.ToString();
+
+            if (val is UnityEngine.Object unityObj)
+            {
+                if (unityObj == null) return "null (destroyed)";
+                return $"<{val.GetType().Name}: {unityObj.name}>";
+            }
+
+            // For collections, show count
+            if (val is System.Collections.ICollection collection)
+                return $"<{val.GetType().Name}, Count={collection.Count}>";
+
+            // For other types, show type name and try ToString
+            string str = val.ToString();
+            if (str.Length > 100)
+                str = str.Substring(0, 100) + "...";
+            return $"<{val.GetType().Name}>: {str}";
         }
 
         private static void LogEventTriggers(string tag)

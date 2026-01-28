@@ -95,6 +95,7 @@ namespace AccessibleArena
                 new OverlayNavigator(_announcer),
                 new SettingsMenuNavigator(_announcer),  // Settings menu - works everywhere including duels (priority 90)
                 new BoosterOpenNavigator(_announcer),  // Pack opening card list (priority 80)
+                new NPERewardNavigator(_announcer),    // NPE reward screen - card unlocked (priority 75)
                 // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),
                 // CodeOfConductNavigator removed - default navigation handles this screen

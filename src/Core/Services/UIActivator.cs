@@ -185,6 +185,11 @@ namespace AccessibleArena.Core.Services
             bool hasCustomButton = HasCustomButtonComponent(element);
             if (hasCustomButton)
             {
+                // Special handling for NPE reward claim button - onClick listener is broken
+                // Must invoke OnClaimClicked_Unity on NPEContentControllerRewards instead
+                if (TryInvokeNPERewardClaim(element, out var npeResult))
+                    return npeResult;
+
                 // Special handling for UpdatePoliciesPanel - the button's onClick has broken listener reference
                 // so we invoke OnAccept directly on the panel controller
                 if (TryInvokeUpdatePoliciesAccept(element, out var acceptResult))
@@ -565,6 +570,76 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Special handling for NPE reward claim button (NullClaimButton).
+        /// The button's onClick listener is broken - we need to invoke OnClaimClicked_Unity
+        /// on the NPEContentControllerRewards component directly.
+        /// </summary>
+        private static bool TryInvokeNPERewardClaim(GameObject element, out ActivationResult result)
+        {
+            result = default;
+
+            // Only handle NullClaimButton
+            if (element.name != "NullClaimButton")
+                return false;
+
+            // Verify we're inside NPE-Rewards_Container
+            bool insideNPE = false;
+            var current = element.transform.parent;
+            while (current != null)
+            {
+                if (current.name == "NPE-Rewards_Container")
+                {
+                    insideNPE = true;
+                    break;
+                }
+                current = current.parent;
+            }
+
+            if (!insideNPE)
+                return false;
+
+            Log($"NullClaimButton detected in NPE rewards, looking for NPEContentControllerRewards");
+
+            // Find NPEContentControllerRewards component
+            foreach (var behaviour in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (behaviour == null) continue;
+                if (behaviour.GetType().Name != "NPEContentControllerRewards") continue;
+
+                Log($"Found NPEContentControllerRewards on: {behaviour.gameObject.name}");
+
+                // Invoke OnClaimClicked_Unity
+                var type = behaviour.GetType();
+                var method = type.GetMethod("OnClaimClicked_Unity",
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                if (method != null)
+                {
+                    try
+                    {
+                        Log($"Invoking NPEContentControllerRewards.OnClaimClicked_Unity()");
+                        method.Invoke(behaviour, null);
+                        result = new ActivationResult(true, "Reward claimed", ActivationType.Button);
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log($"OnClaimClicked_Unity error: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+                else
+                {
+                    Log($"OnClaimClicked_Unity method not found on NPEContentControllerRewards");
+                }
+            }
+
+            Log($"NPEContentControllerRewards not found, falling back to standard activation");
+            return false;
+        }
 
         /// <summary>
         /// Special handling for UpdatePoliciesPanel - the button's onClick listener has a broken/null target reference.

@@ -361,6 +361,35 @@ DeckView_Base(Clone)
 **EventTrigger** - Special interactive elements (including "Return to Arena")
 **StyledButton** - Prompt buttons in duel screens (Continue, Cancel)
 
+## TooltipTrigger Component
+
+Many UI elements have a `TooltipTrigger` component that displays hover tooltips.
+
+### Key Fields
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `LocString` | LocalizedString | **The tooltip text** (localized) |
+| `TooltipData` | TooltipData | Additional tooltip configuration |
+| `TooltipProperties` | TooltipProperties | Display settings |
+| `tooltipContext` | TooltipContext | Context type (usually "Default") |
+| `IsActive` | Boolean | Whether tooltip is currently active |
+| `_clickThrough` | Boolean | Click behavior setting |
+
+### Usage Examples
+
+From observed elements:
+- **Options_Button**: `LocString = "Optionen anpassen"` (Adjust options)
+- **Nav_Settings**: `LocString = "Optionen anpassen"` (Adjust options)
+- **MainButton** (Play): `LocString = ""` (empty - no tooltip)
+
+### Notes
+
+- Tooltip text is stored in `LocString` field as a LocalizedString
+- The longer contextual text sometimes seen (e.g., "Complete tutorial to unlock 5 decks") comes from **sibling text elements**, not the TooltipTrigger itself
+- TooltipTrigger implements IPointerClickHandler but should be excluded from activation logic (it just shows tooltips)
+- Currently not extracted for accessibility announcements as existing text extraction is sufficient
+
 ## Native Keybinds
 
 MTGA uses Unity's Input System with `Core.Code.Input.Generated.MTGAInput` class.

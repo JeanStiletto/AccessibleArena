@@ -1091,6 +1091,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool ShouldShowElement(GameObject obj)
         {
+            // Exclude Options_Button globally - it's the settings gear icon, always reachable via Escape
+            if (obj.name == "Options_Button")
+                return false;
+
             // Check if an overlay is active using the new OverlayDetector
             var activeOverlay = _overlayDetector.GetActiveOverlay();
 
