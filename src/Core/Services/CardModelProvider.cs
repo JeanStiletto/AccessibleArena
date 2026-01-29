@@ -2736,6 +2736,32 @@ namespace AccessibleArena.Core.Services
         private static int _cachedDeckListFrame = -1;
 
         /// <summary>
+        /// Clears the deck list card cache, forcing a fresh lookup on next call.
+        /// Call this when entering the DeckBuilderDeckList group to ensure fresh data.
+        /// </summary>
+        public static void ClearDeckListCache()
+        {
+            _cachedDeckListCards.Clear();
+            _cachedDeckHolder = null;
+            _cachedDeckListFrame = -1;
+        }
+
+        /// <summary>
+        /// Gets the full hierarchy path of a transform for debugging.
+        /// </summary>
+        private static string GetTransformPath(Transform t)
+        {
+            if (t == null) return "null";
+            var path = t.name;
+            while (t.parent != null)
+            {
+                t = t.parent;
+                path = t.name + "/" + path;
+            }
+            return path;
+        }
+
+        /// <summary>
         /// Gets all cards from the MainDeck_MetaCardHolder with their GrpIds and quantities.
         /// Uses caching to avoid repeated reflection calls within the same frame.
         /// </summary>
@@ -2751,10 +2777,29 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Find MainDeck_MetaCardHolder
+                // Note: GameObject.Find only finds active objects, but the deck holder may be inactive
+                // when entering deck builder without a popup dialog. In that case, we search for it
+                // including inactive objects and activate it.
                 var deckHolder = GameObject.Find("MainDeck_MetaCardHolder");
                 if (deckHolder == null)
                 {
-                    return _cachedDeckListCards;
+                    // Search for inactive holder
+                    var allTransforms = GameObject.FindObjectsOfType<Transform>(true);
+                    foreach (var t in allTransforms)
+                    {
+                        if (t.name == "MainDeck_MetaCardHolder")
+                        {
+                            deckHolder = t.gameObject;
+                            // Activate the holder so we can access its components
+                            deckHolder.SetActive(true);
+                            break;
+                        }
+                    }
+
+                    if (deckHolder == null)
+                    {
+                        return _cachedDeckListCards;
+                    }
                 }
 
                 _cachedDeckHolder = deckHolder;

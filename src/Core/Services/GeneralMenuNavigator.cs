@@ -2685,6 +2685,15 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Normal group - enter it
+                // Special handling for DeckBuilderDeckList: refresh deck cards immediately while UI is active
+                if (currentGroup.HasValue && currentGroup.Value.Group == ElementGroup.DeckBuilderDeckList)
+                {
+                    CardModelProvider.ClearDeckListCache();
+                    // Force immediate refresh while UI is in active state
+                    var deckCards = CardModelProvider.GetDeckListCards();
+                    MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList - refreshed {deckCards.Count} deck cards");
+                }
+
                 if (_groupedNavigator.EnterGroup())
                 {
                     _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
