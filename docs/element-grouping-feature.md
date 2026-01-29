@@ -100,10 +100,15 @@ When UI changes trigger a rescan (e.g., page navigation in collection), the grou
 **Key Fields:**
 - `_pendingGroupRestore` - ElementGroup to restore
 - `_pendingLevelRestore` - NavigationLevel to restore
+- `_pendingElementIndexRestore` - Element index within group to restore
 
 **Used by:**
 - Page Up/Down in collection - changes page without losing position in Collection group
+- Deck builder card activation - preserves position when adding/removing cards
 - Any rescan that should preserve user's current group context
+
+**PlayBlade Exception:**
+Group restore is **skipped in PlayBlade context** to prevent interference with the auto-entry system. PlayBlade uses its own navigation flow via `_pendingPlayBladeTabsEntry`, `_pendingPlayBladeContentEntry`, etc. If group restore ran in PlayBlade, it would overwrite these auto-entries with stale state.
 
 ### Subgroups (Nested Groups)
 
@@ -193,6 +198,16 @@ This streamlines the workflow - user just navigates to a deck and presses Enter 
 - Mode selection (Ranked/Play/Brawl) doesn't trigger panel changes, so manual rescan needed
 - Backspace behavior differs from normal groups (hierarchical: folder→folders→content→tabs→close)
 - Folder groups need to be presented as a list in PlayBlade, not as individual top-level groups
+- Group restore must be skipped in PlayBlade context to prevent overwriting auto-entries
+
+**Blade Close/Open Cycles:**
+When activating a tab (e.g., "Find Match"), the blade briefly closes and reopens. During this:
+1. `RequestPlayBladeContentEntry()` sets `_pendingPlayBladeContentEntry = true`
+2. Blade closes → `SetPlayBladeContext(false)` clears group restore state but **preserves auto-entry flags**
+3. Blade reopens → auto-entry flag is still set
+4. After rescan → user is auto-entered into Content group as intended
+
+The auto-entry flags (`_pendingPlayBladeContentEntry`, `_pendingFoldersEntry`, etc.) are intentionally NOT cleared on blade close to support this workflow.
 
 ---
 

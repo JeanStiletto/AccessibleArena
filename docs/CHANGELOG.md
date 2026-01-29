@@ -78,6 +78,11 @@ All notable changes to Accessible Arena.
 - Fixed "countered" vs "resolved" detection for spells
 - Fixed combat state display during Declare Attackers/Blockers
 
+#### PlayBlade Navigation
+- Fixed group restore overwriting PlayBlade auto-entries after tab activation
+- Tab→Content→Folders hierarchy now works correctly during blade close/open cycles
+- Group restore skipped in PlayBlade context to prevent interference with navigation flow
+
 ### Technical
 - Exclude Options_Button from navigation (accessible via Escape)
 - Add TooltipTrigger debug logging for future tooltip support

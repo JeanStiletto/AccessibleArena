@@ -435,7 +435,22 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void SetPlayBladeContext(bool isActive)
         {
             _isPlayBladeContext = isActive;
-            MelonLogger.Msg($"[GroupedNavigator] PlayBlade context set to: {isActive}");
+
+            // When blade closes, clear stale restore state but NOT the auto-entry flags
+            // The auto-entry flags (content, folders, etc.) may have just been set by a tab/mode activation
+            // and are needed for the brief close/open cycle that happens during tab switching
+            if (!isActive)
+            {
+                // Only clear the group restore - it causes stale state to overwrite auto-entries
+                _pendingGroupRestore = null;
+                _pendingLevelRestore = NavigationLevel.GroupList;
+                _pendingElementIndexRestore = -1;
+                MelonLogger.Msg($"[GroupedNavigator] PlayBlade context set to: {isActive} - cleared group restore");
+            }
+            else
+            {
+                MelonLogger.Msg($"[GroupedNavigator] PlayBlade context set to: {isActive}");
+            }
         }
 
         /// <summary>
@@ -877,51 +892,63 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
 
             // Check for pending group restore (set by SaveCurrentGroupForRestore before rescan)
-            // This runs after specific auto-enters (PlayBlade, folders) but should override the default _currentGroupIndex = 0
+            // Skip group restore in PlayBlade context - PlayBlade has its own navigation logic via auto-entries
+            // Restoring old state would interfere with the intended PlayBlade navigation flow
             if (_pendingGroupRestore.HasValue)
             {
-                var groupToRestore = _pendingGroupRestore.Value;
-                var levelToRestore = _pendingLevelRestore;
-                var elementIndexToRestore = _pendingElementIndexRestore;
-                _pendingGroupRestore = null;
-                _pendingLevelRestore = NavigationLevel.GroupList;
-                _pendingElementIndexRestore = -1;
-
-                // Find the group by type
-                bool found = false;
-                for (int i = 0; i < _groups.Count; i++)
+                if (_isPlayBladeContext)
                 {
-                    if (_groups[i].Group == groupToRestore)
+                    // Clear stale restore state - PlayBlade uses auto-entries instead
+                    MelonLogger.Msg($"[GroupedNavigator] Skipping group restore in PlayBlade context (was: {_pendingGroupRestore.Value})");
+                    _pendingGroupRestore = null;
+                    _pendingLevelRestore = NavigationLevel.GroupList;
+                    _pendingElementIndexRestore = -1;
+                }
+                else
+                {
+                    var groupToRestore = _pendingGroupRestore.Value;
+                    var levelToRestore = _pendingLevelRestore;
+                    var elementIndexToRestore = _pendingElementIndexRestore;
+                    _pendingGroupRestore = null;
+                    _pendingLevelRestore = NavigationLevel.GroupList;
+                    _pendingElementIndexRestore = -1;
+
+                    // Find the group by type
+                    bool found = false;
+                    for (int i = 0; i < _groups.Count; i++)
                     {
-                        _currentGroupIndex = i;
-                        found = true;
-                        if (levelToRestore == NavigationLevel.InsideGroup)
+                        if (_groups[i].Group == groupToRestore)
                         {
-                            _navigationLevel = NavigationLevel.InsideGroup;
-                            // Restore element index, clamped to valid range (in case group shrunk)
-                            int maxIndex = _groups[i].Count - 1;
-                            if (elementIndexToRestore >= 0 && maxIndex >= 0)
+                            _currentGroupIndex = i;
+                            found = true;
+                            if (levelToRestore == NavigationLevel.InsideGroup)
                             {
-                                _currentElementIndex = Math.Min(elementIndexToRestore, maxIndex);
+                                _navigationLevel = NavigationLevel.InsideGroup;
+                                // Restore element index, clamped to valid range (in case group shrunk)
+                                int maxIndex = _groups[i].Count - 1;
+                                if (elementIndexToRestore >= 0 && maxIndex >= 0)
+                                {
+                                    _currentElementIndex = Math.Min(elementIndexToRestore, maxIndex);
+                                }
+                                else
+                                {
+                                    _currentElementIndex = 0;
+                                }
+                                MelonLogger.Msg($"[GroupedNavigator] Restored into group '{_groups[i].DisplayName}' at index {_currentElementIndex} (requested {elementIndexToRestore}, max {maxIndex})");
                             }
                             else
                             {
-                                _currentElementIndex = 0;
+                                _navigationLevel = NavigationLevel.GroupList;
+                                MelonLogger.Msg($"[GroupedNavigator] Restored to group list at '{_groups[i].DisplayName}'");
                             }
-                            MelonLogger.Msg($"[GroupedNavigator] Restored into group '{_groups[i].DisplayName}' at index {_currentElementIndex} (requested {elementIndexToRestore}, max {maxIndex})");
+                            break;
                         }
-                        else
-                        {
-                            _navigationLevel = NavigationLevel.GroupList;
-                            MelonLogger.Msg($"[GroupedNavigator] Restored to group list at '{_groups[i].DisplayName}'");
-                        }
-                        break;
                     }
-                }
 
-                if (!found)
-                {
-                    MelonLogger.Msg($"[GroupedNavigator] Could not restore group {groupToRestore} - not found after rescan");
+                    if (!found)
+                    {
+                        MelonLogger.Msg($"[GroupedNavigator] Could not restore group {groupToRestore} - not found after rescan");
+                    }
                 }
             }
 
