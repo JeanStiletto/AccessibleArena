@@ -784,6 +784,139 @@ namespace AccessibleArena.Core.Services
             return text.Trim();
         }
 
+        /// <summary>
+        /// Extracts the body text from a popup/dialog (SystemMessageView).
+        /// Searches for text content in the MessageArea/Scroll View hierarchy.
+        /// </summary>
+        /// <param name="popupGameObject">The popup root GameObject (e.g., SystemMessageView_Desktop_16x9(Clone))</param>
+        /// <returns>The popup body text, or null if not found</returns>
+        public static string GetPopupBodyText(GameObject popupGameObject)
+        {
+            if (popupGameObject == null)
+                return null;
+
+            // Search paths for the message content (in priority order)
+            string[] searchPaths = new[]
+            {
+                "SystemMessageView_OK_Cancel/MessageArea/Scroll View/Viewport/Content",
+                "SystemMessageView_OK/MessageArea/Scroll View/Viewport/Content",
+                "MessageArea/Scroll View/Viewport/Content",
+                "MessageArea/Content",
+                "Content"
+            };
+
+            Transform contentTransform = null;
+
+            foreach (var path in searchPaths)
+            {
+                contentTransform = popupGameObject.transform.Find(path);
+                if (contentTransform != null)
+                    break;
+            }
+
+            // If exact path not found, search recursively for MessageArea
+            if (contentTransform == null)
+            {
+                contentTransform = FindChildRecursive(popupGameObject.transform, "MessageArea");
+                if (contentTransform != null)
+                {
+                    // Look for text within MessageArea
+                    var msgAreaText = contentTransform.GetComponentInChildren<TMP_Text>(true);
+                    if (msgAreaText != null)
+                    {
+                        string text = CleanText(msgAreaText.text);
+                        if (!string.IsNullOrWhiteSpace(text))
+                            return text;
+                    }
+                }
+            }
+
+            // Try to get text from the content transform
+            if (contentTransform != null)
+            {
+                // Get all TMP_Text components and concatenate meaningful text
+                var texts = contentTransform.GetComponentsInChildren<TMP_Text>(true);
+                var bodyParts = new System.Collections.Generic.List<string>();
+
+                foreach (var tmpText in texts)
+                {
+                    if (tmpText == null) continue;
+
+                    string text = CleanText(tmpText.text);
+
+                    // Skip empty, single-char, or button-like text
+                    if (string.IsNullOrWhiteSpace(text) || text.Length <= 1)
+                        continue;
+
+                    // Skip if it looks like a button label (common button texts)
+                    string lower = text.ToLowerInvariant();
+                    if (lower == "ok" || lower == "cancel" || lower == "yes" || lower == "no" ||
+                        lower == "accept" || lower == "decline" || lower == "close" ||
+                        lower == "weiterbearbeiten" || lower == "deck verwerfen" || lower == "abbrechen")
+                        continue;
+
+                    bodyParts.Add(text);
+                }
+
+                if (bodyParts.Count > 0)
+                {
+                    return string.Join(" ", bodyParts);
+                }
+            }
+
+            // Fallback: search for any TMP_Text in popup that's not in ButtonLayout
+            var allTexts = popupGameObject.GetComponentsInChildren<TMP_Text>(true);
+            foreach (var tmpText in allTexts)
+            {
+                if (tmpText == null) continue;
+
+                // Skip text inside button containers
+                if (IsInsideButtonContainer(tmpText.transform))
+                    continue;
+
+                string text = CleanText(tmpText.text);
+
+                // Must be substantial text (likely the message body)
+                if (!string.IsNullOrWhiteSpace(text) && text.Length > 10)
+                    return text;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds a child transform by name recursively.
+        /// </summary>
+        private static Transform FindChildRecursive(Transform parent, string name)
+        {
+            foreach (Transform child in parent)
+            {
+                if (child.name.Contains(name))
+                    return child;
+
+                var found = FindChildRecursive(child, name);
+                if (found != null)
+                    return found;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if a transform is inside a button container.
+        /// </summary>
+        private static bool IsInsideButtonContainer(Transform transform)
+        {
+            Transform current = transform;
+            while (current != null)
+            {
+                string name = current.name.ToLowerInvariant();
+                if (name.Contains("button") || name.Contains("btn"))
+                    return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
         private static string CleanObjectName(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
