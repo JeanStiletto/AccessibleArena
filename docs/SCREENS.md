@@ -160,15 +160,21 @@ The Deck Builder screen allows editing deck contents with access to the card col
 **Collection Card Navigation (DeckBuilderCollection):**
 - Left/Right arrows: Navigate between cards in collection grid
 - Up/Down arrows: Read card details (name, mana cost, type, rules text, etc.)
-- Enter: Add card to deck (activates the card)
+- Enter: Add one copy of the card to deck (invokes OnAddClicked action)
 - Home/End: Jump to first/last card
 - Page Up/Down: Navigate collection pages (shows only new cards)
 
 **Deck List Navigation (DeckBuilderDeckList):**
 - Left/Right arrows: Navigate between cards in deck list
 - Up/Down arrows: Read card details (shows Quantity after Name)
-- Enter: Remove card from deck (activates the card)
+- Enter: Remove one copy of the card from deck (click event removes one copy)
 - Home/End: Jump to first/last card
+
+**Card Add/Remove Behavior:**
+- Adding a card from collection increases its quantity in deck (or adds new entry)
+- Removing a card from deck decreases its quantity (or removes entry when qty reaches 0)
+- After add/remove, UI rescans to update both collection and deck list
+- Position is preserved within the current group (stays on same card index or nearest valid)
 
 **Card Info Reading:**
 When focused on a card, Up/Down arrows cycle through card information blocks:
@@ -189,6 +195,13 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 - Tab cycling skips standalone elements, only cycles between actual groups
 - Page navigation filters to show only newly visible cards (not entire 24-card page)
 
+**Card Activation Implementation:**
+- Collection cards (`PagesMetaCardView`): Bypasses CardInfoNavigator on Enter, invokes `OnAddClicked` action via reflection
+- Deck list cards (`CustomButton - Tile`): Uses pointer simulation only (not both pointer + onClick to avoid double removal)
+- After activation, triggers UI rescan via `OnDeckBuilderCardActivated()` callback
+- `GroupedNavigator.SaveCurrentGroupForRestore()` preserves group AND element index within group
+- Position restoration clamps to valid range if group shrunk (e.g., last card removed)
+
 **MainDeck_MetaCardHolder Activation:**
 The `MainDeck_MetaCardHolder` GameObject (which contains deck list cards) may be inactive when entering the deck builder without a popup dialog appearing first. `GameObject.Find()` only finds active objects, so the holder would not be found.
 
@@ -201,8 +214,8 @@ The fix in `CardModelProvider.GetDeckListCards()`:
 This ensures deck list cards are always accessible regardless of the holder's initial active state.
 
 **Known Limitations:**
-- Deck list card info currently only shows Name and Quantity (GrpId lookup not returning full data)
 - Quantity buttons may still appear in navigation (filter not fully working)
+- Sideboard management not yet implemented
 
 ## NPE Screens
 

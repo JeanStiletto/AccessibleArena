@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -131,6 +132,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Navigation level to restore after rescan.
         /// </summary>
         private NavigationLevel _pendingLevelRestore = NavigationLevel.GroupList;
+
+        /// <summary>
+        /// Element index within group to restore after rescan.
+        /// Used to preserve position when activating deck builder cards.
+        /// </summary>
+        private int _pendingElementIndexRestore = -1;
 
         /// <summary>
         /// Card labels from the collection before a page switch.
@@ -446,12 +453,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 _pendingGroupRestore = _groups[_currentGroupIndex].Group;
                 _pendingLevelRestore = _navigationLevel;
-                MelonLogger.Msg($"[GroupedNavigator] Saved group for restore: {_pendingGroupRestore}, level: {_pendingLevelRestore}");
+                _pendingElementIndexRestore = _currentElementIndex;
+                MelonLogger.Msg($"[GroupedNavigator] Saved group for restore: {_pendingGroupRestore}, level: {_pendingLevelRestore}, elementIndex: {_pendingElementIndexRestore}");
             }
             else
             {
                 _pendingGroupRestore = null;
                 _pendingLevelRestore = NavigationLevel.GroupList;
+                _pendingElementIndexRestore = -1;
             }
         }
 
@@ -462,6 +471,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             _pendingGroupRestore = null;
             _pendingLevelRestore = NavigationLevel.GroupList;
+            _pendingElementIndexRestore = -1;
         }
 
         /// <summary>
@@ -872,8 +882,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 var groupToRestore = _pendingGroupRestore.Value;
                 var levelToRestore = _pendingLevelRestore;
+                var elementIndexToRestore = _pendingElementIndexRestore;
                 _pendingGroupRestore = null;
                 _pendingLevelRestore = NavigationLevel.GroupList;
+                _pendingElementIndexRestore = -1;
 
                 // Find the group by type
                 bool found = false;
@@ -886,8 +898,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         if (levelToRestore == NavigationLevel.InsideGroup)
                         {
                             _navigationLevel = NavigationLevel.InsideGroup;
-                            _currentElementIndex = 0;
-                            MelonLogger.Msg($"[GroupedNavigator] Restored into group '{_groups[i].DisplayName}' with {_groups[i].Count} items");
+                            // Restore element index, clamped to valid range (in case group shrunk)
+                            int maxIndex = _groups[i].Count - 1;
+                            if (elementIndexToRestore >= 0 && maxIndex >= 0)
+                            {
+                                _currentElementIndex = Math.Min(elementIndexToRestore, maxIndex);
+                            }
+                            else
+                            {
+                                _currentElementIndex = 0;
+                            }
+                            MelonLogger.Msg($"[GroupedNavigator] Restored into group '{_groups[i].DisplayName}' at index {_currentElementIndex} (requested {elementIndexToRestore}, max {maxIndex})");
                         }
                         else
                         {

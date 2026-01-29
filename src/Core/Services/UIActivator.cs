@@ -110,6 +110,17 @@ namespace AccessibleArena.Core.Services
             if (element == null)
                 return new ActivationResult(false, "Element is null");
 
+            // Special handling for collection cards (PagesMetaCardView/MetaCardView in deck builder)
+            // These are card display views - the actual click handler is on a child element
+            if (IsCollectionCard(element))
+            {
+                Log($"Detected collection card: {element.name}");
+                var result = TryActivateCollectionCard(element);
+                if (result.Success)
+                    return result;
+                Log($"Collection card activation failed, trying fallback");
+            }
+
             // Special handling for deck entries - they need direct selection via DeckViewSelector
             // because MTGA's CustomButton onClick on decks doesn't reliably trigger selection
             if (IsDeckEntry(element))
@@ -217,7 +228,12 @@ namespace AccessibleArena.Core.Services
                 var pointerResult2 = SimulatePointerClick(element);
 
                 // Also try onClick reflection as additional handler
-                TryInvokeCustomButtonOnClick(element);
+                // BUT skip for deck list cards - they respond to pointer events already,
+                // and calling both causes double activation (removes 2 cards instead of 1)
+                if (!IsDeckListCard(element))
+                {
+                    TryInvokeCustomButtonOnClick(element);
+                }
 
                 // Special handling for deck builder MainButton - its onClick listener has NULL target
                 // We need to find the WrapperDeckBuilder component and invoke the method directly
@@ -1500,6 +1516,208 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        #endregion
+
+        #region Collection Card Activation
+
+        /// <summary>
+        /// Checks if an element is a collection card (PagesMetaCardView/MetaCardView in deck builder's PoolHolder).
+        /// These cards need special handling because the display view is navigated but the
+        /// actual clickable element is a child.
+        /// </summary>
+        public static bool IsCollectionCard(GameObject element)
+        {
+            if (element == null) return false;
+
+            // Check if element has PagesMetaCardView or MetaCardView component
+            foreach (var mb in element.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName == "PagesMetaCardView" || typeName == "MetaCardView")
+                {
+                    // Verify it's in PoolHolder (collection area) not deck area
+                    Transform current = element.transform;
+                    while (current != null)
+                    {
+                        if (current.name == "PoolHolder")
+                            return true;
+                        current = current.parent;
+                    }
+                }
+            }
+
+            // Also check by element name for cases where we navigate the view directly
+            if (element.name.Contains("PagesMetaCardView") || element.name.Contains("MetaCardView"))
+            {
+                Transform current = element.transform;
+                while (current != null)
+                {
+                    if (current.name == "PoolHolder")
+                        return true;
+                    current = current.parent;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if an element is a deck list card (CustomButton - Tile in MainDeckContentCONTAINER).
+        /// These cards need special handling to avoid double activation.
+        /// </summary>
+        public static bool IsDeckListCard(GameObject element)
+        {
+            if (element == null) return false;
+
+            // Deck list cards are CustomButton - Tile elements inside MainDeckContentCONTAINER
+            if (!element.name.Contains("CustomButton") && !element.name.Contains("Tile"))
+                return false;
+
+            // Check parent hierarchy for deck list container
+            Transform current = element.transform;
+            while (current != null)
+            {
+                string name = current.name;
+                if (name.Contains("MainDeckContentCONTAINER") || name.Contains("MainDeck_MetaCardHolder"))
+                    return true;
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Tries to activate a collection card by invoking OnAddClicked on the PagesMetaCardView.
+        /// Collection cards have an OnAddClicked action that adds the card to the deck.
+        /// </summary>
+        public static ActivationResult TryActivateCollectionCard(GameObject cardElement)
+        {
+            if (cardElement == null)
+                return new ActivationResult(false, "Card element is null");
+
+            Log($"Attempting collection card activation for: {cardElement.name}");
+
+            // Strategy 1: Find PagesMetaCardView and invoke OnAddClicked action
+            // The OnAddClicked property is an Action<MetaCardView> that adds the card to deck
+            foreach (var mb in cardElement.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName == "PagesMetaCardView" || typeName == "MetaCardView")
+                {
+                    Log($"Found {typeName} component, looking for OnAddClicked action");
+
+                    // Get the OnAddClicked property which is Action<MetaCardView>
+                    var onAddClickedProp = mb.GetType().GetProperty("OnAddClicked",
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+
+                    if (onAddClickedProp != null)
+                    {
+                        try
+                        {
+                            var onAddClicked = onAddClickedProp.GetValue(mb);
+                            if (onAddClicked != null)
+                            {
+                                Log($"Found OnAddClicked action, invoking...");
+                                // It's an Action<MetaCardView>, invoke with the component itself
+                                var invokeMethod = onAddClicked.GetType().GetMethod("Invoke");
+                                if (invokeMethod != null)
+                                {
+                                    invokeMethod.Invoke(onAddClicked, new object[] { mb });
+                                    Log($"OnAddClicked invoked successfully");
+                                    return new ActivationResult(true, "Card Added", ActivationType.Button);
+                                }
+                            }
+                            else
+                            {
+                                Log($"OnAddClicked property is null");
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Log($"Error invoking OnAddClicked: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        Log($"OnAddClicked property not found on {typeName}");
+                    }
+
+                    // Fallback: Try OnRemoveClicked (in case card is already in deck and needs toggling)
+                    var onRemoveClickedProp = mb.GetType().GetProperty("OnRemoveClicked",
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+
+                    if (onRemoveClickedProp != null)
+                    {
+                        Log($"Also found OnRemoveClicked - card may support add/remove toggle");
+                    }
+                }
+            }
+
+            // Strategy 2: Find a CustomButton child element (e.g., the card's click area)
+            var customButtonChild = FindCustomButtonInHierarchy(cardElement);
+            if (customButtonChild != null)
+            {
+                Log($"Found CustomButton child: {customButtonChild.name}");
+                var result = SimulatePointerClick(customButtonChild);
+                TryInvokeCustomButtonOnClick(customButtonChild);
+                return result;
+            }
+
+            // Strategy 3: Try IPointerClickHandler interface on the MetaCardView
+            foreach (var mb in cardElement.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                if (mb is IPointerClickHandler clickHandler)
+                {
+                    Log($"Invoking IPointerClickHandler.OnPointerClick on {mb.GetType().Name}");
+                    var pointer = CreatePointerEventData(cardElement);
+                    clickHandler.OnPointerClick(pointer);
+                    return new ActivationResult(true, "Activated", ActivationType.PointerClick);
+                }
+            }
+
+            // Strategy 4: Full pointer simulation on the card view itself
+            Log("Fallback: Full pointer simulation on card view");
+            return SimulatePointerClick(cardElement);
+        }
+
+        /// <summary>
+        /// Searches for a CustomButton component anywhere in the element hierarchy.
+        /// Returns the first GameObject with a CustomButton found.
+        /// </summary>
+        private static GameObject FindCustomButtonInHierarchy(GameObject root)
+        {
+            if (root == null) return null;
+
+            // Check root first
+            foreach (var mb in root.GetComponents<MonoBehaviour>())
+            {
+                if (IsCustomButton(mb))
+                    return root;
+            }
+
+            // Search all children recursively
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == root.transform) continue;
+                if (!child.gameObject.activeInHierarchy) continue;
+
+                foreach (var mb in child.GetComponents<MonoBehaviour>())
+                {
+                    if (IsCustomButton(mb))
+                        return child.gameObject;
+                }
+            }
+
+            return null;
         }
 
         #endregion

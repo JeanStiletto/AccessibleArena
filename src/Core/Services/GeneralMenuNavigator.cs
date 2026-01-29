@@ -2830,6 +2830,14 @@ namespace AccessibleArena.Core.Services
                 AutoPressPlayButtonInPlayBlade();
             }
 
+            // Deck list card activated (removing card from deck) - trigger rescan to update both lists
+            if (elementGroup == ElementGroup.DeckBuilderDeckList)
+            {
+                LogDebug($"[{NavigatorId}] Deck list card activated - scheduling rescan to update lists");
+                TriggerRescan();
+                return true;
+            }
+
             // PlayBlade mode activation needs rescan (mode selection doesn't trigger panel changes)
             if (playBladeResult == PlayBladeResult.RescanNeeded)
             {
@@ -2886,6 +2894,19 @@ namespace AccessibleArena.Core.Services
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Called after a deck builder card is activated (collection or deck list).
+        /// Triggers rescan to update the deck/collection display.
+        /// </summary>
+        protected override void OnDeckBuilderCardActivated()
+        {
+            if (_activeContentController == "WrapperDeckBuilder")
+            {
+                LogDebug($"[{NavigatorId}] Deck builder card activated - scheduling rescan to update lists");
+                TriggerRescan();
+            }
         }
 
         // Note: IsSettingsSubmenuButton() removed - handled by SettingsMenuNavigator
