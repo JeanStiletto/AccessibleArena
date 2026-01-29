@@ -101,15 +101,27 @@ Popup buttons in Settings menu (e.g., Logout confirmation with Abbrechen/OK) don
 
 **Final Discovery (January 2026):**
 - **OK/Confirm buttons**: `Click()` WORKS! The action fires AND the game closes the popup automatically
-- **Cancel buttons**: `Click()` fires callback but popup stays visible - requires Escape key to dismiss
+- **Cancel buttons**: `Click()` fires callback but popup stays visible
 
-**Why OK Works But Cancel Doesn't:**
-The OK button's callback triggers a game state change (e.g., logout) which causes the game to automatically close the popup as part of that state transition. The Cancel button's callback just signals "don't do the action" - it doesn't trigger any state change that would close the popup.
+**SOLUTION FOUND (January 29, 2026):**
+After `Click()`, call `SystemMessageManager.Instance.ClearMessageQueue()` to dismiss the popup.
 
-**Current Solution:**
-- OK buttons: `Click()` triggers action, game handles popup close automatically
-- Cancel buttons: User presses **Escape** key to dismiss (game handles it natively)
-- Popup announcement includes "Escape to cancel" hint
+**Working Approach:**
+1. Call `Click()` on `SystemMessageButtonView` to trigger the button's callback
+2. Find `SystemMessageManager` singleton via reflection (type in Core assembly)
+3. Call `ClearMessageQueue()` method on the instance to dismiss the popup
+
+**Why This Works:**
+- `Click()` triggers the button callback (action for OK, no-op for Cancel)
+- `ClearMessageQueue()` clears the popup manager's internal queue, which triggers the close
+- This works for BOTH OK and Cancel buttons
+
+**SystemMessageManager Key Members:**
+- `Instance` (static property) - Singleton instance
+- `ShowingMessage` (property) - Boolean indicating if a message is showing
+- `ClearMessageQueue()` (method) - Clears message queue and closes popup
+- `Close(SystemMessageHandle)` (method) - Closes specific message by handle
+- `ShowOk()`, `ShowOkCancel()`, `ShowMessage()` - Methods to show popups
 
 **SystemMessageView Internal Structure:**
 - Has `_button` field pointing to inner CustomButton
@@ -155,16 +167,10 @@ Our reflection-based calls can trigger step 4 (callback fires, action happens) b
 
 For OK buttons, step 4 triggers a game state change (logout, etc.) which causes the entire UI to reset, effectively closing the popup. For Cancel buttons, there's no state change, so the popup stays.
 
-**What Would Potentially Fix This (Future Investigation):**
-- Use Windows API (`user32.dll SendInput`) to simulate actual mouse click at button screen coordinates
-- Find and call the game's popup manager close method directly
-- Hook into the game's input system at a lower level
-- Find the correct way to invoke HandleOnClick with proper ButtonData
+**STATUS: RESOLVED**
+Both OK and Cancel buttons now work with Enter key. The fix uses `SystemMessageManager.ClearMessageQueue()` after `Click()`.
 
-**Current Workaround:**
-- OK/Confirm: Press Enter - works correctly
-- Cancel/Dismiss: Press **Escape** key (game handles it natively)
-- Popup announcement includes "Escape to cancel" instruction
+**Implementation:** See `UIActivator.TryDismissViaSystemMessageManager()`
 
 **Files:** `UIActivator.cs`, `SettingsMenuNavigator.cs`, `PanelStateManager.cs`
 

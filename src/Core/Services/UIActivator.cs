@@ -207,20 +207,17 @@ namespace AccessibleArena.Core.Services
                     return acceptResult;
 
                 // Special handling for SystemMessageButtonView (popup dialog buttons)
-                // OK/Confirm buttons: Click() works - game handles action + close
-                // Cancel buttons: Click() triggers callback but popup stays visible - user presses Escape to close
+                // Click() + OnBack(null) produces close+reopen behavior
                 var systemMsgButton = FindComponentByName(element, "SystemMessageButtonView");
                 if (systemMsgButton != null)
                 {
                     Log($"SystemMessageButtonView detected on: {element.name}");
-                    string buttonText = UITextExtractor.GetText(element)?.ToLower() ?? "";
-                    Log($"Button text: '{buttonText}'");
 
                     // Call Click() to trigger the button's callback
-                    // For OK buttons: This triggers the action and game closes popup
-                    // For Cancel buttons: Callback fires but popup stays - user must press Escape
-                    Log($"Invoking SystemMessageButtonView.Click()");
                     TryInvokeMethod(systemMsgButton, "Click");
+
+                    // Try SystemMessageManager.Instance to dismiss the popup
+                    TryDismissViaSystemMessageManager();
 
                     return new ActivationResult(true, "Activated", ActivationType.Button);
                 }
@@ -1103,6 +1100,102 @@ namespace AccessibleArena.Core.Services
                     catch
                     {
                         Log($"  Field: {f.Name} ({f.FieldType.Name}) = <error reading>");
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Try to dismiss popup via SystemMessageManager singleton.
+        /// </summary>
+        private static bool TryDismissViaSystemMessageManager()
+        {
+            Log($"[TryDismissViaSystemMessageManager] Searching for SystemMessageManager...");
+
+            // Find SystemMessageManager type
+            System.Type managerType = null;
+            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    foreach (var t in assembly.GetTypes())
+                    {
+                        if (t.Name == "SystemMessageManager" && !t.Name.Contains("+"))
+                        {
+                            managerType = t;
+                            Log($"[TryDismissViaSystemMessageManager] Found type in {assembly.GetName().Name}");
+                            break;
+                        }
+                    }
+                }
+                catch { }
+                if (managerType != null) break;
+            }
+
+            if (managerType == null)
+            {
+                Log($"[TryDismissViaSystemMessageManager] SystemMessageManager type not found");
+                return false;
+            }
+
+            // Get Instance property
+            var instanceProp = managerType.GetProperty("Instance",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (instanceProp == null)
+            {
+                Log($"[TryDismissViaSystemMessageManager] Instance property not found");
+                return false;
+            }
+
+            var instance = instanceProp.GetValue(null);
+            if (instance == null)
+            {
+                Log($"[TryDismissViaSystemMessageManager] Instance is null");
+                return false;
+            }
+
+            Log($"[TryDismissViaSystemMessageManager] Got instance, ShowingMessage = ?");
+
+            // Check ShowingMessage property
+            var showingProp = managerType.GetProperty("ShowingMessage",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (showingProp != null)
+            {
+                var showing = showingProp.GetValue(instance);
+                Log($"[TryDismissViaSystemMessageManager] ShowingMessage = {showing}");
+            }
+
+            // List all methods on the instance
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            Log($"[TryDismissViaSystemMessageManager] Available methods:");
+            foreach (var m in managerType.GetMethods(flags))
+            {
+                if (m.DeclaringType == managerType)
+                {
+                    var paramStr = string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name));
+                    Log($"  {m.Name}({paramStr})");
+                }
+            }
+
+            // Try common dismiss/close method names
+            string[] methodNames = { "ClearMessageQueue", "Dismiss", "DismissMessage", "Close", "CloseMessage", "Hide", "HideMessage", "Cancel", "CancelMessage", "Clear", "ClearMessage" };
+            foreach (var methodName in methodNames)
+            {
+                var method = managerType.GetMethod(methodName, flags, null, System.Type.EmptyTypes, null);
+                if (method != null)
+                {
+                    Log($"[TryDismissViaSystemMessageManager] Trying {methodName}()");
+                    try
+                    {
+                        method.Invoke(instance, null);
+                        Log($"[TryDismissViaSystemMessageManager] {methodName}() succeeded");
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log($"[TryDismissViaSystemMessageManager] {methodName}() failed: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
             }
