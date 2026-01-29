@@ -238,16 +238,6 @@ Deck list cards (cards in your deck shown in the compact list view) only display
 
 ---
 
-### Deck Builder - Quantity Buttons Still Appearing
-
-Quantity buttons (`CustomButton - Tag` showing "4x", "2x", etc.) are supposed to be filtered out but still appear in navigation.
-
-**Root cause:** The exclusion logic in `ElementGroupAssigner` was initially placed in `DetermineOverlayGroup()`, which returns `Unknown` for "not an overlay". Since `Unknown` is used as "no overlay detected", the code falls through and the elements end up in `Content` group.
-
-**Fix applied:** Moved the Tag button check to `DetermineGroup()` right before the default `return ElementGroup.Content`. However, the fix may not be fully effective - needs testing.
-
-**Files:** `ElementGroupAssigner.cs`
-
 ---
 
 ### PlayBlade Backspace Navigation Not Working

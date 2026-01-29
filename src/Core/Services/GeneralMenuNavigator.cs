@@ -1529,6 +1529,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void PerformRescan()
         {
+            // Store previous controller to detect screen transitions
+            var previousController = _activeContentController;
+
             // Detect active controller BEFORE discovering elements so filtering works correctly
             DetectActiveContentController();
             LogDebug($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
@@ -1540,8 +1543,9 @@ namespace AccessibleArena.Core.Services
                 previousSelection = _elements[_currentIndex].GameObject;
             }
 
-            // Save current group state for restoration after rescan
-            if (_groupedNavigationEnabled)
+            // Save current group state for restoration after rescan - but only if same screen
+            // (don't restore old screen's state when transitioning to a new screen)
+            if (_groupedNavigationEnabled && previousController == _activeContentController)
             {
                 _groupedNavigator.SaveCurrentGroupForRestore();
             }

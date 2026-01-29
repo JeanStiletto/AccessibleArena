@@ -485,6 +485,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 if (obj == null) continue;
 
+                // Skip Tag buttons (quantity indicators like "4x" in deck list)
+                if (obj.name == "CustomButton - Tag")
+                    continue;
+
                 var group = _groupAssigner.DetermineGroup(obj);
 
                 // Check if this is a folder toggle
