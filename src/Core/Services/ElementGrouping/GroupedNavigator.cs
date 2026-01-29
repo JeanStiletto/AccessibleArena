@@ -32,6 +32,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Null for non-deck elements.
         /// </summary>
         public string FolderName { get; set; }
+        /// <summary>
+        /// If set, this element represents a nested subgroup entry (e.g., Objectives within Progress).
+        /// Entering this element will navigate into the subgroup.
+        /// </summary>
+        public ElementGroup? SubgroupType { get; set; }
     }
 
     /// <summary>
@@ -134,6 +139,23 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private HashSet<string> _previousCollectionCards = null;
 
         /// <summary>
+        /// Stores subgroup elements (e.g., Objectives) that are nested within another group.
+        /// Key is the subgroup type, value is the list of elements in that subgroup.
+        /// </summary>
+        private Dictionary<ElementGroup, List<GroupedElement>> _subgroupElements = new Dictionary<ElementGroup, List<GroupedElement>>();
+
+        /// <summary>
+        /// When inside a subgroup, tracks which subgroup we're in.
+        /// Null when not inside a subgroup.
+        /// </summary>
+        private ElementGroup? _currentSubgroup = null;
+
+        /// <summary>
+        /// When inside a subgroup, tracks the parent group index to return to on backspace.
+        /// </summary>
+        private int _subgroupParentIndex = -1;
+
+        /// <summary>
         /// When true, filter DeckBuilderCollection to only show new cards after next OrganizeIntoGroups.
         /// Set when user navigates to next/previous page in collection view.
         /// </summary>
@@ -169,18 +191,47 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
         /// <summary>
         /// Gets the current element, or null if not inside a group or invalid.
+        /// Handles subgroups - returns subgroup element when inside a subgroup.
         /// </summary>
-        public GroupedElement? CurrentElement
+        public GroupedElement? CurrentElement => GetCurrentElement();
+
+        /// <summary>
+        /// Get the current element, handling subgroups.
+        /// </summary>
+        private GroupedElement? GetCurrentElement()
         {
-            get
+            if (_navigationLevel != NavigationLevel.InsideGroup)
+                return null;
+
+            // If inside a subgroup, return subgroup element
+            if (_currentSubgroup.HasValue)
             {
-                if (_navigationLevel != NavigationLevel.InsideGroup)
+                var subElements = GetCurrentSubgroupElements();
+                if (subElements == null || _currentElementIndex < 0 || _currentElementIndex >= subElements.Count)
                     return null;
-                var group = CurrentGroup;
-                if (group == null || _currentElementIndex < 0 || _currentElementIndex >= group.Value.Count)
-                    return null;
-                return group.Value.Elements[_currentElementIndex];
+                return subElements[_currentElementIndex];
             }
+
+            // Normal group element
+            var group = CurrentGroup;
+            if (group == null || _currentElementIndex < 0 || _currentElementIndex >= group.Value.Count)
+                return null;
+            return group.Value.Elements[_currentElementIndex];
+        }
+
+        /// <summary>
+        /// Get the count of elements at the current navigation level (handles subgroups).
+        /// </summary>
+        private int GetCurrentElementCount()
+        {
+            if (_currentSubgroup.HasValue)
+            {
+                var subElements = GetCurrentSubgroupElements();
+                return subElements?.Count ?? 0;
+            }
+
+            var group = CurrentGroup;
+            return group?.Count ?? 0;
         }
 
         /// <summary>
@@ -484,12 +535,22 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 nonFolderElements[group].Add(groupedElement);
             }
 
+            // Extract subgroups (e.g., Objectives) and store separately
+            _subgroupElements.Clear();
+            if (nonFolderElements.TryGetValue(ElementGroup.Objectives, out var objectivesElements) && objectivesElements.Count > 0)
+            {
+                _subgroupElements[ElementGroup.Objectives] = new List<GroupedElement>(objectivesElements);
+                nonFolderElements.Remove(ElementGroup.Objectives);
+                MelonLogger.Msg($"[GroupedNavigator] Stored {objectivesElements.Count} objectives as subgroup");
+            }
+
             // Build ordered group list
             // Note: PlayBladeTabs comes before PlayBladeContent so tabs are shown first
             var groupOrder = new[]
             {
                 ElementGroup.Play,
                 ElementGroup.Progress,
+                // Objectives is handled as a subgroup within Progress, not top-level
                 ElementGroup.Social,
                 ElementGroup.Primary,
                 ElementGroup.Content,
@@ -549,15 +610,41 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     }
                     else
                     {
-                        _groups.Add(new ElementGroupInfo
+                        // For Progress group, add Objectives as a subgroup entry if we have objectives
+                        if (groupType == ElementGroup.Progress && _subgroupElements.TryGetValue(ElementGroup.Objectives, out var objectives) && objectives.Count > 0)
                         {
-                            Group = groupType,
-                            DisplayName = groupType.GetDisplayName(),
-                            Elements = elementList,
-                            IsFolderGroup = false,
-                            FolderToggle = null,
-                            IsStandaloneElement = false
-                        });
+                            // Create a copy of the element list and add Objectives subgroup entry
+                            var elementsWithSubgroup = new List<GroupedElement>(elementList);
+                            elementsWithSubgroup.Add(new GroupedElement
+                            {
+                                GameObject = null, // No physical object, this is a virtual entry
+                                Label = $"Objectives, {objectives.Count} {(objectives.Count == 1 ? "item" : "items")}",
+                                Group = ElementGroup.Progress,
+                                SubgroupType = ElementGroup.Objectives
+                            });
+
+                            _groups.Add(new ElementGroupInfo
+                            {
+                                Group = groupType,
+                                DisplayName = groupType.GetDisplayName(),
+                                Elements = elementsWithSubgroup,
+                                IsFolderGroup = false,
+                                FolderToggle = null,
+                                IsStandaloneElement = false
+                            });
+                        }
+                        else
+                        {
+                            _groups.Add(new ElementGroupInfo
+                            {
+                                Group = groupType,
+                                DisplayName = groupType.GetDisplayName(),
+                                Elements = elementList,
+                                IsFolderGroup = false,
+                                FolderToggle = null,
+                                IsStandaloneElement = false
+                            });
+                        }
                     }
                 }
             }
@@ -907,9 +994,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             else
             {
-                var group = CurrentGroup;
-                if (group.HasValue && group.Value.Count > 0)
-                    _currentElementIndex = group.Value.Count - 1;
+                int count = GetCurrentElementCount();
+                if (count > 0)
+                    _currentElementIndex = count - 1;
             }
         }
 
@@ -1001,6 +1088,91 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Check if the current element is a subgroup entry (e.g., Objectives within Progress).
+        /// </summary>
+        public bool IsCurrentElementSubgroupEntry()
+        {
+            if (_navigationLevel != NavigationLevel.InsideGroup)
+                return false;
+
+            var element = GetCurrentElement();
+            return element.HasValue && element.Value.SubgroupType.HasValue;
+        }
+
+        /// <summary>
+        /// Check if currently inside a subgroup.
+        /// </summary>
+        public bool IsInsideSubgroup => _currentSubgroup.HasValue;
+
+        /// <summary>
+        /// Enter a subgroup from the current element.
+        /// </summary>
+        /// <returns>True if entered subgroup, false otherwise.</returns>
+        public bool EnterSubgroup()
+        {
+            if (_navigationLevel != NavigationLevel.InsideGroup)
+                return false;
+
+            var element = GetCurrentElement();
+            if (!element.HasValue || !element.Value.SubgroupType.HasValue)
+                return false;
+
+            var subgroupType = element.Value.SubgroupType.Value;
+            if (!_subgroupElements.TryGetValue(subgroupType, out var subgroupElements) || subgroupElements.Count == 0)
+                return false;
+
+            // Store parent state for returning
+            _subgroupParentIndex = _currentGroupIndex;
+            _currentSubgroup = subgroupType;
+            _currentElementIndex = 0;
+
+            MelonLogger.Msg($"[GroupedNavigator] Entered subgroup: {subgroupType.GetDisplayName()} with {subgroupElements.Count} items");
+            return true;
+        }
+
+        /// <summary>
+        /// Exit the current subgroup and return to the parent group.
+        /// </summary>
+        /// <returns>True if exited subgroup, false if not in a subgroup.</returns>
+        public bool ExitSubgroup()
+        {
+            if (!_currentSubgroup.HasValue)
+                return false;
+
+            MelonLogger.Msg($"[GroupedNavigator] Exiting subgroup: {_currentSubgroup.Value.GetDisplayName()}");
+
+            // Restore parent group state
+            _currentGroupIndex = _subgroupParentIndex;
+            _currentSubgroup = null;
+            _subgroupParentIndex = -1;
+
+            // Find the subgroup entry element index in the parent group
+            var group = _groups[_currentGroupIndex];
+            for (int i = 0; i < group.Elements.Count; i++)
+            {
+                if (group.Elements[i].SubgroupType.HasValue)
+                {
+                    _currentElementIndex = i;
+                    break;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Get the elements for the current subgroup.
+        /// </summary>
+        private List<GroupedElement> GetCurrentSubgroupElements()
+        {
+            if (!_currentSubgroup.HasValue)
+                return null;
+
+            _subgroupElements.TryGetValue(_currentSubgroup.Value, out var elements);
+            return elements;
+        }
+
+        /// <summary>
         /// Get announcement for current position.
         /// </summary>
         public string GetCurrentAnnouncement()
@@ -1058,10 +1230,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
         private bool MoveNextElement()
         {
-            var group = CurrentGroup;
-            if (!group.HasValue) return false;
+            int count = GetCurrentElementCount();
+            if (count == 0) return false;
 
-            if (_currentElementIndex >= group.Value.Count - 1)
+            if (_currentElementIndex >= count - 1)
             {
                 _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
                 return false;
@@ -1104,10 +1276,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var element = CurrentElement;
             if (!element.HasValue) return "";
 
-            var group = CurrentGroup;
-            if (!group.HasValue) return "";
-
-            return $"{_currentElementIndex + 1} of {group.Value.Count}: {element.Value.Label}";
+            int count = GetCurrentElementCount();
+            return $"{_currentElementIndex + 1} of {count}: {element.Value.Label}";
         }
 
         private void AnnounceCurrentGroup()

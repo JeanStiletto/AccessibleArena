@@ -2,9 +2,22 @@
 
 All notable changes to Accessible Arena.
 
-## v0.3 - 2026-01-28
+## v0.3 - 2026-01-29
 
 ### New Features
+
+#### Objectives & Progress Groups (Home Screen)
+- New Objectives subgroup within Progress group for quests and daily/weekly wins
+- Progress indicators (objectives, battle pass, daily wins) now navigable
+- Subgroup navigation: Enter to drill into Objectives, Backspace to return to Progress
+- Quest text displayed with progress (e.g., "Cast 20 black or red spells, 5/15")
+
+#### Subgroup Navigation System
+- Groups can now contain nested subgroups for better organization
+- Subgroup entries appear as "GroupName, X items" within parent group
+- Enter on subgroup entry navigates into it
+- Backspace from subgroup returns to parent group (not group list)
+- Technical: SubgroupType field, _subgroupElements storage, enter/exit handling
 
 #### NPE (New Player Experience) Reward Screen
 - New dedicated NPERewardNavigator for card unlock screens

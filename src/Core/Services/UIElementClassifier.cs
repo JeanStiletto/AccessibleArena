@@ -314,7 +314,7 @@ namespace AccessibleArena.Core.Services
             if (!IsProgressIndicator(obj, objName, text))
                 return null;
 
-            return CreateResult(ElementRole.ProgressBar, text, "progress", false, false);
+            return CreateResult(ElementRole.ProgressBar, text, "progress", true, true);
         }
 
         private static ClassificationResult TryClassifyAsNavigationArrow(GameObject obj, string objName, string text)
@@ -537,11 +537,10 @@ namespace AccessibleArena.Core.Services
                         if (!parentCG.interactable && !parentCG.ignoreParentGroups)
                         {
                             // Allow elements with meaningful text content through - they should be navigable
-                            // even if parent CanvasGroup is non-interactable (e.g., popup buttons, FriendsWidget)
-                            bool hasMeaningfulContent = UITextExtractor.HasActualText(obj);
-                            bool isFriendsElement = IsInsideFriendsWidget(obj)
-                                && !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
-                            if (!hasMeaningfulContent && !isFriendsElement)
+                            // even if parent CanvasGroup is non-interactable (e.g., popup buttons, objectives)
+                            bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
+                                || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
+                            if (!hasMeaningfulContent)
                             {
                                 if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup interactable=false");
                                 return false;
@@ -747,18 +746,30 @@ namespace AccessibleArena.Core.Services
 
         private static bool IsInternalElement(GameObject obj, string name, string text)
         {
+            bool isObjective = name == "ObjectiveGraphics";
+
             // Check game properties first (most reliable)
             if (IsHiddenByGameProperties(obj))
+            {
+                if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective filtered: IsHiddenByGameProperties");
                 return true;
+            }
 
             // Check name patterns
             if (IsFilteredByNamePattern(obj, name))
+            {
+                if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective filtered: IsFilteredByNamePattern");
                 return true;
+            }
 
             // Check text content
             if (IsFilteredByTextContent(obj, name, text))
+            {
+                if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective filtered: IsFilteredByTextContent, text='{text}'");
                 return true;
+            }
 
+            if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective NOT filtered by IsInternalElement");
             return false;
         }
 
@@ -767,22 +778,30 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static bool IsHiddenByGameProperties(GameObject obj)
         {
+            bool isObjective = obj.name == "ObjectiveGraphics";
+
             // Check if CustomButton says it's not interactable or hidden
             // But allow MainButton elements (like Submit Deck) and elements with actual text through
             // They may be temporarily disabled but should still show for accessibility
-            // FriendsWidget elements use non-standard UI where text comes from parent/sibling, so check GetText() too
+            // Some elements (FriendsWidget, objectives) have text in children, so check GetText() too
             if (HasCustomButton(obj) && !IsCustomButtonInteractable(obj))
             {
                 bool isMainButton = HasMainButtonComponent(obj);
                 bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
-                    || (IsInsideFriendsWidget(obj) && !string.IsNullOrEmpty(UITextExtractor.GetText(obj)));
+                    || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
+                if (isObjective)
+                    MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective CustomButton check: interactable=false, isMainButton={isMainButton}, hasMeaningfulContent={hasMeaningfulContent}");
                 if (!isMainButton && !hasMeaningfulContent)
                     return true;
             }
 
             // Check if CanvasGroup says it's invisible or non-interactable
             if (!IsVisibleViaCanvasGroup(obj))
+            {
+                if (isObjective)
+                    MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective hidden by CanvasGroup");
                 return true;
+            }
 
             // Filter container elements with 0x0 size - they're wrapper objects, not real buttons
             // NOTE: May need to revert if we find clickable containers (see KNOWN_ISSUES.md)
@@ -799,7 +818,11 @@ namespace AccessibleArena.Core.Services
 
             // Filter decorative/graphical elements with no content and zero size
             if (IsDecorativeGraphicalElement(obj))
+            {
+                if (isObjective)
+                    MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective hidden by IsDecorativeGraphicalElement");
                 return true;
+            }
 
             return false;
         }

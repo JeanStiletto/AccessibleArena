@@ -43,6 +43,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (IsProgressElement(name, parentPath))
                 return ElementGroup.Progress;
 
+            // 3.5. Check for Objectives (daily, weekly, quests, battle pass)
+            if (IsObjectiveElement(name, parentPath))
+                return ElementGroup.Objectives;
+
             // 4. Check for Social elements (profile, achievements, mail)
             if (IsSocialElement(name, parentPath))
                 return ElementGroup.Social;
@@ -198,6 +202,27 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Quest/daily rewards
             if (name.Contains("Quest") || name.Contains("DailyReward") || name.Contains("DailyWins"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is an Objective element (daily wins, weekly wins, quests, battle pass).
+        /// </summary>
+        private bool IsObjectiveElement(string name, string parentPath)
+        {
+            // Objectives panel and individual objectives
+            if (parentPath.Contains("Objectives_Desktop") || parentPath.Contains("ObjectivesLayout"))
+                return true;
+
+            // Individual objective types
+            if (parentPath.Contains("Objective_Base") || parentPath.Contains("Objective_BattlePass") ||
+                parentPath.Contains("Objective_NPE"))
+                return true;
+
+            // ObjectiveGraphics is the clickable button for objectives
+            if (name == "ObjectiveGraphics" || name.Contains("ObjectiveGraphics"))
                 return true;
 
             return false;

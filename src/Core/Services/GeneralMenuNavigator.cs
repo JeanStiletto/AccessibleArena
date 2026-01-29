@@ -336,6 +336,12 @@ namespace AccessibleArena.Core.Services
                 LogDebug($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
             }
 
+            // Announce popup body text when a popup/dialog opens
+            if (panel?.GameObject != null && IsPopupOverlay(panel.GameObject))
+            {
+                AnnouncePopupBodyText(panel.GameObject);
+            }
+
             TriggerRescan();
         }
 
@@ -961,6 +967,27 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Announce the body text of a popup/dialog when it opens.
+        /// This helps users understand what the popup is asking before navigating to buttons.
+        /// </summary>
+        private void AnnouncePopupBodyText(GameObject popupGameObject)
+        {
+            if (popupGameObject == null) return;
+
+            string bodyText = UITextExtractor.GetPopupBodyText(popupGameObject);
+
+            if (!string.IsNullOrWhiteSpace(bodyText))
+            {
+                LogDebug($"[{NavigatorId}] Popup body text: {bodyText}");
+                _announcer.Announce(bodyText, Models.AnnouncementPriority.High);
+            }
+            else
+            {
+                LogDebug($"[{NavigatorId}] No popup body text found for: {popupGameObject.name}");
+            }
+        }
+
+        /// <summary>
         /// Close the Social (Friends) panel.
         /// </summary>
         private bool CloseSocialPanel()
@@ -1325,6 +1352,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if element is inside Home page content or NavBar.
+        /// Also includes Objectives panel which is a separate content controller on Home.
         /// </summary>
         private bool IsChildOfHomeOrNavBar(GameObject obj)
         {
@@ -1332,6 +1360,27 @@ namespace AccessibleArena.Core.Services
                 return true;
             if (_navBarGameObject != null && IsChildOf(obj, _navBarGameObject))
                 return true;
+
+            // Include Objectives panel - it's a separate content controller shown on Home page
+            if (IsInsideObjectivesPanel(obj))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside the Objectives panel.
+        /// </summary>
+        private static bool IsInsideObjectivesPanel(GameObject obj)
+        {
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                if (current.name.Contains("Objectives_Desktop") || current.name.Contains("Objective_Base") ||
+                    current.name.Contains("Objective_BattlePass") || current.name.Contains("Objective_NPE"))
+                    return true;
+                current = current.parent;
+            }
             return false;
         }
 
@@ -1668,8 +1717,15 @@ namespace AccessibleArena.Core.Services
                 if (obj == null || !obj.activeInHierarchy) return;
                 if (addedObjects.Contains(obj)) return;
 
+                // Debug: log objectives filtering
+                bool isObjective = obj.name.Contains("Objective") || GetParentPath(obj).Contains("Objective");
+
                 if (!ShouldShowElement(obj))
+                {
+                    if (isObjective)
+                        MelonLogger.Msg($"[{NavigatorId}] Objective filtered by ShouldShowElement: {obj.name}");
                     return;
+                }
 
                 var classification = UIElementClassifier.Classify(obj);
                 if (classification.IsNavigable && classification.ShouldAnnounce)
@@ -1679,13 +1735,40 @@ namespace AccessibleArena.Core.Services
                     discoveredElements.Add((obj, classification, sortOrder));
                     addedObjects.Add(obj);
                 }
+                else if (isObjective)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Objective not navigable: {obj.name}, IsNavigable={classification.IsNavigable}, ShouldAnnounce={classification.ShouldAnnounce}");
+                }
+            }
+
+            string GetParentPath(GameObject element)
+            {
+                var pathBuilder = new System.Text.StringBuilder();
+                Transform current = element.transform.parent;
+                while (current != null)
+                {
+                    if (pathBuilder.Length > 0) pathBuilder.Insert(0, "/");
+                    pathBuilder.Insert(0, current.name);
+                    current = current.parent;
+                }
+                return pathBuilder.ToString();
             }
 
             // Find CustomButtons (MTGA's primary button component)
+            int objCount = 0;
+            int objGraphicsCount = 0;
             foreach (var buttonObj in GetActiveCustomButtons())
             {
+                objCount++;
+                // Debug: log objective elements explicitly
+                if (buttonObj.name == "ObjectiveGraphics")
+                {
+                    objGraphicsCount++;
+                    MelonLogger.Msg($"[{NavigatorId}] Processing ObjectiveGraphics #{objGraphicsCount}: parent={buttonObj.transform.parent?.name}");
+                }
                 TryAddElement(buttonObj);
             }
+            MelonLogger.Msg($"[{NavigatorId}] Processed {objCount} CustomButtons, {objGraphicsCount} ObjectiveGraphics");
 
             // Find standard Unity UI elements
             foreach (var btn in GameObject.FindObjectsOfType<Button>())
@@ -2545,7 +2628,17 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                // Inside a group - activate the current element
+                // Inside a group - check for subgroup entry first
+                if (_groupedNavigator.IsCurrentElementSubgroupEntry())
+                {
+                    if (_groupedNavigator.EnterSubgroup())
+                    {
+                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        return true;
+                    }
+                }
+
+                // Activate the current element
                 var currentElement = _groupedNavigator.CurrentElement;
                 if (currentElement.HasValue && currentElement.Value.GameObject != null)
                 {
@@ -2590,6 +2683,16 @@ namespace AccessibleArena.Core.Services
         {
             if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
                 return false;
+
+            // Inside a subgroup - exit to parent group first
+            if (_groupedNavigator.IsInsideSubgroup)
+            {
+                if (_groupedNavigator.ExitSubgroup())
+                {
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                    return true;
+                }
+            }
 
             // Inside a group - exit to group level
             if (_groupedNavigator.Level == NavigationLevel.InsideGroup)

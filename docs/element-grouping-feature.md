@@ -55,7 +55,9 @@ Break long menu lists into smaller, contextual groups for better blind user navi
 2. Press Enter: "1 of X. Play, button."
 3. Navigate: Direct Challenge, Rankings, Events inside the group
 4. Press Backspace: "Play, X items." (back to group level)
-5. Press Arrow Down: "Navigation, 14 items."
+5. Press Arrow Down: "Progress, X items." (Mastery, Gems, Wildcards, Objectives subgroup)
+6. Enter Progress, navigate to "Objectives, X items", press Enter to see quests
+7. Backspace from Objectives returns to Progress group
 
 ### Decks Screen Navigation
 1. Enter screen: "Decks. 4 groups. Filters, 2 items."
@@ -100,6 +102,35 @@ When UI changes trigger a rescan (e.g., page navigation in collection), the grou
 **Used by:**
 - Page Up/Down in collection - changes page without losing position in Collection group
 - Any rescan that should preserve user's current group context
+
+### Subgroups (Nested Groups)
+
+Some groups are nested within other groups for better organization. Currently:
+- **Objectives** is a subgroup within **Progress**
+
+**Subgroup Navigation Flow:**
+1. Navigate to Progress group
+2. Enter Progress - see elements like Mastery, Gems, Wildcards, and "Objectives, X items"
+3. Navigate to "Objectives, X items" entry
+4. Press Enter - enter the Objectives subgroup, see individual quests
+5. Navigate through quests with Up/Down arrows
+6. Press Backspace - return to Progress group (not to group list)
+7. Press Backspace again - exit to group list
+
+**Technical Implementation:**
+- `GroupedElement.SubgroupType` field marks an element as a subgroup entry (no physical GameObject)
+- `_subgroupElements` dictionary stores subgroup elements separately
+- `_currentSubgroup` tracks when inside a subgroup
+- `EnterSubgroup()` / `ExitSubgroup()` handle navigation
+- `GetCurrentElementCount()` and `GetCurrentElement()` return subgroup data when inside a subgroup
+
+**Adding New Subgroups:**
+1. Create the ElementGroup enum value (e.g., `ElementGroup.NewSubgroup`)
+2. Add assignment logic in `ElementGroupAssigner.DetermineGroup()`
+3. In `GroupedNavigator.OrganizeIntoGroups()`:
+   - Extract subgroup elements into `_subgroupElements`
+   - Add a subgroup entry element to the parent group with `SubgroupType` set
+4. The navigation logic (enter/exit/backspace) handles it automatically
 
 ### Overlay Handling
 - Popup dialogs suppress all other groups
@@ -160,7 +191,9 @@ public enum ElementGroup
     Unknown = 0,      // Hidden in grouped mode
     Primary,          // Main actions: Submit, Continue (shown as standalone)
     Play,             // Play-related: Play button, Direct Challenge, Rankings, Events (grouped together)
-    Navigation,       // Nav bar, tabs, back buttons
+    Progress,         // Progress-related: Boosters, Mastery, Gems, Gold, Wildcards
+    Objectives,       // Objectives/Quests: Daily wins, weekly wins, quests (subgroup of Progress)
+    Social,           // Social elements: Profile, Achievements, Mail
     Filters,          // Search, sort, filter toggles
     Content,          // Deck entries, cards, list items, dropdowns, buttons (shown as standalone)
     Settings,         // Settings controls (when not full overlay)
@@ -168,12 +201,13 @@ public enum ElementGroup
 
     // Overlay groups (only one visible at a time)
     Popup,            // Modal dialog elements
-    Social,           // Friends panel elements
+    FriendsPanel,     // Friends panel elements
     PlayBladeTabs,    // Play blade tabs (Events, Find Match, Recent)
     PlayBladeContent, // Play blade mode selectors (Ranked, Play, Brawl)
     PlayBladeFolders, // Play blade folders container (groups deck folders)
     SettingsMenu,     // Settings menu overlay
     NPE,              // New Player Experience overlay
+    DeckBuilderCollection, // Deck builder collection cards
 }
 ```
 

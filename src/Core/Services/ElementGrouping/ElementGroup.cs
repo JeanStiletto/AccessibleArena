@@ -30,6 +30,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         Progress,
 
         /// <summary>
+        /// Objectives/Quests on home screen: Daily wins, weekly wins, quests, battle pass progress.
+        /// Navigated as a submenu - Enter to view individual objectives, Backspace to exit.
+        /// </summary>
+        Objectives,
+
+        /// <summary>
         /// Social elements on home screen: Profile, Achievements, Mail/Notifications.
         /// </summary>
         Social,
@@ -130,6 +136,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.Primary: return "Primary Actions";
                 case ElementGroup.Play: return "Play";
                 case ElementGroup.Progress: return "Progress";
+                case ElementGroup.Objectives: return "Objectives";
                 case ElementGroup.Social: return "Social";
                 case ElementGroup.Filters: return "Filters";
                 case ElementGroup.Content: return "Content";
