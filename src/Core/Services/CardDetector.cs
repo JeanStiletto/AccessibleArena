@@ -451,11 +451,20 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Extracts all available information from a card GameObject.
         /// For DuelScene cards, tries Model data first (works for compacted cards).
+        /// For deck list cards, uses GrpId lookup from ListMetaCardHolder.
         /// Falls back to UI text extraction for Meta scene cards or if Model fails.
         /// </summary>
         public static CardInfo ExtractCardInfo(GameObject cardObj)
         {
             if (cardObj == null) return new CardInfo();
+
+            // Check if this is a deck list card (MainDeck_MetaCardHolder)
+            var deckListInfo = CardModelProvider.ExtractDeckListCardInfo(cardObj);
+            if (deckListInfo.HasValue && deckListInfo.Value.IsValid)
+            {
+                MelonLogger.Msg($"[CardDetector] Using DECK LIST extraction: {deckListInfo.Value.Name} (Qty: {deckListInfo.Value.Quantity})");
+                return deckListInfo.Value;
+            }
 
             // Try Model-based extraction first (works for compacted battlefield cards)
             var modelInfo = CardModelProvider.ExtractCardInfoFromModel(cardObj);
@@ -609,6 +618,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Builds a list of navigable info blocks for a card.
         /// Order varies by zone: battlefield puts mana cost after rules text.
+        /// For deck list cards, Quantity is shown right after the name.
         /// </summary>
         public static List<CardInfoBlock> GetInfoBlocks(GameObject cardObj, ZoneType zone = ZoneType.Hand)
         {
@@ -617,6 +627,10 @@ namespace AccessibleArena.Core.Services
 
             if (!string.IsNullOrEmpty(info.Name))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, info.Name));
+
+            // For deck list cards, show quantity right after name
+            if (info.Quantity > 0)
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, info.Quantity.ToString()));
 
             // Battlefield: mana cost comes after rules (less important when card is in play)
             bool isBattlefield = zone == ZoneType.Battlefield;
@@ -760,6 +774,10 @@ namespace AccessibleArena.Core.Services
         public string RulesText;
         public string FlavorText;
         public string Artist;
+        /// <summary>
+        /// Quantity of this card in a deck list. 0 means not applicable (not a deck list card).
+        /// </summary>
+        public int Quantity;
     }
 
     /// <summary>

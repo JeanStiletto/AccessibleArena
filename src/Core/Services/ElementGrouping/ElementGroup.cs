@@ -103,7 +103,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// <summary>
         /// Deck Builder collection cards (PoolHolder). Cards available to add to your deck.
         /// </summary>
-        DeckBuilderCollection
+        DeckBuilderCollection,
+
+        /// <summary>
+        /// Deck Builder deck list cards (MainDeck_MetaCardHolder). Cards currently in your deck.
+        /// Navigated horizontally with Left/Right, card details with Up/Down.
+        /// </summary>
+        DeckBuilderDeckList
     }
 
     /// <summary>
@@ -123,7 +129,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.PlayBladeFolders
                 || group == ElementGroup.SettingsMenu
                 || group == ElementGroup.NPE
-                || group == ElementGroup.DeckBuilderCollection;
+                || group == ElementGroup.DeckBuilderCollection
+                || group == ElementGroup.DeckBuilderDeckList;
         }
 
         /// <summary>
@@ -150,6 +157,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.SettingsMenu: return "Settings Menu";
                 case ElementGroup.NPE: return "Tutorial";
                 case ElementGroup.DeckBuilderCollection: return "Collection";
+                case ElementGroup.DeckBuilderDeckList: return "Deck List";
                 default: return "Other";
             }
         }

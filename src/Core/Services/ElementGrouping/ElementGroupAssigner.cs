@@ -64,7 +64,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (IsSettingsControl(name, parentPath))
                 return ElementGroup.Settings;
 
-            // 8. Default to Content for everything else
+            // 8. Exclude Tag buttons (quantity indicators like "4x") from deck list
+            // These must be checked here, not in DetermineOverlayGroup, because Unknown
+            // is used as "no overlay" signal and would fall through to Content
+            if (name == "CustomButton - Tag")
+                return ElementGroup.Unknown;
+
+            // 9. Default to Content for everything else
             // (Secondary group removed - those elements now go to Content or Navigation)
             return ElementGroup.Content;
         }
@@ -78,6 +84,15 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (parentPath.Contains("PoolHolder") &&
                 (name.Contains("MetaCardView") || name.Contains("PagesMetaCardView")))
                 return ElementGroup.DeckBuilderCollection;
+
+            // Deck Builder deck list cards (MainDeck_MetaCardHolder)
+            // These are the cards currently in your deck, shown as a compact list
+            // Note: Tag button exclusion is handled in DetermineGroup, not here (Unknown returns are ignored)
+            if (parentPath.Contains("MainDeck_MetaCardHolder") || parentPath.Contains("CardTile_Base"))
+            {
+                if (name == "CustomButton - Tile")
+                    return ElementGroup.DeckBuilderDeckList;
+            }
 
             // Popup/Dialog - be specific to avoid matching "Screenspace Popups" canvas
             // Look for actual popup panel patterns, not just "Popup" substring
@@ -94,8 +109,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 return ElementGroup.FriendsPanel;
 
             // Play blade - distinguish tabs from content
+            // But exclude deck builder header controls (sideboard toggle, deck name, etc.)
             if (IsInsidePlayBlade(parentPath, name))
             {
+                // Exclude deck builder header controls - let them be standalone Content items
+                if (parentPath.Contains("TitlePanel_Container") ||
+                    parentPath.Contains("DeckListView") ||
+                    name.Contains("Sideboard") ||
+                    name.Contains("DeckName") ||
+                    name.Contains("New Deck Name") ||
+                    name.Contains("Button_Cardbacks"))
+                    return ElementGroup.Content;
+
                 // Tabs are the navigation buttons at top of PlayBlade
                 if (IsPlayBladeTab(name, parentPath))
                     return ElementGroup.PlayBladeTabs;

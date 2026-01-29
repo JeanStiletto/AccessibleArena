@@ -219,6 +219,37 @@ NullClaimButton ("Take reward") not being added to navigation. Fix attempted - s
 
 ## In Progress
 
+### Deck Builder - Deck List Card Info Incomplete
+
+Deck list cards (cards in your deck shown in the compact list view) only display Name and Quantity when reading card info with Up/Down arrows. Other properties (mana cost, type, rules text) are not shown.
+
+**Root cause:** The `CardDataProvider.GetCardPrintingById(uint id, string skinCode)` method is being called with GrpId and null skinCode, but it's not returning the full card data. The CardPrinting object may require a different lookup method or the skinCode parameter.
+
+**What works:**
+- Deck list card navigation with Left/Right
+- Card name extraction from button label
+- Quantity extraction from `ListMetaCardView_Expanding.Quantity`
+- Quantity displayed in card info blocks after Name
+
+**What doesn't work:**
+- Full card info (mana cost, type, rules text, etc.) not returned from GrpId lookup
+
+**Files:** `CardModelProvider.cs` - `GetCardDataFromGrpId()`, `GetDeckListCardInfo()`
+
+---
+
+### Deck Builder - Quantity Buttons Still Appearing
+
+Quantity buttons (`CustomButton - Tag` showing "4x", "2x", etc.) are supposed to be filtered out but still appear in navigation.
+
+**Root cause:** The exclusion logic in `ElementGroupAssigner` was initially placed in `DetermineOverlayGroup()`, which returns `Unknown` for "not an overlay". Since `Unknown` is used as "no overlay detected", the code falls through and the elements end up in `Content` group.
+
+**Fix applied:** Moved the Tag button check to `DetermineGroup()` right before the default `return ElementGroup.Content`. However, the fix may not be fully effective - needs testing.
+
+**Files:** `ElementGroupAssigner.cs`
+
+---
+
 ### PlayBlade Backspace Navigation Not Working
 
 Backspace from PlayBladeContent group should navigate back to PlayBladeTabs, but instead closes the blade entirely.

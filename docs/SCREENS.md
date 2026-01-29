@@ -140,28 +140,40 @@ The Booster Chamber screen displays available booster packs in a horizontal caro
 The Deck Builder screen allows editing deck contents with access to the card collection.
 
 **Elements Detected:**
-- Collection cards in `PoolHolder` - Cards available to add to deck
-- Deck cards in `DeckHolder` - Cards currently in deck
+- Collection cards in `PoolHolder` - Cards available to add to deck (grid view)
+- Deck list cards in `MainDeck_MetaCardHolder` - Cards currently in deck (compact list view)
 - Filter controls (color checkboxes, type filters, search)
 - "Fertig" (Done) button
 
+**Groups:**
+- `DeckBuilderCollection` - Collection card grid
+- `DeckBuilderDeckList` - Deck list cards (compact list with quantities)
+- `Filters` - Color checkboxes, type filters, advanced filters
+- `Content` - Header controls (Sideboard, deck name, etc.)
+
 **Navigation:**
 - Arrow Up/Down: Navigate between groups and elements
-- Tab/Shift+Tab: Cycle between main groups (Collection, Filters, Deck) and auto-enter
+- Tab/Shift+Tab: Cycle between groups (Collection, Deck List, Filters) and auto-enter
 - Enter on group: Enter the group to navigate individual items
 - Backspace: Exit current group, return to group list
-- Number keys 1-0: Activate filter options 1-10 directly
 
-**Collection Card Navigation:**
-- Left/Right arrows: Navigate between cards in collection
-- Up/Down arrows: Read card details (name, type, mana cost, rules text, etc.)
+**Collection Card Navigation (DeckBuilderCollection):**
+- Left/Right arrows: Navigate between cards in collection grid
+- Up/Down arrows: Read card details (name, mana cost, type, rules text, etc.)
 - Enter: Add card to deck (activates the card)
 - Home/End: Jump to first/last card
 - Page Up/Down: Navigate collection pages (shows only new cards)
 
+**Deck List Navigation (DeckBuilderDeckList):**
+- Left/Right arrows: Navigate between cards in deck list
+- Up/Down arrows: Read card details (shows Quantity after Name)
+- Enter: Remove card from deck (activates the card)
+- Home/End: Jump to first/last card
+
 **Card Info Reading:**
 When focused on a card, Up/Down arrows cycle through card information blocks:
 - Name
+- Quantity (deck list cards only)
 - Mana Cost
 - Type
 - Power/Toughness (if creature)
@@ -170,14 +182,16 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 - Artist
 
 **Technical Notes:**
-- Collection cards are in `DeckBuilderCollection` group
-- Filter controls (color checkboxes, type filters, advanced filters) are in `Filters` group
-- Deck cards are in `Content` or `PlayBladeContent` group
+- Collection cards use `PagesMetaCardView` with Model-based detection
+- Deck list cards use `ListMetaCardView_Expanding` with GrpId-based lookup via `CardDataProvider`
+- Quantity buttons (`CustomButton - Tag` showing "4x", "2x") are filtered to Unknown group
+- Deck header controls (Sideboard toggle, deck name field) are in Content group
 - Tab cycling skips standalone elements, only cycles between actual groups
-- Cards are extracted using Model-based detection when available
-- CardInfoNavigator is automatically prepared when navigating to cards
 - Page navigation filters to show only newly visible cards (not entire 24-card page)
-- Some cards may show as "Unknown card" if Model data unavailable (edge cases)
+
+**Known Limitations:**
+- Deck list card info currently only shows Name and Quantity (GrpId lookup not returning full data)
+- Quantity buttons may still appear in navigation (filter not fully working)
 
 ## NPE Screens
 

@@ -699,15 +699,16 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if we're in a context where cards should navigate with Left/Right arrows.
-        /// This includes DeckBuilderCollection and similar card-grid contexts.
+        /// This includes DeckBuilderCollection, DeckBuilderDeckList and similar card-grid contexts.
         /// </summary>
         private bool IsInCollectionCardContext()
         {
-            // Check if current element is in DeckBuilderCollection group
+            // Check if current element is in DeckBuilderCollection or DeckBuilderDeckList group
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 var currentGroup = _groupedNavigator.CurrentGroup;
-                if (currentGroup?.Group == ElementGroup.DeckBuilderCollection)
+                if (currentGroup?.Group == ElementGroup.DeckBuilderCollection ||
+                    currentGroup?.Group == ElementGroup.DeckBuilderDeckList)
                     return true;
             }
 
@@ -1913,6 +1914,10 @@ namespace AccessibleArena.Core.Services
             // These are cards you can add to your deck
             FindPoolHolderCards(addedObjects);
 
+            // Find deck list cards (MainDeck_MetaCardHolder)
+            // These are cards currently in your deck
+            FindDeckListCards(addedObjects);
+
             LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
 
             // Organize elements into groups for hierarchical navigation
@@ -2194,6 +2199,56 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Find deck list cards in the deck builder's MainDeck_MetaCardHolder.
+        /// These are cards currently in your deck, displayed as a compact list.
+        /// Uses GrpId for language-agnostic card identification.
+        /// </summary>
+        private void FindDeckListCards(HashSet<GameObject> addedObjects)
+        {
+            // Only active in deck builder
+            if (_activeContentController != "WrapperDeckBuilder")
+                return;
+
+            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for deck list cards...");
+
+            // Get deck list cards from CardModelProvider
+            var deckCards = CardModelProvider.GetDeckListCards();
+            if (deckCards.Count == 0)
+            {
+                LogDebug($"[{NavigatorId}] No deck list cards found");
+                return;
+            }
+
+            LogDebug($"[{NavigatorId}] Found {deckCards.Count} deck list card(s)");
+
+            int cardNum = 1;
+            foreach (var deckCard in deckCards)
+            {
+                if (!deckCard.IsValid) continue;
+
+                // Use the TileButton (card name button) as the navigable element
+                var cardObj = deckCard.TileButton;
+                if (cardObj == null || addedObjects.Contains(cardObj))
+                    continue;
+
+                // Get card name from GrpId
+                string cardName = CardModelProvider.GetNameFromGrpId(deckCard.GrpId);
+                if (string.IsNullOrEmpty(cardName))
+                    cardName = $"Card #{deckCard.GrpId}";
+
+                // Build label with quantity and card name
+                string label = $"{deckCard.Quantity}x {cardName}";
+
+                LogDebug($"[{NavigatorId}] Adding deck list card {cardNum}: {label}");
+
+                // Add as navigable element
+                AddElement(cardObj, label);
+                addedObjects.Add(cardObj);
+                cardNum++;
+            }
+        }
+
+        /// <summary>
         /// Log the hierarchy of a transform for debugging purposes.
         /// </summary>
         private void LogHierarchy(Transform parent, string indent, int maxDepth)
@@ -2411,9 +2466,10 @@ namespace AccessibleArena.Core.Services
         private static readonly ElementGroup[] DeckBuilderCycleGroups = new[]
         {
             ElementGroup.DeckBuilderCollection,  // Card pool (Collection)
+            ElementGroup.DeckBuilderDeckList,    // Deck list cards (cards in your deck)
             ElementGroup.Filters,                // Filter controls
-            ElementGroup.Content,                // Deck cards (may be here)
-            ElementGroup.PlayBladeContent        // Deck cards (may be here as "Play Options")
+            ElementGroup.Content,                // Other deck builder controls
+            ElementGroup.PlayBladeContent        // Play options
         };
 
         /// <summary>
@@ -2509,9 +2565,19 @@ namespace AccessibleArena.Core.Services
             }
 
             var gameObject = currentElement.Value.GameObject;
-            if (gameObject != null && CardDetector.IsCard(gameObject))
+            if (gameObject == null)
             {
-                // Use DeckBuilderCollection zone type for collection cards
+                if (cardNavigator.IsActive) cardNavigator.Deactivate();
+                return;
+            }
+
+            // Check if it's a regular card (collection) or a deck list card
+            bool isCard = CardDetector.IsCard(gameObject);
+            bool isDeckListCard = CardModelProvider.IsDeckListCard(gameObject);
+
+            if (isCard || isDeckListCard)
+            {
+                // Prepare card navigation for both collection cards and deck list cards
                 cardNavigator.PrepareForCard(gameObject, ZoneType.Hand);
             }
             else if (cardNavigator.IsActive)

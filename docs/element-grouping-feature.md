@@ -220,7 +220,8 @@ public enum ElementGroup
     PlayBladeFolders, // Play blade folders container (groups deck folders)
     SettingsMenu,     // Settings menu overlay
     NPE,              // New Player Experience overlay (excludes Objective_NPE elements)
-    DeckBuilderCollection, // Deck builder collection cards
+    DeckBuilderCollection, // Deck builder collection cards (PoolHolder grid)
+    DeckBuilderDeckList,   // Deck builder deck list cards (MainDeck_MetaCardHolder compact list)
 }
 ```
 
@@ -349,6 +350,8 @@ These can potentially be replaced with group-based filtering later, but require 
 6. ~~**Folder toggle on already-visible folder**~~ - Fixed: Now checks `toggle.isOn` before activating. Entering an already-visible folder no longer toggles it off.
 
 7. **NPE overlay exclusion** - `Objective_NPE` elements (like Spark Rank) are excluded from NPE overlay classification so they can be grouped with Objectives. This might affect NPE tutorial screens if any tutorial elements have "Objective_NPE" in their path. See KNOWN_ISSUES.md for details.
+
+8. **Deck list quantity button exclusion** - `CustomButton - Tag` elements (showing "4x", "2x" quantities) must be excluded in `DetermineGroup()` directly, NOT in `DetermineOverlayGroup()`. Returning `Unknown` from `DetermineOverlayGroup()` just means "not an overlay" and causes the element to fall through to Content group. The exclusion check must happen before the final `return ElementGroup.Content` in `DetermineGroup()`.
 
 ---
 

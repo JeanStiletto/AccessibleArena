@@ -22,6 +22,7 @@ namespace AccessibleArena.Core.Services
         private static readonly Dictionary<string, PropertyInfo> _modelPropertyCache = new Dictionary<string, PropertyInfo>();
         private static bool _modelPropertiesLogged = false;
         private static bool _abilityPropertiesLogged = false;
+        private static bool _listMetaCardHolderLogged = false;
 
         // Cache for IdNameProvider lookup
         private static object _idNameProvider = null;
@@ -235,6 +236,196 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[CardModelProvider] === END METACARDVIEW PROPERTIES ===");
         }
 
+        /// <summary>
+        /// Logs all properties and methods on a ListMetaCardHolder component for deck list card discovery.
+        /// This helps understand how to access the card list with GrpIds for deck cards.
+        /// </summary>
+        private static void LogListMetaCardHolderProperties(MonoBehaviour holder, Type holderType)
+        {
+            MelonLogger.Msg($"[CardModelProvider] === LISTMETACARDHOLDER TYPE: {holderType.FullName} ===");
+            MelonLogger.Msg($"[CardModelProvider] GameObject: {holder.gameObject.name}");
+
+            // Log all properties
+            var properties = holderType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+            MelonLogger.Msg($"[CardModelProvider] --- Properties ({properties.Length}) ---");
+            foreach (var prop in properties)
+            {
+                try
+                {
+                    var value = prop.GetValue(holder);
+                    string valueStr = value?.ToString() ?? "null";
+                    string typeName = prop.PropertyType.Name;
+
+                    // For collections, try to get count
+                    if (value != null)
+                    {
+                        var countProp = value.GetType().GetProperty("Count");
+                        if (countProp != null)
+                        {
+                            var count = countProp.GetValue(value);
+                            valueStr = $"[Count: {count}] {valueStr}";
+                        }
+
+                        // Check if it's an array
+                        if (value is System.Array arr)
+                        {
+                            valueStr = $"[Length: {arr.Length}] {value.GetType().Name}";
+                        }
+                    }
+
+                    if (valueStr.Length > 150) valueStr = valueStr.Substring(0, 150) + "...";
+                    MelonLogger.Msg($"[CardModelProvider]   Property: {prop.Name} = {valueStr} ({typeName})");
+
+                    // If property name suggests cards, log more details
+                    if (prop.Name.ToLower().Contains("card") || prop.Name.ToLower().Contains("item") ||
+                        prop.Name.ToLower().Contains("data") || prop.Name.ToLower().Contains("model") ||
+                        prop.Name.ToLower().Contains("list") || prop.Name.ToLower().Contains("entries"))
+                    {
+                        LogCollectionContents(value, prop.Name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg($"[CardModelProvider]   Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
+                }
+            }
+
+            // Log interesting methods that might return card data
+            var methods = holderType.GetMethods(BindingFlags.Public | BindingFlags.Instance);
+            MelonLogger.Msg($"[CardModelProvider] --- Methods (filtered) ---");
+            foreach (var method in methods)
+            {
+                if (method.DeclaringType == typeof(object) || method.DeclaringType == typeof(MonoBehaviour) ||
+                    method.DeclaringType == typeof(UnityEngine.Component) || method.DeclaringType == typeof(UnityEngine.Behaviour))
+                    continue;
+
+                string methodName = method.Name.ToLower();
+                if (methodName.Contains("card") || methodName.Contains("item") || methodName.Contains("data") ||
+                    methodName.Contains("get") || methodName.Contains("model") || methodName.Contains("grp"))
+                {
+                    var parameters = method.GetParameters();
+                    string paramStr = string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                    MelonLogger.Msg($"[CardModelProvider]   Method: {method.Name}({paramStr}) -> {method.ReturnType.Name}");
+                }
+            }
+
+            // Log fields as well (sometimes data is stored in fields)
+            var fields = holderType.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+            MelonLogger.Msg($"[CardModelProvider] --- Fields (filtered) ---");
+            foreach (var field in fields)
+            {
+                string fieldName = field.Name.ToLower();
+                if (fieldName.Contains("card") || fieldName.Contains("item") || fieldName.Contains("data") ||
+                    fieldName.Contains("model") || fieldName.Contains("list") || fieldName.Contains("entries") ||
+                    fieldName.Contains("grp"))
+                {
+                    try
+                    {
+                        var value = field.GetValue(holder);
+                        string valueStr = value?.ToString() ?? "null";
+
+                        if (value != null)
+                        {
+                            var countProp = value.GetType().GetProperty("Count");
+                            if (countProp != null)
+                            {
+                                var count = countProp.GetValue(value);
+                                valueStr = $"[Count: {count}] {valueStr}";
+                            }
+                            if (value is System.Array arr)
+                            {
+                                valueStr = $"[Length: {arr.Length}] {value.GetType().Name}";
+                            }
+                        }
+
+                        if (valueStr.Length > 150) valueStr = valueStr.Substring(0, 150) + "...";
+                        MelonLogger.Msg($"[CardModelProvider]   Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
+
+                        // Log collection contents for card-related fields
+                        if (fieldName.Contains("card") || fieldName.Contains("item") || fieldName.Contains("data"))
+                        {
+                            LogCollectionContents(value, field.Name);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Msg($"[CardModelProvider]   Field: {field.Name} = [Error: {ex.Message}] ({field.FieldType.Name})");
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[CardModelProvider] === END LISTMETACARDHOLDER ===");
+        }
+
+        /// <summary>
+        /// Logs the contents of a collection to help discover card data structure.
+        /// </summary>
+        private static void LogCollectionContents(object collection, string collectionName)
+        {
+            if (collection == null) return;
+
+            try
+            {
+                // Try to enumerate if it's IEnumerable
+                if (collection is System.Collections.IEnumerable enumerable)
+                {
+                    int index = 0;
+                    foreach (var item in enumerable)
+                    {
+                        if (index >= 3) // Only log first 3 items
+                        {
+                            MelonLogger.Msg($"[CardModelProvider]     ... (more items)");
+                            break;
+                        }
+
+                        if (item != null)
+                        {
+                            var itemType = item.GetType();
+                            MelonLogger.Msg($"[CardModelProvider]     [{index}] Type: {itemType.Name}");
+
+                            // Try to get GrpId or similar properties
+                            var grpIdProp = itemType.GetProperty("GrpId") ?? itemType.GetProperty("grpId") ?? itemType.GetProperty("CardGrpId");
+                            if (grpIdProp != null)
+                            {
+                                var grpId = grpIdProp.GetValue(item);
+                                MelonLogger.Msg($"[CardModelProvider]     [{index}] GrpId: {grpId}");
+                            }
+
+                            // Try to get Quantity/Count
+                            var qtyProp = itemType.GetProperty("Quantity") ?? itemType.GetProperty("Count") ?? itemType.GetProperty("Amount");
+                            if (qtyProp != null)
+                            {
+                                var qty = qtyProp.GetValue(item);
+                                MelonLogger.Msg($"[CardModelProvider]     [{index}] Quantity: {qty}");
+                            }
+
+                            // Log all properties of the first item only
+                            if (index == 0)
+                            {
+                                MelonLogger.Msg($"[CardModelProvider]     [{index}] Item properties:");
+                                foreach (var prop in itemType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                                {
+                                    try
+                                    {
+                                        var val = prop.GetValue(item);
+                                        string valStr = val?.ToString() ?? "null";
+                                        if (valStr.Length > 80) valStr = valStr.Substring(0, 80) + "...";
+                                        MelonLogger.Msg($"[CardModelProvider]       {prop.Name} = {valStr} ({prop.PropertyType.Name})");
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                        index++;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider]     Error enumerating {collectionName}: {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Name Lookup
@@ -438,9 +629,17 @@ namespace AccessibleArena.Core.Services
                     // Log interesting types for discovery
                     if (typeName.Contains("Card") || typeName.Contains("Title") ||
                         typeName.Contains("Name") || typeName.Contains("Loc") ||
-                        typeName.Contains("Database") || typeName.Contains("Provider"))
+                        typeName.Contains("Database") || typeName.Contains("Provider") ||
+                        typeName.Contains("MetaCardHolder"))
                     {
                         MelonLogger.Msg($"[CardModelProvider] Found potential provider: {typeName}");
+
+                        // Log all properties on ListMetaCardHolder types (for deck list card discovery)
+                        if (typeName.Contains("ListMetaCardHolder") && !_listMetaCardHolderLogged)
+                        {
+                            _listMetaCardHolderLogged = true;
+                            LogListMetaCardHolderProperties(mb, type);
+                        }
 
                         // Check for CardDatabase property
                         var cardDbProp = type.GetProperty("CardDatabase");
@@ -2490,6 +2689,428 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        #endregion
+
+        #region Deck List Card Support
+
+        /// <summary>
+        /// Information about a card in the deck list (MainDeck_MetaCardHolder).
+        /// </summary>
+        public struct DeckListCardInfo
+        {
+            public uint GrpId;
+            public int Quantity;
+            public GameObject TileButton;
+            public GameObject TagButton;
+            public GameObject CardTileBase;
+            public bool IsValid => GrpId != 0;
+        }
+
+        // Cache for deck list cards to avoid repeated reflection
+        private static List<DeckListCardInfo> _cachedDeckListCards = new List<DeckListCardInfo>();
+        private static GameObject _cachedDeckHolder = null;
+        private static int _cachedDeckListFrame = -1;
+
+        /// <summary>
+        /// Gets all cards from the MainDeck_MetaCardHolder with their GrpIds and quantities.
+        /// Uses caching to avoid repeated reflection calls within the same frame.
+        /// </summary>
+        public static List<DeckListCardInfo> GetDeckListCards()
+        {
+            // Return cached result if same frame
+            if (_cachedDeckListFrame == Time.frameCount && _cachedDeckListCards.Count > 0)
+                return _cachedDeckListCards;
+
+            _cachedDeckListCards.Clear();
+            _cachedDeckListFrame = Time.frameCount;
+
+            try
+            {
+                // Find MainDeck_MetaCardHolder
+                var deckHolder = GameObject.Find("MainDeck_MetaCardHolder");
+                if (deckHolder == null)
+                {
+                    return _cachedDeckListCards;
+                }
+
+                _cachedDeckHolder = deckHolder;
+
+                // Find ListMetaCardHolder_Expanding component
+                MonoBehaviour holderComponent = null;
+                foreach (var mb in deckHolder.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name.Contains("ListMetaCardHolder"))
+                    {
+                        holderComponent = mb;
+                        break;
+                    }
+                }
+
+                if (holderComponent == null)
+                {
+                    return _cachedDeckListCards;
+                }
+
+                // Get CardViews property
+                var holderType = holderComponent.GetType();
+                var cardViewsProp = holderType.GetProperty("CardViews");
+                if (cardViewsProp == null)
+                {
+                    return _cachedDeckListCards;
+                }
+
+                var cardViews = cardViewsProp.GetValue(holderComponent) as System.Collections.IEnumerable;
+                if (cardViews == null)
+                {
+                    return _cachedDeckListCards;
+                }
+
+                // Extract card info from each ListMetaCardView_Expanding
+                foreach (var cardView in cardViews)
+                {
+                    if (cardView == null) continue;
+
+                    var viewType = cardView.GetType();
+                    var info = new DeckListCardInfo();
+
+                    // Get Card property which has GrpId
+                    var cardProp = viewType.GetProperty("Card");
+                    if (cardProp != null)
+                    {
+                        var card = cardProp.GetValue(cardView);
+                        if (card != null)
+                        {
+                            var cardType = card.GetType();
+                            var grpIdProp = cardType.GetProperty("GrpId");
+                            if (grpIdProp != null)
+                            {
+                                info.GrpId = (uint)grpIdProp.GetValue(card);
+                            }
+                        }
+                    }
+
+                    // Get Quantity
+                    var qtyProp = viewType.GetProperty("Quantity");
+                    if (qtyProp != null)
+                    {
+                        info.Quantity = (int)qtyProp.GetValue(cardView);
+                    }
+
+                    // Get TileButton (the card name button)
+                    var tileBtnProp = viewType.GetProperty("TileButton");
+                    if (tileBtnProp != null)
+                    {
+                        var tileBtn = tileBtnProp.GetValue(cardView) as Component;
+                        if (tileBtn != null)
+                        {
+                            info.TileButton = tileBtn.gameObject;
+                        }
+                    }
+
+                    // Get TagButton (the quantity button)
+                    var tagBtnProp = viewType.GetProperty("TagButton");
+                    if (tagBtnProp != null)
+                    {
+                        var tagBtn = tagBtnProp.GetValue(cardView) as Component;
+                        if (tagBtn != null)
+                        {
+                            info.TagButton = tagBtn.gameObject;
+                        }
+                    }
+
+                    // Get the CardTile_Base parent via CanvasGroup or transform
+                    var canvasGroupProp = viewType.GetProperty("CanvasGroup");
+                    if (canvasGroupProp != null)
+                    {
+                        var canvasGroup = canvasGroupProp.GetValue(cardView) as Component;
+                        if (canvasGroup != null)
+                        {
+                            info.CardTileBase = canvasGroup.gameObject;
+                        }
+                    }
+
+                    if (info.IsValid)
+                    {
+                        _cachedDeckListCards.Add(info);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] Error getting deck list cards: {ex.Message}");
+            }
+
+            return _cachedDeckListCards;
+        }
+
+        /// <summary>
+        /// Gets deck list card info for a specific UI element (TileButton, TagButton, or CardTileBase).
+        /// Returns null if the element is not a deck list card.
+        /// </summary>
+        public static DeckListCardInfo? GetDeckListCardInfo(GameObject element)
+        {
+            if (element == null) return null;
+
+            // Check if this element is part of a deck card tile
+            // It could be the TileButton, TagButton, or CardTileBase itself
+            var deckCards = GetDeckListCards();
+
+            foreach (var card in deckCards)
+            {
+                if (card.TileButton == element ||
+                    card.TagButton == element ||
+                    card.CardTileBase == element)
+                {
+                    return card;
+                }
+
+                // Also check if element is a child of the CardTileBase
+                if (card.CardTileBase != null && element.transform.IsChildOf(card.CardTileBase.transform))
+                {
+                    return card;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if an element is a deck list card (in MainDeck_MetaCardHolder).
+        /// </summary>
+        public static bool IsDeckListCard(GameObject element)
+        {
+            return GetDeckListCardInfo(element) != null;
+        }
+
+        /// <summary>
+        /// Extracts full card info for a deck list card using its GrpId.
+        /// Includes the quantity from the deck list.
+        /// </summary>
+        public static CardInfo? ExtractDeckListCardInfo(GameObject element)
+        {
+            var deckCardInfo = GetDeckListCardInfo(element);
+            if (deckCardInfo == null || !deckCardInfo.Value.IsValid)
+                return null;
+
+            var info = deckCardInfo.Value;
+
+            // Use the GrpId to look up card info via CardDatabase
+            // First we need to create a CardInfo and populate it from the database
+
+            // Get name from GrpId
+            string name = GetNameFromGrpId(info.GrpId);
+
+            // We need to get full card data from the CardDatabase
+            // Let's find and use the CardDatabase to get CardPrintingData
+            var cardData = GetCardDataFromGrpId(info.GrpId);
+            if (cardData == null)
+            {
+                // Fallback: return minimal info with just name and quantity
+                return new CardInfo
+                {
+                    Name = name ?? $"Card #{info.GrpId}",
+                    Quantity = info.Quantity,
+                    IsValid = true
+                };
+            }
+
+            // Build full CardInfo from card data
+            var cardInfo = ExtractCardInfoFromCardData(cardData, info.GrpId);
+            cardInfo.Quantity = info.Quantity;
+
+            return cardInfo;
+        }
+
+        /// <summary>
+        /// Gets CardPrintingData from CardDatabase using GrpId.
+        /// </summary>
+        private static object GetCardDataFromGrpId(uint grpId)
+        {
+            try
+            {
+                // Find CardDatabase - use the cached holder's CardDatabase property
+                if (_cachedDeckHolder == null)
+                    GetDeckListCards(); // This will populate _cachedDeckHolder
+
+                if (_cachedDeckHolder == null)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] GetCardDataFromGrpId: _cachedDeckHolder is null");
+                    return null;
+                }
+
+                MonoBehaviour holderComponent = null;
+                foreach (var mb in _cachedDeckHolder.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name.Contains("ListMetaCardHolder"))
+                    {
+                        holderComponent = mb;
+                        break;
+                    }
+                }
+
+                if (holderComponent == null)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] GetCardDataFromGrpId: holderComponent not found");
+                    return null;
+                }
+
+                var holderType = holderComponent.GetType();
+                var cardDbProp = holderType.GetProperty("CardDatabase");
+                if (cardDbProp == null)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] GetCardDataFromGrpId: CardDatabase property not found");
+                    return null;
+                }
+
+                var cardDb = cardDbProp.GetValue(holderComponent);
+                if (cardDb == null)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] GetCardDataFromGrpId: CardDatabase value is null");
+                    return null;
+                }
+
+                // Get CardDataProvider from CardDatabase
+                var cardDbType = cardDb.GetType();
+
+                // Try to get CardDataProvider
+                var cardDataProviderProp = cardDbType.GetProperty("CardDataProvider");
+                if (cardDataProviderProp != null)
+                {
+                    var cardDataProvider = cardDataProviderProp.GetValue(cardDb);
+                    if (cardDataProvider != null)
+                    {
+                        var providerType = cardDataProvider.GetType();
+
+                        // Try GetCardPrintingById(uint id, string skinCode) -> CardPrintingData
+                        var getCardPrintingMethod = providerType.GetMethod("GetCardPrintingById", new[] { typeof(uint), typeof(string) });
+                        if (getCardPrintingMethod != null)
+                        {
+                            var result = getCardPrintingMethod.Invoke(cardDataProvider, new object[] { grpId, null });
+                            if (result != null)
+                            {
+                                return result;
+                            }
+                        }
+
+                        // Try GetCardRecordById(uint id, string skinCode) -> CardPrintingRecord
+                        var getCardRecordMethod = providerType.GetMethod("GetCardRecordById", new[] { typeof(uint), typeof(string) });
+                        if (getCardRecordMethod != null)
+                        {
+                            var result = getCardRecordMethod.Invoke(cardDataProvider, new object[] { grpId, null });
+                            if (result != null)
+                            {
+                                return result;
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] Error getting card data for GrpId {grpId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Extracts CardInfo from CardPrintingData object.
+        /// </summary>
+        private static CardInfo ExtractCardInfoFromCardData(object cardData, uint grpId)
+        {
+            var info = new CardInfo { IsValid = true };
+
+            try
+            {
+                var cardType = cardData.GetType();
+
+                // Name
+                info.Name = GetNameFromGrpId(grpId);
+
+                // TypeLine
+                var typeLineProp = cardType.GetProperty("TypeLine") ?? cardType.GetProperty("TypeText");
+                if (typeLineProp != null)
+                {
+                    info.TypeLine = typeLineProp.GetValue(cardData)?.ToString();
+                }
+
+                // ManaCost
+                var manaCostProp = cardType.GetProperty("ManaCost") ?? cardType.GetProperty("CastingCost");
+                if (manaCostProp != null)
+                {
+                    var manaCost = manaCostProp.GetValue(cardData)?.ToString();
+                    if (!string.IsNullOrEmpty(manaCost))
+                    {
+                        info.ManaCost = ParseManaSymbolsInText(manaCost);
+                    }
+                }
+
+                // Power/Toughness
+                var powerProp = cardType.GetProperty("Power");
+                var toughnessProp = cardType.GetProperty("Toughness");
+                if (powerProp != null && toughnessProp != null)
+                {
+                    var power = powerProp.GetValue(cardData)?.ToString();
+                    var toughness = toughnessProp.GetValue(cardData)?.ToString();
+                    if (!string.IsNullOrEmpty(power) && !string.IsNullOrEmpty(toughness))
+                    {
+                        info.PowerToughness = $"{power}/{toughness}";
+                    }
+                }
+
+                // Rules text - try Abilities property
+                var abilitiesProp = cardType.GetProperty("Abilities") ?? cardType.GetProperty("IntrinsicAbilities");
+                if (abilitiesProp != null)
+                {
+                    var abilities = abilitiesProp.GetValue(cardData) as System.Collections.IEnumerable;
+                    if (abilities != null)
+                    {
+                        var rulesTexts = new List<string>();
+                        foreach (var ability in abilities)
+                        {
+                            if (ability == null) continue;
+                            var abilityType = ability.GetType();
+
+                            // Try to get ability ID and look up text
+                            var idProp = abilityType.GetProperty("Id");
+                            if (idProp != null)
+                            {
+                                var abilityId = (uint)idProp.GetValue(ability);
+                                var abilityText = GetAbilityTextFromProvider(grpId, abilityId, null, 0);
+                                if (!string.IsNullOrEmpty(abilityText))
+                                {
+                                    rulesTexts.Add(abilityText);
+                                }
+                            }
+                        }
+
+                        if (rulesTexts.Count > 0)
+                        {
+                            info.RulesText = string.Join(" ", rulesTexts);
+                        }
+                    }
+                }
+
+                // FlavorText
+                var flavorIdProp = cardType.GetProperty("FlavorTextId");
+                if (flavorIdProp != null)
+                {
+                    var flavorId = (uint)flavorIdProp.GetValue(cardData);
+                    if (flavorId != 0)
+                    {
+                        info.FlavorText = GetFlavorText(flavorId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] Error extracting card info from data: {ex.Message}");
+            }
+
+            return info;
         }
 
         #endregion
