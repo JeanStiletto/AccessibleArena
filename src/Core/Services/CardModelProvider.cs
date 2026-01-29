@@ -118,10 +118,11 @@ namespace AccessibleArena.Core.Services
             {
                 if (component == null) continue;
                 string typeName = component.GetType().Name;
+                // Use Contains for ListMetaCardView to also match ListMetaCardView_Expanding (deck list cards)
                 if (typeName == "PagesMetaCardView" ||
                     typeName == "MetaCardView" ||
                     typeName == "BoosterMetaCardView" ||
-                    typeName == "ListMetaCardView")
+                    typeName.Contains("ListMetaCardView"))
                 {
                     // Log once when we find a MetaCardView
                     if (!_metaCardViewComponentsLogged)
@@ -191,6 +192,14 @@ namespace AccessibleArena.Core.Services
                 {
                     var data = dataProp.GetValue(metaCardView);
                     if (data != null) return data;
+                }
+
+                // Try Card property (used by ListMetaCardView_Expanding for deck list cards)
+                var cardProp = viewType.GetProperty("Card");
+                if (cardProp != null)
+                {
+                    var card = cardProp.GetValue(metaCardView);
+                    if (card != null) return card;
                 }
 
                 return null;
@@ -1531,6 +1540,12 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Handle compound patterns like "4oW", "2oWoW", "oToR" (number + oX sequences)
+            if (symbol.Contains("o"))
+            {
+                return ParseBareManaSequence(symbol);
+            }
+
             return ConvertSingleManaSymbol(symbol);
         }
 
@@ -1765,10 +1780,16 @@ namespace AccessibleArena.Core.Services
             {
                 var metaCardView = GetMetaCardView(cardObj);
 
-                // Also try parent if not found on this object
-                if (metaCardView == null && cardObj.transform.parent != null)
+                // Search up parent hierarchy if not found on this object (deck list TileButton may be nested)
+                if (metaCardView == null)
                 {
-                    metaCardView = GetMetaCardView(cardObj.transform.parent.gameObject);
+                    var parent = cardObj.transform.parent;
+                    int maxLevels = 5; // Limit search depth
+                    while (metaCardView == null && parent != null && maxLevels-- > 0)
+                    {
+                        metaCardView = GetMetaCardView(parent.gameObject);
+                        parent = parent.parent;
+                    }
                 }
 
                 if (metaCardView != null)
@@ -2705,6 +2726,7 @@ namespace AccessibleArena.Core.Services
             public GameObject TileButton;
             public GameObject TagButton;
             public GameObject CardTileBase;
+            public GameObject ViewGameObject; // The ListMetaCardView_Expanding's gameObject
             public bool IsValid => GrpId != 0;
         }
 
@@ -2774,6 +2796,12 @@ namespace AccessibleArena.Core.Services
 
                     var viewType = cardView.GetType();
                     var info = new DeckListCardInfo();
+
+                    // Store the view's gameObject for hierarchy checks
+                    if (cardView is Component viewComponent)
+                    {
+                        info.ViewGameObject = viewComponent.gameObject;
+                    }
 
                     // Get Card property which has GrpId
                     var cardProp = viewType.GetProperty("Card");
@@ -2861,12 +2889,19 @@ namespace AccessibleArena.Core.Services
             {
                 if (card.TileButton == element ||
                     card.TagButton == element ||
-                    card.CardTileBase == element)
+                    card.CardTileBase == element ||
+                    card.ViewGameObject == element)
                 {
                     return card;
                 }
 
-                // Also check if element is a child of the CardTileBase
+                // Check if element is a child of ViewGameObject (the ListMetaCardView_Expanding's gameObject)
+                if (card.ViewGameObject != null && element.transform.IsChildOf(card.ViewGameObject.transform))
+                {
+                    return card;
+                }
+
+                // Also check if element is a child of the CardTileBase (fallback)
                 if (card.CardTileBase != null && element.transform.IsChildOf(card.CardTileBase.transform))
                 {
                     return card;
@@ -2887,6 +2922,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Extracts full card info for a deck list card using its GrpId.
         /// Includes the quantity from the deck list.
+        /// Uses ExtractCardInfoFromModel for consistent extraction with other card types.
         /// </summary>
         public static CardInfo? ExtractDeckListCardInfo(GameObject element)
         {
@@ -2896,31 +2932,27 @@ namespace AccessibleArena.Core.Services
 
             var info = deckCardInfo.Value;
 
-            // Use the GrpId to look up card info via CardDatabase
-            // First we need to create a CardInfo and populate it from the database
-
-            // Get name from GrpId
-            string name = GetNameFromGrpId(info.GrpId);
-
-            // We need to get full card data from the CardDatabase
-            // Let's find and use the CardDatabase to get CardPrintingData
-            var cardData = GetCardDataFromGrpId(info.GrpId);
-            if (cardData == null)
+            // Use ExtractCardInfoFromModel on the ViewGameObject for consistent extraction
+            // This uses the same logic as collection cards, duel cards, etc.
+            if (info.ViewGameObject != null)
             {
-                // Fallback: return minimal info with just name and quantity
-                return new CardInfo
+                var cardInfo = ExtractCardInfoFromModel(info.ViewGameObject);
+                if (cardInfo.HasValue && cardInfo.Value.IsValid)
                 {
-                    Name = name ?? $"Card #{info.GrpId}",
-                    Quantity = info.Quantity,
-                    IsValid = true
-                };
+                    var result = cardInfo.Value;
+                    result.Quantity = info.Quantity;
+                    return result;
+                }
             }
 
-            // Build full CardInfo from card data
-            var cardInfo = ExtractCardInfoFromCardData(cardData, info.GrpId);
-            cardInfo.Quantity = info.Quantity;
-
-            return cardInfo;
+            // Fallback: return minimal info with just name and quantity
+            string name = GetNameFromGrpId(info.GrpId);
+            return new CardInfo
+            {
+                Name = name ?? $"Card #{info.GrpId}",
+                Quantity = info.Quantity,
+                IsValid = true
+            };
         }
 
         /// <summary>
@@ -3037,27 +3069,39 @@ namespace AccessibleArena.Core.Services
                     info.TypeLine = typeLineProp.GetValue(cardData)?.ToString();
                 }
 
-                // ManaCost
-                var manaCostProp = cardType.GetProperty("ManaCost") ?? cardType.GetProperty("CastingCost");
-                if (manaCostProp != null)
+                // ManaCost - try structured PrintedCastingCost first (same as MODEL extraction)
+                var castingCostProp = cardType.GetProperty("PrintedCastingCost") ?? cardType.GetProperty("ManaCost") ?? cardType.GetProperty("CastingCost");
+                if (castingCostProp != null)
                 {
-                    var manaCost = manaCostProp.GetValue(cardData)?.ToString();
-                    if (!string.IsNullOrEmpty(manaCost))
+                    var castingCostValue = castingCostProp.GetValue(cardData);
+                    if (castingCostValue is IEnumerable castingCostEnum && !(castingCostValue is string))
                     {
-                        info.ManaCost = ParseManaSymbolsInText(manaCost);
+                        // It's an array/collection - parse it
+                        info.ManaCost = ParseManaQuantityArray(castingCostEnum);
+                    }
+                    else if (castingCostValue is string castingCostStr && !string.IsNullOrEmpty(castingCostStr))
+                    {
+                        // It's a string - parse symbols
+                        info.ManaCost = ParseManaSymbolsInText(castingCostStr);
                     }
                 }
 
-                // Power/Toughness
+                // Power/Toughness - use GetStringBackedIntValue (same as MODEL extraction)
                 var powerProp = cardType.GetProperty("Power");
                 var toughnessProp = cardType.GetProperty("Toughness");
                 if (powerProp != null && toughnessProp != null)
                 {
-                    var power = powerProp.GetValue(cardData)?.ToString();
-                    var toughness = toughnessProp.GetValue(cardData)?.ToString();
-                    if (!string.IsNullOrEmpty(power) && !string.IsNullOrEmpty(toughness))
+                    var power = powerProp.GetValue(cardData);
+                    var toughness = toughnessProp.GetValue(cardData);
+                    if (power != null && toughness != null)
                     {
-                        info.PowerToughness = $"{power}/{toughness}";
+                        // Use GetStringBackedIntValue to properly extract the value
+                        string powerStr = GetStringBackedIntValue(power);
+                        string toughStr = GetStringBackedIntValue(toughness);
+                        if (!string.IsNullOrEmpty(powerStr) && !string.IsNullOrEmpty(toughStr))
+                        {
+                            info.PowerToughness = $"{powerStr}/{toughStr}";
+                        }
                     }
                 }
 
@@ -3102,6 +3146,29 @@ namespace AccessibleArena.Core.Services
                     if (flavorId != 0)
                     {
                         info.FlavorText = GetFlavorText(flavorId);
+                    }
+                }
+
+                // Artist - CardPrintingData should have artist info directly
+                var artistProp = cardType.GetProperty("ArtistCredit") ??
+                                 cardType.GetProperty("Artist") ??
+                                 cardType.GetProperty("ArtistName");
+                if (artistProp != null)
+                {
+                    var artistValue = artistProp.GetValue(cardData);
+                    if (artistValue is string artistStr && !string.IsNullOrEmpty(artistStr))
+                    {
+                        info.Artist = artistStr;
+                        MelonLogger.Msg($"[CardModelProvider] Extracted artist from CardData: {info.Artist}");
+                    }
+                    else if (artistValue is uint artistId && artistId > 0)
+                    {
+                        var artistName = GetArtistName(artistId);
+                        if (!string.IsNullOrEmpty(artistName))
+                        {
+                            info.Artist = artistName;
+                            MelonLogger.Msg($"[CardModelProvider] Extracted artist by ID: {info.Artist}");
+                        }
                     }
                 }
             }
