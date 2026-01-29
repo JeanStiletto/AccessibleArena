@@ -368,6 +368,24 @@ Modify `HandleInput()` to not auto-enter edit mode when `IsAnyInputFieldFocused(
 
 ## Potential Issues (Monitor)
 
+### NPE Overlay Exclusion for Objective_NPE Elements
+
+Changed `ElementGroupAssigner.DetermineOverlayGroup()` to exclude `Objective_NPE` elements from NPE overlay classification. This allows SparkRank (Objective_NPEQuest) to be grouped with other Objectives instead of being treated as an NPE tutorial overlay element.
+
+**The change:**
+```csharp
+// Before: parentPath.Contains("NPE") would match Objective_NPEQuest
+// After: Added && !parentPath.Contains("Objective_NPE") exclusion
+```
+
+**Why:** SparkRank objective was getting its own standalone group instead of being in the Objectives subgroup because its parent path contains "NPE" which matched the NPE overlay check.
+
+**Monitor for:** This might break NPE tutorial screens if any tutorial elements have "Objective_NPE" in their path. Test NPE/tutorial flows when possible.
+
+**Files:** `ElementGroupAssigner.cs`
+
+---
+
 ### Card Info Navigation (Up/Down Arrows)
 
 Reported once: Up/Down arrows stopped reading card details during a duel. Cards were announced correctly when navigating with Left/Right, but pressing Up/Down to read card properties (mana cost, type, rules text, etc.) did nothing.

@@ -32,6 +32,8 @@ Break long menu lists into smaller, contextual groups for better blind user navi
   - Primary elements as standalone items at group level (directly activatable)
   - Auto-enter only when exactly 1 group exists
   - Content group always available (even when folders have decks)
+  - Objectives subgroup within Progress with full text extraction (quests show description + progress + reward)
+  - Progress indicators show type + progress (e.g., "Daily: 0/15 wins, 250 gold")
 
 ### Decisions Made/Changed
 
@@ -108,12 +110,23 @@ When UI changes trigger a rescan (e.g., page navigation in collection), the grou
 Some groups are nested within other groups for better organization. Currently:
 - **Objectives** is a subgroup within **Progress**
 
+**Objectives Subgroup Contents (7 items typical):**
+- 3 Quests - shown with description + progress + reward (e.g., "Cast 20 spells, 14/20, 500 gold")
+- Daily - shown with wins progress + gold reward (e.g., "Daily: 0/15 wins, 250 gold")
+- Weekly - shown with wins progress (e.g., "Weekly: 5/15")
+- Battle Pass Level - shown with level + EP progress (e.g., "Battle Pass Level: 7, 400/1000 EP")
+- Spark Rank - shown with progress (e.g., "Spark Rank: 0/1")
+
+**Text Extraction:** `UITextExtractor.TryGetObjectiveText()` extracts full info from objective elements:
+- For quests: finds TextLine (description), Text_GoalProgress (progress), Circle (reward)
+- For progress bars: extracts type from parent name + progress from Text_GoalProgress
+
 **Subgroup Navigation Flow:**
 1. Navigate to Progress group
-2. Enter Progress - see elements like Mastery, Gems, Wildcards, and "Objectives, X items"
-3. Navigate to "Objectives, X items" entry
-4. Press Enter - enter the Objectives subgroup, see individual quests
-5. Navigate through quests with Up/Down arrows
+2. Enter Progress - see elements like Mastery, Gems, Wildcards, and "Objectives, 7 items"
+3. Navigate to "Objectives, 7 items" entry
+4. Press Enter - enter the Objectives subgroup, see individual objectives
+5. Navigate through objectives with Up/Down arrows
 6. Press Backspace - return to Progress group (not to group list)
 7. Press Backspace again - exit to group list
 
@@ -191,8 +204,8 @@ public enum ElementGroup
     Unknown = 0,      // Hidden in grouped mode
     Primary,          // Main actions: Submit, Continue (shown as standalone)
     Play,             // Play-related: Play button, Direct Challenge, Rankings, Events (grouped together)
-    Progress,         // Progress-related: Boosters, Mastery, Gems, Gold, Wildcards
-    Objectives,       // Objectives/Quests: Daily wins, weekly wins, quests (subgroup of Progress)
+    Progress,         // Progress-related: Boosters, Mastery, Gems, Gold, Wildcards + Objectives subgroup
+    Objectives,       // Subgroup of Progress: Quests, Daily, Weekly, Battle Pass, Spark Rank
     Social,           // Social elements: Profile, Achievements, Mail
     Filters,          // Search, sort, filter toggles
     Content,          // Deck entries, cards, list items, dropdowns, buttons (shown as standalone)
@@ -206,7 +219,7 @@ public enum ElementGroup
     PlayBladeContent, // Play blade mode selectors (Ranked, Play, Brawl)
     PlayBladeFolders, // Play blade folders container (groups deck folders)
     SettingsMenu,     // Settings menu overlay
-    NPE,              // New Player Experience overlay
+    NPE,              // New Player Experience overlay (excludes Objective_NPE elements)
     DeckBuilderCollection, // Deck builder collection cards
 }
 ```
@@ -223,6 +236,10 @@ src/Core/Services/ElementGrouping/
   GroupedNavigator.cs             - Two-level navigation state machine with folder support
   PlayBladeNavigationHelper.cs    - PlayBlade-specific Enter/Backspace handling
                                     (includes PlayBladeResult enum)
+
+src/Core/Services/
+  UITextExtractor.cs              - Text extraction including TryGetObjectiveText() for objectives
+  MenuDebugHelper.cs              - Debug utilities including DumpGameObjectDetails()
 ```
 
 ---
@@ -330,6 +347,8 @@ These can potentially be replaced with group-based filtering later, but require 
 5. ~~**Color filters classification**~~ - Fixed: Added `DeckColorFilters` pattern to `IsFilterElement()`.
 
 6. ~~**Folder toggle on already-visible folder**~~ - Fixed: Now checks `toggle.isOn` before activating. Entering an already-visible folder no longer toggles it off.
+
+7. **NPE overlay exclusion** - `Objective_NPE` elements (like Spark Rank) are excluded from NPE overlay classification so they can be grouped with Objectives. This might affect NPE tutorial screens if any tutorial elements have "Objective_NPE" in their path. See KNOWN_ISSUES.md for details.
 
 ---
 

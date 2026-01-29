@@ -78,6 +78,13 @@ namespace AccessibleArena.Core.Services
                 return boosterName;
             }
 
+            // Check if this is an objective element - extract full info including progress
+            string objectiveText = TryGetObjectiveText(gameObject);
+            if (!string.IsNullOrEmpty(objectiveText))
+            {
+                return objectiveText;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -329,6 +336,138 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(packCount))
                     return $"{packName} ({packCount})";
                 return packName;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts text from objective/quest elements with full context.
+        /// For quests: includes description + progress (e.g., "Cast 20 spells, 14/20")
+        /// For progress indicators: adds type prefix (e.g., "Daily: 250", "Weekly: 5/15")
+        /// </summary>
+        private static string TryGetObjectiveText(GameObject gameObject)
+        {
+            if (gameObject == null || gameObject.name != "ObjectiveGraphics")
+                return null;
+
+            var parent = gameObject.transform.parent;
+            if (parent == null)
+                return null;
+
+            string parentName = parent.name;
+
+            // Extract objective type from parent name
+            // Format: "Objective_Base(Clone) - QuestNormal" or "Objective_Base(Clone) - Daily"
+            string objectiveType = null;
+            int dashIndex = parentName.IndexOf(" - ");
+            if (dashIndex >= 0 && dashIndex + 3 < parentName.Length)
+            {
+                objectiveType = parentName.Substring(dashIndex + 3).Trim();
+            }
+
+            // For quest objectives (QuestNormal), get description + progress
+            if (objectiveType == "QuestNormal")
+            {
+                string description = null;
+                string progress = null;
+                string reward = null;
+
+                // Look for TextLine (description), Text_GoalProgress (progress), Circle (reward)
+                for (int i = 0; i < gameObject.transform.childCount; i++)
+                {
+                    var child = gameObject.transform.GetChild(i);
+                    string childName = child.name;
+
+                    if (childName == "TextLine")
+                    {
+                        var tmpText = child.GetComponentInChildren<TMP_Text>();
+                        if (tmpText != null)
+                            description = CleanText(tmpText.text);
+                    }
+                    else if (childName == "Text_GoalProgress")
+                    {
+                        var tmpText = child.GetComponentInChildren<TMP_Text>();
+                        if (tmpText != null)
+                            progress = CleanText(tmpText.text);
+                    }
+                    else if (childName == "Circle")
+                    {
+                        var tmpText = child.GetComponentInChildren<TMP_Text>();
+                        if (tmpText != null)
+                            reward = CleanText(tmpText.text);
+                    }
+                }
+
+                // Build the label: "Quest description, progress, reward gold"
+                if (!string.IsNullOrEmpty(description))
+                {
+                    var parts = new System.Collections.Generic.List<string> { description };
+                    if (!string.IsNullOrEmpty(progress))
+                        parts.Add(progress);
+                    if (!string.IsNullOrEmpty(reward))
+                        parts.Add($"{reward} gold");
+                    return string.Join(", ", parts);
+                }
+            }
+            // For other objective types (Daily, Weekly, BattlePass), add type prefix
+            else if (!string.IsNullOrEmpty(objectiveType))
+            {
+                string mainValue = null;
+                string progressValue = null;
+
+                // Look for Circle (main display) and Text_GoalProgress (detailed progress)
+                for (int i = 0; i < gameObject.transform.childCount; i++)
+                {
+                    var child = gameObject.transform.GetChild(i);
+                    string childName = child.name;
+
+                    if (childName == "Circle")
+                    {
+                        var tmpText = child.GetComponentInChildren<TMP_Text>();
+                        if (tmpText != null)
+                            mainValue = CleanText(tmpText.text);
+                    }
+                    else if (childName == "Text_GoalProgress")
+                    {
+                        var tmpText = child.GetComponentInChildren<TMP_Text>();
+                        if (tmpText != null)
+                            progressValue = CleanText(tmpText.text);
+                    }
+                }
+
+                // Clean up type names for readability
+                string typeLabel = objectiveType;
+                if (objectiveType == "BattlePass - Level")
+                    typeLabel = "Battle Pass Level";
+                else if (objectiveType == "SparkRankTier1")
+                    typeLabel = "Spark Rank";
+
+                // Build label based on objective type
+                if (objectiveType == "Daily")
+                {
+                    // Daily: "0/15 wins, 250 gold"
+                    if (!string.IsNullOrEmpty(progressValue) && !string.IsNullOrEmpty(mainValue))
+                        return $"{typeLabel}: {progressValue} wins, {mainValue} gold";
+                    else if (!string.IsNullOrEmpty(progressValue))
+                        return $"{typeLabel}: {progressValue}";
+                }
+                else if (objectiveType == "BattlePass - Level")
+                {
+                    // BattlePass: "Level 7, 400/1000 EP"
+                    if (!string.IsNullOrEmpty(mainValue) && !string.IsNullOrEmpty(progressValue))
+                        return $"{typeLabel}: {mainValue}, {progressValue}";
+                    else if (!string.IsNullOrEmpty(mainValue))
+                        return $"{typeLabel}: {mainValue}";
+                }
+                else
+                {
+                    // Weekly, SparkRank, etc: just show progress
+                    if (!string.IsNullOrEmpty(progressValue))
+                        return $"{typeLabel}: {progressValue}";
+                    else if (!string.IsNullOrEmpty(mainValue))
+                        return $"{typeLabel}: {mainValue}";
+                }
             }
 
             return null;

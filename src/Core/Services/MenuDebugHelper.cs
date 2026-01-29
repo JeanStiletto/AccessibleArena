@@ -477,6 +477,108 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Dump detailed information about any GameObject and its children.
+        /// Useful for investigating unknown UI elements to find text, tooltips, and structure.
+        /// </summary>
+        /// <param name="tag">Log tag for filtering</param>
+        /// <param name="obj">The GameObject to inspect</param>
+        /// <param name="maxDepth">Maximum depth to recurse into children (default 3)</param>
+        public static void DumpGameObjectDetails(string tag, GameObject obj, int maxDepth = 3)
+        {
+            if (obj == null)
+            {
+                MelonLogger.Msg($"[{tag}] DumpGameObjectDetails: null object");
+                return;
+            }
+
+            MelonLogger.Msg($"[{tag}] === DUMP: {obj.name} ===");
+            MelonLogger.Msg($"[{tag}] Path: {GetFullPath(obj.transform)}");
+            MelonLogger.Msg($"[{tag}] Active: {obj.activeInHierarchy}");
+
+            DumpGameObjectDetailsRecursive(tag, obj, 0, maxDepth);
+
+            MelonLogger.Msg($"[{tag}] === END DUMP ===");
+        }
+
+        private static void DumpGameObjectDetailsRecursive(string tag, GameObject obj, int depth, int maxDepth)
+        {
+            if (obj == null || depth > maxDepth)
+                return;
+
+            string indent = new string(' ', depth * 2);
+
+            // Log components
+            var components = obj.GetComponents<Component>();
+            var componentNames = new List<string>();
+            bool hasLocalize = false;
+            bool hasTooltip = false;
+            MonoBehaviour tooltipTrigger = null;
+
+            foreach (var comp in components)
+            {
+                if (comp == null || comp is Transform)
+                    continue;
+
+                string typeName = comp.GetType().Name;
+                componentNames.Add(typeName);
+
+                if (typeName == "Localize")
+                    hasLocalize = true;
+                if (typeName == "TooltipTrigger")
+                {
+                    hasTooltip = true;
+                    tooltipTrigger = comp as MonoBehaviour;
+                }
+            }
+
+            // Get text content
+            string textContent = "";
+            var tmpText = obj.GetComponent<TMP_Text>();
+            if (tmpText != null)
+            {
+                textContent = string.IsNullOrEmpty(tmpText.text) ? "(empty)" : $"'{tmpText.text}'";
+            }
+            else
+            {
+                var legacyText = obj.GetComponent<Text>();
+                if (legacyText != null)
+                {
+                    textContent = string.IsNullOrEmpty(legacyText.text) ? "(empty)" : $"'{legacyText.text}'";
+                }
+            }
+
+            // Build info string
+            string activeStr = obj.activeInHierarchy ? "" : " [INACTIVE]";
+            string textStr = string.IsNullOrEmpty(textContent) ? "" : $" Text={textContent}";
+            string localizeStr = hasLocalize ? " [Localize]" : "";
+            string tooltipStr = hasTooltip ? " [Tooltip]" : "";
+            string componentsStr = componentNames.Count > 0 ? $" ({string.Join(", ", componentNames)})" : "";
+
+            MelonLogger.Msg($"[{tag}] {indent}[{depth}] {obj.name}{activeStr}{textStr}{localizeStr}{tooltipStr}");
+
+            if (componentNames.Count > 0 && depth == 0)
+            {
+                MelonLogger.Msg($"[{tag}] {indent}    Components: {string.Join(", ", componentNames)}");
+            }
+
+            // Log tooltip details if present
+            if (tooltipTrigger != null && depth == 0)
+            {
+                LogTooltipTriggerDetails(tag, tooltipTrigger);
+            }
+
+            // Recurse into children
+            for (int i = 0; i < obj.transform.childCount; i++)
+            {
+                var child = obj.transform.GetChild(i);
+                if (child != null)
+                {
+                    DumpGameObjectDetailsRecursive(tag, child.gameObject, depth + 1, maxDepth);
+                }
+            }
+        }
+
+        /// <summary>
         /// Dump detailed information about a card GameObject. Triggered by F11 key.
         /// Useful for debugging cards that fail text extraction (e.g., "Unknown card").
         /// </summary>

@@ -108,9 +108,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 parentPath.Contains("Content - Audio") || parentPath.Contains("Content - Account"))
                 return ElementGroup.SettingsMenu;
 
-            // NPE overlay
-            if (parentPath.Contains("NPE") || parentPath.Contains("NewPlayerExperience") ||
-                parentPath.Contains("StitcherSparky") || parentPath.Contains("Sparky"))
+            // NPE overlay (but not Objective_NPE which are objectives, not tutorial elements)
+            if ((parentPath.Contains("NPE") || parentPath.Contains("NewPlayerExperience") ||
+                parentPath.Contains("StitcherSparky") || parentPath.Contains("Sparky")) &&
+                !parentPath.Contains("Objective_NPE"))
                 return ElementGroup.NPE;
 
             return ElementGroup.Unknown;
