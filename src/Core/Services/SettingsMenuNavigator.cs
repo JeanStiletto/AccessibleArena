@@ -33,6 +33,7 @@ namespace AccessibleArena.Core.Services
         #region State
 
         private GameObject _settingsContentPanel;
+        private GameObject _settingsMenuObject; // Fallback for Login scene (no content panels)
         private string _lastPanelName;
         private float _rescanDelay;
 
@@ -65,6 +66,7 @@ namespace AccessibleArena.Core.Services
             if (PanelStateManager.Instance?.IsSettingsMenuOpen != true)
             {
                 _settingsContentPanel = null;
+                _settingsMenuObject = null;
                 return false;
             }
 
@@ -184,6 +186,7 @@ namespace AccessibleArena.Core.Services
             if (PanelStateManager.Instance?.IsSettingsMenuOpen != true)
             {
                 _settingsContentPanel = null;
+                _settingsMenuObject = null;
                 return false;
             }
 
@@ -226,6 +229,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _settingsContentPanel = null;
+            _settingsMenuObject = null;
             _lastPanelName = null;
             _activePopup = null;
             _isPopupActive = false;
@@ -288,8 +292,20 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (_settingsContentPanel == null)
-                return;
+            // Use content panel if available, otherwise fall back to SettingsMenu object
+            // This handles Login scene where Content - MainMenu etc. don't exist
+            GameObject searchRoot = _settingsContentPanel;
+            if (searchRoot == null)
+            {
+                _settingsMenuObject = FindSettingsMenuObject();
+                searchRoot = _settingsMenuObject;
+                if (searchRoot == null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] No settings content panel or SettingsMenu object found");
+                    return;
+                }
+                MelonLogger.Msg($"[{NavigatorId}] Using SettingsMenu object as fallback for element discovery");
+            }
 
             var addedObjects = new HashSet<GameObject>();
             var discoveredElements = new List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)>();
@@ -299,8 +315,8 @@ namespace AccessibleArena.Core.Services
                 if (obj == null || !obj.activeInHierarchy) return;
                 if (addedObjects.Contains(obj)) return;
 
-                // Only include elements that are children of the settings panel
-                if (!IsChildOf(obj, _settingsContentPanel))
+                // Only include elements that are children of the settings panel/menu
+                if (!IsChildOf(obj, searchRoot))
                     return;
 
                 var classification = UIElementClassifier.Classify(obj);
@@ -370,7 +386,8 @@ namespace AccessibleArena.Core.Services
                 AddElement(obj, announcement, carouselInfo);
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} elements in {_settingsContentPanel?.name}");
+            string searchRootName = _settingsContentPanel?.name ?? _settingsMenuObject?.name ?? "unknown";
+            MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} elements in {searchRootName}");
         }
 
         /// <summary>
@@ -914,6 +931,20 @@ namespace AccessibleArena.Core.Services
             if (backButton != null && backButton.gameObject.activeInHierarchy)
                 return backButton.gameObject;
 
+            return null;
+        }
+
+        /// <summary>
+        /// Find the SettingsMenu MonoBehaviour's GameObject.
+        /// Used as fallback for element discovery on Login scene where content panels don't exist.
+        /// </summary>
+        private GameObject FindSettingsMenuObject()
+        {
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "SettingsMenu" && mb.gameObject.activeInHierarchy)
+                    return mb.gameObject;
+            }
             return null;
         }
 
