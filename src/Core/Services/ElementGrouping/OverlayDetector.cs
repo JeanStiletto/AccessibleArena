@@ -119,6 +119,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
         /// <summary>
         /// Check if an element is inside the play blade.
+        /// Also includes main button from event pages (CampaignGraph) since they coexist with the blade.
         /// </summary>
         private bool IsInsidePlayBlade(GameObject obj)
         {
@@ -139,6 +140,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 // Filter list items in play blade
                 if (name.Contains("FilterListItem") && current.parent != null &&
                     current.parent.name.Contains("Blade"))
+                    return true;
+
+                // Event page main button (Play button on Color Challenge, etc.)
+                // These coexist with the blade and should be navigable
+                if (name.Contains("CampaignGraphMainButtonModule"))
                     return true;
 
                 current = current.parent;
