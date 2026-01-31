@@ -150,6 +150,74 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Debug logging for Rewards popup controller investigation.
+        /// Logs all components on the ContentController parent when ClaimButton is found.
+        /// See KNOWN_ISSUES.md "Rewards Popup Not Tracked" for context.
+        /// </summary>
+        private void LogRewardsPopupControllerInfo(GameObject claimButton)
+        {
+            MelonLogger.Msg($"[{NavigatorId}] === REWARDS POPUP DEBUG (ClaimButton found) ===");
+
+            // Walk up the hierarchy to find the ContentController
+            Transform current = claimButton.transform;
+            while (current != null)
+            {
+                string name = current.name;
+                MelonLogger.Msg($"[{NavigatorId}] Hierarchy: {name}");
+
+                // Check if this is the ContentController
+                if (name.Contains("ContentController") || name.Contains("Rewards"))
+                {
+                    // Log all components on this GameObject
+                    var components = current.GetComponents<Component>();
+                    MelonLogger.Msg($"[{NavigatorId}] Found potential controller: {name}");
+                    MelonLogger.Msg($"[{NavigatorId}]   Components ({components.Length}):");
+                    foreach (var comp in components)
+                    {
+                        if (comp == null) continue;
+                        var type = comp.GetType();
+                        MelonLogger.Msg($"[{NavigatorId}]     - {type.FullName}");
+
+                        // Log base types to understand inheritance
+                        var baseType = type.BaseType;
+                        if (baseType != null && baseType != typeof(MonoBehaviour) && baseType != typeof(Component))
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}]       Base: {baseType.FullName}");
+                        }
+                    }
+
+                    // Log MonoBehaviour methods that might be useful for patching
+                    foreach (var comp in components)
+                    {
+                        if (comp == null) continue;
+                        var type = comp.GetType();
+                        if (typeof(MonoBehaviour).IsAssignableFrom(type) && type != typeof(MonoBehaviour))
+                        {
+                            var methods = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly);
+                            if (methods.Length > 0)
+                            {
+                                MelonLogger.Msg($"[{NavigatorId}]   Methods on {type.Name}:");
+                                foreach (var method in methods)
+                                {
+                                    if (method.Name.Contains("Open") || method.Name.Contains("Close") ||
+                                        method.Name.Contains("Show") || method.Name.Contains("Hide") ||
+                                        method.Name.Contains("Init") || method.Name.Contains("Activate"))
+                                    {
+                                        MelonLogger.Msg($"[{NavigatorId}]     - {method.Name}()");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                current = current.parent;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] === END REWARDS POPUP DEBUG ===");
+        }
+
+        /// <summary>
         /// Get all active CustomButton GameObjects in the scene.
         /// Consolidates the common pattern of finding CustomButton/CustomButtonWithTooltip components.
         /// </summary>
@@ -1771,6 +1839,13 @@ namespace AccessibleArena.Core.Services
                     objGraphicsCount++;
                     MelonLogger.Msg($"[{NavigatorId}] Processing ObjectiveGraphics #{objGraphicsCount}: parent={buttonObj.transform.parent?.name}");
                 }
+
+                // Debug: log Rewards popup controller components for KNOWN_ISSUES investigation
+                if (buttonObj.name == "ClaimButton")
+                {
+                    LogRewardsPopupControllerInfo(buttonObj);
+                }
+
                 TryAddElement(buttonObj);
             }
             MelonLogger.Msg($"[{NavigatorId}] Processed {objCount} CustomButtons, {objGraphicsCount} ObjectiveGraphics");

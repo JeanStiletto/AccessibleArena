@@ -687,7 +687,6 @@ namespace AccessibleArena.Core.Services
             }
             return null;
         }
-
         #region Selection Mode (Discard, etc.)
 
         /// <summary>

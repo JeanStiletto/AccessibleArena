@@ -190,6 +190,83 @@ Dropdown auto-advance causes navigation confusion. Basic dropdown navigation wor
 
 ---
 
+### Rewards Popup Not Tracked
+
+Quest reward popups (`ContentController - Rewards_Desktop_16x9(Clone)`) are not detected as overlays. Navigation includes all navbar buttons instead of focusing on just the popup.
+
+**The Problem:**
+- Reward popup appears under `Canvas - Screenspace Popups/ContentController - Rewards_Desktop_16x9(Clone)`
+- Has `ClaimButton` with text "Nehmen" (Claim) and reward cards
+- PanelStateManager does NOT track this popup - no `FinishOpen()` or lifecycle events logged
+- So `OverlayDetector.GetActiveOverlay()` never returns `Popup` for it
+- Elements are not filtered, navbar buttons appear alongside popup content
+
+**Why System Popups Work But This Doesn't:**
+- SystemMessageView popups: Tracked by PanelStateManager (call `FinishOpen()` etc.)
+- SocialUI: Has dedicated detection via `IsSocialPanelOpen()`
+- Settings: Has dedicated detection via `CheckSettingsMenuOpen()`
+- Rewards popup: Uses generic ContentController, doesn't call lifecycle methods
+
+**What We Know:**
+- Popup path: `Canvas - Screenspace Popups/ContentController - Rewards_Desktop_16x9(Clone)`
+- Contains: `Container/Buttons/ClaimButton`, `Container/RewardsCONTAINER/RewardPrefab_*`
+- Does NOT trigger `NavContentController.FinishOpen()` when appearing
+- Likely just instantiated/enabled without calling Open() lifecycle
+
+**Attempted Fix (Failed):**
+Direct GameObject search for "ContentController" + "Rewards" broke home page detection (found something always active).
+
+**Next Steps:**
+1. Debug logging added to GeneralMenuNavigator to capture controller components when ClaimButton is discovered
+2. Find the actual controller class type
+3. Patch it in PanelStatePatch like other controllers
+
+**Debug logging:** When ClaimButton with "Nehmen" text is found, logs all components on parent ContentController
+
+**Files:** `OverlayDetector.cs`, `GeneralMenuNavigator.cs`, `PanelStatePatch.cs`
+
+---
+
+### Activated Abilities with Mana Costs Cannot Be Completed
+
+Creatures with activated abilities that cost mana (e.g., `{3}{G}: Do something`) cannot be activated via keyboard. After clicking the creature, only "Abbrechen" (Cancel) buttons are available - no way to confirm mana payment.
+
+**Note:** This issue probably still exists. Testing situation may have had correct mana available but activation still failed.
+
+**The Problem:**
+- Click on creature with mana ability → game enters mana payment mode
+- Tab shows: "No highlights, buttons: Abbrechen" (only Cancel)
+- Secondary button shows "Strg" (Ctrl hint) - not an action button
+- No "Confirm" or "Done" button to complete payment
+- Even after manually tapping lands, no way to finish activation
+
+**Test Case (January 2026):**
+- Card: Sanftmütige Bibliothekarin
+- Ability: `{3}{G}: Transform, +1/+1 counters, draw card`
+- Available: 3 lands + 1 creature that taps for mana (Vertreibungsmagierin)
+- Result: Could not complete activation despite having enough mana sources
+
+**AutoTap Limitations:**
+- AutoTap works primarily with lands, not creature mana sources
+- If mana sources include creatures (mana dorks), AutoTap may not consider them
+- No settings checkbox for AutoTap found in Gameplay settings (only keyboard hint "Strg")
+
+**What Sighted Players Do:**
+1. Hold Ctrl to disable AutoTap
+2. Manually click creature to tap for mana
+3. Click lands to tap for mana
+4. Somehow complete (unclear - no visible confirm button)
+
+**Possible Causes:**
+1. AutoTap doesn't work with creature mana sources
+2. Not enough untapped mana sources were available
+3. Game expects specific click sequence we can't replicate
+4. Missing UI element for confirming manual mana payment
+
+**Files:** `HotHighlightNavigator.cs`
+
+---
+
 ### Space Key Pass Priority
 
 Game's native Space keybinding doesn't work reliably after using mod navigation. HotHighlightNavigator now clicks the primary button directly as workaround.
@@ -498,8 +575,29 @@ Both regular and London mulligan working. C/D for zone navigation, Enter to togg
 
 ### Immediate
 
-1. Mana pool info
+1. Mana pool info - expand to show color breakdown
 2. Stepper control redesign
+
+---
+
+### Mana Pool Info (Research Notes)
+
+The mana pool UI exists and is readable, but only shows total count, not color breakdown.
+
+**What We Found (January 2026):**
+- **UI Path:** `UIElements/ManaPool/Content/ManaPoolButton(Clone)`
+- **How it's read:** FocusTracker extracts text when focused (via Tab during mana payment)
+- **Current output:** Just a number (e.g., "1")
+- **Missing:** Color breakdown (e.g., "1 Green, 2 Blue")
+
+**How it gets focused:**
+During mana payment mode, Tab can navigate to the ManaPoolButton. FocusTracker announces the extracted text.
+
+**Next Steps:**
+1. Investigate ManaPool children - may have per-color elements
+2. Check if game has ManaPool data accessible via reflection
+3. Look for mana symbols/icons that indicate colors
+4. Consider adding a dedicated shortcut to read mana pool during duels
 
 ### Upcoming
 
