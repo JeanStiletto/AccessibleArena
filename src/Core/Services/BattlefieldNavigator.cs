@@ -104,14 +104,24 @@ namespace AccessibleArena.Core.Services
 
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
-            // Row shortcuts: A for lands
+            // Row shortcuts: A for lands (also announces floating mana for player lands)
             if (Input.GetKeyDown(KeyCode.A))
             {
                 _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
+                {
                     NavigateToRow(BattlefieldRow.EnemyLands);
+                }
                 else
+                {
+                    // Announce floating mana when going to player lands
+                    string mana = DuelAnnouncer.CurrentManaPool;
+                    if (!string.IsNullOrEmpty(mana))
+                    {
+                        _announcer.Announce($"Mana: {mana}", AnnouncementPriority.High);
+                    }
                     NavigateToRow(BattlefieldRow.PlayerLands);
+                }
                 return true;
             }
 

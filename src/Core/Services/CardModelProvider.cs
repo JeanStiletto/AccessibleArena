@@ -1681,7 +1681,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Converts a mana color enum name to a readable name.
         /// </summary>
-        private static string ConvertManaColorToName(string colorEnum)
+        internal static string ConvertManaColorToName(string colorEnum)
         {
             switch (colorEnum)
             {

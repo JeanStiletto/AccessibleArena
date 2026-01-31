@@ -190,6 +190,18 @@ namespace AccessibleArena.Core.Services
                     if (primaryButton != null)
                     {
                         string buttonText = GetPrimaryButtonText();
+
+                        // EXPERIMENTAL: Skip Cancel button to allow mana payment confirmation
+                        // TODO: This may break other cases where clicking Cancel on Space is intended
+                        // TO REVERT: Remove this entire if block (lines below until "END EXPERIMENTAL")
+                        var lowerText = buttonText?.ToLowerInvariant() ?? "";
+                        if (lowerText == "abbrechen" || lowerText == "cancel")
+                        {
+                            MelonLogger.Msg($"[HotHighlightNavigator] Space pressed but primary button is Cancel - passing to game (EXPERIMENTAL)");
+                            return false;
+                        }
+                        // END EXPERIMENTAL
+
                         MelonLogger.Msg($"[HotHighlightNavigator] Space pressed - clicking primary button: {buttonText}");
                         UIActivator.SimulatePointerClick(primaryButton);
                         _announcer.Announce(buttonText, AnnouncementPriority.Normal);

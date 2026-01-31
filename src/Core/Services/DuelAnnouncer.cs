@@ -272,6 +272,8 @@ namespace AccessibleArena.Core.Services
                     return HandleCombatFrame(uxEvent);
                 case DuelEventType.MultistepEffect:
                     return HandleMultistepEffect(uxEvent);
+                case DuelEventType.ManaPool:
+                    return HandleManaPoolEvent(uxEvent);
                 default:
                     return null;
             }
@@ -2133,6 +2135,115 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        // Track if we've logged mana pool event fields (once per event type for discovery)
+        // Store last known mana pool for on-demand queries
+        private static string _lastManaPool = "";
+
+        /// <summary>
+        /// Gets the current floating mana pool (e.g., "2 Green, 1 Blue").
+        /// Returns empty string if no mana floating.
+        /// </summary>
+        public static string CurrentManaPool => _lastManaPool;
+
+        private string HandleManaPoolEvent(object uxEvent)
+        {
+            try
+            {
+                var typeName = uxEvent.GetType().Name;
+
+                // Only process UpdateManaPoolUXEvent for announcements
+                if (typeName == "UpdateManaPoolUXEvent")
+                {
+                    string manaPoolString = ParseManaPool(uxEvent);
+                    _lastManaPool = manaPoolString ?? "";
+
+                    if (!string.IsNullOrEmpty(manaPoolString))
+                    {
+                        MelonLogger.Msg($"[DuelAnnouncer] Mana pool: {manaPoolString}");
+                        return $"Mana: {manaPoolString}";
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error handling mana event: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Parses the mana pool from UpdateManaPoolUXEvent into a readable string like "2 Green, 1 Blue"
+        /// </summary>
+        private string ParseManaPool(object uxEvent)
+        {
+            try
+            {
+                // Get _newManaPool field (List<MtgMana>)
+                var poolField = uxEvent.GetType().GetField("_newManaPool",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (poolField == null) return null;
+
+                var poolObj = poolField.GetValue(uxEvent);
+                if (poolObj == null) return null;
+
+                var enumerable = poolObj as System.Collections.IEnumerable;
+                if (enumerable == null) return null;
+
+                // Count mana by color
+                var manaByColor = new Dictionary<string, int>();
+
+                foreach (var mana in enumerable)
+                {
+                    if (mana == null) continue;
+
+                    // Try to get Color from property or field
+                    var colorProp = mana.GetType().GetProperty("Color");
+                    var colorField = mana.GetType().GetField("Color", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                                  ?? mana.GetType().GetField("_color", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                    if (colorProp == null && colorField == null) continue;
+
+                    try
+                    {
+                        object colorValue = null;
+                        if (colorProp != null)
+                            colorValue = colorProp.GetValue(mana);
+                        else if (colorField != null)
+                            colorValue = colorField.GetValue(mana);
+
+                        string colorName = colorValue?.ToString() ?? "Unknown";
+
+                        // Convert enum name to readable name using existing function
+                        string readableName = CardModelProvider.ConvertManaColorToName(colorName);
+
+                        if (manaByColor.ContainsKey(readableName))
+                            manaByColor[readableName]++;
+                        else
+                            manaByColor[readableName] = 1;
+                    }
+                    catch { }
+                }
+
+                if (manaByColor.Count == 0) return null;
+
+                // Build readable string: "2 Green, 1 Blue, 3 Colorless"
+                var parts = new List<string>();
+                foreach (var kvp in manaByColor)
+                {
+                    parts.Add($"{kvp.Value} {kvp.Key}");
+                }
+
+                return string.Join(", ", parts);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error parsing mana pool: {ex.Message}");
+                return null;
+            }
+        }
+
         #endregion
 
         #region Helper Methods
@@ -2355,8 +2466,8 @@ namespace AccessibleArena.Core.Services
                 { "NPETooltipBumperUXEvent", DuelEventType.Ignored },
                 { "UXEventUpdateDecider", DuelEventType.Ignored },
                 { "AddCardDecoratorUXEvent", DuelEventType.Ignored },
-                { "ManaProducedUXEvent", DuelEventType.Ignored },
-                { "UpdateManaPoolUXEvent", DuelEventType.Ignored },
+                { "ManaProducedUXEvent", DuelEventType.ManaPool },
+                { "UpdateManaPoolUXEvent", DuelEventType.ManaPool },
             };
         }
 
@@ -2382,6 +2493,7 @@ namespace AccessibleArena.Core.Services
         CardModelUpdate,
         ZoneTransferGroup,
         CombatFrame,
-        MultistepEffect
+        MultistepEffect,
+        ManaPool
     }
 }
