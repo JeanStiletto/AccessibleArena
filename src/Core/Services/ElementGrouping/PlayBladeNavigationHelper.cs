@@ -102,17 +102,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Inside a PlayBlade group
             if (_groupedNavigator.Level == NavigationLevel.InsideGroup)
             {
-                // Exit the group first
-                _groupedNavigator.ExitGroup();
-
                 if (currentGroup.Value.IsFolderGroup)
                 {
-                    // Was inside a folder (viewing decks) -> go back to Folders list
-                    _groupedNavigator.RequestFoldersEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited folder, going to folders list");
-                    return PlayBladeResult.RescanNeeded;
+                    // Folder group exit handled by HandleGroupedBackspace in GeneralMenuNavigator
+                    // It will toggle the folder OFF, exit group, and call RequestFoldersEntry
+                    // DON'T call ExitGroup here - let HandleGroupedBackspace do it
+                    return PlayBladeResult.NotHandled;
                 }
-                else if (groupType == ElementGroup.PlayBladeFolders)
+
+                // Exit the group for non-folder cases
+                _groupedNavigator.ExitGroup();
+
+                if (groupType == ElementGroup.PlayBladeFolders)
                 {
                     // Was inside Folders list -> go back to content (play modes)
                     _groupedNavigator.RequestPlayBladeContentEntry();

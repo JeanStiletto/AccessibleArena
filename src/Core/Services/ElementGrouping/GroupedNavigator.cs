@@ -783,6 +783,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
 
             // Check for pending folder entry (set by EnterGroup before rescan)
+            bool enteredPendingFolder = false;
             if (!string.IsNullOrEmpty(_pendingFolderEntry))
             {
                 // Find the folder and auto-enter it
@@ -793,6 +794,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _currentGroupIndex = i;
                         _navigationLevel = NavigationLevel.InsideGroup;
                         _currentElementIndex = 0;
+                        enteredPendingFolder = true;
                         MelonLogger.Msg($"[GroupedNavigator] Auto-entered pending folder: {_pendingFolderEntry} with {_groups[i].Count} items");
                         break;
                     }
@@ -859,16 +861,29 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 _pendingFoldersEntry = false;
                 // Find PlayBladeFolders group and auto-enter it
+                bool foundFolders = false;
                 for (int i = 0; i < _groups.Count; i++)
                 {
-                    if (_groups[i].Group == ElementGroup.PlayBladeFolders && _groups[i].Count > 0)
+                    if (_groups[i].Group == ElementGroup.PlayBladeFolders)
                     {
-                        _currentGroupIndex = i;
-                        _navigationLevel = NavigationLevel.InsideGroup;
-                        _currentElementIndex = 0;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeFolders with {_groups[i].Count} folders");
+                        if (_groups[i].Count > 0)
+                        {
+                            _currentGroupIndex = i;
+                            _navigationLevel = NavigationLevel.InsideGroup;
+                            _currentElementIndex = 0;
+                            MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeFolders with {_groups[i].Count} folders");
+                            foundFolders = true;
+                        }
+                        else
+                        {
+                            MelonLogger.Msg($"[GroupedNavigator] PlayBladeFolders group exists but is empty - cannot auto-enter");
+                        }
                         break;
                     }
+                }
+                if (!foundFolders)
+                {
+                    MelonLogger.Msg($"[GroupedNavigator] PlayBladeFolders group not found - pending folders entry ignored");
                 }
             }
 
@@ -892,14 +907,15 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
 
             // Check for pending group restore (set by SaveCurrentGroupForRestore before rescan)
-            // Skip group restore in PlayBlade context - PlayBlade has its own navigation logic via auto-entries
-            // Restoring old state would interfere with the intended PlayBlade navigation flow
+            // Skip group restore in PlayBlade context or when we just entered a pending folder
+            // Restoring old state would interfere with the intended navigation flow
             if (_pendingGroupRestore.HasValue)
             {
-                if (_isPlayBladeContext)
+                if (_isPlayBladeContext || enteredPendingFolder)
                 {
-                    // Clear stale restore state - PlayBlade uses auto-entries instead
-                    MelonLogger.Msg($"[GroupedNavigator] Skipping group restore in PlayBlade context (was: {_pendingGroupRestore.Value})");
+                    // Clear stale restore state - auto-entries take precedence
+                    string reason = enteredPendingFolder ? "folder entry" : "PlayBlade context";
+                    MelonLogger.Msg($"[GroupedNavigator] Skipping group restore due to {reason} (was: {_pendingGroupRestore.Value})");
                     _pendingGroupRestore = null;
                     _pendingLevelRestore = NavigationLevel.GroupList;
                     _pendingElementIndexRestore = -1;

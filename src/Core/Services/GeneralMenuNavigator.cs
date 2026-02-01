@@ -2805,7 +2805,16 @@ namespace AccessibleArena.Core.Services
                         if (!string.IsNullOrEmpty(folderName))
                         {
                             // Find the matching folder group and enter it
-                            // Folder groups are already expanded in PlayBlade, so no toggle needed
+                            // Unity's EventSystem may have already toggled the folder toggle
+                            // If toggle is now OFF (was ON before Enter), we need to toggle it back ON
+                            var toggle = currentElement.Value.GameObject.GetComponent<Toggle>();
+                            if (toggle != null && !toggle.isOn)
+                            {
+                                // Folder was expanded but Unity toggled it OFF - toggle back ON
+                                MelonLogger.Msg($"[{NavigatorId}] Folder toggle was OFF after Enter, re-toggling to expand");
+                                UIActivator.Activate(currentElement.Value.GameObject);
+                            }
+
                             _groupedNavigator.RequestSpecificFolderEntry(folderName);
                             TriggerRescan();
                             return true;
@@ -2851,8 +2860,37 @@ namespace AccessibleArena.Core.Services
             // Inside a group - exit to group level
             if (_groupedNavigator.Level == NavigationLevel.InsideGroup)
             {
+                // If exiting a folder group, toggle the folder OFF to collapse it
+                var currentGroup = _groupedNavigator.CurrentGroup;
+                bool wasFolderGroup = currentGroup.HasValue && currentGroup.Value.IsFolderGroup;
+                // Capture PlayBlade context BEFORE toggle - UI changes might affect detection
+                bool wasPlayBladeContext = _groupedNavigator.IsPlayBladeContext;
+
+                if (wasFolderGroup && currentGroup.Value.FolderToggle != null)
+                {
+                    var toggle = currentGroup.Value.FolderToggle.GetComponent<Toggle>();
+                    if (toggle != null && toggle.isOn)
+                    {
+                        LogDebug($"[{NavigatorId}] Toggling folder OFF to collapse: {currentGroup.Value.DisplayName}");
+                        UIActivator.Activate(currentGroup.Value.FolderToggle);
+                    }
+                }
+
                 if (_groupedNavigator.ExitGroup())
                 {
+                    if (wasFolderGroup)
+                    {
+                        // In PlayBlade context, go back to folders list after exiting a folder
+                        if (wasPlayBladeContext)
+                        {
+                            _groupedNavigator.RequestFoldersEntry();
+                            LogDebug($"[{NavigatorId}] PlayBlade folder exit - requesting folders list entry");
+                        }
+
+                        // Always rescan after folder collapse to update navigation state
+                        TriggerRescan();
+                    }
+
                     _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
                     UpdateCardNavigationForGroupedElement(); // Deactivate card navigator when exiting group
                     return true;

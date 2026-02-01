@@ -229,47 +229,59 @@ Direct GameObject search for "ContentController" + "Rewards" broke home page det
 
 ### Activated Abilities with Mana Costs Cannot Be Completed
 
-Creatures with activated abilities that cost mana (e.g., `{3}{G}: Do something`) cannot be activated via keyboard. After clicking the creature, only "Abbrechen" (Cancel) buttons are available - no way to confirm mana payment.
+Creatures with activated abilities that cost mana (e.g., `{3}{G}: Do something`) cannot be activated via keyboard.
 
-**The Problem:**
-- Click on creature with mana ability → game enters mana payment mode
-- Tab shows 0 highlights - lands are NOT highlighted during mana payment
-- Primary button is "Abbrechen" (Cancel)
-- Secondary button shows "Strg" (Ctrl hint) - not an action button
-- No "Confirm" or "Done" button exists
-- Even after manually tapping lands, no way to finish activation
+**Root Cause Analysis (January 2026):**
 
-**Current Workaround (Partial):**
-- Use A key (lands shortcut) + Left/Right to navigate lands
-- Enter to tap individual lands for mana (works - sounds confirm)
-- BUT: No way to confirm/submit mana payment after tapping
+Decompilation of game code revealed TWO different mana payment workflows:
 
-**EXPERIMENTAL Change (January 2026):**
-- Space no longer clicks Cancel when primary button is "Abbrechen"
-- Code passes Space through to game hoping for native mana confirmation
-- Result: Space does nothing - game doesn't handle it either
-- See `HotHighlightNavigator.cs` lines marked `// EXPERIMENTAL`
+1. **`AutoTapActionsWorkflow`** - Used for simple activated abilities
+   - Does NOT implement `IKeybindingWorkflow`
+   - Only creates buttons - NO keyboard shortcuts
+   - Primary button should contain mana payment callback
+   - Must CLICK the button to submit
 
-**Test Case (January 2026):**
+2. **`BatchManaSubmission`** - Used for batch mana selection
+   - Implements `IKeybindingWorkflow`
+   - **Q key (on KeyUp)** = Submit mana payment
+   - **Escape (on KeyDown)** = Cancel
+   - Only active when selecting multiple mana sources
+
+When clicking a creature with activated ability, game uses `AutoTapActionsWorkflow` (not `BatchManaSubmission`), so Q key triggers global "float all lands" instead of submitting.
+
+**Observed Behavior:**
+- Click creature → enters mana payment mode
+- Q key → floats all lands (taps for mana) - this is global behavior, not submission
+- Escape → cancels mode correctly
+- Enter on creature again → plays cancel-like sound
+- Primary button text unclear - diagnostic logging added
+
+**Diagnostic Logging Added:**
+- `DuelAnnouncer.LogAllPromptButtons()` - logs all button states
+- Called when `ManaProducedUXEvent` fires (Q pressed to float mana)
+- Called 0.3s after clicking any battlefield card
+- Check log for `=== PROMPT BUTTON DIAGNOSTIC ===` sections
+
+**Current Status:**
+- Need log data to confirm button states during mana payment
+- `AutoTapActionsWorkflow` creates buttons with `SubmitSolution()` callback
+- Must find and click the correct button programmatically
+
+**Possible Solutions:**
+1. Find the primary button with mana payment callback and click it
+2. Detect `AutoTapActionsWorkflow` and invoke `SubmitSolution()` via reflection
+3. Add Q key handler that clicks the mana payment button when in this mode
+
+**Test Case:**
 - Card: Sanftmütige Bibliothekarin
 - Ability: `{3}{G}: Transform, +1/+1 counters, draw card`
-- Tapping lands works (sounds confirm mana added)
-- Even with exact mana amount, game doesn't auto-confirm
-- Result: Cannot complete activation
+- Q floats lands (6 lands = 3 green, 3 blue mana)
+- Escape cancels correctly
+- No way to confirm/submit
 
-**Game UI During Mana Payment:**
-- `PromptButton_Primary`: "Abbrechen" (Cancel)
-- `PromptButton_Secondary`: "Strg" (Ctrl hint, not actionable)
-- No confirm/done button exists
-- Game expects auto-confirm when exact mana is paid (doesn't work)
+**Files:** `HotHighlightNavigator.cs`, `DuelAnnouncer.cs`, `BattlefieldNavigator.cs`
 
-**Possible Causes:**
-1. Game expects exact mana match for auto-confirm but doesn't trigger
-2. Our mod intercepts key that game needs for confirmation
-3. Game has hidden confirm mechanism we haven't found
-4. BatchManaSubmission class may need to be triggered manually
-
-**Files:** `HotHighlightNavigator.cs`, `DuelAnnouncer.cs`
+**Reference:** See GAME_ARCHITECTURE.md section "Mana Payment Workflows" for decompiled code details
 
 ---
 
@@ -288,6 +300,18 @@ Multiple rapid Enter presses can trigger card play sequence multiple times.
 ### Combat Blocker Selection
 
 Strange interactions may occur after selecting a target for blocks. Needs testing.
+
+---
+
+### Deck Folder Navigation with Dropdowns
+
+Deck folder navigation (Enter to expand, Backspace to collapse) may have buggy behavior when dropdown elements are present on the same screen. The interaction between folder toggle activation and dropdown state tracking can cause unexpected navigation states.
+
+**Symptoms:**
+- Navigation position getting lost after folder operations
+- Unexpected focus on dropdown elements
+
+**Files:** `GeneralMenuNavigator.cs`, `GroupedNavigator.cs`
 
 ## Needs Testing
 
