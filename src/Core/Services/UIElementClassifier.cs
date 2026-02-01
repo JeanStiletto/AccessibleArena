@@ -531,8 +531,15 @@ namespace AccessibleArena.Core.Services
                     {
                         if (parentCG.alpha < MinVisibleAlpha)
                         {
-                            if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup alpha={parentCG.alpha}");
-                            return false;
+                            // Allow elements with meaningful text content through - they should be navigable
+                            // even if parent CanvasGroup has low alpha (e.g., Blade_ListItem play options)
+                            bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
+                                || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
+                            if (!hasMeaningfulContent)
+                            {
+                                if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup alpha={parentCG.alpha}");
+                                return false;
+                            }
                         }
                         if (!parentCG.interactable && !parentCG.ignoreParentGroups)
                         {
@@ -710,6 +717,29 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
+        /// <summary>
+        /// Check if element is inside a Blade_ListItem (play mode options like Bot Match, Standard).
+        /// These elements should always be navigable even if they have unusual CustomButton/CanvasGroup states.
+        /// </summary>
+        private static bool IsInsideBladeListItem(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+
+            while (current != null && levels < MaxParentSearchDepth)
+            {
+                string name = current.name;
+                if (ContainsIgnoreCase(name, "Blade_ListItem"))
+                    return true;
+                current = current.parent;
+                levels++;
+            }
+
+            return false;
+        }
+
         // Maximum size for small decorative buttons (pixels)
         private const int MaxSmallButtonSize = 80;
 
@@ -747,6 +777,11 @@ namespace AccessibleArena.Core.Services
         private static bool IsInternalElement(GameObject obj, string name, string text)
         {
             bool isObjective = name == "ObjectiveGraphics";
+
+            // Always allow Blade_ListItem elements through - these are play mode options
+            // (Bot Match, Standard, etc.) that may have non-standard CanvasGroup/CustomButton states
+            if (IsInsideBladeListItem(obj))
+                return false;
 
             // Check game properties first (most reliable)
             if (IsHiddenByGameProperties(obj))

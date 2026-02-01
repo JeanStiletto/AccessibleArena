@@ -1363,6 +1363,14 @@ namespace AccessibleArena.Core.Services
             if (obj.name == "Options_Button")
                 return false;
 
+            // Always include Blade_ListItem elements - these are play mode options (Bot Match, Standard)
+            // that may not be detected correctly by the overlay detector
+            if (IsInsideBladeListItem(obj))
+            {
+                LogDebug($"[{NavigatorId}] Blade_ListItem bypass for: {obj.name}");
+                return true;
+            }
+
             // Check if an overlay is active using the new OverlayDetector
             var activeOverlay = _overlayDetector.GetActiveOverlay();
 
@@ -1488,6 +1496,29 @@ namespace AccessibleArena.Core.Services
                 }
 
                 current = current.parent;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside a Blade_ListItem (play mode options like Bot Match, Standard).
+        /// These elements need special handling as they may not be detected by the overlay system.
+        /// </summary>
+        private static bool IsInsideBladeListItem(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+            const int maxLevels = 5;
+
+            while (current != null && levels < maxLevels)
+            {
+                if (current.name.Contains("Blade_ListItem"))
+                    return true;
+                current = current.parent;
+                levels++;
             }
 
             return false;
@@ -1790,13 +1821,16 @@ namespace AccessibleArena.Core.Services
                 if (obj == null || !obj.activeInHierarchy) return;
                 if (addedObjects.Contains(obj)) return;
 
-                // Debug: log objectives filtering
+                // Debug: log objectives and Blade_ListItem filtering
                 bool isObjective = obj.name.Contains("Objective") || GetParentPath(obj).Contains("Objective");
+                bool isBladeListItem = GetParentPath(obj).Contains("Blade_ListItem");
 
                 if (!ShouldShowElement(obj))
                 {
                     if (isObjective)
                         MelonLogger.Msg($"[{NavigatorId}] Objective filtered by ShouldShowElement: {obj.name}");
+                    if (isBladeListItem)
+                        MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem filtered by ShouldShowElement: {obj.name}, path={GetParentPath(obj)}");
                     return;
                 }
 
@@ -1807,10 +1841,16 @@ namespace AccessibleArena.Core.Services
                     float sortOrder = -pos.y * 1000 + pos.x;
                     discoveredElements.Add((obj, classification, sortOrder));
                     addedObjects.Add(obj);
+                    if (isBladeListItem)
+                        MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem ADDED: {obj.name}, label={classification.Label}");
                 }
                 else if (isObjective)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Objective not navigable: {obj.name}, IsNavigable={classification.IsNavigable}, ShouldAnnounce={classification.ShouldAnnounce}");
+                }
+                else if (isBladeListItem)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem not navigable: {obj.name}, IsNavigable={classification.IsNavigable}, ShouldAnnounce={classification.ShouldAnnounce}");
                 }
             }
 
@@ -1943,11 +1983,21 @@ namespace AccessibleArena.Core.Services
                 .ToDictionary(p => p.Value.mainButton, p => p.Value.editButton);
 
             // Sort by position and add elements with proper labels
+            MelonLogger.Msg($"[{NavigatorId}] Processing {discoveredElements.Count} discovered elements for final addition");
             foreach (var (obj, classification, _) in discoveredElements.OrderBy(x => x.sortOrder))
             {
+                // Debug: trace Blade_ListItem elements through final addition
+                bool isBladeListItem = obj.transform.parent?.name.Contains("Blade_ListItem") == true;
+                if (isBladeListItem)
+                    MelonLogger.Msg($"[{NavigatorId}] Final loop Blade_ListItem: {obj.name}, label={classification.Label}, obj null={obj == null}, active={obj?.activeInHierarchy}");
+
                 // Skip deck elements that aren't the main UI button (TextBox, duplicates, etc.)
                 if (deckElementsToSkip.Contains(obj))
+                {
+                    if (isBladeListItem)
+                        MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem SKIPPED by deckElementsToSkip!");
                     continue;
+                }
 
                 string announcement = BuildAnnouncement(classification);
 
@@ -1982,7 +2032,11 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
+                if (isBladeListItem)
+                    MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem calling AddElement: announcement={announcement}");
                 AddElement(obj, announcement, carouselInfo, null, attachedActions);
+                if (isBladeListItem)
+                    MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem AddElement returned, _elements.Count={_elements.Count}");
             }
 
             // Find NPE reward cards (displayed cards on reward screens)
@@ -2421,8 +2475,8 @@ namespace AccessibleArena.Core.Services
 
             while (current != null && maxLevels > 0)
             {
-                if (current.name.Contains("DeckView_Base") ||
-                    current.name.Contains("Blade_ListItem"))
+                // Only match DeckView_Base - NOT Blade_ListItem (those are play mode options, not decks)
+                if (current.name.Contains("DeckView_Base"))
                 {
                     return current;
                 }

@@ -4,13 +4,39 @@ Active bugs and limitations in the MTGA Accessibility Mod.
 
 ## Active Bugs
 
-### Bot Match Button Not Visible
+### Bot Match Button Not Visible - RESOLVED
 
-Bot Match button not visible when PlayBlade is open.
+Bot Match and Standard play mode buttons (inside `Blade_ListItem_Base`) were not visible when FindMatch PlayBlade was open.
 
-**Likely cause:** May not match PlayBlade parent path patterns in `IsInsidePlayBlade()`
+**Root Cause:** `FindDeckViewParent()` in GeneralMenuNavigator incorrectly included `Blade_ListItem` in its pattern match alongside `DeckView_Base`. This caused play mode buttons to be treated as deck elements and added to `deckElementsToSkip`, filtering them from navigation.
 
-**Files:** `OverlayDetector.cs`, `ElementGroupAssigner.cs`
+**The Fix:** Remove `Blade_ListItem` from `FindDeckViewParent()` check - these are play mode options, not deck entries.
+
+**Lesson Learned - Element Filtering Complexity:**
+Making specific UI elements visible requires checking MULTIPLE filtering stages. For `Blade_ListItem` buttons, we had to trace through:
+
+1. **ShouldShowElement()** (GeneralMenuNavigator) - Overlay detection filtering
+   - Added `IsInsideBladeListItem()` bypass (turned out not needed after root cause found)
+
+2. **UIElementClassifier.Classify()** - Element classification
+   - `IsInternalElement()` checks: `IsHiddenByGameProperties()`, `IsFilteredByNamePattern()`, `IsFilteredByTextContent()`
+   - `IsVisibleViaCanvasGroup()` - parent CanvasGroup alpha/interactable checks
+   - Added `IsInsideBladeListItem()` bypass in `IsInternalElement()` (defensive)
+   - Added meaningful content exception to parent alpha check
+
+3. **Deck element filtering** (GeneralMenuNavigator) - THE ACTUAL CAUSE
+   - `FindDeckViewParent()` was matching `Blade_ListItem` as deck parents
+   - Elements added to `allDeckElements` then `deckElementsToSkip`
+   - Fixed by removing `Blade_ListItem` from the pattern match
+
+**Debug approach that worked:** Add logging at each stage to trace exactly where elements are filtered:
+- `Blade_ListItem ADDED` - element passed classification
+- `Final loop processing Blade_ListItem` - element in discoveredElements
+- `Blade_ListItem SKIPPED by deckElementsToSkip!` - found the culprit
+
+**Files modified:**
+- `GeneralMenuNavigator.cs` - `FindDeckViewParent()`, `ShouldShowElement()`, `IsInsideBladeListItem()`
+- `UIElementClassifier.cs` - `IsInternalElement()`, `IsVisibleViaCanvasGroup()`, `IsInsideBladeListItem()`
 
 ---
 
