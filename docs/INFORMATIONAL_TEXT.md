@@ -183,13 +183,60 @@ ObjectiveGraphics (CustomButton)
 
 ---
 
+## 6. Play Mode Tabs (FindMatch)
+
+**Status:** IMPLEMENTED (2026-02-01)
+
+**Location:**
+- Path: `.../BladeView_CONTAINER/Blade_FindMatch/FindMatchTabs/Tabs/`
+- Elements: `Blade_Tab_Deluxe (OpenPlay)`, `Blade_Tab_Deluxe (Brawl)`, `Blade_Tab_Ranked`
+- Components: RectTransform, Animator, CustomButton, CustomTab
+
+**Problem:**
+- Displayed text is generic German translation: "Spiele" (Play), "Mit Rangliste" (With Ranking)
+- The actual game mode names are in the element names, not the displayed text
+- No TooltipTrigger on these elements (checked - they only have CustomTab, no tooltip data)
+
+**Solution:**
+- Extract mode name from element name instead of displayed text
+- Pattern 1: `Blade_Tab_Deluxe (ModeName)` → extract from parentheses
+- Pattern 2: `Blade_Tab_Ranked` → extract suffix after `Blade_Tab_`
+
+**Implementation:**
+- File: `src/Core/Services/UITextExtractor.cs`
+- Method: `TryGetPlayModeTabText()` - extracts play mode from element name
+- Called in `GetText()` after objective check
+
+**Text Extraction Logic:**
+1. Check if element name starts with `Blade_Tab_`
+2. Verify context: parent is `Tabs`, grandparent contains `FindMatchTabs`
+3. Extract mode from parentheses or suffix
+4. Clean up camelCase to spaces (e.g., "OpenPlay" → "Open Play")
+5. Apply proper casing
+
+**Results:**
+- `Blade_Tab_Deluxe (OpenPlay)` → "Open Play" (was "Spiele")
+- `Blade_Tab_Deluxe (Brawl)` → "Brawl" (unchanged)
+- `Blade_Tab_Ranked` → "Ranked" (was "Mit Rangliste")
+
+**Key Insight - Element Name Contains Mode Info:**
+- Similar pattern to objectives where parent name contains type info
+- The element name itself contains the canonical English mode identifier
+- The displayed text is a localized translation that may be generic
+- When displayed text is ambiguous, prefer extracting from element name
+
+**Note:** These tabs do NOT have TooltipTrigger, so tooltip-based extraction is not possible here.
+
+---
+
 ## Implementation Priority
 
 1. ~~**Popup Body Text** - High priority, users need to know what popups are asking~~ **DONE**
 2. ~~**Objectives** - High priority, quest/daily/weekly/battle pass progress~~ **DONE**
-3. **Tooltip Descriptions** - Medium priority, adds context to UI elements
-4. **Deck Card Count** - Medium priority, important for deck building
-5. **SocialCornerIcon** - Low priority, nice to have for notifications
+3. ~~**Play Mode Tabs** - High priority, users need to know which game mode they're selecting~~ **DONE**
+4. **Tooltip Descriptions** - Medium priority, adds context to UI elements
+5. **Deck Card Count** - Medium priority, important for deck building
+6. **SocialCornerIcon** - Low priority, nice to have for notifications
 
 ---
 
@@ -275,3 +322,24 @@ ContentController - Objectives_Desktop_16x9(Clone)
 - Components: RectTransform, CanvasRenderer, CustomButton
 - Size: 0x0 (unusual - doesn't affect classification since we check name "ObjectiveGraphics")
 - HasActualText: True (text comes from child elements)
+
+### PlayBlade FindMatch Tabs Structure
+```
+BladeView_CONTAINER
+└── Blade_FindMatch
+    └── FindMatchTabs
+        └── Tabs
+            ├── Blade_Tab_Deluxe (Brawl)      ← Text: "Brawl", extracted: "Brawl"
+            │   Components: RectTransform, Animator, CustomButton, CustomTab
+            ├── Blade_Tab_Deluxe (OpenPlay)   ← Text: "Spiele", extracted: "Open Play"
+            │   Components: RectTransform, Animator, CustomButton, CustomTab, AkGameObj
+            └── Blade_Tab_Ranked              ← Text: "Mit Rangliste", extracted: "Ranked"
+                Components: RectTransform, Animator, CustomButton, CustomTab
+```
+
+**Key Insights:**
+- Play mode tabs have `CustomTab` component but NO `TooltipTrigger`
+- Element names contain the canonical mode identifier in parentheses or as suffix
+- Displayed text is localized and may be generic (e.g., "Spiele" = "Play")
+- Context check required: parent must be "Tabs", grandparent must contain "FindMatchTabs"
+- This prevents false matches on other `Blade_Tab_` elements elsewhere in the UI

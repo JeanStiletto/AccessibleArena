@@ -85,6 +85,13 @@ namespace AccessibleArena.Core.Services
                 return objectiveText;
             }
 
+            // Check if this is a play mode tab - extract mode from element name
+            string playModeText = TryGetPlayModeTabText(gameObject);
+            if (!string.IsNullOrEmpty(playModeText))
+            {
+                return playModeText;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -339,6 +346,71 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Extracts the play mode name from FindMatch tab elements.
+        /// Element names contain the mode (e.g., "Blade_Tab_Deluxe (OpenPlay)" -> "Open Play").
+        /// The displayed text is often a generic translation that doesn't identify the mode.
+        /// </summary>
+        private static string TryGetPlayModeTabText(GameObject gameObject)
+        {
+            if (gameObject == null)
+                return null;
+
+            string name = gameObject.name;
+
+            // Only process FindMatch tabs (they have CustomTab component and specific naming)
+            // Pattern: "Blade_Tab_Deluxe (ModeName)" or "Blade_Tab_Ranked"
+            if (!name.StartsWith("Blade_Tab_"))
+                return null;
+
+            // Check if we're in the FindMatchTabs context
+            Transform parent = gameObject.transform.parent;
+            if (parent == null || !parent.name.Contains("Tabs"))
+                return null;
+
+            Transform grandparent = parent.parent;
+            if (grandparent == null || !grandparent.name.Contains("FindMatchTabs"))
+                return null;
+
+            // Extract mode from element name
+            string mode = null;
+
+            // Pattern 1: "Blade_Tab_Deluxe (ModeName)" - extract from parentheses
+            int parenStart = name.IndexOf('(');
+            int parenEnd = name.IndexOf(')');
+            if (parenStart > 0 && parenEnd > parenStart)
+            {
+                mode = name.Substring(parenStart + 1, parenEnd - parenStart - 1);
+            }
+            // Pattern 2: "Blade_Tab_ModeName" - extract suffix after last underscore
+            else if (name.StartsWith("Blade_Tab_"))
+            {
+                mode = name.Substring("Blade_Tab_".Length);
+            }
+
+            if (string.IsNullOrEmpty(mode))
+                return null;
+
+            // Clean up mode names for readability
+            // Convert camelCase/PascalCase to spaces
+            mode = System.Text.RegularExpressions.Regex.Replace(mode, "([a-z])([A-Z])", "$1 $2");
+
+            // Specific mappings for known modes
+            switch (mode.ToLowerInvariant())
+            {
+                case "openplay":
+                case "open play":
+                    return "Open Play";
+                case "ranked":
+                    return "Ranked";
+                case "brawl":
+                    return "Brawl";
+                default:
+                    // Return the cleaned mode name with proper casing
+                    return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(mode.ToLowerInvariant());
+            }
         }
 
         /// <summary>
