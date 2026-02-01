@@ -229,14 +229,67 @@ ObjectiveGraphics (CustomButton)
 
 ---
 
+## 7. DeckManager Icon Buttons
+
+**Status:** IMPLEMENTED (2026-02-01)
+
+**Location:**
+- Path: `Canvas/ContentController - DeckManager_Desktop_16x9(Clone)/SafeArea/MainButtons/`
+- Elements: `Clone_MainButton_Round`, `Delete_MainButton_Round`, `Export_MainButton_Round`, etc.
+- Components: RectTransform, CanvasRenderer, Image, CustomButton, Animator, LayoutElement, TooltipTrigger
+
+**Problem:**
+- These are icon-only buttons (no text, just images): `HasActualText: False`, `HasImage: True`
+- All 7 buttons were showing "Sammlung" (Collection) - picking up text from nearby `MainButton_Collection`
+- The element names contain the actual function (Clone, Delete, Export, etc.)
+- TooltipTrigger exists with `IsActive=True` but we extracted from element name for consistency
+
+**Solution:**
+- Extract function name from element name prefix
+- Pattern: `Function_MainButton_Round` → extract "Function" before `_MainButton_Round`
+- Pattern: `Function_MainButtonBlue` → extract "Function" before `_MainButtonBlue`
+
+**Implementation:**
+- File: `src/Core/Services/UITextExtractor.cs`
+- Method: `TryGetDeckManagerButtonText()` - extracts button function from element name
+- Called in `GetText()` after play mode tab check
+
+**Text Extraction Logic:**
+1. Check if element name ends with `_MainButton_Round` or `_MainButtonBlue`
+2. Verify context: element is inside a DeckManager hierarchy
+3. Extract function name (prefix before the suffix)
+4. Clean up camelCase to spaces
+5. Apply specific mappings for better labels
+
+**Results:**
+- `Clone_MainButton_Round` → "Clone Deck" (was "Sammlung")
+- `DeckDetails_MainButton_Round` → "Deck Details" (was "Sammlung")
+- `Delete_MainButton_Round` → "Delete Deck" (was "Sammlung")
+- `Export_MainButton_Round` → "Export Deck" (was "Sammlung")
+- `Import_MainButton_Round` → "Import Deck" (was "Sammlung")
+- `Favorite_MainButton_Round` → "Favorite" (was "Sammlung")
+- `EditDeck_MainButtonBlue` → "Edit Deck" (was "Deck verändern" - already had text)
+- `MainButton_Collection` → "Sammlung" (unchanged - has actual text, correctly labeled)
+
+**Key Insight - Icon Buttons Need Element Name Extraction:**
+- Icon-only buttons have no text content (`HasActualText: False`)
+- Text extractor may pick up text from nearby elements (sibling fallback)
+- Element names often contain the function in a predictable pattern
+- Context check (DeckManager hierarchy) prevents false matches elsewhere
+
+**Note:** These buttons DO have TooltipTrigger with `IsActive=True`, which could be used as an alternative source.
+
+---
+
 ## Implementation Priority
 
 1. ~~**Popup Body Text** - High priority, users need to know what popups are asking~~ **DONE**
 2. ~~**Objectives** - High priority, quest/daily/weekly/battle pass progress~~ **DONE**
 3. ~~**Play Mode Tabs** - High priority, users need to know which game mode they're selecting~~ **DONE**
-4. **Tooltip Descriptions** - Medium priority, adds context to UI elements
-5. **Deck Card Count** - Medium priority, important for deck building
-6. **SocialCornerIcon** - Low priority, nice to have for notifications
+4. ~~**DeckManager Buttons** - High priority, icon buttons need proper labels~~ **DONE**
+5. **Tooltip Descriptions** - Medium priority, adds context to UI elements
+6. **Deck Card Count** - Medium priority, important for deck building
+7. **SocialCornerIcon** - Low priority, nice to have for notifications
 
 ---
 
@@ -343,3 +396,34 @@ BladeView_CONTAINER
 - Displayed text is localized and may be generic (e.g., "Spiele" = "Play")
 - Context check required: parent must be "Tabs", grandparent must contain "FindMatchTabs"
 - This prevents false matches on other `Blade_Tab_` elements elsewhere in the UI
+
+### DeckManager MainButtons Structure
+```
+DeckManager_Desktop_16x9(Clone)
+└── SafeArea
+    └── MainButtons
+        ├── Clone_MainButton_Round        ← Icon only, extracted: "Clone Deck"
+        │   Components: Image, CustomButton, TooltipTrigger
+        ├── DeckDetails_MainButton_Round  ← Icon only, extracted: "Deck Details"
+        │   Components: Image, CustomButton, TooltipTrigger
+        ├── Delete_MainButton_Round       ← Icon only, extracted: "Delete Deck"
+        │   Components: Image, CustomButton, TooltipTrigger
+        ├── Export_MainButton_Round       ← Icon only, extracted: "Export Deck"
+        │   Components: Image, CustomButton, TooltipTrigger
+        ├── Import_MainButton_Round       ← Icon only, extracted: "Import Deck"
+        │   Components: Image, CustomButton, TooltipTrigger
+        ├── Favorite_MainButton_Round     ← Icon only, extracted: "Favorite"
+        │   Components: Image, CustomButton, TooltipTrigger
+        ├── EditDeck_MainButtonBlue       ← Has text "Deck verändern", extracted: "Edit Deck"
+        │   Components: CustomButton, CanvasGroup
+        └── MainButton_Collection         ← Has text "Sammlung" (correct)
+            Components: CustomButton, CanvasGroup, Image
+```
+
+**Key Insights:**
+- Icon buttons have `HasActualText: False`, `HasImage: True`, `HasTextChild: False`
+- Without extraction, text extractor picks up "Sammlung" from `MainButton_Collection` sibling
+- Element name prefix contains the function: `Clone_MainButton_Round` → "Clone"
+- Two patterns: `*_MainButton_Round` (icon buttons) and `*_MainButtonBlue` (text buttons)
+- All icon buttons have `TooltipTrigger` with `IsActive=True` as alternative source
+- Context check (DeckManager hierarchy) prevents false matches on other MainButton elements

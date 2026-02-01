@@ -92,6 +92,13 @@ namespace AccessibleArena.Core.Services
                 return playModeText;
             }
 
+            // Check if this is a DeckManager icon button - extract function from element name
+            string deckManagerButtonText = TryGetDeckManagerButtonText(gameObject);
+            if (!string.IsNullOrEmpty(deckManagerButtonText))
+            {
+                return deckManagerButtonText;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -410,6 +417,98 @@ namespace AccessibleArena.Core.Services
                 default:
                     // Return the cleaned mode name with proper casing
                     return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(mode.ToLowerInvariant());
+            }
+        }
+
+        /// <summary>
+        /// Extracts button labels from DeckManager icon buttons.
+        /// These are icon-only buttons with no text, but the element name contains the function
+        /// (e.g., "Clone_MainButton_Round" -> "Clone", "Delete_MainButton_Round" -> "Delete").
+        /// </summary>
+        private static string TryGetDeckManagerButtonText(GameObject gameObject)
+        {
+            if (gameObject == null)
+                return null;
+
+            string name = gameObject.name;
+
+            // Check for DeckManager MainButton patterns
+            // Pattern: "Function_MainButton_Round" or "Function_MainButtonBlue"
+            bool isRoundButton = name.EndsWith("_MainButton_Round");
+            bool isBlueButton = name.EndsWith("_MainButtonBlue");
+
+            if (!isRoundButton && !isBlueButton)
+                return null;
+
+            // Verify we're in DeckManager context
+            Transform current = gameObject.transform;
+            bool inDeckManager = false;
+            int maxLevels = 5;
+
+            while (current != null && maxLevels > 0)
+            {
+                if (current.name.Contains("DeckManager"))
+                {
+                    inDeckManager = true;
+                    break;
+                }
+                current = current.parent;
+                maxLevels--;
+            }
+
+            if (!inDeckManager)
+                return null;
+
+            // Extract function name from element name
+            string function = null;
+
+            if (isRoundButton)
+            {
+                // "Clone_MainButton_Round" -> "Clone"
+                int suffixIndex = name.IndexOf("_MainButton_Round");
+                if (suffixIndex > 0)
+                    function = name.Substring(0, suffixIndex);
+            }
+            else if (isBlueButton)
+            {
+                // "EditDeck_MainButtonBlue" -> "EditDeck"
+                int suffixIndex = name.IndexOf("_MainButtonBlue");
+                if (suffixIndex > 0)
+                    function = name.Substring(0, suffixIndex);
+            }
+
+            if (string.IsNullOrEmpty(function))
+                return null;
+
+            // Clean up function names for readability
+            // Convert camelCase/PascalCase to spaces
+            function = System.Text.RegularExpressions.Regex.Replace(function, "([a-z])([A-Z])", "$1 $2");
+
+            // Replace underscores with spaces
+            function = function.Replace("_", " ");
+
+            // Specific mappings for known functions
+            switch (function.ToLowerInvariant())
+            {
+                case "clone":
+                    return "Clone Deck";
+                case "deck details":
+                case "deckdetails":
+                    return "Deck Details";
+                case "delete":
+                    return "Delete Deck";
+                case "export":
+                    return "Export Deck";
+                case "import":
+                    return "Import Deck";
+                case "favorite":
+                    return "Favorite";
+                case "edit deck":
+                case "editdeck":
+                    return "Edit Deck";
+                default:
+                    // Return the cleaned function name with proper casing
+                    return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(function.ToLowerInvariant());
             }
         }
 
