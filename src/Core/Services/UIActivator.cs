@@ -181,28 +181,13 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    // Simple toggle without CustomButton
-                    // Check if Unity's EventSystem already processed Enter/Space and toggled it
-                    // (detected by focus having moved away from this element)
-                    var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-                    bool unityAlreadyProcessed = eventSystem != null &&
-                        eventSystem.currentSelectedGameObject != element;
-
-                    if (unityAlreadyProcessed)
-                    {
-                        // Unity already toggled it - just report current state, don't double-toggle
-                        string state = toggle.isOn ? "Checked" : "Unchecked";
-                        Log($"Toggle {element.name} already processed by Unity, current state: {state}");
-                        return new ActivationResult(true, state, ActivationType.Toggle);
-                    }
-                    else
-                    {
-                        // Unity didn't process it - we need to toggle
-                        toggle.isOn = !toggle.isOn;
-                        string state = toggle.isOn ? "Checked" : "Unchecked";
-                        Log($"Toggled {element.name} to {state}");
-                        return new ActivationResult(true, state, ActivationType.Toggle);
-                    }
+                    // Simple toggle without CustomButton - just flip the state.
+                    // We handle toggling ourselves; Enter/Space should be consumed by caller
+                    // to prevent Unity from also processing and double-toggling.
+                    toggle.isOn = !toggle.isOn;
+                    string state = toggle.isOn ? "Checked" : "Unchecked";
+                    Log($"Toggled {element.name} to {state}");
+                    return new ActivationResult(true, state, ActivationType.Toggle);
                 }
             }
 

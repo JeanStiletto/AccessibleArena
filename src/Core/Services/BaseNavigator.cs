@@ -437,6 +437,16 @@ namespace AccessibleArena.Core.Services
         #region Input Handling
 
         /// <summary>
+        /// Exit input field edit mode: clears cached field, notifies UIFocusTracker, and deactivates the field.
+        /// </summary>
+        private void ExitInputFieldEditMode()
+        {
+            _editingInputField = null;
+            UIFocusTracker.ExitInputFieldEditMode();
+            UIFocusTracker.DeactivateFocusedInputField();
+        }
+
+        /// <summary>
         /// Handle navigation while editing an input field.
         /// Up/Down arrows announce the field content.
         /// Left/Right arrows announce the character at cursor.
@@ -448,9 +458,7 @@ namespace AccessibleArena.Core.Services
             // Exit edit mode and let HandleCustomInput process it
             if (Input.GetKeyDown(KeyCode.F4))
             {
-                _editingInputField = null;
-                UIFocusTracker.ExitInputFieldEditMode();
-                UIFocusTracker.DeactivateFocusedInputField();
+                ExitInputFieldEditMode();
                 HandleCustomInput();
                 return;
             }
@@ -458,9 +466,7 @@ namespace AccessibleArena.Core.Services
             // Escape exits edit mode by deactivating the input field
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                _editingInputField = null;
-                UIFocusTracker.ExitInputFieldEditMode();
-                UIFocusTracker.DeactivateFocusedInputField();
+                ExitInputFieldEditMode();
                 _announcer.Announce("Exited edit mode", AnnouncementPriority.Normal);
                 return;
             }
@@ -469,9 +475,7 @@ namespace AccessibleArena.Core.Services
             // Consume Tab so game doesn't interfere
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                _editingInputField = null;
-                UIFocusTracker.ExitInputFieldEditMode();
-                UIFocusTracker.DeactivateFocusedInputField();
+                ExitInputFieldEditMode();
                 // Tab is blocked from MTGA, so our _currentIndex is correct - just use MoveNext
                 bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 if (shiftTab)
@@ -992,10 +996,16 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if an input field has been auto-focused by the game.
+            // INPUT FIELD NAVIGATION STRATEGY:
             // MTGA auto-focuses input fields when they receive EventSystem selection.
-            // Tab navigation: allow auto-enter edit mode (traditional behavior)
-            // Arrow navigation: deactivate and require Enter to edit (dropdown-like behavior)
+            // We handle this differently for Tab vs Arrow navigation:
+            //
+            // - Tab navigation: Auto-enter edit mode (traditional behavior)
+            // - Arrow navigation: Deactivate auto-focus, require Enter to edit (dropdown-like)
+            //
+            // This block handles navigating FROM an input field (deactivates current field).
+            // UpdateEventSystemSelection() handles navigating TO an input field (skips setting
+            // EventSystem selection for arrow nav, preventing Unity's native navigation).
             if (UIFocusTracker.IsAnyInputFieldFocused())
             {
                 var info = GetAnyFocusedInputFieldInfo();
@@ -1003,8 +1013,8 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_lastNavigationWasTab)
                     {
-                        // Tab navigation - allow auto-enter edit mode
-                        _lastNavigationWasTab = false; // Clear flag
+                        // Tab navigation - enter edit mode immediately
+                        _lastNavigationWasTab = false;
                         _editingInputField = info.GameObject;
                         UIFocusTracker.EnterInputFieldEditMode(info.GameObject);
                         HandleInputFieldNavigation();
@@ -1012,19 +1022,16 @@ namespace AccessibleArena.Core.Services
                     }
                     else
                     {
-                        // Arrow navigation while on input field - deactivate and navigate
-                        // Handle navigation here to avoid Unity's native arrow key processing
-                        // which moves EventSystem focus following its own navigation links
+                        // Arrow navigation FROM input field - deactivate and clear selection
+                        // so Unity's native arrow navigation has no target
                         DeactivateInputFieldOnElement(info.GameObject);
-
-                        // Clear EventSystem selection immediately
                         var eventSystem = EventSystem.current;
                         if (eventSystem != null)
                         {
                             eventSystem.SetSelectedGameObject(null);
                         }
 
-                        // Process arrow navigation here (don't fall through - Unity already moved focus)
+                        // Handle arrow keys here since Unity may have already processed them
                         if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
                         {
                             MovePrevious();
@@ -1035,10 +1042,9 @@ namespace AccessibleArena.Core.Services
                             MoveNext();
                             return;
                         }
-                        // For other keys (Enter to edit, etc.), continue below
+                        // Other keys (Enter to activate) fall through to normal handling
                     }
                 }
-                // If field is selected but not focused, just continue normal navigation
             }
             _lastNavigationWasTab = false; // Clear flag if not used
 
@@ -1130,9 +1136,10 @@ namespace AccessibleArena.Core.Services
                     return;
             }
 
-            // Activation
+            // Activation (Enter or Space)
+            // Consume Space to prevent Unity's EventSystem from also processing it on toggles
             bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-            bool spacePressed = AcceptSpaceKey && Input.GetKeyDown(KeyCode.Space);
+            bool spacePressed = AcceptSpaceKey && InputManager.GetKeyDownAndConsume(KeyCode.Space);
             bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
             if (enterPressed || spacePressed)
@@ -1384,30 +1391,49 @@ namespace AccessibleArena.Core.Services
                 // Suppress FocusTracker's announcement since we handle our own via AnnounceCurrentElement()
                 UIFocusTracker.SuppressNextFocusAnnouncement();
 
-                eventSystem.SetSelectedGameObject(element);
+                bool isInputField = UIFocusTracker.IsInputField(element);
+                bool isArrowNavToInputField = isInputField && !_lastNavigationWasTab;
+                bool isToggle = element.GetComponent<Toggle>() != null;
+                bool isArrowNavToToggle = isToggle && !_lastNavigationWasTab;
 
-                // MTGA auto-opens dropdowns when they receive EventSystem selection.
-                // If we just navigated to a dropdown (not activated via Enter), close it.
-                // We check IsExpanded via the real property, not assumptions.
-                if (UIFocusTracker.IsDropdown(element) && UIFocusTracker.IsAnyDropdownExpanded())
+                // INPUT FIELD HANDLING (arrow navigation):
+                // Clear EventSystem selection when arrow-navigating to input fields.
+                // Unity's native arrow navigation would move focus on the next frame.
+                // This also prevents Enter from activating whatever was previously selected.
+                if (isArrowNavToInputField)
                 {
-                    CloseDropdownOnElement(element);
-                }
-
-                // MTGA auto-focuses input fields when they receive EventSystem selection.
-                // For arrow navigation, don't leave EventSystem selection on input fields
-                // because Unity's native arrow navigation will move focus on the next frame.
-                // We clear selection; Enter activation will set it just-in-time.
-                if (UIFocusTracker.IsInputField(element) && !_lastNavigationWasTab)
-                {
-                    DeactivateInputFieldOnElement(element);
-                    // Clear EventSystem selection to prevent Unity's native arrow navigation
                     eventSystem.SetSelectedGameObject(null);
                 }
-                else if (UIFocusTracker.IsInputField(element))
+                // INPUT FIELD HANDLING (Tab navigation):
+                // Set selection but deactivate auto-focus. Tab will enter edit mode next frame.
+                else if (isInputField)
                 {
-                    // Tab navigation - keep selection but deactivate (Tab will enter edit mode)
+                    eventSystem.SetSelectedGameObject(element);
                     DeactivateInputFieldOnElement(element);
+                }
+                // TOGGLE HANDLING (arrow navigation):
+                // Clear EventSystem selection when arrow-navigating to toggles.
+                // Unity/MTGA re-toggles the checkbox when SetSelectedGameObject is called.
+                // This also prevents Enter from activating whatever was previously selected.
+                else if (isArrowNavToToggle)
+                {
+                    eventSystem.SetSelectedGameObject(null);
+                }
+                // DROPDOWN HANDLING:
+                // Set selection, then close if auto-opened.
+                else if (UIFocusTracker.IsDropdown(element))
+                {
+                    eventSystem.SetSelectedGameObject(element);
+                    if (UIFocusTracker.IsAnyDropdownExpanded())
+                    {
+                        CloseDropdownOnElement(element);
+                    }
+                }
+                // NORMAL ELEMENTS (including toggles via Tab):
+                // Just set EventSystem selection.
+                else
+                {
+                    eventSystem.SetSelectedGameObject(element);
                 }
             }
         }

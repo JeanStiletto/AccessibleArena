@@ -4,6 +4,47 @@ Active bugs and limitations in the MTGA Accessibility Mod.
 
 ## Active Bugs
 
+### Bot Match Not Accessible
+
+Bot Match functionality is currently not accessible through the UI.
+
+**Investigation Findings (February 2026):**
+
+1. **No Bot Match button on HomePage:** The HomePage SafeZone only contains:
+   - `SafeZone/MainButton` - The "Spiele" (Play) button
+   - `SafeZone/Banners/Banner_Left` - Carousel banner
+   - `SafeZone/Banners/NavDots` - Carousel navigation dots
+   - `SafeZone/Banners/Banners_Right/HomeBanner_Right_Base` - Event feature banners (Starter Deck Duel, Ranked, etc.)
+
+2. **Bot-Match in PlayBlade is NOT a bot match trigger:** The "Bot-Match" option visible in `Blade_ListItem` inside the FindMatch tab is just a format label/filter, NOT a trigger for actual bot games. Clicking it changes the tooltip/description but doesn't configure the queue for bot matches.
+
+3. **Game code still has bot match support:**
+   - `HomePageContentController.Coroutine_PlayBotGame` exists
+   - `IssueAiBotMatchReq` request class exists
+   - `EAiBotMatchType` enum with bot match types exists
+   - But no visible UI element triggers these
+
+4. **Documentation vs Reality:** Our docs (GAME_ARCHITECTURE.md, MENU_NAVIGATION.md) mention "Play, Bot Match" as separate buttons on HomePage, but current game version only shows ONE MainButton (Play).
+
+**Likely Cause:** WotC appears to have removed the separate Bot Match button from the main HomePage UI. The `Coroutine_PlayBotGame` code still exists but may only be triggered through:
+- New Player Experience (NPE/Sparky) flow
+- Internal debug commands
+- Some hidden/conditional UI path
+
+**Workaround:** None currently available.
+
+**Potential Solutions:**
+1. Investigate if bot match is accessible through NPE/tutorial flow
+2. Call `Coroutine_PlayBotGame` directly via reflection (would need to find the HomePageContentController instance)
+3. Use `IssueAiBotMatchReq` to start a bot match programmatically
+
+**Files investigated:**
+- `GeneralMenuNavigator.cs` - UI element discovery
+- `analysis_core_menus.txt` - HomePageContentController classes
+- `analysis_models.txt` - AiBotMatch request/response classes
+
+---
+
 ### Bot Match Button Not Visible - RESOLVED
 
 Bot Match and Standard play mode buttons (inside `Blade_ListItem_Base`) were not visible when FindMatch PlayBlade was open.
@@ -499,33 +540,6 @@ MTGA auto-opens dropdowns when they receive EventSystem selection. When user nav
 - Single unified "dropdown operation in progress" flag
 - Consider if all this complexity is needed or if simpler approach exists
 
----
-
-### Input Field Auto-Focus on Arrow Navigation (January 2026)
-
-When navigating to an input field with arrow keys, MTGA auto-focuses the field (sets `isFocused=true`), which causes the mod to enter edit mode automatically.
-
-**Current Behavior:**
-- Arrow navigating TO an input field auto-enters edit mode
-- User must press Escape to exit edit mode and continue navigating
-- Tab navigation works correctly (navigates through all elements)
-- Up/Down arrows read field content when in edit mode
-
-**Why It's Different From Dropdowns:**
-- Dropdowns: `IsExpanded` is set immediately when selected, so we can check and close in `UpdateEventSystemSelection()`
-- Input fields: `isFocused` is set asynchronously by the game (next frame), so our deactivation check doesn't catch it
-
-**Attempted Fix:**
-Added `DeactivateInputFieldOnElement()` in `UpdateEventSystemSelection()` (mirrors dropdown pattern), but it runs before the game sets `isFocused=true`.
-
-**Potential Future Fix:**
-Modify `HandleInput()` to not auto-enter edit mode when `IsAnyInputFieldFocused()` is true. Instead, require explicit Enter to activate the field. This would require:
-1. In `HandleInput()`, when field is focused but not in explicit edit mode, deactivate it
-2. Only enter edit mode when user presses Enter on an input field
-3. Risk: May break mouse-click behavior where user clicks directly on input field
-
-**Files:** `BaseNavigator.cs` (HandleInput, UpdateEventSystemSelection)
-
 ## Potential Issues (Monitor)
 
 ### NPE Overlay Exclusion for Objective_NPE Elements
@@ -582,6 +596,34 @@ Hybrid approach using three detectors:
 ### Tab and Arrow Navigation
 
 Both Tab and Arrow keys navigate menu elements identically. Unity's EventSystem was unreliable. May simplify to arrow-only in future.
+
+---
+
+### Hybrid Navigation System (EventSystem Management)
+
+We run a parallel navigation system alongside Unity's EventSystem, selectively managing when Unity is allowed to participate. This creates complexity but is necessary for screen reader support.
+
+**What we do:**
+- Maintain our own navigation state (`_currentIndex`, `_elements` list)
+- Announce elements via screen reader (Unity doesn't do this)
+- Consume/block keys to prevent Unity/MTGA from also processing them
+- Clear or set `EventSystem.currentSelectedGameObject` strategically
+
+**Why it's necessary:**
+1. Unity's navigation has no screen reader support
+2. MTGA's navigation is inconsistent and has gaps
+3. Some elements auto-activate when selected (input fields, toggles)
+4. MTGA's KeyboardManager intercepts keys for game shortcuts
+
+**Problem areas requiring special handling:**
+- **Input fields:** MTGA auto-focuses them asynchronously, so we deactivate or clear EventSystem selection for arrow navigation
+- **Toggles:** Unity/MTGA re-toggles when EventSystem selection is set, so we clear selection for arrow navigation
+- **Dropdowns:** We let Unity handle internal arrow navigation, then re-sync our index
+
+**Future consideration:**
+A cleaner solution would be full EventSystem override (never use it), but some MTGA elements require EventSystem focus to work correctly (dropdowns, input field text entry). May need cleanup/simplification if this becomes too fragile.
+
+**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`, `KeyboardManagerPatch.cs`
 
 ## Recently Completed
 
