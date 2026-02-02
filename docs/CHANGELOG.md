@@ -2,6 +2,67 @@
 
 All notable changes to Accessible Arena.
 
+## v0.4 - 2026-02-02
+
+### New Features
+
+#### NPE Tutorial Accessibility
+- NPE objective stages (Stage I, II, III, etc.) now readable with completion status
+- Automatic detection of "Completed" status when stage checkmark is shown
+- Dynamic button detection on NPE screen (e.g., "Play" button appearing after dialogue)
+- GeneralMenuNavigator yields to NPERewardNavigator when reward popup opens
+
+#### Mana Pool Tracking
+- Press A key during duels to announce current floating mana
+- Mana announced as "2 Green, 1 Blue" format
+- Tracks mana production events in real-time
+
+#### Deck Builder Improvements
+- Card add/remove functionality with Enter key
+- Deck list navigation with cards properly detected
+- Fixed deck list cards not appearing when MainDeck_MetaCardHolder is inactive
+- Fixed deck folder navigation: Enter expands folders, Backspace collapses
+- Icon button labels extracted from element names (Edit, Delete, Export)
+
+#### Collection Navigation
+- Page Up/Page Down for collection page navigation
+- Filter to show only newly added cards after page switch
+- Group state preserved across page changes
+- Fixed flavor text lookup for collection cards
+
+#### PlayBlade Navigation
+- Fixed Blade_ListItem buttons (Bot-Match, Standard) not visible in FindMatch
+- Event page Play button now included in navigation
+- Fixed navigation hierarchy after tab activation
+
+### Bug Fixes
+
+#### Toggle/Checkbox Activation
+- Fixed double-toggle on Enter key with frame-aware flag
+- Fixed Enter key on toggles closing UpdatePolicies panel
+- Fixed toggle activation and input field navigation sync issues
+- Documented hybrid navigation approach for checkboxes
+
+#### Input Fields
+- Fixed input field auto-focus: Tab enters edit mode, arrows don't
+- Improved edit mode detection for login forms
+
+#### Popups
+- Fixed popup Cancel button closing via SystemMessageManager
+- Simplified popup dismissal logic
+
+#### Other Fixes
+- Fixed Settings menu showing 0 elements on Login scene
+- Extract play mode names from element names instead of generic translations
+- Improved objectives text extraction with full progress and reward info
+
+### Technical
+- Added TryGetNPEObjectiveText in UITextExtractor for NPE stage extraction
+- Added periodic CustomButton count monitoring for NPE scene
+- Added ValidateElements check for NPE rewards screen detection
+
+---
+
 ## v0.3 - 2026-01-29
 
 ### New Features
