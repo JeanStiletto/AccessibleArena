@@ -1144,7 +1144,7 @@ namespace AccessibleArena.Core.Services
             bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || InputManager.EnterPressedWhileBlocked;
             if (InputManager.EnterPressedWhileBlocked)
             {
-                InputManager.EnterPressedWhileBlocked = false; // Clear the flag after reading
+                InputManager.MarkEnterHandled(); // Mark as handled to prevent double-activation
             }
             bool spacePressed = AcceptSpaceKey && InputManager.GetKeyDownAndConsume(KeyCode.Space);
             bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);

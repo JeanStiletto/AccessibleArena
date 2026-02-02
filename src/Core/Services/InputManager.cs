@@ -43,9 +43,40 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Set by EventSystemPatch when Enter is pressed but blocked because we're on a toggle.
         /// Our HandleInput checks this flag to know Enter was pressed and should activate the toggle.
-        /// Cleared after being read.
+        /// Frame-aware to prevent double-activation from multiple GetKeyDown calls per frame.
         /// </summary>
-        public static bool EnterPressedWhileBlocked { get; set; }
+        private static int _enterPressedWhileBlockedFrame = -1;
+        private static int _enterPressedHandledFrame = -1;
+
+        public static bool EnterPressedWhileBlocked
+        {
+            get
+            {
+                // Only return true if set THIS frame and not already handled this frame
+                int currentFrame = Time.frameCount;
+                return _enterPressedWhileBlockedFrame == currentFrame && _enterPressedHandledFrame != currentFrame;
+            }
+            set
+            {
+                if (value)
+                {
+                    // Only set if not already set this frame
+                    int currentFrame = Time.frameCount;
+                    if (_enterPressedWhileBlockedFrame != currentFrame)
+                    {
+                        _enterPressedWhileBlockedFrame = currentFrame;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Mark EnterPressedWhileBlocked as handled for this frame to prevent double-activation.
+        /// </summary>
+        public static void MarkEnterHandled()
+        {
+            _enterPressedHandledFrame = Time.frameCount;
+        }
 
         /// <summary>
         /// Marks a key as consumed this frame. The game's KeyboardManager will not
