@@ -45,6 +45,10 @@ namespace AccessibleArena.Core.Services
         private string _prevInputFieldText = "";
         private int _prevInputFieldCaretPos = 0;
 
+        // Track whether last navigation was via Tab (vs arrow keys)
+        // Tab navigation should auto-enter input field edit mode, arrow keys should not
+        private bool _lastNavigationWasTab;
+
         /// <summary>
         /// Represents a virtual action attached to an element (e.g., Delete, Edit for decks).
         /// These are cycled through with left/right arrows.
@@ -988,44 +992,34 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if user is ON an input field (selected but maybe not focused yet)
-            // This handles MTGA's auto-activating input fields when selected via Tab
+            // Check if an input field has been auto-focused by the game.
+            // MTGA auto-focuses input fields when they receive EventSystem selection.
+            // Tab navigation: allow auto-enter edit mode (traditional behavior)
+            // Arrow navigation: deactivate and require Enter to edit (dropdown-like behavior)
             if (UIFocusTracker.IsAnyInputFieldFocused())
             {
-                // Check if field is actually focused (isFocused = caret visible)
                 var info = GetAnyFocusedInputFieldInfo();
                 if (info.IsValid && info.GameObject != null)
                 {
-                    // Field is focused - enter edit mode
-                    _editingInputField = info.GameObject;
-                    UIFocusTracker.EnterInputFieldEditMode(info.GameObject);
-                    HandleInputFieldNavigation();
-                    return;
-                }
-
-                // Field is selected but not focused - handle Escape/Tab to exit, but don't enter full edit mode
-                if (Input.GetKeyDown(KeyCode.Escape))
-                {
-                    SyncIndexToFocusedElement();
-                    UIFocusTracker.DeactivateFocusedInputField();
-                    AnnounceCurrentElement();
-                    return;
-                }
-                if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
-                {
-                    // User arrived here via arrow keys (we deactivated auto-focus), so _currentIndex is correct.
-                    // Use our navigation order (which includes all elements) instead of syncing to MTGA's focus.
-                    UIFocusTracker.DeactivateFocusedInputField();
-                    bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                    if (shiftTab)
-                        MovePrevious();
+                    if (_lastNavigationWasTab)
+                    {
+                        // Tab navigation - allow auto-enter edit mode
+                        _lastNavigationWasTab = false; // Clear flag
+                        _editingInputField = info.GameObject;
+                        UIFocusTracker.EnterInputFieldEditMode(info.GameObject);
+                        HandleInputFieldNavigation();
+                        return;
+                    }
                     else
-                        MoveNext();
-                    return;
+                    {
+                        // Arrow navigation - deactivate so user can continue navigating
+                        DeactivateInputFieldOnElement(info.GameObject);
+                        // Continue to normal navigation below - user must press Enter to edit
+                    }
                 }
-                // Let other keys pass through (typing will focus the field)
-                return;
+                // If field is selected but not focused, just continue normal navigation
             }
+            _lastNavigationWasTab = false; // Clear flag if not used
 
             // Clear edit mode when no input field is focused
             if (_editingInputField != null)
@@ -1076,10 +1070,11 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Tab/Shift+Tab navigation - same as arrow down/up
+            // Tab/Shift+Tab navigation - same as arrow down/up but auto-enters input fields
             // Use GetKeyDownAndConsume to prevent game from also processing Tab
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
+                _lastNavigationWasTab = true; // Track for input field auto-enter behavior
                 bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();

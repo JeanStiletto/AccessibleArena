@@ -72,11 +72,13 @@ Elements discovered automatically:
 Login scene panels are detected by `MenuPanelTracker.DetectLoginPanels()` which looks for active GameObjects matching patterns like "Panel - WelcomeGate", "Panel - Log In", "Panel - Register", etc. under the PanelParent container.
 
 ### Input Field Navigation
-- Arrow keys navigate between elements (including input fields)
-- Game auto-focuses input fields when navigated to (edit mode starts automatically)
+- **Tab** navigates to input fields and auto-enters edit mode (traditional behavior)
+- **Arrow keys** navigate to input fields but do NOT auto-enter edit mode (press Enter to edit)
 - While editing: type normally, Arrow Up/Down reads content, Arrow Left/Right reads character at cursor
 - Press **Escape** to stop editing and return to navigation (announces "Exited edit mode")
 - Press **Tab** to stop editing and move to next element
+
+Note: MTGA auto-focuses input fields when navigated to. Tab navigation allows this auto-focus, while arrow navigation deactivates it for dropdown-like behavior.
 
 ### Dropdown Navigation
 Dropdowns (TMP_Dropdown and cTMP_Dropdown) are detected and classified automatically.
