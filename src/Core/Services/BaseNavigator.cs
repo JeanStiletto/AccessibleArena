@@ -1012,9 +1012,30 @@ namespace AccessibleArena.Core.Services
                     }
                     else
                     {
-                        // Arrow navigation - deactivate so user can continue navigating
+                        // Arrow navigation while on input field - deactivate and navigate
+                        // Handle navigation here to avoid Unity's native arrow key processing
+                        // which moves EventSystem focus following its own navigation links
                         DeactivateInputFieldOnElement(info.GameObject);
-                        // Continue to normal navigation below - user must press Enter to edit
+
+                        // Clear EventSystem selection immediately
+                        var eventSystem = EventSystem.current;
+                        if (eventSystem != null)
+                        {
+                            eventSystem.SetSelectedGameObject(null);
+                        }
+
+                        // Process arrow navigation here (don't fall through - Unity already moved focus)
+                        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+                        {
+                            MovePrevious();
+                            return;
+                        }
+                        if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+                        {
+                            MoveNext();
+                            return;
+                        }
+                        // For other keys (Enter to edit, etc.), continue below
                     }
                 }
                 // If field is selected but not focused, just continue normal navigation
@@ -1374,10 +1395,18 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // MTGA auto-focuses input fields when they receive EventSystem selection.
-                // If we just navigated to an input field (not activated via Enter), deactivate it.
-                // We check isFocused via the real property, not assumptions.
-                if (UIFocusTracker.IsInputField(element))
+                // For arrow navigation, don't leave EventSystem selection on input fields
+                // because Unity's native arrow navigation will move focus on the next frame.
+                // We clear selection; Enter activation will set it just-in-time.
+                if (UIFocusTracker.IsInputField(element) && !_lastNavigationWasTab)
                 {
+                    DeactivateInputFieldOnElement(element);
+                    // Clear EventSystem selection to prevent Unity's native arrow navigation
+                    eventSystem.SetSelectedGameObject(null);
+                }
+                else if (UIFocusTracker.IsInputField(element))
+                {
+                    // Tab navigation - keep selection but deactivate (Tab will enter edit mode)
                     DeactivateInputFieldOnElement(element);
                 }
             }
