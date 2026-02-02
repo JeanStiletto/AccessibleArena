@@ -136,6 +136,11 @@ namespace AccessibleArena.Core.Services
         // Element tracking
         private float _bladeAutoExpandDelay;
 
+        // NPE scene: periodic button check for dynamic buttons (e.g., "Play" appearing after dialogue)
+        private const float NPEButtonCheckInterval = 0.5f;
+        private float _npeButtonCheckTimer;
+        private int _lastNPEButtonCount;
+
         #endregion
 
         #region Helper Methods
@@ -487,6 +492,10 @@ namespace AccessibleArena.Core.Services
             _hasLoggedUIOnce = false;
             _activationDelay = ActivationDelaySeconds;
 
+            // Reset NPE button tracking for new scene
+            _npeButtonCheckTimer = NPEButtonCheckInterval;
+            _lastNPEButtonCount = 0;
+
             _screenDetector.Reset();
 
             // Full reset PanelStateManager for scene change
@@ -531,6 +540,13 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
+            // Deactivate if NPE rewards popup becomes active - let NPERewardNavigator handle it
+            if (_screenDetector.IsNPERewardsScreenActive())
+            {
+                LogDebug($"[{NavigatorId}] NPE rewards screen detected - deactivating to let NPERewardNavigator take over");
+                return false;
+            }
+
             return base.ValidateElements();
         }
 
@@ -554,6 +570,17 @@ namespace AccessibleArena.Core.Services
                 if (_bladeAutoExpandDelay <= 0)
                 {
                     AutoExpandBlade();
+                }
+            }
+
+            // NPE scene: periodically check for new buttons (e.g., "Play" button appearing after dialogue)
+            if (_currentScene == "NPEStitcher" && _rescanDelay <= 0)
+            {
+                _npeButtonCheckTimer -= Time.deltaTime;
+                if (_npeButtonCheckTimer <= 0)
+                {
+                    _npeButtonCheckTimer = NPEButtonCheckInterval;
+                    CheckForNewNPEButtons();
                 }
             }
 
@@ -1616,6 +1643,21 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Check for new CustomButtons on NPE scene (e.g., "Play" button appearing after dialogue).
+        /// Triggers rescan if button count changed.
+        /// </summary>
+        private void CheckForNewNPEButtons()
+        {
+            int currentCount = CountActiveCustomButtons();
+            if (currentCount != _lastNPEButtonCount)
+            {
+                LogDebug($"[{NavigatorId}] NPE button count changed: {_lastNPEButtonCount} -> {currentCount}, triggering rescan");
+                _lastNPEButtonCount = currentCount;
+                TriggerRescan();
+            }
+        }
+
+        /// <summary>
         /// Schedule a rescan after a short delay to let UI settle.
         /// </summary>
         private void TriggerRescan()
@@ -1688,6 +1730,10 @@ namespace AccessibleArena.Core.Services
 
             // Don't activate when Settings is open - let SettingsMenuNavigator handle it
             if (IsSettingsMenuOpen())
+                return false;
+
+            // Don't activate when NPE rewards popup is showing - let NPERewardNavigator handle it
+            if (_screenDetector.IsNPERewardsScreenActive())
                 return false;
 
             // Wait for UI to settle after scene change

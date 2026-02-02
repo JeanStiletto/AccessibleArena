@@ -85,6 +85,13 @@ namespace AccessibleArena.Core.Services
                 return objectiveText;
             }
 
+            // Check if this is an NPE objective element (tutorial stages)
+            string npeObjectiveText = TryGetNPEObjectiveText(gameObject);
+            if (!string.IsNullOrEmpty(npeObjectiveText))
+            {
+                return npeObjectiveText;
+            }
+
             // Check if this is a play mode tab - extract mode from element name
             string playModeText = TryGetPlayModeTabText(gameObject);
             if (!string.IsNullOrEmpty(playModeText))
@@ -642,6 +649,97 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Extracts text from NPE (New Player Experience) objective elements.
+        /// These are the tutorial stage indicators (Stage I, II, III, etc.) with completion status.
+        /// </summary>
+        private static string TryGetNPEObjectiveText(GameObject gameObject)
+        {
+            if (gameObject == null || !gameObject.name.StartsWith("Objective_NPE"))
+                return null;
+
+            var texts = gameObject.GetComponentsInChildren<TMP_Text>(true);
+
+            string romanNumeral = null;
+            bool romanNumeralIsActive = false;
+            bool isCompleted = false;
+            bool isLocked = false;
+
+            // Extract Roman numeral from child elements (check both active and inactive)
+            foreach (var text in texts)
+            {
+                if (text == null) continue;
+                string objNameLower = text.gameObject.name.ToLower();
+
+                // Look for RomanNumeral element specifically
+                if (objNameLower.Contains("roman") || objNameLower.Contains("numeral"))
+                {
+                    string content = text.text?.Trim();
+                    if (!string.IsNullOrEmpty(content) && content != "\u200B")
+                    {
+                        content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
+                        if (!string.IsNullOrEmpty(content))
+                        {
+                            romanNumeral = content;
+                            romanNumeralIsActive = text.gameObject.activeInHierarchy;
+                        }
+                    }
+                }
+            }
+
+            // If no Roman numeral found from named elements, try to detect from any active text
+            if (string.IsNullOrEmpty(romanNumeral))
+            {
+                foreach (var text in texts)
+                {
+                    if (text == null || !text.gameObject.activeInHierarchy) continue;
+                    string content = text.text?.Trim();
+                    if (string.IsNullOrEmpty(content)) continue;
+                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
+
+                    // Check if content is a Roman numeral (I, II, III, IV, V, VI, VII, VIII, IX, X)
+                    if (System.Text.RegularExpressions.Regex.IsMatch(content, @"^[IVX]+$"))
+                    {
+                        romanNumeral = content;
+                        romanNumeralIsActive = true;
+                        break;
+                    }
+                }
+            }
+
+            // Detect completion: if RomanNumeral exists but is inactive, stage is completed
+            // (completed stages hide their Roman numeral and show a checkmark instead)
+            if (!string.IsNullOrEmpty(romanNumeral) && !romanNumeralIsActive)
+            {
+                isCompleted = true;
+            }
+
+            // Also check for explicit completion/lock indicators in child objects
+            foreach (Transform child in gameObject.transform)
+            {
+                string childName = child.name.ToLower();
+                if ((childName.Contains("complete") || childName.Contains("check") || childName.Contains("done"))
+                    && child.gameObject.activeInHierarchy)
+                    isCompleted = true;
+                if (childName.Contains("lock") && child.gameObject.activeInHierarchy)
+                    isLocked = true;
+            }
+
+            // Build the label
+            string stageLabel = "Stage";
+            if (!string.IsNullOrEmpty(romanNumeral))
+                stageLabel = $"Stage {romanNumeral}";
+
+            string result = stageLabel;
+
+            if (isCompleted)
+                result += ". Completed";
+            else if (isLocked)
+                result += ". Locked";
+
+            return result;
         }
 
         /// <summary>
