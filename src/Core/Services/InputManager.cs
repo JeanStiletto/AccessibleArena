@@ -21,6 +21,33 @@ namespace AccessibleArena.Core.Services
         private static int _lastConsumeFrame = -1;
 
         /// <summary>
+        /// When true, EventSystemPatch blocks Unity's Submit events for toggles.
+        /// Set by navigators when the current element is a toggle, cleared when moving away.
+        /// This persistent flag works around the timing issue where EventSystem.Update()
+        /// runs BEFORE our MonoBehaviour.Update() can consume keys.
+        /// </summary>
+        private static bool _blockSubmitForToggle;
+        public static bool BlockSubmitForToggle
+        {
+            get => _blockSubmitForToggle;
+            set
+            {
+                if (_blockSubmitForToggle != value)
+                {
+                    MelonLogger.Msg($"[InputManager] BlockSubmitForToggle changed: {_blockSubmitForToggle} -> {value}");
+                    _blockSubmitForToggle = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Set by EventSystemPatch when Enter is pressed but blocked because we're on a toggle.
+        /// Our HandleInput checks this flag to know Enter was pressed and should activate the toggle.
+        /// Cleared after being read.
+        /// </summary>
+        public static bool EnterPressedWhileBlocked { get; set; }
+
+        /// <summary>
         /// Marks a key as consumed this frame. The game's KeyboardManager will not
         /// receive this key press (blocked by Harmony patch).
         /// </summary>

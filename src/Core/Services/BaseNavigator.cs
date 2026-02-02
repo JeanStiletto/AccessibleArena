@@ -430,6 +430,9 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _elements.Clear();
             _currentIndex = -1;
+
+            // Clear toggle submit blocking when navigator deactivates
+            InputManager.BlockSubmitForToggle = false;
         }
 
         #endregion
@@ -476,7 +479,7 @@ namespace AccessibleArena.Core.Services
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
                 ExitInputFieldEditMode();
-                // Tab is blocked from MTGA, so our _currentIndex is correct - just use MoveNext
+                _lastNavigationWasTab = true; // Track for consistent behavior in UpdateEventSystemSelection
                 bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
@@ -1137,13 +1140,33 @@ namespace AccessibleArena.Core.Services
             }
 
             // Activation (Enter or Space)
-            // Consume Space to prevent Unity's EventSystem from also processing it on toggles
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            // Check EnterPressedWhileBlocked for when our Input.GetKeyDown patch blocked Enter on a toggle
+            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || InputManager.EnterPressedWhileBlocked;
+            if (InputManager.EnterPressedWhileBlocked)
+            {
+                InputManager.EnterPressedWhileBlocked = false; // Clear the flag after reading
+            }
             bool spacePressed = AcceptSpaceKey && InputManager.GetKeyDownAndConsume(KeyCode.Space);
             bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
             if (enterPressed || spacePressed)
             {
+                // For toggles: MTGA may auto-select the submit button after we set selection.
+                // Unity's EventSystem already sent Submit to whatever MTGA selected BEFORE
+                // our Update runs. We can't block it, but we can detect if it went to the
+                // wrong target and handle accordingly.
+                // Consume Enter for toggles so the game's KeyboardManager doesn't add extra actions.
+                if (IsValidIndex)
+                {
+                    var element = _elements[_currentIndex].GameObject;
+                    var toggle = element?.GetComponent<Toggle>();
+                    if (toggle != null && enterPressed)
+                    {
+                        InputManager.ConsumeKey(KeyCode.Return);
+                        InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                    }
+                }
+
                 if (shiftHeld && enterPressed)
                 {
                     // Shift+Enter activates alternate action (e.g., edit deck name)
@@ -1394,7 +1417,10 @@ namespace AccessibleArena.Core.Services
                 bool isInputField = UIFocusTracker.IsInputField(element);
                 bool isArrowNavToInputField = isInputField && !_lastNavigationWasTab;
                 bool isToggle = element.GetComponent<Toggle>() != null;
-                bool isArrowNavToToggle = isToggle && !_lastNavigationWasTab;
+
+                // Set submit blocking flag BEFORE any EventSystem interaction.
+                // EventSystemPatch checks this flag to block Unity's Submit events for toggles.
+                InputManager.BlockSubmitForToggle = isToggle;
 
                 // INPUT FIELD HANDLING (arrow navigation):
                 // Clear EventSystem selection when arrow-navigating to input fields.
@@ -1411,13 +1437,31 @@ namespace AccessibleArena.Core.Services
                     eventSystem.SetSelectedGameObject(element);
                     DeactivateInputFieldOnElement(element);
                 }
-                // TOGGLE HANDLING (arrow navigation):
-                // Clear EventSystem selection when arrow-navigating to toggles.
-                // Unity/MTGA re-toggles the checkbox when SetSelectedGameObject is called.
-                // This also prevents Enter from activating whatever was previously selected.
-                else if (isArrowNavToToggle)
+                // TOGGLE HANDLING (all navigation methods):
+                // Set EventSystem selection to the toggle.
+                // MTGA's OnSelect handler may re-toggle the checkbox when selection changes,
+                // so we track state and revert if needed.
+                // (EventSystemPatch separately blocks Unity's Submit when we consume Enter/Space)
+                else if (isToggle)
                 {
-                    eventSystem.SetSelectedGameObject(null);
+                    // Skip SetSelectedGameObject if EventSystem already has our element selected.
+                    // Calling it again would trigger OnSelect handlers unnecessarily, which can cause
+                    // issues with MTGA panels like UpdatePolicies (panel closes unexpectedly).
+                    if (eventSystem.currentSelectedGameObject == element)
+                    {
+                        return;
+                    }
+
+                    var toggle = element.GetComponent<Toggle>();
+                    bool stateBefore = toggle.isOn;
+
+                    eventSystem.SetSelectedGameObject(element);
+
+                    // If MTGA's OnSelect handler re-toggled, revert to original state
+                    if (toggle.isOn != stateBefore)
+                    {
+                        toggle.isOn = stateBefore;
+                    }
                 }
                 // DROPDOWN HANDLING:
                 // Set selection, then close if auto-opened.
@@ -1429,7 +1473,7 @@ namespace AccessibleArena.Core.Services
                         CloseDropdownOnElement(element);
                     }
                 }
-                // NORMAL ELEMENTS (including toggles via Tab):
+                // NORMAL ELEMENTS:
                 // Just set EventSystem selection.
                 else
                 {
@@ -1645,6 +1689,17 @@ namespace AccessibleArena.Core.Services
             if (OnElementActivated(_currentIndex, element))
             {
                 return;
+            }
+
+            // For toggles: Re-sync EventSystem selection before activating.
+            // MTGA may have auto-moved selection (e.g., to submit button when form becomes valid).
+            // We need to ensure EventSystem has our toggle selected so BlockSubmitForToggle works
+            // and we toggle the correct element.
+            // BUT: Skip if the element is no longer active (panel might have closed).
+            var toggle = element.GetComponent<Toggle>();
+            if (toggle != null && element.activeInHierarchy)
+            {
+                UpdateEventSystemSelection();
             }
 
             // Standard activation

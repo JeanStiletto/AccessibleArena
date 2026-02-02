@@ -2722,6 +2722,8 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Update EventSystem selection to match the current grouped element.
         /// This ensures Unity's Submit events go to the correct element when Enter is pressed.
+        /// For toggles, we handle MTGA's OnSelect re-toggle behavior and set the blocking flag.
+        /// (EventSystemPatch blocks Unity's Submit when BlockSubmitForToggle is true)
         /// </summary>
         private void UpdateEventSystemSelectionForGroupedElement()
         {
@@ -2734,7 +2736,37 @@ namespace AccessibleArena.Core.Services
             var eventSystem = UnityEngine.EventSystems.EventSystem.current;
             if (eventSystem != null)
             {
-                eventSystem.SetSelectedGameObject(gameObject);
+                // Check if this is a toggle - need to handle MTGA's OnSelect re-toggle
+                var toggle = gameObject.GetComponent<Toggle>();
+                bool isToggle = toggle != null;
+
+                // Set submit blocking flag BEFORE any EventSystem interaction.
+                // EventSystemPatch checks this flag to block Unity's Submit events for toggles.
+                InputManager.BlockSubmitForToggle = isToggle;
+
+                // Skip SetSelectedGameObject if EventSystem already has our element selected.
+                // Calling it again would trigger OnSelect handlers unnecessarily, which can cause
+                // issues with MTGA panels like UpdatePolicies (panel closes unexpectedly).
+                if (eventSystem.currentSelectedGameObject == gameObject)
+                {
+                    return;
+                }
+
+                if (isToggle)
+                {
+                    bool stateBefore = toggle.isOn;
+                    eventSystem.SetSelectedGameObject(gameObject);
+
+                    // If MTGA's OnSelect handler re-toggled, revert to original state
+                    if (toggle.isOn != stateBefore)
+                    {
+                        toggle.isOn = stateBefore;
+                    }
+                }
+                else
+                {
+                    eventSystem.SetSelectedGameObject(gameObject);
+                }
             }
         }
 
@@ -2986,6 +3018,15 @@ namespace AccessibleArena.Core.Services
             var elementGroup = _groupAssigner.DetermineGroup(element);
             var playBladeResult = _playBladeHelper.HandleEnter(element, elementGroup);
             // Note: Settings submenu button handling removed - handled by SettingsMenuNavigator
+
+            // For toggles: Re-sync EventSystem selection before activating.
+            // MTGA may have auto-moved selection (e.g., to submit button when form becomes valid).
+            // We need to ensure EventSystem has our toggle selected so BlockSubmitForToggle works.
+            // BUT: Skip if the element is no longer active (panel might have closed).
+            if (isToggle && element.activeInHierarchy)
+            {
+                UpdateEventSystemSelectionForGroupedElement();
+            }
 
             // Use UIActivator for CustomButtons
             var result = UIActivator.Activate(element);
