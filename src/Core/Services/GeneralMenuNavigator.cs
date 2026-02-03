@@ -139,6 +139,9 @@ namespace AccessibleArena.Core.Services
         private bool _isInMailDetailView;
         private Guid _currentMailLetterId;
 
+        // Mail content field navigation
+        private UITextExtractor.MailContentParts _mailContentParts;
+
         // Element tracking
         private float _bladeAutoExpandDelay;
 
@@ -363,6 +366,7 @@ namespace AccessibleArena.Core.Services
                     LogDebug($"[{NavigatorId}] Mailbox closed - resetting mail detail view state");
                     _isInMailDetailView = false;
                     _currentMailLetterId = Guid.Empty;
+                    ResetMailFieldNavigation();
                 }
             }
 
@@ -457,44 +461,69 @@ namespace AccessibleArena.Core.Services
             _isInMailDetailView = true;
             _currentMailLetterId = letterId;
 
-            // Build announcement text
-            var announcement = new System.Text.StringBuilder();
-
-            // Title
-            if (!string.IsNullOrEmpty(title))
-            {
-                announcement.Append(title);
-            }
-
-            // Body
-            if (!string.IsNullOrEmpty(body))
-            {
-                if (announcement.Length > 0)
-                    announcement.Append(". ");
-                announcement.Append(body);
-            }
-
-            // Attachments status
-            if (hasAttachments)
-            {
-                if (announcement.Length > 0)
-                    announcement.Append(". ");
-
-                if (isClaimed)
-                    announcement.Append("Rewards already claimed.");
-                else
-                    announcement.Append("Has rewards to claim.");
-            }
-
-            // Announce the mail content
-            if (announcement.Length > 0)
-            {
-                _announcer.Announce(announcement.ToString(), Models.AnnouncementPriority.High);
-                LogDebug($"[{NavigatorId}] Announced mail content: {announcement}");
-            }
-
-            // Trigger rescan to discover buttons in the mail detail view (Claim, More Info, Close)
+            // Trigger rescan to discover mail content fields and buttons
+            // The mail content fields will be added during element discovery
             TriggerRescan();
+        }
+
+        /// <summary>
+        /// Add mail content fields (title, date, body) as navigable elements.
+        /// These are actual TMP_Text GameObjects from the mail UI, inserted before buttons.
+        /// </summary>
+        private void AddMailContentFieldsAsElements()
+        {
+            // Extract mail content from UI (includes actual GameObjects)
+            _mailContentParts = UITextExtractor.GetMailContentParts();
+
+            LogDebug($"[{NavigatorId}] Mail content - Title: '{_mailContentParts.Title}' (obj: {_mailContentParts.TitleObject?.name}), Date: '{_mailContentParts.Date}', Body length: {_mailContentParts.Body?.Length ?? 0}");
+
+            if (!_mailContentParts.HasContent)
+                return;
+
+            // Create list of mail field elements (to be inserted at the beginning)
+            var mailFieldElements = new List<NavigableElement>();
+
+            if (_mailContentParts.TitleObject != null && !string.IsNullOrEmpty(_mailContentParts.Title))
+            {
+                mailFieldElements.Add(new NavigableElement
+                {
+                    GameObject = _mailContentParts.TitleObject,
+                    Label = $"Title: {_mailContentParts.Title}"
+                });
+            }
+
+            if (_mailContentParts.DateObject != null && !string.IsNullOrEmpty(_mailContentParts.Date))
+            {
+                mailFieldElements.Add(new NavigableElement
+                {
+                    GameObject = _mailContentParts.DateObject,
+                    Label = $"Date: {_mailContentParts.Date}"
+                });
+            }
+
+            if (_mailContentParts.BodyObject != null && !string.IsNullOrEmpty(_mailContentParts.Body))
+            {
+                mailFieldElements.Add(new NavigableElement
+                {
+                    GameObject = _mailContentParts.BodyObject,
+                    Label = $"Body: {_mailContentParts.Body}"
+                });
+            }
+
+            // Insert mail fields at the beginning
+            if (mailFieldElements.Count > 0)
+            {
+                _elements.InsertRange(0, mailFieldElements);
+                LogDebug($"[{NavigatorId}] Added {mailFieldElements.Count} mail content fields as navigable elements");
+            }
+        }
+
+        /// <summary>
+        /// Reset mail field navigation state.
+        /// </summary>
+        private void ResetMailFieldNavigation()
+        {
+            _mailContentParts = default;
         }
 
         protected virtual string GetMenuScreenName()
@@ -1279,6 +1308,7 @@ namespace AccessibleArena.Core.Services
                                 method.Invoke(mb, null);
                                 _isInMailDetailView = false;
                                 _currentMailLetterId = Guid.Empty;
+                                ResetMailFieldNavigation();
                                 _announcer.Announce("Back to mail list", Models.AnnouncementPriority.High);
                                 TriggerRescan();
                                 return true;
@@ -1296,6 +1326,7 @@ namespace AccessibleArena.Core.Services
             // Fallback: reset flag anyway and try generic back
             _isInMailDetailView = false;
             _currentMailLetterId = Guid.Empty;
+            ResetMailFieldNavigation();
             return TryGenericBackButton();
         }
 
@@ -1584,6 +1615,17 @@ namespace AccessibleArena.Core.Services
             if (obj.name == "Options_Button")
                 return false;
 
+            // In mail content view, filter out buttons that have no actual text content
+            // (e.g., "SecondaryButton_v2" which only shows its object name)
+            if (_isInMailDetailView && _overlayDetector.GetActiveOverlay() == ElementGroup.MailboxContent)
+            {
+                if (IsMailContentButtonWithNoText(obj))
+                {
+                    LogDebug($"[{NavigatorId}] Filtering mail button with no text: {obj.name}");
+                    return false;
+                }
+            }
+
             // Include Blade_ListItem elements ONLY for PlayBlade context (play mode options like Bot Match, Standard)
             // This bypass should NOT apply to:
             // - Mailbox items (need proper list/content filtering)
@@ -1815,6 +1857,67 @@ namespace AccessibleArena.Core.Services
                         return true;
                 }
             }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is a button in mail content that has no actual text content.
+        /// Filters out buttons like "SecondaryButton_v2" which only show their object name.
+        /// </summary>
+        private bool IsMailContentButtonWithNoText(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            // Check if inside mail content view
+            Transform current = obj.transform;
+            bool inMailContent = false;
+            while (current != null)
+            {
+                if (current.name.Contains("Mailbox_ContentView") || current.name.Contains("CONTENT_Mailbox_Letter"))
+                {
+                    inMailContent = true;
+                    break;
+                }
+                current = current.parent;
+            }
+
+            if (!inMailContent)
+                return false;
+
+            // Check if this is a button
+            var customButton = obj.GetComponent<MonoBehaviour>();
+            bool isButton = false;
+            if (customButton != null)
+            {
+                foreach (var comp in obj.GetComponents<MonoBehaviour>())
+                {
+                    if (comp != null && comp.GetType().Name == "CustomButton")
+                    {
+                        isButton = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isButton)
+                return false;
+
+            // Check if the button has actual text content
+            bool hasActualText = UITextExtractor.HasActualText(obj);
+
+            // If no actual text, this is a button with only its object name - filter it out
+            if (!hasActualText)
+                return true;
+
+            // Also filter if the extracted text is just the object name cleaned up
+            string extractedText = UITextExtractor.GetText(obj);
+            string objNameCleaned = obj.name.ToLowerInvariant().Replace("_", " ").Replace("-", " ");
+            string extractedCleaned = extractedText?.ToLowerInvariant().Replace(", button", "").Trim() ?? "";
+
+            // If the extracted text matches the object name (with minor variations), filter it
+            if (!string.IsNullOrEmpty(extractedCleaned) && objNameCleaned.Contains(extractedCleaned))
+                return true;
 
             return false;
         }
@@ -2337,6 +2440,13 @@ namespace AccessibleArena.Core.Services
             // Find deck list cards (MainDeck_MetaCardHolder)
             // These are cards currently in your deck
             FindDeckListCards(addedObjects);
+
+            // In mail content view, add mail fields (title, date, body) as navigable elements
+            // These appear before buttons in the navigation list
+            if (_isInMailDetailView)
+            {
+                AddMailContentFieldsAsElements();
+            }
 
             LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
 

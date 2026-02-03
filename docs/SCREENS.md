@@ -448,7 +448,7 @@ BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator >
 
 The Mailbox screen shows inbox messages with rewards. Uses two-level navigation:
 - **Mail List** (left pane): List of mail items
-- **Mail Content** (right pane): Opened mail details with title, body, and buttons
+- **Mail Content** (right pane): Opened mail details with navigable fields and buttons
 
 **Navigation - Mail List:**
 - Up/Down arrows: Navigate between mail items
@@ -456,9 +456,18 @@ The Mailbox screen shows inbox messages with rewards. Uses two-level navigation:
 - Backspace: Close mailbox and return to Home
 
 **Navigation - Mail Content:**
-- Up/Down arrows: Navigate between content elements (title, body, buttons)
-- Enter: Activate button (Claim rewards, More Info)
+- Up/Down arrows: First cycles through mail fields (Title, Date, Body), then buttons
+- Enter: On field - reads full content; On button - activates it (Claim rewards, More Info)
 - Backspace: Close mail and return to mail list
+
+**Mail Field Navigation:**
+When a mail is opened, Up/Down arrows cycle through available fields:
+1. Title - Mail subject
+2. Date - When the mail was sent (if available)
+3. Body - Full mail content
+4. Buttons - Action buttons like "More Info", "Claim"
+
+Fields without content are skipped. Pressing Down past the last field transitions to button navigation.
 
 **Technical Notes:**
 - Two overlay groups: `ElementGroup.MailboxList` and `ElementGroup.MailboxContent`
@@ -466,8 +475,10 @@ The Mailbox screen shows inbox messages with rewards. Uses two-level navigation:
 - `IsInsideMailboxList()` filters elements in BladeView_CONTAINER (mail list)
 - `IsInsideMailboxContent()` filters elements in Mailbox_ContentView (mail details)
 - Mail items get titles via `UITextExtractor.TryGetMailboxItemTitle()`
+- Mail content fields extracted via `UITextExtractor.GetMailContentParts()`
 - Nav_Mail button requires special activation via `NavBarController.MailboxButton_OnClick()`
 - Harmony patch on `ContentControllerPlayerInbox.OnLetterSelected()` detects mail selection
+- Buttons without actual text content (only object name) are filtered out
 
 ## Rewards/Mastery Screen
 

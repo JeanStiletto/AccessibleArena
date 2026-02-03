@@ -1425,6 +1425,119 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Represents the structured parts of a mail message.
+        /// </summary>
+        public struct MailContentParts
+        {
+            public string Title;
+            public string Date;
+            public string Body;
+            public GameObject TitleObject;
+            public GameObject DateObject;
+            public GameObject BodyObject;
+            public bool HasContent => !string.IsNullOrEmpty(Title) || !string.IsNullOrEmpty(Date) || !string.IsNullOrEmpty(Body);
+        }
+
+        /// <summary>
+        /// Extracts structured mail content parts (title, date, body) from an opened mail message.
+        /// </summary>
+        public static MailContentParts GetMailContentParts()
+        {
+            var parts = new MailContentParts();
+
+            // Find the mailbox content view
+            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
+            if (mailboxPanel == null)
+                return parts;
+
+            // Find the letter content container
+            var letterBase = FindChildRecursive(mailboxPanel.transform, "Mailbox_Letter_Base");
+            if (letterBase == null)
+            {
+                // Try alternate path
+                var contentView = mailboxPanel.transform.Find("SafeArea/ViewSection/Mailbox_ContentView");
+                if (contentView != null)
+                    letterBase = FindChildRecursive(contentView, "CONTENT_Mailbox_Letter");
+            }
+
+            if (letterBase == null)
+                return parts;
+
+            // Get all TMP_Text components
+            var texts = letterBase.GetComponentsInChildren<TMP_Text>(true);
+
+            foreach (var tmpText in texts)
+            {
+                if (tmpText == null || !tmpText.gameObject.activeInHierarchy)
+                    continue;
+
+                string text = CleanText(tmpText.text);
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+
+                string objName = tmpText.gameObject.name.ToLowerInvariant();
+                string parentName = tmpText.transform.parent?.name.ToLowerInvariant() ?? "";
+                string grandparentName = tmpText.transform.parent?.parent?.name.ToLowerInvariant() ?? "";
+
+                // Skip button labels
+                if (IsInsideButtonContainer(tmpText.transform))
+                    continue;
+
+                // Identify by object/parent naming patterns
+                if (objName.Contains("title") || parentName.Contains("title") ||
+                    objName.Contains("header") || parentName.Contains("header") ||
+                    objName.Contains("subject"))
+                {
+                    if (string.IsNullOrEmpty(parts.Title))
+                    {
+                        parts.Title = text;
+                        parts.TitleObject = tmpText.gameObject;
+                    }
+                }
+                else if (objName.Contains("date") || parentName.Contains("date") ||
+                         objName.Contains("time") || parentName.Contains("time"))
+                {
+                    if (string.IsNullOrEmpty(parts.Date))
+                    {
+                        parts.Date = text;
+                        parts.DateObject = tmpText.gameObject;
+                    }
+                }
+                else if (objName.Contains("body") || parentName.Contains("body") ||
+                         objName.Contains("content") || parentName.Contains("content") ||
+                         objName.Contains("message") || parentName.Contains("message") ||
+                         grandparentName.Contains("body") || grandparentName.Contains("content"))
+                {
+                    // Append to body if we find multiple body texts
+                    if (string.IsNullOrEmpty(parts.Body))
+                    {
+                        parts.Body = text;
+                        parts.BodyObject = tmpText.gameObject;
+                    }
+                    else if (!parts.Body.Contains(text))
+                        parts.Body += " " + text;
+                }
+                else
+                {
+                    // If no specific match and text is substantial, treat as body
+                    if (text.Length > 20 && string.IsNullOrEmpty(parts.Body))
+                    {
+                        parts.Body = text;
+                        parts.BodyObject = tmpText.gameObject;
+                    }
+                    else if (text.Length > 5 && text.Length <= 50 && string.IsNullOrEmpty(parts.Title))
+                    {
+                        // Short text without specific container might be title
+                        parts.Title = text;
+                        parts.TitleObject = tmpText.gameObject;
+                    }
+                }
+            }
+
+            return parts;
+        }
+
+        /// <summary>
         /// Extracts the content text from an opened mail message in the Mailbox.
         /// Searches for text in the Mailbox_ContentView area.
         /// </summary>
