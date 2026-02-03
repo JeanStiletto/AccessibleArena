@@ -2,6 +2,29 @@
 
 All notable changes to Accessible Arena.
 
+## v0.5 - 2026-02-03
+
+### Mailbox Accessibility
+- Full keyboard navigation for Mailbox/Inbox screen
+- Mailbox items announce with proper title extraction via `TryGetMailboxItemTitle()`
+- Added `ElementGroup.Mailbox` for proper element grouping and overlay detection
+- Backspace navigation closes Mailbox and returns to Home
+- Fixed Nav_Mail button activation (onClick had no listeners, now invokes `NavBarController.MailboxButton_OnClick()`)
+
+### Rewards/Mastery Screen
+- Added `ProgressionTracksContentController` to content controller detection
+- Backspace navigation now closes Rewards screen and returns to Home
+- Screen displays as "Rewards" in announcements
+
+### Technical
+- Added Mailbox overlay detection in `OverlayDetector.IsInsideMailbox()`
+- Added `CloseMailbox()` handler in GeneralMenuNavigator for backspace
+- Added UIActivator special handling for Nav_Mail button
+- PanelStatePatch now patches `NavBarController.MailboxButton_OnClick()` and `HideInboxIfActive()`
+- Added screen name mapping for ProgressionTracksContentController in MenuScreenDetector
+
+---
+
 ## v0.4 - 2026-02-02
 
 ### New Features

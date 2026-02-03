@@ -27,7 +27,8 @@ namespace AccessibleArena.Core.Services
             "CampaignGraphContentController",
             "WrapperDeckBuilder",
             "ConstructedDeckSelectController",
-            "EventPageContentController"
+            "EventPageContentController",
+            "ProgressionTracksContentController"
         };
 
         // Settings submenu panel names
@@ -325,6 +326,7 @@ namespace AccessibleArena.Core.Services
                 "RewardsOverlay" => "Rewards",
                 "BoosterChamber" => "Packs",
                 "NPERewards" => "Card Unlocked",
+                "ProgressionTracksContentController" => "Rewards",
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
             };
         }

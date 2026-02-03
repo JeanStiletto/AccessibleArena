@@ -1098,6 +1098,138 @@ Always prefer `PanelStateManager.IsSettingsMenuOpen` over polling `GameObject.Fi
 3. Update lower-priority navigators to check the new property in both methods
 4. Register navigator in AccessibleArenaMod.cs with appropriate priority
 
+### Adding Support for New Screens
+
+MTGA has two main types of screens that need different implementation approaches:
+
+#### 1. Content Screens (Full-Page Navigation)
+
+Content screens are full-page views that replace the main content area (e.g., Home, Store, Decks, Rewards/Mastery, Profile).
+
+**Characteristics:**
+- Controlled by a `*ContentController` class (e.g., `HomePageContentController`, `ProgressionTracksContentController`)
+- NavBar remains visible
+- Backspace should return to Home
+- Elements are filtered to only show content panel elements (not NavBar)
+
+**Implementation Steps:**
+
+1. **Add controller to ContentControllerTypes** in `MenuScreenDetector.cs`:
+```csharp
+private static readonly string[] ContentControllerTypes = new[]
+{
+    "HomePageContentController",
+    // ... existing controllers ...
+    "YourNewContentController"  // Add here
+};
+```
+
+2. **Add display name mapping** in `MenuScreenDetector.GetContentControllerDisplayName()`:
+```csharp
+"YourNewContentController" => "Your Screen Name",
+```
+
+3. **Test backspace navigation** - should automatically work via `HandleContentPanelBack()` → `NavigateToHome()`
+
+**Example:** Rewards/Mastery screen (ProgressionTracksContentController)
+- Added to ContentControllerTypes array
+- Added display name "Rewards"
+- Backspace automatically closes screen via NavigateToHome()
+
+#### 2. Overlay Panels (Slide-In/Popup Navigation)
+
+Overlay panels appear on top of existing content without replacing it (e.g., Mailbox, Friends panel, Settings, PlayBlade).
+
+**Characteristics:**
+- Panel slides in from side or fades in as popup
+- Background content remains visible but should be non-navigable
+- Backspace should close the overlay (not navigate to Home)
+- Elements should be filtered to only show overlay content
+
+**Implementation Steps:**
+
+1. **Add overlay detection** in `OverlayDetector.cs`:
+```csharp
+public bool IsInsideYourOverlay(GameObject element)
+{
+    return IsChildOf(element, "YourOverlay");
+}
+```
+
+2. **Add to DetermineOverlayGroup** in `ElementGroupAssigner.cs`:
+```csharp
+if (_overlayDetector.IsInsideYourOverlay(element))
+    return (ElementGroup.YourOverlay, true);
+```
+
+3. **Add ElementGroup enum** in `ElementGroup.cs`:
+```csharp
+YourOverlay,
+```
+
+4. **Add backspace handler** in `GeneralMenuNavigator.HandleBackNavigation()`:
+```csharp
+ElementGroup.YourOverlay => CloseYourOverlay(),
+```
+
+5. **Add close method** in `GeneralMenuNavigator`:
+```csharp
+private bool CloseYourOverlay()
+{
+    // Find and click close button, or invoke controller method
+    return true;
+}
+```
+
+6. **If button activation doesn't work**, add special handling in `UIActivator`:
+```csharp
+if (elementName == "Nav_YourButton")
+{
+    // Use reflection to invoke controller method directly
+    var controller = FindController("YourController");
+    controller.OpenMethod();
+    return new ActivationResult(true, "YourButton", ActivationType.Button);
+}
+```
+
+7. **Add Harmony patches** in `PanelStatePatch.cs` if needed for open/close detection
+
+**Example:** Mailbox overlay
+- Added `IsInsideMailbox()` in OverlayDetector
+- Added `ElementGroup.Mailbox`
+- Added `CloseMailbox()` handler for backspace
+- Added special UIActivator handling for Nav_Mail (onClick had no listeners)
+- Added Harmony patches for `NavBarController.MailboxButton_OnClick()` and `HideInboxIfActive()`
+
+#### Decision Tree: Content Screen vs Overlay Panel
+
+```
+Is the new screen...
+├── Replacing the main content area entirely?
+│   └── YES → Content Screen
+│       - Add to ContentControllerTypes
+│       - Add display name mapping
+│       - Backspace → NavigateToHome()
+│
+└── Appearing on top of existing content?
+    └── YES → Overlay Panel
+        - Add overlay detection
+        - Add ElementGroup
+        - Add custom backspace handler
+        - May need UIActivator special handling
+        - May need Harmony patches
+```
+
+#### Common Pitfalls
+
+1. **Button onClick has no listeners**: Some NavBar buttons (like Nav_Mail) have empty onClick events. The actual logic is in a separate controller method that must be invoked via reflection.
+
+2. **Content controller not in list**: If backspace doesn't work on a content screen, check if the controller is in `ContentControllerTypes` array.
+
+3. **Overlay elements appearing when closed**: Check overlay detection logic - the panel GameObject may exist but be inactive.
+
+4. **Double announcements**: Ensure only ONE detection method (Harmony OR reflection OR alpha) is used per panel type.
+
 ### Special Activation Cases
 Some elements (NPE chest/deck boxes) need controller reflection:
 - Find controller via `GameObject.FindObjectOfType<NPEContentControllerRewards>()`

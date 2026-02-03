@@ -200,7 +200,7 @@ Base class for all menu screens (MonoBehaviour):
 
 ### NavContentController Implementations
 
-- `HomePageContentController` - Main home screen with Play, Bot Match, carousel
+- `HomePageContentController` - Main home screen with Play button, carousel (Note: Bot Match button no longer visible - see KNOWN_ISSUES.md)
 - `DeckManagerController` - Deck building/management
 - `ProfileContentController` - Player profile
 - `ContentController_StoreCarousel` - Store page
@@ -210,6 +210,7 @@ Base class for all menu screens (MonoBehaviour):
 - `PackOpeningController` - Pack opening animations
 - `CampaignGraphContentController` - Color Challenge menu
 - `WrapperDeckBuilder` - Deck builder/editor
+- `ProgressionTracksContentController` - Rewards/Mastery Pass screen (RewardTrack scene)
 
 ### SettingsMenu
 
@@ -250,7 +251,7 @@ The NavBar is a persistent UI bar visible across all menu screens.
 
 ## PlayBlade Architecture
 
-When clicking Play or Bot Match on the HomePage, the PlayBlade system opens.
+When clicking the Play button on the HomePage, the PlayBlade system opens. (Note: Bot Match button no longer visible on HomePage - see KNOWN_ISSUES.md)
 
 **PlayBladeController** - Controls the sliding blade panel
 - Property: `PlayBladeVisualState` (enum: Hidden, Events, DirectChallenge, FriendChallenge)
@@ -421,6 +422,119 @@ Key handling goes through `MTGA.KeyboardManager.KeyboardManager`:
 ### Binding Storage
 
 Key-to-action mappings stored in Unity InputActionAsset inside `globalgamemanagers.assets` (binary).
+
+## Mana Payment Workflows
+
+The game uses different workflows for mana payment depending on the context. Understanding these is critical for keyboard accessibility.
+
+### Decompilation Method
+
+To analyze game classes, use ILSpyCMD (command-line ILSpy):
+
+```powershell
+# Install ILSpyCMD via dotnet tools
+dotnet tool install -g ilspycmd --version 8.2.0.7535
+
+# Decompile a specific class
+ilspycmd "C:\Program Files\Wizards of the Coast\MTGA\MTGA_Data\Managed\Core.dll" -t "Wotc.Mtga.DuelScene.Interactions.ActionsAvailable.BatchManaSubmission"
+
+# List all types in assembly
+ilspycmd "C:\Program Files\Wizards of the Coast\MTGA\MTGA_Data\Managed\Core.dll" -l
+```
+
+Note: Version 8.2.0.7535 works with .NET 6.0. Newer versions may require .NET 8.0.
+
+### IKeybindingWorkflow Interface
+
+Located in `Wotc.Mtga.DuelScene.Interactions`:
+
+```csharp
+interface IKeybindingWorkflow
+{
+    bool CanKeyUp(KeyCode key);
+    void OnKeyUp(KeyCode key);
+    bool CanKeyDown(KeyCode key);
+    void OnKeyDown(KeyCode key);
+    bool CanKeyHeld(KeyCode key, float holdDuration);
+    void OnKeyHeld(KeyCode key, float holdDuration);
+}
+```
+
+Only `BatchManaSubmission` implements this interface.
+
+### BatchManaSubmission (Batch Mana Selection)
+
+**Full Path:** `Wotc.Mtga.DuelScene.Interactions.ActionsAvailable.BatchManaSubmission`
+
+Used for batch mana selection when multiple lands can be tapped together. Implements `IKeybindingWorkflow`.
+
+**Key Bindings (from decompiled code):**
+```csharp
+public void OnKeyUp(KeyCode key)
+{
+    if (key == KeyCode.Q)
+    {
+        Submitted?.Invoke();  // Q = Submit mana payment
+    }
+}
+
+public void OnKeyDown(KeyCode key)
+{
+    if (key == KeyCode.Escape)
+    {
+        Cancelled?.Invoke();  // Escape = Cancel
+    }
+}
+```
+
+**Key Methods:**
+- `Open()` / `Close()` - Workflow lifecycle
+- `OnClick(IEntityView entity, ...)` - Handles clicking lands to select/deselect
+- `CanStack()` - Determines card stacking during selection
+- `Submitted` / `Cancelled` - Events invoked by keybindings
+
+**Important:** The `Submitted` event must be connected by the parent workflow. If null, Q key does nothing.
+
+### AutoTapActionsWorkflow (Simple Ability Activation)
+
+**Full Path:** `Wotc.Mtga.DuelScene.Interactions.AutoTapActionsWorkflow`
+
+Used for simple activated abilities with mana costs. Does NOT implement `IKeybindingWorkflow` - only uses buttons.
+
+**Key Characteristics:**
+- Creates `PromptButtonData` objects for each mana payment option
+- Primary button = main mana payment action with callback to `_request.SubmitSolution()`
+- Cancel button = calls `_request.Cancel()`
+- No keyboard shortcuts - must click buttons
+
+**Button Setup (from decompiled code):**
+```csharp
+promptButtonData.ButtonCallback = delegate
+{
+    _request.SubmitSolution(CheckSanitizedSolution(autoTapSolution));
+};
+```
+
+### Workflow Activation
+
+When you click a creature with an activated ability:
+1. If ability has simple mana cost → `AutoTapActionsWorkflow` (buttons only, no keyboard)
+2. If ability requires selecting specific mana sources → `BatchManaSubmission` (Q to submit)
+
+### Native Q Key Behavior
+
+The Q key has dual behavior:
+1. **Global:** Floats all lands (taps all mana sources for mana pool)
+2. **In BatchManaSubmission:** Submits mana payment (if workflow active)
+
+When `AutoTapActionsWorkflow` is active (not `BatchManaSubmission`), pressing Q triggers the global "float all lands" action instead of submitting.
+
+### Related Classes
+
+- `ManaColorSelection` - Handles hybrid mana color choices
+- `ActionSourceSelection` - Selects ability source before mana payment
+- `AutoTapSolution` - Represents a mana payment solution
+- `ManaPaymentCondition` - Conditions for mana payment (color, type, etc.)
 
 ## Browser Types (Card Selection UI)
 

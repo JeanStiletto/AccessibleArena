@@ -144,6 +144,8 @@ C:\Users\fabia\arena\
 - [x] HomePageContentController.IsDirectChallengeBladeActive setter - Detects direct challenge
 - [x] BladeContentView.Show/Hide - Base class for all blade views
 - [x] EventBladeContentView.Show/Hide - Specific event blade detection
+- [x] NavBarController.MailboxButton_OnClick - Mailbox open detection
+- [x] NavBarController.HideInboxIfActive - Mailbox close detection
 - [x] Harmony flag approach - Overlay flags set immediately on Harmony events for reliable filtering
 
 ### PlayBlade/Deck Selection
@@ -367,7 +369,7 @@ Hierarchical navigation for menu screens. Elements are organized into groups for
 
 **Group Types:**
 - Standard groups: Primary, Play, Progress, Navigation, Filters, Content, Settings, Secondary
-- Overlay groups (suppress others): Popup, Social, PlayBladeTabs, PlayBladeContent, PlayBladeFolders, SettingsMenu, NPE, DeckBuilderCollection
+- Overlay groups (suppress others): Popup, Social, PlayBladeTabs, PlayBladeContent, PlayBladeFolders, SettingsMenu, NPE, DeckBuilderCollection, Mailbox
 - Single-element groups become "standalone" (directly activatable at group level)
 - Folder groups for deck folders (auto-expand toggle on Enter)
 - DeckBuilderCollection group for cards in deck builder's PoolHolder (card collection grid)

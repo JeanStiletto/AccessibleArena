@@ -333,8 +333,49 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 **Priority Order:**
 BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator > BattlefieldNavigator > ZoneNavigator
 
+## Mailbox Screen
+
+**Navigator:** `GeneralMenuNavigator`
+**Trigger:** Click Nav_Mail button in NavBar
+
+The Mailbox screen shows inbox messages with rewards.
+
+**Navigation:**
+- Up/Down arrows: Navigate between mail items
+- Enter: Activate/claim reward
+- Backspace: Close mailbox and return to Home
+
+**Technical Notes:**
+- Mailbox is treated as an overlay via `OverlayDetector.IsInsideMailbox()`
+- Mail items get titles via `UITextExtractor.TryGetMailboxItemTitle()`
+- Nav_Mail button requires special activation via `NavBarController.MailboxButton_OnClick()` (onClick has no listeners)
+- Elements are grouped as `ElementGroup.Mailbox`
+
+## Rewards/Mastery Screen
+
+**Controller:** `ProgressionTracksContentController`
+**Navigator:** `GeneralMenuNavigator`
+**Scene:** `RewardTrack`
+
+The Rewards screen shows mastery pass progression and rewards.
+
+**Navigation:**
+- Up/Down arrows: Navigate between reward items
+- Enter: Claim available rewards
+- Backspace: Close and return to Home
+
+**Technical Notes:**
+- Detected as content panel via `ProgressionTracksContentController` in MenuScreenDetector
+- Screen displays as "Rewards" in announcements
+- Backspace triggers `NavigateToHome()` via content panel back handling
+
 ## Adding New Screens
 
+For implementing accessibility for a new screen, see the "Adding Support for New Screens" section in BEST_PRACTICES.md which covers:
+- Content screens (full-page screens like Rewards, Store, Decks)
+- Overlay panels (slide-in panels like Mailbox, Friends, Settings)
+
+**Quick steps:**
 1. Identify panel name and key elements
 2. Test if EventSystem works (log `currentSelectedGameObject` on Tab)
 3. If needed, create navigator following existing patterns
