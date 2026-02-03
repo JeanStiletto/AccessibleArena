@@ -126,16 +126,29 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Checks if Enter key is pressed and consumes it.
+        /// Also checks EnterPressedWhileBlocked for when EventSystemPatch blocked Enter on a toggle.
         /// </summary>
         public static bool GetEnterAndConsume()
         {
-            bool pressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-            if (pressed)
+            // Check both direct key press AND the blocked flag (for when Enter was blocked on a toggle)
+            bool directPress = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool blockedPress = EnterPressedWhileBlocked;
+
+            if (directPress)
             {
                 ConsumeKey(KeyCode.Return);
                 ConsumeKey(KeyCode.KeypadEnter);
+                return true;
             }
-            return pressed;
+
+            if (blockedPress)
+            {
+                // Mark as handled so BaseNavigator.HandleInput doesn't also process it
+                MarkEnterHandled();
+                return true;
+            }
+
+            return false;
         }
 
         private readonly IShortcutRegistry _shortcuts;

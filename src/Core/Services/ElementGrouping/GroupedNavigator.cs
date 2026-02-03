@@ -223,6 +223,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var group = CurrentGroup;
             if (group == null || _currentElementIndex < 0 || _currentElementIndex >= group.Value.Count)
                 return null;
+
             return group.Value.Elements[_currentElementIndex];
         }
 

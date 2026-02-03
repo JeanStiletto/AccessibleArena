@@ -653,6 +653,21 @@ Note: ModalFade button is NOT the play button (its onClick just calls Hide()). M
 
 ---
 
+### PlayBlade Folder Navigation Enter Key Fix
+
+Pressing Enter on a deck folder toggle in PlayBlade was activating the wrong element (e.g., "Bot-Match" button instead of the folder toggle).
+
+**Root cause:** When `EventSystemPatch` blocks Enter key on a toggle (to prevent double-toggle), it sets `EnterPressedWhileBlocked` flag. However, `InputManager.GetEnterAndConsume()` (used by grouped navigation) only checked `Input.GetKeyDown()` and NOT the blocked flag. This caused:
+1. `GetEnterAndConsume()` returns false (because `Input.GetKeyDown` was blocked)
+2. `HandleGroupedEnter()` never runs
+3. `BaseNavigator.HandleInput()` sees the blocked flag and activates `_elements[_currentIndex]` (wrong element from flat list)
+
+**The fix:** Updated `GetEnterAndConsume()` to also check `EnterPressedWhileBlocked` and mark it as handled, so grouped navigation properly intercepts Enter presses on toggles.
+
+**Files:** `InputManager.cs`
+
+---
+
 ### Booster Pack Navigation
 
 Pack opening accessible via BoosterOpenNavigator. Left/Right to navigate cards, Enter for details, Backspace to close.

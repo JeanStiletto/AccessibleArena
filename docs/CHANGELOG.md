@@ -37,6 +37,10 @@ All notable changes to Accessible Arena.
 
 ### Bug Fixes
 
+#### PlayBlade Folder Navigation
+- Fixed Enter key on folder toggles activating wrong element (e.g., Bot-Match instead of folder)
+- Root cause: `GetEnterAndConsume()` didn't check `EnterPressedWhileBlocked` flag, bypassing grouped navigation
+
 #### Toggle/Checkbox Activation
 - Fixed double-toggle on Enter key with frame-aware flag
 - Fixed Enter key on toggles closing UpdatePolicies panel
