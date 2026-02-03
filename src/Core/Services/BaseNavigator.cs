@@ -537,7 +537,7 @@ namespace AccessibleArena.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
             {
-                UIFocusTracker.ExitDropdownEditMode();
+                DropdownStateManager.OnDropdownClosed();
                 return;
             }
 
@@ -553,7 +553,7 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown via Escape/Backspace");
                     tmpDropdown.Hide();
-                    UIFocusTracker.ExitDropdownEditMode();
+                    DropdownStateManager.OnDropdownClosed();
                     _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
                     return;
                 }
@@ -564,7 +564,7 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown via Escape/Backspace");
                     legacyDropdown.Hide();
-                    UIFocusTracker.ExitDropdownEditMode();
+                    DropdownStateManager.OnDropdownClosed();
                     _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
                     return;
                 }
@@ -581,7 +581,7 @@ namespace AccessibleArena.Core.Services
                         {
                             MelonLogger.Msg($"[{NavigatorId}] Closing cTMP_Dropdown via Escape/Backspace");
                             hideMethod.Invoke(component, null);
-                            UIFocusTracker.ExitDropdownEditMode();
+                            DropdownStateManager.OnDropdownClosed();
                             _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
                             return;
                         }
@@ -593,7 +593,7 @@ namespace AccessibleArena.Core.Services
 
             // Couldn't find dropdown - just exit edit mode
             MelonLogger.Msg($"[{NavigatorId}] Could not find dropdown to close, exiting edit mode");
-            UIFocusTracker.ExitDropdownEditMode();
+            DropdownStateManager.OnDropdownClosed();
         }
 
         /// <summary>
@@ -983,13 +983,6 @@ namespace AccessibleArena.Core.Services
             return name.Replace("Input Field", "").Replace("InputField", "").Trim();
         }
 
-        // Track if we were in dropdown mode last frame
-        private bool _wasInDropdownMode;
-
-        // Skip dropdown mode tracking after closing an auto-opened dropdown
-        // (prevents _wasInDropdownMode from being re-set while IsExpanded is still true)
-        private bool _skipDropdownModeTracking;
-
         protected virtual void HandleInput()
         {
             // Check if we're in explicit edit mode (user activated field or game focused it)
@@ -1058,27 +1051,21 @@ namespace AccessibleArena.Core.Services
                 UIFocusTracker.ExitInputFieldEditMode();
             }
 
+            // Check dropdown state and detect exit transitions
+            // DropdownStateManager handles all the state tracking and suppression logic
+            bool justExitedDropdown = DropdownStateManager.UpdateAndCheckExitTransition();
+
             // When a dropdown is open, let Unity handle arrow key navigation
-            bool inDropdownMode = UIFocusTracker.IsEditingDropdown();
-            if (inDropdownMode)
+            if (DropdownStateManager.IsInDropdownMode)
             {
-                // Only track dropdown mode if we're not skipping (i.e., we didn't just close an auto-opened dropdown)
-                if (!_skipDropdownModeTracking)
-                {
-                    _wasInDropdownMode = true;
-                }
                 HandleDropdownNavigation();
                 return;
             }
 
-            // Clear the skip flag once dropdown is actually closed
-            _skipDropdownModeTracking = false;
-
             // If we just exited dropdown mode, sync our index to where focus went
             // This handles game's auto-advance (Month -> Day -> Year)
-            if (_wasInDropdownMode)
+            if (justExitedDropdown)
             {
-                _wasInDropdownMode = false;
                 SyncIndexToFocusedElement();
                 // Don't process any more input this frame to avoid double-activation
                 return;
@@ -1533,17 +1520,12 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Reset dropdown mode tracking - the dropdown's IsExpanded property may not
-            // update immediately after Hide(), so we need to manually clear the state
-            // to prevent SyncIndexToFocusedElement from being triggered later.
-            // Also suppress dropdown mode re-entry since FocusTracker will see IsExpanded=true
-            // briefly before the dropdown fully closes.
+            // Suppress dropdown re-entry - the dropdown's IsExpanded property may not
+            // update immediately after Hide(), so DropdownStateManager prevents re-entry
+            // until the dropdown actually closes.
             if (closed)
             {
-                UIFocusTracker.ExitDropdownEditMode();
-                UIFocusTracker.SuppressDropdownModeEntry();
-                _wasInDropdownMode = false;
-                _skipDropdownModeTracking = true; // Prevent _wasInDropdownMode from being re-set
+                DropdownStateManager.SuppressReentry();
             }
         }
 

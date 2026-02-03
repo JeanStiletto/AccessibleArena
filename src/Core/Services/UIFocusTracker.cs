@@ -27,20 +27,12 @@ namespace AccessibleArena.Core.Services
         private static bool _inputFieldEditMode;
         private static GameObject _activeInputFieldObject;
 
-        // Dropdown edit mode - kept for explicit close tracking via Escape/Backspace
-        // The actual "is dropdown open" state is queried from the dropdown's IsExpanded property
-        private static bool _dropdownEditMode;
-        private static GameObject _activeDropdownObject;
-
         // Cache for IsExpanded property lookup (reflection is expensive)
         private static System.Reflection.PropertyInfo _cachedIsExpandedProperty;
         private static System.Type _cachedDropdownType;
 
         // Flag to suppress focus announcements when navigator is handling the focus change
         private static bool _suppressNextFocusAnnouncement;
-
-        // Flag to suppress dropdown mode re-entry after closing an auto-opened dropdown
-        private static bool _suppressDropdownModeEntry;
 
         /// <summary>
         /// Suppress the next focus change announcement. Called by navigators before they
@@ -49,16 +41,6 @@ namespace AccessibleArena.Core.Services
         public static void SuppressNextFocusAnnouncement()
         {
             _suppressNextFocusAnnouncement = true;
-        }
-
-        /// <summary>
-        /// Suppress dropdown mode entry. Called after closing an auto-opened dropdown
-        /// to prevent FocusTracker from re-entering dropdown mode before IsExpanded updates.
-        /// </summary>
-        public static void SuppressDropdownModeEntry()
-        {
-            _suppressDropdownModeEntry = true;
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", "Suppressing dropdown mode entry");
         }
 
         /// <summary>
@@ -366,41 +348,21 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Enter dropdown edit mode. Called when user explicitly activates a dropdown (Enter key).
-        /// Note: The real dropdown state is determined by IsExpanded property, this is for explicit tracking.
+        /// Enter dropdown edit mode. Delegates to DropdownStateManager.
+        /// Note: The real dropdown state is determined by IsExpanded property.
         /// </summary>
         public static void EnterDropdownEditMode(GameObject dropdownObject)
         {
-            _dropdownEditMode = true;
-            _activeDropdownObject = dropdownObject;
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"User explicitly opened dropdown: {dropdownObject?.name}");
+            DropdownStateManager.OnDropdownOpened(dropdownObject);
         }
 
         /// <summary>
-        /// Exit dropdown edit mode. Called when user explicitly closes dropdown (Escape/Backspace).
+        /// Exit dropdown edit mode. Delegates to DropdownStateManager.
         /// Returns the name of the element that now has focus (so navigator can sync its index).
-        /// Note: The real dropdown state is determined by IsExpanded property.
         /// </summary>
         public static string ExitDropdownEditMode()
         {
-            string newFocusName = null;
-
-            // Get the element that now has focus so navigator can sync to it
-            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-            if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
-            {
-                newFocusName = eventSystem.currentSelectedGameObject.name;
-            }
-
-            if (_dropdownEditMode)
-            {
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"User explicitly closed dropdown, new focus: {newFocusName ?? "null"}");
-            }
-
-            _dropdownEditMode = false;
-            _activeDropdownObject = null;
-
-            return newFocusName;
+            return DropdownStateManager.OnDropdownClosed();
         }
 
         /// <summary>
@@ -475,37 +437,12 @@ namespace AccessibleArena.Core.Services
             var previousSelected = _lastSelected;
             _lastSelected = selected;
 
-            // Check the REAL dropdown state using IsExpanded property
+            // Log dropdown state for debugging (actual state tracking is in DropdownStateManager)
             bool anyDropdownExpanded = IsAnyDropdownExpanded();
-            bool focusOnDropdownItem = selected != null && IsDropdownItem(selected);
-
-            // Log state changes for debugging
-            if (anyDropdownExpanded && !_dropdownEditMode)
+            if (anyDropdownExpanded)
             {
-                // Check if we should suppress dropdown mode entry (after closing auto-opened dropdown)
-                if (_suppressDropdownModeEntry)
-                {
-                    _suppressDropdownModeEntry = false;
-                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", "Dropdown mode entry suppressed (IsExpanded=true but was auto-closed)");
-                }
-                else
-                {
-                    _dropdownEditMode = true;
-                    _activeDropdownObject = selected;
-                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Dropdown is now expanded (IsExpanded=true), focus: {selected?.name ?? "null"}");
-                }
-            }
-            else if (!anyDropdownExpanded && _dropdownEditMode)
-            {
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Dropdown closed (IsExpanded=false), focus: {selected?.name ?? "null"}");
-                _dropdownEditMode = false;
-                _activeDropdownObject = null;
-                _suppressDropdownModeEntry = false; // Clear flag when dropdown actually closes
-            }
-            else if (!anyDropdownExpanded)
-            {
-                // Dropdown is not expanded, clear any pending suppress flag
-                _suppressDropdownModeEntry = false;
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker",
+                    $"Focus changed while dropdown expanded, focus: {selected?.name ?? "null"}");
             }
 
             OnFocusChanged?.Invoke(previousSelected, selected);

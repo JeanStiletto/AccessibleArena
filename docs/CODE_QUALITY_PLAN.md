@@ -10,7 +10,7 @@
 | Phase 1: Inspection & Cleanup | COMPLETE | 2026-02-03 |
 | Phase 2: Debug Infrastructure | PARTIAL | Stages 2.1, 2.2 done |
 | Phase 3: Code Deduplication | COMPLETE | 2026-02-03 |
-| Phase 4: Dropdown Flag Unification | PARTIAL | Stage 4.1 done |
+| Phase 4: Dropdown Flag Unification | COMPLETE | 2026-02-03 |
 | Phase 5: Panel Detection Cleanup | COMPLETE | 2026-02-03 |
 | Phase 6: Utility Extraction | NOT STARTED | |
 | Phase 7: Documentation Updates | NOT STARTED | |
@@ -163,18 +163,34 @@
 
 ---
 
-### Stage 4.2: Implement Unified Dropdown State - NOT STARTED
+### Stage 4.2: Implement Unified Dropdown State - COMPLETE
 **Scope:** Consolidate 4 flags into single source of truth
 
-**Tasks:**
-1. Add to UIFocusTracker or create DropdownStateManager:
-   - `SuppressMode` enum: None, FocusAnnouncement, ModeEntry
-   - Clear query/set API
-2. Update BaseNavigator to use new API
-3. Update UIFocusTracker to use new API
-4. Remove redundant flags
+**Completed:**
+1. Created `src/Core/Services/DropdownStateManager.cs`:
+   - Single source of truth for all dropdown state
+   - `_wasInDropdownMode` - exit transition detection
+   - `_suppressReentry` - unified suppression mechanism
+   - `_activeDropdownObject` - active dropdown reference
+   - Public API: `IsInDropdownMode`, `UpdateAndCheckExitTransition()`, `OnDropdownOpened()`, `OnDropdownClosed()`, `SuppressReentry()`
+2. Updated `BaseNavigator.cs`:
+   - Removed `_wasInDropdownMode` and `_skipDropdownModeTracking` flags
+   - HandleInput() uses `DropdownStateManager.UpdateAndCheckExitTransition()`
+   - CloseActiveDropdown() uses `DropdownStateManager.OnDropdownClosed()`
+   - CloseDropdownOnElement() uses `DropdownStateManager.SuppressReentry()`
+3. Updated `UIFocusTracker.cs`:
+   - Removed `_dropdownEditMode`, `_activeDropdownObject`, `_suppressDropdownModeEntry`
+   - `EnterDropdownEditMode()` delegates to DropdownStateManager
+   - `ExitDropdownEditMode()` delegates to DropdownStateManager
+   - Simplified `HandleFocusChange()` - no longer tracks dropdown state
+4. Updated `docs/DROPDOWN_HANDLING.md` with new architecture
 
-**Testing:**
+**Key Changes:**
+- 4 flags consolidated to 1 suppression flag in DropdownStateManager
+- Single API for all dropdown state operations
+- Clear separation: DropdownStateManager owns state, UIFocusTracker queries dropdown IsExpanded
+
+**Testing:** Build succeeds. Runtime testing recommended for:
 - Dropdown navigation works (arrow keys)
 - Escape/Backspace closes dropdown
 - No double announcements
@@ -396,7 +412,7 @@ The current HandlesPanel() implementations appear to have proper mutual exclusio
 | 6 | 4.1 | Dropdown analysis | NONE | DONE |
 | 7 | 5.1 | Panel detection docs | NONE | DONE |
 | 8 | 2.3 | High-volume logging | MEDIUM | |
-| 9 | 4.2 | Dropdown unification | HIGH | |
+| 9 | 4.2 | Dropdown unification | HIGH | DONE |
 | 10 | 5.2 | Panel detection audit | LOW | DONE |
 | 11 | 5.3 | Panel detection cleanup | MEDIUM | DONE |
 | 12 | 6.1-6.2 | Utility extraction | LOW | |
@@ -414,6 +430,7 @@ The current HandlesPanel() implementations appear to have proper mutual exclusio
 - `src/Core/Services/UIFocusTracker.cs`
 
 **Dropdown Handling:**
+- `src/Core/Services/DropdownStateManager.cs` (created in Stage 4.2)
 - `src/Core/Services/BaseNavigator.cs`
 - `src/Core/Services/UIFocusTracker.cs`
 
