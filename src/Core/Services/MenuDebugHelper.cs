@@ -179,8 +179,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Formats a value for logging, handling various types appropriately.
+        /// Useful for debug inspection of unknown object values.
         /// </summary>
-        private static string FormatValueForLog(object val)
+        public static string FormatValueForLog(object val)
         {
             if (val == null)
                 return "null";

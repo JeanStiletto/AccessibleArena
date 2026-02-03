@@ -980,6 +980,57 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Get a readable label for an input field from its name or placeholder text.
+        /// Used for edit mode announcements. Checks name patterns and placeholder content.
+        /// </summary>
+        /// <param name="inputField">The input field GameObject</param>
+        /// <returns>A readable label extracted from the field</returns>
+        public static string GetInputFieldLabel(GameObject inputField)
+        {
+            if (inputField == null) return "text field";
+
+            string name = inputField.name;
+
+            // Try to extract meaningful label from name
+            // Common patterns: "Input Field - Email", "InputField_Username", etc.
+            if (name.Contains(" - "))
+            {
+                var parts = name.Split(new[] { " - " }, System.StringSplitOptions.None);
+                if (parts.Length > 1)
+                    return parts[1].Trim();
+            }
+
+            if (name.Contains("_"))
+            {
+                var parts = name.Split('_');
+                if (parts.Length > 1)
+                    return parts[parts.Length - 1].Trim();
+            }
+
+            // Check placeholder text
+            var tmpInput = inputField.GetComponent<TMP_InputField>();
+            if (tmpInput != null && tmpInput.placeholder != null)
+            {
+                var placeholderText = tmpInput.placeholder.GetComponent<TMP_Text>();
+                if (placeholderText != null && !string.IsNullOrEmpty(placeholderText.text))
+                    return CleanText(placeholderText.text);
+            }
+
+            // Check legacy InputField placeholder
+            var legacyInput = inputField.GetComponent<InputField>();
+            if (legacyInput != null && legacyInput.placeholder != null)
+            {
+                var placeholderText = legacyInput.placeholder.GetComponent<Text>();
+                if (placeholderText != null && !string.IsNullOrEmpty(placeholderText.text))
+                    return CleanText(placeholderText.text);
+            }
+
+            // Fallback: clean up the name
+            string cleaned = name.Replace("Input Field", "").Replace("InputField", "").Trim();
+            return string.IsNullOrEmpty(cleaned) ? "text field" : cleaned;
+        }
+
+        /// <summary>
         /// Extracts text specifically from button elements.
         /// Searches all TMP_Text children (including inactive) and returns the first valid text found.
         /// More thorough than GetText() for buttons with multiple text children.

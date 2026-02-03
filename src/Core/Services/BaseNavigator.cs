@@ -181,7 +181,7 @@ namespace AccessibleArena.Core.Services
                 var tmpInput = navElement.GameObject.GetComponent<TMPro.TMP_InputField>();
                 if (tmpInput != null)
                 {
-                    string fieldLabel = GetInputFieldLabel(navElement.GameObject);
+                    string fieldLabel = UITextExtractor.GetInputFieldLabel(navElement.GameObject);
 
                     // Try .text first, then fall back to textComponent.text (displayed text)
                     string content = tmpInput.text;
@@ -212,7 +212,7 @@ namespace AccessibleArena.Core.Services
                     var legacyInput = navElement.GameObject.GetComponent<InputField>();
                     if (legacyInput != null)
                     {
-                        string fieldLabel = GetInputFieldLabel(navElement.GameObject);
+                        string fieldLabel = UITextExtractor.GetInputFieldLabel(navElement.GameObject);
 
                         // Try .text first, then fall back to textComponent.text (displayed text)
                         string content = legacyInput.text;
@@ -770,7 +770,7 @@ namespace AccessibleArena.Core.Services
             // Find the deleted character by comparing strings
             // Typically it's at the caret position in the previous text
             char deletedChar = FindDeletedCharacter(prevText, currentText, _prevInputFieldCaretPos);
-            string charName = GetCharacterName(deletedChar);
+            string charName = Strings.GetCharacterName(deletedChar);
             _announcer.AnnounceInterrupt(charName);
         }
 
@@ -859,7 +859,7 @@ namespace AccessibleArena.Core.Services
             else if (caretPos >= 0 && caretPos < text.Length)
             {
                 char c = text[caretPos];
-                string charName = GetCharacterName(c);
+                string charName = Strings.GetCharacterName(c);
                 _announcer.AnnounceInterrupt(charName);
             }
             // At end position (caretPos >= text.Length, left arrow) - announce end
@@ -870,57 +870,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Get a speakable name for a character (handles spaces, punctuation, etc.)
-        /// </summary>
-        private string GetCharacterName(char c)
-        {
-            if (char.IsWhiteSpace(c))
-                return Strings.CharSpace;
-            if (char.IsDigit(c))
-                return c.ToString();
-            if (char.IsLetter(c))
-                return c.ToString();
-
-            // Common punctuation
-            return c switch
-            {
-                '.' => Strings.CharDot,
-                ',' => Strings.CharComma,
-                '!' => Strings.CharExclamation,
-                '?' => Strings.CharQuestion,
-                '@' => Strings.CharAt,
-                '#' => Strings.CharHash,
-                '$' => Strings.CharDollar,
-                '%' => Strings.CharPercent,
-                '&' => Strings.CharAnd,
-                '*' => Strings.CharStar,
-                '-' => Strings.CharDash,
-                '_' => Strings.CharUnderscore,
-                '+' => Strings.CharPlus,
-                '=' => Strings.CharEquals,
-                '/' => Strings.CharSlash,
-                '\\' => Strings.CharBackslash,
-                ':' => Strings.CharColon,
-                ';' => Strings.CharSemicolon,
-                '"' => Strings.CharQuote,
-                '\'' => Strings.CharApostrophe,
-                '(' => Strings.CharOpenParen,
-                ')' => Strings.CharCloseParen,
-                '[' => Strings.CharOpenBracket,
-                ']' => Strings.CharCloseBracket,
-                '{' => Strings.CharOpenBrace,
-                '}' => Strings.CharCloseBrace,
-                '<' => Strings.CharLessThan,
-                '>' => Strings.CharGreaterThan,
-                '|' => Strings.CharPipe,
-                '~' => Strings.CharTilde,
-                '`' => Strings.CharBacktick,
-                '^' => Strings.CharCaret,
-                _ => c.ToString()
-            };
-        }
-
-        /// <summary>
         /// Announce the content of the currently focused input field.
         /// </summary>
         private void AnnounceCurrentInputFieldContent()
@@ -928,7 +877,7 @@ namespace AccessibleArena.Core.Services
             var info = GetFocusedInputFieldInfo();
             if (!info.IsValid) return;
 
-            string label = GetInputFieldLabel(info.GameObject);
+            string label = UITextExtractor.GetInputFieldLabel(info.GameObject);
             string content = info.Text;
 
             if (info.IsPassword)
@@ -945,42 +894,6 @@ namespace AccessibleArena.Core.Services
                     : Strings.InputFieldContent(label, content);
                 _announcer.AnnounceInterrupt(announcement);
             }
-        }
-
-        /// <summary>
-        /// Get a readable label for an input field from its name or parent context.
-        /// </summary>
-        private string GetInputFieldLabel(GameObject inputField)
-        {
-            string name = inputField.name;
-
-            // Try to extract meaningful label from name
-            // Common patterns: "Input Field - Email", "InputField_Username", etc.
-            if (name.Contains(" - "))
-            {
-                var parts = name.Split(new[] { " - " }, System.StringSplitOptions.None);
-                if (parts.Length > 1)
-                    return parts[1].Trim();
-            }
-
-            if (name.Contains("_"))
-            {
-                var parts = name.Split('_');
-                if (parts.Length > 1)
-                    return parts[parts.Length - 1].Trim();
-            }
-
-            // Check placeholder text
-            var tmpInput = inputField.GetComponent<TMPro.TMP_InputField>();
-            if (tmpInput != null && tmpInput.placeholder != null)
-            {
-                var placeholderText = tmpInput.placeholder.GetComponent<TMPro.TMP_Text>();
-                if (placeholderText != null && !string.IsNullOrEmpty(placeholderText.text))
-                    return placeholderText.text;
-            }
-
-            // Fallback: clean up the name
-            return name.Replace("Input Field", "").Replace("InputField", "").Trim();
         }
 
         protected virtual void HandleInput()

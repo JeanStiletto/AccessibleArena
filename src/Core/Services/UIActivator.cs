@@ -1675,7 +1675,7 @@ namespace AccessibleArena.Core.Services
                         try
                         {
                             var val = field.GetValue(mb);
-                            string valStr = FormatFieldValue(val, field.FieldType);
+                            string valStr = MenuDebugHelper.FormatValueForLog(val);
                             Log($"  {field.Name} ({field.FieldType.Name}): {valStr}");
 
                             // If it's a UnityEvent, inspect its listeners
@@ -1703,7 +1703,7 @@ namespace AccessibleArena.Core.Services
                         try
                         {
                             var val = prop.GetValue(mb);
-                            string valStr = FormatFieldValue(val, prop.PropertyType);
+                            string valStr = MenuDebugHelper.FormatValueForLog(val);
                             Log($"  {prop.Name} ({prop.PropertyType.Name}): {valStr}");
                         }
                         catch { }
@@ -1726,7 +1726,7 @@ namespace AccessibleArena.Core.Services
                         try
                         {
                             var val = field.GetValue(mb);
-                            string valStr = FormatFieldValue(val, field.FieldType);
+                            string valStr = MenuDebugHelper.FormatValueForLog(val);
                             Log($"  {field.Name} ({field.FieldType.Name}): {valStr}");
 
                             // If it's an Action or delegate, log more details
@@ -1785,7 +1785,7 @@ namespace AccessibleArena.Core.Services
                     try
                     {
                         var val = field.GetValue(navBarController);
-                        string valStr = FormatFieldValue(val, field.FieldType);
+                        string valStr = MenuDebugHelper.FormatValueForLog(val);
                         Log($"  {field.Name} ({field.FieldType.Name}): {valStr}");
 
                         // Check if this field references the mail button or mail controller
@@ -1823,32 +1823,6 @@ namespace AccessibleArena.Core.Services
             }
 
             Log($"=== END Nav_Mail Debug ===");
-        }
-
-        /// <summary>
-        /// Format a field value for debug logging.
-        /// </summary>
-        private static string FormatFieldValue(object val, System.Type fieldType)
-        {
-            if (val == null) return "null";
-
-            if (fieldType == typeof(string)) return $"\"{val}\"";
-            if (fieldType == typeof(bool) || fieldType == typeof(int) || fieldType == typeof(float))
-                return val.ToString();
-            if (fieldType.IsEnum) return val.ToString();
-
-            // For Unity objects, check if they're destroyed
-            if (val is UnityEngine.Object unityObj)
-            {
-                if (unityObj == null) return "<destroyed>";
-                return $"<{unityObj.GetType().Name}: {unityObj.name}>";
-            }
-
-            // For collections, show count
-            if (val is System.Collections.ICollection collection)
-                return $"<{fieldType.Name}, Count={collection.Count}>";
-
-            return $"<{val.GetType().Name}>";
         }
 
         /// <summary>

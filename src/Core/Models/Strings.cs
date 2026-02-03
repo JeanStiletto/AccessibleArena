@@ -232,6 +232,58 @@ namespace AccessibleArena.Core.Models
         public const string CharBacktick = "backtick";
         public const string CharCaret = "caret";
 
+        /// <summary>
+        /// Get a speakable name for a character (handles spaces, punctuation, etc.)
+        /// Used for input field cursor navigation announcements.
+        /// </summary>
+        public static string GetCharacterName(char c)
+        {
+            if (char.IsWhiteSpace(c))
+                return CharSpace;
+            if (char.IsDigit(c))
+                return c.ToString();
+            if (char.IsLetter(c))
+                return c.ToString();
+
+            // Common punctuation
+            return c switch
+            {
+                '.' => CharDot,
+                ',' => CharComma,
+                '!' => CharExclamation,
+                '?' => CharQuestion,
+                '@' => CharAt,
+                '#' => CharHash,
+                '$' => CharDollar,
+                '%' => CharPercent,
+                '&' => CharAnd,
+                '*' => CharStar,
+                '-' => CharDash,
+                '_' => CharUnderscore,
+                '+' => CharPlus,
+                '=' => CharEquals,
+                '/' => CharSlash,
+                '\\' => CharBackslash,
+                ':' => CharColon,
+                ';' => CharSemicolon,
+                '"' => CharQuote,
+                '\'' => CharApostrophe,
+                '(' => CharOpenParen,
+                ')' => CharCloseParen,
+                '[' => CharOpenBracket,
+                ']' => CharCloseBracket,
+                '{' => CharOpenBrace,
+                '}' => CharCloseBrace,
+                '<' => CharLessThan,
+                '>' => CharGreaterThan,
+                '|' => CharPipe,
+                '~' => CharTilde,
+                '`' => CharBacktick,
+                '^' => CharCaret,
+                _ => c.ToString()
+            };
+        }
+
         // ===========================================
         // MANA SYMBOLS (for rules text parsing)
         // ===========================================

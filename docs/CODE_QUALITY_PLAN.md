@@ -12,7 +12,7 @@
 | Phase 3: Code Deduplication | COMPLETE | 2026-02-03 |
 | Phase 4: Dropdown Flag Unification | COMPLETE | 2026-02-03 |
 | Phase 5: Panel Detection Cleanup | COMPLETE | 2026-02-03 |
-| Phase 6: Utility Extraction | NOT STARTED | |
+| Phase 6: Utility Extraction | COMPLETE | 6.1, 6.2 complete |
 | Phase 7: Documentation Updates | NOT STARTED | |
 
 ---
@@ -306,32 +306,54 @@ The current HandlesPanel() implementations appear to have proper mutual exclusio
 
 ## Phase 6: Utility Extraction from Large Files (LOW RISK)
 
-### Stage 6.1: Extract Shared Utilities from BaseNavigator - NOT STARTED
+### Stage 6.1: Extract Shared Utilities from BaseNavigator - COMPLETE
 **Scope:** Move utility methods to appropriate service classes
 
-**File:** `src/Core/Services/BaseNavigator.cs` (76K)
+**File:** `src/Core/Services/BaseNavigator.cs` (76K → ~74K after extraction)
 
-**Candidates for extraction:**
-- Common element filtering logic
-- Scroll handling utilities
-- Announcement helper methods
+**Completed:**
+1. **Moved `GetCharacterName(char)` to `Strings.cs`**
+   - Pure utility mapping characters to speakable names (space, dot, comma, etc.)
+   - 47-line method relocated to Strings.cs where character constants already exist
+   - Enables reuse by other components needing character announcements
 
-**Testing:** Build succeeds, all navigators work
+2. **Moved `GetInputFieldLabel(GameObject)` to `UITextExtractor.cs`**
+   - Extracts readable labels from input field names and placeholders
+   - Patterns: "Input Field - Email" → "Email", "InputField_Username" → "Username"
+   - Falls back to placeholder text, then cleaned object name
+   - Now public method available for other navigators
+
+**Changes:**
+- `BaseNavigator.cs`: Removed 2 methods (~80 lines), updated 4 call sites to use utilities
+- `Strings.cs`: Added `GetCharacterName(char)` method
+- `UITextExtractor.cs`: Added `GetInputFieldLabel(GameObject)` method
+
+**Testing:** Build succeeds with 0 warnings, 0 errors
 
 **Risk:** LOW
 
 ---
 
-### Stage 6.2: Extract Shared Utilities from UIActivator - NOT STARTED
+### Stage 6.2: Extract Shared Utilities from UIActivator - COMPLETE
 **Scope:** Move utility methods to MenuDebugHelper or new class
 
-**File:** `src/Core/Services/UIActivator.cs` (101K)
+**File:** `src/Core/Services/UIActivator.cs` (101K → ~100K after deduplication)
 
-**Candidates for extraction:**
-- Debug logging methods
-- Common type detection utilities
+**Completed:**
+1. **Removed duplicate `FormatFieldValue()` method (~25 lines)**
+   - Functionality was identical to `MenuDebugHelper.FormatValueForLog()`
+   - Updated 4 call sites to use the shared method
+   - Made `FormatValueForLog()` public in MenuDebugHelper
 
-**Testing:** Build succeeds, element activation works
+**Not extracted (rationale):**
+- `InspectUnityEvent()` and `InspectDelegate()` - Only used within UIActivator's debug methods
+- Type detection methods (`IsCustomButton`, `HasClickHandler`, etc.) - Tightly coupled to activation logic
+
+**Changes:**
+- `UIActivator.cs`: Removed `FormatFieldValue()`, updated 4 debug call sites
+- `MenuDebugHelper.cs`: Made `FormatValueForLog()` public
+
+**Testing:** Build succeeds with 0 warnings, 0 errors
 
 **Risk:** LOW
 
@@ -419,7 +441,7 @@ The current HandlesPanel() implementations appear to have proper mutual exclusio
 | 9 | 4.2 | Dropdown unification | HIGH | DONE |
 | 10 | 5.2 | Panel detection audit | LOW | DONE |
 | 11 | 5.3 | Panel detection cleanup | MEDIUM | DONE |
-| 12 | 6.1-6.2 | Utility extraction | LOW | |
+| 12 | 6.1-6.2 | Utility extraction | LOW | COMPLETE |
 | 13 | 7.1-7.2 | SCREENS.md + status audit | NONE | |
 | 14 | 7.3-7.4 | BEST_PRACTICES + MOD_STRUCTURE | NONE | |
 | 15 | 7.5 | CONTRIBUTING.md (optional) | NONE | |
