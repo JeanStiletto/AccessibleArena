@@ -56,6 +56,9 @@ namespace AccessibleArena.Patches
                 // Try to patch SocialUI (friends panel)
                 PatchSocialUI(harmony);
 
+                // Try to patch ContentControllerPlayerInbox (mailbox)
+                PatchMailboxController(harmony);
+
                 _patchApplied = true;
                 MelonLogger.Msg("[PanelStatePatch] Harmony patches applied successfully");
 
@@ -719,6 +722,90 @@ namespace AccessibleArena.Patches
                 {
                     MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.HandleKeyDown: {ex.Message}");
                 }
+            }
+        }
+
+        private static void PatchMailboxController(HarmonyLib.Harmony harmony)
+        {
+            // Mailbox is controlled by NavBarController, not a dedicated content controller
+            // NavBarController has MailboxButton_OnClick() to open and HideInboxIfActive() to close
+            var navBarType = FindType("NavBarController");
+            if (navBarType == null)
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find NavBarController type for mailbox patching");
+                return;
+            }
+
+            MelonLogger.Msg($"[PanelStatePatch] Found NavBarController for mailbox: {navBarType.FullName}");
+
+            // Patch MailboxButton_OnClick - called when mailbox opens
+            var openMethod = navBarType.GetMethod("MailboxButton_OnClick",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (openMethod != null)
+            {
+                try
+                {
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(MailboxOpenPostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(openMethod, postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched NavBarController.MailboxButton_OnClick()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch NavBarController.MailboxButton_OnClick: {ex.Message}");
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] NavBarController.MailboxButton_OnClick not found");
+            }
+
+            // Patch HideInboxIfActive - called when mailbox closes
+            var closeMethod = navBarType.GetMethod("HideInboxIfActive",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (closeMethod != null)
+            {
+                try
+                {
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(MailboxClosePostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(closeMethod, postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched NavBarController.HideInboxIfActive()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch NavBarController.HideInboxIfActive: {ex.Message}");
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] NavBarController.HideInboxIfActive not found");
+            }
+        }
+
+        public static void MailboxOpenPostfix(object __instance)
+        {
+            try
+            {
+                MelonLogger.Msg("[PanelStatePatch] Mailbox opened via NavBarController.MailboxButton_OnClick");
+                OnPanelStateChanged?.Invoke(__instance, true, "Mailbox");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in MailboxOpenPostfix: {ex.Message}");
+            }
+        }
+
+        public static void MailboxClosePostfix(object __instance)
+        {
+            try
+            {
+                MelonLogger.Msg("[PanelStatePatch] Mailbox closed via NavBarController.HideInboxIfActive");
+                OnPanelStateChanged?.Invoke(__instance, false, "Mailbox");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in MailboxClosePostfix: {ex.Message}");
             }
         }
 

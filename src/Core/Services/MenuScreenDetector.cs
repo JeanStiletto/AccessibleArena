@@ -239,6 +239,24 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Check if the Mailbox/Inbox panel is currently open.
+        /// </summary>
+        public bool IsMailboxOpen()
+        {
+            // Check for Mailbox_Base content controller
+            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
+            if (mailboxPanel != null && mailboxPanel.activeInHierarchy)
+                return true;
+
+            // Alternative: check for mailbox content view
+            var mailboxContent = GameObject.Find("Mailbox_ContentView");
+            if (mailboxContent != null && mailboxContent.activeInHierarchy)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
         /// Check if the promotional carousel is visible on the home screen.
         /// </summary>
         /// <param name="hasCarouselElement">Optional flag indicating if any navigator element has carousel navigation.</param>

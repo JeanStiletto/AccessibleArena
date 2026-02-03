@@ -181,9 +181,9 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    // Simple toggle without CustomButton - just flip the state.
-                    // We handle toggling ourselves; Enter/Space should be consumed by caller
-                    // to prevent Unity from also processing and double-toggling.
+                    // Simple toggle without CustomButton.
+                    // EventSystemPatch blocks Unity's Submit when we consume Enter/Space,
+                    // so we always handle toggling directly here.
                     toggle.isOn = !toggle.isOn;
                     string state = toggle.isOn ? "Checked" : "Unchecked";
                     Log($"Toggled {element.name} to {state}");
@@ -198,6 +198,14 @@ namespace AccessibleArena.Core.Services
             bool hasCustomButton = HasCustomButtonComponent(element);
             if (hasCustomButton)
             {
+                // Special handling for Nav_Mail button - onClick has no listeners
+                // NavBarController.MailboxButton_OnClick() must be invoked directly
+                if (element.name == "Nav_Mail")
+                {
+                    if (TryInvokeNavBarMailboxClick(element, out var mailResult))
+                        return mailResult;
+                }
+
                 // Special handling for NPE reward claim button - onClick listener is broken
                 // Must invoke OnClaimClicked_Unity on NPEContentControllerRewards instead
                 if (TryInvokeNPERewardClaim(element, out var npeResult))
@@ -580,6 +588,71 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Special handling for Nav_Mail button - the CustomButton._onClick has no listeners.
+        /// We need to find NavBarController in the parent hierarchy and invoke MailboxButton_OnClick() directly.
+        /// </summary>
+        private static bool TryInvokeNavBarMailboxClick(GameObject element, out ActivationResult result)
+        {
+            result = default;
+
+            // Search up the hierarchy for NavBarController
+            var current = element.transform.parent;
+            MonoBehaviour navBarController = null;
+            int depth = 0;
+
+            while (current != null && depth < 10)
+            {
+                foreach (var comp in current.GetComponents<MonoBehaviour>())
+                {
+                    if (comp != null && comp.GetType().Name == "NavBarController")
+                    {
+                        navBarController = comp;
+                        break;
+                    }
+                }
+                if (navBarController != null) break;
+                current = current.parent;
+                depth++;
+            }
+
+            if (navBarController == null)
+            {
+                Log("Nav_Mail: NavBarController not found in parent hierarchy");
+                return false;
+            }
+
+            Log($"Nav_Mail: Found NavBarController on {navBarController.gameObject.name}");
+
+            // Invoke MailboxButton_OnClick()
+            var type = navBarController.GetType();
+            var method = type.GetMethod("MailboxButton_OnClick",
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+
+            if (method != null)
+            {
+                try
+                {
+                    Log("Nav_Mail: Invoking NavBarController.MailboxButton_OnClick()");
+                    method.Invoke(navBarController, null);
+                    result = new ActivationResult(true, "Mailbox opened", ActivationType.Button);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Nav_Mail: MailboxButton_OnClick() error: {ex.InnerException?.Message ?? ex.Message}");
+                }
+            }
+            else
+            {
+                Log("Nav_Mail: MailboxButton_OnClick method not found on NavBarController");
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// Special handling for NPE reward claim button (NullClaimButton).
@@ -1564,6 +1637,316 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// DEBUG: Inspect Nav_Mail button to find how to open the mailbox.
+        /// Logs all fields on CustomButton, NavBarMailController, and any related components.
+        /// </summary>
+        private static void DebugInspectNavMailButton(GameObject element)
+        {
+            Log($"=== DEBUG: Inspecting Nav_Mail Button ===");
+            Log($"Element: {element.name}, Active: {element.activeInHierarchy}");
+
+            // List all components
+            var components = element.GetComponents<Component>();
+            Log($"Components ({components.Length}):");
+            foreach (var comp in components)
+            {
+                if (comp == null) continue;
+                Log($"  - {comp.GetType().FullName}");
+            }
+
+            var flags = System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance;
+
+            // Inspect CustomButton
+            foreach (var mb in element.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+
+                if (type.Name == "CustomButton")
+                {
+                    Log($"=== CustomButton Fields ===");
+                    foreach (var field in type.GetFields(flags))
+                    {
+                        try
+                        {
+                            var val = field.GetValue(mb);
+                            string valStr = FormatFieldValue(val, field.FieldType);
+                            Log($"  {field.Name} ({field.FieldType.Name}): {valStr}");
+
+                            // If it's a UnityEvent, inspect its listeners
+                            if (val != null && field.FieldType.Name.Contains("UnityEvent"))
+                            {
+                                InspectUnityEvent(val, field.Name);
+                            }
+
+                            // If it's an Action or delegate, log more details
+                            if (val != null && (field.FieldType.Name.Contains("Action") || typeof(System.Delegate).IsAssignableFrom(field.FieldType)))
+                            {
+                                InspectDelegate(val, field.Name);
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Log($"  {field.Name}: <error: {ex.Message}>");
+                        }
+                    }
+
+                    Log($"=== CustomButton Properties ===");
+                    foreach (var prop in type.GetProperties(flags))
+                    {
+                        if (!prop.CanRead) continue;
+                        try
+                        {
+                            var val = prop.GetValue(mb);
+                            string valStr = FormatFieldValue(val, prop.PropertyType);
+                            Log($"  {prop.Name} ({prop.PropertyType.Name}): {valStr}");
+                        }
+                        catch { }
+                    }
+
+                    Log($"=== CustomButton Methods ===");
+                    foreach (var method in type.GetMethods(flags | System.Reflection.BindingFlags.DeclaredOnly))
+                    {
+                        var parameters = method.GetParameters();
+                        string paramStr = string.Join(", ", System.Array.ConvertAll(parameters, p => p.ParameterType.Name));
+                        Log($"  {method.ReturnType.Name} {method.Name}({paramStr})");
+                    }
+                }
+
+                if (type.Name == "NavBarMailController")
+                {
+                    Log($"=== NavBarMailController Fields ===");
+                    foreach (var field in type.GetFields(flags))
+                    {
+                        try
+                        {
+                            var val = field.GetValue(mb);
+                            string valStr = FormatFieldValue(val, field.FieldType);
+                            Log($"  {field.Name} ({field.FieldType.Name}): {valStr}");
+
+                            // If it's an Action or delegate, log more details
+                            if (val != null && (field.FieldType.Name.Contains("Action") || typeof(System.Delegate).IsAssignableFrom(field.FieldType)))
+                            {
+                                InspectDelegate(val, field.Name);
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Log($"  {field.Name}: <error: {ex.Message}>");
+                        }
+                    }
+
+                    Log($"=== NavBarMailController Methods ===");
+                    foreach (var method in type.GetMethods(flags | System.Reflection.BindingFlags.DeclaredOnly))
+                    {
+                        var parameters = method.GetParameters();
+                        string paramStr = string.Join(", ", System.Array.ConvertAll(parameters, p => p.ParameterType.Name));
+                        Log($"  {method.ReturnType.Name} {method.Name}({paramStr})");
+                    }
+                }
+            }
+
+            // Check parent hierarchy for controllers
+            Log($"=== Parent Hierarchy ===");
+            var current = element.transform.parent;
+            int depth = 0;
+            MonoBehaviour navBarController = null;
+            while (current != null && depth < 10)
+            {
+                var parentComps = current.GetComponents<MonoBehaviour>();
+                string compNames = string.Join(", ", System.Array.ConvertAll(parentComps, c => c?.GetType().Name ?? "null"));
+                Log($"  [{depth}] {current.name}: {compNames}");
+
+                // Find NavBarController
+                foreach (var comp in parentComps)
+                {
+                    if (comp != null && comp.GetType().Name == "NavBarController")
+                    {
+                        navBarController = comp;
+                    }
+                }
+
+                current = current.parent;
+                depth++;
+            }
+
+            // Inspect NavBarController if found
+            if (navBarController != null)
+            {
+                Log($"=== NavBarController (from parent) Fields ===");
+                var nbcType = navBarController.GetType();
+                foreach (var field in nbcType.GetFields(flags))
+                {
+                    try
+                    {
+                        var val = field.GetValue(navBarController);
+                        string valStr = FormatFieldValue(val, field.FieldType);
+                        Log($"  {field.Name} ({field.FieldType.Name}): {valStr}");
+
+                        // Check if this field references the mail button or mail controller
+                        if (field.Name.ToLower().Contains("mail") || field.Name.ToLower().Contains("inbox"))
+                        {
+                            Log($"    ^ MAIL-RELATED FIELD!");
+                        }
+
+                        // If it's an Action or delegate, log more details
+                        if (val != null && (field.FieldType.Name.Contains("Action") || typeof(System.Delegate).IsAssignableFrom(field.FieldType)))
+                        {
+                            InspectDelegate(val, field.Name);
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log($"  {field.Name}: <error: {ex.Message}>");
+                    }
+                }
+
+                Log($"=== NavBarController Methods ===");
+                foreach (var method in nbcType.GetMethods(flags | System.Reflection.BindingFlags.DeclaredOnly))
+                {
+                    var parameters = method.GetParameters();
+                    string paramStr = string.Join(", ", System.Array.ConvertAll(parameters, p => p.ParameterType.Name));
+                    string methodLine = $"  {method.ReturnType.Name} {method.Name}({paramStr})";
+
+                    // Highlight mail-related methods
+                    if (method.Name.ToLower().Contains("mail") || method.Name.ToLower().Contains("inbox"))
+                    {
+                        methodLine += " <-- MAIL-RELATED!";
+                    }
+                    Log(methodLine);
+                }
+            }
+
+            Log($"=== END Nav_Mail Debug ===");
+        }
+
+        /// <summary>
+        /// Format a field value for debug logging.
+        /// </summary>
+        private static string FormatFieldValue(object val, System.Type fieldType)
+        {
+            if (val == null) return "null";
+
+            if (fieldType == typeof(string)) return $"\"{val}\"";
+            if (fieldType == typeof(bool) || fieldType == typeof(int) || fieldType == typeof(float))
+                return val.ToString();
+            if (fieldType.IsEnum) return val.ToString();
+
+            // For Unity objects, check if they're destroyed
+            if (val is UnityEngine.Object unityObj)
+            {
+                if (unityObj == null) return "<destroyed>";
+                return $"<{unityObj.GetType().Name}: {unityObj.name}>";
+            }
+
+            // For collections, show count
+            if (val is System.Collections.ICollection collection)
+                return $"<{fieldType.Name}, Count={collection.Count}>";
+
+            return $"<{val.GetType().Name}>";
+        }
+
+        /// <summary>
+        /// Inspect a UnityEvent to find its persistent listeners.
+        /// </summary>
+        private static void InspectUnityEvent(object unityEvent, string eventName)
+        {
+            if (unityEvent == null) return;
+
+            var eventType = unityEvent.GetType();
+
+            // Get persistent call count
+            var getCountMethod = eventType.GetMethod("GetPersistentEventCount");
+            if (getCountMethod != null)
+            {
+                int count = (int)getCountMethod.Invoke(unityEvent, null);
+                Log($"    [{eventName}] PersistentEventCount: {count}");
+
+                // Get each persistent listener
+                var getTargetMethod = eventType.GetMethod("GetPersistentTarget");
+                var getMethodNameMethod = eventType.GetMethod("GetPersistentMethodName");
+
+                for (int i = 0; i < count; i++)
+                {
+                    var target = getTargetMethod?.Invoke(unityEvent, new object[] { i });
+                    var methodName = getMethodNameMethod?.Invoke(unityEvent, new object[] { i }) as string;
+
+                    string targetStr = target == null ? "NULL" :
+                        (target is UnityEngine.Object uobj ? $"{uobj.GetType().Name} ({uobj.name})" : target.GetType().Name);
+
+                    Log($"    [{eventName}][{i}] Target: {targetStr}, Method: {methodName ?? "null"}");
+                }
+            }
+
+            // Also check m_Calls for runtime listeners
+            var callsField = eventType.GetField("m_Calls", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (callsField != null)
+            {
+                var calls = callsField.GetValue(unityEvent);
+                if (calls != null)
+                {
+                    var runtimeCallsField = calls.GetType().GetField("m_RuntimeCalls", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (runtimeCallsField != null)
+                    {
+                        var runtimeCalls = runtimeCallsField.GetValue(calls) as System.Collections.IList;
+                        if (runtimeCalls != null)
+                        {
+                            Log($"    [{eventName}] RuntimeCalls: {runtimeCalls.Count}");
+
+                            // Try to inspect each runtime call
+                            int idx = 0;
+                            foreach (var call in runtimeCalls)
+                            {
+                                if (call == null) continue;
+                                var callType = call.GetType();
+
+                                // Try to get the delegate from the call
+                                var delegateField = callType.GetField("Delegate", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                                if (delegateField != null)
+                                {
+                                    var del = delegateField.GetValue(call) as System.Delegate;
+                                    if (del != null)
+                                    {
+                                        var target = del.Target;
+                                        var method = del.Method;
+                                        string targetStr = target == null ? "static" :
+                                            (target is UnityEngine.Object uobj ? $"{uobj.GetType().Name} ({uobj.name})" : target.GetType().Name);
+                                        Log($"    [{eventName}][Runtime {idx}] Target: {targetStr}, Method: {method.DeclaringType?.Name}.{method.Name}");
+                                    }
+                                }
+                                idx++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Inspect a delegate/action to find what it points to.
+        /// </summary>
+        private static void InspectDelegate(object del, string fieldName)
+        {
+            if (del == null) return;
+
+            if (del is System.Delegate d)
+            {
+                var invocationList = d.GetInvocationList();
+                Log($"    [{fieldName}] Delegate invocation list ({invocationList.Length}):");
+                foreach (var inv in invocationList)
+                {
+                    var target = inv.Target;
+                    var method = inv.Method;
+                    string targetStr = target == null ? "static" :
+                        (target is UnityEngine.Object uobj ? $"{uobj.GetType().Name} ({uobj.name})" : target.GetType().Name);
+                    Log($"      Target: {targetStr}, Method: {method.DeclaringType?.Name}.{method.Name}");
+                }
+            }
         }
 
         #endregion

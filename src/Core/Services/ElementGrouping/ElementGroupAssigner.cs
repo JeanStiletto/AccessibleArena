@@ -108,6 +108,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 parentPath.Contains("SocialPanel"))
                 return ElementGroup.FriendsPanel;
 
+            // Mailbox panel - mail items shown directly as Content (overlay filtering handles the rest)
+            // No separate Mailbox group needed since it's already an overlay
+            if (parentPath.Contains("Mailbox") || parentPath.Contains("PlayerInbox"))
+                return ElementGroup.Content;
+
             // Play blade - distinguish tabs from content
             // But exclude deck builder header controls (sideboard toggle, deck name, etc.)
             if (IsInsidePlayBlade(parentPath, name))
@@ -428,6 +433,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         private bool IsInsidePlayBlade(string parentPath, string name)
         {
+            // Mailbox uses Blade_ListItem naming but is NOT a PlayBlade
+            if (parentPath.Contains("Mailbox"))
+                return false;
+
             // Direct blade containers
             if (parentPath.Contains("PlayBlade") || parentPath.Contains("Blade_") ||
                 parentPath.Contains("BladeContent") || parentPath.Contains("BladeContainer"))

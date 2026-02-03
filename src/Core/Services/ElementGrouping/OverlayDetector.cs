@@ -43,11 +43,15 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_screenDetector.IsSocialPanelOpen())
                 return ElementGroup.FriendsPanel;
 
-            // 4. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
+            // 4. Mailbox panel overlay
+            if (_screenDetector.IsMailboxOpen())
+                return ElementGroup.Mailbox;
+
+            // 5. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
             if (PanelStateManager.Instance?.IsPlayBladeActive == true)
                 return ElementGroup.PlayBladeTabs;
 
-            // 5. NPE (New Player Experience) overlay
+            // 6. NPE (New Player Experience) overlay
             if (_screenDetector.IsNPERewardsScreenActive())
                 return ElementGroup.NPE;
 
@@ -83,6 +87,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.Popup => IsInsidePopup(obj),
                 ElementGroup.SettingsMenu => IsInsideSettingsMenu(obj),
                 ElementGroup.FriendsPanel => IsInsideSocialPanel(obj),
+                ElementGroup.Mailbox => IsInsideMailbox(obj),
                 ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
                 ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),
@@ -115,6 +120,15 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
             return socialPanel != null && MenuPanelTracker.IsChildOf(obj, socialPanel);
+        }
+
+        /// <summary>
+        /// Check if an element is inside the mailbox panel.
+        /// </summary>
+        private bool IsInsideMailbox(GameObject obj)
+        {
+            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
+            return mailboxPanel != null && MenuPanelTracker.IsChildOf(obj, mailboxPanel);
         }
 
         /// <summary>

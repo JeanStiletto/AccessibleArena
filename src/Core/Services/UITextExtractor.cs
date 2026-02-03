@@ -191,6 +191,13 @@ namespace AccessibleArena.Core.Services
                 return friendsWidgetLabel;
             }
 
+            // For Mailbox items, try to get the mail title (skip "Neu" badge)
+            string mailboxTitle = TryGetMailboxItemTitle(gameObject);
+            if (!string.IsNullOrEmpty(mailboxTitle))
+            {
+                return mailboxTitle;
+            }
+
             // Fallback to GameObject name (cleaned up)
             return CleanObjectName(gameObject.name);
         }
@@ -860,6 +867,80 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Tries to get the mail title from a mailbox item, skipping the "Neu/New" badge.
+        /// Mailbox items have structure: Mailbox_Blade_ListItem_Base/Button with children containing
+        /// the title text and a "Neu" badge for unread items.
+        /// </summary>
+        private static string TryGetMailboxItemTitle(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            // Check if we're inside a Mailbox context
+            string path = GetParentPath(gameObject);
+            if (!path.Contains("Mailbox")) return null;
+
+            // Walk up to find the Mailbox_Blade_ListItem_Base container
+            Transform current = gameObject.transform;
+            Transform listItemContainer = null;
+            int maxLevels = 5;
+
+            while (current != null && maxLevels > 0)
+            {
+                if (current.name.Contains("Mailbox_Blade_ListItem"))
+                {
+                    listItemContainer = current;
+                    break;
+                }
+                current = current.parent;
+                maxLevels--;
+            }
+
+            if (listItemContainer == null) return null;
+
+            // Get all TMP_Text children and find the title (skip "Neu"/"New" badges)
+            var textComponents = listItemContainer.GetComponentsInChildren<TMP_Text>(true);
+            string bestTitle = null;
+            int bestLength = 0;
+
+            foreach (var tmp in textComponents)
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+
+                string text = CleanText(tmp.text);
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
+                // Skip common badge/indicator texts
+                string lower = text.ToLower();
+                if (lower == "neu" || lower == "new" || lower == "unread" ||
+                    lower == "gelesen" || lower == "read" || text.Length <= 3)
+                    continue;
+
+                // Prefer longer text (title is usually longer than other labels)
+                if (text.Length > bestLength)
+                {
+                    bestTitle = text;
+                    bestLength = text.Length;
+                }
+            }
+
+            return bestTitle;
+        }
+
+        private static string GetParentPath(GameObject gameObject)
+        {
+            if (gameObject == null) return "";
+            var sb = new System.Text.StringBuilder();
+            Transform current = gameObject.transform;
+            while (current != null)
+            {
+                if (sb.Length > 0) sb.Insert(0, "/");
+                sb.Insert(0, current.name);
+                current = current.parent;
+            }
+            return sb.ToString();
         }
 
         /// <summary>

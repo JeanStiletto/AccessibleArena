@@ -109,7 +109,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Deck Builder deck list cards (MainDeck_MetaCardHolder). Cards currently in your deck.
         /// Navigated horizontally with Left/Right, card details with Up/Down.
         /// </summary>
-        DeckBuilderDeckList
+        DeckBuilderDeckList,
+
+        /// <summary>
+        /// Mailbox/Inbox panel elements. List of mail items and mail content.
+        /// </summary>
+        Mailbox
     }
 
     /// <summary>
@@ -130,7 +135,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.SettingsMenu
                 || group == ElementGroup.NPE
                 || group == ElementGroup.DeckBuilderCollection
-                || group == ElementGroup.DeckBuilderDeckList;
+                || group == ElementGroup.DeckBuilderDeckList
+                || group == ElementGroup.Mailbox;
         }
 
         /// <summary>
@@ -158,6 +164,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.NPE: return "Tutorial";
                 case ElementGroup.DeckBuilderCollection: return "Collection";
                 case ElementGroup.DeckBuilderDeckList: return "Deck List";
+                case ElementGroup.Mailbox: return "Mailbox";
                 default: return "Other";
             }
         }

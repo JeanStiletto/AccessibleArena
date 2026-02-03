@@ -589,6 +589,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.Secondary,
                 ElementGroup.Popup,
                 ElementGroup.FriendsPanel,
+                ElementGroup.Mailbox,
                 ElementGroup.PlayBladeTabs,
                 ElementGroup.PlayBladeContent,
                 ElementGroup.SettingsMenu,

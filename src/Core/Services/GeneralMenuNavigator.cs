@@ -386,11 +386,17 @@ namespace AccessibleArena.Core.Services
             // ALWAYS check PlayBlade state first, before any early returns
             CheckAndInitPlayBladeHelper("AnyOpened");
 
-            // Ignore SocialUI - it's always present as corner icon, causes spurious rescans during page load
+            // SocialUI events: only rescan if the Friends panel is actually open
+            // The corner social button triggers SocialUI events but shouldn't cause rescans
+            // Note: Mailbox is detected separately via ContentControllerPlayerInbox patch
             if (panel?.Name?.Contains("SocialUI") == true)
             {
-                LogDebug($"[{NavigatorId}] Ignoring SocialUI panel opened");
-                return;
+                if (!_screenDetector.IsSocialPanelOpen())
+                {
+                    LogDebug($"[{NavigatorId}] Ignoring SocialUI event - Friends panel not open (just corner icon)");
+                    return;
+                }
+                LogDebug($"[{NavigatorId}] SocialUI event with Friends panel open - allowing rescan");
             }
 
             // Ignore Settings panel - handled by SettingsMenuNavigator
@@ -901,6 +907,7 @@ namespace AccessibleArena.Core.Services
                 {
                     ElementGroup.Popup => DismissPopup(),
                     ElementGroup.FriendsPanel => CloseSocialPanel(),
+                    ElementGroup.Mailbox => CloseMailbox(),
                     ElementGroup.PlayBladeTabs => HandlePlayBladeBackspace(),
                     ElementGroup.PlayBladeContent => HandlePlayBladeBackspace(),
                     ElementGroup.NPE => HandleNPEBack(),
@@ -1093,6 +1100,63 @@ namespace AccessibleArena.Core.Services
             if (socialPanel != null)
             {
                 var closeButton = FindCloseButtonInPanel(socialPanel);
+                if (closeButton != null)
+                {
+                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(closeButton);
+                    TriggerRescan();
+                    return true;
+                }
+            }
+
+            return TryGenericBackButton();
+        }
+
+        /// <summary>
+        /// Close the Mailbox panel by invoking NavBarController.HideInboxIfActive().
+        /// </summary>
+        private bool CloseMailbox()
+        {
+            LogDebug($"[{NavigatorId}] Closing Mailbox panel");
+
+            // Find NavBarController and invoke HideInboxIfActive()
+            var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)");
+            if (navBar != null)
+            {
+                foreach (var mb in navBar.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "NavBarController")
+                    {
+                        var method = mb.GetType().GetMethod("HideInboxIfActive",
+                            System.Reflection.BindingFlags.Public |
+                            System.Reflection.BindingFlags.NonPublic |
+                            System.Reflection.BindingFlags.Instance);
+
+                        if (method != null)
+                        {
+                            try
+                            {
+                                LogDebug($"[{NavigatorId}] Invoking NavBarController.HideInboxIfActive()");
+                                method.Invoke(mb, null);
+                                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                                TriggerRescan();
+                                return true;
+                            }
+                            catch (System.Exception ex)
+                            {
+                                LogDebug($"[{NavigatorId}] HideInboxIfActive() error: {ex.Message}");
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: try to find and click dismiss button in mailbox panel
+            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
+            if (mailboxPanel != null)
+            {
+                var closeButton = FindCloseButtonInPanel(mailboxPanel);
                 if (closeButton != null)
                 {
                     _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
@@ -3077,6 +3141,9 @@ namespace AccessibleArena.Core.Services
             // Use UIActivator for CustomButtons
             var result = UIActivator.Activate(element);
             _announcer.Announce(result.Message, Models.AnnouncementPriority.Normal);
+
+            // Note: Mailbox open/close is detected via Harmony patches on NavBarController
+            // (MailboxButton_OnClick / HideInboxIfActive) - no manual rescan needed here
 
             // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
             if (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))
