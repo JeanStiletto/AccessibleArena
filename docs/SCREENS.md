@@ -2,7 +2,30 @@
 
 Quick reference for special screens requiring custom navigation.
 
-## Global Overlay
+## Global Overlays
+
+### Settings Menu
+**Navigator:** `SettingsMenuNavigator`
+**Priority:** 90 (highest - works in all scenes including duels)
+
+Settings panel accessible from any screen via NavBar settings button or in-duel menu.
+
+**Submenus:**
+- Content - MainMenu
+- Content - Gameplay
+- Content - Graphics
+- Content - Audio
+
+**Navigation:**
+- Up/Down arrows: Navigate settings items
+- Left/Right arrows: Adjust sliders/steppers
+- Enter: Activate buttons, toggle checkboxes
+- Backspace: Close settings / go back to previous submenu
+
+**Technical Notes:**
+- Detects via `PanelStateManager.IsSettingsMenuOpen`
+- Works in both Login scene (no content panels) and main game
+- Higher priority than DuelNavigator ensures settings work during gameplay
 
 ### Help Menu
 **Navigator:** `HelpNavigator`
@@ -26,6 +49,24 @@ Modal overlay that blocks all other input while active. Displays navigable list 
 - Browser (Scry, Surveil, Mulligan)
 
 All strings are localization-ready in `Core/Models/Strings.cs`.
+
+### Modal Overlays (What's New, Announcements)
+**Navigator:** `OverlayNavigator`
+**Priority:** 85
+
+Handles modal popups that appear over other content, blocking interaction until dismissed.
+
+**Detected Overlay Types:**
+- What's New carousel (game updates)
+- Announcements
+- Reward popups
+
+**Detection:** Looks for `Background_ClickBlocker` GameObject
+
+**Navigation:**
+- Left/Right arrows: Navigate carousel pages (What's New)
+- Enter: Activate buttons
+- Backspace: Dismiss overlay
 
 ## Login Flow
 
@@ -130,8 +171,34 @@ The Booster Chamber screen displays available booster packs in a horizontal caro
 - "Open x10" label extracted from inactive `Text` child element
 
 **Known Limitations:**
-- The card list that appears after clicking a pack is not yet accessible (no panel state change detected)
 - Pack set names cannot be extracted - only "Open x10 (count)" is announced
+
+### Pack Contents Screen
+**Navigator:** `BoosterOpenNavigator`
+**Priority:** 80
+
+After clicking a pack, displays the cards you received in a scrollable list.
+
+**Detection:**
+- BoosterChamber controller active
+- CardScroller element visible
+- RevealAll button present
+
+**Elements Detected:**
+- Individual cards from opened pack
+- "Reveal All" button
+- Continue/Done button
+
+**Navigation:**
+- Left/Right arrows: Navigate between cards
+- Up/Down arrows: Read card details
+- Enter: Reveal card / Continue
+- Home/End: Jump to first/last card
+
+**Technical Notes:**
+- Detects `BoosterOpenToScrollListController` pattern
+- Cards are navigable via standard card detection
+- "Reveal All" speeds up card reveal animation
 
 ## Deck Builder
 
@@ -252,9 +319,33 @@ if (panel == null || !panel.activeInHierarchy)
 
 Only one navigator can be active. UIFocusTracker runs as fallback when no navigator is active.
 
+## Pre-Battle Screen
+
+### VS Screen
+**Navigator:** `PreBattleNavigator`
+**Priority:** 80
+**Scene:** `DuelScene` (initial phase)
+
+The pre-game screen showing player names and deck matchup before the duel starts.
+
+**Elements:**
+- Continue button (`PromptButton_Primary`) - Start the battle
+- Cancel button (`PromptButton_Secondary`) - Cancel and return to menu
+
+**Navigation:**
+- Up/Down arrows: Navigate between buttons
+- Enter: Activate (Continue starts duel, Cancel exits)
+- Space: NOT accepted (prevents accidental battle start)
+
+**Technical Notes:**
+- Activates when DuelScene loads but before actual gameplay
+- Detects prompt buttons with pre-battle text
+- Auto-deactivates once duel gameplay begins
+- Higher priority than DuelNavigator to catch the VS screen first
+
 ## DuelScene
 
-The game auto-transitions from the VS screen to active gameplay without requiring user input.
+After the VS screen, the game transitions to active gameplay.
 
 ### Duel Gameplay
 **Navigator:** `DuelNavigator` + `ZoneNavigator`
@@ -263,16 +354,33 @@ Active gameplay with zones and cards.
 
 **Zone Navigation (via ZoneNavigator):**
 - C - Your hand (Cards)
-- B - Battlefield
 - G - Your graveyard
-- X - Exile
+- X - Your exile
 - S - Stack
 - Shift+G - Opponent graveyard
 - Shift+X - Opponent exile
 
+**Battlefield Navigation (via BattlefieldNavigator):**
+- B - Your creatures
+- A - Your lands
+- R - Your non-creatures (artifacts, enchantments, planeswalkers)
+- Shift+B - Opponent creatures
+- Shift+A - Opponent lands
+- Shift+R - Opponent non-creatures
+- Shift+Up/Down - Switch between battlefield rows
+
+**Info Shortcuts:**
+- T - Announce turn number and active player
+- L - Announce life totals
+- V - Enter player info zone (portrait navigation)
+- D - Your library count
+- Shift+D - Opponent library count
+- Shift+C - Opponent hand count
+
 **Card Navigation:**
-- Left/Right arrows - Move between cards in current zone
-- Up/Down arrows - Card info details (via CardInfoNavigator)
+- Left/Right arrows - Move between cards in current zone/row
+- Up/Down arrows - Read card details (via CardInfoNavigator)
+- Home/End - Jump to first/last card in zone
 
 **Zone Holders (GameObjects):**
 - `LocalHand_Desktop_16x9` - Your hand

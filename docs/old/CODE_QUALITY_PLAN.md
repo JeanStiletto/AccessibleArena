@@ -13,7 +13,7 @@
 | Phase 4: Dropdown Flag Unification | COMPLETE | 2026-02-03 |
 | Phase 5: Panel Detection Cleanup | COMPLETE | 2026-02-03 |
 | Phase 6: Utility Extraction | COMPLETE | 6.1, 6.2 complete |
-| Phase 7: Documentation Updates | NOT STARTED | |
+| Phase 7: Documentation Updates | COMPLETE | 7.5 skipped |
 
 ---
 
@@ -361,68 +361,61 @@ The current HandlesPanel() implementations appear to have proper mutual exclusio
 
 ## Phase 7: Documentation Updates (NO RISK)
 
-### Stage 7.1: Audit SCREENS.md Quick Reference - NOT STARTED
+### Stage 7.1: Audit SCREENS.md Quick Reference - COMPLETE
 **Scope:** Verify screen reference documentation is accurate
 
-**Tasks:**
-1. Compare SCREENS.md against actual navigators in codebase
-2. Verify all screen names and shortcuts are correct
-3. Add any missing screens discovered since last update
-4. Remove references to deprecated screens
-5. Ensure shortcut key mappings match code
-
-**Testing:** Walk through each screen in game and verify documentation matches
+**Completed:**
+1. Added missing navigators: SettingsMenuNavigator, OverlayNavigator, BoosterOpenNavigator, PreBattleNavigator
+2. Updated zone navigation shortcuts (added battlefield B/A/R, info shortcuts T/L/V/D)
+3. Added detailed battlefield row navigation documentation
+4. Verified all shortcut mappings match CLAUDE.md master list
 
 **Risk:** NONE
 
 ---
 
-### Stage 7.2: Audit MOD_STRUCTURE.md Implementation Status - NOT STARTED
-**Scope:** Verify all status markers ([+], [~], [?], [-]) are accurate
+### Stage 7.2: Audit MOD_STRUCTURE.md Implementation Status - COMPLETE
+**Scope:** Verify all status markers and file listings are accurate
 
-**Tasks:**
-1. Review each feature's status marker against actual code state:
-   - [+] WORKING - verify feature works end-to-end
-   - [~] PARTIALLY WORKING - document what's missing
-   - [?] UNTESTED - test and update status
-   - [-] NOT WORKING - verify still broken or update
-2. Update file listings to match current structure
-3. Remove references to deleted/archived files
-4. Add any new files/components not listed
-
-**Testing:** Cross-reference with actual codebase structure
+**Completed:**
+1. Updated Screen Navigators section with accurate status markers
+2. Added missing files: DebugConfig.cs, DropdownStateManager.cs, CardModelProvider.cs, BattlefieldNavigator.cs
+3. Added new navigators: PreBattleNavigator, BoosterOpenNavigator, NPERewardNavigator
+4. Moved deprecated navigators to comments (WelcomeGateNavigator, etc.)
+5. Added archive/ and installer/ folders to project layout
 
 **Risk:** NONE
 
 ---
 
-### Stage 7.3: Update BEST_PRACTICES.md - NOT STARTED
-**Tasks:**
-- Add DebugConfig usage patterns
-- Update panel detection documentation
-- Add GetGameObjectPath guidance (use MenuDebugHelper)
-- Document dropdown handling
+### Stage 7.3: Update BEST_PRACTICES.md - COMPLETE
+**Completed:**
+- Added DebugConfig section with usage patterns and available flags
+- Added Dropdown Handling section with DropdownStateManager API
+- Added reference to DROPDOWN_HANDLING.md for detailed docs
+- MenuDebugHelper already documented (GetFullPath, GetGameObjectPath)
 
 **Dependencies:** Phases 2, 4, 5
 
 ---
 
-### Stage 7.4: Update MOD_STRUCTURE.md File Listings - NOT STARTED
-**Tasks:**
-- Add DebugConfig.cs to file listing
-- Document archive/ folder structure
-- Update outdated file references
-- Sync with status audit from Stage 7.2
+### Stage 7.4: Update MOD_STRUCTURE.md File Listings - COMPLETE
+**Completed:** (Combined with Stage 7.2)
+- Added DebugConfig.cs, DropdownStateManager.cs to file listing
+- Added archive/ and installer/ folders to project layout
+- Updated all file references to match current codebase
 
 **Dependencies:** Stage 7.2, all previous phases
 
 ---
 
-### Stage 7.5: Create CONTRIBUTING.md (Optional) - NOT STARTED
-**Tasks:**
-- Code style guidelines
-- Debug logging conventions
-- PR/testing checklist
+### Stage 7.5: Create CONTRIBUTING.md (Optional) - SKIPPED
+**Decision:** Skipped - would overlap with BEST_PRACTICES.md which already covers:
+- Code style guidelines (UI Interaction Patterns, CustomButton Pattern)
+- Debug logging conventions (DebugConfig section)
+- How to add new features (Adding Support for New Screens)
+
+**Future consideration:** If BEST_PRACTICES.md grows unwieldy, consider reorganizing it rather than creating a separate CONTRIBUTING.md
 
 ---
 
@@ -442,9 +435,9 @@ The current HandlesPanel() implementations appear to have proper mutual exclusio
 | 10 | 5.2 | Panel detection audit | LOW | DONE |
 | 11 | 5.3 | Panel detection cleanup | MEDIUM | DONE |
 | 12 | 6.1-6.2 | Utility extraction | LOW | COMPLETE |
-| 13 | 7.1-7.2 | SCREENS.md + status audit | NONE | |
-| 14 | 7.3-7.4 | BEST_PRACTICES + MOD_STRUCTURE | NONE | |
-| 15 | 7.5 | CONTRIBUTING.md (optional) | NONE | |
+| 13 | 7.1-7.2 | SCREENS.md + status audit | NONE | COMPLETE |
+| 14 | 7.3-7.4 | BEST_PRACTICES + MOD_STRUCTURE | NONE | COMPLETE |
+| 15 | 7.5 | CONTRIBUTING.md (optional) | NONE | SKIPPED |
 
 ---
 

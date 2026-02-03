@@ -26,17 +26,20 @@ C:\Users\fabia\arena\
         UIActivator.cs           - Centralized UI element activation
         UITextExtractor.cs       - Text extraction (GetText, GetButtonText, CleanText)
         CardDetector.cs          - Card detection + card info extraction
+        CardModelProvider.cs     - Card data from game models (deck list, collection)
 
         # Central Services (held by main mod)
         AnnouncementService.cs   - Speech output management
         ContextManager.cs        - Game context tracking
         InputManager.cs          - Custom shortcut handling
         ShortcutRegistry.cs      - Keybind registration
+        DebugConfig.cs           - Centralized debug logging flags (NEW Phase 2)
+        DropdownStateManager.cs  - Unified dropdown state tracking (NEW Phase 4)
         CardInfoNavigator.cs     - Card detail navigation (arrow up/down)
-        ZoneNavigator.cs         - Zone navigation in duel (H/B/G/X/S + arrows)
+        ZoneNavigator.cs         - Zone navigation in duel (C/B/G/X/S + arrows)
+        BattlefieldNavigator.cs  - Battlefield row navigation (B/A/R keys)
         DuelAnnouncer.cs         - Game event announcements via Harmony
-        HotHighlightNavigator.cs - Unified Tab navigation for playable cards, targets, AND selection mode (discard)
-        DiscardNavigator.cs      - Discard selection when forced to discard
+        HotHighlightNavigator.cs - Unified Tab navigation for playable cards, targets, AND selection mode
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
         HelpNavigator.cs         - F1 help menu with navigable keybind list
@@ -80,14 +83,17 @@ C:\Users\fabia\arena\
         # Screen Navigators (all extend BaseNavigator)
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
         AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
-        WelcomeGateNavigator.cs      - Welcome/login choice screen
-        # LoginPanelNavigator removed - GeneralMenuNavigator handles Login scene
-        # CodeOfConductNavigator removed - default navigation handles this screen
+        PreBattleNavigator.cs        - VS screen before duel starts (NEW)
+        BoosterOpenNavigator.cs      - Pack contents after opening (NEW)
+        NPERewardNavigator.cs        - NPE reward screens
         DuelNavigator.cs             - Duel gameplay screen (delegates to ZoneNavigator)
-        # EventTriggerNavigator removed - GeneralMenuNavigator handles NPE screens
         OverlayNavigator.cs          - Modal overlays (What's New, announcements)
         SettingsMenuNavigator.cs     - Settings menu (works in all scenes including duels)
-        GeneralMenuNavigator.cs      - Main menu, NPE, and general menu screens
+        GeneralMenuNavigator.cs      - Main menu, login, NPE, and general menu screens
+
+        # Deprecated navigators (in old/ folder)
+        # WelcomeGateNavigator, LoginPanelNavigator, CodeOfConductNavigator
+        # EventTriggerNavigator, DiscardNavigator, TargetNavigator, HighlightNavigator
 
         # UI Classification
         UIElementClassifier.cs       - Element role detection (button, progress, etc.)
@@ -105,6 +111,10 @@ C:\Users\fabia\arena\
   libs\                          - Reference assemblies and Tolk DLLs
   docs\                          - Documentation
   tools\                         - AssemblyAnalyzer and analysis scripts
+  archive\                       - Archived files (from Phase 1 cleanup)
+    analysis\                    - Old analysis text files
+    backups\                     - Old backup folders
+  installer\                     - AccessibleArenaInstaller source code
 ```
 
 ## Implementation Status
@@ -121,14 +131,15 @@ C:\Users\fabia\arena\
 
 ### Screen Navigators
 - [?] AssetPrepNavigator - Download screen on fresh install (UNTESTED, fail-safe design)
-- [x] WelcomeGateNavigator - Login/Register choice screen
-- [x] Login scene - Now handled by GeneralMenuNavigator with password masking
-- [x] Code of Conduct - Default navigation (CodeOfConductNavigator deprecated)
-- [x] DuelNavigator - Duel gameplay (zone navigation working)
-- [x] EventTriggerNavigator - Deprecated, GeneralMenuNavigator handles NPE screens
+- [x] Login scene - Handled by GeneralMenuNavigator with password masking
+- [x] Code of Conduct - Default navigation works correctly
+- [x] PreBattleNavigator - VS screen before duel (Continue/Cancel buttons)
+- [x] BoosterOpenNavigator - Pack contents after opening packs
+- [x] DuelNavigator - Duel gameplay (zone navigation, combat, targeting)
 - [~] OverlayNavigator - Modal overlays (What's New carousel) - basic implementation
 - [x] SettingsMenuNavigator - Settings menu accessible in all scenes including duels
-- [x] GeneralMenuNavigator - Main menu, NPE screens, and general menu navigation
+- [x] GeneralMenuNavigator - Main menu, login, NPE screens, and general navigation
+- [x] NPERewardNavigator - NPE reward screens (chest, deck boxes)
 
 ### Menu Panel Detection (Harmony Patches)
 - [x] PanelStatePatch - Harmony patches for panel state changes

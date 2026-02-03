@@ -110,6 +110,51 @@ if (toggle == null)
 }
 ```
 
+### Dropdown Handling (DropdownStateManager)
+
+MTGA uses `TMP_Dropdown` and `cTMP_Dropdown` for dropdown menus. The mod tracks dropdown state centrally via `DropdownStateManager` (`src/Core/Services/DropdownStateManager.cs`).
+
+**Key Concepts:**
+- **Dropdown Edit Mode**: When a dropdown is expanded, the mod defers to Unity's built-in navigation
+- **Detection**: Checks if EventSystem focus is on a dropdown item (name starts with "Item")
+- **Exit Handling**: Tracks transitions out of dropdown mode to prevent double announcements
+
+**DropdownStateManager API:**
+```csharp
+// Check if currently in dropdown
+if (DropdownStateManager.Instance.IsInDropdownMode)
+    return; // Let Unity handle navigation
+
+// Update state and check for exit transition (call in Update loop)
+if (DropdownStateManager.Instance.UpdateAndCheckExitTransition())
+{
+    // Just exited dropdown mode - suppress announcement this frame
+}
+
+// Notify when closing dropdown programmatically
+DropdownStateManager.Instance.OnDropdownClosed();
+
+// Prevent re-entry for brief period (e.g., after closing)
+DropdownStateManager.Instance.SuppressReentry();
+```
+
+**User Flow:**
+1. Navigate to dropdown with arrow keys
+2. Press Enter to open dropdown (or it auto-opens in registration flow)
+3. Use Up/Down to navigate items (Unity handles this)
+4. Press Enter to select item (closes dropdown)
+5. Press Escape/Backspace to cancel (closes without selecting)
+
+**Integration Points:**
+- `BaseNavigator.HandleInput()` - Checks dropdown mode before custom navigation
+- `UIFocusTracker` - Delegates dropdown state to DropdownStateManager
+- `GeneralMenuNavigator` - Uses DropdownStateManager for overlay filtering
+
+**Auto-Advance Dropdowns (Registration):**
+Registration screen has dropdowns that auto-advance: selecting Month opens Day, selecting Day opens Year, etc. DropdownStateManager handles this by detecting the transition between dropdowns.
+
+**See Also:** [DROPDOWN_HANDLING.md](DROPDOWN_HANDLING.md) for detailed architecture and state machine documentation.
+
 ### CustomButton Pattern
 - Game uses `CustomButton` component (not Unity's standard `Button`)
 - CustomButton has TWO activation mechanisms:
@@ -1548,6 +1593,41 @@ These older files are still present but less actively used:
 4. **Test Toggle behavior:** Does selecting trigger state change?
 5. **Find elements by path:** More reliable than name search
 6. **Log all components:** On problematic elements to understand structure
+
+### DebugConfig - Centralized Debug Logging
+
+`DebugConfig` (`src/Core/Services/DebugConfig.cs`) provides centralized control over debug logging. All debug output should use this system instead of direct MelonLogger calls.
+
+**Usage:**
+```csharp
+// Check if debug logging is enabled for a category
+if (DebugConfig.LogFocusTracking)
+    MelonLogger.Msg($"[Focus] {message}");
+
+// Or use the helper method
+DebugConfig.LogIf(DebugConfig.LogFocusTracking, "Focus", message);
+```
+
+**Available Flags:**
+- `LogFocusTracking` - UIFocusTracker focus changes
+- `LogPanelDetection` - Panel open/close events
+- `LogElementDiscovery` - Element scanning and filtering
+- `LogNavigation` - Navigation state changes
+- `LogActivation` - UI element activation
+- `LogCardDetection` - Card detection and info extraction
+- `LogDropdownState` - Dropdown mode tracking
+
+**Enable/Disable:**
+Edit `DebugConfig.cs` to enable flags during development:
+```csharp
+public static bool LogFocusTracking = true; // Enable for focus debugging
+```
+
+**Benefits:**
+- Single place to enable/disable categories
+- Consistent log tag format (`[Category] message`)
+- No scattered boolean flags across navigators
+- Easy to disable all debug logging for release
 
 ### MenuDebugHelper - UI Investigation Utilities
 
