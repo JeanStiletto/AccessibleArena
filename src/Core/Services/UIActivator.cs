@@ -1555,7 +1555,7 @@ namespace AccessibleArena.Core.Services
 
         private static void Log(string message)
         {
-            MelonLogger.Msg($"[UIActivator] {message}");
+            DebugConfig.LogIf(DebugConfig.LogActivation, "UIActivator", message);
         }
 
         /// <summary>

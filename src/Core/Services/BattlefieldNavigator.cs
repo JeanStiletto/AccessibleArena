@@ -65,12 +65,6 @@ namespace AccessibleArena.Core.Services
             _combatNavigator = navigator;
         }
 
-        // DEPRECATED: SetTargetNavigator was used for targeting mode row navigation
-        // public void SetTargetNavigator(TargetNavigator navigator)
-        // {
-        //     _targetNavigator = navigator;
-        // }
-
         /// <summary>
         /// Activates battlefield navigation.
         /// </summary>
@@ -518,6 +512,20 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[BattlefieldNavigator] Clicking card: {cardName}");
 
             UIActivator.SimulatePointerClick(card);
+
+            // DIAGNOSTIC: Log button state after clicking (for activated ability debugging)
+            MelonCoroutines.Start(LogButtonStateAfterClick(cardName));
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC: Logs button state after a short delay to capture ability activation mode.
+        /// </summary>
+        private System.Collections.IEnumerator LogButtonStateAfterClick(string cardName)
+        {
+            // Wait for game UI to update
+            yield return new UnityEngine.WaitForSeconds(0.3f);
+            MelonLogger.Msg($"[BattlefieldNavigator] === BUTTON STATE AFTER CLICKING {cardName} ===");
+            DuelAnnouncer.LogAllPromptButtons();
         }
 
         /// <summary>

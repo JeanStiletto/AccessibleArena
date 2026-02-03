@@ -17,14 +17,11 @@ namespace AccessibleArena.Core.Services
     /// </summary>
     public class UIFocusTracker
     {
-        private const string LOG_PREFIX = "[FocusTracker]";
         private const int MAX_SELECTABLE_LOG_COUNT = 10;
-        private const int MAX_HIERARCHY_DEPTH = 3;
 
         private readonly IAnnouncementService _announcer;
         private GameObject _lastSelected;
         private string _lastAnnouncedText;
-        private readonly bool _debugMode = true;
 
         // Input field edit mode - only true when user explicitly activated (Enter) the field
         private static bool _inputFieldEditMode;
@@ -61,7 +58,7 @@ namespace AccessibleArena.Core.Services
         public static void SuppressDropdownModeEntry()
         {
             _suppressDropdownModeEntry = true;
-            MelonLogger.Msg($"[FocusTracker] Suppressing dropdown mode entry");
+            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", "Suppressing dropdown mode entry");
         }
 
         /// <summary>
@@ -145,7 +142,7 @@ namespace AccessibleArena.Core.Services
         {
             _inputFieldEditMode = true;
             _activeInputFieldObject = inputFieldObject;
-            MelonLogger.Msg($"[FocusTracker] Entered input field edit mode: {inputFieldObject?.name}");
+            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Entered input field edit mode: {inputFieldObject?.name}");
         }
 
         /// <summary>
@@ -155,7 +152,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_inputFieldEditMode)
             {
-                MelonLogger.Msg($"[FocusTracker] Exited input field edit mode");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", "Exited input field edit mode");
                 _inputFieldEditMode = false;
                 _activeInputFieldObject = null;
             }
@@ -186,7 +183,7 @@ namespace AccessibleArena.Core.Services
                 // MTGA auto-activates input fields on selection, so we need to clear
                 // even if isFocused is false (caret not visible but still selected)
                 eventSystem.SetSelectedGameObject(null);
-                MelonLogger.Msg($"[FocusTracker] Deactivated TMP_InputField: {selected.name} (wasFocused={tmpInput.isFocused})");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated TMP_InputField: {selected.name} (wasFocused={tmpInput.isFocused})");
                 return;
             }
 
@@ -198,7 +195,7 @@ namespace AccessibleArena.Core.Services
                     legacyInput.DeactivateInputField();
                 }
                 eventSystem.SetSelectedGameObject(null);
-                MelonLogger.Msg($"[FocusTracker] Deactivated InputField: {selected.name} (wasFocused={legacyInput.isFocused})");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated InputField: {selected.name} (wasFocused={legacyInput.isFocused})");
                 return;
             }
         }
@@ -376,7 +373,7 @@ namespace AccessibleArena.Core.Services
         {
             _dropdownEditMode = true;
             _activeDropdownObject = dropdownObject;
-            MelonLogger.Msg($"[FocusTracker] User explicitly opened dropdown: {dropdownObject?.name}");
+            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"User explicitly opened dropdown: {dropdownObject?.name}");
         }
 
         /// <summary>
@@ -397,7 +394,7 @@ namespace AccessibleArena.Core.Services
 
             if (_dropdownEditMode)
             {
-                MelonLogger.Msg($"[FocusTracker] User explicitly closed dropdown, new focus: {newFocusName ?? "null"}");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"User explicitly closed dropdown, new focus: {newFocusName ?? "null"}");
             }
 
             _dropdownEditMode = false;
@@ -445,7 +442,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void Update()
         {
-            if (_debugMode)
+            if (DebugConfig.DebugEnabled && DebugConfig.LogFocusTracking)
             {
                 DebugLogKeyPresses();
             }
@@ -489,18 +486,18 @@ namespace AccessibleArena.Core.Services
                 if (_suppressDropdownModeEntry)
                 {
                     _suppressDropdownModeEntry = false;
-                    MelonLogger.Msg($"[FocusTracker] Dropdown mode entry suppressed (IsExpanded=true but was auto-closed)");
+                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", "Dropdown mode entry suppressed (IsExpanded=true but was auto-closed)");
                 }
                 else
                 {
                     _dropdownEditMode = true;
                     _activeDropdownObject = selected;
-                    MelonLogger.Msg($"[FocusTracker] Dropdown is now expanded (IsExpanded=true), focus: {selected?.name ?? "null"}");
+                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Dropdown is now expanded (IsExpanded=true), focus: {selected?.name ?? "null"}");
                 }
             }
             else if (!anyDropdownExpanded && _dropdownEditMode)
             {
-                MelonLogger.Msg($"[FocusTracker] Dropdown closed (IsExpanded=false), focus: {selected?.name ?? "null"}");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Dropdown closed (IsExpanded=false), focus: {selected?.name ?? "null"}");
                 _dropdownEditMode = false;
                 _activeDropdownObject = null;
                 _suppressDropdownModeEntry = false; // Clear flag when dropdown actually closes
@@ -562,10 +559,7 @@ namespace AccessibleArena.Core.Services
 
         private void Log(string message)
         {
-            if (_debugMode)
-            {
-                MelonLogger.Msg($"{LOG_PREFIX} {message}");
-            }
+            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", message);
         }
 
         private void DebugLogKeyPresses()
@@ -600,7 +594,7 @@ namespace AccessibleArena.Core.Services
             var selected = eventSystem.currentSelectedGameObject;
             if (selected != null)
             {
-                Log($"Currently selected: {GetGameObjectPath(selected)}");
+                Log($"Currently selected: {MenuDebugHelper.GetGameObjectPath(selected)}");
             }
             else
             {
@@ -627,7 +621,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (field.isFocused)
                 {
-                    Log($"Found focused TMP_InputField: {GetGameObjectPath(field.gameObject)}");
+                    Log($"Found focused TMP_InputField: {MenuDebugHelper.GetGameObjectPath(field.gameObject)}");
                     return;
                 }
             }
@@ -637,7 +631,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (field.isFocused)
                 {
-                    Log($"Found focused InputField: {GetGameObjectPath(field.gameObject)}");
+                    Log($"Found focused InputField: {MenuDebugHelper.GetGameObjectPath(field.gameObject)}");
                     return;
                 }
             }
@@ -681,22 +675,6 @@ namespace AccessibleArena.Core.Services
                     Log($"  EventTrigger: {trigger.gameObject.name} - Text: {text}");
                 }
             }
-        }
-
-        private string GetGameObjectPath(GameObject obj)
-        {
-            string path = obj.name;
-            Transform parent = obj.transform.parent;
-            int depth = 0;
-
-            while (parent != null && depth < MAX_HIERARCHY_DEPTH)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-                depth++;
-            }
-
-            return path;
         }
 
         #endregion

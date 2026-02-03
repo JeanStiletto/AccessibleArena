@@ -125,12 +125,6 @@ namespace AccessibleArena.Core.Services
             return (DateTime.Now - _lastSpellResolvedTime).TotalMilliseconds < withinMs;
         }
 
-        // DEPRECATED: SetTargetNavigator was used to connect announcer to targeting system
-        // public void SetTargetNavigator(TargetNavigator navigator)
-        // {
-        //     _targetNavigator = navigator;
-        // }
-
         public void SetZoneNavigator(ZoneNavigator navigator)
         {
             _zoneNavigator = navigator;
@@ -2151,6 +2145,13 @@ namespace AccessibleArena.Core.Services
             {
                 var typeName = uxEvent.GetType().Name;
 
+                // DIAGNOSTIC: Log button state when mana is produced (ability activation mode)
+                if (typeName == "ManaProducedUXEvent")
+                {
+                    MelonLogger.Msg($"[DuelAnnouncer] === MANA PRODUCED - Logging button state ===");
+                    LogAllPromptButtons();
+                }
+
                 // Only process UpdateManaPoolUXEvent for announcements
                 if (typeName == "UpdateManaPoolUXEvent")
                 {
@@ -2170,6 +2171,92 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Warning($"[DuelAnnouncer] Error handling mana event: {ex.Message}");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC: Logs all current prompt buttons and their text.
+        /// Called during mana payment mode to understand button state.
+        /// </summary>
+        public static void LogAllPromptButtons()
+        {
+            try
+            {
+                MelonLogger.Msg("[DuelAnnouncer] === PROMPT BUTTON DIAGNOSTIC ===");
+
+                // Find all prompt buttons
+                var allObjects = UnityEngine.GameObject.FindObjectsOfType<UnityEngine.GameObject>();
+                int buttonCount = 0;
+
+                foreach (var go in allObjects)
+                {
+                    if (go == null || !go.activeInHierarchy) continue;
+
+                    // Check for PromptButton objects
+                    if (go.name.Contains("PromptButton") || go.name.Contains("ButtonsLayout"))
+                    {
+                        string buttonText = UITextExtractor.GetText(go);
+                        var button = go.GetComponent<UnityEngine.UI.Button>();
+                        var selectable = go.GetComponent<UnityEngine.UI.Selectable>();
+
+                        bool isInteractable = (button?.interactable ?? false) || (selectable?.interactable ?? false);
+
+                        MelonLogger.Msg($"[DuelAnnouncer] Button: {go.name}");
+                        MelonLogger.Msg($"[DuelAnnouncer]   Text: '{buttonText}'");
+                        MelonLogger.Msg($"[DuelAnnouncer]   Interactable: {isInteractable}");
+                        MelonLogger.Msg($"[DuelAnnouncer]   Path: {MenuDebugHelper.GetGameObjectPath(go)}");
+
+                        // Check for callbacks
+                        if (button != null)
+                        {
+                            var onClick = button.onClick;
+                            int listenerCount = onClick?.GetPersistentEventCount() ?? 0;
+                            MelonLogger.Msg($"[DuelAnnouncer]   OnClick listeners: {listenerCount}");
+                        }
+
+                        buttonCount++;
+                    }
+                }
+
+                // Also check for any active workflow buttons
+                foreach (var go in allObjects)
+                {
+                    if (go == null || !go.activeInHierarchy) continue;
+
+                    // Check for workflow-related UI
+                    if (go.name.Contains("AutoTap") || go.name.Contains("ManaPayment") ||
+                        go.name.Contains("Workflow") || go.name.Contains("ActionButton"))
+                    {
+                        string text = UITextExtractor.GetText(go);
+                        MelonLogger.Msg($"[DuelAnnouncer] Workflow UI: {go.name} - '{text}'");
+                    }
+                }
+
+                // Check for any HotHighlight on lands
+                int highlightedLands = 0;
+                foreach (var go in allObjects)
+                {
+                    if (go == null || !go.activeInHierarchy) continue;
+
+                    if (CardDetector.IsCard(go) && CardDetector.HasHotHighlight(go))
+                    {
+                        var (_, isLand, _) = CardDetector.GetCardCategory(go);
+                        if (isLand)
+                        {
+                            highlightedLands++;
+                            string cardName = CardDetector.GetCardName(go);
+                            MelonLogger.Msg($"[DuelAnnouncer] Highlighted land: {cardName}");
+                        }
+                    }
+                }
+
+                MelonLogger.Msg($"[DuelAnnouncer] Total prompt buttons found: {buttonCount}");
+                MelonLogger.Msg($"[DuelAnnouncer] Total highlighted lands: {highlightedLands}");
+                MelonLogger.Msg("[DuelAnnouncer] === END PROMPT BUTTON DIAGNOSTIC ===");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error logging buttons: {ex.Message}");
             }
         }
 

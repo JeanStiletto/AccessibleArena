@@ -711,7 +711,7 @@ namespace AccessibleArena.Core.Services
                     if (name.Contains(pattern))
                     {
                         MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Found '{pattern}' object: {name}");
-                        MelonLogger.Msg($"[{NavigatorId}] [LifeUI]   Path: {GetGameObjectPath(go)}");
+                        MelonLogger.Msg($"[{NavigatorId}] [LifeUI]   Path: {MenuDebugHelper.GetGameObjectPath(go)}");
                         LogFullHierarchy(go, 3, "    ");
 
                         // Check for text components
@@ -734,7 +734,7 @@ namespace AccessibleArena.Core.Services
                 string text = tmp.text?.Trim() ?? "";
                 if (int.TryParse(text, out int num) && num >= 0 && num <= 99)
                 {
-                    string path = GetGameObjectPath(tmp.gameObject);
+                    string path = MenuDebugHelper.GetGameObjectPath(tmp.gameObject);
                     MelonLogger.Msg($"[{NavigatorId}] [LifeUI] Numeric TMP: '{tmp.gameObject.name}' = {num} (path: {path})");
                 }
             }
@@ -762,21 +762,6 @@ namespace AccessibleArena.Core.Services
                     }
                 }
             }
-        }
-
-        private string GetGameObjectPath(GameObject go)
-        {
-            string path = go.name;
-            Transform parent = go.transform.parent;
-            int depth = 0;
-            while (parent != null && depth < 5)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-                depth++;
-            }
-            if (parent != null) path = ".../" + path;
-            return path;
         }
 
         private void LogFullHierarchy(GameObject obj, int maxDepth, string baseIndent, int currentDepth = 0)

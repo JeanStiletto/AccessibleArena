@@ -210,17 +210,6 @@ namespace AccessibleArena.Core.Services
             _announcer = announcer;
         }
 
-        // DEPRECATED: SetTargetNavigator was used to enter targeting after card plays
-        // public void SetTargetNavigator(TargetNavigator navigator)
-        // {
-        //     _targetNavigator = navigator;
-        // }
-
-        /// <summary>
-        /// Sets the DiscardNavigator reference for selection state announcements.
-        /// </summary>
-        // DEPRECATED: public void SetDiscardNavigator(DiscardNavigator navigator) { _discardNavigator = navigator; }
-
         /// <summary>
         /// Sets the CombatNavigator reference for attacker state announcements.
         /// </summary>

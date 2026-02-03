@@ -1,0 +1,2184 @@
+﻿MTGA Mail System Analysis
+Generated: 02/03/2026 12:11:06
+============================================================
+
+ASSEMBLY: Core.dll
+Matched types: 99
+----------------------------------------
+
+CLASS: AssetLookupTree.Evaluators.Request.Request_OptionalActionRequest_OptionalMessageNumeral
+  Base: AssetLookupTree.Evaluators.EvaluatorBase_Int
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Boolean ExpectedResult
+    [public] Int32 MinExpectedResult
+    [public] Int32 MaxExpectedResult
+    [public] IntOperationType Operation
+
+  METHODS:
+    [public] Boolean Execute(IBlackboard bb)
+
+============================================================
+
+CLASS: AssetLookupTree.Payloads.Event.VersusLetterboxPayload
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Color Color
+
+  METHODS:
+    [public] IEnumerable`1 GetFilePaths()
+
+============================================================
+
+CLASS: AssetLookupTree.Payloads.Event.VersusLetterboxPayload+<GetFilePaths>d__1
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [private] Int32 <>1__state
+    [private] String <>2__current
+    [private] Int32 <>l__initialThreadId
+
+  PROPERTIES:
+    String System.Collections.Generic.IEnumerator<System.String>.Current { get;  }
+    Object System.Collections.IEnumerator.Current { get;  }
+
+  METHODS:
+    [private] Void System.IDisposable.Dispose()
+    [private] Boolean MoveNext()
+    [private] Void System.Collections.IEnumerator.Reset()
+    [private] IEnumerator`1 System.Collections.Generic.IEnumerable<System.String>.GetEnumerator()
+    [private] IEnumerator System.Collections.IEnumerable.GetEnumerator()
+
+============================================================
+
+CLASS: AssetLookupTree.Payloads.Mailbox.LetterDisplayEventBGPayload
+  Base: AssetLookupTree.Payloads.SpritePayload
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] AltAssetReference`1 Reference
+
+============================================================
+
+CLASS: AssetLookupTree.Payloads.OptionalMessageNumeralProvider
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] String GetKey()
+    [public] Boolean TryGetValue(IBlackboard filledBB, String& paramValue)
+
+============================================================
+
+CLASS: AssetLookupTree.Payloads.Prefab.PlayerInboxContentControllerPrefab
+  Base: AssetLookupTree.Payloads.Prefab.PrefabPayload`1[[Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox, Core, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] AltAssetReference`1 Prefab
+
+  PROPERTIES:
+    String PrefabPath { get;  }
+
+============================================================
+
+CLASS: AssetLookupTree.Payloads.Prefab.SystemMessageViewPrefab
+  Base: AssetLookupTree.Payloads.Prefab.PrefabPayload`1[[UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] AltAssetReference`1 Prefab
+
+  PROPERTIES:
+    String PrefabPath { get;  }
+
+============================================================
+
+CLASS: Assets.Core.Code.AssetLookupTree.AssetLookup.Extractors.Mailbox.Mailbox_BannerArtId
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] Boolean Execute(IBlackboard bb, String& value)
+
+============================================================
+
+CLASS: ClientMessageLogger
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] static Int32 MaxDetailsPropertyLength
+    [private] static String _environmentID
+    [private] static String _supplementalInstallID
+    [public] static  Logger
+    [private] static String ProdIdentifier
+    [private] static String TestIdentifier
+    [private] static String DevIdentifier
+
+  PROPERTIES:
+    String PersonaId { get;  }
+
+  METHODS:
+    [public] static Void SetEnvironmentID(String identifier)
+============================================================
+
+CLASS: ClientMessageLogger+<Send>d__18
+  Base: System.ValueType
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 <>1__state
+    [public] AsyncVoidMethodBuilder <>t__builder
+    [public] String clientID
+    [public] String environmentID
+    [public] String logLevel
+    [public] String messageType
+    [public] String region
+    [public] String clientPlatform
+    [public]  details
+    [private] HttpWebRequest <request>5__2
+    [private] Byte[] <rawPayload>5__3
+    [private] Int32 <numBytesToWrite>5__4
+    [private] TaskAwaiter`1 <>u__1
+    [private] TaskAwaiter`1 <>u__2
+
+  METHODS:
+    [private] Void MoveNext()
+    [private] Void SetStateMachine(IAsyncStateMachine stateMachine)
+
+============================================================
+
+CLASS: ClientMessageLogger+FileCheckMode
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static FileCheckMode Safe
+    [public] static FileCheckMode Normal
+
+============================================================
+
+CLASS: ClientMessageLogger+GameEntryType
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static GameEntryType Full
+    [public] static GameEntryType NPE
+    [public] static GameEntryType Autoplay
+
+============================================================
+
+CLASS: ClientMessageLogger+LoginStyleType
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static LoginStyleType Automatic
+    [public] static LoginStyleType LoginPage
+
+============================================================
+
+CLASS: ClientMessageLogger+LogLevel
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static LogLevel Info
+    [public] static LogLevel Error
+
+============================================================
+
+CLASS: ClientMessageLogger+MessageType
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static MessageType ClientStartup
+    [public] static MessageType LoginFailure
+    [public] static MessageType EndpointHashDownloadStart
+    [public] static MessageType EndpointHashDownloadFailure
+    [public] static MessageType EndpointHashDownloadEnd
+    [public] static MessageType AssetBundleManifestDownloadStart
+    [public] static MessageType AssetBundleManifestDownloadFailure
+    [public] static MessageType AssetBundleManifestParseFailure
+    [public] static MessageType AssetBundleManifestDownloadEnd
+    [public] static MessageType AssetBundleDownloadsStart
+    [public] static MessageType AssetBundleDownloadError
+    [public] static MessageType AssetBundleDownloadFailure
+    [public] static MessageType AssetBundleDownloadsEnd
+    [public] static MessageType AssetBundleDownloadPrompt
+    [public] static MessageType FileCleanupCheckStart
+    [public] static MessageType FileCleanupCheckError
+    [public] static MessageType FileCleanupCheckEnd
+    [public] static MessageType PreparingAssetsStart
+    [public] static MessageType PreparingAssetsStep
+    [public] static MessageType PreparingAssetsEnd
+    [public] static MessageType RegistrationBI
+    [public] static MessageType LoginBI
+    [public] static MessageType LoginStyle
+    [public] static MessageType ProdUriDownloadStart
+    [public] static MessageType ProdUriDownloadFail
+    [public] static MessageType ProdUriDownloadSuccess
+    [public] static MessageType ProdUriDownloadError
+    [public] static MessageType ProdUriDetermined
+    [public] static MessageType ProdUriError
+    [public] static MessageType DiskSpaceCheckFailed
+    [public] static MessageType DownloadPing
+    [public] static MessageType AssetBundleDownloadsSectionStart
+    [public] static MessageType FrontDoorConnectionError
+    [public] static MessageType LogoutSuccess
+    [public] static MessageType LogoutFail
+    [public] static MessageType EnteringGame
+    [public] static MessageType WaitingForAssets
+    [public] static MessageType RejoiningActiveMatch
+    [public] static MessageType ClientClosed
+    [public] static MessageType AssetDecryptionStart
+    [public] static MessageType AssetDecryptionEnd
+    [public] static MessageType AssetDecryptionFailure
+    [public] static MessageType AssetDecryptionError
+    [public] static MessageType AssetManifestSerializationError
+    [public] static MessageType WrapperSceneLoadedForFirstTime
+    [public] static MessageType EmbeddedBundlesExtractStart
+    [public] static MessageType EmbeddedBundlesExtractError
+    [public] static MessageType EmbeddedBundlesExtractEnd
+    [public] static MessageType Legacy
+
+============================================================
+
+CLASS: ClientMessageLogger+SourceType
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static SourceType Installer
+    [public] static SourceType Client
+
+============================================================
+
+CLASS: Core.Code.Harnesses.OfflineHarnessServices.HarnessPlayerInboxServiceWrapper
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] GetPlayerInboxResp _mockInbox
+    [private] String _mockLetter
+    [private] String _mockLetterWithAttachement
+    [private] static String MOCK_LETTER_PREFIX
+
+  METHODS:
+    [public] Promise`1 GetPlayerInbox()
+    [public] Promise`1 MarkLetterRead(Guid letterId)
+    [public] Promise`1 ClaimLetterAttachment(Guid letterId)
+    [public] Void AddLetterFromJson(String letterJson, Boolean asMock)
+    [public] Void ClearInbox()
+    [public] Void ResetInbox()
+    [private] Letter LetterFromJson(String letterJson, Boolean newId, Boolean asMock)
+    [private] GetPlayerInboxResp GenerateMockPlayerLetters()
+
+============================================================
+
+CLASS: Core.Code.PlayerInbox.EmptyInboxListItem
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] Localize text
+    [private] PlayerInboxDataProvider _inboxDataProvider
+    [private] Boolean _cachedInError
+
+  PROPERTIES:
+    PlayerInboxDataProvider InboxDataProvider { get;  }
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [private] Void Start()
+    [private] Void OnDestroy()
+    [private] Void LetterChanges(LetterDataChange changeType, List`1 letter)
+
+============================================================
+
+CLASS: Core.Code.PlayerInbox.PlayerInboxDataProvider
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] IPlayerInboxServiceWrapper _playerInboxServiceWrapper
+    [private] List`1 _letters
+    [private] DateTime _nextLetterUpdate
+    [private] Action`2 _onLetterDataChanged
+    [private] Boolean _enabled
+    [private] static Int32 LETTER_CACHE_SECONDS
+
+  PROPERTIES:
+    List`1 Letters { get;  }
+
+  METHODS:
+    [public] static PlayerInboxDataProvider Create()
+    [public] Promise`1 Initialize(Boolean enabled)
+    [public] Promise`1 GetPlayerInbox(Boolean forceServiceRequest)
+    [public] Promise`1 MarkLetterRead(Guid letterId)
+    [public] Promise`1 ClaimLetterAttachment(Guid letterId)
+    [private] Void SetLetters(List`1 letters)
+    [private] Void SetLetter(Client_Letter updatedLetter)
+    [public] Void AddLetters(List`1 newLetters)
+    [public] Void RegisterForLetterChanges(Action`2 handler)
+    [public] Void UnRegisterForLetterChanges(Action`2 handler)
+    [public] Void BroadcastLetterDataChange(LetterDataChange changeType, List`1 letters)
+    [public] Void Dispose()
+    [private] List`1 <GetPlayerInbox>b__12_0(GetPlayerInboxResp resp)
+    [private] Void <GetPlayerInbox>b__12_1()
+    [private] Client_Letter <MarkLetterRead>b__13_0(MarkLetterReadResp resp)
+    [private] Client_LetterAttachmentClaimed <ClaimLetterAttachment>b__14_0(ClaimAttachmentResp resp)
+
+============================================================
+
+CLASS: Core.Code.PlayerInbox.PlayerInboxDataProvider+<>c__DisplayClass17_0
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Client_Letter letter
+
+  METHODS:
+    [protected] Boolean <AddLetters>b__0(Client_Letter l)
+
+============================================================
+
+CLASS: Core.Code.PlayerInbox.PlayerInboxDataProvider+LetterDataChange
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static LetterDataChange Error
+    [public] static LetterDataChange Partial
+    [public] static LetterDataChange All
+
+============================================================
+
+CLASS: Core.Code.Utils.ObfuscatedEmailHasher
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] static Byte[] Hash(String email)
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.Notifications.PopupNotifications.SystemMessageNotification
+  Base: Core.Meta.MainNavigation.Notifications.PopupNotifications.PopupNotificationBase
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] String <TitleLocKey>k__BackingField
+    [private] String <MessageLocKey>k__BackingField
+
+  PROPERTIES:
+    String TitleLocKey { get; set; }
+    String MessageLocKey { get; set; }
+    PopupNotificationType Type { get;  }
+
+  METHODS:
+    [public] IEnumerator ShowCoroutine()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.Notifications.PopupNotifications.SystemMessageNotification+<>c__DisplayClass10_0
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Boolean popupDismissed
+
+  METHODS:
+    [protected] Void <ShowCoroutine>b__0()
+    [protected] Boolean <ShowCoroutine>b__1()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.Notifications.PopupNotifications.SystemMessageNotification+<ShowCoroutine>d__10
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [private] Int32 <>1__state
+    [private] Object <>2__current
+    [public] SystemMessageNotification <>4__this
+
+  PROPERTIES:
+    Object System.Collections.Generic.IEnumerator<System.Object>.Current { get;  }
+    Object System.Collections.IEnumerator.Current { get;  }
+
+  METHODS:
+    [private] Void System.IDisposable.Dispose()
+    [private] Boolean MoveNext()
+    [private] Void System.Collections.IEnumerator.Reset()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.Store.ContentControllerRewards+<AddInventoryUpdateMessageCoroutine>d__116
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [private] Int32 <>1__state
+    [private] Object <>2__current
+    [public] ContentControllerRewards <>4__this
+    [public] Boolean fromEndOfSeasonRewards
+    [public] ClientInventoryUpdateReportItem updateMessage
+
+  PROPERTIES:
+    Object System.Collections.Generic.IEnumerator<System.Object>.Current { get;  }
+    Object System.Collections.IEnumerator.Current { get;  }
+
+  METHODS:
+    [private] Void System.IDisposable.Dispose()
+    [private] Boolean MoveNext()
+    [private] Void System.Collections.IEnumerator.Reset()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.SystemMessage.ISystemMessageManager
+  IsInterface: True
+  Public: True
+
+  METHODS:
+    [public] Void SetFDConnectionWrapper(IFrontDoorConnectionServiceWrapper fdc)
+    [public] SystemMessageHandle ShowOkCancel(String title, String text, Action onOk, Action onCancel, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowOk(String title, String text, Action onOk, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, List`1 buttons, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String button2Text, Action button2Action, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String button2Text, Action button2Action, String button3Text, Action button3Action, String details, SystemMessagePriority priority)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, String button1AlertText, Boolean button1Disabled, Action button1Action, String button2Text, String button2AlertText, Boolean button2Disabled, Action button2Action, String button3Text, String button3AlertText, Boolean button3Disabled, Action button3Action, String details, SystemMessagePriority priority)
+    [public] Void Close(SystemMessageHandle msg)
+    [public] Void ClearMessageQueue()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.SystemMessage.MockSystemMessageManager
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] Void SetFDConnectionWrapper(IFrontDoorConnectionServiceWrapper fdc)
+    [public] SystemMessageHandle ShowOkCancel(String title, String text, Action onOk, Action onCancel, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowOk(String title, String text, Action onOk, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, List`1 buttons, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String button2Text, Action button2Action, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String button2Text, Action button2Action, String button3Text, Action button3Action, String details, SystemMessagePriority priority)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, String button1AlertText, Boolean button1Disabled, Action button1Action, String button2Text, String button2AlertText, Boolean button2Disabled, Action button2Action, String button3Text, String button3AlertText, Boolean button3Disabled, Action button3Action, String details, SystemMessagePriority priority)
+    [public] Void Close(SystemMessageHandle msg)
+    [public] Void ClearMessageQueue()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.SystemMessage.SystemMessageFactory
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] static ISystemMessageManager Create()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.SystemMessageDataProvider
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] Boolean <Initialized>k__BackingField
+    [private] ISystemMessageServiceWrapper _wrapper
+    [private] MOTDSession _motdSession
+    [private] Boolean _oncePerSession
+    [private] MessageOfTheDay _messageOfTheDay
+    [private] Boolean _isLoadingMotD
+
+  PROPERTIES:
+    Boolean Initialized { get; set; }
+    MessageOfTheDay MessageOfTheDay { get; set; }
+
+  METHODS:
+    [public] static SystemMessageDataProvider Create()
+    [private] IEnumerator UpdateSystemMessageData(MOTDSession session, Boolean oncePerSession)
+    [private] Void <UpdateSystemMessageData>b__14_0(List`1 messages)
+    [private] Boolean <UpdateSystemMessageData>b__14_1()
+
+============================================================
+
+CLASS: Core.Meta.MainNavigation.SystemMessageDataProvider+<UpdateSystemMessageData>d__14
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [private] Int32 <>1__state
+    [private] Object <>2__current
+    [public] SystemMessageDataProvider <>4__this
+    [public] MOTDSession session
+    [public] Boolean oncePerSession
+
+  PROPERTIES:
+    Object System.Collections.Generic.IEnumerator<System.Object>.Current { get;  }
+    Object System.Collections.IEnumerator.Current { get;  }
+
+  METHODS:
+    [private] Void System.IDisposable.Dispose()
+    [private] Boolean MoveNext()
+    [private] Void System.Collections.IEnumerator.Reset()
+
+============================================================
+
+CLASS: Core.Shared.Code.Network.IPlayerInboxServiceWrapper
+  IsInterface: True
+  Public: True
+
+  METHODS:
+    [public] Promise`1 GetPlayerInbox()
+    [public] Promise`1 MarkLetterRead(Guid letterId)
+    [public] Promise`1 ClaimLetterAttachment(Guid letterId)
+
+============================================================
+
+CLASS: Core.Shared.Code.Network.PlayerInboxServiceWrapper
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] IFrontDoorConnection _fdc
+    [private] IInventoryServiceWrapper _inventoryServiceWrapper
+
+  METHODS:
+    [public] Promise`1 GetPlayerInbox()
+    [public] Promise`1 MarkLetterRead(Guid letterId)
+    [public] Promise`1 ClaimLetterAttachment(Guid letterId)
+    [private] Void <ClaimLetterAttachment>b__5_0(Promise`1 p)
+
+============================================================
+
+CLASS: Core.Shared.Code.Network.PlayerInboxServiceWrapper+<>c
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] static <>c <>9
+    [public] static Action`1 <>9__3_0
+    [public] static Action`1 <>9__4_0
+
+  METHODS:
+    [protected] Void <GetPlayerInbox>b__3_0(Promise`1 p)
+    [protected] Void <MarkLetterRead>b__4_0(Promise`1 p)
+
+============================================================
+
+CLASS: Core.Shared.Code.WrapperFactories.PlayerInboxServiceWrapperFactory
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] static IPlayerInboxServiceWrapper Create()
+    [public] static Boolean AllowPlayerInboxMockService()
+
+============================================================
+
+CLASS: Core.Shared.Code.WrapperFactories.SystemMessageServiceWrapperFactory
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] static ISystemMessageServiceWrapper Create()
+
+============================================================
+
+CLASS: EmptyInboxController
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] CyclingTipsView _cyclingTipsView
+    [private] Button _leftButton
+    [private] Button _rightButton
+    [private] TMP_Text _infoLabel
+    [private] TMP_InputField _tipNumberInput
+
+  PROPERTIES:
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [private] Void Awake()
+    [private] Void OnSubmitTipNumber(String inputTest)
+    [private] Void OnDestroy()
+    [private] Void OnEnable()
+    [private] Void OnLeftClicked()
+    [private] Void OnRightClicked()
+    [private] Void RefreshLabel()
+
+============================================================
+
+CLASS: Epic.OnlineServices.Logging.LoggingInterface+LogMessageFuncInternal
+  Base: System.MulticastDelegate
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [protected] Object _target
+    [protected] Object _methodBase
+    [protected] IntPtr _methodPtr
+    [protected] IntPtr _methodPtrAux
+
+  PROPERTIES:
+    MethodInfo Method { get;  }
+    Object Target { get;  }
+
+  METHODS:
+    [public] Void Invoke(IntPtr messagePtr)
+    [public] IAsyncResult BeginInvoke(IntPtr messagePtr, AsyncCallback callback, Object object)
+    [public] Void EndInvoke(IAsyncResult result)
+
+============================================================
+
+CLASS: Epic.OnlineServices.Logging.LogMessage
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] String <Category>k__BackingField
+    [private] String <Message>k__BackingField
+    [private] LogLevel <Level>k__BackingField
+
+  PROPERTIES:
+    String Category { get; set; }
+    String Message { get; set; }
+    LogLevel Level { get; set; }
+
+============================================================
+
+CLASS: Epic.OnlineServices.Logging.LogMessage_
+  Base: System.ValueType
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [private] String m_Category
+    [private] String m_Message
+    [private] LogLevel m_Level
+
+  PROPERTIES:
+    String Category { get;  }
+    String Message { get;  }
+    LogLevel Level { get;  }
+
+  METHODS:
+    [public] Void Dispose()
+
+============================================================
+
+CLASS: Epic.OnlineServices.Logging.LogMessageFunc
+  Base: System.MulticastDelegate
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [protected] Object _target
+    [protected] Object _methodBase
+    [protected] IntPtr _methodPtr
+    [protected] IntPtr _methodPtrAux
+
+  PROPERTIES:
+    MethodInfo Method { get;  }
+    Object Target { get;  }
+
+  METHODS:
+    [public] Void Invoke(LogMessage message)
+    [public] IAsyncResult BeginInvoke(LogMessage message, AsyncCallback callback, Object object)
+    [public] Void EndInvoke(IAsyncResult result)
+
+============================================================
+
+CLASS: FDMessagesDebugGUI
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [private] String _payloadJson
+    [private] static GUIStyle _textInputStyleCache
+
+  PROPERTIES:
+    GUIStyle TextInputStyle { get;  }
+
+  METHODS:
+    [public] Void DoOnGUI()
+
+============================================================
+
+CLASS: GREWatcherGUI+GREWatcherMessage
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] GreHistoryEntry HistoryEntry
+    [public] GREToClientMessage ToClient
+    [public] ClientToGREMessage ToGRE
+    [public] String RawText
+    [public] String FullText
+    [public] UInt32 MsgId
+    [public] String TypeString
+    [public] Boolean Expanded
+    [public] String CustomText
+
+  PROPERTIES:
+    MessageDirection Direction { get;  }
+
+============================================================
+
+CLASS: InspectorMessageWithStringHighlightAttribute
+  Base: UnityEngine.PropertyAttribute
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] String varNameToHighlight
+    [public] String textToDisplayLeft
+    [public] String textToDisplayRight
+    [public] String defaultStateString
+    [public] String colorHTMLString
+    [public] Color color
+
+  PROPERTIES:
+    Int32 order { get; set; }
+    Object TypeId { get;  }
+
+============================================================
+
+CLASS: MessageTile
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] Action`1 NotificationClicked
+    [private] Action`1 AcceptClicked
+    [private] Action`1 Disabled
+    [private] SocialMessage <Message>k__BackingField
+    [private] Localize _title
+    [private] Localize _body
+    [private] CustomButton _acceptChallengeButton
+    [private] CustomButton _acceptInviteButton
+    [private] CustomButton _acceptTournamentButton
+    [private] Animator _animator
+    [private] Boolean _asNotification
+    [private] static Int32 ChatWindowModeHash
+    [private] static Int32 ReadHash
+    [private] static Int32 FriendOfflineHash
+    [private] static Int32 ChallengeHash
+    [private] static Int32 OutroHash
+
+  PROPERTIES:
+    SocialMessage Message { get; set; }
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [private] Void Awake()
+    [private] Void OnDisable()
+    [public] Void Init(SocialMessage message, Boolean asNotification)
+    [public] Void UpdateNotification()
+    [public] Boolean IsNotificationTile()
+    [public] Boolean IsChatTile()
+    [public] Void Cleanup()
+    [public] Void OnPointerClick(PointerEventData eventData)
+    [public] Void Unity_OnAcceptClick()
+
+  EVENTS:
+    Action`1 NotificationClicked
+    Action`1 AcceptClicked
+    Action`1 Disabled
+
+============================================================
+
+CLASS: MTGA.Social.ChallengeCancelledMessage
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] String ChallengeCancelInitiator
+
+============================================================
+
+CLASS: MTGA.Social.ChallengeMessage
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] String Version
+    [public] String Method
+    [public] Object Params
+    [public] static String OutgoingVersion
+
+============================================================
+
+CLASS: MTGA.Social.ChallengeResponseMessage
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] ChallengeState ChallengeState
+
+============================================================
+
+CLASS: MTGA.Social.DirectMessage
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] String SenderDisplayName
+    [public] String SenderPlayerId
+    [public] String Message
+
+============================================================
+
+CLASS: MTGA.Social.MessageSeen
+  Base: System.Enum
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static MessageSeen Unseen
+    [public] static MessageSeen Notification
+    [public] static MessageSeen InChat
+
+============================================================
+
+CLASS: MTGA.Social.MessageType
+  Base: System.Enum
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static MessageType Invite
+    [public] static MessageType Challenge
+    [public] static MessageType Chat
+    [public] static MessageType LobbyInvite
+    [public] static MessageType LobbyChat
+    [public] static MessageType TournamentIsReady
+    [public] static MessageType TournamentRoundIsReady
+
+============================================================
+
+CLASS: MTGA.Social.SocialMessage
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] MessageType Type
+    [public] MTGALocalizedString TextTitle
+    [public] MTGALocalizedString TextBody
+    [public] SocialEntity Friend
+    [public] Direction Direction
+    [public] Client_Lobby Lobby
+    [public] Boolean Canceled
+    [public] MessageSeen Seen
+
+============================================================
+
+CLASS: MTGA.Social.SocialMessage+<>c__DisplayClass11_0
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] LobbyMessage lobbyMessage
+
+  METHODS:
+    [protected] Boolean <.ctor>b__0(LobbyPlayer p)
+
+============================================================
+
+CLASS: NavBarMailController
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] CustomButton MailButton
+    [private] Animator MailAnimator
+    [private] PlayerInboxDataProvider _playerInboxDataProvider
+    [private] ClientFeatureToggleDataProvider _featureToggleDataProvider
+    [private] InventoryManager _inventoryManager
+    [public] TMP_Text UnreadMailCount
+    [public] GameObject iconContainer
+    [private] static Int32 Unread
+
+  PROPERTIES:
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [private] Void Awake()
+    [private] Void OnEnable()
+    [private] Void LetterRefreshListener(LetterDataChange _, List`1 letters)
+    [private] Void AttemptFeatureToggleLookup()
+    [private] Void SetMailButtonAnimatorState(List`1 clientLetters)
+    [private] Void HandleNewLetters(ClientInventoryUpdateReportItem updateReportItem)
+    [public] Void RefreshLetterCount()
+    [private] Void OnDestroy()
+    [private] Void <LetterRefreshListener>b__10_0()
+    [private] Void <RefreshLetterCount>b__14_0()
+
+============================================================
+
+CLASS: NavBarMailController+<>c
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] static <>c <>9
+    [public] static Func`2 <>9__12_0
+
+  METHODS:
+    [protected] Boolean <SetMailButtonAnimatorState>b__12_0(Client_Letter l)
+
+============================================================
+
+CLASS: OptionalActionMessageRequestNPEStrategyHandler
+  Base: GreClient.Rules.BaseUserRequestHandler`1[[GreClient.Rules.OptionalActionMessageRequest, SharedClientCore, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [protected] OptionalActionMessageRequest _request
+
+  METHODS:
+    [public] Void HandleRequest()
+
+============================================================
+
+CLASS: OptionalActionMessageWorkflow_Commander
+  Base: Wotc.Mtga.DuelScene.Interactions.WorkflowBase`1[[GreClient.Rules.OptionalActionMessageRequest, SharedClientCore, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [protected] OptionalActionMessageRequest _request
+    [protected] Prompt _prompt
+    [protected] IHighlightsGenerator _highlightsGenerator
+    [protected] WorkflowPrompt _workflowPrompt
+
+  PROPERTIES:
+    BaseUserRequest BaseRequest { get;  }
+    Prompt Prompt { get;  }
+    RequestType Type { get;  }
+    UInt32 SourceId { get;  }
+    InteractionAppliedState AppliedState { get;  }
+    Highlights Highlights { get;  }
+    Arrows Arrows { get; set; }
+    Dimming Dimming { get; set; }
+    Buttons Buttons { get; set; }
+
+  METHODS:
+    [protected] Void ApplyInteractionInternal()
+    [protected] Void SetButtons()
+    [protected] static String <SetButtons>g__getZoneText|2_0(ZoneType zoneType)
+
+  EVENTS:
+    Action`1 UpdateHighlights
+    Action`1 UpdateArrows
+    Action`1 UpdateDimming
+    Action`1 UpdateButtons
+    Action`1 UpdatePrompt
+
+============================================================
+
+CLASS: OptionalActionMessageWorkflow_Commander+<>c__DisplayClass2_0
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] OptionalActionMessageWorkflow_Commander <>4__this
+    [public] OptionResponse primaryBtnResponse
+    [public] OptionResponse secondaryBtnResponse
+
+  METHODS:
+    [protected] Void <SetButtons>b__1()
+    [protected] Void <SetButtons>b__2()
+    [protected] Void <SetButtons>b__3()
+
+============================================================
+
+CLASS: PlayerInboxPageGUI
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] DebugInfoIMGUIOnGui _GUI
+    [private] String _letterId
+    [private] String _letterString
+    [private] String _mockLetterToAdd
+    [private] Boolean _mockEnabledAtInit
+    [private] Boolean _addMockDataToLetters
+    [private] Boolean _allowMockPlayerInboxService
+    [private] Boolean _checkedForMockPlayerInboxServiceAllowed
+    [private] Boolean _playerInboxFeatureToggle
+    [private] static GUIStyle _textInputStyleCache
+    [private] static GUIStyle _guiStyleWordWrapWhite
+
+  PROPERTIES:
+    DebugTab TabType { get;  }
+    String TabName { get;  }
+    Boolean HiddenInTab { get;  }
+    GUIStyle _textInputStyle { get;  }
+
+  METHODS:
+    [public] Void Init(DebugInfoIMGUIOnGui gui)
+    [public] Void Destroy()
+    [public] Void OnQuit()
+    [public] Boolean OnUpdate()
+    [public] Void OnGUI()
+    [private] Void UpdateLetterString(List`1 letters)
+    [private] Void DisplayClaimedRewards(List`1 changes)
+    [private] Void <OnGUI>b__23_0(Promise`1 promise)
+    [private] Void <OnGUI>b__23_1(Promise`1 promise)
+    [private] Void <OnGUI>b__23_2(Promise`1 promise)
+
+============================================================
+
+CLASS: SimpleMessageView
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Text title
+    [public] Text message
+    [public] Text buttonText
+    [public] List`1 titleLoc
+    [public] List`1 messageLoc
+    [public] List`1 butoonLoc
+
+  PROPERTIES:
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [private] Void Awake()
+
+============================================================
+
+CLASS: SimpleMessageView+<>c
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] static <>c <>9
+    [public] static Predicate`1 <>9__7_0
+
+  METHODS:
+    [protected] Boolean <Awake>b__7_0(LocEntry x)
+
+============================================================
+
+CLASS: SimpleMessageView+<>c__DisplayClass7_0
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] String lang
+
+  METHODS:
+    [protected] Boolean <Awake>b__1(LocEntry x)
+    [protected] Boolean <Awake>b__2(LocEntry x)
+    [protected] Boolean <Awake>b__3(LocEntry x)
+
+============================================================
+
+CLASS: SimpleMessageView+LocEntry
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] String Key
+    [public] String Value
+
+============================================================
+
+CLASS: SocialMessagesView
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] Transform _messageContainer
+    [private] MessageTile _prefabMessageIncoming
+    [private] MessageTile _prefabMessageOutgoing
+    [private] Dictionary`2 _tilesByMessage
+    [private] SocialUI _socialUI
+    [private] ISocialManager _socialManager
+    [private] PVPChallengeController _challengeController
+    [private] Boolean _initialized
+    [private] Dictionary`2 _activeMessages
+    [private]  _inactiveMessagesIncoming
+    [private]  _inactiveMessagesOutgoing
+
+  PROPERTIES:
+    ChatManager _chatManager { get;  }
+    Boolean Initialized { get;  }
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [public] Void Init(SocialUI socialUI, ISocialManager socialManager, PVPChallengeController challengeController, List`1 pendingMessages)
+    [private] Void OnDestroy()
+    [private] Void ConversationSelected(Conversation prevConversation, Conversation currentConversation)
+    [private] Void FriendPresenceChanged(SocialEntity friend)
+    [private] Void MessageAdded(SocialMessage message, Conversation conversation)
+    [private] Void NotificationAlert(SocialMessage notification)
+    [private] Void AcceptClick(SocialMessage notification)
+    [private] Void NotificationUpdate(SocialMessage notification)
+    [private] Void NotificationCancel(SocialMessage notification)
+    [private] MessageTile AddMessageTile(SocialMessage message)
+    [private] Void RemoveMessage(SocialMessage message)
+    [private] Void RemoveMessageTile(MessageTile messageTile)
+    [private] Void <NotificationAlert>b__20_0(SocialMessage m)
+    [private] Void <NotificationAlert>b__20_1(SocialMessage m)
+    [private] Void <NotificationAlert>b__20_2(SocialMessage m)
+    [private] Void <NotificationAlert>b__20_3(SocialMessage m)
+    [private] Void <NotificationAlert>b__20_4(SocialMessage m)
+
+============================================================
+
+CLASS: SystemMessageButtonView
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] CustomButton _button
+    [private] GameObject _externalLinkIcon
+    [private] static Int32 Disabled
+
+  PROPERTIES:
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [public] Void Init(SystemMessageButtonData buttonData, Action`1 handleOnClick)
+    [public] Void SetInteractible(Boolean enabled)
+    [public] Void Click()
+    [private] Void onMouseOver()
+
+============================================================
+
+CLASS: SystemMessageButtonView+<>c__DisplayClass3_0
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Action`1 handleOnClick
+    [public] SystemMessageButtonData buttonData
+
+  METHODS:
+    [protected] Void <Init>b__0()
+
+============================================================
+
+CLASS: SystemMessageManager
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] SystemMessageHandle _currentMessage
+    [private] List`1 _messages
+    [private] KeyboardManager _keyboardManager
+    [private] IActionSystem _actionSystem
+    [private] IBILogger _biLogger
+    [private] SystemMessageView _view
+    [private] GameObject _root
+    [private] IFrontDoorConnectionServiceWrapper _fdc
+    [private] static SystemMessageManager _instance
+
+  PROPERTIES:
+    Boolean ShowingMessage { get;  }
+    SystemMessageManager Instance { get;  }
+
+  METHODS:
+    [public] static SystemMessageManager Initialize(KeyboardManager keyboardManager, IActionSystem actionSystem, IBILogger biLogger)
+    [private] Void OnSystemMessage(SystemMessage[] systemMessages)
+    [public] Void SetFDConnectionWrapper(IFrontDoorConnectionServiceWrapper fdc)
+    [public] static Void ShowSystemMessage(String title, String message, Boolean showCancel, Action onOK, Action onCancel, Int32 fontSize, String logOverride)
+    [public] Void Shutdown()
+    [private] Void DismissCurrentMessage()
+    [public] SystemMessageHandle ShowMessage(String title, String text, List`1 buttons, String details, SystemMessagePriority priority, String logOverride)
+    [public] Void ClearMessageQueue()
+    [public] Void Close(SystemMessageHandle msg)
+    [private] Void PresentView(SystemMessageHandle message)
+    [private] Void SpawnSystemMessageView()
+    [private] Void BI_MessageDialogueViewed(String currentSceneName, String title, String message, DateTime timeStamp)
+    [public] SystemMessageHandle ShowOk(String title, String text, Action onOk, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowOkCancel(String title, String text, Action onOk, Action onCancel, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String button2Text, Action button2Action, String details, SystemMessagePriority priority, String logOverride)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, Action button1Action, String button2Text, Action button2Action, String button3Text, Action button3Action, String details, SystemMessagePriority priority)
+    [public] SystemMessageHandle ShowMessage(String title, String text, String button1Text, String button1AlertText, Boolean button1Disabled, Action button1Action, String button2Text, String button2AlertText, Boolean button2Disabled, Action button2Action, String button3Text, String button3AlertText, Boolean button3Disabled, Action button3Action, String details, SystemMessagePriority priority)
+
+============================================================
+
+CLASS: SystemMessageManager+<>c
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] static <>c <>9
+    [public] static Action <>9__17_0
+    [public] static Func`2 <>9__23_0
+
+  METHODS:
+    [protected] Void <OnSystemMessage>b__17_0()
+    [protected] SystemMessagePriority <ShowMessage>b__23_0(SystemMessageHandle x)
+
+============================================================
+
+CLASS: SystemMessageManager+SystemMessageButtonData
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] String Text
+    [public] Action Callback
+    [public] Boolean IsConfirm
+    [public] Boolean HideOnClick
+    [public] Boolean IsCancel
+    [public] Boolean IsDisabled
+    [public] Boolean IsExternalLink
+    [public] String AlertText
+
+============================================================
+
+CLASS: SystemMessageManager+SystemMessageHandle
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] List`1 Buttons
+    [public] String Title
+    [public] String Message
+    [public] String Details
+    [public] String LogOverride
+    [public] SystemMessagePriority Priority
+    [public] DateTime TimeStamp
+
+============================================================
+
+CLASS: SystemMessageManager+SystemMessagePriority
+  Base: System.Enum
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static SystemMessagePriority FatalError
+    [public] static SystemMessagePriority Other
+
+============================================================
+
+CLASS: SystemMessageView
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] CanvasGroup _canvasGroup
+    [private] Transform _messageRoot
+    [private] TMP_Text _titleText
+    [private] TMP_Text _messageText
+    [private] TMP_Text _detailsText
+    [protected] SystemMessageButtonView _buttonPrefab
+    [private] AnimationData _fadeAnimationData
+    [private] AnimationData _slideAnimationData
+    [private] List`1 _buttons
+    [private] Action`1 _onUpdate
+    [private] Action _onHide
+    [private] KeyboardManager _keyboardManager
+    [private] IActionSystem _actionSystem
+    [private] SystemMessageButtonView _cancelButton
+    [private] Boolean <IsOpen>k__BackingField
+
+  PROPERTIES:
+    Boolean IsOpen { get; set; }
+    PriorityLevelEnum Priority { get;  }
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [private] Void Awake()
+    [public] Void Show()
+    [public] Void Hide()
+    [public] Void SetTitle(String text)
+    [public] Void SetMessage(String text, Int32 fontsize)
+    [public] Void SetDetails(String text)
+    [public] Void CreateButtons(List`1 buttonData)
+    [private] Void HandleOnClick(SystemMessageButtonData capturedButton)
+    [private] Void Update()
+    [public] Void SetOnUpdate(Action`1 updateAction)
+    [protected] Void Initialize(KeyboardManager keyboardManager, IActionSystem actionSystem, Action dismissCurrentMessage)
+    [public] Boolean HandleKeyDown(KeyCode curr, Modifiers mods)
+    [public] Void OnBack(ActionContext context)
+    [private] Void <Hide>b__23_0()
+
+============================================================
+
+CLASS: SystemMessageView+AnimationData
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Single Duration
+    [public] Ease EaseMethod
+    [public] Single Delay
+
+============================================================
+
+CLASS: UIMessageHandler
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] Action`1 _sendUIMessage
+    [private] Dictionary`2 _outgoingHoverThrottleTimer
+    [private] Action`1 EmoteRecievedCallback
+    [private] Action`1 EmoteSentCallback
+    [private] Action`1 CardHoverChanged
+    [private] Action`2 GenericEventReceived
+
+  METHODS:
+    [public] Void UpdateSendUIMessageCallback(Action`1 sendUIMessage)
+    [public] Void Dispose()
+    [public] Void OnUIMessage(UIMessage msg)
+    [private] Void Handle_OnChat(OnChat chatMsg)
+    [public] Boolean TrySendEmote(String emote)
+    [private] Void SendEmoteMessage(String emote)
+    [private] Void Handle_OnHover(OnHover hoverMsg)
+    [public] Void TrySendHoverMessage(UInt32 targetCard)
+    [private] Void SendHoverMessage(UInt32 targetCard)
+    [private] Void Handle_OnGenericEvent(OnGenericEvent genericEvent)
+    [public] Boolean TrySendGenericEvent(String category, String payload)
+    [private] Void SendGenericEvent(String category, String payload)
+
+  EVENTS:
+    Action`1 EmoteRecievedCallback
+    Action`1 EmoteSentCallback
+    Action`1 CardHoverChanged
+    Action`2 GenericEventReceived
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.Interactions.OptionalAction.OptionalActionMessage_ScryishWorkflow
+  Base: Wotc.Mtga.DuelScene.Interactions.ScryishWorkflow`1[[GreClient.Rules.OptionalActionMessageRequest, SharedClientCore, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] IClientLocProvider _clientLocProvider
+    [private] IGameStateProvider _gameStateProvider
+    [private] IResolutionEffectProvider _resolutionEffectProvider
+    [private]  _browserProvider
+    [private] AssetLookupSystem _assetLookupSystem
+    [protected] List`1 _cardsToDisplay
+    [protected] Dictionary`2 _buttonStateData
+    [protected] String _header
+    [protected] String _subHeader
+    [protected] Boolean _closeBrowserOnCleanup
+    [protected] BrowserBase _openedBrowser
+    [protected] OptionalActionMessageRequest _request
+    [protected] Prompt _prompt
+    [protected] IHighlightsGenerator _highlightsGenerator
+    [protected] WorkflowPrompt _workflowPrompt
+
+  PROPERTIES:
+    Int32 NthFromTop { get;  }
+    Int32 NthFromBot { get;  }
+    Boolean ApplyTargetOffset { get; set; }
+    Boolean ApplySourceOffset { get; set; }
+    Boolean ApplyControllerOffset { get; set; }
+    BaseUserRequest BaseRequest { get;  }
+    Prompt Prompt { get;  }
+    RequestType Type { get;  }
+    UInt32 SourceId { get;  }
+    InteractionAppliedState AppliedState { get;  }
+    Highlights Highlights { get;  }
+    Arrows Arrows { get; set; }
+    Dimming Dimming { get; set; }
+    Buttons Buttons { get; set; }
+
+  METHODS:
+    [public] static Boolean UseScryStyleBrowser(OptionalActionMessageRequest request, AssetLookupSystem assetLookupSystem, MtgGameState gameState)
+    [private] static Boolean TryGetPayload(OptionalActionMessageRequest request, AssetLookupSystem assetLookupSystem, MtgGameState gameState, UseScryStyleBrowserPayload& payload)
+    [protected] Void SetSubHeader()
+    [protected] IEnumerable`1 GetCardIds()
+    [protected] Void OnBrowserOpened()
+    [protected] Void Browser_OnBrowserShown()
+    [protected] Void Browser_OnBrowserHidden()
+    [protected] Void Browser_OnBrowserClosed()
+    [private] Void OnDragRelease(DuelScene_CDC cardView)
+    [protected] Void OnDoneButtonPressed(ScryBrowser browser)
+
+  EVENTS:
+    Action`1 UpdateHighlights
+    Action`1 UpdateArrows
+    Action`1 UpdateDimming
+    Action`1 UpdateButtons
+    Action`1 UpdatePrompt
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.Interactions.OptionalAction.OptionalActionMessage_ScryishWorkflow+<>c
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] static <>c <>9
+    [public] static Predicate`1 <>9__18_0
+    [public] static Predicate`1 <>9__18_1
+    [public] static Predicate`1 <>9__19_0
+    [public] static Predicate`1 <>9__19_1
+
+  METHODS:
+    [protected] Boolean <OnDragRelease>b__18_0(DuelScene_CDC x)
+    [protected] Boolean <OnDragRelease>b__18_1(DuelScene_CDC x)
+    [protected] Boolean <OnDoneButtonPressed>b__19_0(DuelScene_CDC x)
+    [protected] Boolean <OnDoneButtonPressed>b__19_1(DuelScene_CDC x)
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.Interactions.OptionalAction.OptionalActionMessageWorkflow
+  Base: Wotc.Mtga.DuelScene.Interactions.WorkflowBase`1[[GreClient.Rules.OptionalActionMessageRequest, SharedClientCore, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] IObjectPool _pool
+    [private] IGreLocProvider _greLocProvider
+    [private] IClientLocProvider _clientLocProvider
+    [private] IGameStateProvider _gameStateProvider
+    [private]  _browserProvider
+    [private] AssetLookupSystem _assetLookupSystem
+    [protected] OptionalActionMessageRequest _request
+    [protected] Prompt _prompt
+    [protected] IHighlightsGenerator _highlightsGenerator
+    [protected] WorkflowPrompt _workflowPrompt
+
+  PROPERTIES:
+    BaseUserRequest BaseRequest { get;  }
+    Prompt Prompt { get;  }
+    RequestType Type { get;  }
+    UInt32 SourceId { get;  }
+    InteractionAppliedState AppliedState { get;  }
+    Highlights Highlights { get;  }
+    Arrows Arrows { get; set; }
+    Dimming Dimming { get; set; }
+    Buttons Buttons { get; set; }
+
+  METHODS:
+    [protected] Void SetArrows()
+    [protected] Void ApplyInteractionInternal()
+    [protected] Void SetButtons()
+    [public] IEnumerable`1 GetSecondaryLayoutIds()
+    [private] Void FillBlackboardForWorkflow(IBlackboard bb)
+    [private] Void <SetButtons>b__9_0()
+    [private] Void <SetButtons>b__9_1()
+    [private] Void <SetButtons>b__9_2()
+
+  EVENTS:
+    Action`1 UpdateHighlights
+    Action`1 UpdateArrows
+    Action`1 UpdateDimming
+    Action`1 UpdateButtons
+    Action`1 UpdatePrompt
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.Interactions.OptionalAction.OptionalActionMessageWorkflow_SurveilStyleBrowser
+  Base: Wotc.Mtga.DuelScene.Interactions.SurveilStyleBrowserWorkflow`1[[GreClient.Rules.OptionalActionMessageRequest, SharedClientCore, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [protected] IClientLocProvider _clientLocManager
+    [protected] List`1 _cardsToDisplay
+    [protected] Dictionary`2 _buttonStateData
+    [protected] String _header
+    [protected] String _subHeader
+    [protected] Boolean _closeBrowserOnCleanup
+    [protected] BrowserBase _openedBrowser
+    [protected] OptionalActionMessageRequest _request
+    [protected] Prompt _prompt
+    [protected] IHighlightsGenerator _highlightsGenerator
+    [protected] WorkflowPrompt _workflowPrompt
+
+  PROPERTIES:
+    Boolean ApplyTargetOffset { get; set; }
+    Boolean ApplySourceOffset { get; set; }
+    Boolean ApplyControllerOffset { get; set; }
+    BaseUserRequest BaseRequest { get;  }
+    Prompt Prompt { get;  }
+    RequestType Type { get;  }
+    UInt32 SourceId { get;  }
+    InteractionAppliedState AppliedState { get;  }
+    Highlights Highlights { get;  }
+    Arrows Arrows { get; set; }
+    Dimming Dimming { get; set; }
+    Buttons Buttons { get; set; }
+
+  METHODS:
+    [protected] IEnumerable`1 GetCardIds()
+    [protected] Void OnDoneButtonPressed(SurveilBrowser browser)
+
+  EVENTS:
+    Action`1 UpdateHighlights
+    Action`1 UpdateArrows
+    Action`1 UpdateDimming
+    Action`1 UpdateButtons
+    Action`1 UpdatePrompt
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.Interactions.OptionalAction.OptionalActionMessageWorkflow+OptionalActionMessageHighlightsGenerator
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [private] IReadOnlyCollection`1 _highlightIds
+
+  METHODS:
+    [public] Highlights GetHighlights()
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.ISettingsMessageController
+  IsInterface: True
+  Public: True
+
+  METHODS:
+    [public] Void SetSettings(SettingsMessage settings)
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.ISettingsMessageGenerator
+  IsInterface: True
+  Public: True
+
+  METHODS:
+    [public] SettingsMessage SetTurnAutoPass(SettingsMessage currentSettings, AutoPassOption autoPassOption, AutoPassOption defaultAutopassOption)
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.ISettingsMessageProvider
+  IsInterface: True
+  Public: True
+
+  PROPERTIES:
+    ObservableReference`1 Settings { get;  }
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.NullSettingsMessageController
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] static ISettingsMessageController Default
+
+  METHODS:
+    [public] Void SetSettings(SettingsMessage settings)
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.NullSettingsMessageGenerator
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] static ISettingsMessageGenerator Default
+
+  METHODS:
+    [public] SettingsMessage SetTurnAutoPass(SettingsMessage currentSettings, AutoPassOption autoPassOption, AutoPassOption defaultAutopassOption)
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.NullSettingsMessageProvider
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] static ISettingsMessageProvider Default
+
+  PROPERTIES:
+    ObservableReference`1 Settings { get;  }
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.OptionalActionMessageRequestDebugRenderer
+  Base: Wotc.Mtga.DuelScene.BaseUserRequestDebugRenderer`1[[GreClient.Rules.OptionalActionMessageRequest, SharedClientCore, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [protected] OptionalActionMessageRequest _request
+
+  METHODS:
+    [public] Void Render()
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.SettingsMessageController
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] ObservableReference`1 <Settings>k__BackingField
+
+  PROPERTIES:
+    ObservableReference`1 Settings { get;  }
+
+  METHODS:
+    [public] Void SetSettings(SettingsMessage settings)
+    [public] Void Dispose()
+
+============================================================
+
+CLASS: Wotc.Mtga.DuelScene.SettingsMessageGenerator
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] SettingsMessage SetTurnAutoPass(SettingsMessage currentSettings, AutoPassOption autoPassOption, AutoPassOption defaultAutopassOption)
+
+============================================================
+
+CLASS: Wotc.Mtga.ResourceErrorMessageManager
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] Boolean _isErrorShowing
+
+  METHODS:
+    [public] static ResourceErrorMessageManager Create()
+    [public] Void ShowError(String errorMessage, String error, ValueTuple`2[] details)
+
+============================================================
+
+CLASS: Wotc.Mtga.ResourceErrorMessageManager+<>c
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] static <>c <>9
+    [public] static Converter`2 <>9__2_0
+
+  METHODS:
+    [protected] String <ShowError>b__2_0(ValueTuple`2 x)
+
+============================================================
+
+CLASS: Wotc.Mtga.ResourceErrorMessageManager+<>c__DisplayClass2_0
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] FrontDoorConnectionManager frontDoorConnectionManager
+    [public] ResourceErrorMessageManager <>4__this
+
+  METHODS:
+    [protected] Void <ShowError>b__1()
+
+============================================================
+
+CLASS: Wotc.Mtga.TimedReplays.ReplayMessageFilter
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] IReadOnlyCollection`1 _greMessageFilters
+    [private] IReadOnlyCollection`1 _clientMessageFilters
+    [public] static IReadOnlyList`1 CommonGREMessagesToFilter
+    [public] static IReadOnlyList`1 CommonClientMessagesToFilter
+
+  METHODS:
+    [public] Boolean ShouldIgnore(GREToClientMessage msg)
+    [public] Boolean ShouldIgnore(ClientToGREMessage msg)
+    [public] Boolean ShouldIgnore(ReplayEntry message)
+
+============================================================
+
+CLASS: Wotc.Mtga.Wrapper.Mailbox.ClientLetterViewModel
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Guid Id
+    [public] String Title
+    [public] String Body
+    [public] String FallbackTitle
+    [public] String FallbackBody
+    [public] List`1 Attachments
+    [public] ELetterArtContentType ArtContentType
+    [public] String ArtContentReferenceId
+    [public] DateTime CreationDate
+    [public] DateTime ExpiryDate
+    [public] ELetterType LetterType
+    [public] String MoreInfoHyperlink
+    [public] Boolean IsRead
+    [public] Boolean IsClaimed
+    [public] Nullable`1 DeleteDate
+
+============================================================
+
+CLASS: Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] PlayerInboxDataProvider _playerInboxDataProvider
+    [private] List`1 _cachedLetters
+    [private] List`1 _lettersToUpdate
+    [private] PlayerInboxBladeItemDisplay _selectedBladeItem
+    [private] GameObject _noMessagesBladeInstance
+    [private] Dictionary`2 _letterListItems
+    [private] CardArtTextureLoader _cardArtTextureLoader
+    [private] AssetLookupSystem _assetLookupSystem
+    [private] KeyboardManager _keyboardManager
+    [private] IActionSystem _actionSystem
+    [private] CustomButton _dismissButton
+    [private] GameObject _currentlyDisplayedLetter
+    [private] GameObject _letterBladePrefab
+    [private] GameObject _noMessagesBladePrefab
+    [private] GameObject _emptyLetter
+    [public] Transform BladeItemTransform
+    [public] Transform LetterTransform
+    [private] IBILogger _biLogger
+
+  PROPERTIES:
+    PlayerInboxBladeItemDisplay SelectedBladeItem { get; set; }
+    PriorityLevelEnum Priority { get;  }
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [public] Void Init(PlayerInboxDataProvider playerInboxDataProvider, CardArtTextureLoader cardArtTextureLoader, AssetLookupSystem assetLookupSystem, IBILogger biLogger)
+    [private] Void Awake()
+    [private] Void OnDestroy()
+    [private] Void OnLettersChanged(LetterDataChange changeType, List`1 letters)
+    [public] Void Update()
+    [public] Void Show()
+    [public] Void Hide()
+    [public] Boolean HandleKeyDown(KeyCode curr, Modifiers mods)
+    [public] Void OnBack(ActionContext context)
+    [private] Void UpdateNoMessageDisplay(Boolean hasMessages)
+    [public] Void DisplayLetters(List`1 lettersToDisplay)
+    [private] Void ClearLettersDisplay()
+    [private] Void UpdateLetterDisplayItem(Client_Letter letter)
+    [private] Void OnLetterSelected(PlayerInboxBladeItemDisplay selectedLetter, Boolean isRead, Guid selectedLetterId)
+    [private] Void OpenSelectedLetter(PlayerInboxBladeItemDisplay selectedLetter)
+    [public] Void CloseCurrentTopLevel()
+    [private] Void CloseCurrentLetter()
+    [public] ClientLetterViewModel ConvertClientLetterToViewModel(Client_Letter clientLetter)
+    [public] Void DisplayClaimedRewards(List`1 inventoryChanges, String title)
+    [public] static Void DisplayClaimedRewardError(String errorMessage)
+    [private] Void <Show>b__28_0(Promise`1 p)
+    [private] Void <Show>b__28_1(Promise`1 p)
+
+============================================================
+
+CLASS: Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox+<>c
+  Base: System.Object
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] static <>c <>9
+    [public] static Func`2 <>9__33_0
+
+  METHODS:
+    [protected] DateTime <DisplayLetters>b__33_0(Client_Letter letter)
+
+============================================================
+
+CLASS: Wotc.Mtga.Wrapper.Mailbox.LetterAttachmentState
+  Base: System.Enum
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static LetterAttachmentState Unclaimed
+    [public] static LetterAttachmentState Claimed
+
+============================================================
+
+CLASS: Wotc.Mtga.Wrapper.Mailbox.LetterDisplayState
+  Base: System.Enum
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static LetterDisplayState Unread
+    [public] static LetterDisplayState Selected
+    [public] static LetterDisplayState Read
+
+============================================================
+
+CLASS: Wotc.Mtga.Wrapper.Mailbox.PlayerInboxBladeItemDisplay
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] ClientLetterViewModel <_clientBladeItemViewModel>k__BackingField
+    [private] Action`3 _onLetterSelected
+    [private] Localize _titleText
+    [private] Localize _alertText
+    [private] Localize _date
+    [private] Animator _letterDisplayAnimator
+    [private] GameObject _readCheckmark
+    [private] static Int32 LetterStateAnimatorIntegerHash
+    [private] static Int32 AttachmentAnimatorBoolHash
+
+  PROPERTIES:
+    ClientLetterViewModel _clientBladeItemViewModel { get; set; }
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [public] Void Initialize(Action`3 onLetterSelected)
+    [public] Void SetLetterViewModel(ClientLetterViewModel clientLetter)
+    [private] Void _setReadAndClaimedView()
+    [public] Void SetSelectedView()
+    [public] Void OnClick()
+    [public] Void DeselectLetter()
+    [public] Void OnEnable()
+    [public] Void OnDestroy()
+
+============================================================
+
+CLASS: Wotc.Mtga.Wrapper.Mailbox.PlayerInboxLetterDisplay
+  Base: UnityEngine.MonoBehaviour
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [private] Localize _titleText
+    [private] Localize _creationDate
+    [private] Image _bannerImage
+    [private] RawImage _cardArtImage
+    [private] GameObject _cardArt
+    [private] GameObject _bannerArt
+    [private] Localize _bodyText
+    [private] GameObject _buttons
+    [private] CustomButton _claimButton
+    [private] CustomButton _moreInfoButton
+    [private] Localize _messageDeleteAlertText
+    [private] CardArtTextureLoader _artTextureLoader
+    [private] AssetTracker _assetTracker
+    [private] AssetTracker`1 _backgroundImageSpriteTracker
+    [private] AssetLookupSystem _assetLookupSystem
+    [private] ClientLetterViewModel _clientLetterViewModel
+    [private] String DEFAULT_ART_ID
+    [private] Action _onCloseLetter
+    [private] Action _onCloseMailbox
+
+  PROPERTIES:
+    CancellationToken destroyCancellationToken { get;  }
+    Boolean useGUILayout { get; set; }
+    Boolean enabled { get; set; }
+    Boolean isActiveAndEnabled { get;  }
+    Transform transform { get;  }
+    GameObject gameObject { get;  }
+    String tag { get; set; }
+    String name { get; set; }
+    HideFlags hideFlags { get; set; }
+
+  METHODS:
+    [public] Void SetLetterViewModel(ClientLetterViewModel clientLetter)
+    [private] Void SetArtIdArt(ClientLetterViewModel clientLetter)
+    [private] Void SetCardIdArt(ClientLetterViewModel clientLetter)
+    [private] Void SetDefaultArt(ClientLetterViewModel clientLetter)
+    [private] Void SetLetterArt(String artId, String assetTrackingKey)
+    [private] Void ClaimAttachment()
+    [private] Void MoreInfo()
+    [public] Void Initialize(CardArtTextureLoader cardArtTextureLoader, AssetLookupSystem assetLookupSystem, Action onCloseLetter, Action onCloseMailbox)
+    [public] Void CloseLetter()
+    [public] Void CloseMailbox()
+    [public] Void OnEnable()
+    [public] Void OnDisable()
+    [private] Void OnDestroy()
+    [public] static String GetBackgroundImagePath(AssetLookupSystem assetLookupSystem, String bannerArtId)
+    [private] Void DisplayClaimedRewards(List`1 changes)
+    [private] Void <ClaimAttachment>b__24_0(Promise`1 promise)
+
+============================================================
+
+ASSEMBLY: Assembly-CSharp.dll
+Matched types: 5
+----------------------------------------
+
+CLASS: HasbroGo.SocialManager+<SendChallengeGameMessage>d__81
+  Base: System.ValueType
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 <>1__state
+    [public] AsyncVoidMethodBuilder <>t__builder
+    [public] SocialManager <>4__this
+    [public] String displayName
+    [public] String schema
+    [public] String message
+    [public] DateTime expirationTime
+    [private] TaskAwaiter`1 <>u__1
+    [private] TaskAwaiter`1 <>u__2
+
+  METHODS:
+    [private] Void MoveNext()
+    [private] Void SetStateMachine(IAsyncStateMachine stateMachine)
+
+============================================================
+
+CLASS: HasbroGo.SocialManager+<SendDirectChatMessage>d__79
+  Base: System.ValueType
+  IsInterface: False
+  Public: False
+
+  FIELDS:
+    [public] Int32 <>1__state
+    [public] AsyncVoidMethodBuilder <>t__builder
+    [public] SocialManager <>4__this
+    [public] String message
+    [public] Friend friend
+    [private] DirectMessageReceivedEventArgs <privateMessageReceivedEventArgs>5__2
+    [private] TaskAwaiter`1 <>u__1
+
+  METHODS:
+    [private] Void MoveNext()
+    [private] Void SetStateMachine(IAsyncStateMachine stateMachine)
+
+============================================================
+
+CLASS: Test.Scenes.NetworkMessagingHarness.MessageResults
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] String Name
+    [public] Int32 Iterations
+    [public] TimeSpan SerTime
+    [public] TimeSpan NetworkTime
+    [public] TimeSpan DecompressTime
+    [public] TimeSpan DeserTime
+    [public] TimeSpan MinPing
+    [public] TimeSpan MaxPing
+    [public] Int32 OutgoingRawMsgSize
+    [public] Int32 IncomingRawMsgSize
+    [public] Int32 DecompressedMsgSize
+    [public] Int64 MinMem
+    [public] Int64 MaxMem
+
+  PROPERTIES:
+    TimeSpan TotalTime { get;  }
+
+  METHODS:
+    [public] Void AddIteration(MessageResults iteration)
+    [private] Int32 RollingAverage(Int32 current, Int32 weight, Int32 next)
+    [private] Int64 RollingAverage(Int64 current, Int32 weight, Int64 next)
+    [private] TimeSpan RollingAverage(TimeSpan current, Int32 weight, TimeSpan next)
+    [private] String DisplayBytes(Int32 bytes)
+    [private] String DisplayBytes(Int64 bytes)
+    [private] String DisplayTimeSpan(TimeSpan t)
+    [public] String ToString()
+
+============================================================
+
+CLASS: Test.Scenes.NetworkMessagingHarness.ProtobufMessageSize
+  Base: System.Object
+  IsInterface: False
+  Public: True
+
+  METHODS:
+    [public] Int32 SizeInBytes(IMessage value)
+
+============================================================
+
+CLASS: Test.Scenes.NetworkMessagingHarness.TestMessageType
+  Base: System.Enum
+  IsInterface: False
+  Public: True
+
+  FIELDS:
+    [public] Int32 value__
+    [public] static TestMessageType StartHook
+    [public] static TestMessageType GetListings
+    [public] static TestMessageType GetSkus
+    [public] static TestMessageType GetSkusAndListings
+    [public] static TestMessageType GetCourses
+    [public] static TestMessageType GetPlayerCards
+    [public] static TestMessageType GetDailyWeeklyQuests
+    [public] static TestMessageType Test
+
+============================================================
+

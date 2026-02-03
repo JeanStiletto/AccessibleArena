@@ -22,7 +22,7 @@ namespace AccessibleArena.Core.Services
 
         public NPERewardNavigator(IAnnouncementService announcer) : base(announcer) { }
 
-        private void Log(string message) => MelonLogger.Msg($"[{NavigatorId}] {message}");
+        private void Log(string message) => DebugConfig.LogIf(DebugConfig.LogNavigation, NavigatorId, message);
 
         private string GetScreenName()
         {
