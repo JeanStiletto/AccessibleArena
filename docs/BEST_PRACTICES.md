@@ -1376,94 +1376,136 @@ Both element filtering AND backspace navigation derive from `GetCurrentForegroun
 - `ConstructedDeckSelectController` - IsOpen getter only (no setter to patch)
 - `DeckManagerController` - IsOpen getter only
 
-## Panel Detection Strategy (January 2026)
+## Panel Detection Strategy (Updated February 2026)
 
 MTGA's UI is inconsistent - different panels were built by different developers with different
 patterns. There is no single detection method that works for everything. This section documents
-the decision tree for choosing the right detection approach.
+the architecture and decision tree for choosing the right detection approach.
+
+### Architecture Overview
+
+**Central Coordinator: `PanelStateManager`** (`src/Core/Services/PanelDetection/PanelStateManager.cs`)
+
+All panel detection flows through PanelStateManager, which:
+- Owns and coordinates three specialized detectors
+- Maintains a priority-sorted stack of active panels
+- Fires events that navigators subscribe to (`OnPanelChanged`, `OnAnyPanelOpened`)
+- Tracks PlayBlade state separately for blade-specific handling
+- Provides `GetFilterPanel()` for element filtering
+
+**Three Specialized Detectors:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        PanelStateManager                            │
+│                     (Single Source of Truth)                        │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
+│  │ HarmonyDetector │  │ReflectionDetect │  │  AlphaDetector  │     │
+│  │  (Event-driven) │  │   (Polling)     │  │   (Polling)     │     │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘     │
+│           │                    │                    │               │
+│           └────────────────────┼────────────────────┘               │
+│                                │                                    │
+│                    ReportPanelOpened/Closed()                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ### Available Detection Methods
 
-| Method | Trigger Type | Best For | Limitations |
-|--------|-------------|----------|-------------|
-| **Harmony** | Event-driven | Panels with property setters | No post-animation signal for some panels |
-| **Reflection** | Polling IsOpen | Controller-based panels | Expensive FindObjectsOfType, no alpha-only panels |
-| **Alpha** | Polling CanvasGroup | Fade-in popups/dialogs | Cannot detect slide animations (PlayBlade) |
-| **Direct** | Custom navigator | Unique screens | Per-screen implementation needed |
+**HarmonyPanelDetector** (`HarmonyPanelDetector.cs`)
+- Trigger: Event-driven via Harmony patches on property setters
+- Best for: Panels with patchable Show/Hide methods or property setters
+- Handles: PlayBlade, Settings, Blades, SocialUI, NavContentController
+
+**ReflectionPanelDetector** (`ReflectionPanelDetector.cs`)
+- Trigger: Polling IsOpen properties every 10 frames
+- Best for: Controller-based panels, Login scene panels
+- Handles: PopupBase descendants, Login panels (Panel - WelcomeGate, etc.)
+
+**AlphaPanelDetector** (`AlphaPanelDetector.cs`)
+- Trigger: Polling CanvasGroup alpha every 10 frames
+- Best for: Fade-in popups without IsOpen property
+- Handles: SystemMessageView, Dialog, Modal, InviteFriend, Popup (not PopupBase)
 
 ### Panel Properties Reference
 
-| Panel Type | Has IsOpen | Has IsReadyToShow | Animation Type | Recommended Method |
-|------------|-----------|-------------------|----------------|-------------------|
-| NavContentController | YES | YES | Fade | Reflection (waits for animation) |
-| SettingsMenu | YES | NO | Fade | Reflection or Harmony |
-| PlayBlade | PlayBladeVisualState | NO | Slide | Harmony ONLY |
-| SystemMessageView | NO | NO | Fade | Alpha ONLY |
-| PopupBase | YES | NO | Fade | Reflection |
-| BoosterChamber | NO | NO | Custom | Direct (custom navigator) |
-| Login panels | NO | NO | Instant | Direct (name patterns) |
+**Panel Type** | **Detection** | **Handled By**
+--- | --- | ---
+PlayBladeController | PlayBladeVisualState setter | HarmonyDetector
+BladeContentView | Show/Hide methods | HarmonyDetector
+EventBladeContentView | Show/Hide methods | HarmonyDetector
+SocialUI/FriendsWidget | Various methods | HarmonyDetector
+SettingsMenu | Harmony patches | HarmonyDetector
+NavContentController | FinishOpen/FinishClose | HarmonyDetector
+PopupBase | IsOpen polling | ReflectionDetector
+Login panels | Name pattern + active | ReflectionDetector
+SystemMessageView | Alpha polling | AlphaDetector
+Dialog/Modal | Alpha polling | AlphaDetector
+InviteFriend | Alpha polling | AlphaDetector
 
 ### Decision Tree for New Panels
 
 When adding support for a new panel/screen, follow this decision tree:
 
 ```
-1. Does it have IsReadyToShow property?
-   └── YES → Use Reflection (best case - game tells us when animation complete)
+1. Does it have Show/Hide methods or property setters we can patch?
+   └── YES → Use HarmonyDetector
+   │         - Add patch in src/Patches/PanelStatePatch.cs
+   │         - Add pattern to HarmonyPatterns in HarmonyPanelDetector.cs
    └── NO → Continue to step 2
 
 2. Does it have IsOpen property (or similar boolean state)?
-   └── YES → Use Reflection (may need small delay for animation)
+   └── YES → Use ReflectionDetector
+   │         - Add type to ControllerTypes in ReflectionPanelDetector.cs
+   │         - Or add pattern to LoginPanelPatterns if login-related
    └── NO → Continue to step 3
 
-3. Does it have a property setter we can Harmony patch?
-   └── YES → Use Harmony
-   │         Note: Check if it's slide or fade animation
-   │         - Fade: Can combine with alpha wait for animation complete
-   │         - Slide: May need fixed delay or position check
+3. Does it use alpha fade for visibility (CanvasGroup)?
+   └── YES → Use AlphaDetector
+   │         - Add pattern to AlphaPatterns in AlphaPanelDetector.cs
    └── NO → Continue to step 4
 
-4. Does it use alpha fade for visibility?
-   └── YES → Use Alpha detection (0.99/0.01 thresholds)
-   └── NO → Continue to step 5
-
-5. Create a custom navigator with Direct detection
+4. Create a custom navigator with Direct detection
    └── Use GameObject.Find() with specific name patterns
    └── Check for unique child elements to confirm state
 ```
 
-### Current Panel Registry
+### Detector Ownership (Panel → Detector Mapping)
 
-**Harmony-detected (event-driven):**
-- PlayBladeController → PlayBladeVisualState setter
-- BladeContentView → Show/Hide methods
-- EventBladeContentView → Show/Hide methods
-- SocialUI → Various methods
+**HarmonyDetector owns** (event-driven, patterns in `HarmonyPatterns`):
+- `playblade` - PlayBladeController and PlayBlade variants
+- `settings` - SettingsMenu, SettingsMenuHost
+- `socialui` - Social panel
+- `friendswidget` - Friends widget
+- `eventblade` - Event blade content
+- `findmatchblade` - Find match blade
+- `deckselectblade` - Deck select blade
+- `bladecontentview` - All blade content views
 
-**Reflection-detected (polling IsOpen):**
-- NavContentController descendants (IsOpen + IsReadyToShow)
-- SettingsMenu (IsOpen)
-- SettingsMenuHost (IsOpen)
-- PopupBase (IsOpen)
+**ReflectionDetector owns** (polling, patterns in `ControllerTypes` + `LoginPanelPatterns`):
+- `PopupBase` descendants - Popups with IsOpen property
+- Login panels: `Panel - WelcomeGate`, `Panel - Log In`, `Panel - Register`,
+  `Panel - ForgotCredentials`, `Panel - AgeGate`, `Panel - Language`,
+  `Panel - Consent`, `Panel - EULA`, `Panel - Marketing`, `Panel - Terms`,
+  `Panel - Privacy`, `Panel - UpdatePolicies`
 
-**Alpha-detected (polling CanvasGroup):**
-- SystemMessageView
-- Dialog/Modal popups
-- Panels without IsOpen property
-
-**Direct-detected (custom navigators):**
-- BoosterChamber → BoosterOpenNavigator
-- Login panels → GeneralMenuNavigator name patterns
+**AlphaDetector owns** (polling, patterns in `AlphaPatterns`):
+- `systemmessageview` - Confirmation dialogs
+- `dialog` - Dialog popups
+- `modal` - Modal popups
+- `invitefriend` - Friend invite popup
+- `popup` (but NOT `popupbase`) - Generic popup overlays
 
 ### Critical Rules
 
-1. **ONE method per panel** - Never detect the same panel with multiple methods (causes double announcements)
+1. **ONE detector per panel** - Each `HandlesPanel()` method excludes panels owned by other detectors. Never detect the same panel with multiple methods (causes double announcements).
 
-2. **Harmony for PlayBlade is mandatory** - PlayBlade uses slide animation (alpha stays 1.0), so alpha detection cannot work
+2. **Harmony for PlayBlade is mandatory** - PlayBlade uses slide animation (alpha stays 1.0), so alpha detection cannot work.
 
-3. **Alpha thresholds at extremes** - Use 0.99 for "visible" and 0.01 for "hidden" to detect only when animations are complete, not mid-animation
+3. **Alpha thresholds at extremes** - AlphaDetector uses 0.99 for "visible" and 0.01 for "hidden" to detect only when animations are complete, not mid-animation.
 
-4. **IsReadyToShow is gold standard** - When available, it's the game's official "animation complete" signal. Only NavContentController descendants have it.
+4. **Detectors self-exclude** - ReflectionDetector's `HandlesPanel()` explicitly excludes Harmony patterns and Alpha patterns. AlphaDetector's `HandlesPanel()` explicitly includes only its patterns.
 
 5. **Single announcement source** - Let the navigation system's `GetActivationAnnouncement()` be the single source of screen announcements. Don't announce from detection callbacks.
 
@@ -1474,21 +1516,29 @@ When adding support for a new panel/screen, follow this decision tree:
    // Use PanelAnimationDiagnostic (F11) or manual inspection
    var type = panel.GetType();
    bool hasIsOpen = type.GetProperty("IsOpen") != null;
-   bool hasIsReadyToShow = type.GetProperty("IsReadyToShow") != null;
+   bool hasShowHide = type.GetMethod("Show") != null && type.GetMethod("Hide") != null;
    var canvasGroup = panel.GetComponent<CanvasGroup>();
    ```
 
 2. **Choose detection method** using decision tree above
 
-3. **Register with ONE system only:**
-   - Harmony: Add patch in `PanelStatePatch.cs`
-   - Reflection: Add type to `MenuControllerTypes` in `MenuPanelTracker.cs`
-   - Alpha: Add pattern to `TrackedPanelPatterns` in `UnifiedPanelDetector.cs`
+3. **Register with ONE detector only:**
+   - Harmony: Add patch in `src/Patches/PanelStatePatch.cs`, add pattern to `HarmonyPatterns` in `HarmonyPanelDetector.cs`
+   - Reflection: Add type to `ControllerTypes` in `ReflectionPanelDetector.cs`, or pattern to `LoginPanelPatterns`
+   - Alpha: Add pattern to `AlphaPatterns` in `AlphaPanelDetector.cs`
    - Direct: Create custom navigator extending `BaseNavigator`
 
-4. **Document in this registry** - Add entry to the Panel Registry section above
+4. **Update exclusion lists** if needed - Ensure other detectors' `HandlesPanel()` methods exclude the new panel
 
-5. **Test for double announcements** - Ensure only ONE system detects the panel
+5. **Document in Detector Ownership section** - Add entry above
+
+6. **Test for double announcements** - Ensure only ONE detector reports the panel
+
+### Legacy Files (Reference Only)
+
+These older files are still present but less actively used:
+- `MenuPanelTracker.cs` - Provides `IsChildOf()` utility method used by OverlayDetector
+- `UnifiedPanelDetector.cs` - Older alpha-based detector (functionality now in AlphaPanelDetector)
 
 ## Debugging Tips
 

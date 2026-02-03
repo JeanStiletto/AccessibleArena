@@ -52,19 +52,31 @@ namespace AccessibleArena.Core.Services.PanelDetection
             MelonLogger.Msg($"[{DetectorId}] Reset");
         }
 
-        // Patterns handled by Harmony detector (event-driven via property setters)
-        // These panels have patchable setters and/or use animations
-        private static readonly string[] HarmonyPatterns = new[]
+        #region Panel Ownership (Stage 5.3)
+
+        /// <summary>
+        /// OWNED PATTERNS - HarmonyDetector is the authoritative detector for these panels.
+        /// Detection method: Event-driven via Harmony patches on property setters/Show/Hide methods.
+        ///
+        /// Why Harmony: These panels have patchable methods (Show/Hide, property setters) that
+        /// provide reliable event-driven detection. PlayBlade specifically uses slide animation
+        /// (alpha stays 1.0), so alpha detection cannot work.
+        ///
+        /// Other detectors MUST exclude these patterns in their HandlesPanel() methods.
+        /// </summary>
+        public static readonly string[] OwnedPatterns = new[]
         {
-            "playblade",
-            "settings",
-            "socialui",
-            "friendswidget",
-            "eventblade",
-            "findmatchblade",
-            "deckselectblade",
-            "bladecontentview"
+            "playblade",        // PlayBladeController, PlayBlade variants - slide animation
+            "settings",         // SettingsMenu, SettingsMenuHost
+            "socialui",         // Social panel
+            "friendswidget",    // Friends widget
+            "eventblade",       // Event blade content
+            "findmatchblade",   // Find match blade
+            "deckselectblade",  // Deck select blade
+            "bladecontentview"  // All blade content views (LastPlayed, Event, FindMatch, etc.)
         };
+
+        #endregion
 
         public bool HandlesPanel(string panelName)
         {
@@ -72,7 +84,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 return false;
 
             var lower = panelName.ToLowerInvariant();
-            foreach (var pattern in HarmonyPatterns)
+            foreach (var pattern in OwnedPatterns)
             {
                 if (lower.Contains(pattern))
                     return true;

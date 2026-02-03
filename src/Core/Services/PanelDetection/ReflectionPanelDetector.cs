@@ -84,29 +84,53 @@ namespace AccessibleArena.Core.Services.PanelDetection
             MelonLogger.Msg($"[{DetectorId}] Reset");
         }
 
+        #region Panel Ownership (Stage 5.3)
+
+        /// <summary>
+        /// ReflectionDetector is the FALLBACK detector - it handles everything NOT claimed
+        /// by HarmonyDetector or AlphaDetector.
+        ///
+        /// Detection method: Polling IsOpen properties on MonoBehaviour controllers.
+        ///
+        /// OWNED PANELS (by exclusion):
+        /// - PopupBase descendants (have IsOpen property)
+        /// - Login scene panels (Panel - WelcomeGate, Panel - Log In, etc.)
+        /// - Any controller with IsOpen that isn't claimed by other detectors
+        ///
+        /// EXPLICITLY HANDLES (via LoginPanelPatterns and ControllerTypes):
+        /// - PopupBase
+        /// - Login panels: Panel - WelcomeGate, Panel - Log In, Panel - Register, etc.
+        /// </summary>
+
+        #endregion
+
         public bool HandlesPanel(string panelName)
         {
             if (string.IsNullOrEmpty(panelName))
                 return false;
 
-            // Reflection handles everything NOT handled by Harmony or Alpha
-            // This is the fallback detector for panels with IsOpen properties
             var lower = panelName.ToLowerInvariant();
 
-            // Harmony patterns (exclude these)
-            if (lower.Contains("playblade") || lower.Contains("settings") ||
-                lower.Contains("socialui") || lower.Contains("friendswidget") ||
-                lower.Contains("eventblade") || lower.Contains("findmatchblade") ||
-                lower.Contains("deckselectblade") || lower.Contains("bladecontentview"))
+            // Exclude Harmony-owned patterns (use their authoritative list)
+            foreach (var pattern in HarmonyPanelDetector.OwnedPatterns)
+            {
+                if (lower.Contains(pattern))
+                    return false;
+            }
+
+            // Exclude Alpha-owned patterns (use their authoritative list)
+            foreach (var pattern in AlphaPanelDetector.OwnedPatterns)
+            {
+                if (lower.Contains(pattern))
+                    return false;
+            }
+
+            // Exclude Alpha's special "popup" pattern (but not "popupbase" which we handle)
+            if (lower.Contains("popup") && !lower.Contains("popupbase"))
                 return false;
 
-            // Alpha patterns (exclude these)
-            if (lower.Contains("systemmessageview") || lower.Contains("dialog") ||
-                lower.Contains("modal") || lower.Contains("invitefriend") ||
-                (lower.Contains("popup") && !lower.Contains("popupbase")))
-                return false;
-
-            // Everything else is handled by Reflection
+            // ReflectionDetector handles everything else
+            // This includes: PopupBase, Login panels, any panel with IsOpen property
             return true;
         }
 

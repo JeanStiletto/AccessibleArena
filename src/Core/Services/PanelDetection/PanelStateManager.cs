@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MelonLoader;
 using UnityEngine;
+using AccessibleArena.Core.Services;
 
 namespace AccessibleArena.Core.Services.PanelDetection
 {
@@ -116,6 +118,20 @@ namespace AccessibleArena.Core.Services.PanelDetection
         /// </summary>
         private readonly HashSet<string> _announcedPanels = new HashSet<string>();
 
+        /// <summary>
+        /// DIAGNOSTIC: Track which detector first reported each panel name.
+        /// Used for Stage 5.2 overlap audit. Key = panel name, Value = detector method.
+        /// </summary>
+        private readonly Dictionary<string, PanelDetectionMethod> _panelDetectorAudit =
+            new Dictionary<string, PanelDetectionMethod>();
+
+        /// <summary>
+        /// DIAGNOSTIC: Track potential overlaps detected during runtime.
+        /// Key = panel name, Value = list of detectors that tried to report it.
+        /// </summary>
+        private readonly Dictionary<string, HashSet<PanelDetectionMethod>> _overlapAudit =
+            new Dictionary<string, HashSet<PanelDetectionMethod>>();
+
         #endregion
 
         #region Initialization
@@ -181,6 +197,12 @@ namespace AccessibleArena.Core.Services.PanelDetection
             {
                 MelonLogger.Msg($"[PanelStateManager] Ignoring panel (in ignore list): {panel.Name}");
                 return false;
+            }
+
+            // DIAGNOSTIC: Track detector overlap audit (Stage 5.2)
+            if (DebugConfig.DebugEnabled && DebugConfig.LogPanelOverlapDiagnostic)
+            {
+                TrackPanelDetectorAudit(panel);
             }
 
             // Check if already in stack
@@ -456,6 +478,206 @@ namespace AccessibleArena.Core.Services.PanelDetection
             {
                 UpdateActivePanel();
             }
+        }
+
+        #endregion
+
+        #region Diagnostic Methods (Stage 5.2 Overlap Audit)
+
+        /// <summary>
+        /// Track which detector reports each panel for overlap audit.
+        /// Called only when LogPanelOverlapDiagnostic is enabled.
+        /// </summary>
+        private void TrackPanelDetectorAudit(PanelInfo panel)
+        {
+            string panelKey = panel.Name;
+
+            // Track all detectors that try to report this panel
+            if (!_overlapAudit.TryGetValue(panelKey, out var detectors))
+            {
+                detectors = new HashSet<PanelDetectionMethod>();
+                _overlapAudit[panelKey] = detectors;
+            }
+            detectors.Add(panel.DetectedBy);
+
+            // Check if this panel was previously reported by a different detector
+            if (_panelDetectorAudit.TryGetValue(panelKey, out var previousDetector))
+            {
+                if (previousDetector != panel.DetectedBy)
+                {
+                    // OVERLAP DETECTED!
+                    MelonLogger.Warning($"[PanelStateManager] OVERLAP DETECTED: Panel '{panelKey}' " +
+                        $"previously reported by {previousDetector}, now reported by {panel.DetectedBy}");
+                }
+            }
+            else
+            {
+                // First time seeing this panel - record which detector owns it
+                _panelDetectorAudit[panelKey] = panel.DetectedBy;
+                MelonLogger.Msg($"[PanelStateManager] AUDIT: Panel '{panelKey}' owned by {panel.DetectedBy}");
+            }
+        }
+
+        /// <summary>
+        /// Dump the overlap audit results to log.
+        /// Call this to see which panels have been reported by multiple detectors.
+        /// </summary>
+        public void DumpOverlapAudit()
+        {
+            MelonLogger.Msg("=== PANEL DETECTION OVERLAP AUDIT ===");
+
+            // Find panels reported by multiple detectors
+            var overlaps = _overlapAudit.Where(kvp => kvp.Value.Count > 1).ToList();
+
+            if (overlaps.Count == 0)
+            {
+                MelonLogger.Msg("No overlaps detected - each panel reported by exactly one detector.");
+            }
+            else
+            {
+                MelonLogger.Warning($"Found {overlaps.Count} panels with potential overlaps:");
+                foreach (var kvp in overlaps)
+                {
+                    var detectorList = string.Join(", ", kvp.Value);
+                    MelonLogger.Warning($"  - '{kvp.Key}': reported by [{detectorList}]");
+                }
+            }
+
+            // Summary of all tracked panels
+            MelonLogger.Msg($"\nTotal panels tracked: {_panelDetectorAudit.Count}");
+
+            var byDetector = _panelDetectorAudit.GroupBy(kvp => kvp.Value)
+                .OrderBy(g => g.Key.ToString());
+
+            foreach (var group in byDetector)
+            {
+                MelonLogger.Msg($"\n{group.Key} ({group.Count()} panels):");
+                foreach (var panel in group.OrderBy(p => p.Key))
+                {
+                    MelonLogger.Msg($"  - {panel.Key}");
+                }
+            }
+
+            MelonLogger.Msg("=== END OVERLAP AUDIT ===");
+        }
+
+        /// <summary>
+        /// Clear diagnostic audit data.
+        /// </summary>
+        public void ClearAuditData()
+        {
+            _panelDetectorAudit.Clear();
+            _overlapAudit.Clear();
+            MelonLogger.Msg("[PanelStateManager] Audit data cleared");
+        }
+
+        /// <summary>
+        /// Run static analysis of known panel names against each detector's HandlesPanel() method.
+        /// This identifies potential overlaps in detector ownership claims.
+        /// </summary>
+        public void RunStaticOverlapAnalysis()
+        {
+            MelonLogger.Msg("=== STATIC PANEL DETECTION OVERLAP ANALYSIS ===");
+
+            // Display owned patterns from each detector
+            MelonLogger.Msg("\n--- Owned Patterns (from detector classes) ---");
+            MelonLogger.Msg($"HarmonyDetector.OwnedPatterns: {string.Join(", ", HarmonyPanelDetector.OwnedPatterns)}");
+            MelonLogger.Msg($"AlphaDetector.OwnedPatterns: {string.Join(", ", AlphaPanelDetector.OwnedPatterns)}");
+            MelonLogger.Msg($"AlphaDetector special: 'popup' (but not 'popupbase')");
+            MelonLogger.Msg($"ReflectionDetector: handles everything else (fallback)");
+
+            // Build comprehensive test list from owned patterns + real panel names
+            var knownPanelNames = new List<string>();
+
+            // Add test names based on Harmony owned patterns
+            foreach (var pattern in HarmonyPanelDetector.OwnedPatterns)
+            {
+                knownPanelNames.Add(pattern);
+                knownPanelNames.Add(char.ToUpper(pattern[0]) + pattern.Substring(1)); // Capitalized
+            }
+
+            // Add test names based on Alpha owned patterns
+            foreach (var pattern in AlphaPanelDetector.OwnedPatterns)
+            {
+                knownPanelNames.Add(pattern);
+                knownPanelNames.Add(char.ToUpper(pattern[0]) + pattern.Substring(1) + "(Clone)");
+            }
+
+            // Add additional real panel names observed in game
+            knownPanelNames.AddRange(new[]
+            {
+                // Real Harmony panels
+                "PlayBladeController", "SettingsMenuHost", "EventBladeContentView",
+                "FindMatchBladeContentView", "LastPlayedBladeContentView",
+                // Reflection panels
+                "PopupBase", "Panel - WelcomeGate", "Panel - Log In", "Panel - Register",
+                "Panel - AgeGate", "Panel - EULA", "Panel - Consent",
+                // Alpha special case
+                "Popup(Clone)", "SomePopup(Clone)",
+                // Mixed/edge cases (should go to Reflection)
+                "NavContentController", "HomePage", "ProfilePage", "StorePage",
+                "BoosterChamber", "CampaignGraphPage"
+            });
+
+            // Deduplicate
+            knownPanelNames = knownPanelNames.Distinct().ToList();
+
+            var overlaps = new List<string>();
+            var ownership = new Dictionary<string, List<string>>();
+
+            foreach (var panelName in knownPanelNames)
+            {
+                var claimers = new List<string>();
+
+                if (_harmonyDetector != null && _harmonyDetector.HandlesPanel(panelName))
+                    claimers.Add("Harmony");
+                if (_reflectionDetector != null && _reflectionDetector.HandlesPanel(panelName))
+                    claimers.Add("Reflection");
+                if (_alphaDetector != null && _alphaDetector.HandlesPanel(panelName))
+                    claimers.Add("Alpha");
+
+                ownership[panelName] = claimers;
+
+                if (claimers.Count > 1)
+                {
+                    overlaps.Add($"'{panelName}': claimed by [{string.Join(", ", claimers)}]");
+                }
+                else if (claimers.Count == 0)
+                {
+                    MelonLogger.Msg($"  UNCLAIMED: '{panelName}' - no detector handles this panel");
+                }
+            }
+
+            if (overlaps.Count > 0)
+            {
+                MelonLogger.Warning($"\nFOUND {overlaps.Count} OVERLAPS:");
+                foreach (var overlap in overlaps)
+                {
+                    MelonLogger.Warning($"  - {overlap}");
+                }
+            }
+            else
+            {
+                MelonLogger.Msg("\nNo overlaps found - each panel claimed by at most one detector.");
+            }
+
+            // Summary by detector
+            MelonLogger.Msg("\n--- Ownership Summary ---");
+            foreach (var detector in new[] { "Harmony", "Reflection", "Alpha" })
+            {
+                var panels = ownership.Where(kvp => kvp.Value.Contains(detector))
+                    .Select(kvp => kvp.Key).ToList();
+                MelonLogger.Msg($"\n{detector} ({panels.Count} panels): {string.Join(", ", panels)}");
+            }
+
+            var unclaimed = ownership.Where(kvp => kvp.Value.Count == 0)
+                .Select(kvp => kvp.Key).ToList();
+            if (unclaimed.Count > 0)
+            {
+                MelonLogger.Msg($"\nUnclaimed ({unclaimed.Count}): {string.Join(", ", unclaimed)}");
+            }
+
+            MelonLogger.Msg("\n=== END STATIC ANALYSIS ===");
         }
 
         #endregion

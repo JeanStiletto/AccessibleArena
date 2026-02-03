@@ -11,7 +11,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Master toggle for all debug logging. Set to false for release builds.
         /// </summary>
-        public static bool DebugEnabled { get; set; } = false;
+        public static bool DebugEnabled { get; set; } = true;
 
         // Category toggles (all require DebugEnabled = true to have effect)
         public static bool LogNavigation { get; set; } = true;
@@ -21,6 +21,10 @@ namespace AccessibleArena.Core.Services
         public static bool LogActivation { get; set; } = true;
         public static bool LogAnnouncements { get; set; } = true;
         public static bool LogPatches { get; set; } = true;
+
+        // Diagnostic mode for panel detection overlap audit (Stage 5.2)
+        // When enabled, logs detailed information about which detector claims each panel
+        public static bool LogPanelOverlapDiagnostic { get; set; } = true;
 
         /// <summary>
         /// Log a debug message if DebugEnabled is true.

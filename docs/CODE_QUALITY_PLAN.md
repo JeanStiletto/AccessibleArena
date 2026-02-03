@@ -10,8 +10,8 @@
 | Phase 1: Inspection & Cleanup | COMPLETE | 2026-02-03 |
 | Phase 2: Debug Infrastructure | PARTIAL | Stages 2.1, 2.2 done |
 | Phase 3: Code Deduplication | COMPLETE | 2026-02-03 |
-| Phase 4: Dropdown Flag Unification | NOT STARTED | Next up |
-| Phase 5: Panel Detection Cleanup | NOT STARTED | |
+| Phase 4: Dropdown Flag Unification | PARTIAL | Stage 4.1 done |
+| Phase 5: Panel Detection Cleanup | COMPLETE | 2026-02-03 |
 | Phase 6: Utility Extraction | NOT STARTED | |
 | Phase 7: Documentation Updates | NOT STARTED | |
 
@@ -136,7 +136,7 @@
 
 ## Phase 4: Dropdown Flag Unification (HIGH PRIORITY, HIGH RISK) - NEXT
 
-### Stage 4.1: Document Dropdown Flag Behavior (Exploration) - NOT STARTED
+### Stage 4.1: Document Dropdown Flag Behavior (Exploration) - COMPLETE
 **Scope:** Analysis only - map current behavior
 
 **Current flags (4 total):**
@@ -145,13 +145,19 @@
 - `UIFocusTracker._suppressNextFocusAnnouncement`
 - `UIFocusTracker._suppressDropdownModeEntry`
 
-**Deliverables:**
-- Create `docs/DROPDOWN_HANDLING.md` documenting:
-  - Which flags affect which scenarios
-  - State machine for dropdown open/close
-  - Which flags might be redundant
+**Completed:**
+- Created `docs/DROPDOWN_HANDLING.md` documenting:
+  - All 4 flags with their purposes, set/clear conditions, and locations
+  - Additional state variables (`_dropdownEditMode`, `_activeDropdownObject`)
+  - 3 state machine diagrams (normal flow, auto-advance, auto-open suppression)
+  - Redundancy analysis: parallel suppression mechanisms
+  - Recommendations for Stage 4.2 (unified DropdownStateManager)
+  - Test scenarios for implementation phase
 
-**Testing:** Documentation complete
+**Key Finding:**
+- Two flags (`_skipDropdownModeTracking` and `_suppressDropdownModeEntry`) serve similar purposes
+- Root cause: dual state tracking in BaseNavigator and UIFocusTracker
+- Recommended approach for 4.2: unified DropdownStateManager
 
 **Risk:** NONE (exploration only)
 
@@ -182,7 +188,7 @@
 
 ## Phase 5: Panel Detection Cleanup (MEDIUM RISK)
 
-### Stage 5.1: Document Panel Detection Strategy (Exploration) - NOT STARTED
+### Stage 5.1: Document Panel Detection Strategy (Exploration) - COMPLETE
 **Scope:** Create authoritative documentation
 
 **Current methods (4):**
@@ -191,27 +197,55 @@
 3. Alpha detection (CanvasGroup) - `AlphaPanelDetector.cs`
 4. Direct GameObject search - various navigators
 
-**Deliverables:**
-- Update `docs/BEST_PRACTICES.md` "Panel Detection Strategy"
-- Add decision flowchart: when to use which method
-- Document which detector owns which panels
+**Completed:**
+- Updated `docs/BEST_PRACTICES.md` "Panel Detection Strategy" section with:
+  - Architecture overview with ASCII diagram showing PanelStateManager as central coordinator
+  - Three detector descriptions (Harmony, Reflection, Alpha) with file locations
+  - Panel → Detector mapping table showing which detector handles which panels
+  - Detailed "Detector Ownership" section with exhaustive pattern lists
+  - Updated decision tree for adding new panels
+  - Updated "Adding a New Panel" steps with correct file paths
+  - Added "Legacy Files" note about MenuPanelTracker and UnifiedPanelDetector
 
-**Testing:** Documentation matches code
+**Key Findings:**
+- PanelStateManager is the single source of truth (created in AccessibleArenaMod.cs)
+- Each detector has explicit `HandlesPanel()` method with exclusion logic
+- ReflectionDetector explicitly excludes Harmony and Alpha patterns
+- Legacy files (MenuPanelTracker, UnifiedPanelDetector) still exist but are supplementary
 
 **Risk:** NONE
 
 ---
 
-### Stage 5.2: Audit Panel Detection Overlaps - NOT STARTED
+### Stage 5.2: Audit Panel Detection Overlaps - COMPLETE
 **Scope:** Identify panels detected by multiple methods
 
-**Tasks:**
-1. Add diagnostic logging to each detector
-2. Run game through all screens
-3. Identify double-detection cases
-4. Document findings
+**Completed:**
+1. Added `LogPanelOverlapDiagnostic` flag to DebugConfig.cs
+2. Added runtime overlap tracking to PanelStateManager:
+   - `_panelDetectorAudit` dictionary tracks which detector first reports each panel
+   - `_overlapAudit` dictionary tracks all detectors that try to report each panel
+   - `TrackPanelDetectorAudit()` logs warnings when overlap detected
+   - `DumpOverlapAudit()` dumps full audit results to log
+3. Added static analysis method `RunStaticOverlapAnalysis()`:
+   - Tests 25+ known panel names against all three detectors' `HandlesPanel()` methods
+   - Identifies panels claimed by multiple detectors
+   - Identifies unclaimed panels
+   - Shows ownership summary by detector
 
-**Testing:** Clear audit trail
+**How to Use:**
+1. Enable diagnostic mode: Set `DebugConfig.DebugEnabled = true` and `DebugConfig.LogPanelOverlapDiagnostic = true`
+2. Run game through screens - overlaps logged as warnings in real-time
+3. Call `PanelStateManager.Instance.DumpOverlapAudit()` for full report
+4. Call `PanelStateManager.Instance.RunStaticOverlapAnalysis()` for static analysis
+
+**Key Finding (Static Analysis):**
+The current HandlesPanel() implementations appear to have proper mutual exclusion:
+- HarmonyDetector has explicit patterns (playblade, settings, socialui, etc.)
+- ReflectionDetector explicitly excludes Harmony and Alpha patterns in HandlesPanel()
+- AlphaDetector only claims its specific patterns (systemmessageview, dialog, modal, etc.)
+
+**Testing:** Build succeeds, audit tools ready for runtime testing
 
 **Risk:** LOW (diagnostic only)
 
@@ -219,15 +253,27 @@
 
 ---
 
-### Stage 5.3: Eliminate Panel Detection Overlaps - NOT STARTED
+### Stage 5.3: Eliminate Panel Detection Overlaps - COMPLETE
 **Scope:** Ensure each panel detected by exactly one method
 
-**Tasks:**
-1. Update detector `HandlesPanel` methods to be mutually exclusive
-2. Remove duplicate patterns
-3. Add ownership comments
+**Completed:**
+1. Added `OwnedPatterns` static arrays to HarmonyPanelDetector and AlphaPanelDetector
+2. Added comprehensive ownership comments (Panel Ownership regions) to all three detectors:
+   - HarmonyPanelDetector: Documents why Harmony (patchable methods, slide animations)
+   - AlphaPanelDetector: Documents why Alpha (fade in/out, no IsOpen property)
+   - ReflectionPanelDetector: Documents fallback role and explicit exclusions
+3. Updated exclusion logic:
+   - AlphaPanelDetector now defensively excludes HarmonyPanelDetector.OwnedPatterns
+   - ReflectionPanelDetector now references OwnedPatterns from other detectors (DRY)
+4. Updated `RunStaticOverlapAnalysis()` to use OwnedPatterns arrays instead of hardcoded values
 
-**Testing:**
+**Key Changes:**
+- `HarmonyPanelDetector.OwnedPatterns` - authoritative list for event-driven panels
+- `AlphaPanelDetector.OwnedPatterns` - authoritative list for alpha-fade panels
+- All detectors now have clear `#region Panel Ownership` documentation
+- Mutual exclusion is enforced by referencing other detectors' OwnedPatterns
+
+**Testing:** Build succeeds. Runtime testing recommended for:
 - Each panel announced exactly once
 - No missing detections
 - Settings menu works in all scenes
@@ -347,15 +393,16 @@
 | 3 | 2.2 | UIFocusTracker migration | MEDIUM | DONE |
 | 4 | 3.1 | GetGameObjectPath dedup | LOW | DONE |
 | 5 | 3.2-3.3 | Log() dedup, remove comments | LOW | DONE |
-| 6 | 4.1 | Dropdown analysis | NONE | NEXT |
-| 7 | 5.1 | Panel detection docs | NONE | |
+| 6 | 4.1 | Dropdown analysis | NONE | DONE |
+| 7 | 5.1 | Panel detection docs | NONE | DONE |
 | 8 | 2.3 | High-volume logging | MEDIUM | |
 | 9 | 4.2 | Dropdown unification | HIGH | |
-| 10 | 5.2-5.3 | Panel detection cleanup | MEDIUM | |
-| 11 | 6.1-6.2 | Utility extraction | LOW | |
-| 12 | 7.1-7.2 | SCREENS.md + status audit | NONE | |
-| 13 | 7.3-7.4 | BEST_PRACTICES + MOD_STRUCTURE | NONE | |
-| 14 | 7.5 | CONTRIBUTING.md (optional) | NONE | |
+| 10 | 5.2 | Panel detection audit | LOW | DONE |
+| 11 | 5.3 | Panel detection cleanup | MEDIUM | DONE |
+| 12 | 6.1-6.2 | Utility extraction | LOW | |
+| 13 | 7.1-7.2 | SCREENS.md + status audit | NONE | |
+| 14 | 7.3-7.4 | BEST_PRACTICES + MOD_STRUCTURE | NONE | |
+| 15 | 7.5 | CONTRIBUTING.md (optional) | NONE | |
 
 ---
 

@@ -85,15 +85,34 @@ namespace AccessibleArena.Core.Services.PanelDetection
             MelonLogger.Msg($"[{DetectorId}] Reset");
         }
 
-        // Patterns handled by Alpha detector (CanvasGroup alpha polling)
-        // These panels fade in/out and don't have IsOpen properties
-        private static readonly string[] AlphaPatterns = new[]
+        #region Panel Ownership (Stage 5.3)
+
+        /// <summary>
+        /// OWNED PATTERNS - AlphaDetector is the authoritative detector for these panels.
+        /// Detection method: Polling CanvasGroup alpha values (0.99/0.01 thresholds).
+        ///
+        /// Why Alpha: These panels fade in/out using CanvasGroup alpha and don't have
+        /// IsOpen properties or patchable methods. They're typically instantiated prefabs
+        /// with "(Clone)" suffix.
+        ///
+        /// Other detectors MUST exclude these patterns in their HandlesPanel() methods.
+        /// </summary>
+        public static readonly string[] OwnedPatterns = new[]
         {
-            "systemmessageview",
-            "dialog",
-            "modal",
-            "invitefriend"
+            "systemmessageview", // Confirmation dialogs
+            "dialog",           // Dialog popups
+            "modal",            // Modal popups
+            "invitefriend"      // Friend invite popup
         };
+
+        /// <summary>
+        /// Special case: "popup" (but NOT "popupbase") is also owned by AlphaDetector.
+        /// PopupBase has IsOpen property and is handled by ReflectionDetector.
+        /// </summary>
+        private const string PopupPattern = "popup";
+        private const string PopupBasePattern = "popupbase";
+
+        #endregion
 
         public bool HandlesPanel(string panelName)
         {
@@ -102,11 +121,22 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
             var lower = panelName.ToLowerInvariant();
 
-            // Special case: popup but NOT popupbase
-            if (lower.Contains("popup") && !lower.Contains("popupbase"))
+            // DEFENSIVE: Exclude Harmony-owned patterns (should never match, but be safe)
+            // This prevents accidental double-detection if a panel name somehow matches both
+            foreach (var harmonyPattern in HarmonyPanelDetector.OwnedPatterns)
+            {
+                if (lower.Contains(harmonyPattern))
+                    return false;
+            }
+
+            // Special case: "popup" but NOT "popupbase"
+            // PopupBase has IsOpen property → ReflectionDetector
+            // Other popups use alpha fade → AlphaDetector
+            if (lower.Contains(PopupPattern) && !lower.Contains(PopupBasePattern))
                 return true;
 
-            foreach (var pattern in AlphaPatterns)
+            // Check owned patterns
+            foreach (var pattern in OwnedPatterns)
             {
                 if (lower.Contains(pattern))
                     return true;
