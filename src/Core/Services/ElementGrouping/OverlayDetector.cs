@@ -43,9 +43,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_screenDetector.IsSocialPanelOpen())
                 return ElementGroup.FriendsPanel;
 
-            // 4. Mailbox panel overlay
+            // 4. Mailbox panel overlay - distinguish between list and content view
             if (_screenDetector.IsMailboxOpen())
-                return ElementGroup.Mailbox;
+            {
+                // Check if mail content is visible (a specific mail is opened)
+                if (IsMailContentVisible())
+                    return ElementGroup.MailboxContent;
+                return ElementGroup.MailboxList;
+            }
 
             // 5. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
             if (PanelStateManager.Instance?.IsPlayBladeActive == true)
@@ -87,7 +92,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.Popup => IsInsidePopup(obj),
                 ElementGroup.SettingsMenu => IsInsideSettingsMenu(obj),
                 ElementGroup.FriendsPanel => IsInsideSocialPanel(obj),
-                ElementGroup.Mailbox => IsInsideMailbox(obj),
+                ElementGroup.MailboxList => IsInsideMailboxList(obj),
+                ElementGroup.MailboxContent => IsInsideMailboxContent(obj),
                 ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
                 ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),
@@ -123,12 +129,88 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Check if an element is inside the mailbox panel.
+        /// Check if mail content is visible (a specific mail is opened).
+        /// Detects by checking for actual mail content elements, not scroll view infrastructure.
         /// </summary>
-        private bool IsInsideMailbox(GameObject obj)
+        private bool IsMailContentVisible()
         {
             var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
-            return mailboxPanel != null && MenuPanelTracker.IsChildOf(obj, mailboxPanel);
+            if (mailboxPanel == null)
+                return false;
+
+            // Find the content view area
+            var contentView = mailboxPanel.transform.Find("SafeArea/ViewSection/Mailbox_ContentView");
+            if (contentView == null)
+                return false;
+
+            // Look for actual mail content buttons (not Viewport scroll infrastructure)
+            // Mail content has buttons like "Mehr Informationen", "Einfordern" (Claim), Button_Base
+            foreach (var comp in contentView.GetComponentsInChildren<Component>(false))
+            {
+                if (comp == null || !comp.gameObject.activeInHierarchy)
+                    continue;
+
+                if (comp.GetType().Name == "CustomButton")
+                {
+                    string name = comp.gameObject.name;
+                    // Skip Viewport - it's always present for scrolling
+                    if (name == "Viewport")
+                        continue;
+
+                    // Found an actual content button
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if an element is inside the mailbox mail list (left pane).
+        /// </summary>
+        private bool IsInsideMailboxList(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            // Check if element is inside the blade list container (mail list)
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                string name = current.name;
+                // Mail list is in BladeView_CONTAINER
+                if (name.Contains("BladeView_CONTAINER") || name.Contains("Blade_ListItem"))
+                    return true;
+                // Stop if we hit the content view (wrong pane)
+                if (name.Contains("Mailbox_ContentView") || name.Contains("ViewSection"))
+                    return false;
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if an element is inside the mailbox content view (right pane).
+        /// </summary>
+        private bool IsInsideMailboxContent(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            // Check if element is inside the content view (mail details)
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                string name = current.name;
+                // Mail content is in Mailbox_ContentView
+                if (name.Contains("Mailbox_ContentView"))
+                    return true;
+                // Stop if we hit the blade list (wrong pane)
+                if (name.Contains("BladeView_CONTAINER") || name.Contains("Blade_ListItem"))
+                    return false;
+                current = current.parent;
+            }
+
+            return false;
         }
 
         /// <summary>

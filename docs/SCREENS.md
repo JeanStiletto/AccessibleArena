@@ -338,18 +338,28 @@ BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator >
 **Navigator:** `GeneralMenuNavigator`
 **Trigger:** Click Nav_Mail button in NavBar
 
-The Mailbox screen shows inbox messages with rewards.
+The Mailbox screen shows inbox messages with rewards. Uses two-level navigation:
+- **Mail List** (left pane): List of mail items
+- **Mail Content** (right pane): Opened mail details with title, body, and buttons
 
-**Navigation:**
+**Navigation - Mail List:**
 - Up/Down arrows: Navigate between mail items
-- Enter: Activate/claim reward
+- Enter: Open selected mail (switches to content view)
 - Backspace: Close mailbox and return to Home
 
+**Navigation - Mail Content:**
+- Up/Down arrows: Navigate between content elements (title, body, buttons)
+- Enter: Activate button (Claim rewards, More Info)
+- Backspace: Close mail and return to mail list
+
 **Technical Notes:**
-- Mailbox is treated as an overlay via `OverlayDetector.IsInsideMailbox()`
+- Two overlay groups: `ElementGroup.MailboxList` and `ElementGroup.MailboxContent`
+- `IsMailContentVisible()` detects when a mail is opened (checks for content buttons, ignores Viewport)
+- `IsInsideMailboxList()` filters elements in BladeView_CONTAINER (mail list)
+- `IsInsideMailboxContent()` filters elements in Mailbox_ContentView (mail details)
 - Mail items get titles via `UITextExtractor.TryGetMailboxItemTitle()`
-- Nav_Mail button requires special activation via `NavBarController.MailboxButton_OnClick()` (onClick has no listeners)
-- Elements are grouped as `ElementGroup.Mailbox`
+- Nav_Mail button requires special activation via `NavBarController.MailboxButton_OnClick()`
+- Harmony patch on `ContentControllerPlayerInbox.OnLetterSelected()` detects mail selection
 
 ## Rewards/Mastery Screen
 

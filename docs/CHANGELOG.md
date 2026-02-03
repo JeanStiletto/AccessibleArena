@@ -6,9 +6,12 @@ All notable changes to Accessible Arena.
 
 ### Mailbox Accessibility
 - Full keyboard navigation for Mailbox/Inbox screen
+- Two-level navigation: mail list and mail content views
+- When viewing mail list: navigate between mails with Up/Down
+- When viewing mail content: see title, body text, and action buttons (Claim, More Info)
+- Backspace in mail content returns to mail list
+- Backspace in mail list closes Mailbox and returns to Home
 - Mailbox items announce with proper title extraction via `TryGetMailboxItemTitle()`
-- Added `ElementGroup.Mailbox` for proper element grouping and overlay detection
-- Backspace navigation closes Mailbox and returns to Home
 - Fixed Nav_Mail button activation (onClick had no listeners, now invokes `NavBarController.MailboxButton_OnClick()`)
 
 ### Rewards/Mastery Screen
@@ -17,10 +20,14 @@ All notable changes to Accessible Arena.
 - Screen displays as "Rewards" in announcements
 
 ### Technical
-- Added Mailbox overlay detection in `OverlayDetector.IsInsideMailbox()`
-- Added `CloseMailbox()` handler in GeneralMenuNavigator for backspace
-- Added UIActivator special handling for Nav_Mail button
-- PanelStatePatch now patches `NavBarController.MailboxButton_OnClick()` and `HideInboxIfActive()`
+- Split `ElementGroup.Mailbox` into `MailboxList` and `MailboxContent` for proper filtering
+- Added `IsMailContentVisible()` to detect when a specific mail is opened
+- Added `IsInsideMailboxList()` and `IsInsideMailboxContent()` filters
+- Added `CloseMailDetailView()` to close mail and return to list
+- Harmony patch for `ContentControllerPlayerInbox.OnLetterSelected()` to detect mail opening
+- Fixed PlayBlade bypass to only apply to actual PlayBlade elements (not Mailbox)
+- Added `IsInsidePlayBladeContainer()` check to prevent bypass affecting other panels
+- PanelStatePatch patches `NavBarController.MailboxButton_OnClick()` and `HideInboxIfActive()`
 - Added screen name mapping for ProgressionTracksContentController in MenuScreenDetector
 
 ---

@@ -24,6 +24,12 @@ namespace AccessibleArena.Patches
         public static event Action<object, bool, string> OnPanelStateChanged;
 
         /// <summary>
+        /// Event fired when a mail letter is selected/opened in the mailbox.
+        /// Parameters: (letterId, title, body, hasAttachments, isClaimed)
+        /// </summary>
+        public static event Action<Guid, string, string, bool, bool> OnMailLetterSelected;
+
+        /// <summary>
         /// Manually applies the Harmony patch after game assemblies are loaded.
         /// Called during mod initialization.
         /// </summary>
@@ -781,6 +787,44 @@ namespace AccessibleArena.Patches
             {
                 MelonLogger.Warning("[PanelStatePatch] NavBarController.HideInboxIfActive not found");
             }
+
+            // Patch ContentControllerPlayerInbox.OnLetterSelected - called when a mail is opened
+            PatchMailLetterSelected(harmony);
+        }
+
+        private static void PatchMailLetterSelected(HarmonyLib.Harmony harmony)
+        {
+            var inboxType = FindType("Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox");
+            if (inboxType == null)
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find ContentControllerPlayerInbox type");
+                return;
+            }
+
+            MelonLogger.Msg($"[PanelStatePatch] Found ContentControllerPlayerInbox: {inboxType.FullName}");
+
+            // OnLetterSelected(PlayerInboxBladeItemDisplay selectedLetter, Boolean isRead, Guid selectedLetterId)
+            var onLetterSelectedMethod = inboxType.GetMethod("OnLetterSelected",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (onLetterSelectedMethod != null)
+            {
+                try
+                {
+                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(MailLetterSelectedPostfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onLetterSelectedMethod, postfix: new HarmonyMethod(postfix));
+                    MelonLogger.Msg("[PanelStatePatch] Patched ContentControllerPlayerInbox.OnLetterSelected()");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch OnLetterSelected: {ex.Message}");
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[PanelStatePatch] ContentControllerPlayerInbox.OnLetterSelected not found");
+            }
         }
 
         public static void MailboxOpenPostfix(object __instance)
@@ -806,6 +850,82 @@ namespace AccessibleArena.Patches
             catch (Exception ex)
             {
                 MelonLogger.Warning($"[PanelStatePatch] Error in MailboxClosePostfix: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Postfix for ContentControllerPlayerInbox.OnLetterSelected
+        /// Parameters: selectedLetter (PlayerInboxBladeItemDisplay), isRead (bool), selectedLetterId (Guid)
+        /// </summary>
+        public static void MailLetterSelectedPostfix(object __instance, object selectedLetter, bool isRead, Guid selectedLetterId)
+        {
+            try
+            {
+                MelonLogger.Msg($"[PanelStatePatch] Mail letter selected: {selectedLetterId}, isRead: {isRead}");
+
+                // Get the ClientLetterViewModel from the selectedLetter (PlayerInboxBladeItemDisplay)
+                // It has a _clientBladeItemViewModel property
+                string title = "";
+                string body = "";
+                bool hasAttachments = false;
+                bool isClaimed = false;
+
+                if (selectedLetter != null)
+                {
+                    var selectedLetterType = selectedLetter.GetType();
+
+                    // Try to get the view model field (it's a field, not a property)
+                    var viewModelField = selectedLetterType.GetField("_clientBladeItemViewModel",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                    if (viewModelField != null)
+                    {
+                        var viewModel = viewModelField.GetValue(selectedLetter);
+                        if (viewModel != null)
+                        {
+                            var vmType = viewModel.GetType();
+
+                            // Get Title field
+                            var titleField = vmType.GetField("Title", BindingFlags.Public | BindingFlags.Instance);
+                            if (titleField != null)
+                                title = titleField.GetValue(viewModel) as string ?? "";
+
+                            // Get Body field
+                            var bodyField = vmType.GetField("Body", BindingFlags.Public | BindingFlags.Instance);
+                            if (bodyField != null)
+                                body = bodyField.GetValue(viewModel) as string ?? "";
+
+                            // Get Attachments field (List)
+                            var attachmentsField = vmType.GetField("Attachments", BindingFlags.Public | BindingFlags.Instance);
+                            if (attachmentsField != null)
+                            {
+                                var attachments = attachmentsField.GetValue(viewModel) as System.Collections.IList;
+                                hasAttachments = attachments != null && attachments.Count > 0;
+                            }
+
+                            // Get IsClaimed field
+                            var isClaimedField = vmType.GetField("IsClaimed", BindingFlags.Public | BindingFlags.Instance);
+                            if (isClaimedField != null)
+                                isClaimed = (bool)isClaimedField.GetValue(viewModel);
+
+                            MelonLogger.Msg($"[PanelStatePatch] Letter data - Title: {title}, Body length: {body?.Length ?? 0}, HasAttachments: {hasAttachments}, IsClaimed: {isClaimed}");
+                        }
+                        else
+                        {
+                            MelonLogger.Warning("[PanelStatePatch] viewModel is null");
+                        }
+                    }
+                    else
+                    {
+                        MelonLogger.Warning($"[PanelStatePatch] _clientBladeItemViewModel field not found on {selectedLetterType.Name}");
+                    }
+                }
+
+                OnMailLetterSelected?.Invoke(selectedLetterId, title, body, hasAttachments, isClaimed);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error in MailLetterSelectedPostfix: {ex.Message}");
             }
         }
 

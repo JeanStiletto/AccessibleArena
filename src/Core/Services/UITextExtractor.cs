@@ -1374,6 +1374,88 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Extracts the content text from an opened mail message in the Mailbox.
+        /// Searches for text in the Mailbox_ContentView area.
+        /// </summary>
+        /// <returns>The mail content text (title, body, rewards), or null if not found</returns>
+        public static string GetMailContentText()
+        {
+            // Find the mailbox content view
+            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
+            if (mailboxPanel == null)
+                return null;
+
+            // Search paths for mail content (in priority order)
+            string[] searchPaths = new[]
+            {
+                "SafeArea/ViewSection/Mailbox_ContentView",
+                "SafeArea/ViewSection",
+                "Mailbox_ContentView"
+            };
+
+            Transform contentView = null;
+            foreach (var path in searchPaths)
+            {
+                contentView = mailboxPanel.transform.Find(path);
+                if (contentView != null)
+                    break;
+            }
+
+            // Fallback: search recursively for ContentView
+            if (contentView == null)
+            {
+                contentView = FindChildRecursive(mailboxPanel.transform, "ContentView");
+            }
+
+            if (contentView == null)
+                return null;
+
+            // Get all TMP_Text components and extract meaningful content
+            var texts = contentView.GetComponentsInChildren<TMP_Text>(true);
+            var contentParts = new System.Collections.Generic.List<string>();
+
+            // Track seen text to avoid duplicates
+            var seenTexts = new System.Collections.Generic.HashSet<string>();
+
+            foreach (var tmpText in texts)
+            {
+                if (tmpText == null || !tmpText.gameObject.activeInHierarchy)
+                    continue;
+
+                string text = CleanText(tmpText.text);
+
+                // Skip empty or very short text
+                if (string.IsNullOrWhiteSpace(text) || text.Length <= 1)
+                    continue;
+
+                // Skip duplicate text
+                if (seenTexts.Contains(text))
+                    continue;
+                seenTexts.Add(text);
+
+                // Skip common button labels
+                string lower = text.ToLowerInvariant();
+                if (lower == "ok" || lower == "close" || lower == "schließen" ||
+                    lower == "claim" || lower == "einfordern" || lower == "abholen" ||
+                    lower == "neu" || lower == "new" || lower == "unread" || lower == "gelesen")
+                    continue;
+
+                // Skip if inside a button container (but keep the text if it's substantial)
+                if (IsInsideButtonContainer(tmpText.transform) && text.Length < 20)
+                    continue;
+
+                contentParts.Add(text);
+            }
+
+            if (contentParts.Count > 0)
+            {
+                return string.Join(". ", contentParts);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Finds a child transform by name recursively.
         /// </summary>
         private static Transform FindChildRecursive(Transform parent, string name)

@@ -6,6 +6,8 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Services.PanelDetection;
 using AccessibleArena.Core.Services.ElementGrouping;
+using AccessibleArena.Patches;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -132,6 +134,10 @@ namespace AccessibleArena.Core.Services
 
         // Rescan timing
         private float _rescanDelay;
+
+        // Mail detail view tracking
+        private bool _isInMailDetailView;
+        private Guid _currentMailLetterId;
 
         // Element tracking
         private float _bladeAutoExpandDelay;
@@ -318,6 +324,9 @@ namespace AccessibleArena.Core.Services
                 PanelStateManager.Instance.OnPanelChanged += OnPanelStateManagerActiveChanged;
                 PanelStateManager.Instance.OnAnyPanelOpened += OnPanelStateManagerAnyOpened;
             }
+
+            // Subscribe to mail letter selection events
+            PanelStatePatch.OnMailLetterSelected += OnMailLetterSelected;
         }
 
         /// <summary>
@@ -344,6 +353,17 @@ namespace AccessibleArena.Core.Services
             {
                 LogDebug($"[{NavigatorId}] Ignoring SettingsMenu panel change");
                 return;
+            }
+
+            // Reset mail detail view state when mailbox closes
+            if (oldPanel?.Name?.Contains("Mailbox") == true && newPanel?.Name?.Contains("Mailbox") != true)
+            {
+                if (_isInMailDetailView)
+                {
+                    LogDebug($"[{NavigatorId}] Mailbox closed - resetting mail detail view state");
+                    _isInMailDetailView = false;
+                    _currentMailLetterId = Guid.Empty;
+                }
             }
 
             LogDebug($"[{NavigatorId}] PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
@@ -421,6 +441,59 @@ namespace AccessibleArena.Core.Services
                 AnnouncePopupBodyText(panel.GameObject);
             }
 
+            TriggerRescan();
+        }
+
+        /// <summary>
+        /// Handler for PanelStatePatch.OnMailLetterSelected - fires when a mail is opened in the mailbox.
+        /// </summary>
+        private void OnMailLetterSelected(Guid letterId, string title, string body, bool hasAttachments, bool isClaimed)
+        {
+            if (!_isActive) return;
+
+            LogDebug($"[{NavigatorId}] Mail letter selected: {letterId}");
+
+            // Track that we're now in the mail detail view
+            _isInMailDetailView = true;
+            _currentMailLetterId = letterId;
+
+            // Build announcement text
+            var announcement = new System.Text.StringBuilder();
+
+            // Title
+            if (!string.IsNullOrEmpty(title))
+            {
+                announcement.Append(title);
+            }
+
+            // Body
+            if (!string.IsNullOrEmpty(body))
+            {
+                if (announcement.Length > 0)
+                    announcement.Append(". ");
+                announcement.Append(body);
+            }
+
+            // Attachments status
+            if (hasAttachments)
+            {
+                if (announcement.Length > 0)
+                    announcement.Append(". ");
+
+                if (isClaimed)
+                    announcement.Append("Rewards already claimed.");
+                else
+                    announcement.Append("Has rewards to claim.");
+            }
+
+            // Announce the mail content
+            if (announcement.Length > 0)
+            {
+                _announcer.Announce(announcement.ToString(), Models.AnnouncementPriority.High);
+                LogDebug($"[{NavigatorId}] Announced mail content: {announcement}");
+            }
+
+            // Trigger rescan to discover buttons in the mail detail view (Claim, More Info, Close)
             TriggerRescan();
         }
 
@@ -907,7 +980,8 @@ namespace AccessibleArena.Core.Services
                 {
                     ElementGroup.Popup => DismissPopup(),
                     ElementGroup.FriendsPanel => CloseSocialPanel(),
-                    ElementGroup.Mailbox => CloseMailbox(),
+                    ElementGroup.MailboxContent => CloseMailDetailView(), // Close mail, return to list
+                    ElementGroup.MailboxList => CloseMailbox(), // Close mailbox entirely
                     ElementGroup.PlayBladeTabs => HandlePlayBladeBackspace(),
                     ElementGroup.PlayBladeContent => HandlePlayBladeBackspace(),
                     ElementGroup.NPE => HandleNPEBack(),
@@ -1113,10 +1187,18 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Close the Mailbox panel by invoking NavBarController.HideInboxIfActive().
+        /// Close the Mailbox panel or close current mail detail view.
+        /// If viewing a mail, closes the mail and returns to the mail list.
+        /// If viewing the mail list, closes the entire mailbox panel.
         /// </summary>
         private bool CloseMailbox()
         {
+            // If we're in the mail detail view, close just the mail (not the whole mailbox)
+            if (_isInMailDetailView)
+            {
+                return CloseMailDetailView();
+            }
+
             LogDebug($"[{NavigatorId}] Closing Mailbox panel");
 
             // Find NavBarController and invoke HideInboxIfActive()
@@ -1166,6 +1248,54 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            return TryGenericBackButton();
+        }
+
+        /// <summary>
+        /// Close the current mail detail view and return to the mail list.
+        /// </summary>
+        private bool CloseMailDetailView()
+        {
+            LogDebug($"[{NavigatorId}] Closing mail detail view");
+
+            // Find ContentControllerPlayerInbox and invoke CloseCurrentLetter()
+            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
+            if (mailboxPanel != null)
+            {
+                foreach (var mb in mailboxPanel.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "ContentControllerPlayerInbox")
+                    {
+                        var method = mb.GetType().GetMethod("CloseCurrentLetter",
+                            System.Reflection.BindingFlags.Public |
+                            System.Reflection.BindingFlags.NonPublic |
+                            System.Reflection.BindingFlags.Instance);
+
+                        if (method != null)
+                        {
+                            try
+                            {
+                                LogDebug($"[{NavigatorId}] Invoking ContentControllerPlayerInbox.CloseCurrentLetter()");
+                                method.Invoke(mb, null);
+                                _isInMailDetailView = false;
+                                _currentMailLetterId = Guid.Empty;
+                                _announcer.Announce("Back to mail list", Models.AnnouncementPriority.High);
+                                TriggerRescan();
+                                return true;
+                            }
+                            catch (System.Exception ex)
+                            {
+                                LogDebug($"[{NavigatorId}] CloseCurrentLetter() error: {ex.Message}");
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: reset flag anyway and try generic back
+            _isInMailDetailView = false;
+            _currentMailLetterId = Guid.Empty;
             return TryGenericBackButton();
         }
 
@@ -1454,11 +1584,14 @@ namespace AccessibleArena.Core.Services
             if (obj.name == "Options_Button")
                 return false;
 
-            // Always include Blade_ListItem elements - these are play mode options (Bot Match, Standard)
-            // that may not be detected correctly by the overlay detector
-            if (IsInsideBladeListItem(obj))
+            // Include Blade_ListItem elements ONLY for PlayBlade context (play mode options like Bot Match, Standard)
+            // This bypass should NOT apply to:
+            // - Mailbox items (need proper list/content filtering)
+            // - Any other panel that uses Blade_ListItem naming
+            // Check: must be inside Blade_ListItem AND inside actual PlayBlade container
+            if (IsInsideBladeListItem(obj) && IsInsidePlayBladeContainer(obj))
             {
-                LogDebug($"[{NavigatorId}] Blade_ListItem bypass for: {obj.name}");
+                LogDebug($"[{NavigatorId}] Blade_ListItem bypass for PlayBlade: {obj.name}");
                 return true;
             }
 
@@ -1610,6 +1743,50 @@ namespace AccessibleArena.Core.Services
                     return true;
                 current = current.parent;
                 levels++;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside the Mailbox panel.
+        /// </summary>
+        private static bool IsInsideMailboxPanel(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                if (current.name.Contains("Mailbox") || current.name.Contains("PlayerInbox"))
+                    return true;
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside the actual PlayBlade container.
+        /// This is more specific than IsInsideBladeListItem - it checks for PlayBlade specifically,
+        /// not just any Blade_ListItem (which Mailbox and other panels also use).
+        /// </summary>
+        private static bool IsInsidePlayBladeContainer(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                string name = current.name;
+                // PlayBlade specific containers
+                if (name.Contains("PlayBlade") || name.Contains("Play_Blade"))
+                    return true;
+                // Exclude other panels that use Blade naming
+                if (name.Contains("Mailbox") || name.Contains("PlayerInbox") ||
+                    name.Contains("Settings") || name.Contains("Social"))
+                    return false;
+                current = current.parent;
             }
 
             return false;
@@ -3142,8 +3319,8 @@ namespace AccessibleArena.Core.Services
             var result = UIActivator.Activate(element);
             _announcer.Announce(result.Message, Models.AnnouncementPriority.Normal);
 
-            // Note: Mailbox open/close is detected via Harmony patches on NavBarController
-            // (MailboxButton_OnClick / HideInboxIfActive) - no manual rescan needed here
+            // Note: Mailbox mail item selection is detected via Harmony patch on OnLetterSelected
+            // which announces the mail content directly with actual letter data
 
             // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
             if (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))

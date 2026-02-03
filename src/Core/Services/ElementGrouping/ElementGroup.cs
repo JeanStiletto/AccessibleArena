@@ -112,9 +112,15 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         DeckBuilderDeckList,
 
         /// <summary>
-        /// Mailbox/Inbox panel elements. List of mail items and mail content.
+        /// Mailbox mail list (left pane). Shown when browsing mails.
         /// </summary>
-        Mailbox
+        MailboxList,
+
+        /// <summary>
+        /// Mailbox mail content (right pane). Shown when viewing a specific mail.
+        /// Contains title, body text, and action buttons (Claim, More Info).
+        /// </summary>
+        MailboxContent
     }
 
     /// <summary>
@@ -136,7 +142,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.NPE
                 || group == ElementGroup.DeckBuilderCollection
                 || group == ElementGroup.DeckBuilderDeckList
-                || group == ElementGroup.Mailbox;
+                || group == ElementGroup.MailboxList
+                || group == ElementGroup.MailboxContent;
         }
 
         /// <summary>
@@ -164,7 +171,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.NPE: return "Tutorial";
                 case ElementGroup.DeckBuilderCollection: return "Collection";
                 case ElementGroup.DeckBuilderDeckList: return "Deck List";
-                case ElementGroup.Mailbox: return "Mailbox";
+                case ElementGroup.MailboxList: return "Mail List";
+                case ElementGroup.MailboxContent: return "Mail";
                 default: return "Other";
             }
         }
