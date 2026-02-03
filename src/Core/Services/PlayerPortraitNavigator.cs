@@ -53,7 +53,7 @@ namespace AccessibleArena.Core.Services
         {
             _isActive = true;
             DiscoverTimerElements();
-            MelonLogger.Msg("[PlayerPortrait] Activated");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Activated");
         }
 
         public void Deactivate()
@@ -65,7 +65,7 @@ namespace AccessibleArena.Core.Services
             _opponentTimerObj = null;
             _localMatchTimer = null;
             _opponentMatchTimer = null;
-            MelonLogger.Msg("[PlayerPortrait] Deactivated");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Deactivated");
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace AccessibleArena.Core.Services
             // Check if focus is still on player zone related elements
             if (!IsPlayerZoneElement(newFocus))
             {
-                MelonLogger.Msg($"[PlayerPortrait] Focus changed to '{newFocus.name}', auto-exiting player info zone");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Focus changed to '{newFocus.name}', auto-exiting player info zone");
                 ExitPlayerInfoZone();
             }
         }
@@ -170,14 +170,14 @@ namespace AccessibleArena.Core.Services
 
             // Store current focus to restore on exit
             _previousFocus = EventSystem.current?.currentSelectedGameObject;
-            MelonLogger.Msg($"[PlayerPortrait] Storing previous focus: {_previousFocus?.name ?? "null"}");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Storing previous focus: {_previousFocus?.name ?? "null"}");
 
             // Find and focus on the player zone element (local timer's HoverArea)
             _playerZoneFocusElement = FindPlayerZoneFocusElement();
             if (_playerZoneFocusElement != null)
             {
                 EventSystem.current?.SetSelectedGameObject(_playerZoneFocusElement);
-                MelonLogger.Msg($"[PlayerPortrait] Set focus to: {_playerZoneFocusElement.name}");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Set focus to: {_playerZoneFocusElement.name}");
             }
 
             _navigationState = NavigationState.PlayerNavigation;
@@ -187,7 +187,7 @@ namespace AccessibleArena.Core.Services
             var lifeValue = GetPropertyValue((PlayerProperty)_currentPropertyIndex);
             string announcement = $"{Strings.PlayerInfo}. {lifeValue}";
             _announcer.Announce(announcement, AnnouncementPriority.High);
-            MelonLogger.Msg("[PlayerPortrait] Entered player info zone");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Entered player info zone");
         }
 
         /// <summary>
@@ -204,12 +204,12 @@ namespace AccessibleArena.Core.Services
             if (_previousFocus != null && _previousFocus) // Check both null and Unity destroyed
             {
                 EventSystem.current?.SetSelectedGameObject(_previousFocus);
-                MelonLogger.Msg($"[PlayerPortrait] Restored focus to: {_previousFocus.name}");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Restored focus to: {_previousFocus.name}");
             }
             _previousFocus = null;
             _playerZoneFocusElement = null;
 
-            MelonLogger.Msg("[PlayerPortrait] Exited player info zone");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Exited player info zone");
         }
 
         /// <summary>
@@ -243,7 +243,7 @@ namespace AccessibleArena.Core.Services
             var currentFocus = EventSystem.current?.currentSelectedGameObject;
             if (currentFocus != null && currentFocus && !IsPlayerZoneElement(currentFocus))
             {
-                MelonLogger.Msg($"[PlayerPortrait] Focus moved to '{currentFocus.name}', exiting player zone");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Focus moved to '{currentFocus.name}', exiting player zone");
                 ExitPlayerInfoZone();
                 return false; // Let other handlers process the key
             }
@@ -321,7 +321,7 @@ namespace AccessibleArena.Core.Services
             // Use InputManager to consume the key so game doesn't also process it
             if (InputManager.GetEnterAndConsume())
             {
-                MelonLogger.Msg($"[PlayerPortrait] Enter pressed and consumed in PlayerNavigation, playerIndex={_currentPlayerIndex}");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Enter pressed and consumed in PlayerNavigation, playerIndex={_currentPlayerIndex}");
 
                 // DEPRECATED: Old targeting check - now handled by HotHighlightNavigator which includes player targets
                 // if (_targetNavigator != null && _targetNavigator.IsTargeting)
@@ -360,7 +360,7 @@ namespace AccessibleArena.Core.Services
             var currentFocus = EventSystem.current?.currentSelectedGameObject;
             if (currentFocus != null && currentFocus && !IsPlayerZoneElement(currentFocus))
             {
-                MelonLogger.Msg($"[PlayerPortrait] Focus moved to '{currentFocus.name}', exiting emote navigation");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Focus moved to '{currentFocus.name}', exiting emote navigation");
                 ExitPlayerInfoZone();
                 return false;
             }
@@ -464,7 +464,7 @@ namespace AccessibleArena.Core.Services
         private string GetPlayerRank(bool isOpponent)
         {
             string containerName = isOpponent ? "Opponent" : "LocalPlayer";
-            MelonLogger.Msg($"[PlayerPortrait] Looking for rank for {containerName}");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Looking for rank for {containerName}");
 
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
@@ -481,24 +481,24 @@ namespace AccessibleArena.Core.Services
                         if (child.name.Contains("Rank"))
                         {
                             rankAnchor = child;
-                            MelonLogger.Msg($"[PlayerPortrait] Found alternative rank: {child.name}");
+                            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found alternative rank: {child.name}");
                             break;
                         }
                     }
                 }
                 if (rankAnchor == null) continue;
 
-                MelonLogger.Msg($"[PlayerPortrait] RankAnchor found: {rankAnchor.name}");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"RankAnchor found: {rankAnchor.name}");
                 foreach (Transform child in rankAnchor)
                 {
-                    MelonLogger.Msg($"[PlayerPortrait]   Rank child: {child.name}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Rank child: {child.name}");
                 }
 
                 // Look for TextMeshPro with rank text
                 var tmpComponents = rankAnchor.GetComponentsInChildren<TextMeshProUGUI>();
                 foreach (var tmp in tmpComponents)
                 {
-                    MelonLogger.Msg($"[PlayerPortrait]   TMP in rank: '{tmp.text}' on {tmp.gameObject.name}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  TMP in rank: '{tmp.text}' on {tmp.gameObject.name}");
                     if (!string.IsNullOrEmpty(tmp.text))
                     {
                         return tmp.text.Trim();
@@ -514,7 +514,7 @@ namespace AccessibleArena.Core.Services
         private string GetPlayerUsername(bool isOpponent)
         {
             string containerName = isOpponent ? "Opponent" : "LocalPlayer";
-            MelonLogger.Msg($"[PlayerPortrait] Looking for username for {containerName}");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Looking for username for {containerName}");
 
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
@@ -523,19 +523,19 @@ namespace AccessibleArena.Core.Services
                 // Look for PlayerNameView objects (e.g., LocalPlayerNameView_Desktop_16x9(Clone))
                 if (go.name.Contains(containerName) && go.name.Contains("NameView"))
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] Found NameView: {go.name}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found NameView: {go.name}");
 
                     // Log all children and their text
                     foreach (Transform child in go.transform)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]   NameView child: {child.name}");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  NameView child: {child.name}");
                     }
 
                     // Search for TextMeshPro components
                     var tmpComponents = go.GetComponentsInChildren<TextMeshProUGUI>(true);
                     foreach (var tmp in tmpComponents)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]   TMP found: '{tmp.text}' on {tmp.gameObject.name}");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  TMP found: '{tmp.text}' on {tmp.gameObject.name}");
                         if (!string.IsNullOrEmpty(tmp.text) && !tmp.text.Contains("Rank"))
                         {
                             return tmp.text.Trim();
@@ -546,11 +546,11 @@ namespace AccessibleArena.Core.Services
                 // Also check for NameText objects
                 if (go.name.Contains(containerName) && go.name.Contains("NameText"))
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] Found NameText: {go.name}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found NameText: {go.name}");
                     var tmp = go.GetComponent<TextMeshProUGUI>();
                     if (tmp != null && !string.IsNullOrEmpty(tmp.text))
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]   NameText value: '{tmp.text}'");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  NameText value: '{tmp.text}'");
                         return tmp.text.Trim();
                     }
                 }
@@ -565,7 +565,7 @@ namespace AccessibleArena.Core.Services
         {
             bool isOpponent = _currentPlayerIndex == 1;
             string containerName = isOpponent ? "Opponent" : "LocalPlayer";
-            MelonLogger.Msg($"[PlayerPortrait] Finding avatar for {containerName}");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Finding avatar for {containerName}");
 
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
@@ -574,16 +574,16 @@ namespace AccessibleArena.Core.Services
                 if (go.name.Contains(containerName) &&
                     (go.name.Contains("Portrait") || go.name.Contains("Avatar") || go.name.Contains("Player")))
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] Potential avatar container: {go.name}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Potential avatar container: {go.name}");
 
                     var iconTransform = go.transform.Find("Icon");
                     if (iconTransform != null)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]   Found Icon child");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Found Icon child");
                         var hoverArea = iconTransform.Find("HoverArea");
                         if (hoverArea != null)
                         {
-                            MelonLogger.Msg($"[PlayerPortrait]   Found HoverArea under Icon");
+                            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Found HoverArea under Icon");
                             return hoverArea.gameObject;
                         }
                     }
@@ -591,19 +591,19 @@ namespace AccessibleArena.Core.Services
                     var directHover = go.transform.Find("HoverArea");
                     if (directHover != null)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]   Found direct HoverArea");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Found direct HoverArea");
                         return directHover.gameObject;
                     }
 
                     // Log children to help discover structure
-                    MelonLogger.Msg($"[PlayerPortrait]   Children of {go.name}:");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Children of {go.name}:");
                     foreach (Transform child in go.transform)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]     - {child.name}");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"    - {child.name}");
                     }
                 }
             }
-            MelonLogger.Msg($"[PlayerPortrait] No avatar found for {containerName}");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"No avatar found for {containerName}");
             return null;
         }
 
@@ -674,7 +674,7 @@ namespace AccessibleArena.Core.Services
         private void DiscoverEmoteButtons()
         {
             _emoteButtons.Clear();
-            MelonLogger.Msg("[PlayerPortrait] Discovering emote buttons...");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Discovering emote buttons...");
 
             // Look for EmoteOptionsPanel which contains the emote wheel
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
@@ -684,13 +684,13 @@ namespace AccessibleArena.Core.Services
                 // Find the EmoteOptionsPanel
                 if (go.name.Contains("EmoteOptionsPanel"))
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] Found EmoteOptionsPanel: {go.name}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found EmoteOptionsPanel: {go.name}");
 
                     // Look for Container child
                     var container = go.transform.Find("Container");
                     if (container != null)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait] Found Container, searching for buttons...");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Container, searching for buttons...");
                         SearchForEmoteButtons(container, 0);
                     }
 
@@ -698,7 +698,7 @@ namespace AccessibleArena.Core.Services
                     var wheel = go.transform.Find("Wheel");
                     if (wheel != null)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait] Found Wheel, searching for buttons...");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Wheel, searching for buttons...");
                         SearchForEmoteButtons(wheel, 0);
                     }
                 }
@@ -706,12 +706,12 @@ namespace AccessibleArena.Core.Services
                 // Also check CommunicationOptionsPanel
                 if (go.name.Contains("CommunicationOptionsPanel"))
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] Found CommunicationOptionsPanel: {go.name}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found CommunicationOptionsPanel: {go.name}");
                     SearchForEmoteButtons(go.transform, 0);
                 }
             }
 
-            MelonLogger.Msg($"[PlayerPortrait] Found {_emoteButtons.Count} emote buttons");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found {_emoteButtons.Count} emote buttons");
             _emoteButtons.Sort((a, b) => string.Compare(a.name, b.name));
         }
 
@@ -728,12 +728,12 @@ namespace AccessibleArena.Core.Services
 
                 string childName = child.name;
                 string indent = new string(' ', depth * 2);
-                MelonLogger.Msg($"[PlayerPortrait] {indent}Child: {childName}");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}Child: {childName}");
 
                 // Skip navigation arrows and utility buttons - not actual emotes
                 if (childName.Contains("NavArrow") || childName == "Mute Container")
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Skipping (navigation/utility)");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Skipping (navigation/utility)");
                     continue;
                 }
 
@@ -748,12 +748,12 @@ namespace AccessibleArena.Core.Services
 
                     if (hasEmoteText || isInEmoteView)
                     {
-                        MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Adding emote button: '{text}'");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Adding emote button: '{text}'");
                         _emoteButtons.Add(child.gameObject);
                     }
                     else
                     {
-                        MelonLogger.Msg($"[PlayerPortrait] {indent}  -> Skipping button (no emote text)");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Skipping button (no emote text)");
                     }
                 }
 
@@ -881,13 +881,13 @@ namespace AccessibleArena.Core.Services
                     {
                         _localTimerObj = mb.gameObject;
                         _localMatchTimer = mb;
-                        MelonLogger.Msg($"[PlayerPortrait] Found local timer: {objName}");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found local timer: {objName}");
                     }
                     else if (objName.Contains("Opponent"))
                     {
                         _opponentTimerObj = mb.gameObject;
                         _opponentMatchTimer = mb;
-                        MelonLogger.Msg($"[PlayerPortrait] Found opponent timer: {objName}");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found opponent timer: {objName}");
                     }
                 }
             }
@@ -897,9 +897,9 @@ namespace AccessibleArena.Core.Services
             var timerOpponent = GameObject.Find("Timer_Opponent");
 
             if (timerPlayer != null)
-                MelonLogger.Msg($"[PlayerPortrait] Found Timer_Player for timeouts");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Timer_Player for timeouts");
             if (timerOpponent != null)
-                MelonLogger.Msg($"[PlayerPortrait] Found Timer_Opponent for timeouts");
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Timer_Opponent for timeouts");
         }
 
         private void AnnounceLifeTotals()
@@ -951,7 +951,7 @@ namespace AccessibleArena.Core.Services
 
                 if (gameManager == null)
                 {
-                    MelonLogger.Msg("[PlayerPortrait] GameManager not found");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"GameManager not found");
                     return (-1, -1);
                 }
 
@@ -976,7 +976,7 @@ namespace AccessibleArena.Core.Services
 
                 if (gameState == null)
                 {
-                    MelonLogger.Msg("[PlayerPortrait] GameState not available");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"GameState not available");
                     return (-1, -1);
                 }
 
@@ -991,7 +991,7 @@ namespace AccessibleArena.Core.Services
                     if (localPlayer != null)
                     {
                         localLife = GetPlayerLife(localPlayer);
-                        MelonLogger.Msg($"[PlayerPortrait] Local player life: {localLife}");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Local player life: {localLife}");
                     }
                 }
 
@@ -1003,7 +1003,7 @@ namespace AccessibleArena.Core.Services
                     if (opponent != null)
                     {
                         opponentLife = GetPlayerLife(opponent);
-                        MelonLogger.Msg($"[PlayerPortrait] Opponent life: {opponentLife}");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Opponent life: {opponentLife}");
                     }
                 }
             }
@@ -1067,18 +1067,18 @@ namespace AccessibleArena.Core.Services
             }
 
             // Log all properties and fields for debugging
-            MelonLogger.Msg($"[PlayerPortrait] MtgPlayer properties:");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"MtgPlayer properties:");
             foreach (var prop in playerType.GetProperties(bindingFlags))
             {
                 try
                 {
                     var val = prop.GetValue(player);
-                    MelonLogger.Msg($"[PlayerPortrait]   Prop {prop.Name}: {val}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Prop {prop.Name}: {val}");
                 }
                 catch { }
             }
 
-            MelonLogger.Msg($"[PlayerPortrait] MtgPlayer fields:");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"MtgPlayer fields:");
             foreach (var field in playerType.GetFields(bindingFlags))
             {
                 try
@@ -1086,7 +1086,7 @@ namespace AccessibleArena.Core.Services
                     var val = field.GetValue(player);
                     var valStr = val?.ToString() ?? "null";
                     if (valStr.Length > 50) valStr = valStr.Substring(0, 50) + "...";
-                    MelonLogger.Msg($"[PlayerPortrait]   Field {field.Name}: {valStr}");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Field {field.Name}: {valStr}");
                 }
                 catch { }
             }
@@ -1274,7 +1274,7 @@ namespace AccessibleArena.Core.Services
                 var hoverArea = iconTransform.Find("HoverArea");
                 if (hoverArea != null)
                 {
-                    MelonLogger.Msg($"[PlayerPortrait] Clicking HoverArea for {(opponent ? "opponent" : "local")} portrait");
+                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Clicking HoverArea for {(opponent ? "opponent" : "local")} portrait");
                     UIActivator.SimulatePointerClick(hoverArea.gameObject);
                     _announcer.Announce(opponent ? "Opponent portrait clicked" : "Your portrait clicked", AnnouncementPriority.Normal);
                     return;

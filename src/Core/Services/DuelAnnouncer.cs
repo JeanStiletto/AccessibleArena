@@ -201,7 +201,7 @@ namespace AccessibleArena.Core.Services
                 if (!_loggedEventTypes.Contains(typeName))
                 {
                     _loggedEventTypes.Add(typeName);
-                    MelonLogger.Msg($"[DuelAnnouncer] NEW EVENT TYPE SEEN: {typeName}");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"NEW EVENT TYPE SEEN: {typeName}");
                 }
 
                 var eventType = ClassifyEvent(uxEvent);
@@ -429,7 +429,7 @@ namespace AccessibleArena.Core.Services
                 var affectedId = GetFieldValue<uint>(uxEvent, "AffectedId");
                 var change = GetNestedPropertyValue<int>(uxEvent, "Change");
 
-                MelonLogger.Msg($"[DuelAnnouncer] Life event: affectedId={affectedId}, change={change}, localPlayer={_localPlayerId}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Life event: affectedId={affectedId}, change={change}, localPlayer={_localPlayerId}");
 
                 if (change == 0) return null;
 
@@ -443,7 +443,7 @@ namespace AccessibleArena.Core.Services
                 if (avatar != null)
                 {
                     var avatarStr = avatar.ToString();
-                    MelonLogger.Msg($"[DuelAnnouncer] Life event avatar: {avatarStr}");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Life event avatar: {avatarStr}");
 
                     if (avatarStr.Contains("LocalPlayer"))
                     {
@@ -549,7 +549,7 @@ namespace AccessibleArena.Core.Services
             if (uxEvent == null) return;
 
             var type = uxEvent.GetType();
-            MelonLogger.Msg($"[DuelAnnouncer] === {label} TYPE: {type.FullName} ===");
+            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== {label} TYPE: {type.FullName} ===");
 
             // Log all fields
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
@@ -560,11 +560,11 @@ namespace AccessibleArena.Core.Services
                     var value = field.GetValue(uxEvent);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    MelonLogger.Msg($"[DuelAnnouncer] Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Field: {field.Name} = [Error: {ex.Message}]");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Field: {field.Name} = [Error: {ex.Message}]");
                 }
             }
 
@@ -577,15 +577,15 @@ namespace AccessibleArena.Core.Services
                     var value = prop.GetValue(uxEvent);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    MelonLogger.Msg($"[DuelAnnouncer] Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Property: {prop.Name} = [Error: {ex.Message}]");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Property: {prop.Name} = [Error: {ex.Message}]");
                 }
             }
 
-            MelonLogger.Msg($"[DuelAnnouncer] === END {label} FIELDS ===");
+            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== END {label} FIELDS ===");
         }
 
         private void LogDamageEventFields(object uxEvent)
@@ -594,7 +594,7 @@ namespace AccessibleArena.Core.Services
             _damageEventFieldsLogged = true;
 
             var type = uxEvent.GetType();
-            MelonLogger.Msg($"[DuelAnnouncer] === DAMAGE EVENT TYPE: {type.FullName} ===");
+            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== DAMAGE EVENT TYPE: {type.FullName} ===");
 
             // Log all fields
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
@@ -605,11 +605,11 @@ namespace AccessibleArena.Core.Services
                     var value = field.GetValue(uxEvent);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    MelonLogger.Msg($"[DuelAnnouncer] Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Field: {field.Name} = [Error: {ex.Message}]");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Field: {field.Name} = [Error: {ex.Message}]");
                 }
             }
 
@@ -622,15 +622,15 @@ namespace AccessibleArena.Core.Services
                     var value = prop.GetValue(uxEvent);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    MelonLogger.Msg($"[DuelAnnouncer] Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Property: {prop.Name} = [Error: {ex.Message}]");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Property: {prop.Name} = [Error: {ex.Message}]");
                 }
             }
 
-            MelonLogger.Msg($"[DuelAnnouncer] === END DAMAGE EVENT FIELDS ===");
+            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== END DAMAGE EVENT FIELDS ===");
         }
 
         private string GetDamageTargetName(uint targetPlayerId, uint targetInstanceId)
@@ -667,7 +667,7 @@ namespace AccessibleArena.Core.Services
                     string name = FindCardNameByInstanceId(instanceId);
                     if (!string.IsNullOrEmpty(name))
                     {
-                        MelonLogger.Msg($"[DuelAnnouncer] Found source from {fieldName}: {name}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Found source from {fieldName}: {name}");
                         return name;
                     }
                 }
@@ -682,7 +682,7 @@ namespace AccessibleArena.Core.Services
                     string name = CardModelProvider.GetNameFromGrpId(grpId);
                     if (!string.IsNullOrEmpty(name))
                     {
-                        MelonLogger.Msg($"[DuelAnnouncer] Found source from {fieldName} (GrpId): {name}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Found source from {fieldName} (GrpId): {name}");
                         return name;
                     }
                 }
@@ -805,14 +805,14 @@ namespace AccessibleArena.Core.Services
                         parts.Add($"{attackers.Count} attacker{(attackers.Count != 1 ? "s" : "")}");
                         parts.AddRange(attackers);
                         attackerAnnouncement = string.Join(". ", parts);
-                        MelonLogger.Msg($"[DuelAnnouncer] Leaving declare attackers: {attackerAnnouncement}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Leaving declare attackers: {attackerAnnouncement}");
                     }
                 }
 
                 // Track current phase/step for combat navigation
                 _currentPhase = phase;
                 _currentStep = step;
-                MelonLogger.Msg($"[DuelAnnouncer] Phase change: {phase}/{step}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Phase change: {phase}/{step}");
 
                 string phaseAnnouncement = null;
                 if (phase == "Main1") phaseAnnouncement = "First main phase";
@@ -1147,7 +1147,7 @@ namespace AccessibleArena.Core.Services
                             string cardName = grpId != 0 ? CardModelProvider.GetNameFromGrpId(grpId) : null;
                             if (!string.IsNullOrEmpty(cardName))
                             {
-                                MelonLogger.Msg($"[DuelAnnouncer] Creature damage: {cardName} now has {damage} damage (dealt: {damageDealt})");
+                                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Creature damage: {cardName} now has {damage} damage (dealt: {damageDealt})");
 
                                 // Try to correlate with last resolving card
                                 if (!string.IsNullOrEmpty(_lastResolvingCardName))
@@ -1284,7 +1284,7 @@ namespace AccessibleArena.Core.Services
                         }
                     }
 
-                    MelonLogger.Msg($"[DuelAnnouncer] ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
                     isOpponent = controllerId != 0 && controllerId != _localPlayerId;
                 }
 
@@ -1299,7 +1299,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Log zone strings for debugging ownership detection
-                MelonLogger.Msg($"[DuelAnnouncer] Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
 
                 // Try to auto-correct local player ID from zone strings containing "(LocalPlayer)"
                 TryUpdateLocalPlayerIdFromZoneString(fromZoneStr);
@@ -1316,7 +1316,7 @@ namespace AccessibleArena.Core.Services
                     isOpponent = true; // Contains a player reference but not our ID, so it's opponent
 
                 // Log for debugging
-                MelonLogger.Msg($"[DuelAnnouncer] ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");
 
                 // Skip if no card data
                 if (grpId == 0)
@@ -1362,7 +1362,7 @@ namespace AccessibleArena.Core.Services
 
                 if (!string.IsNullOrEmpty(announcement))
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Zone transfer announcement: {announcement}");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Zone transfer announcement: {announcement}");
                 }
 
                 return announcement;
@@ -1484,13 +1484,13 @@ namespace AccessibleArena.Core.Services
                 string parentName = CardModelProvider.GetNameFromGrpId(parentGrpId);
                 if (!string.IsNullOrEmpty(parentName))
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Card is attached to: {parentName} (GrpId={parentGrpId})");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (GrpId={parentGrpId})");
                     return parentName;
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[DuelAnnouncer] Error getting attached-to name: {ex.Message}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Error getting attached-to name: {ex.Message}");
             }
 
             return null;
@@ -1684,7 +1684,7 @@ namespace AccessibleArena.Core.Services
 
                 // Log total damage for analysis
                 var opponentDamage = GetFieldValue<int>(uxEvent, "OpponentDamageDealt");
-                MelonLogger.Msg($"[DuelAnnouncer] CombatFrame: OpponentDamageDealt={opponentDamage}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"CombatFrame: OpponentDamageDealt={opponentDamage}");
 
                 // Check both branch lists - _branches and _runningBranches
                 var branches = GetFieldValue<object>(uxEvent, "_branches");
@@ -1697,7 +1697,7 @@ namespace AccessibleArena.Core.Services
                     foreach (var _ in bList) branchCount++;
                 if (runningBranches is System.Collections.IEnumerable rList)
                     foreach (var _ in rList) runningCount++;
-                MelonLogger.Msg($"[DuelAnnouncer] Branch counts: _branches={branchCount}, _runningBranches={runningCount}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Branch counts: _branches={branchCount}, _runningBranches={runningCount}");
                 if (branches != null)
                 {
                     var branchList = branches as System.Collections.IEnumerable;
@@ -1714,7 +1714,7 @@ namespace AccessibleArena.Core.Services
                             // Log for debugging
                             foreach (var dmg in damageChain)
                             {
-                                MelonLogger.Msg($"[DuelAnnouncer] Branch[{branchIndex}]: {dmg.SourceName} -> {dmg.TargetName}, Amount={dmg.Amount}");
+                                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Branch[{branchIndex}]: {dmg.SourceName} -> {dmg.TargetName}, Amount={dmg.Amount}");
                             }
 
                             // Build grouped announcement for this combat pair
@@ -1745,7 +1745,7 @@ namespace AccessibleArena.Core.Services
                             }
                             branchIndex++;
                         }
-                        MelonLogger.Msg($"[DuelAnnouncer] Total branches: {branchIndex}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Total branches: {branchIndex}");
                     }
                 }
 
@@ -1798,7 +1798,7 @@ namespace AccessibleArena.Core.Services
                 var affected = GetFieldValue<object>(uxEvent, "Affected");
 
                 string effectName = abilityCategory?.ToString() ?? "unknown";
-                MelonLogger.Msg($"[DuelAnnouncer] MultistepEffect: AbilityCategory={effectName}, Affector={affector}, Affected={affected}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"MultistepEffect: AbilityCategory={effectName}, Affector={affector}, Affected={affected}");
 
                 // Determine effect type and description
                 string effectDescription;
@@ -1881,11 +1881,11 @@ namespace AccessibleArena.Core.Services
 
                 if (!string.IsNullOrEmpty(cardName))
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Library browser active: {effectDescription} from {cardName}");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Library browser active: {effectDescription} from {cardName}");
                 }
                 else
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Library browser active: {effectDescription}");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Library browser active: {effectDescription}");
                 }
 
                 return announcement;
@@ -1969,7 +1969,7 @@ namespace AccessibleArena.Core.Services
 
             // Log BranchDepth from first branch
             var branchDepth = GetNestedPropertyValue<int>(branch, "BranchDepth");
-            MelonLogger.Msg($"[DuelAnnouncer] Chain BranchDepth={branchDepth}");
+            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Chain BranchDepth={branchDepth}");
 
             while (currentBranch != null)
             {
@@ -1985,7 +1985,7 @@ namespace AccessibleArena.Core.Services
 
                 // Check what _nextBranch contains
                 var nextBranch = GetFieldValue<object>(currentBranch, "_nextBranch");
-                MelonLogger.Msg($"[DuelAnnouncer] Chain depth {depth}: _nextBranch={(nextBranch != null ? "exists" : "null")}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Chain depth {depth}: _nextBranch={(nextBranch != null ? "exists" : "null")}");
 
                 // Follow the chain to get blocker damage
                 currentBranch = nextBranch;
@@ -1995,7 +1995,7 @@ namespace AccessibleArena.Core.Services
                 if (depth > 10) break;
             }
 
-            MelonLogger.Msg($"[DuelAnnouncer] Chain total depth: {depth}");
+            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Chain total depth: {depth}");
             return chain;
         }
 
@@ -2117,7 +2117,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _lastResolvingCardName = cardName;
                     _lastResolvingInstanceId = instigatorInstanceId;
-                    MelonLogger.Msg($"[DuelAnnouncer] Resolution started: {cardName} (InstanceId: {instigatorInstanceId})");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Resolution started: {cardName} (InstanceId: {instigatorInstanceId})");
                 }
 
                 return null; // Don't announce resolution start, just track it
@@ -2148,7 +2148,7 @@ namespace AccessibleArena.Core.Services
                 // DIAGNOSTIC: Log button state when mana is produced (ability activation mode)
                 if (typeName == "ManaProducedUXEvent")
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] === MANA PRODUCED - Logging button state ===");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== MANA PRODUCED - Logging button state ===");
                     LogAllPromptButtons();
                 }
 
@@ -2160,7 +2160,7 @@ namespace AccessibleArena.Core.Services
 
                     if (!string.IsNullOrEmpty(manaPoolString))
                     {
-                        MelonLogger.Msg($"[DuelAnnouncer] Mana pool: {manaPoolString}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Mana pool: {manaPoolString}");
                         return $"Mana: {manaPoolString}";
                     }
                 }
@@ -2182,7 +2182,7 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                MelonLogger.Msg("[DuelAnnouncer] === PROMPT BUTTON DIAGNOSTIC ===");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== PROMPT BUTTON DIAGNOSTIC ===");
 
                 // Find all prompt buttons
                 var allObjects = UnityEngine.GameObject.FindObjectsOfType<UnityEngine.GameObject>();
@@ -2201,17 +2201,17 @@ namespace AccessibleArena.Core.Services
 
                         bool isInteractable = (button?.interactable ?? false) || (selectable?.interactable ?? false);
 
-                        MelonLogger.Msg($"[DuelAnnouncer] Button: {go.name}");
-                        MelonLogger.Msg($"[DuelAnnouncer]   Text: '{buttonText}'");
-                        MelonLogger.Msg($"[DuelAnnouncer]   Interactable: {isInteractable}");
-                        MelonLogger.Msg($"[DuelAnnouncer]   Path: {MenuDebugHelper.GetGameObjectPath(go)}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Button: {go.name}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  Text: '{buttonText}'");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  Interactable: {isInteractable}");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  Path: {MenuDebugHelper.GetGameObjectPath(go)}");
 
                         // Check for callbacks
                         if (button != null)
                         {
                             var onClick = button.onClick;
                             int listenerCount = onClick?.GetPersistentEventCount() ?? 0;
-                            MelonLogger.Msg($"[DuelAnnouncer]   OnClick listeners: {listenerCount}");
+                            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  OnClick listeners: {listenerCount}");
                         }
 
                         buttonCount++;
@@ -2228,7 +2228,7 @@ namespace AccessibleArena.Core.Services
                         go.name.Contains("Workflow") || go.name.Contains("ActionButton"))
                     {
                         string text = UITextExtractor.GetText(go);
-                        MelonLogger.Msg($"[DuelAnnouncer] Workflow UI: {go.name} - '{text}'");
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Workflow UI: {go.name} - '{text}'");
                     }
                 }
 
@@ -2245,14 +2245,14 @@ namespace AccessibleArena.Core.Services
                         {
                             highlightedLands++;
                             string cardName = CardDetector.GetCardName(go);
-                            MelonLogger.Msg($"[DuelAnnouncer] Highlighted land: {cardName}");
+                            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Highlighted land: {cardName}");
                         }
                     }
                 }
 
-                MelonLogger.Msg($"[DuelAnnouncer] Total prompt buttons found: {buttonCount}");
-                MelonLogger.Msg($"[DuelAnnouncer] Total highlighted lands: {highlightedLands}");
-                MelonLogger.Msg("[DuelAnnouncer] === END PROMPT BUTTON DIAGNOSTIC ===");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Total prompt buttons found: {buttonCount}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Total highlighted lands: {highlightedLands}");
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== END PROMPT BUTTON DIAGNOSTIC ===");
             }
             catch (Exception ex)
             {
@@ -2451,7 +2451,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (detectedId != _localPlayerId && detectedId > 0)
                 {
-                    MelonLogger.Msg($"[DuelAnnouncer] Updating local player ID: {_localPlayerId} -> {detectedId} (detected from zone string)");
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Updating local player ID: {_localPlayerId} -> {detectedId} (detected from zone string)");
                     _localPlayerId = detectedId;
                 }
             }

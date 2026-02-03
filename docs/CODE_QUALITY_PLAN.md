@@ -8,7 +8,7 @@
 | Phase | Status | Completed |
 |-------|--------|-----------|
 | Phase 1: Inspection & Cleanup | COMPLETE | 2026-02-03 |
-| Phase 2: Debug Infrastructure | PARTIAL | Stages 2.1, 2.2 done |
+| Phase 2: Debug Infrastructure | COMPLETE | 2026-02-03 |
 | Phase 3: Code Deduplication | COMPLETE | 2026-02-03 |
 | Phase 4: Dropdown Flag Unification | COMPLETE | 2026-02-03 |
 | Phase 5: Panel Detection Cleanup | COMPLETE | 2026-02-03 |
@@ -73,22 +73,26 @@
 
 ---
 
-### Stage 2.3: Migrate High-Volume Logging Files - NOT STARTED
+### Stage 2.3: Migrate High-Volume Logging Files - COMPLETE
 **Scope:** Update top 5 files by MelonLogger.Msg call count
 
-**Files (by call count):**
-1. CardModelProvider.cs (123 calls)
-2. PanelStatePatch.cs (85 calls)
-3. MenuDebugHelper.cs (58 calls)
-4. DuelAnnouncer.cs (51 calls)
-5. PlayerPortraitNavigator.cs (53 calls)
+**Completed:**
+1. **CardModelProvider.cs** (123 calls) → `DebugConfig.LogIf(LogCardInfo, ...)`
+2. **PanelStatePatch.cs** (85 calls) → `DebugConfig.LogIf(LogPatches, ...)`
+   - Added `using AccessibleArena.Core.Services;`
+3. **MenuDebugHelper.cs** (58 calls) → `DebugConfig.LogIf(LogNavigation, tag, ...)`
+   - Preserved dynamic `tag` parameter for caller-specified tags
+4. **DuelAnnouncer.cs** (51 calls) → `DebugConfig.LogIf(LogAnnouncements, ...)`
+5. **PlayerPortraitNavigator.cs** (53 calls) → `DebugConfig.LogIf(LogNavigation, ...)`
 
-**Tasks:**
-- Replace debug logging with `DebugConfig.Log(tag, message)`
-- Keep critical error/warning messages as direct MelonLogger calls
-- Add appropriate category tags
+**Total:** 370 MelonLogger.Msg calls migrated to DebugConfig.LogIf
 
-**Testing:** Quieter logs when debug disabled, full detail when enabled
+**Key Changes:**
+- All debug logging now respects `DebugConfig.DebugEnabled` toggle
+- MelonLogger.Warning/Error calls preserved (always visible)
+- Category-specific toggles allow fine-grained control
+
+**Testing:** Verified in duel - all tags appearing correctly with DebugEnabled=true
 
 **Risk:** MEDIUM
 
@@ -411,7 +415,7 @@ The current HandlesPanel() implementations appear to have proper mutual exclusio
 | 5 | 3.2-3.3 | Log() dedup, remove comments | LOW | DONE |
 | 6 | 4.1 | Dropdown analysis | NONE | DONE |
 | 7 | 5.1 | Panel detection docs | NONE | DONE |
-| 8 | 2.3 | High-volume logging | MEDIUM | |
+| 8 | 2.3 | High-volume logging | MEDIUM | DONE |
 | 9 | 4.2 | Dropdown unification | HIGH | DONE |
 | 10 | 5.2 | Panel detection audit | LOW | DONE |
 | 11 | 5.3 | Panel detection cleanup | MEDIUM | DONE |
