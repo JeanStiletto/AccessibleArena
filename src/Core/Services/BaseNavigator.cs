@@ -1633,7 +1633,9 @@ namespace AccessibleArena.Core.Services
             }
 
             var element = _elements[_currentIndex].GameObject;
-            if (element != null && CardDetector.IsCard(element))
+            bool isCard = element != null && CardDetector.IsCard(element);
+            MelonLogger.Msg($"[{NavigatorId}] UpdateCardNavigation: element={element?.name}, IsCard={isCard}");
+            if (isCard)
             {
                 cardNavigator.PrepareForCard(element);
             }

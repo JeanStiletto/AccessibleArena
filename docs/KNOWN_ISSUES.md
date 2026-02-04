@@ -257,40 +257,36 @@ Dropdown auto-advance causes navigation confusion. Basic dropdown navigation wor
 
 ---
 
-### Rewards Popup Not Tracked
+### Rewards Popup - RESOLVED
 
-Quest reward popups (`ContentController - Rewards_Desktop_16x9(Clone)`) are not detected as overlays. Navigation includes all navbar buttons instead of focusing on just the popup.
+Quest reward popups (`ContentController - Rewards_Desktop_16x9(Clone)`) are now fully accessible with card info navigation.
 
-**The Problem:**
-- Reward popup appears under `Canvas - Screenspace Popups/ContentController - Rewards_Desktop_16x9(Clone)`
-- Has `ClaimButton` with text "Nehmen" (Claim) and reward cards
-- PanelStateManager does NOT track this popup - no `FinishOpen()` or lifecycle events logged
-- So `OverlayDetector.GetActiveOverlay()` never returns `Popup` for it
-- Elements are not filtered, navbar buttons appear alongside popup content
+**The Fix (February 2026):**
+1. **Overlay Detection:** `OverlayDetector.IsRewardsPopupOpen()` checks for active ContentController with "Rewards" under `Canvas - Screenspace Popups`
+2. **Disabled Grouped Navigation:** Rewards popup uses flat Left/Right navigation (not hierarchical groups)
+3. **Card Info Navigation:** Up/Down arrows read card details via `CardInfoNavigator` for card rewards
+4. **Multi-Page Support:** "Mehr" (More) button advances to next page of rewards - triggers rescan to pick up new content
+5. **Overlay Change Detection:** Automatic rescan when popup opens/closes, ensuring navigation stays in sync
 
-**Why System Popups Work But This Doesn't:**
-- SystemMessageView popups: Tracked by PanelStateManager (call `FinishOpen()` etc.)
-- SocialUI: Has dedicated detection via `IsSocialPanelOpen()`
-- Settings: Has dedicated detection via `CheckSettingsMenuOpen()`
-- Rewards popup: Uses generic ContentController, doesn't call lifecycle methods
+**User Flow:**
+1. Claim rewards from mail → Rewards popup appears
+2. Left/Right arrows navigate through reward items (packs, cards, sleeves, gold, etc.)
+3. Up/Down arrows read card details when focused on a card reward
+4. "Mehr" button reveals more rewards (may need multiple presses to show all)
+5. Backspace clicks background to progress/dismiss
 
-**What We Know:**
-- Popup path: `Canvas - Screenspace Popups/ContentController - Rewards_Desktop_16x9(Clone)`
-- Contains: `Container/Buttons/ClaimButton`, `Container/RewardsCONTAINER/RewardPrefab_*`
-- Does NOT trigger `NavContentController.FinishOpen()` when appearing
-- Likely just instantiated/enabled without calling Open() lifecycle
+**Technical Details:**
+- `ElementGroup.RewardsPopup` overlay group filters navigation to popup elements only
+- `DiscoverRewardElements()` finds `RewardPrefab_*` elements and extracts labels
+- `FindCardObjectInReward()` locates card components (BoosterMetaCardView, PagesMetaCardView, etc.)
+- `CardDetector.IsCard()` recognizes reward cards for CardInfoNavigator integration
+- Rescan triggered after "Mehr" press and on overlay state changes
 
-**Attempted Fix (Failed):**
-Direct GameObject search for "ContentController" + "Rewards" broke home page detection (found something always active).
-
-**Next Steps:**
-1. Debug logging added to GeneralMenuNavigator to capture controller components when ClaimButton is discovered
-2. Find the actual controller class type
-3. Patch it in PanelStatePatch like other controllers
-
-**Debug logging:** When ClaimButton with "Nehmen" text is found, logs all components on parent ContentController
-
-**Files:** `OverlayDetector.cs`, `GeneralMenuNavigator.cs`, `PanelStatePatch.cs`
+**Implementation Files:**
+- `ElementGroup.cs` - Added `RewardsPopup` enum value
+- `OverlayDetector.cs` - Detection and filtering methods
+- `GeneralMenuNavigator.cs` - Discovery, navigation, backspace handler, overlay change tracking
+- `CardDetector.cs` - Added PagesMetaCardView/MetaCardView component recognition
 
 ---
 

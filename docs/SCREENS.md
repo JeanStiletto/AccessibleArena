@@ -480,6 +480,44 @@ Fields without content are skipped. Pressing Down past the last field transition
 - Harmony patch on `ContentControllerPlayerInbox.OnLetterSelected()` detects mail selection
 - Buttons without actual text content (only object name) are filtered out
 
+## Rewards Popup
+
+**Controller:** `ContentControllerRewards`
+**Navigator:** `GeneralMenuNavigator`
+**Path:** `Canvas - Screenspace Popups/ContentController - Rewards_Desktop_16x9(Clone)`
+
+The Rewards Popup appears after claiming rewards from mail, store purchases, or other reward sources. It displays the actual rewards being granted (cards, card sleeves, gold, packs, etc.).
+
+**Navigation:**
+- Left/Right arrows: Navigate through reward items (flat navigation, no groups)
+- Up/Down arrows: Read card details via CardInfoNavigator (when on a card reward)
+- Enter: Activate reward item buttons (e.g., "Standard festlegen" / "Set as default")
+- Backspace: Click through / dismiss the popup (progress to next screen)
+
+**Elements:**
+- `RewardPrefab_Pack` - Booster pack rewards with quantity
+- `RewardPrefab_IndividualCard_Base` - Individual card rewards (navigable with card info)
+- `RewardPrefab_CardSleeve_Base` - Card sleeve rewards with "Standard festlegen" button
+- `ClaimButton` - "Mehr" (More) button to reveal additional rewards or close popup
+- `Background_ClickBlocker` - Click-to-progress background
+
+**Multi-Page Rewards:**
+Some reward screens have multiple pages of rewards. The "Mehr" (More) button:
+1. First presses reveal additional rewards on subsequent pages
+2. Final press closes the popup
+3. Each press triggers a rescan to discover newly visible rewards
+
+**Technical Notes:**
+- Detected via `OverlayDetector.IsRewardsPopupOpen()` - checks for active ContentController with "Rewards" in name
+- **Grouped navigation disabled** - uses flat Left/Right navigation for simplicity
+- `ElementGroup.RewardsPopup` overlay group filters navigation to popup elements only
+- `DiscoverRewardElements()` finds `RewardPrefab_*` elements and creates navigation entries
+- `FindCardObjectInReward()` locates card components (BoosterMetaCardView, PagesMetaCardView, etc.)
+- Card rewards are recognized by `CardDetector.IsCard()` enabling CardInfoNavigator integration
+- Rescan triggered after "Mehr" button press and on overlay state changes (popup open/close)
+- `DismissRewardsPopup()` clicks the `Background_ClickBlocker` as fallback dismiss method
+- Controller has callback methods: `OnRewardsClosed`, `RegisterRewardClosedCallback()`
+
 ## Rewards/Mastery Screen
 
 **Controller:** `ProgressionTracksContentController`

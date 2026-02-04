@@ -150,6 +150,9 @@ namespace AccessibleArena.Core.Services
         private float _npeButtonCheckTimer;
         private int _lastNPEButtonCount;
 
+        // Overlay state tracking - detect when overlays open/close to trigger rescans
+        private ElementGroup? _lastKnownOverlay;
+
         #endregion
 
         #region Helper Methods
@@ -229,6 +232,279 @@ namespace AccessibleArena.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] === END REWARDS POPUP DEBUG ===");
+        }
+
+        /// <summary>
+        /// Discover reward elements in the rewards popup.
+        /// This handles RewardPrefab_Pack, RewardPrefab_IndividualCard, etc.
+        /// that have zero-height hitboxes and would otherwise be filtered out.
+        /// </summary>
+        private void DiscoverRewardElements(
+            HashSet<GameObject> addedObjects,
+            List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)> discoveredElements)
+        {
+            var rewardsContainer = _overlayDetector.GetRewardsContainer();
+            if (rewardsContainer == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardElements: RewardsContainer not found");
+                return;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardElements: Found RewardsContainer, searching for reward prefabs");
+
+            int rewardCount = 0;
+            var rewardPrefabs = new List<(Transform prefab, string type, float sortOrder)>();
+
+            // Find all reward prefabs
+            foreach (Transform child in rewardsContainer.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                string name = child.name;
+                if (!name.StartsWith("RewardPrefab_")) continue;
+
+                // Determine reward type
+                string rewardType = null;
+                if (name.Contains("Pack"))
+                    rewardType = "Pack";
+                else if (name.Contains("IndividualCard"))
+                    rewardType = "Card";
+                else if (name.Contains("CardSleeve"))
+                    rewardType = "CardSleeve";
+                else if (name.Contains("Gold") || name.Contains("Gem"))
+                    rewardType = "Currency";
+                else if (name.Contains("Avatar"))
+                    rewardType = "Avatar";
+                else
+                    rewardType = "Reward";
+
+                // Sort by horizontal position (left to right)
+                float sortOrder = child.position.x;
+                rewardPrefabs.Add((child, rewardType, sortOrder));
+            }
+
+            // Sort rewards by position
+            rewardPrefabs = rewardPrefabs.OrderBy(r => r.sortOrder).ToList();
+
+            foreach (var (prefab, rewardType, sortOrder) in rewardPrefabs)
+            {
+                rewardCount++;
+                string label = ExtractRewardLabel(prefab.gameObject, rewardType, rewardCount);
+
+                // Find a clickable element for this reward
+                GameObject clickTarget = FindRewardClickTarget(prefab.gameObject, rewardType);
+                if (clickTarget == null)
+                    clickTarget = prefab.gameObject;
+
+                if (addedObjects.Contains(clickTarget)) continue;
+
+                // Debug: log card detection info for card rewards
+                bool isCard = CardDetector.IsCard(clickTarget);
+                MelonLogger.Msg($"[{NavigatorId}] Adding reward: {label} (target: {clickTarget.name}, IsCard: {isCard})");
+                if (rewardType == "Card")
+                {
+                    // Log components on the click target for debugging
+                    var components = clickTarget.GetComponents<MonoBehaviour>();
+                    var componentNames = string.Join(", ", components.Where(c => c != null).Select(c => c.GetType().Name));
+                    MelonLogger.Msg($"[{NavigatorId}] Card reward components: {componentNames}");
+                }
+
+                // Create a classification result for the reward
+                var classification = new UIElementClassifier.ClassificationResult
+                {
+                    Role = UIElementClassifier.ElementRole.Button,
+                    Label = label,
+                    RoleLabel = "reward",
+                    IsNavigable = true,
+                    ShouldAnnounce = true
+                };
+
+                discoveredElements.Add((clickTarget, classification, sortOrder));
+                addedObjects.Add(clickTarget);
+
+                // Add ALL elements inside this reward prefab to addedObjects to prevent
+                // normal discovery from finding them (avoids duplicate "Unknown card" entries)
+                foreach (Transform child in prefab.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child != null && child.gameObject.activeInHierarchy)
+                        addedObjects.Add(child.gameObject);
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardElements: Added {rewardCount} rewards");
+        }
+
+        /// <summary>
+        /// Extract a readable label for a reward prefab.
+        /// </summary>
+        private string ExtractRewardLabel(GameObject rewardPrefab, string rewardType, int index)
+        {
+            switch (rewardType)
+            {
+                case "Card":
+                    // Find the actual card object inside the reward prefab
+                    var cardObj = FindCardObjectInReward(rewardPrefab);
+                    if (cardObj != null)
+                    {
+                        var cardInfo = CardDetector.ExtractCardInfo(cardObj);
+                        if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
+                        {
+                            string cardLabel = $"Card {index}: {cardInfo.Name}";
+                            if (!string.IsNullOrEmpty(cardInfo.TypeLine))
+                                cardLabel += $", {cardInfo.TypeLine}";
+                            return cardLabel;
+                        }
+                    }
+                    // Fallback: try to find text elements
+                    var cardTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in cardTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy)
+                        {
+                            string content = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(content) && content != "+99" && !content.StartsWith("+"))
+                                return $"Card {index}: {content}";
+                        }
+                    }
+                    return $"Card {index}";
+
+                case "Pack":
+                    // Try to find pack/set name
+                    var packTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in packTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy)
+                        {
+                            string content = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(content))
+                                return $"Pack {index}: {content}";
+                        }
+                    }
+                    return $"Booster Pack {index}";
+
+                case "CardSleeve":
+                    var sleeveTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in sleeveTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy)
+                        {
+                            string content = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(content))
+                                return $"Card Sleeve: {content}";
+                        }
+                    }
+                    return $"Card Sleeve {index}";
+
+                case "Currency":
+                    var currencyTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in currencyTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy)
+                        {
+                            string content = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(content))
+                                return content; // e.g., "500 Gold"
+                        }
+                    }
+                    return rewardPrefab.name.Contains("Gold") ? "Gold" : "Gems";
+
+                default:
+                    return $"Reward {index}";
+            }
+        }
+
+        /// <summary>
+        /// Find the actual card object inside a reward prefab.
+        /// Returns the object with BoosterMetaCardView or similar card component.
+        /// </summary>
+        private GameObject FindCardObjectInReward(GameObject rewardPrefab)
+        {
+            // Look for card components on children
+            foreach (var mb in rewardPrefab.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+
+                string typeName = mb.GetType().Name;
+                // Match all card component types (aligned with CardDetector.IsCard and FindPoolHolderCards)
+                if (typeName == "BoosterMetaCardView" ||
+                    typeName == "RewardDisplayCard" ||
+                    typeName == "PagesMetaCardView" ||  // Used by deck cards
+                    typeName == "MetaCardView" ||
+                    typeName == "Meta_CDC" ||
+                    typeName == "CardView" ||
+                    typeName == "DuelCardView")
+                {
+                    return mb.gameObject;
+                }
+            }
+
+            // Fallback: look for CardAnchor which typically contains the card
+            var cardAnchor = rewardPrefab.transform.Find("CardAnchor");
+            if (cardAnchor != null)
+            {
+                foreach (Transform child in cardAnchor.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.gameObject.activeInHierarchy && CardDetector.IsCard(child.gameObject))
+                        return child.gameObject;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Find a clickable target within a reward prefab.
+        /// For card rewards, returns the card object itself so CardInfoNavigator can work with it.
+        /// For packs, returns hitbox elements.
+        /// </summary>
+        private GameObject FindRewardClickTarget(GameObject rewardPrefab, string rewardType = null)
+        {
+            // For card rewards, prefer the actual card object so CardInfoNavigator works
+            if (rewardType == "Card")
+            {
+                var cardObj = FindCardObjectInReward(rewardPrefab);
+                if (cardObj != null)
+                    return cardObj;
+            }
+
+            // Look for hitbox elements (even with zero height, they can still receive clicks)
+            foreach (Transform child in rewardPrefab.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                string name = child.name;
+                // Prefer middle hitbox for packs, or any hitbox
+                if (name == "Hitbox_Middle" || name.Contains("Hitbox"))
+                {
+                    // Check if it has a CustomButton component
+                    foreach (var mb in child.GetComponents<MonoBehaviour>())
+                    {
+                        if (mb != null && IsCustomButtonType(mb.GetType().Name))
+                            return child.gameObject;
+                    }
+                }
+            }
+
+            // Look for CustomButton on the prefab itself or children
+            foreach (var mb in rewardPrefab.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.gameObject.activeInHierarchy && IsCustomButtonType(mb.GetType().Name))
+                    return mb.gameObject;
+            }
+
+            // Look for CardAnchor (for card rewards)
+            var cardAnchor = rewardPrefab.transform.Find("CardAnchor");
+            if (cardAnchor != null && cardAnchor.gameObject.activeInHierarchy)
+            {
+                // Find the FlipCardButton or any button inside
+                foreach (var mb in cardAnchor.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.gameObject.activeInHierarchy && IsCustomButtonType(mb.GetType().Name))
+                        return mb.gameObject;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -692,6 +968,21 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Overlay state change detection - trigger rescan when overlays open/close
+            // This ensures navigation is refreshed when e.g. rewards popup closes
+            var currentOverlay = _overlayDetector.GetActiveOverlay();
+            if (currentOverlay != _lastKnownOverlay)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Overlay changed: {_lastKnownOverlay?.ToString() ?? "none"} -> {currentOverlay?.ToString() ?? "none"}");
+                _lastKnownOverlay = currentOverlay;
+
+                // Only trigger rescan if we're not already waiting for one
+                if (_rescanDelay <= 0)
+                {
+                    TriggerRescan();
+                }
+            }
+
             // Panel detection handled by PanelDetectorManager via events (OnPanelChanged/OnAnyPanelOpened)
             base.Update();
         }
@@ -770,9 +1061,10 @@ namespace AccessibleArena.Core.Services
 
             // Arrow Left/Right: Navigate between collection cards (like duel zones)
             // In deck builder collection, cards should navigate with Left/Right
+            // In rewards popup, cards/packs should also navigate with Left/Right (Up/Down for card details)
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
-                if (IsInCollectionCardContext())
+                if (IsInCollectionCardContext() || _overlayDetector.GetActiveOverlay() == ElementGroup.RewardsPopup)
                 {
                     bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
                     if (isRight)
@@ -1011,6 +1303,7 @@ namespace AccessibleArena.Core.Services
                     ElementGroup.FriendsPanel => CloseSocialPanel(),
                     ElementGroup.MailboxContent => CloseMailDetailView(), // Close mail, return to list
                     ElementGroup.MailboxList => CloseMailbox(), // Close mailbox entirely
+                    ElementGroup.RewardsPopup => DismissRewardsPopup(), // Click through rewards popup
                     ElementGroup.PlayBladeTabs => HandlePlayBladeBackspace(),
                     ElementGroup.PlayBladeContent => HandlePlayBladeBackspace(),
                     ElementGroup.NPE => HandleNPEBack(),
@@ -1213,6 +1506,73 @@ namespace AccessibleArena.Core.Services
             }
 
             return TryGenericBackButton();
+        }
+
+        /// <summary>
+        /// Dismiss the rewards popup by clicking the Background_ClickBlocker.
+        /// This popup appears after claiming rewards from mail, store, or other sources.
+        /// </summary>
+        private bool DismissRewardsPopup()
+        {
+            LogDebug($"[{NavigatorId}] Dismissing rewards popup");
+
+            // Find the rewards controller
+            var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
+            if (screenspacePopups == null)
+            {
+                LogDebug($"[{NavigatorId}] Canvas - Screenspace Popups not found");
+                return false;
+            }
+
+            // Find the rewards popup
+            Transform rewardsController = null;
+            foreach (Transform child in screenspacePopups.transform)
+            {
+                if (child.name.Contains("ContentController") && child.name.Contains("Rewards") &&
+                    child.gameObject.activeInHierarchy)
+                {
+                    rewardsController = child;
+                    break;
+                }
+            }
+
+            if (rewardsController == null)
+            {
+                LogDebug($"[{NavigatorId}] Rewards controller not found");
+                return false;
+            }
+
+            // Find and click the Background_ClickBlocker - this is the click-to-progress element
+            var clickBlocker = rewardsController.GetComponentsInChildren<Transform>(true)
+                .FirstOrDefault(t => t.name == "Background_ClickBlocker" && t.gameObject.activeInHierarchy);
+
+            if (clickBlocker != null)
+            {
+                LogDebug($"[{NavigatorId}] Clicking Background_ClickBlocker to dismiss rewards popup");
+                _announcer.Announce("Continuing", Models.AnnouncementPriority.Normal);
+                UIActivator.SimulatePointerClick(clickBlocker.gameObject);
+                TriggerRescan();
+                return true;
+            }
+
+            // Fallback: try to find any clickable element in the rewards popup that can dismiss it
+            // Look for buttons with names suggesting dismissal
+            var dismissButton = rewardsController.GetComponentsInChildren<Transform>(true)
+                .FirstOrDefault(t => (t.name.Contains("Dismiss") || t.name.Contains("Close") ||
+                                      t.name.Contains("Continue") || t.name.Contains("Back")) &&
+                                     t.gameObject.activeInHierarchy);
+
+            if (dismissButton != null)
+            {
+                LogDebug($"[{NavigatorId}] Clicking {dismissButton.name} to dismiss rewards popup");
+                _announcer.Announce("Continuing", Models.AnnouncementPriority.Normal);
+                UIActivator.Activate(dismissButton.gameObject);
+                TriggerRescan();
+                return true;
+            }
+
+            LogDebug($"[{NavigatorId}] No dismiss element found in rewards popup");
+            return false;
         }
 
         /// <summary>
@@ -2170,6 +2530,14 @@ namespace AccessibleArena.Core.Services
             // This ensures Tab and arrow keys navigate the same flat list of elements
             _groupedNavigationEnabled = _currentScene != "Login";
 
+            // Also disable grouped navigation for rewards popup - it needs flat Left/Right navigation
+            // with Up/Down reserved for CardInfoNavigator
+            if (_overlayDetector.GetActiveOverlay() == ElementGroup.RewardsPopup)
+            {
+                _groupedNavigationEnabled = false;
+                MelonLogger.Msg($"[{NavigatorId}] Rewards popup detected - disabling grouped navigation");
+            }
+
             // Detect active controller first so filtering works correctly
             DetectActiveContentController();
 
@@ -2255,6 +2623,14 @@ namespace AccessibleArena.Core.Services
                     current = current.parent;
                 }
                 return pathBuilder.ToString();
+            }
+
+            // FIRST: Discover reward elements if we're in a rewards popup
+            // This MUST happen before CustomButton discovery to prevent duplicate entries.
+            // We add all elements inside reward prefabs to addedObjects so they're skipped later.
+            if (_overlayDetector.GetActiveOverlay() == ElementGroup.RewardsPopup)
+            {
+                DiscoverRewardElements(addedObjects, discoveredElements);
             }
 
             // Find CustomButtons (MTGA's primary button component)
@@ -3498,6 +3874,16 @@ namespace AccessibleArena.Core.Services
             {
                 LogDebug($"[{NavigatorId}] Popup button activated ({element.name})");
                 // Unified detector will detect popup close via alpha change
+                return true;
+            }
+
+            // Rewards popup "Mehr" (More) button - reveals more rewards or advances to next page
+            // Need to rescan after each press to pick up new rewards content
+            if (_overlayDetector.GetActiveOverlay() == ElementGroup.RewardsPopup &&
+                element.name == "ClaimButton")
+            {
+                LogDebug($"[{NavigatorId}] Rewards ClaimButton activated - scheduling rescan for new rewards");
+                TriggerRescan();
                 return true;
             }
 

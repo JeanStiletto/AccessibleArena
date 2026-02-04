@@ -75,6 +75,8 @@ namespace AccessibleArena.Core.Services
 
                 if (typeName == "BoosterMetaCardView" ||
                     typeName == "RewardDisplayCard" ||
+                    typeName == "PagesMetaCardView" ||  // Used by deck builder collection cards
+                    typeName == "MetaCardView" ||       // Generic card view component
                     typeName == "Meta_CDC" ||
                     typeName == "CardView" ||
                     typeName == "DuelCardView" ||

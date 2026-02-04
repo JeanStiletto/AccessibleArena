@@ -1,4 +1,5 @@
 using UnityEngine;
+using MelonLoader;
 using AccessibleArena.Core.Services.PanelDetection;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
@@ -43,7 +44,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_screenDetector.IsSocialPanelOpen())
                 return ElementGroup.FriendsPanel;
 
-            // 4. Mailbox panel overlay - distinguish between list and content view
+            // 4. Rewards popup (after claiming rewards from mail/store/etc.)
+            // Must be checked BEFORE mailbox, since rewards can appear while mailbox is still open
+            if (IsRewardsPopupOpen())
+                return ElementGroup.RewardsPopup;
+
+            // 5. Mailbox panel overlay - distinguish between list and content view
             if (_screenDetector.IsMailboxOpen())
             {
                 // Check if mail content is visible (a specific mail is opened)
@@ -52,11 +58,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 return ElementGroup.MailboxList;
             }
 
-            // 5. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
+            // 7. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
             if (PanelStateManager.Instance?.IsPlayBladeActive == true)
                 return ElementGroup.PlayBladeTabs;
 
-            // 6. NPE (New Player Experience) overlay
+            // 8. NPE (New Player Experience) overlay
             if (_screenDetector.IsNPERewardsScreenActive())
                 return ElementGroup.NPE;
 
@@ -94,6 +100,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.FriendsPanel => IsInsideSocialPanel(obj),
                 ElementGroup.MailboxList => IsInsideMailboxList(obj),
                 ElementGroup.MailboxContent => IsInsideMailboxContent(obj),
+                ElementGroup.RewardsPopup => IsInsideRewardsPopup(obj),
                 ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
                 ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),
@@ -261,6 +268,144 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 if (current.name.Contains("NPE") || current.name.Contains("NewPlayerExperience"))
                     return true;
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        // Cache to avoid logging spam - only log when state changes
+        private bool _lastRewardsPopupState = false;
+
+        /// <summary>
+        /// Check if the rewards popup is currently open.
+        /// The rewards popup appears after claiming rewards from mail, store, or other sources.
+        /// Path: Canvas - Screenspace Popups/ContentController - Rewards_Desktop_16x9(Clone)
+        /// </summary>
+        public bool IsRewardsPopupOpen()
+        {
+            bool result = CheckRewardsPopupOpenInternal();
+
+            // Only log when state changes to reduce spam
+            if (result != _lastRewardsPopupState)
+            {
+                _lastRewardsPopupState = result;
+                MelonLogger.Msg($"[OverlayDetector] IsRewardsPopupOpen changed to: {result}");
+            }
+
+            return result;
+        }
+
+        private bool CheckRewardsPopupOpenInternal()
+        {
+            // Look for the rewards controller in Screenspace Popups canvas
+            var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
+            if (screenspacePopups == null)
+                return false;
+
+            // Find the rewards controller - it should have ContentController and Rewards in its name
+            foreach (Transform child in screenspacePopups.transform)
+            {
+                if (child.name.Contains("ContentController") && child.name.Contains("Rewards") &&
+                    child.gameObject.activeInHierarchy)
+                {
+                    // Check for Container child
+                    var container = child.Find("Container");
+                    if (container == null)
+                    {
+                        // Try searching deeper in case Container is nested
+                        foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                        {
+                            if (t.name == "Container")
+                            {
+                                container = t;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (container == null)
+                    {
+                        // Fallback: if controller is active and has any active children with reward prefabs, consider it open
+                        foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                        {
+                            if (t.gameObject.activeInHierarchy && t.name.Contains("RewardPrefab"))
+                                return true;
+                        }
+                        continue;
+                    }
+
+                    // Check for RewardsCONTAINER or Buttons
+                    var rewardsContainer = container.Find("RewardsCONTAINER");
+                    var buttons = container.Find("Buttons");
+
+                    bool rewardsActive = rewardsContainer != null && rewardsContainer.gameObject.activeInHierarchy;
+                    bool buttonsActive = buttons != null && buttons.gameObject.activeInHierarchy;
+
+                    if (rewardsActive || buttonsActive)
+                        return true;
+
+                    // Additional fallback: check for any RewardPrefab children directly
+                    foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (t.gameObject.activeInHierarchy && t.name.Contains("RewardPrefab"))
+                            return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get the rewards container transform for element discovery.
+        /// Returns null if rewards popup is not open.
+        /// </summary>
+        public Transform GetRewardsContainer()
+        {
+            var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
+            if (screenspacePopups == null)
+                return null;
+
+            foreach (Transform child in screenspacePopups.transform)
+            {
+                if (child.name.Contains("ContentController") && child.name.Contains("Rewards") &&
+                    child.gameObject.activeInHierarchy)
+                {
+                    var container = child.Find("Container");
+                    if (container != null)
+                    {
+                        var rewardsContainer = container.Find("RewardsCONTAINER");
+                        if (rewardsContainer != null && rewardsContainer.gameObject.activeInHierarchy)
+                            return rewardsContainer;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Check if an element is inside the rewards popup.
+        /// </summary>
+        private bool IsInsideRewardsPopup(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                string name = current.name;
+                // The rewards popup is under ContentController - Rewards_*
+                if (name.Contains("ContentController") && name.Contains("Rewards"))
+                    return true;
+                // Also check for parent canvas
+                if (name == "Canvas - Screenspace Popups")
+                {
+                    // We reached the canvas but didn't find the rewards controller above us
+                    // This means we're in a sibling element (not inside rewards popup)
+                    return false;
+                }
                 current = current.parent;
             }
 

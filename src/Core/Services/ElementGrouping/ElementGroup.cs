@@ -120,7 +120,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Mailbox mail content (right pane). Shown when viewing a specific mail.
         /// Contains title, body text, and action buttons (Claim, More Info).
         /// </summary>
-        MailboxContent
+        MailboxContent,
+
+        /// <summary>
+        /// Rewards popup overlay. Shown after claiming rewards from mail or other sources.
+        /// Contains reward items (cards, sleeves, etc.) and a click-to-progress background.
+        /// </summary>
+        RewardsPopup
     }
 
     /// <summary>
@@ -143,7 +149,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.DeckBuilderCollection
                 || group == ElementGroup.DeckBuilderDeckList
                 || group == ElementGroup.MailboxList
-                || group == ElementGroup.MailboxContent;
+                || group == ElementGroup.MailboxContent
+                || group == ElementGroup.RewardsPopup;
         }
 
         /// <summary>
@@ -173,6 +180,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.DeckBuilderDeckList: return "Deck List";
                 case ElementGroup.MailboxList: return "Mail List";
                 case ElementGroup.MailboxContent: return "Mail";
+                case ElementGroup.RewardsPopup: return "Rewards";
                 default: return "Other";
             }
         }
