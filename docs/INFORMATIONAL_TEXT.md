@@ -427,3 +427,91 @@ DeckManager_Desktop_16x9(Clone)
 - Two patterns: `*_MainButton_Round` (icon buttons) and `*_MainButtonBlue` (text buttons)
 - All icon buttons have `TooltipTrigger` with `IsActive=True` as alternative source
 - Context check (DeckManager hierarchy) prevents false matches on other MainButton elements
+
+---
+
+## 8. Wildcard Progress (Packs Screen)
+
+**Status:** IMPLEMENTED (2026-02-04)
+
+**Location:**
+- Path: `.../SafeArea/WildcardRewards/Rare/Wildcard Progress Rare/ObjectiveGraphics`
+- Path: `.../SafeArea/WildcardRewards/Uncommon/WildcardProgressUncommon/ObjectiveGraphics`
+- Components: RectTransform, CanvasRenderer, CustomButton
+
+**Problem:**
+- Wildcard progress indicators on the Packs screen were showing "objective graphics, progress"
+- The parent name doesn't follow the standard "Objective_Base(Clone) - Type" pattern
+- Instead uses names like "WildcardProgressUncommon" and "Wildcard Progress Rare"
+
+**Solution:**
+- Added special handling in `TryGetObjectiveText()` for wildcard progress patterns
+- Detect parent names containing "WildcardProgress" or "Wildcard Progress"
+- Extract rarity from parent name (Uncommon, Rare, Mythic, Common)
+- Look for progress value in child elements (Text_GoalProgress)
+- Fallback to image fill amount for percentage display
+
+**Implementation:**
+- File: `src/Core/Services/UITextExtractor.cs`
+- Method: `TryGetWildcardProgressText()` - extracts wildcard progress from ObjectiveGraphics elements
+- Called from `TryGetObjectiveText()` when parent name contains wildcard patterns
+
+**Text Extraction Logic:**
+1. Check if parent name contains "WildcardProgress" or "Wildcard Progress"
+2. Extract rarity from parent name (case insensitive)
+3. Search children for `Text_GoalProgress` or elements with progress fraction
+4. Fallback: check Image components for fill amount
+5. Return formatted label: "{Rarity} Wildcard: {progress}"
+
+**Results:**
+- `WildcardProgressUncommon` → "Uncommon Wildcard: 3/6" (was "objective graphics, progress")
+- `Wildcard Progress Rare` → "Rare Wildcard: 2/6" (was "objective graphics, progress")
+
+**Key Insight - Pattern Variation:**
+- The standard objective pattern uses " - " separator (e.g., "Objective_Base(Clone) - Daily")
+- Wildcard progress uses different patterns without the separator
+- Need to check for both standard and variant patterns in objective text extraction
+
+---
+
+## 9. Vault Progress (Pack Opening)
+
+**Status:** IMPROVED (2026-02-04)
+
+**Location:**
+- Pack contents screen (BoosterOpenNavigator)
+- Appears when opening 5th+ copy of common/uncommon cards
+- Element: `Prefab - BoosterMetaCardView_v2(Clone)` with no Title but has progress quantity
+
+**Previous Behavior:**
+- Showed just "Vault Progress +99" with no context about overall vault state
+
+**Improved Behavior:**
+- Now searches for additional context: description text, percentage labels, fill bar amounts
+- Reports: "Vault Progress, +99, total 45%" when fill bar is available
+- Falls back to description text if percentage not available
+
+**Implementation:**
+- File: `src/Core/Services/BoosterOpenNavigator.cs`
+- Method: `ExtractCardName()` - enhanced vault progress extraction
+
+**Extraction Logic:**
+1. Detect vault progress entry (has ProgressQuantity text but no Title)
+2. Search for additional text elements: description, label, percentage
+3. Check Image components for fill amount (Type.Filled with 0 < amount < 1)
+4. Build informative label with all available context
+
+**Structure of Vault Progress Entry:**
+```
+Prefab - BoosterMetaCardView_v2(Clone)
+├── Title                      ← Empty for vault progress
+├── ProgressQuantity           ← Contains "+99" etc.
+├── Description/Label          ← May contain explanation text
+├── Fill/ProgressBar           ← Image with fillAmount indicating total vault %
+└── Percentage                 ← May contain "45%" text
+```
+
+**Key Insight - Vault Progress vs Regular Cards:**
+- Regular cards have a Title text element with the card name
+- Vault progress entries have no Title, only ProgressQuantity
+- This distinction allows identifying duplicate protection entries

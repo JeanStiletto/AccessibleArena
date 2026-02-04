@@ -530,6 +530,7 @@ namespace AccessibleArena.Core.Services
         /// Extracts text from objective/quest elements with full context.
         /// For quests: includes description + progress (e.g., "Cast 20 spells, 14/20")
         /// For progress indicators: adds type prefix (e.g., "Daily: 250", "Weekly: 5/15")
+        /// For wildcard progress: shows rarity and progress (e.g., "Rare Wildcard: 3/6")
         /// </summary>
         private static string TryGetObjectiveText(GameObject gameObject)
         {
@@ -541,6 +542,13 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             string parentName = parent.name;
+
+            // Check for wildcard progress first (on Packs screen)
+            // Parent names: "WildcardProgressUncommon", "Wildcard Progress Rare"
+            if (parentName.Contains("WildcardProgress") || parentName.Contains("Wildcard Progress"))
+            {
+                return TryGetWildcardProgressText(gameObject, parentName);
+            }
 
             // Extract objective type from parent name
             // Format: "Objective_Base(Clone) - QuestNormal" or "Objective_Base(Clone) - Daily"
@@ -656,6 +664,81 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Extracts text from wildcard progress elements on the Packs screen.
+        /// These show progress toward earning wildcards of specific rarities.
+        /// Parent names: "WildcardProgressUncommon", "Wildcard Progress Rare"
+        /// </summary>
+        private static string TryGetWildcardProgressText(GameObject gameObject, string parentName)
+        {
+            // Extract rarity from parent name
+            string rarity = null;
+            string parentLower = parentName.ToLowerInvariant();
+            if (parentLower.Contains("uncommon"))
+                rarity = "Uncommon";
+            else if (parentLower.Contains("rare"))
+                rarity = "Rare";
+            else if (parentLower.Contains("mythic"))
+                rarity = "Mythic";
+            else if (parentLower.Contains("common"))
+                rarity = "Common";
+
+            // Look for progress value in children (same structure as objectives)
+            string progressValue = null;
+            string fillPercentage = null;
+
+            // Search all child transforms for text elements
+            var allTexts = gameObject.GetComponentsInChildren<TMP_Text>(true);
+            foreach (var tmpText in allTexts)
+            {
+                if (tmpText == null) continue;
+
+                string objName = tmpText.gameObject.name;
+                string content = CleanText(tmpText.text);
+
+                if (string.IsNullOrEmpty(content)) continue;
+
+                // Text_GoalProgress contains the fraction (e.g., "3/6")
+                if (objName == "Text_GoalProgress" || objName.Contains("GoalProgress"))
+                {
+                    progressValue = content;
+                }
+                // TextLine may contain additional text
+                else if (objName == "TextLine" || objName.Contains("TextLine"))
+                {
+                    // If it looks like a progress value, use it
+                    if (content.Contains("/"))
+                        progressValue = content;
+                }
+            }
+
+            // Also check for Image fill amount as a fallback for percentage
+            var images = gameObject.GetComponentsInChildren<Image>(true);
+            foreach (var img in images)
+            {
+                if (img == null) continue;
+                string imgName = img.gameObject.name.ToLowerInvariant();
+                if (imgName.Contains("fill") || imgName.Contains("progress"))
+                {
+                    if (img.type == Image.Type.Filled && img.fillAmount > 0 && img.fillAmount < 1)
+                    {
+                        int percent = Mathf.RoundToInt(img.fillAmount * 100);
+                        fillPercentage = $"{percent}%";
+                    }
+                }
+            }
+
+            // Build the label
+            string label = rarity != null ? $"{rarity} Wildcard" : "Wildcard";
+
+            if (!string.IsNullOrEmpty(progressValue))
+                return $"{label}: {progressValue}";
+            else if (!string.IsNullOrEmpty(fillPercentage))
+                return $"{label}: {fillPercentage}";
+            else
+                return label;
         }
 
         /// <summary>

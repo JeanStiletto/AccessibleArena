@@ -352,6 +352,7 @@ namespace AccessibleArena.Core.Services
             // Try to find the Title text element directly
             string title = null;
             string progressQuantity = null;
+            var vaultTags = new System.Collections.Generic.List<string>();
 
             // Include inactive text elements (true) for animation timing
             var texts = cardObj.GetComponentsInChildren<TMPro.TMP_Text>(true);
@@ -360,6 +361,7 @@ namespace AccessibleArena.Core.Services
                 if (text == null) continue;
 
                 string objName = text.gameObject.name;
+                string parentName = text.transform.parent?.name ?? "";
 
                 // "Title" is the card name element
                 if (objName == "Title")
@@ -382,6 +384,33 @@ namespace AccessibleArena.Core.Services
                     if (!string.IsNullOrEmpty(content))
                         progressQuantity = content;
                 }
+
+                // Collect tags from TAG parent elements (these describe the vault progress type)
+                // Structure: Text_1 (parent=TAG_1): 'Alchemy', Text_2 (parent=TAG_2): 'Bonus', etc.
+                if (parentName.StartsWith("TAG"))
+                {
+                    string content = text.text?.Trim();
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
+                        if (!string.IsNullOrEmpty(content))
+                        {
+                            string contentLower = content.ToLowerInvariant();
+                            // Skip generic/unhelpful tags
+                            if (contentLower == "new" || contentLower == "neu" ||
+                                contentLower == "first" || contentLower == "erste" ||
+                                contentLower == "faction" || contentLower == "fraktion")
+                            {
+                                continue;
+                            }
+                            // Keep meaningful tags (Alchemy, Bonus, rarity names, etc.)
+                            if (!vaultTags.Contains(content))
+                            {
+                                vaultTags.Add(content);
+                            }
+                        }
+                    }
+                }
             }
 
             // If we have a title, return it
@@ -391,8 +420,22 @@ namespace AccessibleArena.Core.Services
             // If no title but we have progress quantity, this is vault progress (duplicate protection)
             if (!string.IsNullOrEmpty(progressQuantity))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Detected vault progress: {progressQuantity}");
-                return $"Vault Progress {progressQuantity}";
+                // Build informative vault progress label
+                // Format: "Alchemy Bonus Vault Progress +99" or just "Vault Progress +99"
+                string label;
+                if (vaultTags.Count > 0)
+                {
+                    // Combine tags: "Alchemy Bonus" + "Vault Progress" + "+99"
+                    string tagPrefix = string.Join(" ", vaultTags);
+                    label = $"{tagPrefix} Vault Progress {progressQuantity}";
+                }
+                else
+                {
+                    label = $"Vault Progress {progressQuantity}";
+                }
+
+                MelonLogger.Msg($"[{NavigatorId}] Detected vault progress: {label} (tags: {string.Join(", ", vaultTags)})");
+                return label;
             }
 
             return null;
