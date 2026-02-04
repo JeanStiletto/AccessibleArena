@@ -18,11 +18,14 @@ namespace AccessibleArena.Core.Services
         private GameObject _revealAllButton;
         private int _totalCards;
 
-        // Rescan mechanism for timing issues - cards may not be loaded immediately
+        // Single rescan after reveal animation completes (~1.5 seconds)
         private int _rescanFrameCounter;
-        private const int RescanDelayFrames = 30; // ~0.5 seconds at 60fps
-        private const int MaxRescanAttempts = 10;
-        private int _rescanAttempts;
+        private const int RescanDelayFrames = 90; // ~1.5 seconds at 60fps
+        private bool _rescanDone;
+
+        // Delayed rescan after close action
+        private bool _closeTriggered;
+        private int _closeRescanCounter;
 
         public override string NavigatorId => "BoosterOpen";
         public override string ScreenName => GetScreenName();
@@ -194,12 +197,12 @@ namespace AccessibleArena.Core.Services
                 string label;
                 if (isVaultProgress)
                 {
-                    // Vault progress doesn't need "Card X:" prefix or type line
                     label = displayName;
                 }
                 else
                 {
-                    label = $"Card {cardNum}: {displayName}";
+                    // Just card name and type, no "Card X:" prefix
+                    label = displayName;
                     if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
                     {
                         label += $", {cardInfo.TypeLine}";
@@ -274,55 +277,44 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[{NavigatorId}] Searching CardScroller content: {content.name} ({content.childCount} children)");
 
-            // Search for card prefabs in the Content container
-            // Include inactive objects (true) because cards might still be animating
-            foreach (Transform child in content.GetComponentsInChildren<Transform>(true))
+            // Debug: Log the hierarchy to understand the structure
+            foreach (Transform child in content)
             {
                 if (child == null) continue;
-
-                string childName = child.name;
-
-                // Check for BoosterMetaCardView prefabs
-                if (childName.Contains("BoosterMetaCardView") ||
-                    childName.Contains("MetaCardView") ||
-                    childName.Contains("CardAnchor"))
-                {
-                    // Make sure the object is active or will become active
-                    if (!child.gameObject.activeInHierarchy)
-                    {
-                        // Log inactive cards for debugging
-                        MelonLogger.Msg($"[{NavigatorId}] Found inactive card: {childName}");
-                        continue;
-                    }
-
-                    if (addedObjects.Contains(child.gameObject)) continue;
-
-                    // Sort by X position (horizontal scroll layout)
-                    float sortOrder = child.position.x;
-                    cardEntries.Add((child.gameObject, sortOrder));
-                    addedObjects.Add(child.gameObject);
-
-                    MelonLogger.Msg($"[{NavigatorId}] Found card in CardScroller: {childName}");
-                }
+                MelonLogger.Msg($"[{NavigatorId}] Content child: {child.name} (active={child.gameObject.activeInHierarchy})");
             }
 
-            // Also check for BoosterMetaCardView components
-            foreach (var mb in content.GetComponentsInChildren<MonoBehaviour>(true))
+            // Search for BoosterMetaCardView prefabs - they're nested, not direct children
+            // Use a HashSet of GrpIds to deduplicate cards that appear twice (3D + flat view)
+            var seenGrpIds = new HashSet<int>();
+
+            foreach (Transform t in content.GetComponentsInChildren<Transform>(true))
             {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (t == null || !t.gameObject.activeInHierarchy) continue;
 
-                string typeName = mb.GetType().Name;
-                if (typeName == "BoosterMetaCardView" ||
-                    typeName == "MetaCardView" ||
-                    typeName == "Meta_CDC")
+                string tName = t.name;
+                if (tName.Contains("BoosterMetaCardView"))
                 {
-                    if (addedObjects.Contains(mb.gameObject)) continue;
+                    if (addedObjects.Contains(t.gameObject)) continue;
 
-                    float sortOrder = mb.transform.position.x;
-                    cardEntries.Add((mb.gameObject, sortOrder));
-                    addedObjects.Add(mb.gameObject);
+                    // Try to get GrpId to deduplicate
+                    int grpId = GetCardGrpId(t.gameObject);
+                    if (grpId > 0)
+                    {
+                        if (seenGrpIds.Contains(grpId))
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Skipping duplicate card (GrpId={grpId}): {tName}");
+                            continue;
+                        }
+                        seenGrpIds.Add(grpId);
+                    }
 
-                    MelonLogger.Msg($"[{NavigatorId}] Found card by component in CardScroller: {mb.gameObject.name}");
+                    float sortOrder = t.position.x;
+                    cardEntries.Add((t.gameObject, sortOrder));
+                    addedObjects.Add(t.gameObject);
+
+                    string parentPath = GetParentPath(t, 3);
+                    MelonLogger.Msg($"[{NavigatorId}] Found card: {tName} (GrpId={grpId}, parent={parentPath})");
                 }
             }
 
@@ -451,48 +443,27 @@ namespace AccessibleArena.Core.Services
 
         private void FindCardsDirectly(List<(GameObject obj, float sortOrder)> cardEntries, HashSet<GameObject> addedObjects)
         {
-            // Search for card patterns in the entire booster chamber
+            // Fallback: Search for BoosterMetaCardView in entire booster chamber
             var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
             if (boosterChamber == null) return;
 
-            // Search by component type (include inactive with true)
-            foreach (var mb in boosterChamber.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-
-                string typeName = mb.GetType().Name;
-                if (typeName == "BoosterMetaCardView" ||
-                    typeName == "MetaCardView" ||
-                    typeName == "Meta_CDC")
-                {
-                    var cardObj = mb.gameObject;
-                    if (!addedObjects.Contains(cardObj))
-                    {
-                        float sortOrder = cardObj.transform.position.x;
-                        cardEntries.Add((cardObj, sortOrder));
-                        addedObjects.Add(cardObj);
-                        MelonLogger.Msg($"[{NavigatorId}] Found card by component: {cardObj.name}");
-                    }
-                }
-            }
-
-            // Also check by name patterns (include inactive with true)
             foreach (var t in boosterChamber.GetComponentsInChildren<Transform>(true))
             {
                 if (t == null || !t.gameObject.activeInHierarchy) continue;
 
-                string name = t.name;
-                if (name.Contains("BoosterMetaCardView") ||
-                    name.Contains("MetaCardView") ||
-                    name.Contains("CardAnchor") ||
-                    name.StartsWith("Prefab - Booster"))
+                // Only match BoosterMetaCardView prefabs
+                if (t.name.Contains("BoosterMetaCardView"))
                 {
+                    // Skip if parent is also a BoosterMetaCardView (avoid nested duplicates)
+                    if (t.parent != null && t.parent.name.Contains("BoosterMetaCardView"))
+                        continue;
+
                     if (!addedObjects.Contains(t.gameObject))
                     {
                         float sortOrder = t.position.x;
                         cardEntries.Add((t.gameObject, sortOrder));
                         addedObjects.Add(t.gameObject);
-                        MelonLogger.Msg($"[{NavigatorId}] Found card by name pattern: {name}");
+                        MelonLogger.Msg($"[{NavigatorId}] Found card (fallback): {t.name}");
                     }
                 }
             }
@@ -583,6 +554,58 @@ namespace AccessibleArena.Core.Services
             return name;
         }
 
+        /// <summary>
+        /// Get GrpId from a card object for deduplication.
+        /// </summary>
+        private int GetCardGrpId(GameObject cardObj)
+        {
+            // Try to find Meta_CDC component and get GrpId
+            foreach (var mb in cardObj.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null) continue;
+                if (mb.GetType().Name == "Meta_CDC")
+                {
+                    // Try to get GrpId field/property
+                    var grpIdField = mb.GetType().GetField("GrpId",
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+                    if (grpIdField != null)
+                    {
+                        var value = grpIdField.GetValue(mb);
+                        if (value is int intVal) return intVal;
+                    }
+
+                    var grpIdProp = mb.GetType().GetProperty("GrpId",
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+                    if (grpIdProp != null)
+                    {
+                        var value = grpIdProp.GetValue(mb);
+                        if (value is int intVal) return intVal;
+                    }
+                }
+            }
+            return 0; // Not found or not a card (e.g., vault progress)
+        }
+
+        /// <summary>
+        /// Get parent path for debugging hierarchy.
+        /// </summary>
+        private string GetParentPath(Transform t, int levels)
+        {
+            var parts = new List<string>();
+            Transform current = t.parent;
+            for (int i = 0; i < levels && current != null; i++)
+            {
+                parts.Add(current.name);
+                current = current.parent;
+            }
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
+
         protected override string GetActivationAnnouncement()
         {
             string countInfo = _totalCards > 0 ? $"{_totalCards} cards. " : "";
@@ -645,7 +668,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Enter activates (view card details)
+            // Enter activates (view card details or button)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Enter pressed - index={_currentIndex}, count={_elements.Count}, valid={IsValidIndex}");
@@ -653,56 +676,281 @@ namespace AccessibleArena.Core.Services
                 {
                     var elem = _elements[_currentIndex];
                     MelonLogger.Msg($"[{NavigatorId}] Current element: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
+
+                    // Special handling for Skip to End / Reveal All buttons - trigger immediate rescan
+                    if (elem.GameObject != null &&
+                        (elem.GameObject.name.Contains("SkipToEnd") || elem.GameObject.name.Contains("RevealAll")))
+                    {
+                        ActivateCurrentElement();
+                        // Trigger rescan to pick up all revealed cards
+                        _rescanDone = false;
+                        _rescanFrameCounter = RescanDelayFrames - 15; // Rescan soon
+                        MelonLogger.Msg($"[{NavigatorId}] Reveal/Skip activated, will rescan");
+                        return;
+                    }
+                    // Check if this is a close/dismiss button - trigger rescan after
+                    if (elem.GameObject != null &&
+                        (elem.GameObject.name.Contains("ModalFade") ||
+                         elem.GameObject.name.Contains("Dismiss")))
+                    {
+                        ActivateCurrentElement();
+                        TriggerCloseRescan();
+                        MelonLogger.Msg($"[{NavigatorId}] Close/Dismiss clicked, will rescan in 1 second");
+                        return;
+                    }
                 }
+                // Default: just activate whatever is selected (cards, buttons, etc.)
                 ActivateCurrentElement();
                 return;
             }
 
-            // Backspace to go back/close
+            // Backspace to go back/close - activate the ModalFade/Dismiss button
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                // Try to activate any dismiss button (Close, Continue, Done)
-                string[] dismissPatterns = { "Close", "Continue", "Done" };
-                foreach (var element in _elements)
+                foreach (var elem in _elements)
                 {
-                    foreach (var pattern in dismissPatterns)
+                    if (elem.GameObject != null &&
+                        (elem.GameObject.name.Contains("Dismiss") || elem.GameObject.name.Contains("ModalFade")))
                     {
-                        if (element.Label.Contains(pattern))
-                        {
-                            UIActivator.Activate(element.GameObject);
-                            return;
-                        }
+                        MelonLogger.Msg($"[{NavigatorId}] Backspace - activating {elem.GameObject.name}");
+                        UIActivator.Activate(elem.GameObject);
+                        TriggerCloseRescan();
+                        return;
                     }
                 }
-                // Consume the key even if no dismiss button found
                 return;
             }
         }
 
-        #region Update with rescan support
+        /// <summary>
+        /// Try to invoke the Skip to End functionality via controller reflection.
+        /// Uses method iteration instead of GetMethod for better IL2CPP compatibility.
+        /// </summary>
+        private bool TryInvokeSkipToEnd()
+        {
+            var controller = FindBoosterController();
+            if (controller == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Controller not found for SkipToEnd");
+                return false;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Found controller: {controller.GetType().Name}");
+            var controllerType = controller.GetType();
+
+            // Iterate through all methods to find skip-related ones (IL2CPP compatible)
+            var allMethods = controllerType.GetMethods(
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+
+            System.Reflection.MethodInfo setSkipActive = null;
+            System.Reflection.MethodInfo onSkipToggle = null;
+            System.Reflection.MethodInfo revealComplete = null;
+
+            foreach (var method in allMethods)
+            {
+                string methodName = method.Name;
+                if (methodName == "SetSkipActive")
+                    setSkipActive = method;
+                else if (methodName == "OnSkipAnimationToggle")
+                    onSkipToggle = method;
+                else if (methodName == "RevealSequenceComplete")
+                    revealComplete = method;
+            }
+
+            // Try SetSkipActive(true) - enables skip mode
+            if (setSkipActive != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found SetSkipActive, invoking with true");
+                try
+                {
+                    setSkipActive.Invoke(controller, new object[] { true });
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] SetSkipActive failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                MelonLogger.Msg($"[{NavigatorId}] SetSkipActive not found in {allMethods.Length} methods");
+            }
+
+            // Try OnSkipAnimationToggle(true) - toggles skip animation
+            if (onSkipToggle != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found OnSkipAnimationToggle, invoking with true");
+                try
+                {
+                    onSkipToggle.Invoke(controller, new object[] { true });
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] OnSkipAnimationToggle failed: {ex.Message}");
+                }
+            }
+
+            // Try RevealSequenceComplete() - completes the reveal
+            if (revealComplete != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Found RevealSequenceComplete, invoking");
+                try
+                {
+                    revealComplete.Invoke(controller, null);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] RevealSequenceComplete failed: {ex.Message}");
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] No skip method found on controller ({allMethods.Length} methods checked)");
+            return false;
+        }
+
+        /// <summary>
+        /// Try to close the pack contents view.
+        /// Uses method iteration instead of GetMethod for better IL2CPP compatibility.
+        /// </summary>
+        private bool TryClosePackContents()
+        {
+            var controller = FindBoosterController();
+            if (controller != null)
+            {
+                var controllerType = controller.GetType();
+
+                // Iterate through all methods to find close-related ones (IL2CPP compatible)
+                var allMethods = controllerType.GetMethods(
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                System.Reflection.MethodInfo dismissCards = null;
+                System.Reflection.MethodInfo closeMethod = null;
+
+                foreach (var method in allMethods)
+                {
+                    string methodName = method.Name;
+                    if (methodName == "DismissCards" && method.GetParameters().Length == 0)
+                        dismissCards = method;
+                    else if ((methodName == "Close" || methodName == "OnCloseClicked" ||
+                              methodName == "Hide" || methodName == "Dismiss") &&
+                             method.GetParameters().Length == 0)
+                        closeMethod = method;
+                }
+
+                // Try DismissCards() - this is the actual method on BoosterOpenToScrollListController
+                if (dismissCards != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Found DismissCards, invoking to close");
+                    try
+                    {
+                        dismissCards.Invoke(controller, null);
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] DismissCards failed: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] DismissCards not found in {allMethods.Length} methods");
+                }
+
+                // Fallback: try other close method
+                if (closeMethod != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Invoking {closeMethod.Name}() to close");
+                    try
+                    {
+                        closeMethod.Invoke(controller, null);
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] {closeMethod.Name} failed: {ex.Message}");
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Could not close pack contents via controller");
+            return false;
+        }
+
+        /// <summary>
+        /// Find the booster scroll list controller component.
+        /// </summary>
+        private Component FindBoosterController()
+        {
+            // Search for the scroll list controller in the scene
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName == "BoosterOpenToScrollListController" ||
+                    typeName == "BoosterChamberController" ||
+                    typeName.Contains("BoosterOpen") && typeName.Contains("Controller"))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] FindBoosterController: Found {typeName}");
+                    return mb;
+                }
+            }
+
+            // Fallback: check the scroll list controller object
+            if (_scrollListController != null)
+            {
+                foreach (var mb in _scrollListController.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name.Contains("Controller"))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] FindBoosterController (fallback): Found {mb.GetType().Name}");
+                        return mb;
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] FindBoosterController: No controller found");
+            return null;
+        }
+
+        #region Single delayed rescan after reveal animation
 
         public override void Update()
         {
-            // Check if we need to rescan for cards (timing issue - cards may load after UI appears)
-            // Keep rescanning until we find ACTUAL cards (_totalCards > 0)
-            // Vault progress alone is not enough - the real cards often load after the vault progress appears
-            bool needsRescan = _isActive && _totalCards == 0 && _rescanAttempts < MaxRescanAttempts;
-
-            if (needsRescan)
+            // Single rescan after ~1.5 seconds to catch all revealed cards
+            if (_isActive && !_rescanDone)
             {
                 _rescanFrameCounter++;
                 if (_rescanFrameCounter >= RescanDelayFrames)
                 {
-                    _rescanFrameCounter = 0;
-                    _rescanAttempts++;
-                    MelonLogger.Msg($"[{NavigatorId}] Rescanning for cards (attempt {_rescanAttempts}/{MaxRescanAttempts})");
+                    _rescanDone = true;
+                    int oldCount = _totalCards;
+
+                    MelonLogger.Msg($"[{NavigatorId}] Rescanning after reveal animation (current count: {oldCount})");
                     ForceRescan();
 
-                    // If we found cards this time, announce them
-                    if (_totalCards > 0)
+                    int newCards = _totalCards - oldCount;
+                    if (newCards > 0)
                     {
-                        _announcer.AnnounceInterrupt($"Found {_totalCards} cards");
+                        MelonLogger.Msg($"[{NavigatorId}] Found {newCards} additional cards, {_totalCards} total");
                     }
+                }
+            }
+
+            // Rescan after close action (~1 second) to detect screen change
+            if (_isActive && _closeTriggered)
+            {
+                _closeRescanCounter++;
+                if (_closeRescanCounter >= 60) // ~1 second at 60fps
+                {
+                    _closeTriggered = false;
+                    MelonLogger.Msg($"[{NavigatorId}] Rescanning after close action");
+                    ForceRescan();
                 }
             }
 
@@ -712,9 +960,19 @@ namespace AccessibleArena.Core.Services
         protected override void OnActivated()
         {
             base.OnActivated();
-            // Reset rescan counters on activation
             _rescanFrameCounter = 0;
-            _rescanAttempts = 0;
+            _rescanDone = false;
+            _closeTriggered = false;
+            _closeRescanCounter = 0;
+        }
+
+        /// <summary>
+        /// Trigger a rescan after close button is clicked.
+        /// </summary>
+        private void TriggerCloseRescan()
+        {
+            _closeTriggered = true;
+            _closeRescanCounter = 0;
         }
 
         #endregion
