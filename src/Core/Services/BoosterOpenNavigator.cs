@@ -50,13 +50,12 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            // Key check: RevealAll button only appears when viewing pack contents (not pack selection)
-            // This is the most reliable indicator that we're in pack contents view
-            bool hasRevealAllButton = false;
+            // Key check: CardScroller is the definitive indicator of pack contents view
+            // RevealAll button exists on BOTH pack selection and pack contents, so it's not reliable alone
             bool hasCardScroller = false;
 
             // Check for CardScroller (only exists when cards are displayed)
-            // IMPORTANT: Use false to only search active objects - using true causes false detection on pack selection screen
+            // IMPORTANT: Use false to only search active objects
             foreach (Transform child in boosterChamber.GetComponentsInChildren<Transform>(false))
             {
                 if (child.name == "CardScroller" && child.gameObject.activeInHierarchy)
@@ -67,21 +66,9 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Check for RevealAll button
-            // IMPORTANT: Use false to only search active objects
-            foreach (var mb in boosterChamber.GetComponentsInChildren<MonoBehaviour>(false))
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "CustomButton" && mb.gameObject.name.Contains("RevealAll"))
-                {
-                    hasRevealAllButton = true;
-                    MelonLogger.Msg($"[{NavigatorId}] Found RevealAll button: {mb.gameObject.name}");
-                    break;
-                }
-            }
-
-            // Either RevealAll button OR CardScroller indicates pack contents
-            if (!hasRevealAllButton && !hasCardScroller)
+            // CardScroller is REQUIRED for pack contents detection
+            // Without it, we're on pack selection screen (not pack contents)
+            if (!hasCardScroller)
             {
                 _scrollListController = null;
                 return false;
@@ -688,14 +675,16 @@ namespace AccessibleArena.Core.Services
                         MelonLogger.Msg($"[{NavigatorId}] Reveal/Skip activated, will rescan");
                         return;
                     }
-                    // Check if this is a close/dismiss button - trigger rescan after
+                    // Check if this is a close/dismiss button - combined approach
                     if (elem.GameObject != null &&
                         (elem.GameObject.name.Contains("ModalFade") ||
                          elem.GameObject.name.Contains("Dismiss")))
                     {
+                        MelonLogger.Msg($"[{NavigatorId}] Enter on close button: {elem.GameObject.name}");
                         ActivateCurrentElement();
+                        // Also try controller method for actual close logic
+                        TryClosePackContents();
                         TriggerCloseRescan();
-                        MelonLogger.Msg($"[{NavigatorId}] Close/Dismiss clicked, will rescan in 1 second");
                         return;
                     }
                 }
@@ -704,20 +693,27 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Backspace to go back/close - activate the ModalFade/Dismiss button
+            // Backspace to go back/close - combined approach: UIActivator for sound + controller for close
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
+                MelonLogger.Msg($"[{NavigatorId}] Backspace pressed - attempting close");
+
+                // First try UIActivator on the dismiss/modal fade button for visual/audio feedback
                 foreach (var elem in _elements)
                 {
                     if (elem.GameObject != null &&
                         (elem.GameObject.name.Contains("Dismiss") || elem.GameObject.name.Contains("ModalFade")))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Backspace - activating {elem.GameObject.name}");
+                        MelonLogger.Msg($"[{NavigatorId}] Activating close button: {elem.GameObject.name}");
                         UIActivator.Activate(elem.GameObject);
-                        TriggerCloseRescan();
-                        return;
+                        break;
                     }
                 }
+
+                // Also try controller method for actual close logic
+                TryClosePackContents();
+
+                TriggerCloseRescan();
                 return;
             }
         }
@@ -949,8 +945,19 @@ namespace AccessibleArena.Core.Services
                 if (_closeRescanCounter >= 60) // ~1 second at 60fps
                 {
                     _closeTriggered = false;
-                    MelonLogger.Msg($"[{NavigatorId}] Rescanning after close action");
-                    ForceRescan();
+                    MelonLogger.Msg($"[{NavigatorId}] Checking if screen is still valid after close action");
+
+                    // Re-check if we're still on pack contents (CardScroller must exist)
+                    if (!DetectScreen())
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Pack contents closed, deactivating navigator");
+                        Deactivate();
+                    }
+                    else
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Still on pack contents, rescanning");
+                        ForceRescan();
+                    }
                 }
             }
 
