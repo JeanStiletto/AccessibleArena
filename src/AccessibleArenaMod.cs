@@ -92,6 +92,7 @@ namespace AccessibleArena
             _navigatorManager = new NavigatorManager();
             // WelcomeGateNavigator removed - GeneralMenuNavigator handles Login scene
             _navigatorManager.RegisterAll(
+                new RewardPopupNavigator(_announcer),   // Rewards popup from mail/store (priority 86)
                 new OverlayNavigator(_announcer),
                 new SettingsMenuNavigator(_announcer),  // Settings menu - works everywhere including duels (priority 90)
                 new BoosterOpenNavigator(_announcer),  // Pack opening card list (priority 80)

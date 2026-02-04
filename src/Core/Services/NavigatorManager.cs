@@ -56,9 +56,32 @@ namespace AccessibleArena.Core.Services
         /// <summary>Call this every frame from main mod</summary>
         public void Update()
         {
-            // If we have an active navigator, let it handle updates
+            // Check if a higher-priority navigator should preempt the current one
+            // This allows RewardPopupNavigator (86) to take over from GeneralMenuNavigator (15)
             if (_activeNavigator != null)
             {
+                foreach (var navigator in _navigators)
+                {
+                    // Only check navigators with higher priority than the active one
+                    if (navigator.Priority <= _activeNavigator.Priority)
+                        break; // List is sorted by priority descending, so we can stop here
+
+                    if (navigator == _activeNavigator)
+                        continue;
+
+                    // Let the navigator poll (it may activate itself)
+                    navigator.Update();
+
+                    if (navigator.IsActive)
+                    {
+                        MelonLogger.Msg($"[NavigatorManager] {navigator.NavigatorId} preempting {_activeNavigator.NavigatorId}");
+                        _activeNavigator.Deactivate();
+                        _activeNavigator = navigator;
+                        return;
+                    }
+                }
+
+                // No preemption - let active navigator handle updates
                 _activeNavigator.Update();
 
                 // Check if it deactivated itself

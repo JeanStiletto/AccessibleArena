@@ -1143,6 +1143,95 @@ Always prefer `PanelStateManager.IsSettingsMenuOpen` over polling `GameObject.Fi
 3. Update lower-priority navigators to check the new property in both methods
 4. Register navigator in AccessibleArenaMod.cs with appropriate priority
 
+### Extracting Navigators from Existing Code (February 2026)
+
+When extracting functionality from an existing navigator into a new dedicated navigator
+(e.g., extracting rewards popup handling from GeneralMenuNavigator into RewardPopupNavigator),
+follow these guidelines to avoid common pitfalls:
+
+**Key Lessons Learned:**
+
+1. **Copy code exactly first, then modify**
+   - Copy working methods verbatim from the source navigator
+   - Only after confirming the copied code works, make incremental changes
+   - Resist the urge to "improve" or "simplify" the detection/discovery logic
+
+2. **Timing issues with popup content**
+   - Popup UI containers may exist before their content is populated
+   - Detection may succeed but discovery finds 0 elements
+   - Solution: Add automatic rescan mechanism with frame delay:
+   ```csharp
+   // Rescan mechanism for timing issues
+   private int _rescanFrameCounter;
+   private const int RescanDelayFrames = 30; // ~0.5 seconds at 60fps
+   private const int MaxRescanAttempts = 10;
+   private int _rescanAttempts;
+
+   public override void Update()
+   {
+       // Check if we need to rescan (found 0 elements but popup still active)
+       if (_isActive && _elementCount == 0 && _rescanAttempts < MaxRescanAttempts)
+       {
+           _rescanFrameCounter++;
+           if (_rescanFrameCounter >= RescanDelayFrames)
+           {
+               _rescanFrameCounter = 0;
+               _rescanAttempts++;
+               ForceRescan();
+           }
+       }
+       base.Update();
+   }
+   ```
+
+3. **Navigator preemption**
+   - New navigator needs higher priority to take over from existing one
+   - NavigatorManager must support preemption (check higher-priority navigators even when one is active)
+   - Example: RewardPopupNavigator (86) preempts GeneralMenuNavigator (15)
+   ```csharp
+   // In NavigatorManager.Update():
+   if (_activeNavigator != null)
+   {
+       // Check if higher-priority navigator should take over
+       foreach (var navigator in _navigators)
+       {
+           if (navigator.Priority <= _activeNavigator.Priority)
+               break; // Sorted by priority, can stop early
+           navigator.Update();
+           if (navigator.IsActive)
+           {
+               _activeNavigator.Deactivate();
+               _activeNavigator = navigator;
+               return;
+           }
+       }
+       // Continue with active navigator...
+   }
+   ```
+
+4. **Search scope matters**
+   - Original code may rely on being called in a specific context
+   - When moving to standalone navigator, search scope may need adjustment
+   - Example: Search entire popup instead of just RewardsCONTAINER
+
+5. **Clean up the source**
+   - After new navigator is working, remove duplicate code from source
+   - Update overlay detection to note that navigation is handled elsewhere
+   - Keep detection for overlay filtering (IsInsideActiveOverlay)
+
+**Common Mistakes to Avoid:**
+- Inventing new detection logic instead of copying working code
+- Removing "unnecessary" fallbacks that handle edge cases
+- Not handling the timing gap between popup appearance and content loading
+- Forgetting to add preemption support in NavigatorManager
+
+**Files typically modified:**
+1. New `*Navigator.cs` file with copied methods
+2. `NavigatorManager.cs` for preemption support
+3. `AccessibleArenaMod.cs` to register new navigator
+4. Source navigator to remove duplicate code
+5. `OverlayDetector.cs` to update comments (detection kept for filtering)
+
 ### Adding Support for New Screens
 
 MTGA has two main types of screens that need different implementation approaches:

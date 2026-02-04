@@ -46,6 +46,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // 4. Rewards popup (after claiming rewards from mail/store/etc.)
             // Must be checked BEFORE mailbox, since rewards can appear while mailbox is still open
+            // Note: Navigation handled by RewardPopupNavigator, but detection here still needed
+            // for overlay filtering (IsInsideActiveOverlay)
             if (IsRewardsPopupOpen())
                 return ElementGroup.RewardsPopup;
 
@@ -357,33 +359,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             return false;
         }
 
-        /// <summary>
-        /// Get the rewards container transform for element discovery.
-        /// Returns null if rewards popup is not open.
-        /// </summary>
-        public Transform GetRewardsContainer()
-        {
-            var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
-            if (screenspacePopups == null)
-                return null;
-
-            foreach (Transform child in screenspacePopups.transform)
-            {
-                if (child.name.Contains("ContentController") && child.name.Contains("Rewards") &&
-                    child.gameObject.activeInHierarchy)
-                {
-                    var container = child.Find("Container");
-                    if (container != null)
-                    {
-                        var rewardsContainer = container.Find("RewardsCONTAINER");
-                        if (rewardsContainer != null && rewardsContainer.gameObject.activeInHierarchy)
-                            return rewardsContainer;
-                    }
-                }
-            }
-
-            return null;
-        }
+        // Note: GetRewardsContainer() removed - now handled by RewardPopupNavigator
 
         /// <summary>
         /// Check if an element is inside the rewards popup.

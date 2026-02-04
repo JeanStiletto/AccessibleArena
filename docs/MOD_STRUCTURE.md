@@ -83,9 +83,10 @@ C:\Users\fabia\arena\
         # Screen Navigators (all extend BaseNavigator)
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
         AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
-        PreBattleNavigator.cs        - VS screen before duel starts (NEW)
-        BoosterOpenNavigator.cs      - Pack contents after opening (NEW)
+        PreBattleNavigator.cs        - VS screen before duel starts
+        BoosterOpenNavigator.cs      - Pack contents after opening
         NPERewardNavigator.cs        - NPE reward screens
+        RewardPopupNavigator.cs      - Rewards popup from mail claims, store purchases (NEW)
         DuelNavigator.cs             - Duel gameplay screen (delegates to ZoneNavigator)
         OverlayNavigator.cs          - Modal overlays (What's New, announcements)
         SettingsMenuNavigator.cs     - Settings menu (works in all scenes including duels)
@@ -135,6 +136,7 @@ C:\Users\fabia\arena\
 - [x] Code of Conduct - Default navigation works correctly
 - [x] PreBattleNavigator - VS screen before duel (Continue/Cancel buttons)
 - [x] BoosterOpenNavigator - Pack contents after opening packs
+- [x] RewardPopupNavigator - Rewards popup from mail/store (cards, packs, currency)
 - [x] DuelNavigator - Duel gameplay (zone navigation, combat, targeting)
 - [~] OverlayNavigator - Modal overlays (What's New carousel) - basic implementation
 - [x] SettingsMenuNavigator - Settings menu accessible in all scenes including duels

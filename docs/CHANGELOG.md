@@ -2,6 +2,31 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6 - 2026-02-04
+
+### New Navigator: RewardPopupNavigator
+- Created dedicated `RewardPopupNavigator` for rewards popup handling (mail claims, store purchases)
+- Priority 86 - preempts GeneralMenuNavigator when rewards popup appears
+- Automatic rescan mechanism handles delayed reward content loading
+- Full navigation support for cards, packs, currency, card sleeves
+
+### NavigatorManager Preemption
+- Added preemption support in `NavigatorManager.Update()`
+- Higher-priority navigators can now take over from active lower-priority ones
+- Enables overlays/popups to properly intercept navigation
+
+### Code Cleanup
+- Removed duplicate rewards code from `GeneralMenuNavigator`
+- Removed `GetRewardsContainer()` from `OverlayDetector` (now in RewardPopupNavigator)
+- Updated documentation with lessons learned about extracting navigators
+
+### Documentation
+- Updated MOD_STRUCTURE.md with RewardPopupNavigator
+- Updated SCREENS.md Rewards Popup section
+- Added "Extracting Navigators from Existing Code" section to BEST_PRACTICES.md
+
+---
+
 ## v0.5 - 2026-02-03
 
 ### Mailbox Accessibility

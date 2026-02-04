@@ -59,7 +59,8 @@ Handles modal popups that appear over other content, blocking interaction until 
 **Detected Overlay Types:**
 - What's New carousel (game updates)
 - Announcements
-- Reward popups
+
+Note: Reward popups are handled by `RewardPopupNavigator` (see below).
 
 **Detection:** Looks for `Background_ClickBlocker` GameObject
 
@@ -483,7 +484,8 @@ Fields without content are skipped. Pressing Down past the last field transition
 ## Rewards Popup
 
 **Controller:** `ContentControllerRewards`
-**Navigator:** `GeneralMenuNavigator`
+**Navigator:** `RewardPopupNavigator` (NEW - February 2026)
+**Priority:** 86 (preempts GeneralMenuNavigator)
 **Path:** `Canvas - Screenspace Popups/ContentController - Rewards_Desktop_16x9(Clone)`
 
 The Rewards Popup appears after claiming rewards from mail, store purchases, or other reward sources. It displays the actual rewards being granted (cards, card sleeves, gold, packs, etc.).
@@ -498,25 +500,25 @@ The Rewards Popup appears after claiming rewards from mail, store purchases, or 
 - `RewardPrefab_Pack` - Booster pack rewards with quantity
 - `RewardPrefab_IndividualCard_Base` - Individual card rewards (navigable with card info)
 - `RewardPrefab_CardSleeve_Base` - Card sleeve rewards with "Standard festlegen" button
-- `ClaimButton` - "Mehr" (More) button to reveal additional rewards or close popup
-- `Background_ClickBlocker` - Click-to-progress background
+- `ClaimButton` - "Mehr" (More) / "Nehmen" (Take) button to reveal additional rewards or claim them
+- `Background_ClickBlocker` - Click-to-progress background (Continue button)
 
 **Multi-Page Rewards:**
 Some reward screens have multiple pages of rewards. The "Mehr" (More) button:
-1. First presses reveal additional rewards on subsequent pages
-2. Final press closes the popup
+1. First presses reveal additional rewards or claim them
+2. Final press closes the popup via Background_ClickBlocker
 3. Each press triggers a rescan to discover newly visible rewards
 
 **Technical Notes:**
-- Detected via `OverlayDetector.IsRewardsPopupOpen()` - checks for active ContentController with "Rewards" in name
-- **Grouped navigation disabled** - uses flat Left/Right navigation for simplicity
-- `ElementGroup.RewardsPopup` overlay group filters navigation to popup elements only
-- `DiscoverRewardElements()` finds `RewardPrefab_*` elements and creates navigation entries
+- **Dedicated navigator** - `RewardPopupNavigator` handles all rewards popup functionality
+- **Preemption** - Higher priority (86) preempts GeneralMenuNavigator (15) when rewards popup appears
+- **Timing resilience** - Automatic rescan mechanism handles delayed reward loading (up to 10 retries)
+- Detected via `CheckRewardsPopupOpenInternal()` - checks for active ContentController with "Rewards" in name
+- Searches entire popup for `RewardPrefab_*` elements (not just RewardsCONTAINER)
 - `FindCardObjectInReward()` locates card components (BoosterMetaCardView, PagesMetaCardView, etc.)
 - Card rewards are recognized by `CardDetector.IsCard()` enabling CardInfoNavigator integration
-- Rescan triggered after "Mehr" button press and on overlay state changes (popup open/close)
 - `DismissRewardsPopup()` clicks the `Background_ClickBlocker` as fallback dismiss method
-- Controller has callback methods: `OnRewardsClosed`, `RegisterRewardClosedCallback()`
+- `OverlayDetector.IsRewardsPopupOpen()` still used for overlay filtering (IsInsideActiveOverlay)
 
 ## Rewards/Mastery Screen
 
