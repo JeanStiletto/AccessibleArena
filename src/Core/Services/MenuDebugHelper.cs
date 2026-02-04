@@ -661,5 +661,245 @@ namespace AccessibleArena.Core.Services
             DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== END CARD DETAILS DUMP ===");
             announcer?.Announce("Card details dumped to log.", Models.AnnouncementPriority.High);
         }
+
+        /// <summary>
+        /// Dump detailed information about a booster pack GameObject.
+        /// Investigates the CarouselBooster and all its components to find set/product data.
+        /// </summary>
+        /// <param name="tag">Log tag</param>
+        /// <param name="packObj">The pack hitbox/button GameObject to inspect</param>
+        /// <param name="announcer">Announcement service for completion message</param>
+        public static void DumpBoosterPackDetails(string tag, GameObject packObj, IAnnouncementService announcer)
+        {
+            if (packObj == null)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"DumpBoosterPackDetails: No pack object provided");
+                announcer?.Announce("No pack to inspect.", Models.AnnouncementPriority.High);
+                return;
+            }
+
+            MelonLogger.Msg($"[{tag}] =================================");
+            MelonLogger.Msg($"[{tag}] === BOOSTER PACK INVESTIGATION ===");
+            MelonLogger.Msg($"[{tag}] =================================");
+            MelonLogger.Msg($"[{tag}] Starting object: {packObj.name}");
+            MelonLogger.Msg($"[{tag}] Full path: {GetFullPath(packObj.transform)}");
+
+            // Walk up to find CarouselBooster parent
+            Transform current = packObj.transform;
+            Transform carouselBooster = null;
+            int maxLevels = 8;
+
+            while (current != null && maxLevels > 0)
+            {
+                MelonLogger.Msg($"[{tag}] Checking parent: {current.name}");
+
+                if (current.name.Contains("CarouselBooster"))
+                {
+                    carouselBooster = current;
+                    MelonLogger.Msg($"[{tag}] >>> Found CarouselBooster: {current.name}");
+                    break;
+                }
+
+                // Log components at each level
+                var comps = current.GetComponents<Component>();
+                foreach (var c in comps)
+                {
+                    if (c == null || c is Transform) continue;
+                    MelonLogger.Msg($"[{tag}]   - Component: {c.GetType().Name}");
+                }
+
+                current = current.parent;
+                maxLevels--;
+            }
+
+            if (carouselBooster == null)
+            {
+                MelonLogger.Msg($"[{tag}] Could not find CarouselBooster parent!");
+                announcer?.Announce("Could not find pack parent.", Models.AnnouncementPriority.High);
+                return;
+            }
+
+            // Dump ALL components on CarouselBooster
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] === CarouselBooster Components ===");
+            var allComponents = carouselBooster.GetComponents<Component>();
+            foreach (var comp in allComponents)
+            {
+                if (comp == null || comp is Transform) continue;
+                MelonLogger.Msg($"[{tag}] Component: {comp.GetType().FullName}");
+            }
+
+            // Look for data-holding MonoBehaviours and dump their fields/properties
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] === MonoBehaviour Details (searching for set/product data) ===");
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            var allMbs = carouselBooster.GetComponentsInChildren<MonoBehaviour>(true);
+            string[] relevantPatterns = { "Booster", "Carousel", "Product", "Pack", "Set", "Item", "Data", "View", "Controller" };
+
+            foreach (var mb in allMbs)
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+
+                bool isRelevant = false;
+                foreach (var pattern in relevantPatterns)
+                {
+                    if (typeName.Contains(pattern))
+                    {
+                        isRelevant = true;
+                        break;
+                    }
+                }
+
+                if (!isRelevant) continue;
+
+                MelonLogger.Msg($"[{tag}] ");
+                MelonLogger.Msg($"[{tag}] >>> {typeName} on {mb.gameObject.name} <<<");
+
+                // Dump all fields
+                var fields = mb.GetType().GetFields(flags);
+                foreach (var field in fields)
+                {
+                    try
+                    {
+                        var val = field.GetValue(mb);
+                        string valStr = FormatValueForLog(val);
+
+                        // Highlight fields that might contain set/product info
+                        bool isInteresting = field.Name.ToLower().Contains("set") ||
+                                            field.Name.ToLower().Contains("name") ||
+                                            field.Name.ToLower().Contains("product") ||
+                                            field.Name.ToLower().Contains("title") ||
+                                            field.Name.ToLower().Contains("id") ||
+                                            field.Name.ToLower().Contains("code") ||
+                                            field.Name.ToLower().Contains("booster") ||
+                                            field.Name.ToLower().Contains("pack");
+
+                        string marker = isInteresting ? " *** INTERESTING ***" : "";
+                        MelonLogger.Msg($"[{tag}]   Field: {field.Name} ({field.FieldType.Name}) = {valStr}{marker}");
+
+                        // If it's an object, try to dump its properties too
+                        if (val != null && isInteresting && !field.FieldType.IsPrimitive && field.FieldType != typeof(string))
+                        {
+                            DumpObjectProperties(tag, val, "      ");
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Msg($"[{tag}]   Field: {field.Name} = <error: {ex.Message}>");
+                    }
+                }
+
+                // Dump all properties
+                var props = mb.GetType().GetProperties(flags);
+                foreach (var prop in props)
+                {
+                    if (!prop.CanRead) continue;
+                    if (prop.GetIndexParameters().Length > 0) continue;
+
+                    try
+                    {
+                        var val = prop.GetValue(mb);
+                        string valStr = FormatValueForLog(val);
+
+                        bool isInteresting = prop.Name.ToLower().Contains("set") ||
+                                            prop.Name.ToLower().Contains("name") ||
+                                            prop.Name.ToLower().Contains("product") ||
+                                            prop.Name.ToLower().Contains("title") ||
+                                            prop.Name.ToLower().Contains("id") ||
+                                            prop.Name.ToLower().Contains("code") ||
+                                            prop.Name.ToLower().Contains("booster") ||
+                                            prop.Name.ToLower().Contains("pack");
+
+                        string marker = isInteresting ? " *** INTERESTING ***" : "";
+                        MelonLogger.Msg($"[{tag}]   Property: {prop.Name} ({prop.PropertyType.Name}) = {valStr}{marker}");
+
+                        // If it's an object, try to dump its properties too
+                        if (val != null && isInteresting && !prop.PropertyType.IsPrimitive && prop.PropertyType != typeof(string))
+                        {
+                            DumpObjectProperties(tag, val, "      ");
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Msg($"[{tag}]   Property: {prop.Name} = <error: {ex.Message}>");
+                    }
+                }
+            }
+
+            // Also check for LocalizedString components that might have the set name
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] === TMP_Text Elements ===");
+            var texts = carouselBooster.GetComponentsInChildren<TMP_Text>(true);
+            foreach (var text in texts)
+            {
+                if (text == null) continue;
+                string content = text.text ?? "(null)";
+                bool isActive = text.gameObject.activeInHierarchy;
+                MelonLogger.Msg($"[{tag}]   [{(isActive ? "ON" : "OFF")}] {text.gameObject.name}: '{content}'");
+
+                // Check for Localize component
+                var localize = text.GetComponent<MonoBehaviour>();
+                if (localize != null && localize.GetType().Name == "Localize")
+                {
+                    MelonLogger.Msg($"[{tag}]     [Has Localize component]");
+                }
+            }
+
+            // Dump child hierarchy
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] === Child Hierarchy (3 levels) ===");
+            DumpGameObjectChildren(tag, carouselBooster.gameObject, 0, 3);
+
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] =================================");
+            MelonLogger.Msg($"[{tag}] === END BOOSTER PACK INVESTIGATION ===");
+            MelonLogger.Msg($"[{tag}] =================================");
+
+            announcer?.Announce("Pack details dumped to log.", Models.AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Dumps properties of an object for deep inspection.
+        /// </summary>
+        private static void DumpObjectProperties(string tag, object obj, string indent)
+        {
+            if (obj == null) return;
+
+            var type = obj.GetType();
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            // Limit to 10 properties to avoid huge logs
+            int count = 0;
+            foreach (var prop in type.GetProperties(flags))
+            {
+                if (!prop.CanRead || prop.GetIndexParameters().Length > 0) continue;
+                if (count++ > 10) break;
+
+                try
+                {
+                    var val = prop.GetValue(obj);
+                    string valStr = FormatValueForLog(val);
+                    MelonLogger.Msg($"[{tag}] {indent}.{prop.Name} = {valStr}");
+                }
+                catch { }
+            }
+
+            // Also check fields
+            count = 0;
+            foreach (var field in type.GetFields(flags))
+            {
+                if (count++ > 10) break;
+
+                try
+                {
+                    var val = field.GetValue(obj);
+                    string valStr = FormatValueForLog(val);
+                    MelonLogger.Msg($"[{tag}] {indent}.{field.Name} = {valStr}");
+                }
+                catch { }
+            }
+        }
     }
 }

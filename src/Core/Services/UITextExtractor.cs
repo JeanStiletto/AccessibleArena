@@ -287,7 +287,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Tries to extract a booster pack name from a CarouselBooster element.
-        /// Booster pack hitboxes don't have text - the pack name is in a sibling TMP_Text.
+        /// Uses SealedBoosterView.SetCode and ClientBoosterInfo for pack identification.
         /// </summary>
         private static string TryGetBoosterPackName(GameObject gameObject)
         {
@@ -323,39 +323,83 @@ namespace AccessibleArena.Core.Services
             if (carouselBooster == null)
                 return null;
 
-            // Search CarouselBooster's children for TMP_Text with pack name
-            // Use includeInactive=true to find text in inactive children too
-            string packName = null;
+            // Try to get pack info from SealedBoosterView component
+            string setCode = null;
+            string setName = null;
             string packCount = null;
 
-            var allTmpTexts = carouselBooster.GetComponentsInChildren<TMP_Text>(true);
-
-            foreach (var tmpText in allTmpTexts)
+            foreach (var mb in carouselBooster.GetComponents<MonoBehaviour>())
             {
-                if (tmpText == null)
-                    continue;
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
 
-                string text = tmpText.text?.Trim();
-
-                if (string.IsNullOrEmpty(text))
-                    continue;
-
-                // Skip if it's just a number (count) or too short
-                if (text.Length <= 2 && int.TryParse(text, out _))
+                if (typeName == "SealedBoosterView")
                 {
-                    packCount = text;
-                    continue;
-                }
+                    var mbType = mb.GetType();
+                    var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
 
-                // Skip placeholder/internal text
-                if (text.ToLower().Contains("hitbox") || text.ToLower().Contains("booster mesh"))
-                    continue;
+                    // Get SetCode field
+                    var setCodeField = mbType.GetField("SetCode", flags);
+                    if (setCodeField != null)
+                    {
+                        setCode = setCodeField.GetValue(mb) as string;
+                    }
 
-                // This is likely the pack name
-                if (text.Length > 2 && packName == null)
-                {
-                    packName = text;
+                    // Get quantity from _quantityText
+                    var quantityTextField = mbType.GetField("_quantityText", flags);
+                    if (quantityTextField != null)
+                    {
+                        var quantityText = quantityTextField.GetValue(mb) as TMP_Text;
+                        if (quantityText != null && !string.IsNullOrEmpty(quantityText.text))
+                        {
+                            packCount = quantityText.text.Trim();
+                        }
+                    }
+
+                    // Try to get more info from ClientBoosterInfo
+                    var infoField = mbType.GetField("_info", flags);
+                    if (infoField != null)
+                    {
+                        var info = infoField.GetValue(mb);
+                        if (info != null)
+                        {
+                            // Try to get display name from ClientBoosterInfo
+                            var infoType = info.GetType();
+
+                            // Check for SetName or DisplayName property
+                            var setNameProp = infoType.GetProperty("SetName", flags) ?? infoType.GetProperty("DisplayName", flags);
+                            if (setNameProp != null)
+                            {
+                                setName = setNameProp.GetValue(info) as string;
+                            }
+
+                            // Also try field access
+                            if (string.IsNullOrEmpty(setName))
+                            {
+                                var setNameField = infoType.GetField("SetName", flags) ?? infoType.GetField("_setName", flags);
+                                if (setNameField != null)
+                                {
+                                    setName = setNameField.GetValue(info) as string;
+                                }
+                            }
+                        }
+                    }
+
+                    break;
                 }
+            }
+
+            // Build the pack name from available data
+            string packName = null;
+
+            // Use set name if available, otherwise map set code to name
+            if (!string.IsNullOrEmpty(setName))
+            {
+                packName = setName;
+            }
+            else if (!string.IsNullOrEmpty(setCode))
+            {
+                packName = MapSetCodeToName(setCode);
             }
 
             if (!string.IsNullOrEmpty(packName))
@@ -367,6 +411,71 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Maps a set code to a human-readable set name.
+        /// Falls back to the set code if no mapping is found.
+        /// </summary>
+        private static string MapSetCodeToName(string setCode)
+        {
+            // Common MTGA set codes to names
+            // This list can be expanded as needed
+            var setCodeMap = new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                // Standard sets
+                { "MKM", "Murders at Karlov Manor" },
+                { "LCI", "The Lost Caverns of Ixalan" },
+                { "WOE", "Wilds of Eldraine" },
+                { "MOM", "March of the Machine" },
+                { "ONE", "Phyrexia: All Will Be One" },
+                { "BRO", "The Brothers' War" },
+                { "DMU", "Dominaria United" },
+                { "SNC", "Streets of New Capenna" },
+                { "NEO", "Kamigawa: Neon Dynasty" },
+                { "VOW", "Innistrad: Crimson Vow" },
+                { "MID", "Innistrad: Midnight Hunt" },
+                { "AFR", "Adventures in the Forgotten Realms" },
+                { "STX", "Strixhaven" },
+                { "KHM", "Kaldheim" },
+                { "ZNR", "Zendikar Rising" },
+                { "M21", "Core Set 2021" },
+                { "IKO", "Ikoria" },
+                { "THB", "Theros Beyond Death" },
+                { "ELD", "Throne of Eldraine" },
+                { "M20", "Core Set 2020" },
+                { "WAR", "War of the Spark" },
+                { "RNA", "Ravnica Allegiance" },
+                { "GRN", "Guilds of Ravnica" },
+                // Alchemy sets
+                { "YMKM", "Alchemy: Karlov Manor" },
+                { "YLCI", "Alchemy: Ixalan" },
+                { "YWOE", "Alchemy: Eldraine" },
+                { "YMOM", "Alchemy: March of the Machine" },
+                { "YONE", "Alchemy: Phyrexia" },
+                { "YBRO", "Alchemy: The Brothers' War" },
+                { "YDMU", "Alchemy: Dominaria" },
+                // Recent/upcoming sets
+                { "OTJ", "Outlaws of Thunder Junction" },
+                { "BLB", "Bloomburrow" },
+                { "DSK", "Duskmourn" },
+                { "FDN", "Foundations" },
+                { "ACR", "Aetherdrift" },
+                { "ECL", "Aetherdrift" }, // ECL appears to be Aetherdrift based on log
+                // Masters/Special sets
+                { "SIR", "Shadows over Innistrad Remastered" },
+                { "KTK", "Khans of Tarkir" },
+                { "AKR", "Amonkhet Remastered" },
+                { "KLR", "Kaladesh Remastered" },
+            };
+
+            if (setCodeMap.TryGetValue(setCode, out string name))
+            {
+                return name;
+            }
+
+            // If no mapping found, return the set code itself
+            return setCode;
         }
 
         /// <summary>

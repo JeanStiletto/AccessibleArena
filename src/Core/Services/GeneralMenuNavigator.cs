@@ -667,6 +667,30 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // F11: Dump booster pack details (when in BoosterChamber)
+            if (Input.GetKeyDown(KeyCode.F11) && _activeContentController == "BoosterChamber")
+            {
+                GameObject currentElement = null;
+                if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                {
+                    currentElement = _groupedNavigator.CurrentElement?.GameObject;
+                }
+                else if (IsValidIndex)
+                {
+                    currentElement = _elements[_currentIndex].GameObject;
+                }
+
+                if (currentElement != null)
+                {
+                    MenuDebugHelper.DumpBoosterPackDetails(NavigatorId, currentElement, _announcer);
+                }
+                else
+                {
+                    _announcer.Announce("No element selected for pack investigation.", Models.AnnouncementPriority.High);
+                }
+                return true;
+            }
+
             // Enter: In grouped navigation mode, handle both group entry and element activation
             // Use GetEnterAndConsume to prevent game from also processing Enter on EventSystem selected object
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive && InputManager.GetEnterAndConsume())
