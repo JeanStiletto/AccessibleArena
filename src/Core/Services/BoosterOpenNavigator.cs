@@ -18,6 +18,12 @@ namespace AccessibleArena.Core.Services
         private GameObject _revealAllButton;
         private int _totalCards;
 
+        // Rescan mechanism for timing issues - cards may not be loaded immediately
+        private int _rescanFrameCounter;
+        private const int RescanDelayFrames = 30; // ~0.5 seconds at 60fps
+        private const int MaxRescanAttempts = 10;
+        private int _rescanAttempts;
+
         public override string NavigatorId => "BoosterOpen";
         public override string ScreenName => GetScreenName();
         public override int Priority => 80; // Higher than GeneralMenuNavigator (15), below OverlayNavigator (85)
@@ -47,6 +53,7 @@ namespace AccessibleArena.Core.Services
             bool hasCardScroller = false;
 
             // Check for CardScroller (only exists when cards are displayed)
+            // IMPORTANT: Use false to only search active objects - using true causes false detection on pack selection screen
             foreach (Transform child in boosterChamber.GetComponentsInChildren<Transform>(false))
             {
                 if (child.name == "CardScroller" && child.gameObject.activeInHierarchy)
@@ -58,6 +65,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Check for RevealAll button
+            // IMPORTANT: Use false to only search active objects
             foreach (var mb in boosterChamber.GetComponentsInChildren<MonoBehaviour>(false))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
@@ -139,50 +147,26 @@ namespace AccessibleArena.Core.Services
 
         private void FindCardEntries(HashSet<GameObject> addedObjects)
         {
-            // Find EntryRoot containers that hold card entries
-            var entryRoots = new List<Transform>();
-
-            // Search for EntryRoot in the scroll view structure
-            var allTransforms = GameObject.FindObjectsOfType<Transform>();
-            foreach (var t in allTransforms)
-            {
-                if (t == null || !t.gameObject.activeInHierarchy) continue;
-                if (t.name == "EntryRoot" || t.name.Contains("EntryRoot"))
-                {
-                    entryRoots.Add(t);
-                }
-            }
-
-            MelonLogger.Msg($"[{NavigatorId}] Found {entryRoots.Count} EntryRoot containers");
-
-            // Process each EntryRoot to find card entries
             var cardEntries = new List<(GameObject obj, float sortOrder)>();
 
-            foreach (var entryRoot in entryRoots)
-            {
-                foreach (Transform child in entryRoot)
-                {
-                    if (child == null || !child.gameObject.activeInHierarchy) continue;
+            // Primary search: Look in CardScroller content area
+            FindCardsInCardScroller(cardEntries, addedObjects);
 
-                    // Check if this child is a card entry
-                    var cardObj = FindCardInEntry(child.gameObject);
-                    if (cardObj != null && !addedObjects.Contains(cardObj))
-                    {
-                        float sortOrder = -child.position.y * 1000 + child.position.x;
-                        cardEntries.Add((cardObj, sortOrder));
-                        addedObjects.Add(cardObj);
-                    }
-                }
-            }
-
-            // If no EntryRoot found, try to find cards directly
+            // Fallback: Search EntryRoot containers
             if (cardEntries.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] No EntryRoot cards found, searching directly for card patterns");
+                MelonLogger.Msg($"[{NavigatorId}] No cards in CardScroller, searching EntryRoot containers");
+                FindCardsInEntryRoots(cardEntries, addedObjects);
+            }
+
+            // Last resort: Search entire booster chamber
+            if (cardEntries.Count == 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] No EntryRoot cards found, searching entire booster chamber");
                 FindCardsDirectly(cardEntries, addedObjects);
             }
 
-            // Sort cards by position (top to bottom, left to right)
+            // Sort cards by position (left to right for horizontal scroll)
             cardEntries = cardEntries.OrderBy(x => x.sortOrder).ToList();
 
             MelonLogger.Msg($"[{NavigatorId}] Found {cardEntries.Count} entries (cards + vault progress)");
@@ -231,16 +215,170 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Total: {_totalCards} cards");
         }
 
+        /// <summary>
+        /// Search for cards in the CardScroller content area.
+        /// Path: CardScroller/Viewport/Centerer/Content/Prefab - BoosterMetaCardView_v2
+        /// </summary>
+        private void FindCardsInCardScroller(List<(GameObject obj, float sortOrder)> cardEntries, HashSet<GameObject> addedObjects)
+        {
+            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
+            if (boosterChamber == null) return;
+
+            // Find the CardScroller
+            Transform cardScroller = null;
+            foreach (Transform t in boosterChamber.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "CardScroller" && t.gameObject.activeInHierarchy)
+                {
+                    cardScroller = t;
+                    break;
+                }
+            }
+
+            if (cardScroller == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] CardScroller not found");
+                return;
+            }
+
+            // Navigate to Content container: CardScroller/Viewport/Centerer/Content
+            Transform content = null;
+            var viewport = cardScroller.Find("Viewport");
+            if (viewport != null)
+            {
+                var centerer = viewport.Find("Centerer");
+                if (centerer != null)
+                {
+                    content = centerer.Find("Content");
+                }
+            }
+
+            if (content == null)
+            {
+                // Fallback: search all children for "Content"
+                foreach (Transform t in cardScroller.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name == "Content")
+                    {
+                        content = t;
+                        break;
+                    }
+                }
+            }
+
+            if (content == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Content container not found in CardScroller");
+                return;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Searching CardScroller content: {content.name} ({content.childCount} children)");
+
+            // Search for card prefabs in the Content container
+            // Include inactive objects (true) because cards might still be animating
+            foreach (Transform child in content.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null) continue;
+
+                string childName = child.name;
+
+                // Check for BoosterMetaCardView prefabs
+                if (childName.Contains("BoosterMetaCardView") ||
+                    childName.Contains("MetaCardView") ||
+                    childName.Contains("CardAnchor"))
+                {
+                    // Make sure the object is active or will become active
+                    if (!child.gameObject.activeInHierarchy)
+                    {
+                        // Log inactive cards for debugging
+                        MelonLogger.Msg($"[{NavigatorId}] Found inactive card: {childName}");
+                        continue;
+                    }
+
+                    if (addedObjects.Contains(child.gameObject)) continue;
+
+                    // Sort by X position (horizontal scroll layout)
+                    float sortOrder = child.position.x;
+                    cardEntries.Add((child.gameObject, sortOrder));
+                    addedObjects.Add(child.gameObject);
+
+                    MelonLogger.Msg($"[{NavigatorId}] Found card in CardScroller: {childName}");
+                }
+            }
+
+            // Also check for BoosterMetaCardView components
+            foreach (var mb in content.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName == "BoosterMetaCardView" ||
+                    typeName == "MetaCardView" ||
+                    typeName == "Meta_CDC")
+                {
+                    if (addedObjects.Contains(mb.gameObject)) continue;
+
+                    float sortOrder = mb.transform.position.x;
+                    cardEntries.Add((mb.gameObject, sortOrder));
+                    addedObjects.Add(mb.gameObject);
+
+                    MelonLogger.Msg($"[{NavigatorId}] Found card by component in CardScroller: {mb.gameObject.name}");
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Found {cardEntries.Count} cards in CardScroller");
+        }
+
+        /// <summary>
+        /// Search for cards in EntryRoot containers.
+        /// </summary>
+        private void FindCardsInEntryRoots(List<(GameObject obj, float sortOrder)> cardEntries, HashSet<GameObject> addedObjects)
+        {
+            var entryRoots = new List<Transform>();
+
+            // Search for EntryRoot in the scroll view structure
+            var allTransforms = GameObject.FindObjectsOfType<Transform>();
+            foreach (var t in allTransforms)
+            {
+                if (t == null || !t.gameObject.activeInHierarchy) continue;
+                if (t.name == "EntryRoot" || t.name.Contains("EntryRoot"))
+                {
+                    entryRoots.Add(t);
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Found {entryRoots.Count} EntryRoot containers");
+
+            // Process each EntryRoot to find card entries
+            foreach (var entryRoot in entryRoots)
+            {
+                foreach (Transform child in entryRoot)
+                {
+                    if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                    // Check if this child is a card entry
+                    var cardObj = FindCardInEntry(child.gameObject);
+                    if (cardObj != null && !addedObjects.Contains(cardObj))
+                    {
+                        float sortOrder = child.position.x;
+                        cardEntries.Add((cardObj, sortOrder));
+                        addedObjects.Add(cardObj);
+                    }
+                }
+            }
+        }
+
         private string ExtractCardName(GameObject cardObj)
         {
             // Try to find the Title text element directly
             string title = null;
             string progressQuantity = null;
 
+            // Include inactive text elements (true) for animation timing
             var texts = cardObj.GetComponentsInChildren<TMPro.TMP_Text>(true);
             foreach (var text in texts)
             {
-                if (text == null || !text.gameObject.activeInHierarchy) continue;
+                if (text == null) continue;
 
                 string objName = text.gameObject.name;
 
@@ -287,16 +425,16 @@ namespace AccessibleArena.Core.Services
             if (CardDetector.IsCard(entry))
                 return entry;
 
-            // Search children for card elements
-            foreach (Transform child in entry.GetComponentsInChildren<Transform>(false))
+            // Search children for card elements (include inactive)
+            foreach (Transform child in entry.GetComponentsInChildren<Transform>(true))
             {
                 if (child == null || !child.gameObject.activeInHierarchy) continue;
                 if (CardDetector.IsCard(child.gameObject))
                     return child.gameObject;
             }
 
-            // Look for BoosterMetaCardView component
-            foreach (var mb in entry.GetComponentsInChildren<MonoBehaviour>(false))
+            // Look for BoosterMetaCardView component (include inactive)
+            foreach (var mb in entry.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null) continue;
                 string typeName = mb.GetType().Name;
@@ -317,7 +455,8 @@ namespace AccessibleArena.Core.Services
             var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
             if (boosterChamber == null) return;
 
-            foreach (var mb in boosterChamber.GetComponentsInChildren<MonoBehaviour>(false))
+            // Search by component type (include inactive with true)
+            foreach (var mb in boosterChamber.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
 
@@ -329,28 +468,31 @@ namespace AccessibleArena.Core.Services
                     var cardObj = mb.gameObject;
                     if (!addedObjects.Contains(cardObj))
                     {
-                        float sortOrder = -cardObj.transform.position.y * 1000 + cardObj.transform.position.x;
+                        float sortOrder = cardObj.transform.position.x;
                         cardEntries.Add((cardObj, sortOrder));
                         addedObjects.Add(cardObj);
+                        MelonLogger.Msg($"[{NavigatorId}] Found card by component: {cardObj.name}");
                     }
                 }
             }
 
-            // Also check by name patterns
-            foreach (var t in boosterChamber.GetComponentsInChildren<Transform>(false))
+            // Also check by name patterns (include inactive with true)
+            foreach (var t in boosterChamber.GetComponentsInChildren<Transform>(true))
             {
                 if (t == null || !t.gameObject.activeInHierarchy) continue;
 
                 string name = t.name;
-                if (name.Contains("MetaCardView") ||
+                if (name.Contains("BoosterMetaCardView") ||
+                    name.Contains("MetaCardView") ||
                     name.Contains("CardAnchor") ||
-                    name.Contains("Prefab - BoosterMetaCardView"))
+                    name.StartsWith("Prefab - Booster"))
                 {
                     if (!addedObjects.Contains(t.gameObject))
                     {
-                        float sortOrder = -t.position.y * 1000 + t.position.x;
+                        float sortOrder = t.position.x;
                         cardEntries.Add((t.gameObject, sortOrder));
                         addedObjects.Add(t.gameObject);
+                        MelonLogger.Msg($"[{NavigatorId}] Found card by name pattern: {name}");
                     }
                 }
             }
@@ -361,7 +503,7 @@ namespace AccessibleArena.Core.Services
             // Look for continue/dismiss/close buttons
             var customButtons = FindCustomButtonsInScene();
 
-            string[] dismissPatterns = { "Continue", "Close", "Done", "ModalFade", "MainButton" };
+            string[] dismissPatterns = { "Continue", "Close", "Done", "ModalFade", "SkipToEnd", "MainButton" };
 
             foreach (var button in customButtons)
             {
@@ -381,6 +523,11 @@ namespace AccessibleArena.Core.Services
                     if (name.Contains("ModalFade"))
                     {
                         label = "Close";
+                    }
+                    else if (name.Contains("SkipToEnd"))
+                    {
+                        // Use the actual button text for Skip to End
+                        label = !string.IsNullOrEmpty(buttonText) ? buttonText : "Skip to End";
                     }
                     else if (!string.IsNullOrEmpty(buttonText) && !buttonText.Contains("x10") && !buttonText.Contains("x 10"))
                     {
@@ -439,7 +586,7 @@ namespace AccessibleArena.Core.Services
         protected override string GetActivationAnnouncement()
         {
             string countInfo = _totalCards > 0 ? $"{_totalCards} cards. " : "";
-            return $"{ScreenName}. {countInfo}Left and Right to navigate cards, Up and Down for card details.";
+            return $"Pack Contents. {countInfo}Left and Right to navigate cards, Up and Down for card details.";
         }
 
         protected override void HandleInput()
@@ -531,6 +678,46 @@ namespace AccessibleArena.Core.Services
                 return;
             }
         }
+
+        #region Update with rescan support
+
+        public override void Update()
+        {
+            // Check if we need to rescan for cards (timing issue - cards may load after UI appears)
+            // Keep rescanning until we find ACTUAL cards (_totalCards > 0)
+            // Vault progress alone is not enough - the real cards often load after the vault progress appears
+            bool needsRescan = _isActive && _totalCards == 0 && _rescanAttempts < MaxRescanAttempts;
+
+            if (needsRescan)
+            {
+                _rescanFrameCounter++;
+                if (_rescanFrameCounter >= RescanDelayFrames)
+                {
+                    _rescanFrameCounter = 0;
+                    _rescanAttempts++;
+                    MelonLogger.Msg($"[{NavigatorId}] Rescanning for cards (attempt {_rescanAttempts}/{MaxRescanAttempts})");
+                    ForceRescan();
+
+                    // If we found cards this time, announce them
+                    if (_totalCards > 0)
+                    {
+                        _announcer.AnnounceInterrupt($"Found {_totalCards} cards");
+                    }
+                }
+            }
+
+            base.Update();
+        }
+
+        protected override void OnActivated()
+        {
+            base.OnActivated();
+            // Reset rescan counters on activation
+            _rescanFrameCounter = 0;
+            _rescanAttempts = 0;
+        }
+
+        #endregion
 
         protected override bool ValidateElements()
         {

@@ -952,6 +952,11 @@ namespace AccessibleArena.Core.Services
                 && !IsInsideFriendsWidget(obj) && !IsInsideBoosterCarousel(obj) && !IsInsideEventTile(obj))
                 return true;
 
+            // Hitbox_Scroll elements in BoosterCarousel are non-functional scroll hitboxes (Size 0x0)
+            // Only Hitbox_BoosterMesh actually opens packs
+            if (EqualsIgnoreCase(name, "Hitbox_Scroll"))
+                return true;
+
             // Backer elements from social panel (internal hitboxes)
             // BUT: Allow backer elements inside FriendsWidget (they ARE the clickable friend items)
             if (ContainsIgnoreCase(name, "backer") && !UITextExtractor.HasActualText(obj) && !IsInsideFriendsWidget(obj))
