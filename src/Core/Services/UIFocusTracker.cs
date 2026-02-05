@@ -156,8 +156,21 @@ namespace AccessibleArena.Core.Services
             var tmpInput = selected.GetComponent<TMPro.TMP_InputField>();
             if (tmpInput != null)
             {
+                // IMPORTANT: Invoke onEndEdit BEFORE deactivating to trigger game callbacks
+                // This is needed for search filters and other input-dependent functionality
+                // The game's filter system listens to onEndEdit to apply filters
+                string currentText = tmpInput.text ?? "";
+                bool wasFocused = tmpInput.isFocused;
+
+                // Invoke onEndEdit event to notify listeners (e.g., search filter)
+                if (tmpInput.onEndEdit != null)
+                {
+                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
+                    tmpInput.onEndEdit.Invoke(currentText);
+                }
+
                 // Deactivate if focused (caret visible)
-                if (tmpInput.isFocused)
+                if (wasFocused)
                 {
                     tmpInput.DeactivateInputField();
                 }
@@ -165,19 +178,30 @@ namespace AccessibleArena.Core.Services
                 // MTGA auto-activates input fields on selection, so we need to clear
                 // even if isFocused is false (caret not visible but still selected)
                 eventSystem.SetSelectedGameObject(null);
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated TMP_InputField: {selected.name} (wasFocused={tmpInput.isFocused})");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated TMP_InputField: {selected.name} (wasFocused={wasFocused})");
                 return;
             }
 
             var legacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
             if (legacyInput != null)
             {
-                if (legacyInput.isFocused)
+                // IMPORTANT: Invoke onEndEdit BEFORE deactivating to trigger game callbacks
+                string currentText = legacyInput.text ?? "";
+                bool wasFocused = legacyInput.isFocused;
+
+                // Invoke onEndEdit event to notify listeners
+                if (legacyInput.onEndEdit != null)
+                {
+                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
+                    legacyInput.onEndEdit.Invoke(currentText);
+                }
+
+                if (wasFocused)
                 {
                     legacyInput.DeactivateInputField();
                 }
                 eventSystem.SetSelectedGameObject(null);
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated InputField: {selected.name} (wasFocused={legacyInput.isFocused})");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated InputField: {selected.name} (wasFocused={wasFocused})");
                 return;
             }
         }

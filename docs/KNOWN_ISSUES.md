@@ -373,6 +373,46 @@ NullClaimButton ("Take reward") not being added to navigation. Fix attempted - s
 
 ## In Progress
 
+### Deck Builder Search - Slow Rescan Delay
+
+The search field filtering in deck builder works but has a noticeable delay (~500ms) before showing correct results. This is because the game's card pool takes time to update after filtering.
+
+**Current Implementation:**
+- 30-frame delay (~500ms at 60fps) before rescanning collection after search
+- Announcement suppressed during delay to prevent announcing stale cards
+- Works correctly but feels slow for a UI operation
+
+**Attempted Optimization - Page Container Filtering (February 2026):**
+
+We attempted to only scan the active Page container (Page1, Page2, etc.) inside PoolHolder to avoid picking up stale cards from other pages. This would have allowed faster rescans.
+
+**Hierarchy discovered:**
+```
+PoolHolder_Desktop_16x9(Clone)/
+└── PoolHolder/
+    ├── Page1/
+    │   └── PagesMetaCardView(Clone) (cards)
+    └── Page2/
+        └── PagesMetaCardView(Clone) (cards)
+```
+
+**Why it failed:**
+- When looking for Page children of PoolHolder, none were found as direct children
+- The Page containers might be nested differently or named differently than expected
+- Scanning only one page broke collection display entirely (0 cards found)
+
+**Future Improvement Ideas:**
+1. Debug log the actual hierarchy of PoolHolder to find correct Page container paths
+2. Check if pages use different naming convention (not starting with "Page")
+3. Filter by card world position (only cards within visible viewport bounds)
+4. Check CanvasGroup alpha on card views (fading cards might have alpha < 1)
+5. Look for a "current page index" property on the game's pagination system
+6. Check if cards have a "pooled/inactive" state separate from activeInHierarchy
+
+**Files:** `GeneralMenuNavigator.cs` - `FindPoolHolderCards()`, `BaseNavigator.cs` - `ScheduleSearchRescan()`
+
+---
+
 ### Deck Builder - Deck List Card Info Incomplete
 
 Deck list cards (cards in your deck shown in the compact list view) only display Name and Quantity when reading card info with Up/Down arrows. Other properties (mana cost, type, rules text) are not shown.

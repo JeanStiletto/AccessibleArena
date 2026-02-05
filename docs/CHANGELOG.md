@@ -2,6 +2,22 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.1 - 2026-02-05
+
+### Deck Builder Search Field Support
+- Search input field in deck builder Filters group now triggers collection rescan after exiting
+- Type search term, press Tab to navigate to Collection with filtered results
+- Announces "Search results: X cards" after filter applies
+- Uses delayed rescan (~500ms) to allow game's filter animation to complete
+
+### Technical
+- `ExitInputFieldEditMode()` detects search fields by name and schedules delayed rescan
+- `_suppressNavigationAnnouncement` flag prevents announcing stale cards before rescan
+- `ForceRescanAfterSearch()` override in GeneralMenuNavigator counts only Collection group items
+- `onEndEdit` event invoked when deactivating input fields to trigger game callbacks
+
+---
+
 ## v0.7 - 2026-02-05
 
 ### Booster Chamber (Packs Screen) Overhaul

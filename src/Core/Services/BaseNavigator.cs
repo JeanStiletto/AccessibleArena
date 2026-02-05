@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -310,6 +311,44 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Quiet rescan after exiting a search field. Updates elements without full activation announcement.
+        /// Only announces the updated collection count if it changed.
+        /// </summary>
+        protected virtual void ForceRescanAfterSearch()
+        {
+            if (!_isActive) return;
+
+            // Remember the old count for comparison
+            int oldCount = _elements.Count;
+
+            // Clear and rediscover elements
+            _elements.Clear();
+            _currentIndex = -1;
+
+            DiscoverElements();
+
+            if (_elements.Count > 0)
+            {
+                _currentIndex = 0;
+                MelonLogger.Msg($"[{NavigatorId}] Search rescan: {oldCount} -> {_elements.Count} elements");
+
+                // Update EventSystem selection
+                UpdateEventSystemSelection();
+
+                // Only announce if count changed (filter was applied)
+                if (_elements.Count != oldCount)
+                {
+                    _announcer.AnnounceInterrupt($"Search results: {_elements.Count} items");
+                }
+            }
+            else
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Search rescan found no elements");
+                _announcer.AnnounceInterrupt("No search results");
+            }
+        }
+
         #endregion
 
         #region Constructor
@@ -330,6 +369,17 @@ namespace AccessibleArena.Core.Services
             {
                 TryActivate();
                 return;
+            }
+
+            // Handle delayed search field rescan (after exiting search input)
+            if (_pendingSearchRescanFrames > 0)
+            {
+                _pendingSearchRescanFrames--;
+                if (_pendingSearchRescanFrames == 0)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Executing delayed search rescan");
+                    ForceRescanAfterSearch();
+                }
             }
 
             // Handle delayed stepper/carousel value announcement
@@ -442,12 +492,52 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Exit input field edit mode: clears cached field, notifies UIFocusTracker, and deactivates the field.
         /// </summary>
-        private void ExitInputFieldEditMode()
+        /// <param name="suppressNextAnnouncement">If true (for search fields with Tab), suppress navigation announcement until rescan</param>
+        /// <returns>True if this was a search field</returns>
+        private bool ExitInputFieldEditMode(bool suppressNextAnnouncement = false)
         {
+            // Check if we're exiting a search field - need to rescan to pick up filtered results
+            bool wasSearchField = _editingInputField != null &&
+                _editingInputField.name.IndexOf("Search", StringComparison.OrdinalIgnoreCase) >= 0;
+
             _editingInputField = null;
             UIFocusTracker.ExitInputFieldEditMode();
             UIFocusTracker.DeactivateFocusedInputField();
+
+            // If this was a search field, schedule delayed rescan
+            if (wasSearchField)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Exited search field - scheduling delayed rescan");
+                ScheduleSearchRescan();
+
+                // If navigating away (Tab), suppress announcement until rescan completes
+                if (suppressNextAnnouncement)
+                {
+                    _suppressNavigationAnnouncement = true;
+                    MelonLogger.Msg($"[{NavigatorId}] Suppressing navigation announcement until rescan");
+                }
+            }
+
+            return wasSearchField;
         }
+
+        // Flag to suppress navigation announcement until search rescan completes
+        protected bool _suppressNavigationAnnouncement = false;
+
+        /// <summary>
+        /// Schedule a delayed rescan after exiting a search field.
+        /// Uses frame counter to wait for game's filter system to update.
+        /// </summary>
+        private void ScheduleSearchRescan()
+        {
+            // Use a flag to trigger rescan on next frame(s)
+            // This avoids coroutine complexity while giving the game time to filter
+            // The game's filtering and card pool updates take significant time
+            _pendingSearchRescanFrames = 30; // Wait ~500ms at 60fps for filter to fully apply
+        }
+
+        // Counter for pending search rescan (decrements each frame, rescans when reaches 0)
+        private int _pendingSearchRescanFrames = 0;
 
         /// <summary>
         /// Handle navigation while editing an input field.
@@ -478,7 +568,9 @@ namespace AccessibleArena.Core.Services
             // Consume Tab so game doesn't interfere
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                ExitInputFieldEditMode();
+                // For search fields, suppress the navigation announcement until rescan completes
+                // This prevents announcing old/stale cards before the filter has applied
+                ExitInputFieldEditMode(suppressNextAnnouncement: true);
                 _lastNavigationWasTab = true; // Track for consistent behavior in UpdateEventSystemSelection
                 bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 if (shiftTab)

@@ -772,6 +772,77 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Override search rescan to announce only Collection card count, not all elements.
+        /// Does a quiet rescan without the full activation announcement.
+        /// Also handles the suppressed navigation announcement after Tab from search field.
+        /// </summary>
+        protected override void ForceRescanAfterSearch()
+        {
+            if (!IsActive) return;
+
+            // Check if we need to announce position after rescan (Tab from search field)
+            bool needsPositionAnnouncement = _suppressNavigationAnnouncement;
+            _suppressNavigationAnnouncement = false; // Clear the flag
+
+            // Get old collection count before rescan (if grouped navigation is active)
+            int oldCollectionCount = 0;
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                oldCollectionCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection);
+            }
+
+            // Do the rescan WITHOUT announcement (copy logic from base, skip announce)
+            _elements.Clear();
+            _currentIndex = -1;
+            DiscoverElements();
+
+            if (_elements.Count > 0)
+            {
+                _currentIndex = 0;
+                UpdateEventSystemSelection();
+            }
+
+            // After rescan, announce the results
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                int newCollectionCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection);
+                MelonLogger.Msg($"[{NavigatorId}] Search rescan collection: {oldCollectionCount} -> {newCollectionCount} cards");
+
+                // If we suppressed the navigation announcement, now announce current position
+                if (needsPositionAnnouncement)
+                {
+                    // Announce the current element in the group we navigated to
+                    string currentAnnouncement = _groupedNavigator.GetCurrentAnnouncement();
+                    if (!string.IsNullOrEmpty(currentAnnouncement))
+                    {
+                        _announcer.AnnounceInterrupt(currentAnnouncement);
+                    }
+                }
+                else if (newCollectionCount != oldCollectionCount)
+                {
+                    // Normal case (Escape from search) - just announce count change
+                    if (newCollectionCount == 0)
+                    {
+                        _announcer.AnnounceInterrupt("No search results");
+                    }
+                    else
+                    {
+                        _announcer.AnnounceInterrupt($"Search results: {newCollectionCount} cards");
+                    }
+                }
+            }
+            else
+            {
+                // Fallback for non-grouped contexts: use total element count
+                MelonLogger.Msg($"[{NavigatorId}] Search rescan (non-grouped): {_elements.Count} elements");
+                if (_elements.Count == 0)
+                {
+                    _announcer.AnnounceInterrupt("No search results");
+                }
+            }
+        }
+
+        /// <summary>
         /// Validate that we should remain active.
         /// Returns false if settings menu opens, allowing SettingsMenuNavigator to take over.
         /// </summary>
@@ -3235,7 +3306,11 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_groupedNavigator.CycleToNextGroup(DeckBuilderCycleGroups))
                     {
-                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        // Skip announcement if suppressed (Tab from search field - will announce after rescan)
+                        if (!_suppressNavigationAnnouncement)
+                        {
+                            _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        }
                         UpdateCardNavigationForGroupedElement();
                         return;
                     }
@@ -3265,7 +3340,11 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_groupedNavigator.CycleToPreviousGroup(DeckBuilderCycleGroups))
                     {
-                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        // Skip announcement if suppressed (Tab from search field - will announce after rescan)
+                        if (!_suppressNavigationAnnouncement)
+                        {
+                            _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        }
                         UpdateCardNavigationForGroupedElement();
                         return;
                     }
