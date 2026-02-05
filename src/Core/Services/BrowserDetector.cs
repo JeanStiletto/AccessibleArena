@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using MelonLoader;
 
@@ -372,22 +373,39 @@ namespace AccessibleArena.Core.Services
             if (workflowBrowsers.Count > 0)
             {
                 // Find workflow buttons that have meaningful text (not empty, not just card names)
-                // WorkflowBrowser is a container - we need to find clickable children inside it
+                // WorkflowBrowser is a container - the actual action text is in children
                 var actionButtons = new List<GameObject>();
                 foreach (var wb in workflowBrowsers)
                 {
+                    // First check text on the WorkflowBrowser itself
                     string text = UITextExtractor.GetText(wb);
-                    // Look for action-related text patterns (localized)
-                    // German: "aktivieren" (activate), "bezahlen" (pay), "abbrechen" (cancel)
-                    // English: "activate", "pay", "cancel"
-                    if (!string.IsNullOrEmpty(text) &&
-                        (text.ToLowerInvariant().Contains("aktiv") ||
-                         text.ToLowerInvariant().Contains("activate") ||
-                         text.ToLowerInvariant().Contains("pay") ||
-                         text.ToLowerInvariant().Contains("bezahl") ||
-                         text.ToLowerInvariant().Contains("cancel") ||
-                         text.ToLowerInvariant().Contains("abbrech")))
+
+                    // Also search children for action-related text
+                    if (!HasActionText(text))
                     {
+                        // Search children for action text
+                        foreach (Transform child in wb.GetComponentsInChildren<Transform>(true))
+                        {
+                            if (child == null || !child.gameObject.activeInHierarchy) continue;
+                            string childText = UITextExtractor.GetText(child.gameObject);
+                            if (HasActionText(childText))
+                            {
+                                text = childText;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Look for action-related text patterns (localized)
+                    if (HasActionText(text))
+                    {
+                        // Debug: comprehensive WorkflowBrowser dump (only once per session)
+                        if (!_loggedBrowserTypes.Contains("WorkflowBrowserDump"))
+                        {
+                            _loggedBrowserTypes.Add("WorkflowBrowserDump");
+                            DumpWorkflowBrowserDebug(wb, text);
+                        }
+
                         // Try to find clickable child inside WorkflowBrowser
                         GameObject clickableButton = FindClickableChild(wb);
                         if (clickableButton != null)
@@ -580,6 +598,189 @@ namespace AccessibleArena.Core.Services
             if (card == null) return false;
             int instanceId = card.GetInstanceID();
             return existingCards.Exists(c => c != null && c.GetInstanceID() == instanceId);
+        }
+
+        /// <summary>
+        /// Comprehensive debug dump of WorkflowBrowser structure.
+        /// </summary>
+        private static void DumpWorkflowBrowserDebug(GameObject wb, string actionText)
+        {
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            MelonLogger.Msg($"[BrowserDetector] ========== WorkflowBrowser FULL DEBUG ==========");
+            MelonLogger.Msg($"[BrowserDetector] GameObject: {wb.name}");
+            MelonLogger.Msg($"[BrowserDetector] Action text: '{actionText}'");
+            MelonLogger.Msg($"[BrowserDetector] Full path: {MenuDebugHelper.GetGameObjectPath(wb)}");
+            MelonLogger.Msg($"[BrowserDetector] Active: {wb.activeInHierarchy}");
+
+            // Components on WorkflowBrowser itself
+            MelonLogger.Msg($"[BrowserDetector] --- Components on WorkflowBrowser ---");
+            foreach (var comp in wb.GetComponents<Component>())
+            {
+                if (comp == null) continue;
+                var compType = comp.GetType();
+                MelonLogger.Msg($"[BrowserDetector]   Component: {compType.FullName}");
+
+                // Check for click-related interfaces
+                if (comp is UnityEngine.EventSystems.IPointerClickHandler)
+                    MelonLogger.Msg($"[BrowserDetector]     ^ Has IPointerClickHandler!");
+                if (comp is UnityEngine.EventSystems.IPointerDownHandler)
+                    MelonLogger.Msg($"[BrowserDetector]     ^ Has IPointerDownHandler!");
+                if (comp is UnityEngine.EventSystems.ISubmitHandler)
+                    MelonLogger.Msg($"[BrowserDetector]     ^ Has ISubmitHandler!");
+
+                // For MonoBehaviours, log interesting methods
+                if (comp is MonoBehaviour mb)
+                {
+                    var methods = compType.GetMethods(flags);
+                    foreach (var method in methods)
+                    {
+                        string methodName = method.Name.ToLower();
+                        if (methodName.Contains("click") || methodName.Contains("submit") ||
+                            methodName.Contains("activate") || methodName.Contains("confirm") ||
+                            methodName.Contains("select") || methodName.Contains("execute") ||
+                            methodName.Contains("invoke") || methodName.Contains("action"))
+                        {
+                            MelonLogger.Msg($"[BrowserDetector]     Method: {method.Name}({string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name))})");
+                        }
+                    }
+
+                    // Check for UnityEvent fields (onClick, onSubmit, etc.)
+                    var fields = compType.GetFields(flags);
+                    foreach (var field in fields)
+                    {
+                        if (field.FieldType.Name.Contains("UnityEvent") || field.FieldType.Name.Contains("Action"))
+                        {
+                            MelonLogger.Msg($"[BrowserDetector]     Event field: {field.Name} ({field.FieldType.Name})");
+                        }
+                    }
+                }
+
+                // Check for Graphic raycast target
+                if (comp is UnityEngine.UI.Graphic graphic)
+                {
+                    MelonLogger.Msg($"[BrowserDetector]     Raycast target: {graphic.raycastTarget}");
+                }
+            }
+
+            // Check for EventTrigger
+            var eventTrigger = wb.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+            if (eventTrigger != null)
+            {
+                MelonLogger.Msg($"[BrowserDetector]   EventTrigger entries: {eventTrigger.triggers.Count}");
+                foreach (var trigger in eventTrigger.triggers)
+                {
+                    MelonLogger.Msg($"[BrowserDetector]     - {trigger.eventID}: {trigger.callback.GetPersistentEventCount()} listeners");
+                }
+            }
+
+            // All children with details
+            MelonLogger.Msg($"[BrowserDetector] --- Children ---");
+            foreach (Transform child in wb.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || child.gameObject == wb) continue;
+
+                string activeStr = child.gameObject.activeInHierarchy ? "" : " [INACTIVE]";
+                var childComps = child.GetComponents<Component>();
+                var compNames = new List<string>();
+                bool hasClickHandler = false;
+                bool hasButton = false;
+                bool hasEventTrigger = false;
+
+                foreach (var c in childComps)
+                {
+                    if (c == null) continue;
+                    compNames.Add(c.GetType().Name);
+
+                    if (c is UnityEngine.EventSystems.IPointerClickHandler) hasClickHandler = true;
+                    if (c is UnityEngine.UI.Button) hasButton = true;
+                    if (c is UnityEngine.EventSystems.EventTrigger) hasEventTrigger = true;
+                }
+
+                string flags_str = "";
+                if (hasClickHandler) flags_str += " [CLICKABLE]";
+                if (hasButton) flags_str += " [BUTTON]";
+                if (hasEventTrigger) flags_str += " [EVENTTRIGGER]";
+
+                string childText = UITextExtractor.GetText(child.gameObject);
+                if (!string.IsNullOrEmpty(childText) && childText.Length > 50)
+                    childText = childText.Substring(0, 50) + "...";
+
+                MelonLogger.Msg($"[BrowserDetector]   {child.name}{activeStr}{flags_str}: [{string.Join(", ", compNames)}] text='{childText}'");
+            }
+
+            // Check parent for workflow controller
+            MelonLogger.Msg($"[BrowserDetector] --- Parent hierarchy (looking for controllers) ---");
+            Transform parent = wb.transform.parent;
+            int level = 0;
+            while (parent != null && level < 5)
+            {
+                var parentComps = parent.GetComponents<MonoBehaviour>();
+                foreach (var mb in parentComps)
+                {
+                    if (mb == null) continue;
+                    string typeName = mb.GetType().Name;
+                    if (typeName.Contains("Workflow") || typeName.Contains("Controller") ||
+                        typeName.Contains("Browser") || typeName.Contains("Action"))
+                    {
+                        MelonLogger.Msg($"[BrowserDetector]   Parent[{level}] {parent.name}: {typeName}");
+
+                        // Log submit/confirm methods
+                        var methods = mb.GetType().GetMethods(flags);
+                        foreach (var method in methods)
+                        {
+                            string methodName = method.Name.ToLower();
+                            if (methodName.Contains("submit") || methodName.Contains("confirm") ||
+                                methodName.Contains("execute") || methodName.Contains("complete"))
+                            {
+                                MelonLogger.Msg($"[BrowserDetector]     -> Method: {method.Name}");
+                            }
+                        }
+                    }
+                }
+                parent = parent.parent;
+                level++;
+            }
+
+            // Look for any workflow-related objects in scene
+            MelonLogger.Msg($"[BrowserDetector] --- Scene workflow objects ---");
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (go.name.Contains("AutoTap") || go.name.Contains("ManaPayment") ||
+                    (go.name.Contains("Workflow") && go.name != "WorkflowBrowser"))
+                {
+                    var mbs = go.GetComponents<MonoBehaviour>();
+                    foreach (var mb in mbs)
+                    {
+                        if (mb == null) continue;
+                        MelonLogger.Msg($"[BrowserDetector]   {go.name}: {mb.GetType().FullName}");
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[BrowserDetector] ========== END WorkflowBrowser DEBUG ==========");
+        }
+
+        /// <summary>
+        /// Checks if text contains action-related patterns (ability activation, mana payment).
+        /// Supports multiple languages (English, German).
+        /// </summary>
+        private static bool HasActionText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            string lower = text.ToLowerInvariant();
+
+            // German: "aktivieren" (activate), "bezahlen" (pay), "abbrechen" (cancel), "fähigkeit" (ability)
+            // English: "activate", "pay", "cancel", "ability"
+            return lower.Contains("aktiv") ||
+                   lower.Contains("activate") ||
+                   lower.Contains("pay") ||
+                   lower.Contains("bezahl") ||
+                   lower.Contains("cancel") ||
+                   lower.Contains("abbrech") ||
+                   lower.Contains("fähigkeit") ||
+                   lower.Contains("ability");
         }
 
         /// <summary>

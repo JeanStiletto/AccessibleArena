@@ -312,37 +312,55 @@ Decompilation of game code revealed TWO different mana payment workflows:
 
 When clicking a creature with activated ability, game uses `AutoTapActionsWorkflow` (not `BatchManaSubmission`), so Q key triggers global "float all lands" instead of submitting.
 
-**Observed Behavior:**
-- Click creature → enters mana payment mode
-- Q key → floats all lands (taps for mana) - this is global behavior, not submission
-- Escape → cancels mode correctly
-- Enter on creature again → plays cancel-like sound
-- Primary button text unclear - diagnostic logging added
+**Implementation Progress (February 2026):**
 
-**Diagnostic Logging Added:**
-- `DuelAnnouncer.LogAllPromptButtons()` - logs all button states
-- Called when `ManaProducedUXEvent` fires (Q pressed to float mana)
-- Called 0.3s after clicking any battlefield card
-- Check log for `=== PROMPT BUTTON DIAGNOSTIC ===` sections
+1. **WorkflowBrowser Detection - WORKING**
+   - Added `WorkflowBrowser` detection in `BrowserDetector.cs`
+   - Detects game objects named "WorkflowBrowser" with action-related text
+   - Text patterns: "aktivieren", "activate", "pay", "ability", "fähigkeit", etc.
+   - Searches children for action text if parent text doesn't match
+   - Browser type: `BrowserTypeWorkflow` with `IsWorkflow` flag
 
-**Current Status:**
-- Need log data to confirm button states during mana payment
-- `AutoTapActionsWorkflow` creates buttons with `SubmitSolution()` callback
-- Must find and click the correct button programmatically
+2. **BrowserNavigator Handling - WORKING**
+   - Workflow browsers use pre-found buttons from `BrowserInfo.WorkflowButtons`
+   - Announces "Choose action" when entering workflow browser
+   - Announces button text (e.g., "Fähigkeit aktivieren")
+   - Space triggers `ClickConfirmButton()` which calls `ActivateCurrentButton()`
 
-**Possible Solutions:**
-1. Find the primary button with mana payment callback and click it
-2. Detect `AutoTapActionsWorkflow` and invoke `SubmitSolution()` via reflection
-3. Add Q key handler that clicks the mana payment button when in this mode
+3. **Activation Fails - THE CURRENT PROBLEM**
+   - Log shows: `[BrowserNavigator] Activating button: WorkflowBrowser`
+   - Log shows: `[UIActivator] Simulating pointer events on: WorkflowBrowser`
+   - Log shows: `[UIActivator] Set EventSystem selected object to: WorkflowBrowser`
+   - **MISSING**: `[UIActivator] Invoking IPointerClickHandler:` - NO CLICK HANDLER!
+   - `FindClickableChild()` returns null - no Button, EventTrigger, or IPointerClickHandler found
+   - Falls back to WorkflowBrowser itself, but it has no clickable component
+
+4. **Comprehensive Debug Logging Added**
+   - `DumpWorkflowBrowserDebug()` method dumps full structure on first detection
+   - Logs all components on WorkflowBrowser with full type names
+   - Detects click-related interfaces (IPointerClickHandler, ISubmitHandler, etc.)
+   - Lists methods containing: click, submit, activate, confirm, select, execute, invoke, action
+   - Logs UnityEvent fields (onClick, onSubmit, etc.)
+   - Dumps all children with [CLICKABLE]/[BUTTON]/[EVENTTRIGGER] flags
+   - Searches parent hierarchy for Workflow/Controller components
+   - Finds scene objects with AutoTap/ManaPayment/Workflow in name
+
+**Next Steps:**
+1. Analyze debug dump to understand WorkflowBrowser click mechanism
+2. Possible approaches once mechanism is found:
+   - Find and click actual clickable child (if exists but not detected)
+   - Invoke custom click method via reflection
+   - Find AutoTapActionsWorkflow instance and call SubmitSolution()
+   - Use EventTrigger if present
 
 **Test Case:**
-- Card: Sanftmütige Bibliothekarin
+- Card: Sanftmütige Bibliothekarin (also tested: Spektraler Seemann)
 - Ability: `{3}{G}: Transform, +1/+1 counters, draw card`
-- Q floats lands (6 lands = 3 green, 3 blue mana)
-- Escape cancels correctly
-- No way to confirm/submit
+- Click creature → WorkflowBrowser detected, "Fähigkeit aktivieren" announced
+- Space/Enter → UIActivator sends events but nothing happens
+- Backspace → Cancels correctly (clicks Secondary button)
 
-**Files:** `HotHighlightNavigator.cs`, `DuelAnnouncer.cs`, `BattlefieldNavigator.cs`
+**Files:** `BrowserDetector.cs`, `BrowserNavigator.cs`, `HotHighlightNavigator.cs`, `DuelAnnouncer.cs`, `BattlefieldNavigator.cs`
 
 **Reference:** See GAME_ARCHITECTURE.md section "Mana Payment Workflows" for decompiled code details
 
