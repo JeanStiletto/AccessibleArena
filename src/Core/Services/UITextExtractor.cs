@@ -417,7 +417,7 @@ namespace AccessibleArena.Core.Services
         /// Maps a set code to a human-readable set name.
         /// Falls back to the set code if no mapping is found.
         /// </summary>
-        private static string MapSetCodeToName(string setCode)
+        public static string MapSetCodeToName(string setCode)
         {
             // Common MTGA set codes to names
             // This list can be expanded as needed

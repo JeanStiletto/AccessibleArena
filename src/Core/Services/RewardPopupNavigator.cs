@@ -187,7 +187,7 @@ namespace AccessibleArena.Core.Services
                 string name = child.name;
                 if (!name.StartsWith("RewardPrefab_")) continue;
 
-                // Determine reward type
+                // Determine reward type from prefab name pattern: RewardPrefab_<Type>(Clone)
                 string rewardType = null;
                 if (name.Contains("Pack"))
                     rewardType = "Pack";
@@ -195,8 +195,10 @@ namespace AccessibleArena.Core.Services
                     rewardType = "Card";
                 else if (name.Contains("CardSleeve"))
                     rewardType = "CardSleeve";
-                else if (name.Contains("Gold") || name.Contains("Gem"))
+                else if (name.Contains("Gold") || name.Contains("Gems") || name.Contains("Coins"))
                     rewardType = "Currency";
+                else if (name.Contains("XP"))
+                    rewardType = "XP";
                 else if (name.Contains("Avatar"))
                     rewardType = "Avatar";
                 else
@@ -384,17 +386,23 @@ namespace AccessibleArena.Core.Services
                     return $"Card {index}";
 
                 case "Pack":
+                    // Try to get set name from NotificationPopupReward component
+                    string packName = TryGetPackNameFromReward(rewardPrefab);
+                    if (!string.IsNullOrEmpty(packName))
+                        return packName;
+
+                    // Fallback: look for active text
                     var packTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
                     foreach (var text in packTexts)
                     {
                         if (text != null && text.gameObject.activeInHierarchy)
                         {
                             string content = text.text?.Trim();
-                            if (!string.IsNullOrEmpty(content))
-                                return $"Pack {index}: {content}";
+                            if (!string.IsNullOrEmpty(content) && content != "x0" && !content.StartsWith("x"))
+                                return $"Pack: {content}";
                         }
                     }
-                    return $"Booster Pack {index}";
+                    return "Booster Pack";
 
                 case "CardSleeve":
                     var sleeveTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
@@ -410,21 +418,133 @@ namespace AccessibleArena.Core.Services
                     return $"Card Sleeve {index}";
 
                 case "Currency":
+                    // Determine currency type from prefab name
+                    string currencyType = "Gold";
+                    if (rewardPrefab.name.Contains("Gems"))
+                        currencyType = "Gems";
+                    else if (rewardPrefab.name.Contains("Coins") || rewardPrefab.name.Contains("Gold"))
+                        currencyType = "Gold";
+
+                    // Find quantity in Text_Quantity
                     var currencyTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in currencyTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy && text.gameObject.name == "Text_Quantity")
+                        {
+                            string quantity = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(quantity))
+                                return $"{quantity} {currencyType}";
+                        }
+                    }
+                    // Fallback: find any active text
                     foreach (var text in currencyTexts)
                     {
                         if (text != null && text.gameObject.activeInHierarchy)
                         {
                             string content = text.text?.Trim();
-                            if (!string.IsNullOrEmpty(content))
-                                return content;
+                            if (!string.IsNullOrEmpty(content) && char.IsDigit(content[0]))
+                                return $"{content} {currencyType}";
                         }
                     }
-                    return rewardPrefab.name.Contains("Gold") ? "Gold" : "Gems";
+                    return currencyType;
+
+                case "XP":
+                    // Find quantity in Text_Quantity
+                    var xpTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in xpTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy && text.gameObject.name == "Text_Quantity")
+                        {
+                            string quantity = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(quantity))
+                                return $"{quantity} XP";
+                        }
+                    }
+                    // Fallback: find any active numeric text
+                    foreach (var text in xpTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy)
+                        {
+                            string content = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(content) && char.IsDigit(content[0]))
+                                return $"{content} XP";
+                        }
+                    }
+                    return "XP";
 
                 default:
                     return $"Reward {index}";
             }
+        }
+
+        /// <summary>
+        /// Try to extract the pack/set name from a reward prefab's NotificationPopupReward component.
+        /// Uses reflection to access reward data and map set codes to readable names.
+        /// </summary>
+        private string TryGetPackNameFromReward(GameObject rewardPrefab)
+        {
+            var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            foreach (var mb in rewardPrefab.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+
+                if (typeName == "NotificationPopupReward")
+                {
+                    var mbType = mb.GetType();
+
+                    // Try to get _reward field which should contain the reward data
+                    var rewardField = mbType.GetField("_reward", flags);
+                    if (rewardField != null)
+                    {
+                        var reward = rewardField.GetValue(mb);
+                        if (reward != null)
+                        {
+                            var rewardType = reward.GetType();
+
+                            // Try ProductId or SetCode
+                            var productIdProp = rewardType.GetProperty("ProductId", flags);
+                            if (productIdProp != null)
+                            {
+                                var productId = productIdProp.GetValue(reward)?.ToString();
+                                if (!string.IsNullOrEmpty(productId))
+                                {
+                                    // ProductId might be a set code like "FDN", "DSK", etc.
+                                    string setName = UITextExtractor.MapSetCodeToName(productId);
+                                    if (setName != productId) // Found a mapping
+                                        return $"{setName} Pack";
+                                }
+                            }
+
+                            // Try SetCode field
+                            var setCodeField = rewardType.GetField("SetCode", flags) ?? rewardType.GetField("_setCode", flags);
+                            if (setCodeField != null)
+                            {
+                                var setCode = setCodeField.GetValue(reward) as string;
+                                if (!string.IsNullOrEmpty(setCode))
+                                {
+                                    string setName = UITextExtractor.MapSetCodeToName(setCode);
+                                    return $"{setName} Pack";
+                                }
+                            }
+
+                            // Try DisplayName or Name
+                            var displayNameProp = rewardType.GetProperty("DisplayName", flags) ?? rewardType.GetProperty("Name", flags);
+                            if (displayNameProp != null)
+                            {
+                                var displayName = displayNameProp.GetValue(reward) as string;
+                                if (!string.IsNullOrEmpty(displayName))
+                                    return displayName;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

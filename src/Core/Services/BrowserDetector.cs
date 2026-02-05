@@ -17,6 +17,10 @@ namespace AccessibleArena.Core.Services
         public bool IsScryLike { get; set; }
         public bool IsLondon { get; set; }
         public bool IsMulligan { get; set; }
+        public bool IsWorkflow { get; set; }
+
+        // For workflow browsers, stores all workflow action buttons found
+        public List<GameObject> WorkflowButtons { get; set; }
 
         public static BrowserInfo None => new BrowserInfo { IsActive = false };
     }
@@ -43,10 +47,14 @@ namespace AccessibleArena.Core.Services
         // Browser scaffold prefix
         private const string ScaffoldPrefix = "BrowserScaffold_";
 
+        // WorkflowBrowser detection
+        private const string WorkflowBrowserName = "WorkflowBrowser";
+
         // Browser type names
         public const string BrowserTypeMulligan = "Mulligan";
         public const string BrowserTypeOpeningHand = "OpeningHand";
         public const string BrowserTypeLondon = "London";
+        public const string BrowserTypeWorkflow = "Workflow";
 
         // Button name patterns for detection
         public static readonly string[] ButtonPatterns = { "Button", "Accept", "Confirm", "Cancel", "Done", "Keep", "Submit", "Yes", "No", "Mulligan" };
@@ -82,7 +90,9 @@ namespace AccessibleArena.Core.Services
             { "Mutate", "Mutate choice" },
             { "YesNo", "Choose yes or no" },
             { "Optional", "Optional action" },
-            { "Informational", "Information" }
+            { "Informational", "Information" },
+            // Workflow (ability activation, mana payment, etc.)
+            { "Workflow", "Choose action" }
         };
 
         #endregion
@@ -216,6 +226,14 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Checks if a browser type is a workflow browser (ability activation, mana payment).
+        /// </summary>
+        public static bool IsWorkflowBrowser(string browserType)
+        {
+            return browserType == BrowserTypeWorkflow;
+        }
+
+        /// <summary>
         /// Gets a user-friendly name for the browser type.
         /// </summary>
         public static string GetFriendlyBrowserName(string typeName)
@@ -259,6 +277,7 @@ namespace AccessibleArena.Core.Services
             GameObject cardHolderCandidate = null;
             int cardHolderCardCount = 0;
             bool hasMulliganButtons = false;
+            List<GameObject> workflowBrowsers = new List<GameObject>();
 
             // Single pass through all GameObjects
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
@@ -297,6 +316,12 @@ namespace AccessibleArena.Core.Services
                             break;
                         }
                     }
+                }
+
+                // Priority 3: WorkflowBrowser (ability activation, mana payment choices)
+                if (goName == WorkflowBrowserName)
+                {
+                    workflowBrowsers.Add(go);
                 }
             }
 
@@ -339,6 +364,68 @@ namespace AccessibleArena.Core.Services
                         IsScryLike = false,
                         IsLondon = false,
                         IsMulligan = false
+                    };
+                }
+            }
+
+            // Priority 3: WorkflowBrowser (ability activation, mana payment)
+            if (workflowBrowsers.Count > 0)
+            {
+                // Find workflow buttons that have meaningful text (not empty, not just card names)
+                // WorkflowBrowser is a container - we need to find clickable children inside it
+                var actionButtons = new List<GameObject>();
+                foreach (var wb in workflowBrowsers)
+                {
+                    string text = UITextExtractor.GetText(wb);
+                    // Look for action-related text patterns (localized)
+                    // German: "aktivieren" (activate), "bezahlen" (pay), "abbrechen" (cancel)
+                    // English: "activate", "pay", "cancel"
+                    if (!string.IsNullOrEmpty(text) &&
+                        (text.ToLowerInvariant().Contains("aktiv") ||
+                         text.ToLowerInvariant().Contains("activate") ||
+                         text.ToLowerInvariant().Contains("pay") ||
+                         text.ToLowerInvariant().Contains("bezahl") ||
+                         text.ToLowerInvariant().Contains("cancel") ||
+                         text.ToLowerInvariant().Contains("abbrech")))
+                    {
+                        // Try to find clickable child inside WorkflowBrowser
+                        GameObject clickableButton = FindClickableChild(wb);
+                        if (clickableButton != null)
+                        {
+                            actionButtons.Add(clickableButton);
+                            MelonLogger.Msg($"[BrowserDetector] Found clickable child '{clickableButton.name}' in WorkflowBrowser with text '{text}'");
+                        }
+                        else
+                        {
+                            // Fallback: use the WorkflowBrowser itself
+                            actionButtons.Add(wb);
+                            MelonLogger.Msg($"[BrowserDetector] No clickable child found, using WorkflowBrowser itself for '{text}'");
+                        }
+                    }
+                }
+
+                if (actionButtons.Count > 0)
+                {
+                    if (!_loggedBrowserTypes.Contains(BrowserTypeWorkflow))
+                    {
+                        _loggedBrowserTypes.Add(BrowserTypeWorkflow);
+                        MelonLogger.Msg($"[BrowserDetector] Found WorkflowBrowser with {actionButtons.Count} action buttons");
+                        foreach (var ab in actionButtons)
+                        {
+                            string text = UITextExtractor.GetText(ab);
+                            MelonLogger.Msg($"[BrowserDetector]   Action: '{text}'");
+                        }
+                    }
+                    return new BrowserInfo
+                    {
+                        IsActive = true,
+                        BrowserType = BrowserTypeWorkflow,
+                        BrowserGameObject = actionButtons[0], // Primary action button
+                        IsScryLike = false,
+                        IsLondon = false,
+                        IsMulligan = false,
+                        IsWorkflow = true,
+                        WorkflowButtons = actionButtons
                     };
                 }
             }
@@ -493,6 +580,55 @@ namespace AccessibleArena.Core.Services
             if (card == null) return false;
             int instanceId = card.GetInstanceID();
             return existingCards.Exists(c => c != null && c.GetInstanceID() == instanceId);
+        }
+
+        /// <summary>
+        /// Finds the first clickable child inside a container (Button, EventTrigger, etc.).
+        /// Used for WorkflowBrowser which is a container with clickable children.
+        /// </summary>
+        private static GameObject FindClickableChild(GameObject container)
+        {
+            if (container == null) return null;
+
+            // First check if the container itself is clickable
+            if (HasClickableComponent(container))
+            {
+                var button = container.GetComponent<UnityEngine.UI.Button>();
+                if (button != null && button.interactable)
+                {
+                    return container;
+                }
+            }
+
+            // Search children for clickable components
+            foreach (Transform child in container.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+                if (child.gameObject == container) continue; // Skip self
+
+                // Check for Button component
+                var button = child.GetComponent<UnityEngine.UI.Button>();
+                if (button != null && button.interactable)
+                {
+                    return child.gameObject;
+                }
+
+                // Check for EventTrigger
+                var eventTrigger = child.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+                if (eventTrigger != null)
+                {
+                    return child.gameObject;
+                }
+
+                // Check for IPointerClickHandler (custom click handlers)
+                var clickHandlers = child.GetComponents<UnityEngine.EventSystems.IPointerClickHandler>();
+                if (clickHandlers != null && clickHandlers.Length > 0)
+                {
+                    return child.gameObject;
+                }
+            }
+
+            return null;
         }
 
         #endregion

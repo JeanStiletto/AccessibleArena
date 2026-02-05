@@ -268,6 +268,22 @@ namespace AccessibleArena.Core.Services
 
             if (_browserInfo == null) return;
 
+            // Workflow browsers: use buttons already found by detector
+            if (_browserInfo.IsWorkflow && _browserInfo.WorkflowButtons != null)
+            {
+                foreach (var button in _browserInfo.WorkflowButtons)
+                {
+                    if (button != null && button.activeInHierarchy)
+                    {
+                        _browserButtons.Add(button);
+                        string buttonText = UITextExtractor.GetText(button);
+                        MelonLogger.Msg($"[BrowserNavigator] Workflow button: '{buttonText}'");
+                    }
+                }
+                MelonLogger.Msg($"[BrowserNavigator] Found {_browserButtons.Count} workflow action buttons");
+                return;
+            }
+
             // Discover based on browser type
             if (_browserInfo.IsMulligan)
             {
@@ -805,6 +821,20 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[BrowserNavigator] ClickConfirmButton called. Browser: {_browserInfo?.BrowserType}");
 
             string clickedLabel;
+
+            // Workflow browser: Space activates the currently selected action button
+            if (_browserInfo?.IsWorkflow == true)
+            {
+                if (_browserButtons.Count > 0 && _currentButtonIndex >= 0)
+                {
+                    ActivateCurrentButton();
+                }
+                else
+                {
+                    _announcer.Announce(Strings.NoButtonSelected, AnnouncementPriority.Normal);
+                }
+                return;
+            }
 
             // London mulligan: click SubmitButton
             if (_browserInfo?.IsLondon == true)
