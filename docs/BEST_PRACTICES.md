@@ -1054,6 +1054,95 @@ Some elements have a secondary action accessible via Shift+Enter. For example:
   - `AcceptSpaceKey` - Whether Space triggers activation (default: true)
   - `SupportsCardNavigation` - Whether to integrate with CardInfoNavigator
 
+### Utility Classes for Navigators (February 2026)
+
+When creating new navigators, **always use existing utility classes** instead of reimplementing functionality:
+
+**UIActivator** - Element activation:
+```csharp
+// ALWAYS use UIActivator for clicking/activating UI elements
+UIActivator.Activate(buttonObject);  // Proper game event triggering
+
+// DON'T directly manipulate toggle state - game events won't fire
+toggle.isOn = !toggle.isOn;  // BAD - filter logic won't trigger
+```
+
+**DropdownStateManager** - Dropdown mode tracking:
+```csharp
+// Call each frame to update dropdown state
+DropdownStateManager.UpdateAndCheckExitTransition();
+
+// Check if dropdown is open (blocks navigation)
+if (DropdownStateManager.IsInDropdownMode)
+{
+    // Only handle close keys, let Unity handle dropdown navigation
+    if (Input.GetKeyDown(KeyCode.Backspace))
+    {
+        CloseDropdown();
+    }
+    return; // Block all other navigation
+}
+
+// Notify when opening a dropdown
+UIActivator.Activate(dropdownObject);
+DropdownStateManager.OnDropdownOpened(dropdownObject);
+```
+
+**InputManager** - Key consumption:
+```csharp
+// Consume keys to prevent other navigators/game from processing them
+InputManager.ConsumeKey(KeyCode.Backspace);
+InputManager.ConsumeKey(KeyCode.Return);
+
+// Check if key was consumed by another navigator
+if (InputManager.IsKeyConsumed(KeyCode.Backspace))
+{
+    return true; // Already handled
+}
+```
+
+**UITextExtractor** - Text extraction:
+```csharp
+string text = UITextExtractor.GetText(element);
+string buttonText = UITextExtractor.GetButtonText(button, null);
+```
+
+**CardDetector** - Card detection:
+```csharp
+if (CardDetector.IsCard(element))
+{
+    var cardInfo = CardDetector.ExtractCardInfo(element);
+}
+```
+
+**Example: AdvancedFiltersNavigator pattern**
+```csharp
+protected override void HandleInput()
+{
+    // 1. Update dropdown state each frame
+    DropdownStateManager.UpdateAndCheckExitTransition();
+
+    // 2. Block navigation while dropdown is open
+    if (DropdownStateManager.IsInDropdownMode)
+    {
+        if (Input.GetKeyDown(KeyCode.Backspace))
+            CloseActiveDropdown();
+        return;
+    }
+
+    // 3. Consume keys when activating items that close the navigator
+    if (Input.GetKeyDown(KeyCode.Return))
+    {
+        InputManager.ConsumeKey(KeyCode.Return);
+        ActivateCurrentItem();
+        return;
+    }
+
+    // 4. Use UIActivator for all activations
+    UIActivator.Activate(item.GameObject);
+}
+```
+
 ### Overlay Navigator Pattern (January 2026)
 
 Overlay navigators handle UI that can appear on top of ANY scene (e.g., Settings menu during duels).

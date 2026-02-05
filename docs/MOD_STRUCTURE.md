@@ -86,7 +86,8 @@ C:\Users\fabia\arena\
         PreBattleNavigator.cs        - VS screen before duel starts
         BoosterOpenNavigator.cs      - Pack contents after opening
         NPERewardNavigator.cs        - NPE reward screens
-        RewardPopupNavigator.cs      - Rewards popup from mail claims, store purchases (NEW)
+        RewardPopupNavigator.cs      - Rewards popup from mail claims, store purchases
+        AdvancedFiltersNavigator.cs  - Advanced Filters popup in Collection/Deck Builder (grid navigation)
         DuelNavigator.cs             - Duel gameplay screen (delegates to ZoneNavigator)
         OverlayNavigator.cs          - Modal overlays (What's New, announcements)
         SettingsMenuNavigator.cs     - Settings menu (works in all scenes including duels)
@@ -137,6 +138,7 @@ C:\Users\fabia\arena\
 - [x] PreBattleNavigator - VS screen before duel (Continue/Cancel buttons)
 - [x] BoosterOpenNavigator - Pack contents after opening packs
 - [x] RewardPopupNavigator - Rewards popup from mail/store (cards, packs, currency)
+- [x] AdvancedFiltersNavigator - Advanced Filters popup in Collection/Deck Builder (grid navigation)
 - [x] DuelNavigator - Duel gameplay (zone navigation, combat, targeting)
 - [~] OverlayNavigator - Modal overlays (What's New carousel) - basic implementation
 - [x] SettingsMenuNavigator - Settings menu accessible in all scenes including duels
@@ -447,6 +449,45 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - Only detects CardBrowserCardHolder from DEFAULT holder (ViewDismiss without scaffold is animation remnant)
 - Zone detection from parent hierarchy (Scry) or API methods (London: `IsInHand`/`IsInLibrary`)
 - Card movement via reflection: Scry uses `RemoveCard`/`AddCard`, London uses `HandleDrag`/`OnDragRelease`
+
+### Advanced Filters Navigator (February 2026)
+
+Dedicated navigator for the Advanced Filters popup in Collection/Deck Builder screens. Uses grid-based navigation instead of flat list navigation for better accessibility.
+
+**Architecture:**
+- `AdvancedFiltersNavigator.cs` - Standalone navigator with grid-based row/column navigation
+- Priority 87 (above RewardPopupNavigator at 86, below SettingsMenuNavigator at 90)
+
+**Navigation Model:**
+- **Up/Down (W/S)**: Switch between rows (Types, Rarity, Actions)
+- **Left/Right (A/D)**: Navigate within current row
+- **Home/End**: Jump to first/last item in row
+- **Enter/Space**: Toggle checkbox or activate button/dropdown
+- **Backspace**: Dismiss popup without applying filters
+
+**Discovered Rows:**
+1. **Types row** - Card type filters (Creature, Planeswalker, Instant, etc.)
+2. **Rarity row** - Rarity filters (Common, Uncommon, Rare, Mythic Rare, Basic Lands)
+3. **Actions row** - Collection filters, Format dropdown, OK button
+
+**Key Implementation Details:**
+- Stores Toggle component references during discovery for consistent state reading
+- Uses `DropdownStateManager` for dropdown mode detection and blocking navigation while dropdown is open
+- Calls `DropdownStateManager.UpdateAndCheckExitTransition()` each frame to track dropdown state
+- Calls `DropdownStateManager.OnDropdownOpened()` when activating a dropdown
+- Uses `UIActivator.Activate()` for proper game event triggering (not direct toggle.isOn manipulation)
+- Consumes Enter/Space/Backspace keys to prevent GeneralMenuNavigator from processing them after popup closes
+- Tries to click background blocker on Backspace to dismiss without applying filters
+
+**Game Behavior Notes:**
+- Game enforces "at least one type must be selected" - toggling the last selected type will be reset by game
+- Creature and Planeswalker toggles may appear linked due to game's filter logic
+- Closing with OK button applies filters and may trigger game's deck validation dialog
+
+**Files:**
+- `src/Core/Services/AdvancedFiltersNavigator.cs` - Main navigator implementation
+
+---
 
 ## Known Issues
 

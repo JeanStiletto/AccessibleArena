@@ -902,8 +902,15 @@ namespace AccessibleArena.Core.Services
 
             // Backspace: Universal back - goes back one level in menus
             // But NOT when an input field is focused - let Backspace delete characters
+            // Also skip if key was consumed by another navigator (e.g., AdvancedFiltersNavigator)
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
+                if (InputManager.IsKeyConsumed(KeyCode.Backspace))
+                {
+                    LogDebug($"[{NavigatorId}] Backspace pressed but already consumed - skipping");
+                    return true; // Key was handled elsewhere
+                }
+
                 if (UIFocusTracker.IsAnyInputFieldFocused())
                 {
                     LogDebug($"[{NavigatorId}] Backspace pressed but input field focused - passing through");
