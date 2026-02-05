@@ -213,6 +213,10 @@ namespace AccessibleArena.Core.Services
             foreach (var (prefab, rewardType, sortOrder) in rewardPrefabs)
             {
                 _rewardCount++;
+
+                // Debug: dump reward prefab structure
+                DumpRewardPrefabStructure(prefab.gameObject, rewardType, _rewardCount);
+
                 string label = ExtractRewardLabel(prefab.gameObject, rewardType, _rewardCount);
 
                 // Find a clickable element for this reward
@@ -292,6 +296,58 @@ namespace AccessibleArena.Core.Services
                 return "Continue, button";
 
             return "Button";
+        }
+
+        /// <summary>
+        /// Debug: Dump the structure of a reward prefab to understand what data is available.
+        /// </summary>
+        private void DumpRewardPrefabStructure(GameObject rewardPrefab, string rewardType, int index)
+        {
+            MelonLogger.Msg($"[{NavigatorId}] === REWARD PREFAB DEBUG #{index} ===");
+            MelonLogger.Msg($"[{NavigatorId}] Prefab name: {rewardPrefab.name}");
+            MelonLogger.Msg($"[{NavigatorId}] Detected type: {rewardType}");
+
+            // List all TMP_Text components
+            var texts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+            MelonLogger.Msg($"[{NavigatorId}] TMP_Text components: {texts.Length}");
+            foreach (var text in texts)
+            {
+                if (text != null)
+                {
+                    string content = text.text?.Trim() ?? "(null)";
+                    MelonLogger.Msg($"[{NavigatorId}]   Text in '{text.gameObject.name}': '{content}' (active: {text.gameObject.activeInHierarchy})");
+                }
+            }
+
+            // List key child objects and their components
+            MelonLogger.Msg($"[{NavigatorId}] Child structure (depth 3):");
+            DumpChildStructure(rewardPrefab.transform, 0, 3);
+
+            // List all MonoBehaviour types
+            var monoBehaviours = rewardPrefab.GetComponentsInChildren<MonoBehaviour>(true);
+            var typeNames = new HashSet<string>();
+            foreach (var mb in monoBehaviours)
+            {
+                if (mb != null)
+                    typeNames.Add(mb.GetType().Name);
+            }
+            MelonLogger.Msg($"[{NavigatorId}] Component types: {string.Join(", ", typeNames)}");
+
+            MelonLogger.Msg($"[{NavigatorId}] === END REWARD PREFAB DEBUG #{index} ===");
+        }
+
+        private void DumpChildStructure(Transform parent, int depth, int maxDepth)
+        {
+            if (depth >= maxDepth) return;
+
+            string indent = new string(' ', depth * 2);
+            foreach (Transform child in parent)
+            {
+                if (child == null) continue;
+                string activeStatus = child.gameObject.activeInHierarchy ? "" : " [INACTIVE]";
+                MelonLogger.Msg($"[{NavigatorId}]   {indent}- {child.name}{activeStatus}");
+                DumpChildStructure(child, depth + 1, maxDepth);
+            }
         }
 
         /// <summary>
