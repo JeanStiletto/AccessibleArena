@@ -834,8 +834,9 @@ namespace AccessibleArena.Core.Services
 
                 if (gameManager == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: GameManager not found - running full debug dump");
-                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: GameManager not found");
+                    if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
+                        MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                     return false;
                 }
 
@@ -845,8 +846,9 @@ namespace AccessibleArena.Core.Services
 
                 if (workflowController == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: WorkflowController not found - running full debug dump");
-                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: WorkflowController not found");
+                    if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
+                        MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                     return false;
                 }
 
@@ -875,8 +877,9 @@ namespace AccessibleArena.Core.Services
 
                 if (currentInteraction == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: No active workflow found - running full debug dump");
-                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: No active workflow found");
+                    if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
+                        MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                     return false;
                 }
 
@@ -932,15 +935,17 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // If nothing worked, dump full debug info
-                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Could not submit - running full debug dump");
-                MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                // If nothing worked, log failure
+                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Could not find submit method");
+                if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
+                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                 return false;
             }
             catch (Exception ex)
             {
                 MelonLogger.Error($"[BrowserNavigator] WorkflowReflection error: {ex.Message}");
-                MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
+                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                 return false;
             }
         }

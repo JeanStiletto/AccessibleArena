@@ -290,100 +290,39 @@ Quest reward popups (`ContentController - Rewards_Desktop_16x9(Clone)`) are now 
 
 ---
 
-### Activated Abilities with Mana Costs Cannot Be Completed
+### Activated Abilities with Mana Costs - RESOLVED
 
-Creatures with activated abilities that cost mana (e.g., `{3}{G}: Do something`) cannot be activated via keyboard.
+Creatures with activated abilities that cost mana (e.g., `{3}{G}: Do something`) can now be activated via keyboard.
 
-**Root Cause Analysis (January 2026):**
+**The Fix (February 2026):**
 
-Decompilation of game code revealed TWO different mana payment workflows:
+The `WorkflowBrowser` UI element that appears when clicking a creature with an activated ability has no clickable component itself. The actual clickable button (`ConfirmWidgetButton(Clone)`) is a **sibling** of WorkflowBrowser, not a child.
 
-1. **`AutoTapActionsWorkflow`** - Used for simple activated abilities
-   - Does NOT implement `IKeybindingWorkflow`
-   - Only creates buttons - NO keyboard shortcuts
-   - Primary button should contain mana payment callback
-   - Must CLICK the button to submit
+**UI Hierarchy:**
+```
+UnderStack_ScaledCorrectly/
+├── WorkflowBrowser          ← Just audio (AkGameObj), no click handler
+├── ViewDismissBrowser
+├── ConfirmWidget(Clone)
+│   └── ConfirmWidgetButton(Clone)  ← THE ACTUAL BUTTON (Button + EventTrigger)
+```
 
-2. **`BatchManaSubmission`** - Used for batch mana selection
-   - Implements `IKeybindingWorkflow`
-   - **Q key (on KeyUp)** = Submit mana payment
-   - **Escape (on KeyDown)** = Cancel
-   - Only active when selecting multiple mana sources
+**Solution:** Modified `FindClickableChild()` in `BrowserDetector.cs` to search sibling hierarchies for `ConfirmWidgetButton` when no clickable child is found in the container itself.
 
-When clicking a creature with activated ability, game uses `AutoTapActionsWorkflow` (not `BatchManaSubmission`), so Q key triggers global "float all lands" instead of submitting.
+**User Flow:**
+1. Navigate to creature with activated ability (B key for creatures row)
+2. Press Enter to click the creature
+3. "Choose action" announced, shows "Fähigkeit aktivieren" (Activate ability)
+4. Press Space/Enter to activate
+5. Game auto-taps lands and puts ability on stack
 
-**Implementation Progress (February 2026):**
+**Debug Tools Available:**
+For future browser fixes, comprehensive debug logging tools exist (disabled by default):
+- `BrowserDetector.DumpWorkflowBrowserDebug()` - UI structure dump
+- `MenuDebugHelper.DumpWorkflowSystemDebug()` - Full workflow system dump
+- Enable via `BrowserDetector.EnableDebugForBrowser(browserType)` for targeted debugging
 
-1. **WorkflowBrowser Detection - WORKING**
-   - Added `WorkflowBrowser` detection in `BrowserDetector.cs`
-   - Detects game objects named "WorkflowBrowser" with action-related text
-   - Text patterns: "aktivieren", "activate", "pay", "ability", "fähigkeit", etc.
-   - Searches children for action text if parent text doesn't match
-   - Browser type: `BrowserTypeWorkflow` with `IsWorkflow` flag
-
-2. **BrowserNavigator Handling - WORKING**
-   - Workflow browsers use pre-found buttons from `BrowserInfo.WorkflowButtons`
-   - Announces "Choose action" when entering workflow browser
-   - Announces button text (e.g., "Fähigkeit aktivieren")
-   - Space triggers `ClickConfirmButton()` which calls `ActivateCurrentButton()`
-
-3. **Activation Fails - THE CURRENT PROBLEM**
-   - Log shows: `[BrowserNavigator] Activating button: WorkflowBrowser`
-   - Log shows: `[UIActivator] Simulating pointer events on: WorkflowBrowser`
-   - Log shows: `[UIActivator] Set EventSystem selected object to: WorkflowBrowser`
-   - **MISSING**: `[UIActivator] Invoking IPointerClickHandler:` - NO CLICK HANDLER!
-   - `FindClickableChild()` returns null - no Button, EventTrigger, or IPointerClickHandler found
-   - Falls back to WorkflowBrowser itself, but it has no clickable component
-
-4. **Comprehensive Debug Logging Added**
-
-   Two levels of debug logging are available:
-
-   **A. `BrowserDetector.DumpWorkflowBrowserDebug()`** - UI-focused dump (runs once on first WorkflowBrowser detection)
-   - Logs all components on WorkflowBrowser with full type names
-   - Detects click-related interfaces (IPointerClickHandler, ISubmitHandler, etc.)
-   - Lists methods containing: click, submit, activate, confirm, select, execute, invoke, action
-   - Logs UnityEvent fields (onClick, onSubmit, etc.)
-   - Dumps all children with [CLICKABLE]/[BUTTON]/[EVENTTRIGGER] flags
-   - Searches parent hierarchy for Workflow/Controller components
-
-   **B. `MenuDebugHelper.DumpWorkflowSystemDebug()`** - Full system dump (runs when reflection submit fails)
-   - **Section 1: GameManager & WorkflowController** - All workflow-related properties and fields on GameManager
-   - **Section 2: WorkflowController Deep Inspection** - ALL properties, fields, interfaces, methods with submit/execute keywords
-   - **Section 3: Active Workflow/Interaction** - Current workflow type, base class hierarchy, _request field details, all methods
-   - **Section 4: Scene Search** - Finds all MonoBehaviours with Workflow/AutoTap/Interaction/ManaPayment/ActionSource in name
-   - **Section 5: WorkflowBrowser UI Structure** - Full path, text, and **siblings** (same-level elements that might be clickable)
-   - **Section 6: PromptButtons Detailed Inspection** - onClick persistent listeners, runtime listeners via reflection (m_Calls.Count), all callback-related fields on button MonoBehaviours
-   - **Section 7: UnderStack Area Objects** - All active objects in WorkflowBrowser's parent area with components and click handlers
-
-5. **Reflection Approach Implemented**
-   - `BrowserNavigator.TrySubmitWorkflowViaReflection()` attempts to submit workflow via:
-     - GameManager → WorkflowController → CurrentInteraction
-     - Try _request.SubmitSolution() with auto-detected solution
-     - Try direct Submit/Confirm/Complete/Accept/Close methods on workflow
-   - If any step fails, automatically triggers `DumpWorkflowSystemDebug()` for analysis
-
-**Current Status:**
-- Reflection finds GameManager and WorkflowController successfully
-- `CurrentInteraction` property not found on WorkflowController (needs investigation)
-- Debug dump captures all available properties/fields to identify correct member name
-
-**Next Steps:**
-1. Run test to capture full debug dump
-2. Analyze dump to find correct property/field name for active workflow
-3. Update reflection code to use correct member access
-4. If reflection approach doesn't work, investigate PromptButton callbacks from debug dump
-
-**Test Case:**
-- Card: Sanftmütige Bibliothekarin (also tested: Spektraler Seemann)
-- Ability: `{3}{G}: Transform, +1/+1 counters, draw card`
-- Click creature → WorkflowBrowser detected, "Fähigkeit aktivieren" announced
-- Space/Enter → UIActivator sends events but nothing happens
-- Backspace → Cancels correctly (clicks Secondary button)
-
-**Files:** `BrowserDetector.cs`, `BrowserNavigator.cs`, `HotHighlightNavigator.cs`, `DuelAnnouncer.cs`, `BattlefieldNavigator.cs`
-
-**Reference:** See GAME_ARCHITECTURE.md section "Mana Payment Workflows" for decompiled code details
+**Files:** `BrowserDetector.cs`
 
 ---
 

@@ -107,6 +107,50 @@ namespace AccessibleArena.Core.Services
         // Track discovered browser types for one-time logging
         private static readonly HashSet<string> _loggedBrowserTypes = new HashSet<string>();
 
+        // Debug mode - set of browser types to dump detailed debug info for
+        private static readonly HashSet<string> _debugEnabledBrowsers = new HashSet<string>();
+
+        #endregion
+
+        #region Debug Control
+
+        /// <summary>
+        /// Enable comprehensive debug logging for a specific browser type.
+        /// Use this when investigating browser activation issues.
+        /// </summary>
+        /// <param name="browserType">Browser type constant (e.g., BrowserTypeWorkflow, BrowserTypeScry)</param>
+        public static void EnableDebugForBrowser(string browserType)
+        {
+            _debugEnabledBrowsers.Add(browserType);
+            MelonLogger.Msg($"[BrowserDetector] Debug ENABLED for browser type: {browserType}");
+        }
+
+        /// <summary>
+        /// Disable debug logging for a specific browser type.
+        /// </summary>
+        public static void DisableDebugForBrowser(string browserType)
+        {
+            _debugEnabledBrowsers.Remove(browserType);
+            MelonLogger.Msg($"[BrowserDetector] Debug DISABLED for browser type: {browserType}");
+        }
+
+        /// <summary>
+        /// Check if debug is enabled for a browser type.
+        /// </summary>
+        public static bool IsDebugEnabled(string browserType)
+        {
+            return _debugEnabledBrowsers.Contains(browserType);
+        }
+
+        /// <summary>
+        /// Clear all debug flags.
+        /// </summary>
+        public static void DisableAllDebug()
+        {
+            _debugEnabledBrowsers.Clear();
+            MelonLogger.Msg($"[BrowserDetector] All browser debug DISABLED");
+        }
+
         #endregion
 
         #region Public API
@@ -399,8 +443,8 @@ namespace AccessibleArena.Core.Services
                     // Look for action-related text patterns (localized)
                     if (HasActionText(text))
                     {
-                        // Debug: comprehensive WorkflowBrowser dump (only once per session)
-                        if (!_loggedBrowserTypes.Contains("WorkflowBrowserDump"))
+                        // Debug: comprehensive WorkflowBrowser dump (only when debug enabled)
+                        if (IsDebugEnabled(BrowserTypeWorkflow) && !_loggedBrowserTypes.Contains("WorkflowBrowserDump"))
                         {
                             _loggedBrowserTypes.Add("WorkflowBrowserDump");
                             DumpWorkflowBrowserDebug(wb, text);
@@ -786,6 +830,8 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Finds the first clickable child inside a container (Button, EventTrigger, etc.).
         /// Used for WorkflowBrowser which is a container with clickable children.
+        /// Also searches sibling hierarchies for ConfirmWidgetButton since the actual
+        /// clickable button may be a sibling of WorkflowBrowser, not a child.
         /// </summary>
         private static GameObject FindClickableChild(GameObject container)
         {
@@ -826,6 +872,47 @@ namespace AccessibleArena.Core.Services
                 if (clickHandlers != null && clickHandlers.Length > 0)
                 {
                     return child.gameObject;
+                }
+            }
+
+            // Not found in children - search sibling hierarchies
+            // The ConfirmWidgetButton is often a sibling of WorkflowBrowser under the same parent
+            if (container.transform.parent != null)
+            {
+                var parent = container.transform.parent;
+                foreach (Transform sibling in parent)
+                {
+                    if (sibling == null || sibling.gameObject == container) continue;
+                    if (!sibling.gameObject.activeInHierarchy) continue;
+
+                    // Look for ConfirmWidgetButton or similar in sibling hierarchy
+                    foreach (Transform descendant in sibling.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (descendant == null || !descendant.gameObject.activeInHierarchy) continue;
+
+                        // Priority: look for ConfirmWidgetButton component by name
+                        string name = descendant.name;
+                        if (name.Contains("ConfirmWidgetButton") || name.Contains("ConfirmButton"))
+                        {
+                            var btn = descendant.GetComponent<UnityEngine.UI.Button>();
+                            if (btn != null && btn.interactable)
+                            {
+                                MelonLogger.Msg($"[BrowserDetector] Found ConfirmWidgetButton in sibling: {name}");
+                                return descendant.gameObject;
+                            }
+                        }
+
+                        // Also check for any Button in ConfirmWidget sibling
+                        if (sibling.name.Contains("ConfirmWidget"))
+                        {
+                            var btn = descendant.GetComponent<UnityEngine.UI.Button>();
+                            if (btn != null && btn.interactable)
+                            {
+                                MelonLogger.Msg($"[BrowserDetector] Found Button in ConfirmWidget sibling: {descendant.name}");
+                                return descendant.gameObject;
+                            }
+                        }
+                    }
                 }
             }
 

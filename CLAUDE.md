@@ -51,12 +51,12 @@ Detailed documentation in `docs/`:
 `C:\Program Files\Wizards of the Coast\MTGA`
 
 ### Build & Deploy
-```powershell
+```bash
 # Build
 dotnet build "C:\Users\fabia\arena\src\AccessibleArena.csproj"
 
 # Deploy (game must be closed)
-Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force
+powershell -Command "Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
 ```
 
 ### MelonLoader Logs
@@ -72,6 +72,19 @@ Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' 
 - `UIActivator.Activate(element)` - Element activation
 - `CardDetector.IsCard(element)` - Card detection
 - `UITextExtractor.GetText(element)` - Text extraction
+
+### Browser Debug Tools
+Enable detailed debug logging for investigating browser activation issues:
+```csharp
+// Enable debug for a specific browser type
+BrowserDetector.EnableDebugForBrowser(BrowserDetector.BrowserTypeWorkflow);
+BrowserDetector.EnableDebugForBrowser(BrowserDetector.BrowserTypeScry);
+
+// Disable when done
+BrowserDetector.DisableDebugForBrowser(BrowserDetector.BrowserTypeWorkflow);
+BrowserDetector.DisableAllDebug();
+```
+When enabled, dumps comprehensive info: UI structure, clickable components, workflow state, siblings.
 
 ### Safe Custom Shortcuts
 
