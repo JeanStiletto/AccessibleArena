@@ -377,6 +377,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Simulates a pointer exit event on an element.
+        /// Used to tell the game that the mouse has left an element (e.g., to stop music/effects).
+        /// </summary>
+        public static void SimulatePointerExit(GameObject element)
+        {
+            if (element == null) return;
+
+            var pointer = CreatePointerEventData(element);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerExitHandler);
+            Log($"Sent PointerExit to: {element.name}");
+        }
+
+        /// <summary>
         /// Simulates a click at a specific screen position using raycast.
         /// If no target is found via raycast, still sends the pointer events
         /// as the game may process position-based clicks (e.g., dropping held cards).

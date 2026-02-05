@@ -153,6 +153,11 @@ namespace AccessibleArena.Core.Services
         // Overlay state tracking - detect when overlays open/close to trigger rescans
         private ElementGroup? _lastKnownOverlay;
 
+        // Booster carousel state - treated as single carousel element with left/right navigation
+        private List<GameObject> _boosterPackHitboxes = new List<GameObject>();
+        private int _boosterCarouselIndex = 0;
+        private bool _isBoosterCarouselActive = false;
+
         #endregion
 
         #region Helper Methods
@@ -461,6 +466,202 @@ namespace AccessibleArena.Core.Services
             _mailContentParts = default;
         }
 
+        #region Booster Carousel
+
+        /// <summary>
+        /// Check if an element is inside a CarouselBooster parent.
+        /// </summary>
+        private bool IsInsideCarouselBooster(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform.parent;
+            int maxLevels = 6;
+
+            while (current != null && maxLevels > 0)
+            {
+                if (current.name.Contains("CarouselBooster"))
+                    return true;
+                current = current.parent;
+                maxLevels--;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Add a single carousel element representing all booster packs.
+        /// Uses the current index to show the selected pack name.
+        /// </summary>
+        private void AddBoosterCarouselElement()
+        {
+            if (_boosterPackHitboxes.Count == 0) return;
+
+            // Sort packs by X position (left to right)
+            _boosterPackHitboxes = _boosterPackHitboxes
+                .OrderBy(p => p.transform.position.x)
+                .ToList();
+
+            // Clamp index to valid range
+            if (_boosterCarouselIndex >= _boosterPackHitboxes.Count)
+                _boosterCarouselIndex = 0;
+            if (_boosterCarouselIndex < 0)
+                _boosterCarouselIndex = _boosterPackHitboxes.Count - 1;
+
+            // Get the current pack and its name
+            var currentPack = _boosterPackHitboxes[_boosterCarouselIndex];
+            string packName = UITextExtractor.GetText(currentPack);
+            if (string.IsNullOrEmpty(packName))
+                packName = "Pack";
+
+            // Build the carousel label with position info
+            string label = $"{packName}, {_boosterCarouselIndex + 1} of {_boosterPackHitboxes.Count}, use left and right arrows";
+
+            // Add as navigable element with carousel info
+            var carouselInfo = new CarouselInfo
+            {
+                HasArrowNavigation = true,
+                PreviousControl = null, // We handle navigation ourselves
+                NextControl = null
+            };
+
+            AddElement(currentPack, label, carouselInfo);
+            LogDebug($"[{NavigatorId}] Added booster carousel: {label}");
+        }
+
+        /// <summary>
+        /// Navigate the booster carousel (left/right).
+        /// Clicks the target pack to center it in the carousel.
+        /// </summary>
+        /// <param name="isNext">True for right/next, false for left/previous</param>
+        /// <returns>True if navigation was handled</returns>
+        private bool HandleBoosterCarouselNavigation(bool isNext)
+        {
+            if (!_isBoosterCarouselActive || _boosterPackHitboxes.Count == 0)
+                return false;
+
+            // Calculate new index
+            int newIndex = _boosterCarouselIndex + (isNext ? 1 : -1);
+
+            // Bounds check
+            if (newIndex < 0)
+            {
+                _announcer.Announce("First pack", Models.AnnouncementPriority.Normal);
+                return true;
+            }
+            if (newIndex >= _boosterPackHitboxes.Count)
+            {
+                _announcer.Announce("Last pack", Models.AnnouncementPriority.Normal);
+                return true;
+            }
+
+            // Get the old pack before updating index
+            var oldPack = _boosterPackHitboxes[_boosterCarouselIndex];
+
+            // Update index
+            _boosterCarouselIndex = newIndex;
+
+            // Get the new pack
+            var targetPack = _boosterPackHitboxes[_boosterCarouselIndex];
+
+            // Send PointerExit to old pack to stop its music/effects
+            UIActivator.SimulatePointerExit(oldPack);
+
+            // Click the new pack to center it (game's own centering behavior)
+            UIActivator.Activate(targetPack);
+
+            // Get pack name and announce
+            string packName = UITextExtractor.GetText(targetPack);
+            if (string.IsNullOrEmpty(packName))
+                packName = "Pack";
+
+            string announcement = $"{packName}, {_boosterCarouselIndex + 1} of {_boosterPackHitboxes.Count}";
+            _announcer.Announce(announcement, Models.AnnouncementPriority.High);
+
+            // Update the element label
+            UpdateBoosterCarouselElement();
+
+            return true;
+        }
+
+        /// <summary>
+        /// Update the booster carousel element label after navigation.
+        /// </summary>
+        private void UpdateBoosterCarouselElement()
+        {
+            if (_boosterPackHitboxes.Count == 0) return;
+
+            var currentPack = _boosterPackHitboxes[_boosterCarouselIndex];
+            string packName = UITextExtractor.GetText(currentPack);
+            if (string.IsNullOrEmpty(packName))
+                packName = "Pack";
+
+            string label = $"{packName}, {_boosterCarouselIndex + 1} of {_boosterPackHitboxes.Count}, use left and right arrows";
+
+            // Find and update the carousel element in our list
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_boosterPackHitboxes.Contains(_elements[i].GameObject))
+                {
+                    var element = _elements[i];
+                    element.GameObject = currentPack;
+                    element.Label = label;
+                    _elements[i] = element;
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Open the currently selected booster pack.
+        /// </summary>
+        /// <returns>True if a pack was opened</returns>
+        private bool OpenSelectedBoosterPack()
+        {
+            if (!_isBoosterCarouselActive || _boosterPackHitboxes.Count == 0)
+                return false;
+
+            var currentPack = _boosterPackHitboxes[_boosterCarouselIndex];
+
+            // Click the pack to open it (should already be centered)
+            UIActivator.Activate(currentPack);
+
+            LogDebug($"[{NavigatorId}] Opening booster pack at index {_boosterCarouselIndex}");
+            return true;
+        }
+
+        /// <summary>
+        /// Override carousel arrow handling to support booster carousel navigation.
+        /// </summary>
+        protected override bool HandleCarouselArrow(bool isNext)
+        {
+            // Check if current element is in the booster carousel
+            if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
+            {
+                // Get current element from grouped navigator or base elements
+                GameObject currentObj = null;
+                if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                {
+                    var currentElement = _groupedNavigator.CurrentElement;
+                    currentObj = currentElement?.GameObject;
+                }
+                else if (IsValidIndex)
+                {
+                    currentObj = _elements[_currentIndex].GameObject;
+                }
+
+                if (currentObj != null && _boosterPackHitboxes.Contains(currentObj))
+                {
+                    return HandleBoosterCarouselNavigation(isNext);
+                }
+            }
+
+            // Fall back to base implementation for other carousels
+            return base.HandleCarouselArrow(isNext);
+        }
+
+        #endregion
+
         protected virtual string GetMenuScreenName()
         {
             // Note: Settings check removed - handled by SettingsMenuNavigator
@@ -742,14 +943,22 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Arrow Left/Right: Navigate between collection cards (like duel zones)
-            // In deck builder collection, cards should navigate with Left/Right
-            // Note: Rewards popup is now handled by RewardPopupNavigator
+            // Arrow Left/Right: Handle special navigation contexts
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
+                bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
+
+                // Booster carousel navigation (packs screen)
+                if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
+                {
+                    if (HandleBoosterCarouselNavigation(isRight))
+                        return true;
+                }
+
+                // Collection card navigation (deck builder)
+                // Note: Rewards popup is now handled by RewardPopupNavigator
                 if (IsInCollectionCardContext())
                 {
-                    bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
                     if (isRight)
                         MoveNext();
                     else
@@ -2151,6 +2360,10 @@ namespace AccessibleArena.Core.Services
             // Detect active controller first so filtering works correctly
             DetectActiveContentController();
 
+            // Disable grouped navigation for BoosterChamber - flat list is better for pack carousel
+            if (_activeContentController == "BoosterChamber")
+                _groupedNavigationEnabled = false;
+
             // Debug: Dump DeckFolder hierarchy on DeckManager screen
             if (DebugLogging && _activeContentController == "DeckManagerController")
             {
@@ -2173,6 +2386,12 @@ namespace AccessibleArena.Core.Services
             var addedObjects = new HashSet<GameObject>();
             var discoveredElements = new List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)>();
 
+            // Reset booster carousel state
+            _boosterPackHitboxes.Clear();
+            _isBoosterCarouselActive = _activeContentController == "BoosterChamber";
+            if (!_isBoosterCarouselActive)
+                _boosterCarouselIndex = 0;
+
             // Log panel filter state
             if (_foregroundPanel != null)
             {
@@ -2188,6 +2407,18 @@ namespace AccessibleArena.Core.Services
             {
                 if (obj == null || !obj.activeInHierarchy) return;
                 if (addedObjects.Contains(obj)) return;
+
+                // Booster carousel: collect pack hitboxes separately instead of adding individually
+                if (_isBoosterCarouselActive && obj.name == "Hitbox_BoosterMesh")
+                {
+                    // Check if inside CarouselBooster (valid pack element)
+                    if (IsInsideCarouselBooster(obj))
+                    {
+                        _boosterPackHitboxes.Add(obj);
+                        addedObjects.Add(obj);
+                        return; // Don't add as individual element
+                    }
+                }
 
                 // Debug: log objectives and Blade_ListItem filtering
                 bool isObjective = obj.name.Contains("Objective") || GetParentPath(obj).Contains("Objective");
@@ -2420,6 +2651,12 @@ namespace AccessibleArena.Core.Services
             if (_isInMailDetailView)
             {
                 AddMailContentFieldsAsElements();
+            }
+
+            // Add booster carousel as a single navigable element (if packs were collected)
+            if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
+            {
+                AddBoosterCarouselElement();
             }
 
             LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");

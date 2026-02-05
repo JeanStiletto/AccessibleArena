@@ -2,6 +2,28 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7 - 2026-02-05
+
+### Booster Chamber (Packs Screen) Overhaul
+- Pack carousel now treated as single navigable element with Left/Right arrow navigation
+- Packs announced as "PackName (count), X of Y, use left and right arrows"
+- Each pack plays its own ambient music when centered (proper music switching via PointerExit)
+- Wildcard vault progress bars now visible as standalone elements
+- Disabled grouped navigation for BoosterChamber (flat list is more appropriate)
+
+### Pack Set Names
+- Added set code extraction from `SealedBoosterView.SetCode` property
+- Pack names now show actual set names (e.g., "Aetherdrift (3)") instead of generic labels
+- Set code to name mapping for known sets (Foundations, Aetherdrift, Duskmourn, etc.)
+
+### Technical
+- Added `SimulatePointerExit()` to UIActivator for proper element deselection
+- Booster carousel state tracking (`_boosterPackHitboxes`, `_boosterCarouselIndex`)
+- `HandleBoosterCarouselNavigation()` handles Left/Right with music switching
+- `HandleCarouselArrow()` override routes to booster carousel when appropriate
+
+---
+
 ## v0.6 - 2026-02-04
 
 ### New Navigator: RewardPopupNavigator

@@ -150,29 +150,36 @@ Terms/consent checkboxes screen. Unity's native Tab navigation works correctly h
 
 ## Booster Chamber (Packs Screen)
 
-### Pack Opening Screen
+### Pack Selection Screen
 **Controller:** `ContentController - BoosterChamber_v2_Desktop_16x9(Clone)`
 **Navigator:** `GeneralMenuNavigator`
 
-The Booster Chamber screen displays available booster packs in a horizontal carousel.
+The Booster Chamber screen displays available booster packs in a horizontal carousel with wildcard vault progress indicators.
 
-**Elements Detected:**
-- Pack hitboxes (`Hitbox_BoosterMesh`) - Clickable pack elements, labeled "Open x10 (count)"
+**Elements (flat navigation, no groups):**
+- Wildcard progress bars (`ObjectiveGraphics` in `WildcardProgressUncommon`/`Wildcard Progress Rare`) - Shows vault fill percentage
 - Open All button (`Button_OpenMultiple`) - Opens all packs at once
+- Pack carousel (single element) - All packs combined into one navigable carousel element
+
+**Pack Carousel:**
+The pack carousel is a special element that combines all pack hitboxes into a single navigable unit:
+- Announced as "PackName (count), X of Y, use left and right arrows"
+- Left/Right arrows navigate between packs (centers the selected pack)
+- Each pack has its own ambient music that plays when centered
+- Enter opens the currently centered pack
 
 **Navigation:**
-- Left/Right arrows: Navigate between packs
-- Enter: Activate selected pack (opens card list)
-- Home/End: Jump to first/last pack
+- Up/Down arrows: Navigate between wildcard progress, Open All button, and pack carousel
+- Left/Right arrows (on carousel): Navigate between packs
+- Enter: Activate current element (open pack when on carousel)
 
 **Technical Notes:**
-- NavBar is filtered out when BoosterChamber is active
-- Pack names (like "Foundations", "Aetherdrift") are rendered as 3D graphics on the pack model, not as UI text - OCR can read them but text extraction cannot
-- Pack count is extracted from `Text_Quantity` child element
-- "Open x10" label extracted from inactive `Text` child element
-
-**Known Limitations:**
-- Pack set names cannot be extracted - only "Open x10 (count)" is announced
+- Grouped navigation is disabled for BoosterChamber (flat list navigation)
+- Pack hitboxes (`Hitbox_BoosterMesh`) are collected into `_boosterPackHitboxes` list
+- Single carousel element created with `CarouselInfo.HasArrowNavigation = true`
+- `SimulatePointerExit()` sent to old pack before clicking new pack (stops music overlap)
+- Pack names extracted via `UITextExtractor.TryGetBoosterPackName()` using `SealedBoosterView.SetCode`
+- Set codes mapped to friendly names (e.g., "ACR" → "Aetherdrift")
 
 ### Pack Contents Screen
 **Navigator:** `BoosterOpenNavigator`
