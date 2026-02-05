@@ -62,7 +62,7 @@ powershell -Command "Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\
 ### MelonLoader Logs
 - Latest: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
 - All logs: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Logs\`
-- Read last 300 lines: `Get-Content '...\Latest.log' -Tail 300`
+- Use the Read tool to read log files (permission pre-configured in settings.local.json)
 
 ### Deployment Paths
 - Mod DLL: `C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll`

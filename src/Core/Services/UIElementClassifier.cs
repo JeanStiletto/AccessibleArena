@@ -505,10 +505,11 @@ namespace AccessibleArena.Core.Services
                 // For interactable check, skip if this is a MainButton (action buttons like Submit Deck)
                 // These may have interactable=false temporarily but should still be visible for accessibility
                 // Also skip for elements with meaningful text content (not just icon buttons)
-                // FriendsWidget elements use non-standard UI where text comes from parent/sibling, so check GetText() too
+                // Include GetText() check for all elements - some buttons like NewDeckButton have placeholder
+                // text that GetText() extracts but HasActualText() doesn't detect
                 bool isMainButton = HasMainButtonComponent(obj);
                 bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
-                    || (IsInsideFriendsWidget(obj) && !string.IsNullOrEmpty(UITextExtractor.GetText(obj)));
+                    || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
                 if (!canvasGroup.interactable && !isMainButton && !hasMeaningfulContent)
                 {
                     if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup interactable=false");
@@ -900,6 +901,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static bool IsFilteredByNamePattern(GameObject obj, string name)
         {
+            // Exception: NewDeckButton_Base should NOT be filtered despite containing "button_base"
+            // This is a user-facing button for creating new decks in the DeckManager
+            if (ContainsIgnoreCase(name, "NewDeck"))
+                return false;
+
             // Check simple exact name matches first (fast HashSet lookup)
             if (FilteredExactNames.Contains(name))
                 return true;
