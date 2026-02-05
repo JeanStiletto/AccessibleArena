@@ -3694,11 +3694,12 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Dropdowns: just activate, focus-based detection in UIFocusTracker handles edit mode
-            // When focus goes to dropdown items, we automatically enter dropdown mode
+            // Dropdowns: activate and register with DropdownStateManager so we can find it when closing
+            // (needed when focus goes to Blocker element instead of dropdown items)
             if (isDropdown)
             {
                 LogDebug($"[{NavigatorId}] Dropdown activated ({element.name})");
+                UIFocusTracker.EnterDropdownEditMode(element);
                 return true;
             }
 

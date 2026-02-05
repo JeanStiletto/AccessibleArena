@@ -1447,20 +1447,52 @@ namespace AccessibleArena.Core.Services
 
         private static string GetDropdownText(TMP_Dropdown dropdown)
         {
-            string current = dropdown.options.Count > dropdown.value
-                ? dropdown.options[dropdown.value].text
-                : "unknown";
+            // Check if value is within valid range
+            if (dropdown.value >= 0 && dropdown.value < dropdown.options.Count)
+            {
+                string current = dropdown.options[dropdown.value].text;
+                return $"{CleanText(current)}, dropdown, {dropdown.value + 1} of {dropdown.options.Count}";
+            }
 
-            return $"{CleanText(current)}, dropdown, {dropdown.value + 1} of {dropdown.options.Count}";
+            // No valid selection - try to get label from caption text or object name
+            string label = null;
+            if (dropdown.captionText != null && !string.IsNullOrWhiteSpace(dropdown.captionText.text))
+            {
+                label = CleanText(dropdown.captionText.text);
+            }
+
+            // Fall back to cleaned object name if caption is empty or generic
+            if (string.IsNullOrWhiteSpace(label) || label.ToLower().Contains("select") || label.ToLower().Contains("choose"))
+            {
+                label = CleanObjectName(dropdown.gameObject.name);
+            }
+
+            return $"{label}, dropdown, no selection";
         }
 
         private static string GetDropdownText(Dropdown dropdown)
         {
-            string current = dropdown.options.Count > dropdown.value
-                ? dropdown.options[dropdown.value].text
-                : "unknown";
+            // Check if value is within valid range
+            if (dropdown.value >= 0 && dropdown.value < dropdown.options.Count)
+            {
+                string current = dropdown.options[dropdown.value].text;
+                return $"{CleanText(current)}, dropdown, {dropdown.value + 1} of {dropdown.options.Count}";
+            }
 
-            return $"{CleanText(current)}, dropdown, {dropdown.value + 1} of {dropdown.options.Count}";
+            // No valid selection - try to get label from caption text or object name
+            string label = null;
+            if (dropdown.captionText != null && !string.IsNullOrWhiteSpace(dropdown.captionText.text))
+            {
+                label = CleanText(dropdown.captionText.text);
+            }
+
+            // Fall back to cleaned object name if caption is empty or generic
+            if (string.IsNullOrWhiteSpace(label) || label.ToLower().Contains("select") || label.ToLower().Contains("choose"))
+            {
+                label = CleanObjectName(dropdown.gameObject.name);
+            }
+
+            return $"{label}, dropdown, no selection";
         }
 
         private static string GetScrollbarText(Scrollbar scrollbar)

@@ -450,6 +450,15 @@ namespace AccessibleArena.Core.Services
             if (selected == null)
                 return;
 
+            // When dropdown is expanded and focus goes to "Blocker" (modal backdrop),
+            // suppress the announcement - Blocker picks up text from sibling elements
+            // like search fields which is confusing
+            if (anyDropdownExpanded && selected.name.Equals("Blocker", System.StringComparison.OrdinalIgnoreCase))
+            {
+                Log($"Skipping announcement (Blocker during dropdown mode): {selected.name}");
+                return;
+            }
+
             AnnounceElement(selected);
         }
 

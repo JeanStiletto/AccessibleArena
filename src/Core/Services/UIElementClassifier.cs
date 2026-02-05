@@ -839,6 +839,18 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // Filter TMP_Dropdowns that have no valid selection (value out of range)
+            // These dropdowns can't be meaningfully interacted with - use dedicated buttons instead
+            // e.g., deck format dropdown shows "no selection" until format is chosen via dialog
+            var tmpDropdown = obj.GetComponent<TMPro.TMP_Dropdown>();
+            if (tmpDropdown != null)
+            {
+                if (tmpDropdown.options == null || tmpDropdown.options.Count == 0)
+                    return true; // No options at all
+                if (tmpDropdown.value < 0 || tmpDropdown.value >= tmpDropdown.options.Count)
+                    return true; // Value out of range = no valid selection
+            }
+
             // Filter container elements with 0x0 size - they're wrapper objects, not real buttons
             // NOTE: May need to revert if we find clickable containers (see KNOWN_ISSUES.md)
             if (ContainsIgnoreCase(obj.name, "container"))

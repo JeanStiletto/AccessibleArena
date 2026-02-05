@@ -543,7 +543,33 @@ namespace AccessibleArena.Core.Services
 
             var currentItem = eventSystem.currentSelectedGameObject;
 
-            // Find the TMP_Dropdown in parent hierarchy
+            // First try DropdownStateManager.ActiveDropdown - this is set when dropdown opens
+            // and works even when focus is on a Blocker element (modal backdrop)
+            var activeDropdown = DropdownStateManager.ActiveDropdown;
+            if (activeDropdown != null)
+            {
+                var tmpDropdown = activeDropdown.GetComponent<TMPro.TMP_Dropdown>();
+                if (tmpDropdown != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown via ActiveDropdown reference");
+                    tmpDropdown.Hide();
+                    DropdownStateManager.OnDropdownClosed();
+                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    return;
+                }
+
+                var legacyDropdown = activeDropdown.GetComponent<Dropdown>();
+                if (legacyDropdown != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown via ActiveDropdown reference");
+                    legacyDropdown.Hide();
+                    DropdownStateManager.OnDropdownClosed();
+                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    return;
+                }
+            }
+
+            // Fallback: Find the TMP_Dropdown in parent hierarchy of current selection
             var transform = currentItem.transform;
             while (transform != null)
             {
