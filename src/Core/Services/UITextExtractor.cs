@@ -461,7 +461,21 @@ namespace AccessibleArena.Core.Services
                 { "DSK", "Duskmourn" },
                 { "FDN", "Foundations" },
                 { "ACR", "Aetherdrift" },
-                { "ECL", "Aetherdrift" }, // ECL appears to be Aetherdrift based on log
+                // Y26 (Year 2026) Alchemy sets - prefixed format
+                { "Y26-FDN", "Y26: Foundations" },
+                { "Y26-DSK", "Y26: Duskmourn" },
+                { "Y26-BLB", "Y26: Bloomburrow" },
+                { "Y26-OTJ", "Y26: Thunder Junction" },
+                { "Y26-MKM", "Y26: Karlov Manor" },
+                { "Y26-LCI", "Y26: Ixalan" },
+                { "Y26-WOE", "Y26: Eldraine" },
+                { "Y26-MOM", "Y26: March of the Machine" },
+                { "Y26-ONE", "Y26: Phyrexia" },
+                { "Y26-BRO", "Y26: Brothers' War" },
+                { "Y26-DMU", "Y26: Dominaria" },
+                { "Y26-SNC", "Y26: New Capenna" },
+                { "Y26-NEO", "Y26: Neon Dynasty" },
+                { "Y26-ACR", "Y26: Aetherdrift" },
                 // Masters/Special sets
                 { "SIR", "Shadows over Innistrad Remastered" },
                 { "KTK", "Khans of Tarkir" },
