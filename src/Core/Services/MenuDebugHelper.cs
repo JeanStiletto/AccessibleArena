@@ -424,7 +424,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 string componentsStr = componentNames.Count > 0 ? $" [{string.Join(", ", componentNames)}]" : "";
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"{indent}{child.name}{componentsStr}");
+                MelonLogger.Msg($"[{tag}] {indent}{child.name}{componentsStr}");
 
                 DumpGameObjectChildren(tag, child.gameObject, currentDepth + 1, maxDepth);
             }
@@ -590,30 +590,34 @@ namespace AccessibleArena.Core.Services
         {
             if (cardObj == null)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"DumpCardDetails: No card object provided");
+                MelonLogger.Msg($"[{tag}] DumpCardDetails: No card object provided");
                 announcer?.Announce("No card to inspect.", Models.AnnouncementPriority.High);
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== F11 DEBUG: CARD DETAILS DUMP ===");
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Card object: {cardObj.name}");
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Full path: {GetFullPath(cardObj.transform)}");
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Active: {cardObj.activeInHierarchy}");
+            MelonLogger.Msg($"[{tag}] ===========================================");
+            MelonLogger.Msg($"[{tag}] === F11 DEBUG: CARD DETAILS DUMP ===");
+            MelonLogger.Msg($"[{tag}] ===========================================");
+            MelonLogger.Msg($"[{tag}] Card object: {cardObj.name}");
+            MelonLogger.Msg($"[{tag}] Full path: {GetFullPath(cardObj.transform)}");
+            MelonLogger.Msg($"[{tag}] Active: {cardObj.activeInHierarchy}");
+            MelonLogger.Msg($"[{tag}] InstanceID: {cardObj.GetInstanceID()}");
 
             // Dump all components on the card root
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== Components on root ===");
+            MelonLogger.Msg($"[{tag}] === Components on root ===");
             foreach (var comp in cardObj.GetComponents<Component>())
             {
                 if (comp == null) continue;
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {comp.GetType().FullName}");
+                MelonLogger.Msg($"[{tag}]   {comp.GetType().FullName}");
             }
 
             // Dump all TMP_Text elements
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== TMP_Text elements (includeInactive=true) ===");
+            MelonLogger.Msg($"[{tag}] === TMP_Text elements (includeInactive=true) ===");
             var texts = cardObj.GetComponentsInChildren<TMP_Text>(true);
+            MelonLogger.Msg($"[{tag}] Found {texts.Length} TMP_Text components");
             if (texts.Length == 0)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  (none found)");
+                MelonLogger.Msg($"[{tag}]   (none found)");
             }
             foreach (var text in texts)
             {
@@ -621,18 +625,31 @@ namespace AccessibleArena.Core.Services
                 string objName = text.gameObject.name;
                 string rawContent = text.text ?? "(null)";
                 bool isActive = text.gameObject.activeInHierarchy;
-                string parentPath = GetGameObjectPath(text.gameObject);
+                string parentName = text.transform.parent?.name ?? "(no parent)";
+                string grandparentName = text.transform.parent?.parent?.name ?? "";
+
+                // Build parent chain for context
+                string parentChain = grandparentName != "" ? $"{grandparentName}/{parentName}" : parentName;
 
                 // Truncate very long text
                 if (rawContent.Length > 200)
                     rawContent = rawContent.Substring(0, 200) + "...";
 
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  [{(isActive ? "ON" : "OFF")}] '{objName}' @ {parentPath}");
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"      Content: '{rawContent}'");
+                // Flag interesting elements for vault progress debugging
+                string marker = "";
+                if (objName.Contains("Progress") || objName.Contains("Quantity") ||
+                    objName.Contains("Title") || objName.Contains("TAG") ||
+                    parentName.Contains("TAG") || parentName.Contains("Progress"))
+                {
+                    marker = " *** VAULT RELEVANT ***";
+                }
+
+                MelonLogger.Msg($"[{tag}]   [{(isActive ? "ON" : "OFF")}] '{objName}' (parent: {parentChain}){marker}");
+                MelonLogger.Msg($"[{tag}]       Content: '{rawContent}'");
             }
 
             // Dump key MonoBehaviour components that might indicate card type
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== Card-related MonoBehaviours ===");
+            MelonLogger.Msg($"[{tag}] === Card-related MonoBehaviours ===");
             var monoBehaviours = cardObj.GetComponentsInChildren<MonoBehaviour>(true);
             string[] cardPatterns = { "Card", "Meta", "CDC", "Booster", "View", "Display" };
             foreach (var mb in monoBehaviours)
@@ -650,15 +667,17 @@ namespace AccessibleArena.Core.Services
                 }
                 if (isRelevant)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {typeName} on {mb.gameObject.name}");
+                    MelonLogger.Msg($"[{tag}]   {typeName} on {mb.gameObject.name}");
                 }
             }
 
             // Dump immediate children hierarchy (2 levels deep)
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== Child hierarchy (2 levels) ===");
+            MelonLogger.Msg($"[{tag}] === Child hierarchy (2 levels) ===");
             DumpGameObjectChildren(tag, cardObj, 1, 2);
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== END CARD DETAILS DUMP ===");
+            MelonLogger.Msg($"[{tag}] ===========================================");
+            MelonLogger.Msg($"[{tag}] === END CARD DETAILS DUMP ===");
+            MelonLogger.Msg($"[{tag}] ===========================================");
             announcer?.Announce("Card details dumped to log.", Models.AnnouncementPriority.High);
         }
 

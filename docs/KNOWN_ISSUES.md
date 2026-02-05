@@ -502,6 +502,26 @@ Accumulated defensive fallback code needs review:
 
 ---
 
+### Announcement Compaction for Zone Transitions
+
+Zone change events can create redundant announcements when a creature dies and goes to graveyard:
+- Current: "X died" followed by "X went to graveyard" (two announcements)
+- Ideal: Single combined announcement
+
+**Consideration:** Compact announcements when zone-leaving and zone-reaching events happen close together.
+
+**Risk:** Events can occur between dying and zone change (e.g., death triggers, replacement effects). Compacting could cause missed information or incorrect announcements.
+
+**If implemented:**
+- Track zone-leaving events with timestamp
+- When zone-reaching event fires, check if matching zone-leaving event occurred within threshold (e.g., 100-200ms)
+- Combine into single announcement: "X died and went to graveyard"
+- Handle edge cases: exile instead of graveyard, mill vs draw vs discard, etc.
+
+**Priority:** Low - current behavior is functional, just slightly verbose
+
+---
+
 ### Dropdown Auto-Open Suppression Mechanics (January 2025)
 
 Complex flag-based system to prevent unwanted behavior when MTGA auto-opens dropdowns during navigation. May need simplification in future refactoring.
@@ -537,6 +557,20 @@ MTGA auto-opens dropdowns when they receive EventSystem selection. When user nav
 - Consider if all this complexity is needed or if simpler approach exists
 
 ## Potential Issues (Monitor)
+
+### Vault Progress Objects in Packs
+
+Pack opening sometimes shows multiple identical "Alchemy Bonus Vault Progress +99" items alongside actual cards (e.g., 6 cards + 3 vault progress = 9 items). This appears to be game behavior, not a mod bug.
+
+**Observations:**
+- Occurs even on non-Alchemy packs (e.g., Final Fantasy/FIN packs show "Alchemy Bonus" vault progress)
+- Multiple vault progress objects have identical labels because they share the same tags and quantity
+- F11 dump confirms all vault objects have same text content (Progress: +99, Tags: Alchemy, Bonus)
+- Digital-only sets (Final Fantasy, etc.) are classified as "Alchemy" internally by Arena
+
+**Note:** The "First" and "New" tags (inactive) on vault progress may indicate new player bonuses rather than duplicate protection, but this is unconfirmed.
+
+---
 
 ### NPE Overlay Exclusion for Objective_NPE Elements
 
@@ -720,3 +754,74 @@ During mana payment mode, Tab can navigate to the ManaPoolButton. FocusTracker a
 
 1. Draft/sealed events
 2. Full deck editing workflow (add/remove cards, save deck)
+3. Single-key info shortcuts (inspired by Hearthstone Access)
+   - Quick status queries without navigation
+   - Benefits: Faster information access, less navigation needed
+
+   **Priority shortcuts to implement:**
+
+   **M / Shift+M - Mana Announcement**
+   - M: Announce "X mana available of Y total" (your mana)
+   - Shift+M: Announce opponent's mana
+   - Requires: Finding mana data from game state (not currently extracted)
+   - Hearthstone Access equivalent: A/Shift+A
+   - Research needed: Locate mana values in GameManager or player state objects
+
+   **K - Keyword Explanation**
+   - When focused on a card, K announces keyword abilities with definitions
+   - Example: "Flying. This creature can only be blocked by creatures with flying or reach."
+   - Example: "Deathtouch. Any amount of damage this deals to a creature is enough to destroy it."
+   - Requires: Keyword detection from card rules text + keyword definition database
+   - Research needed:
+     - Parse keywords from Model.Abilities or rules text
+     - Build keyword definition lookup table
+     - Handle multiple keywords per card
+   - Hearthstone Access equivalent: I (keyword info) + K (minion stats)
+
+   **O - Game Log (Play History)**
+   - O: Announce recent game events (last 5-10 actions)
+   - Example: "Opponent played Mountain. You drew Lightning Bolt. Opponent attacked with Goblin."
+   - Requires: Tracking game events in DuelAnnouncer and storing history
+   - Research needed:
+     - Store announced events in a circular buffer
+     - Format history for reading (most recent first or chronological?)
+     - Determine how many events to announce
+   - Hearthstone Access equivalent: Y (play history)
+
+   **Other potential shortcuts (lower priority):**
+   - P: Phase and turn info (partially covered by T)
+   - Hearthstone Access reference:
+     - C/Shift+C: Navigates to hand (same as our C)
+     - A/Shift+A: Mana (we'll use M to avoid conflict with Lands row)
+     - B/G: Board state
+     - V/F: Hero/player status
+     - Y: Play history (we'll use O)
+
+4. Verbose "Big Card" announcements (inspired by Hearthstone Access)
+   - Option to include card details inline with action announcements
+   - User preference toggle: brief vs verbose announcements
+
+   **Current behavior:**
+   - "Opponent played Lightning Bolt" (action only)
+   - Player navigates to card and uses Up/Down to read details
+
+   **Verbose "big card" option:**
+   - "Opponent played Lightning Bolt; Lightning Bolt deals 3 damage to any target"
+   - Full card info announced with the action
+
+   **Hearthstone Access patterns:**
+   - Spells: "{player} played {name}; {rules text}"
+   - Creatures: "{player} summoned {name}; {power} {toughness} {rules text}"
+   - Triggered abilities: "{player}'s {name} triggered; {effect text}"
+
+   **Implementation considerations:**
+   - Add setting toggle (brief/verbose) in mod config
+   - Modify DuelAnnouncer event handlers to optionally append card text
+   - Reuse CardModelProvider to get rules text for announced cards
+   - Consider length limits - some cards have very long text
+   - May want separate toggles per event type (plays, triggers, deaths, etc.)
+
+   **Trade-offs:**
+   - Verbose: More info upfront, less navigation needed
+   - Brief: Less audio clutter, player reads details when interested
+   - Could be overwhelming during complex board states with many triggers
