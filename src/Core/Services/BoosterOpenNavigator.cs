@@ -116,6 +116,8 @@ namespace AccessibleArena.Core.Services
         private void FindRevealAllButton(HashSet<GameObject> addedObjects)
         {
             // Look for RevealAll_MainButtonOutline_v2 or similar
+            // Note: We track this button for auto-closing but don't add it to navigation
+            // since blind users don't need to manually click it - we auto-click it when closing
             var customButtons = FindCustomButtonsInScene();
 
             foreach (var button in customButtons)
@@ -123,13 +125,9 @@ namespace AccessibleArena.Core.Services
                 string name = button.name;
                 if (name.Contains("RevealAll") || name.Contains("Reveal_All"))
                 {
-                    if (addedObjects.Contains(button)) continue;
-
-                    string label = UITextExtractor.GetButtonText(button, "Reveal All");
-                    AddElement(button, $"{label}, button");
-                    addedObjects.Add(button);
+                    addedObjects.Add(button); // Mark as processed so it's not added elsewhere
                     _revealAllButton = button;
-                    MelonLogger.Msg($"[{NavigatorId}] Found RevealAll button: {name}");
+                    MelonLogger.Msg($"[{NavigatorId}] Found RevealAll button (hidden from nav): {name}");
                     return;
                 }
             }
@@ -718,15 +716,14 @@ namespace AccessibleArena.Core.Services
                         MelonLogger.Msg($"[{NavigatorId}] Reveal/Skip activated, will rescan");
                         return;
                     }
-                    // Check if this is a close/dismiss button - combined approach
+                    // Check if this is a close/dismiss button
+                    // Use ClosePackProperly to ensure correct game state cleanup
                     if (elem.GameObject != null &&
                         (elem.GameObject.name.Contains("ModalFade") ||
-                         elem.GameObject.name.Contains("Dismiss")))
+                         elem.GameObject.name.Contains("Dismiss_MainButton")))
                     {
                         MelonLogger.Msg($"[{NavigatorId}] Enter on close button: {elem.GameObject.name}");
-                        ActivateCurrentElement();
-                        // Also try controller method for actual close logic
-                        TryClosePackContents();
+                        ClosePackProperly();
                         TriggerCloseRescan();
                         return;
                     }
@@ -736,28 +733,115 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Backspace to go back/close - combined approach: UIActivator for sound + controller for close
+            // Backspace to go back/close
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Backspace pressed - attempting close");
-
-                // First try UIActivator on the dismiss/modal fade button for visual/audio feedback
-                foreach (var elem in _elements)
-                {
-                    if (elem.GameObject != null &&
-                        (elem.GameObject.name.Contains("Dismiss") || elem.GameObject.name.Contains("ModalFade")))
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] Activating close button: {elem.GameObject.name}");
-                        UIActivator.Activate(elem.GameObject);
-                        break;
-                    }
-                }
-
-                // Also try controller method for actual close logic
-                TryClosePackContents();
-
+                ClosePackProperly();
                 TriggerCloseRescan();
                 return;
+            }
+        }
+
+        /// <summary>
+        /// Close the pack properly using the game's expected flow.
+        /// Priority: Dismiss_MainButton (Weiter) > controller DismissCards > ModalFade
+        /// ModalFade alone doesn't properly reset the UI state.
+        /// </summary>
+        private void ClosePackProperly()
+        {
+            // Stop pack music by sending PointerExit to the pack hitbox
+            StopPackMusic();
+
+            // Priority 1: Find and click Dismiss_MainButton (the proper "Continue/Weiter" button)
+            // This triggers the game's full close sequence
+            foreach (var elem in _elements)
+            {
+                if (elem.GameObject != null && elem.GameObject.name.Contains("Dismiss_MainButton"))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Clicking proper close button: {elem.GameObject.name}");
+                    UIActivator.Activate(elem.GameObject);
+                    return; // Game will handle the rest
+                }
+            }
+
+            // Priority 2: If Dismiss_MainButton not available, click RevealAll first to trigger reveal
+            // This puts the game in the correct state for closing
+            // The _revealAllButton field tracks the RevealAll button
+            if (_revealAllButton != null && _revealAllButton.activeInHierarchy)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Clicking RevealAll first to enable proper close: {_revealAllButton.name}");
+                UIActivator.Activate(_revealAllButton);
+                // After revealing, we need to wait for Dismiss_MainButton to appear
+                // Start a coroutine to click it after a short delay
+                MelonLoader.MelonCoroutines.Start(ClickDismissAfterDelay());
+                return;
+            }
+
+            // Priority 3: Fallback - try controller's DismissCards method
+            MelonLogger.Msg($"[{NavigatorId}] No Dismiss_MainButton or RevealAll found, using controller fallback");
+            if (TryClosePackContents())
+            {
+                return;
+            }
+
+            // Priority 4: Last resort - click ModalFade (background close)
+            // This may not fully reset UI state but at least dismisses visually
+            foreach (var elem in _elements)
+            {
+                if (elem.GameObject != null && elem.GameObject.name.Contains("ModalFade"))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Fallback to ModalFade: {elem.GameObject.name}");
+                    UIActivator.Activate(elem.GameObject);
+                    return;
+                }
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] No close mechanism found");
+        }
+
+        /// <summary>
+        /// Coroutine to click the Dismiss_MainButton after RevealAll animation completes.
+        /// </summary>
+        private System.Collections.IEnumerator ClickDismissAfterDelay()
+        {
+            // Wait for reveal animation to complete and Dismiss_MainButton to appear
+            yield return new WaitForSeconds(0.5f);
+
+            // Find and click Dismiss_MainButton
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == "CustomButton" && mb.gameObject.name.Contains("Dismiss_MainButton"))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Delayed click on Dismiss_MainButton: {mb.gameObject.name}");
+                    UIActivator.Activate(mb.gameObject);
+                    yield break;
+                }
+            }
+
+            // If still no Dismiss_MainButton, use controller fallback
+            MelonLogger.Msg($"[{NavigatorId}] Dismiss_MainButton not found after delay, using controller fallback");
+            TryClosePackContents();
+        }
+
+        /// <summary>
+        /// Stop pack music by sending PointerExit to the currently active pack hitbox.
+        /// Same approach used by GeneralMenuNavigator when switching packs in the carousel.
+        /// </summary>
+        private void StopPackMusic()
+        {
+            // Find all pack hitboxes in the carousel and send PointerExit to stop their music
+            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
+            if (boosterChamber == null) return;
+
+            foreach (Transform t in boosterChamber.GetComponentsInChildren<Transform>(true))
+            {
+                if (t != null && t.name == "Hitbox_BoosterMesh" && t.gameObject.activeInHierarchy)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Stopping pack music: PointerExit to {t.name}");
+                    UIActivator.SimulatePointerExit(t.gameObject);
+                }
             }
         }
 
