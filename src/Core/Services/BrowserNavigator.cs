@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
@@ -809,6 +810,141 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Tries to submit the current workflow via reflection by accessing GameManager.WorkflowController.
+        /// This bypasses the need to click UI elements that may not have standard click handlers.
+        /// </summary>
+        /// <returns>True if workflow was successfully submitted</returns>
+        private bool TrySubmitWorkflowViaReflection()
+        {
+            var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+            try
+            {
+                // Find GameManager
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+
+                if (gameManager == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: GameManager not found - running full debug dump");
+                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                    return false;
+                }
+
+                // Get WorkflowController
+                var wcProp = gameManager.GetType().GetProperty("WorkflowController", flags);
+                var workflowController = wcProp?.GetValue(gameManager);
+
+                if (workflowController == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: WorkflowController not found - running full debug dump");
+                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                    return false;
+                }
+
+                // Get CurrentInteraction - try both property and field
+                var wcType = workflowController.GetType();
+                object currentInteraction = null;
+
+                // Try property first
+                var ciProp = wcType.GetProperty("CurrentInteraction", flags);
+                if (ciProp != null)
+                {
+                    currentInteraction = ciProp.GetValue(workflowController);
+                }
+
+                // Try field if property didn't work
+                if (currentInteraction == null)
+                {
+                    var ciField = wcType.GetField("_currentInteraction", flags)
+                               ?? wcType.GetField("currentInteraction", flags)
+                               ?? wcType.GetField("_current", flags);
+                    if (ciField != null)
+                    {
+                        currentInteraction = ciField.GetValue(workflowController);
+                    }
+                }
+
+                if (currentInteraction == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: No active workflow found - running full debug dump");
+                    MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                    return false;
+                }
+
+                var workflowType = currentInteraction.GetType();
+                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Found workflow: {workflowType.Name}");
+
+                // Try to submit via _request.SubmitSolution()
+                var requestField = workflowType.GetField("_request", flags);
+                if (requestField != null)
+                {
+                    var request = requestField.GetValue(currentInteraction);
+                    if (request != null)
+                    {
+                        // Find solution field
+                        var solutionField = workflowType.GetField("_autoTapSolution", flags)
+                                         ?? workflowType.GetField("autoTapSolution", flags);
+                        var solutionProp = workflowType.GetProperty("AutoTapSolution", flags)
+                                        ?? workflowType.GetProperty("Solution", flags);
+
+                        object solution = solutionField?.GetValue(currentInteraction)
+                                       ?? solutionProp?.GetValue(currentInteraction);
+
+                        // Try SubmitSolution
+                        var submitMethod = request.GetType().GetMethod("SubmitSolution", flags);
+                        if (submitMethod != null)
+                        {
+                            var parameters = submitMethod.GetParameters();
+                            if (parameters.Length == 0)
+                            {
+                                submitMethod.Invoke(request, null);
+                                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Called SubmitSolution()");
+                                return true;
+                            }
+                            else if (parameters.Length == 1 && solution != null)
+                            {
+                                submitMethod.Invoke(request, new[] { solution });
+                                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Called SubmitSolution(solution)");
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Try direct Submit/Confirm methods on workflow
+                foreach (var methodName in new[] { "Submit", "Confirm", "Complete", "Accept", "Close" })
+                {
+                    var method = workflowType.GetMethod(methodName, flags);
+                    if (method != null && method.GetParameters().Length == 0)
+                    {
+                        method.Invoke(currentInteraction, null);
+                        MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Called {methodName}()");
+                        return true;
+                    }
+                }
+
+                // If nothing worked, dump full debug info
+                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Could not submit - running full debug dump");
+                MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] WorkflowReflection error: {ex.Message}");
+                MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
+                return false;
+            }
+        }
+
         #endregion
 
         #region Button Clicking
@@ -822,9 +958,20 @@ namespace AccessibleArena.Core.Services
 
             string clickedLabel;
 
-            // Workflow browser: Space activates the currently selected action button
+            // Workflow browser: try reflection approach to submit via WorkflowController
             if (_browserInfo?.IsWorkflow == true)
             {
+                // First try the reflection approach (access WorkflowController directly)
+                if (TrySubmitWorkflowViaReflection())
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Workflow submitted via reflection");
+                    _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                    BrowserDetector.InvalidateCache();
+                    return;
+                }
+
+                // Fallback: try clicking the button if reflection failed
+                MelonLogger.Msg($"[BrowserNavigator] Reflection approach failed, trying button click");
                 if (_browserButtons.Count > 0 && _currentButtonIndex >= 0)
                 {
                     ActivateCurrentButton();

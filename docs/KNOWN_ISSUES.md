@@ -336,22 +336,43 @@ When clicking a creature with activated ability, game uses `AutoTapActionsWorkfl
    - Falls back to WorkflowBrowser itself, but it has no clickable component
 
 4. **Comprehensive Debug Logging Added**
-   - `DumpWorkflowBrowserDebug()` method dumps full structure on first detection
+
+   Two levels of debug logging are available:
+
+   **A. `BrowserDetector.DumpWorkflowBrowserDebug()`** - UI-focused dump (runs once on first WorkflowBrowser detection)
    - Logs all components on WorkflowBrowser with full type names
    - Detects click-related interfaces (IPointerClickHandler, ISubmitHandler, etc.)
    - Lists methods containing: click, submit, activate, confirm, select, execute, invoke, action
    - Logs UnityEvent fields (onClick, onSubmit, etc.)
    - Dumps all children with [CLICKABLE]/[BUTTON]/[EVENTTRIGGER] flags
    - Searches parent hierarchy for Workflow/Controller components
-   - Finds scene objects with AutoTap/ManaPayment/Workflow in name
+
+   **B. `MenuDebugHelper.DumpWorkflowSystemDebug()`** - Full system dump (runs when reflection submit fails)
+   - **Section 1: GameManager & WorkflowController** - All workflow-related properties and fields on GameManager
+   - **Section 2: WorkflowController Deep Inspection** - ALL properties, fields, interfaces, methods with submit/execute keywords
+   - **Section 3: Active Workflow/Interaction** - Current workflow type, base class hierarchy, _request field details, all methods
+   - **Section 4: Scene Search** - Finds all MonoBehaviours with Workflow/AutoTap/Interaction/ManaPayment/ActionSource in name
+   - **Section 5: WorkflowBrowser UI Structure** - Full path, text, and **siblings** (same-level elements that might be clickable)
+   - **Section 6: PromptButtons Detailed Inspection** - onClick persistent listeners, runtime listeners via reflection (m_Calls.Count), all callback-related fields on button MonoBehaviours
+   - **Section 7: UnderStack Area Objects** - All active objects in WorkflowBrowser's parent area with components and click handlers
+
+5. **Reflection Approach Implemented**
+   - `BrowserNavigator.TrySubmitWorkflowViaReflection()` attempts to submit workflow via:
+     - GameManager → WorkflowController → CurrentInteraction
+     - Try _request.SubmitSolution() with auto-detected solution
+     - Try direct Submit/Confirm/Complete/Accept/Close methods on workflow
+   - If any step fails, automatically triggers `DumpWorkflowSystemDebug()` for analysis
+
+**Current Status:**
+- Reflection finds GameManager and WorkflowController successfully
+- `CurrentInteraction` property not found on WorkflowController (needs investigation)
+- Debug dump captures all available properties/fields to identify correct member name
 
 **Next Steps:**
-1. Analyze debug dump to understand WorkflowBrowser click mechanism
-2. Possible approaches once mechanism is found:
-   - Find and click actual clickable child (if exists but not detected)
-   - Invoke custom click method via reflection
-   - Find AutoTapActionsWorkflow instance and call SubmitSolution()
-   - Use EventTrigger if present
+1. Run test to capture full debug dump
+2. Analyze dump to find correct property/field name for active workflow
+3. Update reflection code to use correct member access
+4. If reflection approach doesn't work, investigate PromptButton callbacks from debug dump
 
 **Test Case:**
 - Card: Sanftmütige Bibliothekarin (also tested: Spektraler Seemann)

@@ -1,12 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.Events;
 using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace AccessibleArena.Core.Services
 {
@@ -919,6 +921,445 @@ namespace AccessibleArena.Core.Services
                 }
                 catch { }
             }
+        }
+
+        /// <summary>
+        /// Comprehensive debug dump for workflow/ability activation system.
+        /// Call this when WorkflowBrowser is active to capture all relevant info.
+        /// </summary>
+        public static void DumpWorkflowSystemDebug(string tag, GameObject workflowBrowser = null)
+        {
+            var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            var staticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+
+            MelonLogger.Msg($"[{tag}] ╔══════════════════════════════════════════════════════════════╗");
+            MelonLogger.Msg($"[{tag}] ║       COMPREHENSIVE WORKFLOW SYSTEM DEBUG DUMP              ║");
+            MelonLogger.Msg($"[{tag}] ╚══════════════════════════════════════════════════════════════╝");
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION 1: GameManager and WorkflowController
+            // ═══════════════════════════════════════════════════════════════
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ══════ SECTION 1: GameManager & WorkflowController ══════");
+
+            MonoBehaviour gameManager = null;
+            object workflowController = null;
+            object currentInteraction = null;
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "GameManager")
+                {
+                    gameManager = mb;
+                    break;
+                }
+            }
+
+            if (gameManager != null)
+            {
+                MelonLogger.Msg($"[{tag}] GameManager: FOUND on '{gameManager.gameObject.name}'");
+                MelonLogger.Msg($"[{tag}]   Type: {gameManager.GetType().FullName}");
+
+                // Dump ALL properties that might be workflow-related
+                MelonLogger.Msg($"[{tag}]   --- Workflow-related properties ---");
+                foreach (var prop in gameManager.GetType().GetProperties(flags))
+                {
+                    string propName = prop.Name.ToLower();
+                    if (propName.Contains("workflow") || propName.Contains("interaction") ||
+                        propName.Contains("current") || propName.Contains("active") ||
+                        propName.Contains("controller") || propName.Contains("manager"))
+                    {
+                        try
+                        {
+                            var val = prop.GetValue(gameManager);
+                            MelonLogger.Msg($"[{tag}]   Property: {prop.Name} ({prop.PropertyType.Name}) = {val?.GetType()?.FullName ?? "null"}");
+
+                            if (prop.Name == "WorkflowController" && val != null)
+                                workflowController = val;
+                            if (prop.Name == "CurrentInteraction" && val != null)
+                                currentInteraction = val;
+                        }
+                        catch (Exception ex)
+                        {
+                            MelonLogger.Msg($"[{tag}]   Property: {prop.Name} = [error: {ex.Message}]");
+                        }
+                    }
+                }
+
+                // Also check fields
+                MelonLogger.Msg($"[{tag}]   --- Workflow-related fields ---");
+                foreach (var field in gameManager.GetType().GetFields(flags))
+                {
+                    string fieldName = field.Name.ToLower();
+                    if (fieldName.Contains("workflow") || fieldName.Contains("interaction") ||
+                        fieldName.Contains("current") || fieldName.Contains("active") ||
+                        fieldName.Contains("controller"))
+                    {
+                        try
+                        {
+                            var val = field.GetValue(gameManager);
+                            MelonLogger.Msg($"[{tag}]   Field: {field.Name} ({field.FieldType.Name}) = {val?.GetType()?.FullName ?? "null"}");
+
+                            if (field.Name.Contains("WorkflowController") && val != null)
+                                workflowController = val;
+                        }
+                        catch (Exception ex)
+                        {
+                            MelonLogger.Msg($"[{tag}]   Field: {field.Name} = [error: {ex.Message}]");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MelonLogger.Msg($"[{tag}] GameManager: NOT FOUND");
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION 2: WorkflowController deep inspection
+            // ═══════════════════════════════════════════════════════════════
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ══════ SECTION 2: WorkflowController Deep Inspection ══════");
+
+            if (workflowController != null)
+            {
+                var wcType = workflowController.GetType();
+                MelonLogger.Msg($"[{tag}] WorkflowController type: {wcType.FullName}");
+                MelonLogger.Msg($"[{tag}] Base type: {wcType.BaseType?.FullName ?? "none"}");
+
+                // List ALL interfaces
+                var interfaces = wcType.GetInterfaces();
+                if (interfaces.Length > 0)
+                {
+                    MelonLogger.Msg($"[{tag}]   Interfaces: {string.Join(", ", interfaces.Select(i => i.Name))}");
+                }
+
+                // ALL properties
+                MelonLogger.Msg($"[{tag}]   --- ALL Properties ---");
+                foreach (var prop in wcType.GetProperties(flags))
+                {
+                    try
+                    {
+                        var val = prop.GetValue(workflowController);
+                        string valStr = val?.GetType()?.Name ?? "null";
+                        if (val is bool b) valStr = b.ToString();
+                        if (val is int i) valStr = i.ToString();
+                        if (val is string s) valStr = $"\"{s}\"";
+                        MelonLogger.Msg($"[{tag}]   {prop.Name} ({prop.PropertyType.Name}) = {valStr}");
+
+                        if (prop.Name.Contains("Current") && val != null)
+                            currentInteraction = val;
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Msg($"[{tag}]   {prop.Name} = [error: {ex.Message}]");
+                    }
+                }
+
+                // ALL fields
+                MelonLogger.Msg($"[{tag}]   --- ALL Fields ---");
+                foreach (var field in wcType.GetFields(flags))
+                {
+                    try
+                    {
+                        var val = field.GetValue(workflowController);
+                        string valStr = val?.GetType()?.Name ?? "null";
+                        if (val is bool b) valStr = b.ToString();
+                        if (val is int i) valStr = i.ToString();
+                        MelonLogger.Msg($"[{tag}]   {field.Name} ({field.FieldType.Name}) = {valStr}");
+
+                        if (field.Name.Contains("current") || field.Name.Contains("Current"))
+                            if (val != null) currentInteraction = val;
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Msg($"[{tag}]   {field.Name} = [error: {ex.Message}]");
+                    }
+                }
+
+                // Key methods
+                MelonLogger.Msg($"[{tag}]   --- Submit/Execute Methods ---");
+                foreach (var method in wcType.GetMethods(flags))
+                {
+                    string mName = method.Name.ToLower();
+                    if (mName.Contains("submit") || mName.Contains("execute") || mName.Contains("confirm") ||
+                        mName.Contains("accept") || mName.Contains("complete") || mName.Contains("select"))
+                    {
+                        var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                        MelonLogger.Msg($"[{tag}]   {method.Name}({paramStr})");
+                    }
+                }
+            }
+            else
+            {
+                MelonLogger.Msg($"[{tag}] WorkflowController: NOT FOUND (not on GameManager)");
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION 3: Current Interaction/Workflow
+            // ═══════════════════════════════════════════════════════════════
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ══════ SECTION 3: Active Workflow/Interaction ══════");
+
+            if (currentInteraction != null)
+            {
+                var ciType = currentInteraction.GetType();
+                MelonLogger.Msg($"[{tag}] CurrentInteraction: {ciType.FullName}");
+                MelonLogger.Msg($"[{tag}] Base types: {GetTypeHierarchy(ciType)}");
+
+                // Check for _request field (used by AutoTapActionsWorkflow)
+                MelonLogger.Msg($"[{tag}]   --- Looking for _request field ---");
+                var requestField = ciType.GetField("_request", flags);
+                if (requestField != null)
+                {
+                    var request = requestField.GetValue(currentInteraction);
+                    MelonLogger.Msg($"[{tag}]   _request: {request?.GetType()?.FullName ?? "null"}");
+
+                    if (request != null)
+                    {
+                        // Dump request object
+                        var reqType = request.GetType();
+                        MelonLogger.Msg($"[{tag}]     --- Request methods ---");
+                        foreach (var method in reqType.GetMethods(flags))
+                        {
+                            string mName = method.Name.ToLower();
+                            if (mName.Contains("submit") || mName.Contains("cancel") || mName.Contains("solution"))
+                            {
+                                var paramStr = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
+                                MelonLogger.Msg($"[{tag}]     {method.Name}({paramStr})");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    MelonLogger.Msg($"[{tag}]   _request: NOT FOUND");
+                }
+
+                // All fields on the workflow
+                MelonLogger.Msg($"[{tag}]   --- Workflow fields ---");
+                foreach (var field in ciType.GetFields(flags))
+                {
+                    try
+                    {
+                        var val = field.GetValue(currentInteraction);
+                        MelonLogger.Msg($"[{tag}]   {field.Name} ({field.FieldType.Name}) = {FormatValueForLog(val)}");
+                    }
+                    catch { }
+                }
+
+                // All methods
+                MelonLogger.Msg($"[{tag}]   --- Workflow methods ---");
+                foreach (var method in ciType.GetMethods(flags))
+                {
+                    string mName = method.Name.ToLower();
+                    if (mName.Contains("submit") || mName.Contains("confirm") || mName.Contains("execute") ||
+                        mName.Contains("complete") || mName.Contains("accept") || mName.Contains("select") ||
+                        mName.Contains("solution") || mName.Contains("close") || mName.Contains("open"))
+                    {
+                        var paramStr = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
+                        MelonLogger.Msg($"[{tag}]   {method.Name}({paramStr})");
+                    }
+                }
+            }
+            else
+            {
+                MelonLogger.Msg($"[{tag}] CurrentInteraction: NULL (no active workflow)");
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION 4: Scene search for workflow-related objects
+            // ═══════════════════════════════════════════════════════════════
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ══════ SECTION 4: Scene Search (Workflow/AutoTap objects) ══════");
+
+            var allMonoBehaviours = GameObject.FindObjectsOfType<MonoBehaviour>();
+            string[] searchPatterns = { "Workflow", "AutoTap", "Interaction", "ManaPayment", "ActionSource" };
+
+            foreach (var pattern in searchPatterns)
+            {
+                var matches = allMonoBehaviours.Where(mb => mb != null && mb.GetType().Name.Contains(pattern)).ToList();
+                if (matches.Count > 0)
+                {
+                    MelonLogger.Msg($"[{tag}]   '{pattern}' matches ({matches.Count}):");
+                    foreach (var mb in matches.Take(5))
+                    {
+                        MelonLogger.Msg($"[{tag}]     - {mb.GetType().Name} on '{mb.gameObject.name}'");
+                    }
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION 5: WorkflowBrowser UI structure
+            // ═══════════════════════════════════════════════════════════════
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ══════ SECTION 5: WorkflowBrowser UI Structure ══════");
+
+            if (workflowBrowser == null)
+            {
+                // Try to find it
+                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                {
+                    if (go != null && go.activeInHierarchy && go.name == "WorkflowBrowser")
+                    {
+                        workflowBrowser = go;
+                        break;
+                    }
+                }
+            }
+
+            if (workflowBrowser != null)
+            {
+                MelonLogger.Msg($"[{tag}] WorkflowBrowser: {workflowBrowser.name}");
+                MelonLogger.Msg($"[{tag}]   Path: {GetFullPath(workflowBrowser.transform)}");
+                MelonLogger.Msg($"[{tag}]   Text: '{UITextExtractor.GetText(workflowBrowser)}'");
+
+                // Siblings (same parent level)
+                MelonLogger.Msg($"[{tag}]   --- Siblings ---");
+                var parent = workflowBrowser.transform.parent;
+                if (parent != null)
+                {
+                    foreach (Transform sibling in parent)
+                    {
+                        if (sibling.gameObject == workflowBrowser) continue;
+                        if (!sibling.gameObject.activeInHierarchy) continue;
+
+                        var compNames = sibling.GetComponents<Component>()
+                            .Where(c => c != null && !(c is Transform))
+                            .Select(c => c.GetType().Name).ToList();
+
+                        bool hasClickHandler = sibling.GetComponent<IPointerClickHandler>() != null;
+                        bool hasButton = sibling.GetComponent<Button>() != null;
+                        string clickInfo = hasClickHandler ? " [CLICKABLE]" : "";
+                        clickInfo += hasButton ? " [BUTTON]" : "";
+
+                        string sibText = UITextExtractor.GetText(sibling.gameObject);
+                        MelonLogger.Msg($"[{tag}]     {sibling.name}{clickInfo}: [{string.Join(", ", compNames)}] text='{sibText}'");
+                    }
+                }
+            }
+            else
+            {
+                MelonLogger.Msg($"[{tag}] WorkflowBrowser: NOT FOUND in scene");
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION 6: PromptButtons detailed inspection
+            // ═══════════════════════════════════════════════════════════════
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ══════ SECTION 6: PromptButtons Detailed Inspection ══════");
+
+            var promptButtons = GameObject.FindObjectsOfType<Selectable>()
+                .Where(s => s != null && s.gameObject.activeInHierarchy && s.gameObject.name.Contains("PromptButton"))
+                .ToList();
+
+            MelonLogger.Msg($"[{tag}] Found {promptButtons.Count} PromptButtons");
+            foreach (var btn in promptButtons)
+            {
+                MelonLogger.Msg($"[{tag}]   Button: {btn.gameObject.name}");
+                MelonLogger.Msg($"[{tag}]     Text: '{UITextExtractor.GetText(btn.gameObject)}'");
+                MelonLogger.Msg($"[{tag}]     Interactable: {btn.interactable}");
+                MelonLogger.Msg($"[{tag}]     Path: {GetGameObjectPath(btn.gameObject)}");
+
+                // Check for Button component and its onClick
+                var button = btn as Button;
+                if (button != null)
+                {
+                    int listenerCount = button.onClick.GetPersistentEventCount();
+                    MelonLogger.Msg($"[{tag}]     onClick persistent listeners: {listenerCount}");
+
+                    // Try to get non-persistent listeners count via reflection
+                    try
+                    {
+                        var callsField = typeof(UnityEventBase).GetField("m_Calls", flags);
+                        if (callsField != null)
+                        {
+                            var calls = callsField.GetValue(button.onClick);
+                            if (calls != null)
+                            {
+                                var countProp = calls.GetType().GetProperty("Count");
+                                if (countProp != null)
+                                {
+                                    var count = countProp.GetValue(calls);
+                                    MelonLogger.Msg($"[{tag}]     onClick runtime listeners (m_Calls.Count): {count}");
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // Check all MonoBehaviours for callback-like fields
+                foreach (var mb in btn.GetComponents<MonoBehaviour>())
+                {
+                    if (mb == null) continue;
+                    var mbType = mb.GetType();
+                    if (mbType.Name == "Button" || mbType.Namespace?.StartsWith("UnityEngine") == true) continue;
+
+                    MelonLogger.Msg($"[{tag}]     MonoBehaviour: {mbType.Name}");
+                    foreach (var field in mbType.GetFields(flags))
+                    {
+                        string fName = field.Name.ToLower();
+                        if (fName.Contains("callback") || fName.Contains("action") || fName.Contains("click") ||
+                            fName.Contains("event") || fName.Contains("delegate") || fName.Contains("submit"))
+                        {
+                            try
+                            {
+                                var val = field.GetValue(mb);
+                                MelonLogger.Msg($"[{tag}]       {field.Name} ({field.FieldType.Name}) = {FormatValueForLog(val)}");
+                            }
+                            catch { }
+                        }
+                    }
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION 7: UnderStack area (where WorkflowBrowser lives)
+            // ═══════════════════════════════════════════════════════════════
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ══════ SECTION 7: UnderStack Area Objects ══════");
+
+            var underStackObjects = GameObject.FindObjectsOfType<GameObject>()
+                .Where(go => go != null && go.activeInHierarchy && GetFullPath(go.transform).Contains("UnderStack"))
+                .ToList();
+
+            MelonLogger.Msg($"[{tag}] Found {underStackObjects.Count} active objects under UnderStack");
+            foreach (var go in underStackObjects.Take(20))
+            {
+                var comps = go.GetComponents<Component>()
+                    .Where(c => c != null && !(c is Transform) && !(c is RectTransform))
+                    .Select(c => c.GetType().Name).ToList();
+
+                bool hasClickHandler = go.GetComponent<IPointerClickHandler>() != null;
+                string clickInfo = hasClickHandler ? " [CLICKABLE]" : "";
+
+                string goText = UITextExtractor.GetText(go);
+                if (!string.IsNullOrEmpty(goText) || comps.Count > 0 || hasClickHandler)
+                {
+                    MelonLogger.Msg($"[{tag}]   {go.name}{clickInfo}: [{string.Join(", ", comps)}] text='{goText}'");
+                }
+            }
+
+            MelonLogger.Msg($"[{tag}] ");
+            MelonLogger.Msg($"[{tag}] ╔══════════════════════════════════════════════════════════════╗");
+            MelonLogger.Msg($"[{tag}] ║              END WORKFLOW SYSTEM DEBUG DUMP                 ║");
+            MelonLogger.Msg($"[{tag}] ╚══════════════════════════════════════════════════════════════╝");
+        }
+
+        /// <summary>
+        /// Gets the type hierarchy as a string (Type -> BaseType -> BaseType...).
+        /// </summary>
+        private static string GetTypeHierarchy(Type type)
+        {
+            var types = new List<string>();
+            var current = type;
+            while (current != null && current != typeof(object))
+            {
+                types.Add(current.Name);
+                current = current.BaseType;
+            }
+            return string.Join(" -> ", types);
         }
     }
 }
