@@ -225,12 +225,13 @@ The Deck Builder screen allows editing deck contents with access to the card col
 **Groups:**
 - `DeckBuilderCollection` - Collection card grid
 - `DeckBuilderDeckList` - Deck list cards (compact list with quantities)
+- `DeckBuilderInfo` - Deck statistics (card count, types, mana curve) with 2D sub-navigation
 - `Filters` - Color checkboxes, type filters, advanced filters
 - `Content` - Header controls (Sideboard, deck name, etc.)
 
 **Navigation:**
 - Arrow Up/Down: Navigate between groups and elements
-- Tab/Shift+Tab: Cycle between groups (Collection, Deck List, Filters) and auto-enter
+- Tab/Shift+Tab: Cycle between groups (Collection, Deck List, Deck Info, Filters) and auto-enter
 - Enter on group: Enter the group to navigate individual items
 - Backspace: Exit current group, return to group list
 
@@ -247,10 +248,28 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - Enter: Remove one copy of the card from deck (click event removes one copy)
 - Home/End: Jump to first/last card
 
+**Deck Info Navigation (DeckBuilderInfo):**
+Tab-cyclable group providing live deck statistics with 2D sub-navigation.
+Two rows navigable with Up/Down, individual entries within each row navigable with Left/Right.
+
+- Row 1 (Cards): Card count (e.g., "35 von 60"), then type entries (e.g., "20 Creatures (56%)", "12 Others (33%)", "24 Lands (11%)"). Zero-count types are omitted.
+- Row 2 (Mana Curve): CMC buckets ("1 or less: 4", "2: 8", ..., "6 or more: 2") and "Average: 3.5"
+
+Navigation within Deck Info:
+- Up/Down arrows: Switch between rows (announces row name + first entry)
+- Left/Right arrows: Navigate individual entries within the current row
+- Home/End: Jump to first/last entry in current row
+- Enter: Refresh all data from game UI and re-announce current entry
+- Tab/Shift+Tab: Cycle to other deck builder groups (Collection, Deck List, Filters)
+- Backspace: Exit Deck Info back to group level
+
+Card count is also announced automatically whenever a card is added to or removed from the deck.
+
 **Card Add/Remove Behavior:**
 - Adding a card from collection increases its quantity in deck (or adds new entry)
 - Removing a card from deck decreases its quantity (or removes entry when qty reaches 0)
 - After add/remove, UI rescans to update both collection and deck list
+- Card count (e.g., "35 von 60") is announced after each add/remove
 - Position is preserved within the current group (stays on same card index or nearest valid)
 
 **Card Info Reading:**
@@ -270,6 +289,9 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 - Quantity buttons (`CustomButton - Tag` showing "4x", "2x") are filtered to Unknown group
 - Deck header controls (Sideboard toggle, deck name field) are in Content group
 - Tab cycling skips standalone elements, only cycles between actual groups
+- `DeckInfoProvider` reads deck statistics via reflection on `DeckCostsDetails` and `DeckMainTitlePanel`
+- Deck data populated via `Pantry.Get<DeckBuilderModelProvider>().Model.GetFilteredMainDeck()` reflection chain
+- `DeckBuilderInfo` group uses virtual elements (GameObject=null) with 2D sub-navigation (see element-grouping-feature.md)
 - `CardPoolAccessor` accesses game's `CardPoolHolder` via reflection for direct page control
 - `_pages[1].CardViews` returns only current visible page's cards (no offscreen contamination)
 - `ScrollNext()` / `ScrollPrevious()` navigate pages directly instead of searching for UI buttons

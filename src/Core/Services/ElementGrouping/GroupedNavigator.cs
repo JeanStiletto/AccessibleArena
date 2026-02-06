@@ -868,6 +868,65 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Add a virtual group (no physical GameObjects) after OrganizeIntoGroups.
+        /// Virtual groups contain informational elements that exist only for
+        /// screen reader navigation, not tied to any Unity GameObject.
+        /// Inserts after the specified target group type, or at end if not found.
+        /// </summary>
+        public void AddVirtualGroup(ElementGroup group, List<GroupedElement> elements, ElementGroup? insertAfter = null)
+        {
+            if (elements == null || elements.Count == 0)
+                return;
+
+            var groupInfo = new ElementGroupInfo
+            {
+                Group = group,
+                DisplayName = group.GetDisplayName(),
+                Elements = elements,
+                IsFolderGroup = false,
+                FolderToggle = null,
+                IsStandaloneElement = false
+            };
+
+            if (insertAfter.HasValue)
+            {
+                // Find the last group matching insertAfter type and insert after it
+                for (int i = _groups.Count - 1; i >= 0; i--)
+                {
+                    if (_groups[i].Group == insertAfter.Value)
+                    {
+                        _groups.Insert(i + 1, groupInfo);
+                        MelonLogger.Msg($"[GroupedNavigator] Added virtual group '{group.GetDisplayName()}' with {elements.Count} items after {insertAfter.Value.GetDisplayName()}");
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: append at end
+            _groups.Add(groupInfo);
+            MelonLogger.Msg($"[GroupedNavigator] Added virtual group '{group.GetDisplayName()}' with {elements.Count} items at end");
+        }
+
+        /// <summary>
+        /// Update the label of an element within a group.
+        /// Used to refresh virtual element labels with fresh data.
+        /// Handles struct semantics by writing back to the list index.
+        /// </summary>
+        public void UpdateElementLabel(ElementGroup groupType, int elementIndex, string newLabel)
+        {
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (_groups[i].Group == groupType && elementIndex >= 0 && elementIndex < _groups[i].Count)
+                {
+                    var element = _groups[i].Elements[elementIndex];
+                    element.Label = newLabel;
+                    _groups[i].Elements[elementIndex] = element;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
         /// Clear all groups and reset state.
         /// </summary>
         public void Clear()

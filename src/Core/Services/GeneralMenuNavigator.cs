@@ -161,6 +161,15 @@ namespace AccessibleArena.Core.Services
         private int _boosterCarouselIndex = 0;
         private bool _isBoosterCarouselActive = false;
 
+        // Deck builder card count announcement - when true, PerformRescan announces just the card count
+        // instead of the full rescan announcement (set when adding/removing a card)
+        private bool _announceDeckCountOnRescan;
+
+        // 2D sub-navigation state for DeckBuilderInfo group
+        // Rows navigated with Up/Down, entries within rows navigated with Left/Right
+        private List<(string label, List<string> entries)> _deckInfoRows;
+        private int _deckInfoEntryIndex;
+
         #endregion
 
         #region Helper Methods
@@ -799,6 +808,12 @@ namespace AccessibleArena.Core.Services
             _currentIndex = -1;
             DiscoverElements();
 
+            // Inject deck info virtual group in deck builder context
+            if (_activeContentController == "WrapperDeckBuilder")
+            {
+                InjectDeckInfoGroup();
+            }
+
             if (_elements.Count > 0)
             {
                 _currentIndex = 0;
@@ -1046,6 +1061,13 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
                 bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
+
+                // DeckBuilderInfo 2D sub-navigation: Left/Right navigates entries within current row
+                if (IsDeckInfoSubNavActive())
+                {
+                    HandleDeckInfoEntryNavigation(isRight);
+                    return true;
+                }
 
                 // Booster carousel navigation (packs screen)
                 if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
@@ -2361,6 +2383,12 @@ namespace AccessibleArena.Core.Services
 
             DiscoverElements();
 
+            // Inject deck info virtual group in deck builder context
+            if (_activeContentController == "WrapperDeckBuilder")
+            {
+                InjectDeckInfoGroup();
+            }
+
             // Try to find the previously selected object in the new element list
             if (previousSelection != null)
             {
@@ -2377,6 +2405,18 @@ namespace AccessibleArena.Core.Services
 
             // Update menu type based on new state
             _detectedMenuType = DetectMenuType();
+
+            // When a card was added/removed, announce just the card count instead of full rescan
+            if (_announceDeckCountOnRescan && _activeContentController == "WrapperDeckBuilder")
+            {
+                _announceDeckCountOnRescan = false;
+                string cardCount = DeckInfoProvider.GetCardCountText();
+                if (!string.IsNullOrEmpty(cardCount))
+                {
+                    _announcer.AnnounceInterrupt(cardCount);
+                    return;
+                }
+            }
 
             // Announce the change
             string announcement = GetActivationAnnouncement();
@@ -3358,6 +3398,7 @@ namespace AccessibleArena.Core.Services
         {
             ElementGroup.DeckBuilderCollection,  // Card pool (Collection)
             ElementGroup.DeckBuilderDeckList,    // Deck list cards (cards in your deck)
+            ElementGroup.DeckBuilderInfo,        // Deck info (card count, mana curve, types, colors)
             ElementGroup.Filters,                // Filter controls
             ElementGroup.Content,                // Other deck builder controls
             ElementGroup.PlayBladeContent        // Play options
@@ -3366,11 +3407,26 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Override MoveNext to use GroupedNavigator when grouped navigation is enabled.
         /// In deck builder with Tab, cycles between Collection, Filters, and Deck groups only.
+        /// In DeckBuilderInfo group, Down arrow switches to next row with custom announcement.
         /// </summary>
         protected override void MoveNext()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
+                // DeckBuilderInfo 2D navigation: Down arrow switches to next row
+                // Skip when Tab is pressed - let Tab cycling handle group switching
+                if (IsDeckInfoSubNavActive() && !Input.GetKey(KeyCode.Tab))
+                {
+                    bool moved = _groupedNavigator.MoveNext();
+                    if (moved)
+                    {
+                        _deckInfoEntryIndex = 0;
+                        AnnounceDeckInfoEntry(includeRowName: true);
+                    }
+                    // If !moved, GroupedNavigator already announced "End of list"
+                    return;
+                }
+
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
                 bool isTabPressed = Input.GetKey(KeyCode.Tab);
@@ -3378,10 +3434,22 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_groupedNavigator.CycleToNextGroup(DeckBuilderCycleGroups))
                     {
-                        // Skip announcement if suppressed (Tab from search field - will announce after rescan)
-                        if (!_suppressNavigationAnnouncement)
+                        // Initialize 2D sub-nav if we cycled into DeckBuilderInfo
+                        var cycledGroup = _groupedNavigator.CurrentGroup;
+                        if (cycledGroup.HasValue && cycledGroup.Value.Group == ElementGroup.DeckBuilderInfo)
                         {
-                            _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                            InitializeDeckInfoSubNav();
+                            if (!_suppressNavigationAnnouncement)
+                                AnnounceDeckInfoEntry(includeRowName: true);
+                        }
+                        else
+                        {
+                            _deckInfoRows = null;
+                            // Skip announcement if suppressed (Tab from search field - will announce after rescan)
+                            if (!_suppressNavigationAnnouncement)
+                            {
+                                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                            }
                         }
                         UpdateCardNavigationForGroupedElement();
                         return;
@@ -3400,11 +3468,26 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Override MovePrevious to use GroupedNavigator when grouped navigation is enabled.
         /// In deck builder with Shift+Tab, cycles between Collection, Filters, and Deck groups only.
+        /// In DeckBuilderInfo group, Up arrow switches to previous row with custom announcement.
         /// </summary>
         protected override void MovePrevious()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
+                // DeckBuilderInfo 2D navigation: Up arrow switches to previous row
+                // Skip when Tab is pressed - let Tab cycling handle group switching
+                if (IsDeckInfoSubNavActive() && !Input.GetKey(KeyCode.Tab))
+                {
+                    bool moved = _groupedNavigator.MovePrevious();
+                    if (moved)
+                    {
+                        _deckInfoEntryIndex = 0;
+                        AnnounceDeckInfoEntry(includeRowName: true);
+                    }
+                    // If !moved, GroupedNavigator already announced "Beginning of list"
+                    return;
+                }
+
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
                 bool isTabPressed = Input.GetKey(KeyCode.Tab);
@@ -3412,10 +3495,22 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_groupedNavigator.CycleToPreviousGroup(DeckBuilderCycleGroups))
                     {
-                        // Skip announcement if suppressed (Tab from search field - will announce after rescan)
-                        if (!_suppressNavigationAnnouncement)
+                        // Initialize 2D sub-nav if we cycled into DeckBuilderInfo
+                        var cycledGroup = _groupedNavigator.CurrentGroup;
+                        if (cycledGroup.HasValue && cycledGroup.Value.Group == ElementGroup.DeckBuilderInfo)
                         {
-                            _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                            InitializeDeckInfoSubNav();
+                            if (!_suppressNavigationAnnouncement)
+                                AnnounceDeckInfoEntry(includeRowName: true);
+                        }
+                        else
+                        {
+                            _deckInfoRows = null;
+                            // Skip announcement if suppressed (Tab from search field - will announce after rescan)
+                            if (!_suppressNavigationAnnouncement)
+                            {
+                                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                            }
                         }
                         UpdateCardNavigationForGroupedElement();
                         return;
@@ -3433,11 +3528,18 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Override MoveFirst to use GroupedNavigator when grouped navigation is enabled.
+        /// In DeckBuilderInfo, Home jumps to first entry in current row.
         /// </summary>
         protected override void MoveFirst()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
+                if (IsDeckInfoSubNavActive())
+                {
+                    _deckInfoEntryIndex = 0;
+                    AnnounceDeckInfoEntry(includeRowName: false);
+                    return;
+                }
                 _groupedNavigator.MoveFirst();
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
                 UpdateEventSystemSelectionForGroupedElement();
@@ -3539,10 +3641,23 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Override MoveLast to use GroupedNavigator when grouped navigation is enabled.
         /// </summary>
+        /// <summary>
+        /// Override MoveLast. In DeckBuilderInfo, End jumps to last entry in current row.
+        /// </summary>
         protected override void MoveLast()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
+                if (IsDeckInfoSubNavActive())
+                {
+                    int rowIndex = _groupedNavigator.CurrentElementIndex;
+                    if (rowIndex >= 0 && rowIndex < _deckInfoRows.Count)
+                    {
+                        _deckInfoEntryIndex = _deckInfoRows[rowIndex].entries.Count - 1;
+                        AnnounceDeckInfoEntry(includeRowName: false);
+                    }
+                    return;
+                }
                 _groupedNavigator.MoveLast();
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
                 UpdateEventSystemSelectionForGroupedElement();
@@ -3627,7 +3742,17 @@ namespace AccessibleArena.Core.Services
 
                 if (_groupedNavigator.EnterGroup())
                 {
-                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                    // DeckBuilderInfo: initialize 2D sub-navigation and announce first entry
+                    var enteredGroup = _groupedNavigator.CurrentGroup;
+                    if (enteredGroup.HasValue && enteredGroup.Value.Group == ElementGroup.DeckBuilderInfo)
+                    {
+                        InitializeDeckInfoSubNav();
+                        AnnounceDeckInfoEntry(includeRowName: true);
+                    }
+                    else
+                    {
+                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                    }
                     UpdateCardNavigationForGroupedElement();
                     return true;
                 }
@@ -3646,6 +3771,17 @@ namespace AccessibleArena.Core.Services
 
                 // Activate the current element
                 var currentElement = _groupedNavigator.CurrentElement;
+
+                // Virtual DeckBuilderInfo elements (no GameObject) - refresh and re-announce on Enter
+                var currentGroupInfo = _groupedNavigator.CurrentGroup;
+                if (currentElement.HasValue && currentElement.Value.GameObject == null
+                    && currentGroupInfo.HasValue && currentGroupInfo.Value.Group == ElementGroup.DeckBuilderInfo)
+                {
+                    RefreshDeckInfoSubNav();
+                    AnnounceDeckInfoEntry(includeRowName: true);
+                    return true;
+                }
+
                 if (currentElement.HasValue && currentElement.Value.GameObject != null)
                 {
                     // Special case: Inside PlayBladeFolders with a folder toggle element
@@ -3730,6 +3866,9 @@ namespace AccessibleArena.Core.Services
 
                 if (_groupedNavigator.ExitGroup())
                 {
+                    // Clear 2D sub-nav state when exiting DeckBuilderInfo
+                    _deckInfoRows = null;
+
                     if (wasFolderGroup)
                     {
                         // In PlayBlade context, go back to folders list after exiting a folder
@@ -3811,6 +3950,7 @@ namespace AccessibleArena.Core.Services
             if (elementGroup == ElementGroup.DeckBuilderDeckList)
             {
                 LogDebug($"[{NavigatorId}] Deck list card activated - scheduling rescan to update lists");
+                _announceDeckCountOnRescan = true;
                 TriggerRescan();
                 return true;
             }
@@ -3885,8 +4025,167 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 LogDebug($"[{NavigatorId}] Deck builder card activated - scheduling rescan to update lists");
+                _announceDeckCountOnRescan = true;
                 TriggerRescan();
             }
+        }
+
+        /// <summary>
+        /// Injects a virtual DeckBuilderInfo group into the grouped navigator.
+        /// Contains informational elements (card count, mana curve, etc.) read from game UI.
+        /// </summary>
+        private void InjectDeckInfoGroup()
+        {
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return;
+
+            var infoItems = DeckInfoProvider.GetDeckInfoElements();
+            if (infoItems == null || infoItems.Count == 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] DeckInfoProvider returned no info elements");
+                return;
+            }
+            MelonLogger.Msg($"[{NavigatorId}] Injecting {infoItems.Count} deck info elements");
+
+            var virtualElements = new List<GroupedElement>();
+            foreach (var (label, text) in infoItems)
+            {
+                virtualElements.Add(new GroupedElement
+                {
+                    GameObject = null,
+                    Label = $"{label}: {text}",
+                    Group = ElementGroup.DeckBuilderInfo
+                });
+            }
+
+            _groupedNavigator.AddVirtualGroup(
+                ElementGroup.DeckBuilderInfo,
+                virtualElements,
+                insertAfter: ElementGroup.DeckBuilderDeckList
+            );
+        }
+
+        /// <summary>
+        /// Refreshes the labels of all DeckBuilderInfo virtual elements with fresh data.
+        /// Called when user presses Enter on an info element to re-read from game UI.
+        /// </summary>
+        private void RefreshDeckInfoLabels()
+        {
+            var infoItems = DeckInfoProvider.GetDeckInfoElements();
+            if (infoItems == null) return;
+
+            for (int i = 0; i < infoItems.Count; i++)
+            {
+                var (label, text) = infoItems[i];
+                _groupedNavigator.UpdateElementLabel(ElementGroup.DeckBuilderInfo, i, $"{label}: {text}");
+            }
+
+            LogDebug($"[{NavigatorId}] Refreshed {infoItems.Count} deck info labels");
+        }
+
+        /// <summary>
+        /// Check if we're currently in the DeckBuilderInfo group with 2D sub-navigation active.
+        /// </summary>
+        private bool IsDeckInfoSubNavActive()
+        {
+            return _groupedNavigationEnabled && _groupedNavigator.IsActive
+                && _groupedNavigator.Level == NavigationLevel.InsideGroup
+                && _groupedNavigator.CurrentGroup.HasValue
+                && _groupedNavigator.CurrentGroup.Value.Group == ElementGroup.DeckBuilderInfo
+                && _deckInfoRows != null && _deckInfoRows.Count > 0;
+        }
+
+        /// <summary>
+        /// Initialize the 2D sub-navigation state when entering the DeckBuilderInfo group.
+        /// Loads row data from DeckInfoProvider.
+        /// </summary>
+        private void InitializeDeckInfoSubNav()
+        {
+            _deckInfoRows = DeckInfoProvider.GetDeckInfoRows();
+            _deckInfoEntryIndex = 0;
+            LogDebug($"[{NavigatorId}] Initialized DeckInfo sub-nav: {_deckInfoRows.Count} rows");
+        }
+
+        /// <summary>
+        /// Handle Left/Right navigation within a DeckBuilderInfo row.
+        /// Returns true if handled.
+        /// </summary>
+        private bool HandleDeckInfoEntryNavigation(bool isRight)
+        {
+            if (_deckInfoRows == null) return false;
+
+            int rowIndex = _groupedNavigator.CurrentElementIndex;
+            if (rowIndex < 0 || rowIndex >= _deckInfoRows.Count) return false;
+
+            var entries = _deckInfoRows[rowIndex].entries;
+            if (entries == null || entries.Count == 0) return false;
+
+            if (isRight)
+            {
+                if (_deckInfoEntryIndex >= entries.Count - 1)
+                {
+                    _announcer.Announce(Models.Strings.EndOfList, Models.AnnouncementPriority.Normal);
+                    return true;
+                }
+                _deckInfoEntryIndex++;
+            }
+            else
+            {
+                if (_deckInfoEntryIndex <= 0)
+                {
+                    _announcer.Announce(Models.Strings.BeginningOfList, Models.AnnouncementPriority.Normal);
+                    return true;
+                }
+                _deckInfoEntryIndex--;
+            }
+
+            AnnounceDeckInfoEntry(includeRowName: false);
+            return true;
+        }
+
+        /// <summary>
+        /// Announce the current DeckBuilderInfo sub-entry.
+        /// When includeRowName is true, prefixes with row label (e.g., "Cards. 35 von 60").
+        /// </summary>
+        private void AnnounceDeckInfoEntry(bool includeRowName)
+        {
+            if (_deckInfoRows == null) return;
+
+            int rowIndex = _groupedNavigator.CurrentElementIndex;
+            if (rowIndex < 0 || rowIndex >= _deckInfoRows.Count) return;
+
+            var (label, entries) = _deckInfoRows[rowIndex];
+            if (entries == null || entries.Count == 0) return;
+
+            int entryIdx = Math.Min(_deckInfoEntryIndex, entries.Count - 1);
+            string entryText = entries[entryIdx];
+
+            string announcement;
+            if (includeRowName)
+                announcement = $"{label}. {entryText}";
+            else
+                announcement = entryText;
+
+            _announcer.AnnounceInterrupt(announcement);
+        }
+
+        /// <summary>
+        /// Refresh the 2D sub-navigation data for DeckBuilderInfo (re-reads from game UI).
+        /// Preserves current row and entry position where possible.
+        /// </summary>
+        private void RefreshDeckInfoSubNav()
+        {
+            _deckInfoRows = DeckInfoProvider.GetDeckInfoRows();
+            // Clamp entry index to new data bounds
+            int rowIndex = _groupedNavigator.CurrentElementIndex;
+            if (_deckInfoRows != null && rowIndex >= 0 && rowIndex < _deckInfoRows.Count)
+            {
+                var entries = _deckInfoRows[rowIndex].entries;
+                if (_deckInfoEntryIndex >= entries.Count)
+                    _deckInfoEntryIndex = Math.Max(0, entries.Count - 1);
+            }
+            // Also refresh the element labels for the group
+            RefreshDeckInfoLabels();
         }
 
         // Note: IsSettingsSubmenuButton() removed - handled by SettingsMenuNavigator

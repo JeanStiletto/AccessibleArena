@@ -49,6 +49,13 @@ namespace AccessibleArena.Core.Models
         public const string ExitingDeckBuilder = "Exiting deck builder";
 
         // ===========================================
+        // DECK BUILDER INFO
+        // ===========================================
+        public const string DeckInfoCardCount = "Card Count";
+        public const string DeckInfoManaCurve = "Mana Curve";
+        public const string DeckInfoTypeBreakdown = "Types";
+
+        // ===========================================
         // LOGIN / ACCOUNT
         // ===========================================
         public const string BirthYearField = "Birth year field. Use arrow keys to select year.";

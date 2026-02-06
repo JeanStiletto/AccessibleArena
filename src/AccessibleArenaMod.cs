@@ -219,8 +219,9 @@ namespace AccessibleArena
         {
             LoggerInstance.Msg($"Scene loaded: {sceneName} (index: {buildIndex})");
 
-            // Clear card detection cache on scene change
+            // Clear card detection and deck info caches on scene change
             CardDetector.ClearCache();
+            DeckInfoProvider.ClearCache();
 
             // Reset panel state and detectors on scene change
             _panelStateManager?.Reset();

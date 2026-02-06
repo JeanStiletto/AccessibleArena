@@ -112,6 +112,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         DeckBuilderDeckList,
 
         /// <summary>
+        /// Deck Builder info group (card count, mana curve, type breakdown, colors).
+        /// Contains virtual elements with no GameObjects - purely informational text
+        /// read from the game's own UI components via reflection.
+        /// </summary>
+        DeckBuilderInfo,
+
+        /// <summary>
         /// Mailbox mail list (left pane). Shown when browsing mails.
         /// </summary>
         MailboxList,
@@ -148,6 +155,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.NPE
                 || group == ElementGroup.DeckBuilderCollection
                 || group == ElementGroup.DeckBuilderDeckList
+                || group == ElementGroup.DeckBuilderInfo
                 || group == ElementGroup.MailboxList
                 || group == ElementGroup.MailboxContent
                 || group == ElementGroup.RewardsPopup;
@@ -178,6 +186,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 case ElementGroup.NPE: return "Tutorial";
                 case ElementGroup.DeckBuilderCollection: return "Collection";
                 case ElementGroup.DeckBuilderDeckList: return "Deck List";
+                case ElementGroup.DeckBuilderInfo: return "Deck Info";
                 case ElementGroup.MailboxList: return "Mail List";
                 case ElementGroup.MailboxContent: return "Mail";
                 case ElementGroup.RewardsPopup: return "Rewards";

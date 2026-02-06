@@ -150,6 +150,72 @@ Some groups are nested within other groups for better organization. Currently:
    - Add a subgroup entry element to the parent group with `SubgroupType` set
 4. The navigation logic (enter/exit/backspace) handles it automatically
 
+### 2D Sub-Navigation (Virtual Elements with Entry Navigation)
+
+Some groups need richer navigation than the standard group/element hierarchy. The **2D sub-navigation** pattern provides a grid-like experience: Up/Down switches between rows (elements in the group), Left/Right navigates individual entries within each row.
+
+**Currently used by:** `DeckBuilderInfo` group (deck statistics)
+
+**How it works:**
+- The group contains virtual elements (GameObject=null) representing rows
+- Each row has a list of individual text entries
+- Standard GroupedNavigator handles row switching (elements = rows)
+- GeneralMenuNavigator intercepts input when inside the group to provide entry-level navigation
+
+**DeckBuilderInfo Example:**
+1. Tab to "Deck Info" group
+2. Enter → "Cards. 35 von 60" (first row, first entry)
+3. Right → "20 Creatures (56%)" (next entry in Cards row)
+4. Right → "12 Others (33%)"
+5. Down → "Mana Curve. 1 or less: 4" (second row, first entry)
+6. Right → "2: 8" (next mana cost entry)
+7. Home → "1 or less: 4" (first entry in current row)
+8. Tab → cycles to next deck builder group (Collection, Deck List, etc.)
+
+**Difference from Subgroups:**
+- **Subgroups** (e.g., Objectives inside Progress) are a third navigation level. Enter on a subgroup entry dives into it; Backspace exits back to the parent group. Subgroups contain full GroupedElements with GameObjects.
+- **2D sub-navigation** stays at the InsideGroup level. Left/Right navigates within a row; Up/Down switches rows. No additional Enter is needed. Entries are pure text strings, not GroupedElements.
+
+**When to use which:**
+- Use **subgroups** when entries are interactive UI elements that need activation (clicks, toggles)
+- Use **2D sub-navigation** when entries are informational text that just needs to be read/announced
+
+**Implementation Pattern (for reuse):**
+
+1. **Data provider** - Create a method returning `List<(string label, List<string> entries)>` where each tuple is one row with its sub-entries. Example: `DeckInfoProvider.GetDeckInfoRows()`
+
+2. **State fields in navigator** - Add cached row data and current entry index:
+   ```csharp
+   private List<(string label, List<string> entries)> _myRows;
+   private int _myEntryIndex;
+   ```
+
+3. **Activation check** - Method to detect if sub-navigation is active:
+   ```csharp
+   private bool IsMySubNavActive()
+   {
+       return _groupedNavigator.Level == NavigationLevel.InsideGroup
+           && _groupedNavigator.CurrentGroup?.Group == ElementGroup.MyGroup
+           && _myRows != null && _myRows.Count > 0;
+   }
+   ```
+
+4. **Intercept navigation** - In MoveNext/MovePrevious overrides, skip when Tab is pressed (let Tab cycling handle group switches), otherwise reset entry index and announce:
+   ```csharp
+   if (IsMySubNavActive() && !Input.GetKey(KeyCode.Tab))
+   {
+       bool moved = _groupedNavigator.MoveNext(); // row switch
+       if (moved) { _myEntryIndex = 0; AnnounceEntry(includeRowName: true); }
+       return;
+   }
+   ```
+
+5. **Handle Left/Right** - In HandleCustomInput, before other Left/Right handlers, navigate entries within the current row.
+
+6. **Initialize on entry** - When the group is entered (HandleGroupedEnter or Tab cycling into it), load the row data and set entry index to 0.
+
+7. **Clear on exit** - Set row data to null when exiting (Backspace or Tab cycling away).
+
 ### Overlay Handling
 - Popup dialogs suppress all other groups
 - Settings menu handled by SettingsMenuNavigator
@@ -237,6 +303,7 @@ public enum ElementGroup
     NPE,              // New Player Experience overlay (excludes Objective_NPE elements)
     DeckBuilderCollection, // Deck builder collection cards (PoolHolder grid)
     DeckBuilderDeckList,   // Deck builder deck list cards (MainDeck_MetaCardHolder compact list)
+    DeckBuilderInfo,       // Deck builder info (card count, mana curve) with 2D sub-navigation
 }
 ```
 
@@ -254,6 +321,7 @@ src/Core/Services/ElementGrouping/
                                     (includes PlayBladeResult enum)
 
 src/Core/Services/
+  DeckInfoProvider.cs             - Reflection-based deck statistics (card count, mana curve, types)
   UITextExtractor.cs              - Text extraction including TryGetObjectiveText() for objectives
   MenuDebugHelper.cs              - Debug utilities including DumpGameObjectDetails()
 ```
@@ -345,6 +413,8 @@ These can potentially be replaced with group-based filtering later, but require 
 - [x] Home: Navigation and Content groups
 - [x] Decks: Folder grouping with toggle activation
 - [x] Decks: Content group with filters/buttons
+- [x] Deck Builder: DeckBuilderInfo group with 2D sub-navigation (card count, types, mana curve)
+- [x] Deck Builder: Card count announced on add/remove
 - [ ] Collection: Card filters work
 - [ ] Store: Content properly grouped
 
