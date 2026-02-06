@@ -135,6 +135,9 @@ namespace AccessibleArena.Core.Services
         // Rescan timing
         private float _rescanDelay;
 
+        // Page rescan: frame counter after page scroll (waits for animation + card data update)
+        private int _pendingPageRescanFrames;
+
         // Mail detail view tracking
         private bool _isInMailDetailView;
         private Guid _currentMailLetterId;
@@ -878,6 +881,24 @@ namespace AccessibleArena.Core.Services
                 // Don't return early - still process input during rescan delay
             }
 
+            // Handle delayed page rescan (after collection page scroll animation)
+            if (_pendingPageRescanFrames > 0)
+            {
+                _pendingPageRescanFrames--;
+
+                // Short-circuit: if animation finished early, rescan immediately
+                if (_pendingPageRescanFrames > 2 && !CardPoolAccessor.IsScrolling())
+                {
+                    _pendingPageRescanFrames = 0;
+                }
+
+                if (_pendingPageRescanFrames == 0)
+                {
+                    LogDebug($"[{NavigatorId}] Executing delayed page rescan");
+                    PerformRescan();
+                }
+            }
+
             // Handle blade auto-expand for panels like Color Challenge
             if (_bladeAutoExpandDelay > 0)
             {
@@ -1083,21 +1104,75 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Activates the Next or Previous page button in the collection view.
-        /// After page switch, only newly visible cards will be shown (cards that weren't visible before).
+        /// Navigate to the next or previous collection page using CardPoolAccessor.
+        /// Announces "Page X of Y" and schedules rescan for updated card views.
         /// </summary>
         private bool ActivateCollectionPageButton(bool next)
         {
-            string targetLabel = next ? "Next" : "Previous";
-            LogDebug($"[{NavigatorId}] Looking for '{targetLabel}' page button...");
+            LogDebug($"[{NavigatorId}] Collection page navigation: {(next ? "Next" : "Previous")}");
 
-            // Save current collection cards before page switch so we can filter to show only new cards
-            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            // Try direct CardPoolHolder API access
+            var poolHolder = CardPoolAccessor.FindCardPoolHolder();
+            if (poolHolder != null)
             {
-                _groupedNavigator.SaveCollectionCardsForPageFilter();
+                if (CardPoolAccessor.IsScrolling())
+                {
+                    LogDebug($"[{NavigatorId}] Page scroll animation still in progress, ignoring");
+                    return true; // Consume input but don't scroll
+                }
+
+                bool success = next
+                    ? CardPoolAccessor.ScrollNext()
+                    : CardPoolAccessor.ScrollPrevious();
+
+                if (success)
+                {
+                    int currentPage = CardPoolAccessor.GetCurrentPageIndex() + 1; // 1-based for user
+                    int totalPages = CardPoolAccessor.GetPageCount();
+                    _announcer.Announce($"Page {currentPage} of {totalPages}", Models.AnnouncementPriority.Normal);
+
+                    // Save group state for restoration after rescan
+                    if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                    {
+                        _groupedNavigator.SaveCurrentGroupForRestore();
+                    }
+
+                    SchedulePageRescan();
+                    return true;
+                }
+                else
+                {
+                    // At boundary
+                    string edgeMsg = next ? "Last page" : "First page";
+                    _announcer.Announce(edgeMsg, Models.AnnouncementPriority.Normal);
+                    return true;
+                }
             }
 
-            // Search through elements for the navigation button
+            // Fallback to old button-search method
+            LogDebug($"[{NavigatorId}] CardPoolAccessor unavailable, falling back to button search");
+            return ActivateCollectionPageButtonFallback(next);
+        }
+
+        /// <summary>
+        /// Schedule a rescan after page scroll animation completes.
+        /// Uses frame counter with IsScrolling() short-circuit for responsiveness.
+        /// </summary>
+        private void SchedulePageRescan()
+        {
+            // 8 frames as safety floor (~430ms at 18fps game rate)
+            // In practice, the IsScrolling() short-circuit in Update() fires after ~250ms
+            // when the scroll animation completes, so the actual delay is usually shorter
+            _pendingPageRescanFrames = 8;
+        }
+
+        /// <summary>
+        /// Fallback: search for page buttons by label/name when CardPoolAccessor is unavailable.
+        /// </summary>
+        private bool ActivateCollectionPageButtonFallback(bool next)
+        {
+            string targetLabel = next ? "Next" : "Previous";
+
             foreach (var element in _elements)
             {
                 if (element.GameObject == null) continue;
@@ -1105,33 +1180,22 @@ namespace AccessibleArena.Core.Services
                 string label = element.Label?.ToLower() ?? "";
                 string objName = element.GameObject.name.ToLower();
 
-                // Check if this is the Next/Previous navigation button
                 bool isTarget = next
                     ? (label.Contains("next") || objName.Contains("next"))
                     : (label.Contains("previous") || label.Contains("prev") || objName.Contains("previous") || objName.Contains("prev"));
 
                 if (isTarget && (label.Contains("navigation") || objName.Contains("navigation") || objName.Contains("arrow") || objName.Contains("page")))
                 {
-                    LogDebug($"[{NavigatorId}] Found page button: {element.Label} ({element.GameObject.name})");
-
-                    // Activate the button
                     var result = UIActivator.Activate(element.GameObject);
                     if (result.Success)
                     {
                         _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
-                        // Request filter to show only new cards after rescan
-                        if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
-                        {
-                            _groupedNavigator.RequestCollectionPageFilter();
-                        }
-                        // Rescan to refresh card list - group state will be restored automatically
                         TriggerRescan();
                         return true;
                     }
                 }
             }
 
-            // Also try finding by GameObject.Find for common patterns
             var buttonNames = next
                 ? new[] { "NextPageButton", "Next_Button", "ArrowRight", "NextArrow" }
                 : new[] { "PreviousPageButton", "Previous_Button", "Prev_Button", "ArrowLeft", "PrevArrow" };
@@ -1141,24 +1205,17 @@ namespace AccessibleArena.Core.Services
                 var btn = GameObject.Find(btnName);
                 if (btn != null && btn.activeInHierarchy)
                 {
-                    LogDebug($"[{NavigatorId}] Found page button by name: {btnName}");
                     var result = UIActivator.Activate(btn);
                     if (result.Success)
                     {
                         _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
-                        // Request filter to show only new cards after rescan
-                        if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
-                        {
-                            _groupedNavigator.RequestCollectionPageFilter();
-                        }
-                        // Rescan to refresh card list - group state will be restored automatically
                         TriggerRescan();
                         return true;
                     }
                 }
             }
 
-            LogDebug($"[{NavigatorId}] No '{targetLabel}' page button found");
+            LogDebug($"[{NavigatorId}] No '{targetLabel}' page button found (fallback)");
             return false;
         }
 
@@ -2298,9 +2355,6 @@ namespace AccessibleArena.Core.Services
                 _groupedNavigator.SaveCurrentGroupForRestore();
             }
 
-            // Log UI elements during rescan to help debug component differences
-            LogAvailableUIElements();
-
             // Clear and rediscover
             _elements.Clear();
             _currentIndex = 0;
@@ -2908,7 +2962,8 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Find collection cards in the deck builder's PoolHolder canvas.
-        /// These cards use PagesMetaCardView component and are navigable for accessibility.
+        /// Uses CardPoolAccessor to get only the current page's cards directly from the game's
+        /// CardPoolHolder API, instead of scanning the entire hierarchy.
         /// </summary>
         private void FindPoolHolderCards(HashSet<GameObject> addedObjects)
         {
@@ -2916,22 +2971,84 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController != "WrapperDeckBuilder")
                 return;
 
-            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for collection cards in PoolHolder...");
+            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for collection cards via CardPoolAccessor...");
 
-            // Find the PoolHolder canvas which contains collection cards
-            var poolHolder = GameObject.Find("PoolHolder");
+            // Try direct API access via CardPoolAccessor
+            var poolHolder = CardPoolAccessor.FindCardPoolHolder();
             if (poolHolder == null)
+            {
+                LogDebug($"[{NavigatorId}] CardPoolHolder not found, falling back to hierarchy scan");
+                FindPoolHolderCardsFallback(addedObjects);
+                return;
+            }
+
+            // Get only the current page's cards
+            var cardObjects = CardPoolAccessor.GetCurrentPageCards();
+            if (cardObjects == null || cardObjects.Count == 0)
+            {
+                LogDebug($"[{NavigatorId}] No cards on current page");
+                return;
+            }
+
+            int pageIndex = CardPoolAccessor.GetCurrentPageIndex();
+            int pageCount = CardPoolAccessor.GetPageCount();
+            LogDebug($"[{NavigatorId}] Page {pageIndex + 1} of {pageCount}: {cardObjects.Count} card view(s)");
+
+            int cardNum = 1;
+            int skippedCount = 0;
+            foreach (var cardObj in cardObjects)
+            {
+                if (cardObj == null || addedObjects.Contains(cardObj)) continue;
+
+                // Extract card info using CardDetector
+                var cardInfo = CardDetector.ExtractCardInfo(cardObj);
+
+                // Skip unloaded/placeholder cards (GrpId = 0, typically named "CDC #0")
+                if (!cardInfo.IsValid)
+                {
+                    skippedCount++;
+                    continue;
+                }
+
+                string label = cardInfo.Name;
+
+                if (!string.IsNullOrEmpty(cardInfo.TypeLine))
+                {
+                    label += $", {cardInfo.TypeLine}";
+                }
+
+                if (!string.IsNullOrEmpty(cardInfo.ManaCost))
+                {
+                    label += $", {cardInfo.ManaCost}";
+                }
+
+                addedObjects.Add(cardObj);
+                AddElement(cardObj, label);
+                cardNum++;
+            }
+
+            if (skippedCount > 0)
+            {
+                LogDebug($"[{NavigatorId}] Skipped {skippedCount} placeholder cards");
+            }
+        }
+
+        /// <summary>
+        /// Fallback: scan PoolHolder hierarchy for collection cards.
+        /// Used when CardPoolAccessor cannot find the CardPoolHolder component.
+        /// </summary>
+        private void FindPoolHolderCardsFallback(HashSet<GameObject> addedObjects)
+        {
+            var poolHolderObj = GameObject.Find("PoolHolder");
+            if (poolHolderObj == null)
             {
                 LogDebug($"[{NavigatorId}] PoolHolder not found");
                 return;
             }
 
-            LogDebug($"[{NavigatorId}] Found PoolHolder canvas");
-
-            // Find all PagesMetaCardView components inside PoolHolder
             var cardViews = new List<(GameObject obj, float sortOrder)>();
 
-            foreach (var mb in poolHolder.GetComponentsInChildren<MonoBehaviour>(false))
+            foreach (var mb in poolHolderObj.GetComponentsInChildren<MonoBehaviour>(false))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
 
@@ -2941,7 +3058,6 @@ namespace AccessibleArena.Core.Services
                     var cardObj = mb.gameObject;
                     if (!addedObjects.Contains(cardObj))
                     {
-                        // Sort by X position (left to right), then by Y (top to bottom)
                         float sortOrder = cardObj.transform.position.x + (-cardObj.transform.position.y * 1000);
                         cardViews.Add((cardObj, sortOrder));
                         addedObjects.Add(cardObj);
@@ -2949,71 +3065,27 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Also check by name patterns for cards
-            foreach (var t in poolHolder.GetComponentsInChildren<Transform>(false))
-            {
-                if (t == null || !t.gameObject.activeInHierarchy) continue;
-
-                string name = t.name;
-                if (name.Contains("PagesMetaCardView") || name.Contains("MetaCardView"))
-                {
-                    if (!addedObjects.Contains(t.gameObject))
-                    {
-                        float sortOrder = t.position.x + (-t.position.y * 1000);
-                        cardViews.Add((t.gameObject, sortOrder));
-                        addedObjects.Add(t.gameObject);
-                    }
-                }
-            }
-
             if (cardViews.Count == 0)
             {
-                LogDebug($"[{NavigatorId}] No collection cards found in PoolHolder");
+                LogDebug($"[{NavigatorId}] No collection cards found in PoolHolder (fallback)");
                 return;
             }
 
-            // Sort by position
             cardViews = cardViews.OrderBy(c => c.sortOrder).ToList();
+            LogDebug($"[{NavigatorId}] Found {cardViews.Count} collection card(s) in PoolHolder (fallback)");
 
-            LogDebug($"[{NavigatorId}] Found {cardViews.Count} collection card(s) in PoolHolder");
-
-            int cardNum = 1;
-            int skippedCount = 0;
             foreach (var (cardObj, _) in cardViews)
             {
-                // Extract card info using CardDetector
                 var cardInfo = CardDetector.ExtractCardInfo(cardObj);
+                if (!cardInfo.IsValid) continue;
 
-                // Skip unloaded/placeholder cards (GrpId = 0, typically named "CDC #0")
-                // These are empty pool slots that haven't been populated with card data yet
-                if (!cardInfo.IsValid)
-                {
-                    skippedCount++;
-                    continue;
-                }
-
-                string cardName = cardInfo.Name;
-
-                // Build label with card name
-                string label = cardName;
-
-                // Add type line if available
+                string label = cardInfo.Name;
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
-                {
                     label += $", {cardInfo.TypeLine}";
-                }
-
-                // Add mana cost if available
                 if (!string.IsNullOrEmpty(cardInfo.ManaCost))
-                {
                     label += $", {cardInfo.ManaCost}";
-                }
 
-                LogDebug($"[{NavigatorId}] Adding collection card {cardNum}: {label}");
-
-                // Add as navigable element
                 AddElement(cardObj, label);
-                cardNum++;
             }
         }
 

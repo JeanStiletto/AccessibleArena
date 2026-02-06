@@ -27,6 +27,7 @@ C:\Users\fabia\arena\
         UITextExtractor.cs       - Text extraction (GetText, GetButtonText, CleanText)
         CardDetector.cs          - Card detection + card info extraction
         CardModelProvider.cs     - Card data from game models (deck list, collection)
+        CardPoolAccessor.cs      - Reflection wrapper for CardPoolHolder (collection page API)
 
         # Central Services (held by main mod)
         AnnouncementService.cs   - Speech output management

@@ -373,46 +373,6 @@ NullClaimButton ("Take reward") not being added to navigation. Fix attempted - s
 
 ## In Progress
 
-### Deck Builder Search - Slow Rescan Delay
-
-The search field filtering in deck builder works but has a noticeable delay (~500ms) before showing correct results. This is because the game's card pool takes time to update after filtering.
-
-**Current Implementation:**
-- 30-frame delay (~500ms at 60fps) before rescanning collection after search
-- Announcement suppressed during delay to prevent announcing stale cards
-- Works correctly but feels slow for a UI operation
-
-**Attempted Optimization - Page Container Filtering (February 2026):**
-
-We attempted to only scan the active Page container (Page1, Page2, etc.) inside PoolHolder to avoid picking up stale cards from other pages. This would have allowed faster rescans.
-
-**Hierarchy discovered:**
-```
-PoolHolder_Desktop_16x9(Clone)/
-└── PoolHolder/
-    ├── Page1/
-    │   └── PagesMetaCardView(Clone) (cards)
-    └── Page2/
-        └── PagesMetaCardView(Clone) (cards)
-```
-
-**Why it failed:**
-- When looking for Page children of PoolHolder, none were found as direct children
-- The Page containers might be nested differently or named differently than expected
-- Scanning only one page broke collection display entirely (0 cards found)
-
-**Future Improvement Ideas:**
-1. Debug log the actual hierarchy of PoolHolder to find correct Page container paths
-2. Check if pages use different naming convention (not starting with "Page")
-3. Filter by card world position (only cards within visible viewport bounds)
-4. Check CanvasGroup alpha on card views (fading cards might have alpha < 1)
-5. Look for a "current page index" property on the game's pagination system
-6. Check if cards have a "pooled/inactive" state separate from activeInHierarchy
-
-**Files:** `GeneralMenuNavigator.cs` - `FindPoolHolderCards()`, `BaseNavigator.cs` - `ScheduleSearchRescan()`
-
----
-
 ### Deck Builder - Deck List Card Info Incomplete
 
 Deck list cards (cards in your deck shown in the compact list view) only display Name and Quantity when reading card info with Up/Down arrows. Other properties (mana cost, type, rules text) are not shown.
@@ -498,7 +458,7 @@ Toggle mechanism for scry/surveil needs API discovery. Detection and navigation 
 
 Accumulated defensive fallback code needs review:
 - `ActivateBackButton()` has 4 activation methods - test which are needed
-- `LogAvailableUIElements()` (~150 lines) could be behind debug flag
+- `LogAvailableUIElements()` (~150 lines) only runs once per screen in DetectScreen (removed from PerformRescan)
 - Extensive logging throughout - review what's still needed
 
 **Priority:** Low
@@ -675,18 +635,41 @@ A cleaner solution would be full EventSystem override (never use it), but some M
 
 ## Recently Completed
 
+### Deck Builder Search - RESOLVED
+
+Search field filtering and page navigation in deck builder now works correctly and fast.
+
+**Previous Issues:**
+- Wrong cards shown after search (offscreen page cards contaminating results)
+- Slow rescan (~1.6s at game's ~18fps rate due to 30-frame delay designed for 60fps)
+- `LogAvailableUIElements()` debug dump running on every rescan (500-750ms)
+
+**Solution (February 2026):**
+- `CardPoolAccessor` reads only current visible page's cards via `_pages[1].CardViews`
+- Page navigation via `ScrollNext()` / `ScrollPrevious()` instead of button searching
+- Search rescan reduced to 12 frames (~645ms at ~18fps)
+- Page rescan reduced to 8 frames with `IsScrolling()` short-circuit for early completion
+- Removed redundant `LogAvailableUIElements()` from PerformRescan (still runs once per screen in DetectScreen)
+
+**Files:** `CardPoolAccessor.cs`, `GeneralMenuNavigator.cs`, `BaseNavigator.cs`, `GroupedNavigator.cs`
+
+---
+
 ### Collection Card Reading
 
 Collection cards in deck builder are now fully accessible with complete card info extraction:
 - Navigation: Left/Right to browse cards, Up/Down to read card details
-- Page Navigation: Page Up/Page Down to change collection pages
+- Page Navigation: Page Up/Page Down to change collection pages, announces "Page X of Y"
 - All card properties: Name, mana cost, type line, power/toughness, rules text, flavor text, artist
 
 **Technical notes:**
-- Cards use `PagesMetaCardView` with `Meta_CDC` component
-- Providers found via `ListMetaCardHolder_Expanding.CardDatabase` in Meta scenes
-- Placeholder cards (GrpId = 0, "CDC #0") are filtered out - these are empty pool slots from game's virtualization
-- Group state is preserved across page changes using `SaveCurrentGroupForRestore()` mechanism
+- `CardPoolAccessor` accesses game's `CardPoolHolder` via reflection for direct page control
+- `_pages[1].CardViews` returns only the current visible page's cards (no offscreen contamination)
+- `ScrollNext()` / `ScrollPrevious()` called directly instead of searching for UI buttons
+- Page boundary feedback: "First page" / "Last page" announced at edges
+- Placeholder cards (GrpId = 0, "CDC #0") are filtered out - empty pool slots from game's virtualization
+- Group state preserved across page changes using `SaveCurrentGroupForRestore()` mechanism
+- Fallback to hierarchy scan if CardPoolHolder component not found
 
 ---
 

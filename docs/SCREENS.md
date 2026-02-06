@@ -239,7 +239,7 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - Up/Down arrows: Read card details (name, mana cost, type, rules text, etc.)
 - Enter: Add one copy of the card to deck (invokes OnAddClicked action)
 - Home/End: Jump to first/last card
-- Page Up/Down: Navigate collection pages (shows only new cards)
+- Page Up/Down: Navigate collection pages via CardPoolAccessor (announces "Page X of Y")
 
 **Deck List Navigation (DeckBuilderDeckList):**
 - Left/Right arrows: Navigate between cards in deck list
@@ -270,7 +270,11 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 - Quantity buttons (`CustomButton - Tag` showing "4x", "2x") are filtered to Unknown group
 - Deck header controls (Sideboard toggle, deck name field) are in Content group
 - Tab cycling skips standalone elements, only cycles between actual groups
-- Page navigation filters to show only newly visible cards (not entire 24-card page)
+- `CardPoolAccessor` accesses game's `CardPoolHolder` via reflection for direct page control
+- `_pages[1].CardViews` returns only current visible page's cards (no offscreen contamination)
+- `ScrollNext()` / `ScrollPrevious()` navigate pages directly instead of searching for UI buttons
+- Page boundary: announces "First page" / "Last page" at edges, "Page X of Y" on navigation
+- Fallback to hierarchy-based card scan if CardPoolHolder component not found
 
 **Card Activation Implementation:**
 - Collection cards (`PagesMetaCardView`): Bypasses CardInfoNavigator on Enter, invokes `OnAddClicked` action via reflection

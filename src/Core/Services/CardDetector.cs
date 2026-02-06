@@ -427,6 +427,8 @@ namespace AccessibleArena.Core.Services
             _cardRootCache.Clear();
             // Also clear model provider cache
             CardModelProvider.ClearCache();
+            // Clear CardPoolHolder reference (component may be destroyed on scene change)
+            CardPoolAccessor.ClearCache();
         }
 
         #endregion

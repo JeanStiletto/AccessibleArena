@@ -140,12 +140,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private int _pendingElementIndexRestore = -1;
 
         /// <summary>
-        /// Card labels from the collection before a page switch.
-        /// Used to filter out unchanged cards after paging.
-        /// </summary>
-        private HashSet<string> _previousCollectionCards = null;
-
-        /// <summary>
         /// Stores subgroup elements (e.g., Objectives) that are nested within another group.
         /// Key is the subgroup type, value is the list of elements in that subgroup.
         /// </summary>
@@ -161,12 +155,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// When inside a subgroup, tracks the parent group index to return to on backspace.
         /// </summary>
         private int _subgroupParentIndex = -1;
-
-        /// <summary>
-        /// When true, filter DeckBuilderCollection to only show new cards after next OrganizeIntoGroups.
-        /// Set when user navigates to next/previous page in collection view.
-        /// </summary>
-        private bool _pendingCollectionPageFilter = false;
 
         /// <summary>
         /// Whether grouped navigation is currently active.
@@ -335,98 +323,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
             MelonLogger.Msg($"[GroupedNavigator] Requested specific folder auto-entry: {folderName}");
-        }
-
-        /// <summary>
-        /// Save current collection card labels for filtering after a page switch.
-        /// Call before activating Next/Previous button in collection view.
-        /// </summary>
-        public void SaveCollectionCardsForPageFilter()
-        {
-            _previousCollectionCards = new HashSet<string>();
-
-            // Find the DeckBuilderCollection group and save all card labels
-            foreach (var group in _groups)
-            {
-                if (group.Group == ElementGroup.DeckBuilderCollection)
-                {
-                    foreach (var element in group.Elements)
-                    {
-                        if (!string.IsNullOrEmpty(element.Label))
-                        {
-                            _previousCollectionCards.Add(element.Label);
-                        }
-                    }
-                    MelonLogger.Msg($"[GroupedNavigator] Saved {_previousCollectionCards.Count} collection cards for page filter");
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Request filtering of DeckBuilderCollection to only show new cards after next rescan.
-        /// Call after SaveCollectionCardsForPageFilter and before TriggerRescan.
-        /// </summary>
-        public void RequestCollectionPageFilter()
-        {
-            if (_previousCollectionCards != null && _previousCollectionCards.Count > 0)
-            {
-                _pendingCollectionPageFilter = true;
-                MelonLogger.Msg("[GroupedNavigator] Requested collection page filter");
-            }
-        }
-
-        /// <summary>
-        /// Apply the collection page filter to show only new cards.
-        /// Called by OrganizeIntoGroups when _pendingCollectionPageFilter is set.
-        /// </summary>
-        private void ApplyCollectionPageFilter()
-        {
-            // Find the DeckBuilderCollection group
-            for (int i = 0; i < _groups.Count; i++)
-            {
-                if (_groups[i].Group == ElementGroup.DeckBuilderCollection)
-                {
-                    var group = _groups[i];
-                    var originalCount = group.Elements.Count;
-
-                    // Filter to only keep cards that weren't in the previous list
-                    var newCards = group.Elements
-                        .Where(e => !string.IsNullOrEmpty(e.Label) && !_previousCollectionCards.Contains(e.Label))
-                        .ToList();
-
-                    if (newCards.Count > 0 && newCards.Count < originalCount)
-                    {
-                        // Update the group with only new cards
-                        _groups[i] = new ElementGroupInfo
-                        {
-                            Group = group.Group,
-                            DisplayName = group.DisplayName,
-                            Elements = newCards,
-                            IsFolderGroup = group.IsFolderGroup,
-                            FolderToggle = group.FolderToggle,
-                            IsStandaloneElement = group.IsStandaloneElement
-                        };
-
-                        MelonLogger.Msg($"[GroupedNavigator] Collection page filter: {originalCount} -> {newCards.Count} cards (showing only new)");
-                    }
-                    else if (newCards.Count == 0)
-                    {
-                        // All cards are the same - page didn't actually change or we're at the edge
-                        MelonLogger.Msg($"[GroupedNavigator] Collection page filter: no new cards found (same page?)");
-                    }
-                    else
-                    {
-                        // All cards are new - complete page change (unlikely but handle it)
-                        MelonLogger.Msg($"[GroupedNavigator] Collection page filter: all {originalCount} cards are new");
-                    }
-
-                    break;
-                }
-            }
-
-            // Clear the previous cards set
-            _previousCollectionCards = null;
         }
 
         /// <summary>
@@ -763,14 +659,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
                     MelonLogger.Msg($"[GroupedNavigator] Created folder group: {folderName} with {deckList.Count} decks (toggle: {(toggle != null ? "found" : "none")})");
                 }
-            }
-
-            // Apply collection page filter if pending
-            // This filters DeckBuilderCollection to only show cards that weren't visible before the page switch
-            if (_pendingCollectionPageFilter && _previousCollectionCards != null)
-            {
-                _pendingCollectionPageFilter = false;
-                ApplyCollectionPageFilter();
             }
 
             // Set initial position

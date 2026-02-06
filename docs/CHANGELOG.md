@@ -2,6 +2,35 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.2 - 2026-02-06
+
+### CardPoolAccessor - Direct Collection Page API
+- New `CardPoolAccessor` class wraps game's `CardPoolHolder` via reflection
+- Collection cards now read from `_pages[1].CardViews` (only current visible page)
+- Page navigation uses `ScrollNext()` / `ScrollPrevious()` directly instead of searching for UI buttons
+- Page announcements: "Page X of Y" on navigation, "First page" / "Last page" at edges
+- Eliminated label-based page filtering system (SaveCollectionCardsForPageFilter, ApplyCollectionPageFilter)
+- Fallback to hierarchy scan if CardPoolHolder not found
+
+### Performance Improvements
+- Reduced search rescan delay from 30 frames to 12 frames (~645ms at ~18fps game rate)
+- Reduced page rescan delay from 20 frames to 8 frames with IsScrolling() short-circuit
+- Removed `LogAvailableUIElements()` call from PerformRescan (was 500-750ms debug dump on every rescan)
+- UI dump now only runs once per screen in DetectScreen, not on every rescan
+
+### Bug Fixes
+- Collection search now shows correct cards (only current page, no offscreen contamination)
+- Page navigation no longer requires finding page buttons by name/label matching
+
+### Technical
+- `CardPoolAccessor.cs` - Static class caching reflection members for CardPoolHolder
+- `GeneralMenuNavigator.cs` - Rewritten `FindPoolHolderCards()`, `ActivateCollectionPageButton()`, page rescan mechanism
+- `GroupedNavigator.cs` - Removed label-based filter fields and methods
+- `CardDetector.cs` - Added `CardPoolAccessor.ClearCache()` in cache clearing
+- `BaseNavigator.cs` - Reduced `_pendingSearchRescanFrames` from 30 to 12
+
+---
+
 ## v0.7.1 - 2026-02-05
 
 ### Deck Builder Search Field Support

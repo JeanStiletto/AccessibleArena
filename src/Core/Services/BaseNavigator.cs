@@ -533,7 +533,7 @@ namespace AccessibleArena.Core.Services
             // Use a flag to trigger rescan on next frame(s)
             // This avoids coroutine complexity while giving the game time to filter
             // The game's filtering and card pool updates take significant time
-            _pendingSearchRescanFrames = 30; // Wait ~500ms at 60fps for filter to fully apply
+            _pendingSearchRescanFrames = 12; // Wait ~645ms at ~18fps game rate for filter to apply
         }
 
         // Counter for pending search rescan (decrements each frame, rescans when reaches 0)
