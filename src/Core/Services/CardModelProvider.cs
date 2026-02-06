@@ -1747,6 +1747,63 @@ namespace AccessibleArena.Core.Services
         #region Card Info Extraction
 
         /// <summary>
+        // Cache for PagesMetaCardView display info reflection
+        private static FieldInfo _lastDisplayInfoField = null;
+        private static bool _lastDisplayInfoFieldSearched = false;
+        private static FieldInfo _availableTitleCountField = null;
+        private static FieldInfo _usedTitleCountField = null;
+
+        /// <summary>
+        /// Extracts collection-specific quantity info from PagesMetaCardView._lastDisplayInfo.
+        /// Sets OwnedCount and UsedInDeckCount on the CardInfo if the card is a collection card.
+        /// </summary>
+        public static void ExtractCollectionQuantity(GameObject cardObj, ref CardInfo info)
+        {
+            if (cardObj == null) return;
+
+            var metaCardView = GetMetaCardView(cardObj);
+            if (metaCardView == null) return;
+
+            // Only applies to PagesMetaCardView (collection grid cards)
+            if (metaCardView.GetType().Name != "PagesMetaCardView") return;
+
+            try
+            {
+                // Get the _lastDisplayInfo field via reflection (cached)
+                if (!_lastDisplayInfoFieldSearched)
+                {
+                    _lastDisplayInfoFieldSearched = true;
+                    _lastDisplayInfoField = metaCardView.GetType().GetField("_lastDisplayInfo",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                }
+
+                if (_lastDisplayInfoField == null) return;
+
+                var displayInfo = _lastDisplayInfoField.GetValue(metaCardView);
+                if (displayInfo == null) return;
+
+                // Cache the display info field accessors (public fields on PagesMetaCardViewDisplayInformation)
+                if (_availableTitleCountField == null)
+                {
+                    var displayInfoType = displayInfo.GetType();
+                    _availableTitleCountField = displayInfoType.GetField("AvailableTitleCount");
+                    _usedTitleCountField = displayInfoType.GetField("UsedTitleCount");
+                }
+
+                if (_availableTitleCountField != null)
+                    info.OwnedCount = (int)(uint)_availableTitleCountField.GetValue(displayInfo);
+
+                if (_usedTitleCountField != null)
+                    info.UsedInDeckCount = (int)(uint)_usedTitleCountField.GetValue(displayInfo);
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error extracting collection quantity: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Extracts card information from the game's internal Model data.
         /// This works for battlefield cards that may have hidden/compacted UI text.
         /// Also supports Meta scene cards (deck builder, booster, rewards) via MetaCardView.
@@ -2964,6 +3021,43 @@ namespace AccessibleArena.Core.Services
             return GetDeckListCardInfo(element) != null;
         }
 
+        // Cache for ShowUnCollectedTreatment field (public field on MetaCardView base class)
+        private static FieldInfo _showUnCollectedField = null;
+        private static bool _showUnCollectedFieldSearched = false;
+
+        /// <summary>
+        /// Checks if a deck list card entry represents unowned (missing) copies
+        /// by reading MetaCardView.ShowUnCollectedTreatment (set by SetDisplayInformation).
+        /// </summary>
+        private static bool CheckDeckListCardUnowned(GameObject viewGameObject)
+        {
+            if (viewGameObject == null) return false;
+
+            try
+            {
+                var metaCardView = GetMetaCardView(viewGameObject);
+                if (metaCardView == null) return false;
+
+                // ShowUnCollectedTreatment is a public field on MetaCardView (base class)
+                // It's set by SetDisplayInformation from displayInformation.Unowned
+                if (!_showUnCollectedFieldSearched)
+                {
+                    _showUnCollectedFieldSearched = true;
+                    _showUnCollectedField = metaCardView.GetType().GetField("ShowUnCollectedTreatment");
+                }
+
+                if (_showUnCollectedField != null)
+                    return (bool)_showUnCollectedField.GetValue(metaCardView);
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error checking deck list card unowned: {ex.Message}");
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Extracts full card info for a deck list card using its GrpId.
         /// Includes the quantity from the deck list.
@@ -2977,6 +3071,9 @@ namespace AccessibleArena.Core.Services
 
             var info = deckCardInfo.Value;
 
+            // Check if this deck list entry is unowned (missing copies)
+            bool isUnowned = CheckDeckListCardUnowned(info.ViewGameObject);
+
             // Use ExtractCardInfoFromModel on the ViewGameObject for consistent extraction
             // This uses the same logic as collection cards, duel cards, etc.
             if (info.ViewGameObject != null)
@@ -2986,6 +3083,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var result = cardInfo.Value;
                     result.Quantity = info.Quantity;
+                    result.IsUnowned = isUnowned;
                     return result;
                 }
             }
@@ -2996,6 +3094,7 @@ namespace AccessibleArena.Core.Services
             {
                 Name = name ?? $"Card #{info.GrpId}",
                 Quantity = info.Quantity,
+                IsUnowned = isUnowned,
                 IsValid = true
             };
         }

@@ -474,8 +474,12 @@ namespace AccessibleArena.Core.Services
             var modelInfo = CardModelProvider.ExtractCardInfoFromModel(cardObj);
             if (modelInfo.HasValue && modelInfo.Value.IsValid)
             {
-                MelonLogger.Msg($"[CardDetector] Using MODEL extraction: {modelInfo.Value.Name}");
-                return modelInfo.Value;
+                var result = modelInfo.Value;
+                // For collection cards, also extract owned/used quantities from PagesMetaCardView
+                CardModelProvider.ExtractCollectionQuantity(cardObj, ref result);
+                MelonLogger.Msg($"[CardDetector] Using MODEL extraction: {result.Name}" +
+                    (result.OwnedCount > 0 ? $" (Owned: {result.OwnedCount}, InDeck: {result.UsedInDeckCount})" : ""));
+                return result;
             }
 
             // Fall back to UI text extraction (for Meta scene cards or if Model fails)
@@ -632,9 +636,23 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(info.Name))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, info.Name));
 
-            // For deck list cards, show quantity right after name
+            // For deck list cards, show quantity right after name (with "missing" if unowned)
             if (info.Quantity > 0)
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, info.Quantity.ToString()));
+            {
+                string qtyText = info.IsUnowned
+                    ? $"{info.Quantity}, missing"
+                    : info.Quantity.ToString();
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, qtyText));
+            }
+
+            // For collection cards, show owned and in-deck counts as one block
+            if (info.OwnedCount > 0)
+            {
+                string collectionText = info.UsedInDeckCount > 0
+                    ? $"Owned {info.OwnedCount}, In Deck {info.UsedInDeckCount}"
+                    : $"Owned {info.OwnedCount}";
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoCollection, collectionText));
+            }
 
             // Battlefield: mana cost comes after rules (less important when card is in play)
             bool isBattlefield = zone == ZoneType.Battlefield;
@@ -782,6 +800,18 @@ namespace AccessibleArena.Core.Services
         /// Quantity of this card in a deck list. 0 means not applicable (not a deck list card).
         /// </summary>
         public int Quantity;
+        /// <summary>
+        /// Owned count for collection cards. 0 means not applicable.
+        /// </summary>
+        public int OwnedCount;
+        /// <summary>
+        /// Number of copies already used in the current deck (collection cards). 0 means not applicable.
+        /// </summary>
+        public int UsedInDeckCount;
+        /// <summary>
+        /// Whether this deck list entry represents unowned (missing) copies.
+        /// </summary>
+        public bool IsUnowned;
     }
 
     /// <summary>

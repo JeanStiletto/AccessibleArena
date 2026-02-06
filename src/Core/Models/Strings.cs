@@ -142,6 +142,7 @@ namespace AccessibleArena.Core.Models
         // Card info block labels
         public const string CardInfoName = "Name";
         public const string CardInfoQuantity = "Quantity";
+        public const string CardInfoCollection = "Collection";
         public const string CardInfoManaCost = "Mana Cost";
         public const string CardInfoPowerToughness = "Power and Toughness";
         public const string CardInfoType = "Type";

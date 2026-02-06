@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.3 - 2026-02-06
+
+### Card Info Improvements in Deck Builder
+- Collection cards now show "Collection: Owned X, In Deck Y" info block (via `PagesMetaCardView._lastDisplayInfo` reflection)
+- Deck list cards with unowned copies now announce "Quantity: X, missing" (via `MetaCardView.ShowUnCollectedTreatment` field)
+
 ## v0.7.2 - 2026-02-06
 
 ### CardPoolAccessor - Direct Collection Page API

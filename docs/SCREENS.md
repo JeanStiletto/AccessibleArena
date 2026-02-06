@@ -275,7 +275,8 @@ Card count is also announced automatically whenever a card is added to or remove
 **Card Info Reading:**
 When focused on a card, Up/Down arrows cycle through card information blocks:
 - Name
-- Quantity (deck list cards only)
+- Quantity (deck list cards only - shows "X, missing" for unowned copies)
+- Collection (collection cards only - "Owned X" or "Owned X, In Deck Y")
 - Mana Cost
 - Type
 - Power/Toughness (if creature)
@@ -284,8 +285,9 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 - Artist
 
 **Technical Notes:**
-- Collection cards use `PagesMetaCardView` with Model-based detection
+- Collection cards use `PagesMetaCardView` with Model-based detection + `_lastDisplayInfo` for owned/used quantities
 - Deck list cards use `ListMetaCardView_Expanding` with GrpId-based lookup via `CardDataProvider`
+- Deck list unowned detection via `MetaCardView.ShowUnCollectedTreatment` field (set by `SetDisplayInformation`)
 - Quantity buttons (`CustomButton - Tag` showing "4x", "2x") are filtered to Unknown group
 - Deck header controls (Sideboard toggle, deck name field) are in Content group
 - Tab cycling skips standalone elements, only cycles between actual groups
