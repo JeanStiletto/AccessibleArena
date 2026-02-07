@@ -1010,16 +1010,16 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Try PromptButton_Primary
-            if (TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
+            // Try discovered buttons by name pattern (SubmitButton, ConfirmButton, etc.)
+            if (TryClickButtonByPatterns(BrowserDetector.ConfirmPatterns, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
                 return;
             }
 
-            // Fallback: browser-specific buttons by name pattern
-            if (TryClickButtonByPatterns(BrowserDetector.ConfirmPatterns, out clickedLabel))
+            // Fallback: PromptButton_Primary (scene search)
+            if (TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
