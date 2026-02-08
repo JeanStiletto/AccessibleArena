@@ -364,15 +364,7 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[BrowserZoneNavigator] Activating card: {cardName} in {_browserType}");
 
-            bool success;
-            if (BrowserDetector.IsLondonBrowser(_browserType))
-            {
-                success = TryActivateCardViaLondonBrowser(card, cardName);
-            }
-            else
-            {
-                success = TryActivateCardViaScryBrowser(card, cardName);
-            }
+            bool success = TryActivateCardViaDragSimulation(card, cardName);
 
             if (success)
             {
@@ -450,16 +442,22 @@ namespace AccessibleArena.Core.Services
             {
                 RefreshLondonCardLists();
             }
+            else if (GetBrowserController() != null)
+            {
+                // Surveil: has CardGroupProvider, uses two separate holders
+                RefreshSurveilCardLists();
+            }
             else
             {
+                // Scry: no CardGroupProvider, single holder with placeholder divider
                 RefreshScryCardLists();
             }
         }
 
         /// <summary>
-        /// Refreshes card lists for Scry/Surveil browsers from holders.
+        /// Refreshes card lists for Surveil browsers from two separate holders.
         /// </summary>
-        private void RefreshScryCardLists()
+        private void RefreshSurveilCardLists()
         {
             _topCards.Clear();
             _bottomCards.Clear();
@@ -502,6 +500,83 @@ namespace AccessibleArena.Core.Services
             _topCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
             _bottomCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
+            MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed Surveil lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
+        }
+
+        /// <summary>
+        /// Refreshes card lists for Scry browsers by reading the holder's CardViews
+        /// and splitting at the placeholder (InstanceId == 0).
+        /// Cards before placeholder = top (keep), cards after = bottom (put on bottom).
+        /// </summary>
+        private void RefreshScryCardLists()
+        {
+            _topCards.Clear();
+            _bottomCards.Clear();
+
+            var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+            if (defaultHolder == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] Default holder not found for Scry refresh");
+                return;
+            }
+
+            var holderComp = GetCardBrowserHolderComponent(defaultHolder);
+            if (holderComp == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] CardBrowserCardHolder not found for Scry refresh");
+                return;
+            }
+
+            // Read the ordered CardViews list from the holder
+            var cardViewsProp = holderComp.GetType().GetProperty("CardViews",
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            var cardViewsList = cardViewsProp?.GetValue(holderComp) as System.Collections.IList;
+
+            if (cardViewsList == null || cardViewsList.Count == 0)
+            {
+                MelonLogger.Msg("[BrowserZoneNavigator] Scry CardViews list empty");
+                return;
+            }
+
+            // Split cards at the placeholder (InstanceId == 0)
+            bool pastPlaceholder = false;
+            foreach (var item in cardViewsList)
+            {
+                var cdc = item as Component;
+                if (cdc == null) continue;
+
+                // Check if this is the placeholder
+                var instanceIdProp = cdc.GetType().GetProperty("InstanceId",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (instanceIdProp != null)
+                {
+                    var id = instanceIdProp.GetValue(cdc);
+                    bool isPlaceholder = (id is uint uid && uid == 0) || (id is int iid && iid == 0);
+                    if (isPlaceholder)
+                    {
+                        pastPlaceholder = true;
+                        continue;
+                    }
+                }
+
+                var go = cdc.gameObject;
+                if (!go.activeInHierarchy) continue;
+
+                string cardName = CardDetector.GetCardName(go);
+                if (!BrowserDetector.IsValidCardName(cardName)) continue;
+
+                if (!pastPlaceholder)
+                {
+                    if (!BrowserDetector.IsDuplicateCard(go, _topCards))
+                        _topCards.Add(go);
+                }
+                else
+                {
+                    if (!BrowserDetector.IsDuplicateCard(go, _bottomCards))
+                        _bottomCards.Add(go);
+                }
+            }
+
             MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed Scry lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
         }
 
@@ -515,7 +590,7 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var londonBrowser = GetLondonBrowser();
+                var londonBrowser = GetBrowserController();
                 if (londonBrowser == null) return;
 
                 // Get hand cards (keep pile) -> _topCards
@@ -583,39 +658,16 @@ namespace AccessibleArena.Core.Services
         #region Browser-Specific Activation
 
         /// <summary>
-        /// Activates a card via the Scry/Surveil browser by moving it between holders.
+        /// Activates a card by moving it to the opposite zone.
+        /// London/Surveil: uses drag simulation via CardGroupProvider's HandleDrag/OnDragRelease.
+        /// Scry: uses card reordering around a placeholder divider (InstanceId == 0).
         /// </summary>
-        private bool TryActivateCardViaScryBrowser(GameObject card, string cardName)
+        private bool TryActivateCardViaDragSimulation(GameObject card, string cardName)
         {
-            MelonLogger.Msg($"[BrowserZoneNavigator] Attempting Scry card move for: {cardName}");
+            MelonLogger.Msg($"[BrowserZoneNavigator] Attempting card move for: {cardName} (browser: {_browserType})");
 
             try
             {
-                // Find both holders
-                var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
-                var dismissHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderViewDismiss);
-
-                if (defaultHolder == null || dismissHolder == null)
-                {
-                    MelonLogger.Warning("[BrowserZoneNavigator] Could not find both browser holders");
-                    return false;
-                }
-
-                // Get CardBrowserCardHolder components
-                var defaultHolderComp = GetCardBrowserHolderComponent(defaultHolder);
-                var dismissHolderComp = GetCardBrowserHolderComponent(dismissHolder);
-
-                if (defaultHolderComp == null || dismissHolderComp == null)
-                {
-                    MelonLogger.Warning("[BrowserZoneNavigator] CardBrowserCardHolder components not found");
-                    return false;
-                }
-
-                // Determine source and target based on current zone
-                Component sourceHolderComp = _currentZone == BrowserZoneType.Top ? defaultHolderComp : dismissHolderComp;
-                Component targetHolderComp = _currentZone == BrowserZoneType.Top ? dismissHolderComp : defaultHolderComp;
-
-                // Get DuelScene_CDC component from card
                 var cardCDC = CardDetector.GetDuelSceneCDC(card);
                 if (cardCDC == null)
                 {
@@ -623,114 +675,312 @@ namespace AccessibleArena.Core.Services
                     return false;
                 }
 
-                // Remove card from source holder
-                var sourceType = sourceHolderComp.GetType();
-                var removeCardMethod = sourceType.GetMethod("RemoveCard", BindingFlags.Public | BindingFlags.Instance);
-                if (removeCardMethod == null)
+                // Get browser controller from CardGroupProvider (London and Surveil set this)
+                var browser = GetBrowserController();
+                if (browser != null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] RemoveCard method not found");
-                    return false;
+                    return TryActivateViaDragSimulation(browser, card, cardCDC);
                 }
 
-                removeCardMethod.Invoke(sourceHolderComp, new object[] { cardCDC });
-
-                // Add card to target holder
-                var targetType = targetHolderComp.GetType();
-                var addCardMethod = targetType.GetMethod("AddCard", BindingFlags.Public | BindingFlags.Instance);
-                if (addCardMethod == null)
-                {
-                    // Try base class
-                    var baseType = targetType.BaseType;
-                    while (baseType != null && addCardMethod == null)
-                    {
-                        addCardMethod = baseType.GetMethod("AddCard", BindingFlags.Public | BindingFlags.Instance);
-                        baseType = baseType.BaseType;
-                    }
-                }
-
-                if (addCardMethod == null)
-                {
-                    MelonLogger.Warning("[BrowserZoneNavigator] AddCard method not found");
-                    return false;
-                }
-
-                addCardMethod.Invoke(targetHolderComp, new object[] { cardCDC });
-                MelonLogger.Msg($"[BrowserZoneNavigator] Card moved successfully via Scry browser");
-
-                return true;
+                // No CardGroupProvider = Scry browser (uses card reorder around placeholder)
+                return TryActivateViaScryReorder(card, cardName, cardCDC);
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserZoneNavigator] Error in TryActivateCardViaScryBrowser: {ex.Message}");
+                MelonLogger.Error($"[BrowserZoneNavigator] Error in TryActivateCardViaDragSimulation: {ex.Message}");
                 return false;
             }
         }
 
         /// <summary>
-        /// Activates a card via the London browser using drag simulation.
+        /// Drag simulation for London/Surveil browsers.
+        /// Positions card at the target zone, then calls HandleDrag + OnDragRelease.
         /// </summary>
-        private bool TryActivateCardViaLondonBrowser(GameObject card, string cardName)
+        private bool TryActivateViaDragSimulation(object browser, GameObject card, Component cardCDC)
         {
-            MelonLogger.Msg($"[BrowserZoneNavigator] Attempting London card move for: {cardName}");
+            // Position card at the target zone so HandleDrag moves it correctly
+            bool positioned = PositionCardAtTargetZone(browser, card, cardCDC);
+            if (!positioned)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] Could not position card at target zone");
+                return false;
+            }
 
+            var browserType = browser.GetType();
+            var handleDragMethod = browserType.GetMethod("HandleDrag", BindingFlags.Public | BindingFlags.Instance);
+            if (handleDragMethod == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] HandleDrag method not found");
+                return false;
+            }
+            handleDragMethod.Invoke(browser, new object[] { cardCDC });
+
+            var onDragReleaseMethod = browserType.GetMethod("OnDragRelease", BindingFlags.Public | BindingFlags.Instance);
+            if (onDragReleaseMethod == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] OnDragRelease method not found");
+                return false;
+            }
+            onDragReleaseMethod.Invoke(browser, new object[] { cardCDC });
+
+            MelonLogger.Msg($"[BrowserZoneNavigator] Card moved successfully via drag simulation");
+            return true;
+        }
+
+        /// <summary>
+        /// Scry browser activation: reorders cards around a placeholder divider.
+        /// The ScryWorkflow.Submit() reads card order from the browser and splits at the
+        /// placeholder (InstanceId == 0): cards before it go to top, cards after go to bottom.
+        /// ShiftCards moves the card past/before the placeholder to toggle its zone.
+        /// After reordering, syncs the browser's internal list via OnDragRelease.
+        /// </summary>
+        private bool TryActivateViaScryReorder(GameObject card, string cardName, Component cardCDC)
+        {
+            MelonLogger.Msg($"[BrowserZoneNavigator] Using Scry reorder for: {cardName}");
+
+            var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+            if (defaultHolder == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] Default holder not found for Scry reorder");
+                return false;
+            }
+
+            var holderComp = GetCardBrowserHolderComponent(defaultHolder);
+            if (holderComp == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] CardBrowserCardHolder not found for Scry reorder");
+                return false;
+            }
+
+            // Get CardViews list from the holder
+            var cardViewsProp = holderComp.GetType().GetProperty("CardViews",
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            if (cardViewsProp == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] CardViews property not found");
+                return false;
+            }
+
+            var cardViewsList = cardViewsProp.GetValue(holderComp) as System.Collections.IList;
+            if (cardViewsList == null || cardViewsList.Count == 0)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] CardViews list is null or empty");
+                return false;
+            }
+
+            // Find card index and placeholder index (InstanceId == 0)
+            int cardIndex = -1;
+            int placeholderIndex = -1;
+
+            for (int i = 0; i < cardViewsList.Count; i++)
+            {
+                var cdc = cardViewsList[i] as Component;
+                if (cdc == null) continue;
+
+                if (cdc == cardCDC)
+                {
+                    cardIndex = i;
+                }
+
+                // Check InstanceId for placeholder
+                var instanceIdProp = cdc.GetType().GetProperty("InstanceId",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (instanceIdProp != null)
+                {
+                    var id = instanceIdProp.GetValue(cdc);
+                    if (id is uint uid && uid == 0)
+                    {
+                        placeholderIndex = i;
+                    }
+                    else if (id is int iid && iid == 0)
+                    {
+                        placeholderIndex = i;
+                    }
+                }
+            }
+
+            if (cardIndex == -1)
+            {
+                MelonLogger.Warning($"[BrowserZoneNavigator] Card not found in holder CardViews for Scry reorder");
+                return false;
+            }
+
+            if (placeholderIndex == -1)
+            {
+                MelonLogger.Warning($"[BrowserZoneNavigator] Placeholder not found in holder CardViews for Scry reorder");
+                return false;
+            }
+
+            MelonLogger.Msg($"[BrowserZoneNavigator] Scry reorder: cardIndex={cardIndex}, placeholderIndex={placeholderIndex}");
+
+            // ShiftCards moves card to placeholder position, pushing placeholder aside
+            var shiftMethod = holderComp.GetType().GetMethod("ShiftCards",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (shiftMethod == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] ShiftCards method not found");
+                return false;
+            }
+
+            shiftMethod.Invoke(holderComp, new object[] { cardIndex, placeholderIndex });
+
+            // Sync the browser's internal cardViews list by calling OnDragRelease
+            // on the current browser (accessible via GameManager.BrowserManager.CurrentBrowser)
+            SyncBrowserCardViews(cardCDC);
+
+            MelonLogger.Msg($"[BrowserZoneNavigator] Card reordered successfully via Scry mechanism");
+            return true;
+        }
+
+        /// <summary>
+        /// Syncs the browser's cardViews list from the holder's CardViews after a reorder.
+        /// Calls OnDragRelease on the current browser which does:
+        /// cardViews = new List(cardHolder.CardViews)
+        /// </summary>
+        private void SyncBrowserCardViews(Component cardCDC)
+        {
             try
             {
-                var londonBrowser = GetLondonBrowser();
-                if (londonBrowser == null)
+                // Find GameManager
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] LondonBrowser not found");
-                    return false;
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
                 }
 
-                // Get DuelScene_CDC component from card
-                var cardCDC = CardDetector.GetDuelSceneCDC(card);
-                if (cardCDC == null)
+                if (gameManager == null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] DuelScene_CDC component not found on card");
-                    return false;
+                    MelonLogger.Warning("[BrowserZoneNavigator] GameManager not found for browser sync");
+                    return;
                 }
 
-                // Check current position
-                var isInHandMethod = londonBrowser.GetType().GetMethod("IsInHand", BindingFlags.Public | BindingFlags.Instance);
-                bool isInHand = isInHandMethod != null && (bool)isInHandMethod.Invoke(londonBrowser, new object[] { cardCDC });
-
-                // Get target position (opposite zone)
-                string targetPropName = isInHand ? "LibraryScreenSpace" : "HandScreenSpace";
-                var targetPosProp = londonBrowser.GetType().GetProperty(targetPropName, BindingFlags.Public | BindingFlags.Instance);
-
-                if (targetPosProp != null)
+                var bmProp = gameManager.GetType().GetProperty("BrowserManager",
+                    BindingFlags.Public | BindingFlags.Instance);
+                var browserManager = bmProp?.GetValue(gameManager);
+                if (browserManager == null)
                 {
-                    var targetPos = (Vector2)targetPosProp.GetValue(londonBrowser);
-                    Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(targetPos.x, targetPos.y, 10f));
-                    card.transform.position = worldPos;
+                    MelonLogger.Warning("[BrowserZoneNavigator] BrowserManager not found");
+                    return;
                 }
 
-                // HandleDrag
-                var handleDragMethod = londonBrowser.GetType().GetMethod("HandleDrag", BindingFlags.Public | BindingFlags.Instance);
-                if (handleDragMethod == null)
+                var currentBrowserProp = browserManager.GetType().GetProperty("CurrentBrowser",
+                    BindingFlags.Public | BindingFlags.Instance);
+                var currentBrowser = currentBrowserProp?.GetValue(browserManager);
+                if (currentBrowser == null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] HandleDrag method not found");
-                    return false;
+                    MelonLogger.Warning("[BrowserZoneNavigator] CurrentBrowser not found");
+                    return;
                 }
-                handleDragMethod.Invoke(londonBrowser, new object[] { cardCDC });
 
-                // OnDragRelease
-                var onDragReleaseMethod = londonBrowser.GetType().GetMethod("OnDragRelease", BindingFlags.Public | BindingFlags.Instance);
-                if (onDragReleaseMethod == null)
+                // Call OnDragRelease to sync: cardViews = new List(cardHolder.CardViews)
+                var onDragRelease = currentBrowser.GetType().GetMethod("OnDragRelease",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (onDragRelease != null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] OnDragRelease method not found");
-                    return false;
+                    onDragRelease.Invoke(currentBrowser, new object[] { cardCDC });
+                    MelonLogger.Msg("[BrowserZoneNavigator] Browser cardViews synced via OnDragRelease");
                 }
-                onDragReleaseMethod.Invoke(londonBrowser, new object[] { cardCDC });
-
-                MelonLogger.Msg($"[BrowserZoneNavigator] Card moved successfully via London browser");
-                return true;
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserZoneNavigator] Error in TryActivateCardViaLondonBrowser: {ex.Message}");
+                MelonLogger.Warning($"[BrowserZoneNavigator] Error syncing browser: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Positions a card at the target zone's center point so that HandleDrag
+        /// will detect it as belonging to that zone.
+        /// For London: uses HandScreenSpace/LibraryScreenSpace (screen-space positions).
+        /// For Surveil: uses _graveyardCenterPoint/_libraryCenterPoint (local-space positions).
+        /// </summary>
+        private bool PositionCardAtTargetZone(object browser, GameObject card, Component cardCDC)
+        {
+            var browserType = browser.GetType();
+
+            if (BrowserDetector.IsLondonBrowser(_browserType))
+            {
+                // London uses screen-space position properties
+                var isInHandMethod = browserType.GetMethod("IsInHand", BindingFlags.Public | BindingFlags.Instance);
+                bool isInHand = isInHandMethod != null && (bool)isInHandMethod.Invoke(browser, new object[] { cardCDC });
+
+                string targetPropName = isInHand ? "LibraryScreenSpace" : "HandScreenSpace";
+                var targetPosProp = browserType.GetProperty(targetPropName, BindingFlags.Public | BindingFlags.Instance);
+                if (targetPosProp == null)
+                {
+                    MelonLogger.Warning($"[BrowserZoneNavigator] {targetPropName} property not found on LondonBrowser");
+                    return false;
+                }
+
+                var targetPos = (Vector2)targetPosProp.GetValue(browser);
+                Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(targetPos.x, targetPos.y, 10f));
+                card.transform.position = worldPos;
+                return true;
+            }
+            else
+            {
+                // Surveil uses local-space center points for graveyard and library zones
+                // Top zone = library (keep), Bottom zone = graveyard (dismiss)
+                // Moving from Top → target is graveyard; from Bottom → target is library
+                string targetFieldName = _currentZone == BrowserZoneType.Top
+                    ? "_graveyardCenterPoint"
+                    : "_libraryCenterPoint";
+
+                var centerField = browserType.GetField(targetFieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+                if (centerField == null)
+                {
+                    MelonLogger.Warning($"[BrowserZoneNavigator] {targetFieldName} field not found on SurveilBrowser");
+                    return false;
+                }
+
+                Vector3 targetCenter = (Vector3)centerField.GetValue(browser);
+
+                // Convert local-space center to world-space using the card's Root.parent
+                // (same transform chain the game's HandleDrag uses internally)
+                var rootProp = cardCDC.GetType().GetProperty("Root", BindingFlags.Public | BindingFlags.Instance);
+                if (rootProp != null)
+                {
+                    var root = rootProp.GetValue(cardCDC) as Transform;
+                    if (root != null && root.parent != null)
+                    {
+                        Vector3 worldPos = root.parent.TransformPoint(targetCenter);
+                        card.transform.position = worldPos;
+                        return true;
+                    }
+                }
+
+                // Fallback: use the card holder's transform for coordinate conversion
+                var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+                if (defaultHolder != null)
+                {
+                    Vector3 worldPos = defaultHolder.transform.TransformPoint(targetCenter);
+                    card.transform.position = worldPos;
+                    return true;
+                }
+
+                MelonLogger.Warning("[BrowserZoneNavigator] Could not determine world position for target zone");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Gets the browser controller from CardGroupProvider on the default card holder.
+        /// Both LondonBrowser and SurveilBrowser set themselves as the CardGroupProvider.
+        /// </summary>
+        private object GetBrowserController()
+        {
+            var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+            if (defaultHolder == null) return null;
+
+            var cardBrowserHolder = GetCardBrowserHolderComponent(defaultHolder);
+            if (cardBrowserHolder == null) return null;
+
+            var providerProp = cardBrowserHolder.GetType().GetProperty("CardGroupProvider",
+                BindingFlags.Public | BindingFlags.Instance);
+            return providerProp?.GetValue(cardBrowserHolder);
         }
 
         #endregion
@@ -766,22 +1016,6 @@ namespace AccessibleArena.Core.Services
                 // Short names for card navigation announcements (matches Strings constants)
                 return zone == BrowserZoneType.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
             }
-        }
-
-        /// <summary>
-        /// Gets the LondonBrowser (CardGroupProvider) from the default browser holder.
-        /// </summary>
-        private object GetLondonBrowser()
-        {
-            var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
-            if (defaultHolder == null) return null;
-
-            var cardBrowserHolder = GetCardBrowserHolderComponent(defaultHolder);
-            if (cardBrowserHolder == null) return null;
-
-            var providerProp = cardBrowserHolder.GetType().GetProperty("CardGroupProvider",
-                BindingFlags.Public | BindingFlags.Instance);
-            return providerProp?.GetValue(cardBrowserHolder);
         }
 
         /// <summary>
@@ -882,7 +1116,7 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                var londonBrowser = GetLondonBrowser();
+                var londonBrowser = GetBrowserController();
                 if (londonBrowser == null) return BrowserZoneType.None;
 
                 var cardCDC = CardDetector.GetDuelSceneCDC(card);
@@ -939,15 +1173,7 @@ namespace AccessibleArena.Core.Services
             var previousZone = _currentZone;
             _currentZone = cardZone;
 
-            bool success;
-            if (BrowserDetector.IsLondonBrowser(_browserType))
-            {
-                success = TryActivateCardViaLondonBrowser(card, cardName);
-            }
-            else
-            {
-                success = TryActivateCardViaScryBrowser(card, cardName);
-            }
+            bool success = TryActivateCardViaDragSimulation(card, cardName);
 
             // Restore previous zone (or keep new zone if user wasn't in zone navigation)
             if (previousZone != BrowserZoneType.None)

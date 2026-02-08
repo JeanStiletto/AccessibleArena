@@ -573,35 +573,61 @@ Uses a central `LondonBrowser` controller accessed via `CardGroupProvider` prope
 
 ### Scry-like Browsers (Scry, Surveil, Read Ahead)
 
-No central controller - `CardGroupProvider` is **null**. Cards are managed directly by the holder components.
+Uses a `SurveilBrowser` controller, also accessed via `CardGroupProvider` (same as London).
+The SurveilBrowser maintains its own internal card lists (`graveyardGroup`, `libraryGroup`)
+which are read on submission to determine which cards were dismissed.
 
-**Card Manipulation:**
+**Card Manipulation (drag simulation, same pattern as London):**
 ```
-1. Get CardBrowserCardHolder from source holder
-2. Get CardBrowserCardHolder from target holder
-3. Call RemoveCard(cardCDC) on source
-4. Call AddCard(cardCDC) on target
+1. Get SurveilBrowser from holder.CardGroupProvider
+2. Position card at target zone (_graveyardCenterPoint / _libraryCenterPoint)
+3. Call HandleDrag(cardCDC)  - moves card between internal lists
+4. Call OnDragRelease(cardCDC)
 ```
 
-**Why Different:**
-- London needs drag simulation because it tracks selection state internally
-- Scry-like browsers just need cards moved between visual holders
+**Key Methods on SurveilBrowser:**
+- `GetGraveyardCards()` / `GetLibraryCards()` - Get card lists
+- `HandleDrag(cardCDC)` - Check card position, move between internal lists
+- `OnDragRelease(cardCDC)` - Complete drag operation
+- `_graveyardCenterPoint` / `_libraryCenterPoint` - Zone centers (private, local-space Vector3)
+
+**IMPORTANT:** Do NOT use RemoveCard/AddCard on the holders directly - those only move
+cards visually without updating the browser's internal lists. The submission workflow
+reads from the browser's internal lists, not the holders.
+
+### Scry Browser (Scry, Scryish)
+
+Uses a `ScryBrowser` with NO `CardGroupProvider`. Cards are displayed in a single ordered
+list with a placeholder divider (InstanceId == 0). Card order determines the result:
+cards before the placeholder go to top of library, cards after go to bottom.
+
+**Card Manipulation (reorder around placeholder):**
+```
+1. Get CardViews list from the holder
+2. Find card index and placeholder index (InstanceId == 0)
+3. Call ShiftCards(cardIndex, placeholderIndex) on the holder
+4. Call OnDragRelease(cardCDC) on the current browser to sync its cardViews list
+```
+
+**How Submit works (ScryWorkflow.Submit):**
+- Iterates cardViews in order
+- Cards before the placeholder (InstanceId == 0) go to SubZoneType.Top
+- Cards after the placeholder go to SubZoneType.Bottom
+- Calls _request.SubmitGroups(groups)
 
 ### Detection Pattern
 
 ```csharp
-// Find browser scaffold
-var scaffold = FindGameObject("BrowserScaffold_*");  // e.g., BrowserScaffold_Scry_Desktop_16x9
-
-// Check if London (has CardGroupProvider)
 var holder = FindGameObject("BrowserCardHolder_Default");
 var holderComp = holder.GetComponent("CardBrowserCardHolder");
 var provider = holderComp.CardGroupProvider;
 
 if (provider != null && provider.GetType().Name == "LondonBrowser")
-    // Use drag-based API
+    // London: drag simulation with HandleDrag/OnDragRelease
+else if (provider != null && provider.GetType().Name == "SurveilBrowser")
+    // Surveil: drag simulation with HandleDrag/OnDragRelease
 else
-    // Use direct AddCard/RemoveCard
+    // Scry: reorder cards around placeholder via ShiftCards
 ```
 
 ## Modding Tools
