@@ -801,6 +801,13 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 oldCollectionCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection);
+
+                // Save current group position so rescan restores it
+                // (Tab already cycled to Collection, don't lose that)
+                if (!_groupedNavigator.HasPendingRestore)
+                {
+                    _groupedNavigator.SaveCurrentGroupForRestore();
+                }
             }
 
             // Do the rescan WITHOUT announcement (copy logic from base, skip announce)
