@@ -303,6 +303,12 @@ namespace AccessibleArena.Core.Services
             // Also check for player targets
             DiscoverPlayerTargets(addedIds);
 
+            // When no card/player highlights, check for prompt button choices
+            if (_items.Count == 0)
+            {
+                DiscoverPromptButtons();
+            }
+
             // Sort: Hand cards first, then your permanents, then opponent's, then players
             _items = _items
                 .OrderBy(i => i.Zone == "Hand" ? 0 : 1)
@@ -482,6 +488,14 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string BuildAnnouncement(HighlightedItem item, int position, int total)
         {
+            // Prompt button choice
+            if (item.IsPromptButton)
+            {
+                if (total > 1)
+                    return $"{item.Name}, {position} of {total}";
+                return item.Name;
+            }
+
             // Player target
             if (item.IsPlayer)
             {
@@ -532,6 +546,21 @@ namespace AccessibleArena.Core.Services
             if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
             var item = _items[_currentIndex];
+
+            // Prompt button - click and clear
+            if (item.IsPromptButton)
+            {
+                var result = UIActivator.SimulatePointerClick(item.GameObject);
+                if (result.Success)
+                {
+                    _announcer.Announce(item.Name, AnnouncementPriority.Normal);
+                    MelonLogger.Msg($"[HotHighlightNavigator] Clicked prompt button: {item.Name}");
+                }
+                _items.Clear();
+                _currentIndex = -1;
+                return;
+            }
+
             bool selectionMode = IsSelectionModeActive();
             MelonLogger.Msg($"[HotHighlightNavigator] Activating: {item.Name} in {item.Zone} (selection mode: {selectionMode})");
 
@@ -699,6 +728,113 @@ namespace AccessibleArena.Core.Services
             }
             return null;
         }
+
+        /// <summary>
+        /// Finds the secondary prompt button GameObject if one exists.
+        /// </summary>
+        private GameObject FindSecondaryButton()
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (go.name.Contains("PromptButton_Secondary"))
+                    return go;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets text from a button GameObject (TMP_Text or Text component).
+        /// </summary>
+        private string GetButtonText(GameObject button)
+        {
+            if (button == null) return null;
+
+            var tmpText = button.GetComponentInChildren<TMP_Text>();
+            if (tmpText != null)
+            {
+                string text = tmpText.text?.Trim();
+                if (!string.IsNullOrEmpty(text))
+                    return text;
+            }
+
+            var uiText = button.GetComponentInChildren<Text>();
+            if (uiText != null)
+            {
+                string text = uiText.text?.Trim();
+                if (!string.IsNullOrEmpty(text))
+                    return text;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Language-agnostic heuristic: short text without spaces = keyboard hints (Strg, Ctrl, Z, etc.)
+        /// </summary>
+        private bool IsMeaningfulButtonText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            if (text.Length <= 4 && !text.Contains(" ")) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// Checks if a button is visible and interactable via its CanvasGroup.
+        /// The game hides inactive buttons by setting CanvasGroup alpha=0 and
+        /// interactable=false while keeping Selectable.interactable true.
+        /// </summary>
+        private bool IsButtonVisible(GameObject button)
+        {
+            if (button == null) return false;
+            var cg = button.GetComponent<CanvasGroup>();
+            if (cg == null) return true; // No CanvasGroup = assume visible
+            return cg.alpha > 0 && cg.interactable;
+        }
+
+        /// <summary>
+        /// Discovers prompt buttons as navigable items when no card/player highlights exist.
+        /// Only adds buttons when BOTH primary and secondary have meaningful text AND
+        /// neither has a native keyboard hint (which indicates standard duel buttons
+        /// already accessible via mod keybindings).
+        /// </summary>
+        private void DiscoverPromptButtons()
+        {
+            var primaryButton = FindPrimaryButton();
+            string primaryText = GetButtonText(primaryButton);
+
+            var secondaryButton = FindSecondaryButton();
+            string secondaryText = GetButtonText(secondaryButton);
+
+            // Only add when BOTH have meaningful text (sacrifice vs pay mana, etc.)
+            if (!IsMeaningfulButtonText(primaryText) || !IsMeaningfulButtonText(secondaryText))
+                return;
+
+            // Check CanvasGroup visibility - the game hides inactive buttons by setting
+            // CanvasGroup alpha=0 and interactable=false, even though Selectable.interactable
+            // remains true. Buttons with alpha=0 are invisible and not real choices.
+            if (!IsButtonVisible(primaryButton) || !IsButtonVisible(secondaryButton))
+                return;
+
+            _items.Add(new HighlightedItem
+            {
+                GameObject = primaryButton,
+                Name = primaryText,
+                Zone = "Button",
+                IsPromptButton = true
+            });
+
+            _items.Add(new HighlightedItem
+            {
+                GameObject = secondaryButton,
+                Name = secondaryText,
+                Zone = "Button",
+                IsPromptButton = true
+            });
+
+            MelonLogger.Msg($"[HotHighlightNavigator] Added prompt buttons: '{primaryText}' and '{secondaryText}'");
+        }
+
         #region Selection Mode (Discard, etc.)
 
         /// <summary>
@@ -818,5 +954,6 @@ namespace AccessibleArena.Core.Services
         public bool IsPlayer { get; set; }
         public string CardType { get; set; }
         public string PowerToughness { get; set; }
+        public bool IsPromptButton { get; set; }
     }
 }
