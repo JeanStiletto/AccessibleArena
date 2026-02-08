@@ -3962,6 +3962,7 @@ namespace AccessibleArena.Core.Services
                 LogDebug($"[{NavigatorId}] Deck list card activated - scheduling rescan to update lists");
                 _announceDeckCountOnRescan = true;
                 TriggerRescan();
+                AccessibleArenaMod.Instance?.CardNavigator?.InvalidateBlocks();
                 return true;
             }
 
@@ -4037,6 +4038,9 @@ namespace AccessibleArena.Core.Services
                 LogDebug($"[{NavigatorId}] Deck builder card activated - scheduling rescan to update lists");
                 _announceDeckCountOnRescan = true;
                 TriggerRescan();
+
+                // Invalidate cached card info so Owned/InDeck/Quantity updates on next arrow press
+                AccessibleArenaMod.Instance?.CardNavigator?.InvalidateBlocks();
             }
         }
 

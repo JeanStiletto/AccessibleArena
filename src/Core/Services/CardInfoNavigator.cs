@@ -92,6 +92,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Invalidates cached info blocks so they are re-extracted on next arrow press.
+        /// Preserves the current block index so the user stays on the same info field.
+        /// </summary>
+        public void InvalidateBlocks()
+        {
+            _blocksLoaded = false;
+            _blocks.Clear();
+        }
+
+        /// <summary>
         /// Deactivates card info navigation.
         /// </summary>
         public void Deactivate()
@@ -187,8 +197,10 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            _currentBlockIndex = 0;
-            MelonLogger.Msg($"[CardInfo] Lazy loaded {_blocks.Count} blocks");
+            // Preserve block index on reload (e.g., after InvalidateBlocks), reset on first load
+            if (_currentBlockIndex < 0 || _currentBlockIndex >= _blocks.Count)
+                _currentBlockIndex = 0;
+            MelonLogger.Msg($"[CardInfo] Lazy loaded {_blocks.Count} blocks, index {_currentBlockIndex}");
             return true;
         }
 
