@@ -377,6 +377,20 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Whether a group restore is already pending.
+        /// </summary>
+        public bool HasPendingRestore => _pendingGroupRestore.HasValue;
+
+        /// <summary>
+        /// Reset the pending element index to 0 (start of group).
+        /// Call after SaveCurrentGroupForRestore() when you want to restore the group but not the position.
+        /// </summary>
+        public void ResetPendingElementIndex()
+        {
+            _pendingElementIndexRestore = 0;
+        }
+
+        /// <summary>
         /// Clear the pending group restore (use when you don't want to restore after rescan).
         /// </summary>
         public void ClearPendingGroupRestore()

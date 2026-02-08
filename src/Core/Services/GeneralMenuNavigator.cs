@@ -1154,9 +1154,11 @@ namespace AccessibleArena.Core.Services
                     _announcer.Announce($"Page {currentPage} of {totalPages}", Models.AnnouncementPriority.Normal);
 
                     // Save group state for restoration after rescan
+                    // Reset element index so new page starts at first card
                     if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
                     {
                         _groupedNavigator.SaveCurrentGroupForRestore();
+                        _groupedNavigator.ResetPendingElementIndex();
                     }
 
                     SchedulePageRescan();
@@ -2372,7 +2374,8 @@ namespace AccessibleArena.Core.Services
 
             // Save current group state for restoration after rescan - but only if same screen
             // (don't restore old screen's state when transitioning to a new screen)
-            if (_groupedNavigationEnabled && previousController == _activeContentController)
+            // Skip if a restore is already pending (e.g., page navigation set it with reset index)
+            if (_groupedNavigationEnabled && previousController == _activeContentController && !_groupedNavigator.HasPendingRestore)
             {
                 _groupedNavigator.SaveCurrentGroupForRestore();
             }
