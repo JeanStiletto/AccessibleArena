@@ -81,6 +81,8 @@ namespace AccessibleArena.Core.Services
             // Combat
             { "AssignDamage", "Assign damage" },
             { "Attachment", "View attachments" },
+            // List selection
+            { "LargeScrollList", "Choose from list" },
             // Selection
             { "SelectCards", "Select cards" },
             { "SelectGroup", "Select group" },

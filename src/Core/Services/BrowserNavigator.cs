@@ -292,7 +292,20 @@ namespace AccessibleArena.Core.Services
             }
 
             DiscoverCardsInHolders();
-            DiscoverBrowserButtons();
+
+            // Scope button discovery to the scaffold when available.
+            // Global search picks up unrelated duel UI buttons (PromptButton_Primary/Secondary)
+            // that show phase info like "Opponent's turn" or "Cancel attacks".
+            if (_browserInfo.BrowserGameObject != null)
+            {
+                FindButtonsInContainer(_browserInfo.BrowserGameObject);
+            }
+
+            // Fallback to global search if no buttons found within scaffold
+            if (_browserButtons.Count == 0)
+            {
+                DiscoverBrowserButtons();
+            }
 
             // For mulligan, also search for mulligan-specific buttons
             if (_browserInfo.IsMulligan)
