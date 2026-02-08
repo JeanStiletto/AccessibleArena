@@ -416,54 +416,28 @@ namespace AccessibleArena.Core.Services
             }
 
             // Priority 3: WorkflowBrowser (ability activation, mana payment)
+            // Language-agnostic: detect by presence of ConfirmWidgetButton sibling,
+            // not by matching action text keywords.
             if (workflowBrowsers.Count > 0)
             {
-                // Find workflow buttons that have meaningful text (not empty, not just card names)
-                // WorkflowBrowser is a container - the actual action text is in children
                 var actionButtons = new List<GameObject>();
                 foreach (var wb in workflowBrowsers)
                 {
-                    // First check text on the WorkflowBrowser itself
-                    string text = UITextExtractor.GetText(wb);
-
-                    // Also search children for action-related text
-                    if (!HasActionText(text))
+                    // Check if this WorkflowBrowser has a ConfirmWidgetButton sibling.
+                    // Real workflow prompts (activate ability, sacrifice, pay mana) have one.
+                    // Noise WorkflowBrowser objects (opponent name display) do not.
+                    GameObject confirmButton = FindConfirmWidgetButton(wb);
+                    if (confirmButton != null)
                     {
-                        // Search children for action text
-                        foreach (Transform child in wb.GetComponentsInChildren<Transform>(true))
-                        {
-                            if (child == null || !child.gameObject.activeInHierarchy) continue;
-                            string childText = UITextExtractor.GetText(child.gameObject);
-                            if (HasActionText(childText))
-                            {
-                                text = childText;
-                                break;
-                            }
-                        }
-                    }
+                        string text = UITextExtractor.GetText(wb);
+                        actionButtons.Add(confirmButton);
+                        MelonLogger.Msg($"[BrowserDetector] Found WorkflowBrowser with ConfirmWidgetButton: '{text}'");
 
-                    // Look for action-related text patterns (localized)
-                    if (HasActionText(text))
-                    {
-                        // Debug: comprehensive WorkflowBrowser dump (only when debug enabled)
+                        // Debug dump if enabled
                         if (IsDebugEnabled(BrowserTypeWorkflow) && !_loggedBrowserTypes.Contains("WorkflowBrowserDump"))
                         {
                             _loggedBrowserTypes.Add("WorkflowBrowserDump");
                             DumpWorkflowBrowserDebug(wb, text);
-                        }
-
-                        // Try to find clickable child inside WorkflowBrowser
-                        GameObject clickableButton = FindClickableChild(wb);
-                        if (clickableButton != null)
-                        {
-                            actionButtons.Add(clickableButton);
-                            MelonLogger.Msg($"[BrowserDetector] Found clickable child '{clickableButton.name}' in WorkflowBrowser with text '{text}'");
-                        }
-                        else
-                        {
-                            // Fallback: use the WorkflowBrowser itself
-                            actionButtons.Add(wb);
-                            MelonLogger.Msg($"[BrowserDetector] No clickable child found, using WorkflowBrowser itself for '{text}'");
                         }
                     }
                 }
@@ -474,17 +448,12 @@ namespace AccessibleArena.Core.Services
                     {
                         _loggedBrowserTypes.Add(BrowserTypeWorkflow);
                         MelonLogger.Msg($"[BrowserDetector] Found WorkflowBrowser with {actionButtons.Count} action buttons");
-                        foreach (var ab in actionButtons)
-                        {
-                            string text = UITextExtractor.GetText(ab);
-                            MelonLogger.Msg($"[BrowserDetector]   Action: '{text}'");
-                        }
                     }
                     return new BrowserInfo
                     {
                         IsActive = true,
                         BrowserType = BrowserTypeWorkflow,
-                        BrowserGameObject = actionButtons[0], // Primary action button
+                        BrowserGameObject = actionButtons[0],
                         IsScryLike = false,
                         IsLondon = false,
                         IsMulligan = false,
@@ -809,35 +778,58 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Checks if text contains action-related patterns (ability activation, mana payment).
-        /// Supports multiple languages (English, German).
-        /// </summary>
-        private static bool HasActionText(string text)
-        {
-            if (string.IsNullOrEmpty(text)) return false;
-            string lower = text.ToLowerInvariant();
-
-            // German: "aktivieren" (activate), "bezahlen" (pay), "abbrechen" (cancel),
-            //         "fähigkeit" (ability), "opfere/opfern" (sacrifice)
-            // English: "activate", "pay", "cancel", "ability", "sacrifice"
-            return lower.Contains("aktiv") ||
-                   lower.Contains("activate") ||
-                   lower.Contains("pay") ||
-                   lower.Contains("bezahl") ||
-                   lower.Contains("cancel") ||
-                   lower.Contains("abbrech") ||
-                   lower.Contains("fähigkeit") ||
-                   lower.Contains("ability") ||
-                   lower.Contains("opfer") ||
-                   lower.Contains("sacrific");
-        }
-
-        /// <summary>
         /// Finds the first clickable child inside a container (Button, EventTrigger, etc.).
         /// Used for WorkflowBrowser which is a container with clickable children.
         /// Also searches sibling hierarchies for ConfirmWidgetButton since the actual
         /// clickable button may be a sibling of WorkflowBrowser, not a child.
         /// </summary>
+        /// <summary>
+        /// Checks if a WorkflowBrowser has a ConfirmWidgetButton sibling.
+        /// This is the structural marker that distinguishes real workflow prompts
+        /// (ability activation, sacrifice, mana payment) from noise WorkflowBrowser
+        /// objects that always exist in the scene. Language-agnostic.
+        /// </summary>
+        private static GameObject FindConfirmWidgetButton(GameObject workflowBrowser)
+        {
+            if (workflowBrowser == null || workflowBrowser.transform.parent == null)
+                return null;
+
+            var parent = workflowBrowser.transform.parent;
+            foreach (Transform sibling in parent)
+            {
+                if (sibling == null || sibling.gameObject == workflowBrowser) continue;
+                if (!sibling.gameObject.activeInHierarchy) continue;
+
+                // Search sibling and its descendants for ConfirmWidgetButton
+                foreach (Transform descendant in sibling.GetComponentsInChildren<Transform>(true))
+                {
+                    if (descendant == null || !descendant.gameObject.activeInHierarchy) continue;
+
+                    string name = descendant.name;
+                    if (name.Contains("ConfirmWidgetButton") || name.Contains("ConfirmButton"))
+                    {
+                        var btn = descendant.GetComponent<UnityEngine.UI.Button>();
+                        if (btn != null && btn.interactable)
+                            return descendant.gameObject;
+                    }
+                }
+
+                // Also check ConfirmWidget container siblings
+                if (sibling.name.Contains("ConfirmWidget"))
+                {
+                    foreach (Transform descendant in sibling.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (descendant == null || !descendant.gameObject.activeInHierarchy) continue;
+                        var btn = descendant.GetComponent<UnityEngine.UI.Button>();
+                        if (btn != null && btn.interactable)
+                            return descendant.gameObject;
+                    }
+                }
+            }
+
+            return null;
+        }
+
         private static GameObject FindClickableChild(GameObject container)
         {
             if (container == null) return null;
