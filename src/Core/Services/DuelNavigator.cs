@@ -100,6 +100,16 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] DuelScene loaded - starting to watch for duel elements");
             _isWatching = true;
             _hasCenteredMouse = false; // Reset so mouse gets centered when duel activates
+
+            // Clear stale EventSystem selection from pre-game screen.
+            // Without this, the first Tab press navigates from the stale "Button" (Settings)
+            // to NavArrowNextbutton (emote panel) via Unity's Selectable chain.
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(null);
+                MelonLogger.Msg($"[{NavigatorId}] Cleared EventSystem selection");
+            }
         }
 
         /// <summary>
