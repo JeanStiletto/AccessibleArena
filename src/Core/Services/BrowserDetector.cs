@@ -817,8 +817,9 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(text)) return false;
             string lower = text.ToLowerInvariant();
 
-            // German: "aktivieren" (activate), "bezahlen" (pay), "abbrechen" (cancel), "fähigkeit" (ability)
-            // English: "activate", "pay", "cancel", "ability"
+            // German: "aktivieren" (activate), "bezahlen" (pay), "abbrechen" (cancel),
+            //         "fähigkeit" (ability), "opfere/opfern" (sacrifice)
+            // English: "activate", "pay", "cancel", "ability", "sacrifice"
             return lower.Contains("aktiv") ||
                    lower.Contains("activate") ||
                    lower.Contains("pay") ||
@@ -826,7 +827,9 @@ namespace AccessibleArena.Core.Services
                    lower.Contains("cancel") ||
                    lower.Contains("abbrech") ||
                    lower.Contains("fähigkeit") ||
-                   lower.Contains("ability");
+                   lower.Contains("ability") ||
+                   lower.Contains("opfer") ||
+                   lower.Contains("sacrific");
         }
 
         /// <summary>
