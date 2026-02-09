@@ -520,50 +520,11 @@ namespace AccessibleArenaInstaller
 
         /// <summary>
         /// Compares two version strings to determine if the new version is newer.
+        /// Delegates to Program.IsNewerVersion for consistent behavior.
         /// </summary>
         private bool IsVersionNewer(string newVersion, string oldVersion)
         {
-            try
-            {
-                // Clean up version strings (remove 'v' prefix, extra text after version)
-                newVersion = CleanVersionString(newVersion);
-                oldVersion = CleanVersionString(oldVersion);
-
-                var newVer = new Version(newVersion);
-                var oldVer = new Version(oldVersion);
-
-                return newVer > oldVer;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"Could not compare versions '{newVersion}' and '{oldVersion}': {ex.Message}");
-                // If we can't parse versions, assume update is available
-                return newVersion != oldVersion;
-            }
-        }
-
-        /// <summary>
-        /// Cleans a version string for parsing.
-        /// </summary>
-        private string CleanVersionString(string version)
-        {
-            if (string.IsNullOrEmpty(version))
-                return "0.0.0";
-
-            // Remove 'v' prefix
-            if (version.StartsWith("v", StringComparison.OrdinalIgnoreCase))
-                version = version.Substring(1);
-
-            // Take only the version part (before any dash or space)
-            int dashIndex = version.IndexOf('-');
-            if (dashIndex > 0)
-                version = version.Substring(0, dashIndex);
-
-            int spaceIndex = version.IndexOf(' ');
-            if (spaceIndex > 0)
-                version = version.Substring(0, spaceIndex);
-
-            return version.Trim();
+            return Program.IsNewerVersion(newVersion, oldVersion);
         }
     }
 }

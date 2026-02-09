@@ -291,7 +291,77 @@ Not yet implemented:
 - MelonLoader "already installed" dialog with reinstall option
 - Optional logging (only saves on errors or user request)
 
+## Version Matching (Important)
+
+The installer compares two version numbers to detect updates:
+
+- **GitHub tag** — the tag name you type when creating a release (e.g., `v0.5`). Fetched via GitHub API.
+- **Assembly version** — the version baked into the compiled DLL. Read from the installed file via `AssemblyName.GetAssemblyName()`.
+
+These are completely independent. The GitHub tag is just a string, the assembly version comes from the `<Version>` property in your `.csproj` file. If you don't set `<Version>`, .NET defaults to `1.0.0.0`, which will always look "newer" than any `0.x` tag — so the installer will never detect updates.
+
+**To avoid this:**
+- Always set `<Version>` in your mod's `.csproj`:
+  ```xml
+  <PropertyGroup>
+    <Version>0.5.0</Version>
+  </PropertyGroup>
+  ```
+- Keep it in sync with your GitHub release tags. When you tag `v0.5`, the csproj should say `0.5.0`.
+- The installer normalizes versions to 4 components (e.g., `0.5` becomes `0.5.0.0`), so `v0.5` and `0.5.0.0` compare as equal.
+
+## Automated Releases with GitHub Actions
+
+Instead of manually building and uploading release assets, you can use GitHub Actions to automate this. Create `.github/workflows/release.yml` in your repository:
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Build mod (Release)
+        run: dotnet build src/YourMod.csproj -c Release
+
+      - name: Build installer (Release)
+        run: dotnet build installer/YourInstaller.csproj -c Release
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src/bin/Release/net472/YourMod.dll
+            installer/bin/Release/net472/YourInstaller.exe
+```
+
+**Release workflow becomes:**
+1. Bump `<Version>` in your `.csproj`, commit
+2. Tag: `git tag v0.5`
+3. Push: `git push origin v0.5`
+
+GitHub builds both projects and attaches the DLL and installer EXE to the release automatically. No more forgotten assets.
+
 ## Changelog
+
+### Version 1.2
+- Fixed update check: version comparison now normalizes both sides to 4 components
+- Fixed mod always reporting version 1.0.0.0 (missing `<Version>` in csproj)
+- Added GitHub Actions workflow for automated release builds
 
 ### Version 1.1
 - Added welcome confirmation dialog at startup

@@ -2,13 +2,39 @@
 
 All notable changes to Accessible Arena.
 
-## v0.7.3 - 2026-02-06
+## v0.5 - 2026-02-09
+
+### Browser Fixes (Scry, Surveil, London Mulligan)
+- Fixed card activation in Scry/Surveil/London browsers using correct game APIs
+- Browser card movement now uses drag simulation (HandleDrag/OnDragRelease) instead of RemoveCard/AddCard
+- Scry uses card reordering around placeholder, matching how the game processes submissions
+
+### Duel Navigation
+- Tab/Enter navigation for prompt button choices (sacrifice, pay cost, etc.)
+- Fixed first Tab in duel navigating to emote panel instead of game elements
+- Fixed damage assignment browser by prioritizing discovered buttons over PromptButton
+- Scoped browser button discovery to scaffold to fix villainous choice browser
+- Replaced keyword-based WorkflowBrowser detection with structural check (language-independent)
+
+### Deck Builder
+- Card info refreshes after adding/removing cards (Owned/InDeck values update immediately)
+- Fixed Tab from search field landing on wrong element instead of Collection
+- Collection position resets to first card on page change
+- Deck Info group with 2D sub-navigation for deck statistics (card counts, mana curve)
+
+### Installer
+- Fixed update check never detecting newer versions (assembly version was always 1.0.0.0)
+- Fixed version comparison treating "0.4" and "0.4.0.0" as different versions
+
+---
+
+## v0.4.6 - 2026-02-06
 
 ### Card Info Improvements in Deck Builder
 - Collection cards now show "Collection: Owned X, In Deck Y" info block (via `PagesMetaCardView._lastDisplayInfo` reflection)
 - Deck list cards with unowned copies now announce "Quantity: X, missing" (via `MetaCardView.ShowUnCollectedTreatment` field)
 
-## v0.7.2 - 2026-02-06
+## v0.4.5 - 2026-02-06
 
 ### CardPoolAccessor - Direct Collection Page API
 - New `CardPoolAccessor` class wraps game's `CardPoolHolder` via reflection
@@ -37,7 +63,7 @@ All notable changes to Accessible Arena.
 
 ---
 
-## v0.7.1 - 2026-02-05
+## v0.4.4 - 2026-02-05
 
 ### Deck Builder Search Field Support
 - Search input field in deck builder Filters group now triggers collection rescan after exiting
@@ -53,7 +79,7 @@ All notable changes to Accessible Arena.
 
 ---
 
-## v0.7 - 2026-02-05
+## v0.4.3 - 2026-02-05
 
 ### Booster Chamber (Packs Screen) Overhaul
 - Pack carousel now treated as single navigable element with Left/Right arrow navigation
@@ -75,7 +101,7 @@ All notable changes to Accessible Arena.
 
 ---
 
-## v0.6 - 2026-02-04
+## v0.4.2 - 2026-02-04
 
 ### New Navigator: RewardPopupNavigator
 - Created dedicated `RewardPopupNavigator` for rewards popup handling (mail claims, store purchases)
@@ -100,7 +126,7 @@ All notable changes to Accessible Arena.
 
 ---
 
-## v0.5 - 2026-02-03
+## v0.4.1 - 2026-02-03
 
 ### Mailbox Accessibility
 - Full keyboard navigation for Mailbox/Inbox screen

@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Build mod (Release)
+        run: dotnet build src/AccessibleArena.csproj -c Release
+
+      - name: Build installer (Release)
+        run: dotnet build installer/AccessibleArenaInstaller/AccessibleArenaInstaller.csproj -c Release
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src/bin/Release/net472/AccessibleArena.dll
+            installer/AccessibleArenaInstaller/bin/Release/net472/AccessibleArenaInstaller.exe

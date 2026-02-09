@@ -425,28 +425,53 @@ namespace AccessibleArenaInstaller
 
         /// <summary>
         /// Compares two version strings and returns true if the latest version is newer.
-        /// Handles version formats like "1.0.0" or "1.0.0.0".
+        /// Normalizes both versions to 4 components so "0.4" and "0.4.0.0" compare correctly.
         /// </summary>
-        private static bool IsNewerVersion(string latestVersion, string installedVersion)
+        internal static bool IsNewerVersion(string latestVersion, string installedVersion)
         {
             try
             {
-                // Normalize versions - strip leading 'v' if present
-                latestVersion = latestVersion.TrimStart('v', 'V');
-                installedVersion = installedVersion.TrimStart('v', 'V');
+                var latest = NormalizeVersion(latestVersion);
+                var installed = NormalizeVersion(installedVersion);
 
-                // Parse as Version objects for proper comparison
-                var latest = new Version(latestVersion);
-                var installed = new Version(installedVersion);
-
+                Logger.Info($"Version comparison: latest={latest}, installed={installed}");
                 return latest > installed;
             }
             catch (Exception ex)
             {
                 Logger.Warning($"Version comparison failed: {ex.Message}");
-                // If we can't parse, do simple string comparison
                 return !string.Equals(latestVersion, installedVersion, StringComparison.OrdinalIgnoreCase);
             }
+        }
+
+        /// <summary>
+        /// Normalizes a version string to a 4-component Version object.
+        /// Strips 'v' prefix, pre-release suffixes, and pads missing components with 0.
+        /// </summary>
+        internal static Version NormalizeVersion(string version)
+        {
+            if (string.IsNullOrEmpty(version))
+                return new Version(0, 0, 0, 0);
+
+            version = version.TrimStart('v', 'V');
+
+            // Remove pre-release suffix (e.g., "0.4.0-beta")
+            int dashIndex = version.IndexOf('-');
+            if (dashIndex > 0)
+                version = version.Substring(0, dashIndex);
+
+            int spaceIndex = version.IndexOf(' ');
+            if (spaceIndex > 0)
+                version = version.Substring(0, spaceIndex);
+
+            // Split and pad to 4 components
+            string[] parts = version.Trim().Split('.');
+            int major = parts.Length > 0 && int.TryParse(parts[0], out int m) ? m : 0;
+            int minor = parts.Length > 1 && int.TryParse(parts[1], out int n) ? n : 0;
+            int build = parts.Length > 2 && int.TryParse(parts[2], out int b) ? b : 0;
+            int revision = parts.Length > 3 && int.TryParse(parts[3], out int r) ? r : 0;
+
+            return new Version(major, minor, build, revision);
         }
     }
 }
