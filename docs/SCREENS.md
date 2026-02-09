@@ -357,6 +357,31 @@ Only one navigator can be active. UIFocusTracker runs as fallback when no naviga
 
 ## Transitional Screens
 
+### Game Loading Screen (Startup)
+**Navigator:** `LoadingScreenNavigator` (ScreenMode.GameLoading)
+**Priority:** 65
+**Scene:** `AssetPrep` (active scene during game startup/login)
+
+The loading screen shown during game startup while connecting to servers. Displays status messages like "Starting..." or "Waiting for server...".
+
+**Elements Detected:**
+- InfoText status message from `AssetPrepScreen` component (dynamic, changes during loading)
+
+**Navigation:**
+- No interactive elements - status is read-only
+- Status text changes are announced automatically as they occur
+
+**Technical Notes:**
+- Detects via `SceneManager.GetActiveScene().name == "AssetPrep"`
+- Finds InfoText via reflection on `AssetPrepScreen.InfoText` field (TMP_Text)
+- Caches TMP_Text reference across poll cycles (avoids repeated FindObjectsOfType)
+- Polls every 0.5s with no timeout (keeps polling until scene changes)
+- Announces text changes via AnnounceInterrupt when status text updates
+- Rich text tags cleaned via regex before announcement
+- Higher priority (65) than AssetPrepNavigator (5), handles normal loading
+- AssetPrepNavigator only relevant for fresh-install download screens with active buttons
+- Deactivates on scene change (e.g., MainNavigation after login)
+
 ### Match End Screen (Victory/Defeat)
 **Navigator:** `LoadingScreenNavigator` (ScreenMode.MatchEnd)
 **Priority:** 65

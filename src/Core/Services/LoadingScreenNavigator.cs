@@ -13,7 +13,7 @@ namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Navigator for transitional/info screens with few buttons and optional dynamic content.
-    /// Handles MatchEnd (victory/defeat) and Matchmaking (queue) screens.
+    /// Handles MatchEnd (victory/defeat), Matchmaking (queue), and GameLoading (startup) screens.
     /// Uses polling to handle UI that loads after the initial scan.
     /// </summary>
     public class LoadingScreenNavigator : BaseNavigator
@@ -23,12 +23,13 @@ namespace AccessibleArena.Core.Services
         public override int Priority => 65;
         protected override bool SupportsCardNavigation => false;
 
-        private enum ScreenMode { None, MatchEnd, PreGame, Matchmaking }
+        private enum ScreenMode { None, MatchEnd, PreGame, Matchmaking, GameLoading }
         private ScreenMode _currentMode = ScreenMode.None;
 
         // Polling for late-loading UI
         private float _pollTimer;
         private const float PollInterval = 0.5f;
+        private const float GameLoadingPollInterval = 1.0f;
         private const float MaxPollDuration = 10f;
         private float _pollElapsed;
         private int _lastElementCount;
@@ -45,6 +46,10 @@ namespace AccessibleArena.Core.Services
 
         // PreGame: timer TMP_Text for live updates
         private TMP_Text _timerText;
+
+        // GameLoading: InfoText reference for status messages
+        private TMP_Text _loadingInfoText;
+        private string _lastLoadingStatusText = "";
 
         // Diagnostic: dump hierarchy once per activation
         private bool _dumpedHierarchy;
@@ -65,6 +70,8 @@ namespace AccessibleArena.Core.Services
                     return "Searching for match";
                 case ScreenMode.Matchmaking:
                     return "Searching for match";
+                case ScreenMode.GameLoading:
+                    return "Loading";
                 default:
                     return "Loading";
             }
@@ -99,6 +106,12 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            if (DetectGameLoading())
+            {
+                _currentMode = ScreenMode.GameLoading;
+                return true;
+            }
+
             return false;
         }
 
@@ -121,6 +134,12 @@ namespace AccessibleArena.Core.Services
                     return true;
             }
             return false;
+        }
+
+        private bool DetectGameLoading()
+        {
+            var scene = SceneManager.GetActiveScene();
+            return scene.name == "AssetPrep";
         }
 
         private bool DetectMatchmaking()
@@ -154,6 +173,9 @@ namespace AccessibleArena.Core.Services
                     break;
                 case ScreenMode.Matchmaking:
                     DiscoverMatchmakingElements();
+                    break;
+                case ScreenMode.GameLoading:
+                    DiscoverGameLoadingElements();
                     break;
             }
         }
@@ -509,6 +531,38 @@ namespace AccessibleArena.Core.Services
             Log($"=== Matchmaking discovery complete: {_elements.Count} elements ===");
         }
 
+        private void DiscoverGameLoadingElements()
+        {
+            Log("=== Discovering GameLoading elements ===");
+
+            // Find InfoText from AssetPrepScreen component (cache reference)
+            if (_loadingInfoText == null)
+            {
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "AssetPrepScreen")
+                    {
+                        var infoField = mb.GetType().GetField("InfoText");
+                        if (infoField != null)
+                            _loadingInfoText = infoField.GetValue(mb) as TMP_Text;
+                        break;
+                    }
+                }
+            }
+
+            if (_loadingInfoText != null && _loadingInfoText.gameObject != null)
+            {
+                string status = CleanStatusText(_loadingInfoText.text);
+                if (!string.IsNullOrEmpty(status))
+                {
+                    AddElement(_loadingInfoText.gameObject, status);
+                    Log($"  ADDED (status): {status}");
+                }
+            }
+
+            Log($"=== GameLoading discovery complete: {_elements.Count} elements ===");
+        }
+
         #endregion
 
         #region Text Extraction
@@ -602,6 +656,12 @@ namespace AccessibleArena.Core.Services
 
                 case ScreenMode.Matchmaking:
                     return "Searching for match. Navigate with arrows, Backspace to cancel.";
+
+                case ScreenMode.GameLoading:
+                    string loadingStatus = _lastLoadingStatusText;
+                    if (!string.IsNullOrEmpty(loadingStatus))
+                        return $"Loading. {loadingStatus}";
+                    return "Loading.";
 
                 default:
                     return base.GetActivationAnnouncement();
@@ -720,6 +780,10 @@ namespace AccessibleArena.Core.Services
                     if (_elements.Count > 0)
                         UpdateEventSystemSelection();
 
+                    // Track initial status text for GameLoading
+                    if (_currentMode == ScreenMode.GameLoading && _elements.Count > 0)
+                        _lastLoadingStatusText = _elements[0].Label;
+
                     _announcer.AnnounceInterrupt(GetActivationAnnouncement());
                     Log($"Activated with {_elements.Count} elements");
                 }
@@ -737,7 +801,7 @@ namespace AccessibleArena.Core.Services
 
             if (_pollTimer <= 0)
             {
-                _pollTimer = PollInterval;
+                _pollTimer = _currentMode == ScreenMode.GameLoading ? GameLoadingPollInterval : PollInterval;
 
                 // Preserve current navigation position
                 int savedIndex = _currentIndex;
@@ -761,11 +825,26 @@ namespace AccessibleArena.Core.Services
                     if (_elements.Count > 0)
                         UpdateEventSystemSelection();
 
+                    // Track status text to avoid double-announcement
+                    if (_currentMode == ScreenMode.GameLoading && _elements.Count > 0)
+                        _lastLoadingStatusText = _elements[0].Label;
+
                     _announcer.AnnounceInterrupt(GetActivationAnnouncement());
                 }
+                else if (_currentMode == ScreenMode.GameLoading && _elements.Count > 0)
+                {
+                    // Announce status text changes even when element count is unchanged
+                    string currentLabel = _elements[0].Label;
+                    if (!string.IsNullOrEmpty(currentLabel) && currentLabel != _lastLoadingStatusText)
+                    {
+                        _lastLoadingStatusText = currentLabel;
+                        _announcer.AnnounceInterrupt(currentLabel);
+                        Log($"Loading status changed: {currentLabel}");
+                    }
+                }
 
-                // Stop polling after timeout (PreGame keeps polling for timer updates)
-                if (_currentMode != ScreenMode.PreGame && _pollElapsed >= MaxPollDuration)
+                // Stop polling after timeout (PreGame and GameLoading keep polling)
+                if (_currentMode != ScreenMode.PreGame && _currentMode != ScreenMode.GameLoading && _pollElapsed >= MaxPollDuration)
                 {
                     Log($"Polling timeout reached ({MaxPollDuration}s), stopping");
                     _polling = false;
@@ -802,6 +881,11 @@ namespace AccessibleArena.Core.Services
                     if (!DetectMatchmaking())
                         return false;
                     break;
+
+                case ScreenMode.GameLoading:
+                    if (!DetectGameLoading())
+                        return false;
+                    break;
             }
 
             // During polling, stay active even with 0 elements (waiting for UI to load)
@@ -819,6 +903,8 @@ namespace AccessibleArena.Core.Services
             _continueButton = null;
             _cancelButton = null;
             _timerText = null;
+            _loadingInfoText = null;
+            _lastLoadingStatusText = "";
             _dumpedHierarchy = false;
 
             if (_isActive)
@@ -830,6 +916,16 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Remove rich text tags from TMP_Text content.
+        /// </summary>
+        private string CleanStatusText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return null;
+            text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "");
+            return text.Trim();
+        }
 
         /// <summary>
         /// Find the text content of a TMP_Text component by its GameObject name within a hierarchy.

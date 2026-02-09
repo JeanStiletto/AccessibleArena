@@ -4,8 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-09
 
-### Loading Screen Navigator (NEW)
+### Loading Screen Navigator
 - New `LoadingScreenNavigator` for transitional screens (priority 65)
+- **Game Loading**: Announces status messages during startup (e.g., "Starting...", "Waiting for server...")
 - **Match End**: Announces victory/defeat result, rank info, navigable buttons (Continue, View Battlefield, Settings)
 - **PreGame/Matchmaking**: Announces "Searching for match" with live timer, cycling hints, Cancel and Settings buttons
 - Scene-scoped element discovery prevents cross-scene contamination from duel leftovers
