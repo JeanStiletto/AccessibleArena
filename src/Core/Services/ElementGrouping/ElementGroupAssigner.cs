@@ -437,6 +437,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (parentPath.Contains("Mailbox"))
                 return false;
 
+            // CampaignGraph (Color Challenge) uses PlayBlade layouts but is a content page, not a PlayBlade overlay
+            if (parentPath.Contains("CampaignGraph"))
+                return false;
+
             // Direct blade containers
             if (parentPath.Contains("PlayBlade") || parentPath.Contains("Blade_") ||
                 parentPath.Contains("BladeContent") || parentPath.Contains("BladeContainer"))
@@ -448,10 +452,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Filter list items in blade context
             if (name.Contains("FilterListItem") && parentPath.Contains("Blade"))
-                return true;
-
-            // Campaign graph (Color Challenge)
-            if (parentPath.Contains("CampaignGraph"))
                 return true;
 
             return false;

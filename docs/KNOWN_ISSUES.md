@@ -394,40 +394,16 @@ Deck list cards (cards in your deck shown in the compact list view) only display
 
 ---
 
-### PlayBlade Backspace Navigation Not Working
+### PlayBlade Backspace Navigation - RESOLVED
 
-Backspace from PlayBladeContent group should navigate back to PlayBladeTabs, but instead closes the blade entirely.
+Backspace from PlayBladeContent group now correctly navigates back to PlayBladeTabs.
 
-**Expected flow:**
-1. Open PlayBlade → auto-enters PlayBladeTabs group (WORKING)
-2. Press Enter on a tab → auto-enters PlayBladeContent group (WORKING)
-3. Press Backspace → should return to PlayBladeTabs (NOT WORKING - closes blade)
+**The Fix (February 2026):**
+- PlayBladeNavigationHelper refactored to derive state from `GroupedNavigator.CurrentGroup` instead of maintaining a separate state machine
+- HandleBackspace checks group type directly instead of relying on `IsPlayBladeContext` flag (which could be stale during blade Hide/Show cycles)
+- Full hierarchy: Tabs → Content → Folders → Folder (decks). Backspace goes up the hierarchy.
 
-**Root cause investigation:**
-The PlayBladeNavigationHelper tracks state (Tabs, FindMatchModes, FindMatchDecks, etc.) but the state gets out of sync with what the user is viewing.
-
-**What we've tried:**
-1. **Initial implementation:** PlayBladeNavigationHelper with state machine tracking Enter presses on tabs/modes
-2. **Helper initialization fix:** Changed from checking panel name to `PanelStateManager.Instance?.IsPlayBladeActive`
-3. **Event handler ordering:** Moved `CheckAndInitPlayBladeHelper()` before early returns in panel event handlers
-4. **State sync on backspace:** Added `SyncPlayBladeHelperWithCurrentGroup()` to sync helper state with GroupedNavigator's current group before handling backspace
-
-**Current state:**
-- Auto-entry into tabs group on blade open: WORKING
-- Auto-entry into content group on tab activation: WORKING
-- Backspace from content to tabs: NOT WORKING
-- State sync mechanism added but not effective
-
-**Hypothesis:**
-The sync mechanism may not be detecting the correct state. Need to investigate:
-1. Is `_groupedNavigator.CurrentGroup` returning the correct group?
-2. Is the sync happening before or after the backspace decision?
-3. Are there multiple code paths handling backspace that bypass the sync?
-
-**Files:**
-- `GeneralMenuNavigator.cs` - `HandlePlayBladeBackspace()`, `SyncPlayBladeHelperWithCurrentGroup()`
-- `PlayBladeNavigationHelper.cs` - `HandleBackspace()`, `SyncToContentState()`, `SyncToTabsState()`
-- `GroupedNavigator.cs` - `CurrentGroup`, navigation level tracking
+**Files:** `PlayBladeNavigationHelper.cs`, `GeneralMenuNavigator.cs`
 
 ---
 
@@ -447,8 +423,11 @@ Code added but `Model.Parent` and `Model.Children` properties always return null
 
 Toggle mechanism for scry/surveil needs API discovery. Detection and navigation work.
 
-### Color Challenge (Tutorial)
+### Color Challenge (CampaignGraph)
 
+- **Navigation fixed (February 2026):** CampaignGraph is now treated as a regular content page, not a PlayBlade overlay
+- Blade state buttons (Btn_BladeIsClosed, Btn_BladeHoverClosed, Btn_BladeIsOpen) filtered from navigation
+- Backspace navigates Home (game has no native back-to-PlayBlade mechanism)
 - No player targeting support
 - MatchTimer UI disabled
 

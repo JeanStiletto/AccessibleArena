@@ -12,6 +12,13 @@ All notable changes to Accessible Arena.
 - PlayBlade HandleEnter bypass for Recent tab decks (no folders to enter)
 - New `RecentPlayAccessor.cs` — reflection wrapper for `LastPlayedBladeContentView` tile data
 
+### Color Challenge (CampaignGraph) Fix
+- CampaignGraph no longer misidentified as a PlayBlade overlay — treated as regular content page
+- Blade state buttons (Btn_BladeIsClosed, Btn_BladeHoverClosed, Btn_BladeIsOpen) filtered from navigation
+- PlayBladeHelper no longer intercepts Enter/Backspace on CampaignGraph
+- Backspace exits CampaignGraph via NavigateToHome (game has no native back-to-PlayBlade path)
+- Files: `PanelStateManager.cs`, `ElementGroupAssigner.cs`, `GeneralMenuNavigator.cs`
+
 ### PlayBlade Fixes
 - Fixed stale PlayBladeState when blade GameObject is destroyed during page transition (entering events via Events tab showed empty screen)
 - Fixed Backspace not working when game gets stuck in "Waiting for server" loading state

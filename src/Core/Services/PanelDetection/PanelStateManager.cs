@@ -73,7 +73,8 @@ namespace AccessibleArena.Core.Services.PanelDetection
         /// <summary>
         /// Whether PlayBlade is currently visible.
         /// Primary: checks tracked state from Harmony events.
-        /// Fallback: checks for Btn_BladeIsOpen button (catches blades without lifecycle events, e.g. CampaignGraph).
+        /// Fallback: checks for Btn_BladeIsOpen button (catches edge cases where Harmony events missed).
+        /// Note: CampaignGraph (Color Challenge) is excluded - it has blade-like UI but is a content page.
         /// </summary>
         public bool IsPlayBladeActive
         {
@@ -84,23 +85,19 @@ namespace AccessibleArena.Core.Services.PanelDetection
                     return true;
 
                 // Fallback: check for blade buttons (not tracked via events)
-                // Stage 3: Btn_BladeIsOpen exists
+                // Only for Home page PlayBlade, not CampaignGraph (Color Challenge)
                 var bladeIsOpenButton = UnityEngine.GameObject.Find("Btn_BladeIsOpen");
                 if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
-                    return true;
-
-                // Stage 2: Btn_BladeIsClosed exists in CampaignGraph context
-                var bladeIsClosed = UnityEngine.GameObject.Find("Btn_BladeIsClosed");
-                if (bladeIsClosed != null && bladeIsClosed.activeInHierarchy)
                 {
-                    // Check if it's under CampaignGraphPage (not Home page blade)
-                    var parent = bladeIsClosed.transform;
+                    // Exclude CampaignGraph's blade - it's a content page, not a PlayBlade overlay
+                    var parent = bladeIsOpenButton.transform;
                     while (parent != null)
                     {
                         if (parent.name.Contains("CampaignGraphPage"))
-                            return true;
+                            return false;
                         parent = parent.parent;
                     }
+                    return true;
                 }
 
                 return false;

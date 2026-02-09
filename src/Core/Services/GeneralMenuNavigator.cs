@@ -39,8 +39,7 @@ namespace AccessibleArena.Core.Services
         private static readonly string[] BladePatterns = new[]
         {
             "Blade",
-            "FindMatch",
-            "CampaignGraph"
+            "FindMatch"
         };
 
         #endregion
@@ -1428,6 +1427,14 @@ namespace AccessibleArena.Core.Services
             DetectActiveContentController();
             LogDebug($"[{NavigatorId}] HandleContentPanelBack: controller = {_activeContentController ?? "null"}");
 
+            // Special case: Color Challenge (CampaignGraph) has two levels
+            // - Blade collapsed (specific color selected) → expand blade to return to color list
+            // - Blade expanded (color list visible) → navigate Home
+            if (_activeContentController == "CampaignGraphContentController")
+            {
+                return HandleCampaignGraphBack();
+            }
+
             // Special case: Deck Builder uses MainButton (Fertig/Done) to exit
             if (_activeContentController == "WrapperDeckBuilder")
             {
@@ -1486,6 +1493,18 @@ namespace AccessibleArena.Core.Services
 
             // Fallback: navigate to Home if MainButton not found
             LogDebug($"[{NavigatorId}] Deck Builder Done button not found, navigating to Home");
+            return NavigateToHome();
+        }
+
+        /// <summary>
+        /// Handle back navigation in Color Challenge (CampaignGraph).
+        /// CampaignGraph has no game-native back-to-PlayBlade mechanism,
+        /// so we navigate Home to exit.
+        /// </summary>
+        private bool HandleCampaignGraphBack()
+        {
+            LogDebug($"[{NavigatorId}] CampaignGraph: navigating Home");
+            _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
             return NavigateToHome();
         }
 
@@ -1851,22 +1870,6 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            var bladeIsClosed = GameObject.Find("Btn_BladeIsClosed");
-            if (bladeIsClosed != null && bladeIsClosed.activeInHierarchy)
-            {
-                var parent = bladeIsClosed.transform;
-                while (parent != null)
-                {
-                    if (parent.name.Contains("CampaignGraphPage"))
-                    {
-                        LogDebug($"[{NavigatorId}] CampaignGraph blade detected, navigating Home");
-                        ClearBladeStateAndRescan();
-                        return NavigateToHome();
-                    }
-                    parent = parent.parent;
-                }
-            }
-
             LogDebug($"[{NavigatorId}] ClosePlayBlade called but no close button found - check foreground detection");
             return false;
         }
@@ -2066,9 +2069,14 @@ namespace AccessibleArena.Core.Services
             if (_activeControllerGameObject == null)
                 return true;
 
-            // Special case: Color Challenge allows blade elements and main buttons
+            // Special case: Color Challenge - content page with embedded blade layout
+            // Allow blade content (color buttons) and main buttons, but filter blade state buttons
             if (_activeContentController == "CampaignGraphContentController")
             {
+                // Filter blade state buttons - internal chrome, not user actions
+                if (obj.name.StartsWith("Btn_Blade"))
+                    return false;
+
                 if (IsChildOf(obj, _activeControllerGameObject)) return true;
                 if (IsInsideBlade(obj)) return true;
                 if (IsMainButton(obj)) return true;
