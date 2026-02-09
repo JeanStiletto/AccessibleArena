@@ -915,12 +915,12 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            // Deactivate if loading panel overlay appears (e.g. waiting for server after scene load)
-            if (IsLoadingPanelShowing())
-            {
-                LogDebug($"[{NavigatorId}] Loading panel overlay detected - deactivating");
-                return false;
-            }
+            // Note: We no longer deactivate on IsLoadingPanelShowing().
+            // DetectScreen() still prevents initial activation during loading.
+            // If already active and a loading panel appears during a real transition,
+            // elements will be destroyed and base.ValidateElements() handles deactivation.
+            // If the game gets stuck in a loading state, this keeps the navigator active
+            // so the user can still use Backspace to navigate back.
 
             return base.ValidateElements();
         }

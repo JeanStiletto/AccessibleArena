@@ -322,8 +322,20 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
         private void UpdateActivePanel()
         {
+            // Check if blade panels exist before cleanup (to detect blade destruction)
+            bool hadBladePanels = PlayBladeState != 0 && _panelStack.Exists(p => p.Type == PanelType.Blade);
+
             // Clean up invalid panels
             _panelStack.RemoveAll(p => !p.IsValid);
+
+            // If blade panels were removed during cleanup and none remain, reset PlayBladeState.
+            // This handles the case where the blade's GameObject is destroyed
+            // during a page transition without BladeContentView.Hide firing.
+            if (hadBladePanels && !_panelStack.Exists(p => p.Type == PanelType.Blade && p.IsValid))
+            {
+                MelonLogger.Msg($"[PanelStateManager] Resetting stale PlayBladeState (was {PlayBladeState}) - blade panel destroyed");
+                SetPlayBladeState(0);
+            }
 
             // Find highest priority panel that filters navigation
             PanelInfo newActive = null;
