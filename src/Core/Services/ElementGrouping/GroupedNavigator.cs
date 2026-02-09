@@ -708,6 +708,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
 
             // Check for pending PlayBlade tabs entry (set when PlayBlade opens)
+            bool playBladeAutoEntryPerformed = false;
             if (_pendingPlayBladeTabsEntry)
             {
                 _pendingPlayBladeTabsEntry = false;
@@ -719,6 +720,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _currentGroupIndex = i;
                         _navigationLevel = NavigationLevel.InsideGroup;
                         _currentElementIndex = 0;
+                        playBladeAutoEntryPerformed = true;
                         MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeTabs with {_groups[i].Count} items");
                         break;
                     }
@@ -737,6 +739,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _currentGroupIndex = i;
                         _navigationLevel = NavigationLevel.InsideGroup;
                         _currentElementIndex = 0;
+                        playBladeAutoEntryPerformed = true;
                         MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items");
                         break;
                     }
@@ -816,10 +819,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Restoring old state would interfere with the intended navigation flow
             if (_pendingGroupRestore.HasValue)
             {
-                if (_isPlayBladeContext || enteredPendingFolder)
+                if (_isPlayBladeContext || enteredPendingFolder || playBladeAutoEntryPerformed)
                 {
                     // Clear stale restore state - auto-entries take precedence
-                    string reason = enteredPendingFolder ? "folder entry" : "PlayBlade context";
+                    string reason = playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : "PlayBlade context");
                     MelonLogger.Msg($"[GroupedNavigator] Skipping group restore due to {reason} (was: {_pendingGroupRestore.Value})");
                     _pendingGroupRestore = null;
                     _pendingLevelRestore = NavigationLevel.GroupList;
