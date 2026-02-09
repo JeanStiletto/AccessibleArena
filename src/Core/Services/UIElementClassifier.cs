@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 using System.Linq;
@@ -1046,11 +1047,14 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static bool IsMatchEndScene()
         {
-            // Check for MatchEndScene-specific elements
-            var exitButton = GameObject.Find("ExitMatchOverlayButton");
-            var viewButton = GameObject.Find("ViewBattlefieldButton");
-            return (exitButton != null && exitButton.activeInHierarchy) ||
-                   (viewButton != null && viewButton.activeInHierarchy);
+            // Scenes are loaded additively, so GetActiveScene() may not return MatchEndScene.
+            // Check all loaded scenes instead.
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                if (SceneManager.GetSceneAt(i).name == "MatchEndScene")
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -1058,8 +1062,17 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static bool IsDuelPromptElement(GameObject obj, string name)
         {
-            // Prompt buttons from duel
-            if (ContainsIgnoreCase(name, "PromptButton")) return true;
+            // PromptButtons are reused: during duels they show phase info, but on
+            // MatchEndScene they may become the "Continue" button. Use the game's own
+            // CanvasGroup to distinguish: inactive duel buttons have alpha=0 or
+            // interactable=false. Only filter those; keep visible ones.
+            if (ContainsIgnoreCase(name, "PromptButton"))
+            {
+                var cg = obj.GetComponent<CanvasGroup>();
+                if (cg != null && (cg.alpha <= 0 || !cg.interactable))
+                    return true; // Game considers this inactive - filter it
+                return false; // Game considers this visible/active - keep it
+            }
 
             // End turn button container
             if (ContainsIgnoreCase(name, "EndTurnButton")) return true;

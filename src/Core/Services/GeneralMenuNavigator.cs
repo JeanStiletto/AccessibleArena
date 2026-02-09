@@ -28,7 +28,7 @@ namespace AccessibleArena.Core.Services
         // Scenes where this navigator should NOT activate (handled by other navigators)
         private static readonly HashSet<string> ExcludedScenes = new HashSet<string>
         {
-            "Bootstrap", "AssetPrep", "DuelScene", "DraftScene", "SealedScene"
+            "Bootstrap", "AssetPrep", "DuelScene", "DraftScene", "SealedScene", "MatchEndScene"
         };
 
         // Minimum CustomButtons needed to consider this a menu
@@ -2853,9 +2853,6 @@ namespace AccessibleArena.Core.Services
                 UpdateEventSystemSelectionForGroupedElement();
             }
 
-            // On MatchEndScene, auto-focus the Continue button (ExitMatchOverlayButton)
-            AutoFocusContinueButton();
-
             // On NPE rewards screen, auto-focus the unlocked card
             AutoFocusUnlockedCard();
         }
@@ -3204,32 +3201,6 @@ namespace AccessibleArena.Core.Services
 
         // Note: FindSettingsCustomControls() and FindClickableInDropdownControl() removed
         // Settings controls are now handled by SettingsMenuNavigator
-
-        /// <summary>
-        /// Auto-focus the Continue button on MatchEndScene for better UX.
-        /// The Continue button should be the first thing focused after a match ends.
-        /// </summary>
-        private void AutoFocusContinueButton()
-        {
-            // Find the ExitMatchOverlayButton (Continue) in our elements
-            for (int i = 0; i < _elements.Count; i++)
-            {
-                if (_elements[i].GameObject != null &&
-                    _elements[i].GameObject.name == "ExitMatchOverlayButton")
-                {
-                    // Move this element to the front by swapping with index 0
-                    if (i > 0)
-                    {
-                        var continueButton = _elements[i];
-                        _elements.RemoveAt(i);
-                        _elements.Insert(0, continueButton);
-                        LogDebug($"[{NavigatorId}] Moved Continue button to first position");
-                    }
-                    _currentIndex = 0;
-                    break;
-                }
-            }
-        }
 
         /// <summary>
         /// Auto-focus the unlocked card on NPE reward screens for better UX.

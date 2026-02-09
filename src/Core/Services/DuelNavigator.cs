@@ -166,6 +166,21 @@ namespace AccessibleArena.Core.Services
             return base.ValidateElements();
         }
 
+        /// <summary>
+        /// Override to clear EventSystem selection instead of setting it.
+        /// DuelNavigator uses its own highlight/zone systems for navigation,
+        /// and setting EventSystem selection to the first discovered element (Settings button)
+        /// causes the first Tab to navigate to NavArrowNextbutton via Unity's Selectable chain.
+        /// </summary>
+        protected override void UpdateEventSystemSelection()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(null);
+            }
+        }
+
         protected override void DiscoverElements()
         {
             var addedObjects = new HashSet<GameObject>();

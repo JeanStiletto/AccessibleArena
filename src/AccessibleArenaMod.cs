@@ -100,6 +100,7 @@ namespace AccessibleArena
                 new NPERewardNavigator(_announcer),    // NPE reward screen - card unlocked (priority 75)
                 // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),
+                new LoadingScreenNavigator(_announcer),  // MatchEnd/Matchmaking transitional screens (priority 65)
                 // CodeOfConductNavigator removed - default navigation handles this screen
                 new GeneralMenuNavigator(_announcer),
                 // EventTriggerNavigator removed - GeneralMenuNavigator now handles NPE screens
@@ -222,6 +223,13 @@ namespace AccessibleArena
             // Clear card detection and deck info caches on scene change
             CardDetector.ClearCache();
             DeckInfoProvider.ClearCache();
+
+            // Deactivate card info navigator on scene change (prevents stale card reading)
+            if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)
+            {
+                LoggerInstance.Msg("[SceneChange] Deactivating card navigator");
+                _cardInfoNavigator.Deactivate();
+            }
 
             // Reset panel state and detectors on scene change
             _panelStateManager?.Reset();
