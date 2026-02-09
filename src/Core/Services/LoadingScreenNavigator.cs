@@ -23,7 +23,7 @@ namespace AccessibleArena.Core.Services
         public override int Priority => 65;
         protected override bool SupportsCardNavigation => false;
 
-        private enum ScreenMode { None, MatchEnd, Matchmaking }
+        private enum ScreenMode { None, MatchEnd, PreGame, Matchmaking }
         private ScreenMode _currentMode = ScreenMode.None;
 
         // Polling for late-loading UI
@@ -40,6 +40,12 @@ namespace AccessibleArena.Core.Services
         // Continue button reference for Backspace shortcut
         private GameObject _continueButton;
 
+        // PreGame: cancel button reference for Backspace shortcut
+        private GameObject _cancelButton;
+
+        // PreGame: timer TMP_Text for live updates
+        private TMP_Text _timerText;
+
         // Diagnostic: dump hierarchy once per activation
         private bool _dumpedHierarchy;
 
@@ -55,6 +61,8 @@ namespace AccessibleArena.Core.Services
             {
                 case ScreenMode.MatchEnd:
                     return string.IsNullOrEmpty(_matchResultText) ? "Match ended" : _matchResultText;
+                case ScreenMode.PreGame:
+                    return "Searching for match";
                 case ScreenMode.Matchmaking:
                     return "Searching for match";
                 default:
@@ -79,6 +87,12 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            if (DetectPreGame())
+            {
+                _currentMode = ScreenMode.PreGame;
+                return true;
+            }
+
             if (DetectMatchmaking())
             {
                 _currentMode = ScreenMode.Matchmaking;
@@ -94,6 +108,16 @@ namespace AccessibleArena.Core.Services
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
                 if (SceneManager.GetSceneAt(i).name == "MatchEndScene")
+                    return true;
+            }
+            return false;
+        }
+
+        private bool DetectPreGame()
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                if (SceneManager.GetSceneAt(i).name == "PreGameScene")
                     return true;
             }
             return false;
@@ -124,6 +148,9 @@ namespace AccessibleArena.Core.Services
             {
                 case ScreenMode.MatchEnd:
                     DiscoverMatchEndElements();
+                    break;
+                case ScreenMode.PreGame:
+                    DiscoverPreGameElements();
                     break;
                 case ScreenMode.Matchmaking:
                     DiscoverMatchmakingElements();
@@ -227,7 +254,69 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // 3. Find Nav_Settings button (global - lives in NavBar scene, not MatchEndScene)
+            // 3. Collect info text elements (rank, format, etc.)
+            //    These appear after animations, so polling catches them.
+            foreach (var root in rootObjects)
+            {
+                foreach (var text in root.GetComponentsInChildren<TMP_Text>(false))
+                {
+                    if (text == null) continue;
+                    string content = text.text?.Trim();
+                    if (string.IsNullOrEmpty(content)) continue;
+
+                    string objName = text.gameObject.name;
+
+                    // Build combined rank info: "Constructed-Rang: Silber Stufe 4"
+                    if (objName == "Text_Rank" || objName == "Text_RankFormat")
+                    {
+                        // Collect both rank parts, add as single combined element below
+                        continue;
+                    }
+
+                    // Skip text already used for result or generic UI labels
+                    if (objName == "text_Title") continue; // Already in announcement
+                    if (objName == "text_ClicktoContinue") continue; // Redundant with Backspace hint
+                }
+
+                // Find and combine rank info
+                string rankText = FindTextByName(root, "Text_Rank");
+                string rankFormat = FindTextByName(root, "Text_RankFormat");
+                if (!string.IsNullOrEmpty(rankText))
+                {
+                    string rankLabel = !string.IsNullOrEmpty(rankFormat)
+                        ? $"{rankFormat}: {rankText}"
+                        : rankText;
+
+                    // Use the Text_Rank GameObject as the navigable element
+                    var rankObj = FindChildRecursive(root.transform, "Text_Rank");
+                    if (rankObj != null)
+                    {
+                        AddElement(rankObj, rankLabel);
+                        Log($"  ADDED (info): Rank -> '{rankLabel}'");
+                    }
+                }
+
+                // Find "View Battlefield" text/button if present
+                var viewBattlefieldText = FindTextByName(root, "Text");
+                if (!string.IsNullOrEmpty(viewBattlefieldText) &&
+                    viewBattlefieldText.ToLowerInvariant().Contains("betrachten") ||
+                    !string.IsNullOrEmpty(viewBattlefieldText) &&
+                    viewBattlefieldText.ToLowerInvariant().Contains("battlefield"))
+                {
+                    // This might be a clickable element - find its parent with EventTrigger
+                    var textObj = FindChildRecursive(root.transform, "Text");
+                    if (textObj != null)
+                    {
+                        // Check if parent has EventTrigger (clickable)
+                        var parentET = textObj.GetComponentInParent<EventTrigger>();
+                        var targetObj = parentET != null ? parentET.gameObject : textObj;
+                        AddElement(targetObj, $"{viewBattlefieldText}, button");
+                        Log($"  ADDED (view): {targetObj.name} -> '{viewBattlefieldText}'");
+                    }
+                }
+            }
+
+            // 4. Find Nav_Settings button (global - lives in NavBar scene, not MatchEndScene)
             var settingsButton = GameObject.Find("Nav_Settings");
             if (settingsButton != null && settingsButton.activeInHierarchy)
             {
@@ -236,6 +325,152 @@ namespace AccessibleArena.Core.Services
             }
 
             Log($"=== MatchEnd discovery complete: {_elements.Count} elements ===");
+        }
+
+        private void DiscoverPreGameElements()
+        {
+            Log("=== Discovering PreGame elements ===");
+
+            var preGameScene = SceneManager.GetSceneByName("PreGameScene");
+            if (!preGameScene.IsValid() || !preGameScene.isLoaded)
+            {
+                Log("PreGameScene not valid/loaded");
+                return;
+            }
+
+            var rootObjects = preGameScene.GetRootGameObjects();
+            Log($"PreGameScene root objects: {rootObjects.Length}");
+
+            // Diagnostic dump (first poll only)
+            if (!_dumpedHierarchy)
+            {
+                _dumpedHierarchy = true;
+                foreach (var root in rootObjects)
+                {
+                    DumpHierarchy(root.transform, 0, 4);
+                }
+            }
+
+            // Targeted element discovery by name
+            TMP_Text queueDetailText = null;
+            TMP_Text timerText = null;
+            TMP_Text tipsLabel = null;
+            TMP_Text matchFoundText = null;
+            GameObject cancelButtonObj = null;
+
+            foreach (var root in rootObjects)
+            {
+                foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (text == null) continue;
+                    string objName = text.gameObject.name;
+
+                    switch (objName)
+                    {
+                        case "text_queue_detail":
+                            queueDetailText = text;
+                            break;
+                        case "text_timer":
+                            timerText = text;
+                            break;
+                        case "TipsLabel":
+                            if (text.gameObject.activeInHierarchy)
+                                tipsLabel = text;
+                            break;
+                        case "TipsLabelSpecial":
+                            // Only use if TipsLabel is not active
+                            if (tipsLabel == null && text.gameObject.activeInHierarchy)
+                                tipsLabel = text;
+                            break;
+                        case "text_MatchFound":
+                            if (text.gameObject.activeInHierarchy)
+                                matchFoundText = text;
+                            break;
+                    }
+                }
+
+                // Find Cancel button (CustomButton on inner Button_Cancel)
+                foreach (var btn in root.GetComponentsInChildren<Component>(true))
+                {
+                    if (btn == null) continue;
+                    if (btn.gameObject.name == "Button_Cancel" &&
+                        btn.GetType().Name == "CustomButton" &&
+                        btn.gameObject.activeInHierarchy)
+                    {
+                        cancelButtonObj = btn.gameObject;
+                    }
+                }
+            }
+
+            // Store timer reference for live updates
+            _timerText = timerText;
+
+            // 1. Tips/hint text (flavor text that cycles)
+            if (tipsLabel != null)
+            {
+                string tipContent = tipsLabel.text?.Trim();
+                if (!string.IsNullOrEmpty(tipContent) && !tipContent.StartsWith("Description"))
+                {
+                    AddElement(tipsLabel.gameObject, tipContent);
+                    Log($"  ADDED (tip): {tipsLabel.gameObject.name} -> '{tipContent.Substring(0, System.Math.Min(50, tipContent.Length))}...'");
+                }
+            }
+
+            // 2. Timer: combine queue detail + timer into one element
+            if (queueDetailText != null && queueDetailText.gameObject.activeInHierarchy)
+            {
+                string queueLabel = queueDetailText.text?.Trim() ?? "";
+                string timerValue = (timerText != null && timerText.gameObject.activeInHierarchy)
+                    ? timerText.text?.Trim() ?? ""
+                    : "";
+                string combined = string.IsNullOrEmpty(timerValue)
+                    ? queueLabel
+                    : $"{queueLabel} {timerValue}";
+                if (!string.IsNullOrEmpty(combined))
+                {
+                    AddElement(queueDetailText.gameObject, combined);
+                    Log($"  ADDED (timer): {combined}");
+                }
+            }
+            else if (timerText != null && timerText.gameObject.activeInHierarchy)
+            {
+                // Timer visible but no queue detail label
+                string timerValue = timerText.text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(timerValue))
+                {
+                    AddElement(timerText.gameObject, timerValue);
+                    Log($"  ADDED (timer only): {timerValue}");
+                }
+            }
+
+            // 3. Match found text (appears when opponent found)
+            if (matchFoundText != null)
+            {
+                string matchText = matchFoundText.text?.Trim();
+                if (!string.IsNullOrEmpty(matchText))
+                {
+                    AddElement(matchFoundText.gameObject, matchText);
+                    Log($"  ADDED (match found): {matchText}");
+                }
+            }
+
+            // 4. Cancel button
+            _cancelButton = cancelButtonObj;
+            if (cancelButtonObj != null)
+            {
+                AddElement(cancelButtonObj, "Cancel, button");
+                Log($"  ADDED (button): Button_Cancel");
+            }
+
+            // 5. Nav_Settings button
+            var settingsButton = GameObject.Find("Nav_Settings");
+            if (settingsButton != null && settingsButton.activeInHierarchy)
+            {
+                AddElement(settingsButton, "Settings, button");
+                Log($"  ADDED (global): Nav_Settings");
+            }
+
+            Log($"=== PreGame discovery complete: {_elements.Count} elements ===");
         }
 
         private void DiscoverMatchmakingElements()
@@ -360,6 +595,11 @@ namespace AccessibleArena.Core.Services
                         return $"{result}. {_elements.Count} options. Navigate with arrows, Enter to select. Backspace to continue.";
                     return $"{result}. Backspace to continue.";
 
+                case ScreenMode.PreGame:
+                    if (_elements.Count > 0)
+                        return $"Searching for match. {_elements.Count} items. Navigate with arrows.";
+                    return "Searching for match.";
+
                 case ScreenMode.Matchmaking:
                     return "Searching for match. Navigate with arrows, Backspace to cancel.";
 
@@ -394,18 +634,14 @@ namespace AccessibleArena.Core.Services
                         }
                         return true;
 
+                    case ScreenMode.PreGame:
                     case ScreenMode.Matchmaking:
                         // Activate Cancel
-                        if (_elements.Count > 0)
+                        if (_cancelButton != null && _cancelButton.activeInHierarchy)
                         {
-                            var cancelEl = _elements.FirstOrDefault(e =>
-                                e.Label.ToLowerInvariant().Contains("cancel"));
-                            if (cancelEl.GameObject != null)
-                            {
-                                Log("Backspace -> activating Cancel button");
-                                UIActivator.SimulatePointerClick(cancelEl.GameObject);
-                                return true;
-                            }
+                            Log("Backspace -> activating Cancel button");
+                            UIActivator.SimulatePointerClick(_cancelButton);
+                            return true;
                         }
                         break;
                 }
@@ -417,13 +653,29 @@ namespace AccessibleArena.Core.Services
 
         protected override bool OnElementActivated(int index, GameObject element)
         {
+            if (element == null) return false;
+
             // Use SimulatePointerClick for MatchEnd buttons (StyledButton/PromptButton)
-            if (_currentMode == ScreenMode.MatchEnd && element != null)
+            if (_currentMode == ScreenMode.MatchEnd)
             {
                 Log($"Activating MatchEnd button: {element.name}");
                 UIActivator.SimulatePointerClick(element);
-                return true; // Suppress default activation
+                return true;
             }
+
+            // PreGame: only buttons are actionable (Cancel, Settings)
+            if (_currentMode == ScreenMode.PreGame)
+            {
+                var label = _elements[index].Label;
+                if (label.Contains("button"))
+                {
+                    Log($"Activating PreGame button: {element.name}");
+                    UIActivator.Activate(element);
+                    return true;
+                }
+                return true; // Consume Enter on info elements (no action)
+            }
+
             return false;
         }
 
@@ -487,12 +739,18 @@ namespace AccessibleArena.Core.Services
             {
                 _pollTimer = PollInterval;
 
+                // Preserve current navigation position
+                int savedIndex = _currentIndex;
+
                 // Re-discover elements and check if count changed
                 _elements.Clear();
                 _currentIndex = -1;
                 DiscoverElements();
 
+                // Restore index (clamped to new range)
                 if (_elements.Count > 0)
+                    _currentIndex = System.Math.Min(savedIndex, _elements.Count - 1);
+                if (_currentIndex < 0 && _elements.Count > 0)
                     _currentIndex = 0;
 
                 if (_elements.Count != _lastElementCount)
@@ -506,8 +764,8 @@ namespace AccessibleArena.Core.Services
                     _announcer.AnnounceInterrupt(GetActivationAnnouncement());
                 }
 
-                // Stop polling after timeout
-                if (_pollElapsed >= MaxPollDuration)
+                // Stop polling after timeout (PreGame keeps polling for timer updates)
+                if (_currentMode != ScreenMode.PreGame && _pollElapsed >= MaxPollDuration)
                 {
                     Log($"Polling timeout reached ({MaxPollDuration}s), stopping");
                     _polling = false;
@@ -535,6 +793,11 @@ namespace AccessibleArena.Core.Services
                         return false;
                     break;
 
+                case ScreenMode.PreGame:
+                    if (!DetectPreGame())
+                        return false;
+                    break;
+
                 case ScreenMode.Matchmaking:
                     if (!DetectMatchmaking())
                         return false;
@@ -554,6 +817,8 @@ namespace AccessibleArena.Core.Services
             _currentMode = ScreenMode.None;
             _matchResultText = "";
             _continueButton = null;
+            _cancelButton = null;
+            _timerText = null;
             _dumpedHierarchy = false;
 
             if (_isActive)
@@ -565,6 +830,17 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Find the text content of a TMP_Text component by its GameObject name within a hierarchy.
+        /// </summary>
+        private string FindTextByName(GameObject root, string name)
+        {
+            var obj = FindChildRecursive(root.transform, name);
+            if (obj == null) return null;
+            var text = obj.GetComponent<TMP_Text>();
+            return text != null ? text.text?.Trim() : null;
+        }
 
         private GameObject FindChildRecursive(Transform parent, string name)
         {

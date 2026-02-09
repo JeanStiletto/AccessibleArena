@@ -84,7 +84,7 @@ C:\Users\fabia\arena\
         # Screen Navigators (all extend BaseNavigator)
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
         AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
-        PreBattleNavigator.cs        - VS screen before duel starts
+        LoadingScreenNavigator.cs    - Transitional screens (MatchEnd, PreGame/matchmaking)
         BoosterOpenNavigator.cs      - Pack contents after opening
         NPERewardNavigator.cs        - NPE reward screens
         RewardPopupNavigator.cs      - Rewards popup from mail claims, store purchases
@@ -136,7 +136,7 @@ C:\Users\fabia\arena\
 - [?] AssetPrepNavigator - Download screen on fresh install (UNTESTED, fail-safe design)
 - [x] Login scene - Handled by GeneralMenuNavigator with password masking
 - [x] Code of Conduct - Default navigation works correctly
-- [x] PreBattleNavigator - VS screen before duel (Continue/Cancel buttons)
+- [x] LoadingScreenNavigator - Transitional screens: match end (victory/defeat) and PreGame (matchmaking queue)
 - [x] BoosterOpenNavigator - Pack contents after opening packs
 - [x] RewardPopupNavigator - Rewards popup from mail/store (cards, packs, currency)
 - [x] AdvancedFiltersNavigator - Advanced Filters popup in Collection/Deck Builder (grid navigation)

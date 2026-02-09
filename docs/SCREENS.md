@@ -355,33 +355,71 @@ if (panel == null || !panel.activeInHierarchy)
 
 Only one navigator can be active. UIFocusTracker runs as fallback when no navigator is active.
 
-## Pre-Battle Screen
+## Transitional Screens
 
-### VS Screen
-**Navigator:** `PreBattleNavigator`
-**Priority:** 80
-**Scene:** `DuelScene` (initial phase)
+### Match End Screen (Victory/Defeat)
+**Navigator:** `LoadingScreenNavigator` (ScreenMode.MatchEnd)
+**Priority:** 65
+**Scene:** `MatchEndScene` (loaded additively after duel)
 
-The pre-game screen showing player names and deck matchup before the duel starts.
+The victory/defeat screen shown after a duel ends. UI loads late (after animations).
 
-**Elements:**
-- Continue button (`PromptButton_Primary`) - Start the battle
-- Cancel button (`PromptButton_Secondary`) - Cancel and return to menu
+**Elements Detected:**
+- Match result text (Victory/Defeat/Draw keywords in TMP_Text)
+- Rank info (Text_RankFormat + Text_Rank combined, e.g. "Constructed-Rang: Silber Stufe 4")
+- View Battlefield button (`ViewBattlefieldButton`)
+- ExitMatchOverlayButton (Continue - starts INACTIVE, appears after animation)
+- Nav_Settings (global, from NavBar scene)
 
 **Navigation:**
-- Up/Down arrows: Navigate between buttons
-- Enter: Activate (Continue starts duel, Cancel exits)
-- Space: NOT accepted (prevents accidental battle start)
+- Up/Down arrows: Navigate elements
+- Enter: Activate buttons
+- Backspace: Continue (clicks ExitMatchOverlayButton or simulates screen center click)
+- F2: Announce match result
 
 **Technical Notes:**
-- Activates when DuelScene loads but before actual gameplay
-- Detects prompt buttons with pre-battle text
-- Auto-deactivates once duel gameplay begins
-- Higher priority than DuelNavigator to catch the VS screen first
+- Scene-scoped search via `scene.GetRootGameObjects()` to avoid duel leftover elements
+- CanvasGroup filtering (`alpha <= 0 || !interactable`) for invisible duel buttons
+- Uses EventTrigger-based buttons (not Button/Selectable) - activated via `SimulatePointerClick`
+- 0-element activation pattern with polling (UI loads after scene, not with it)
+- Polls every 0.5s for up to 10s for late-loading elements
+- MatchEndScene added to GeneralMenuNavigator's ExcludedScenes
+- CardInfoNavigator deactivated on scene change to prevent stale card reading
+
+### PreGame Screen (Matchmaking Queue)
+**Navigator:** `LoadingScreenNavigator` (ScreenMode.PreGame)
+**Priority:** 65
+**Scene:** `PreGameScene` (loaded between clicking Play and DuelScene)
+
+The VS/matchmaking screen shown while waiting for an opponent. Contains timer, gameplay hints, and cancel button.
+
+**Elements Detected:**
+- TipsLabel (cycling flavor text/gameplay hints via CyclingTipsView)
+- Timer (text_queue_detail + text_timer combined, e.g. "Aktuelle Wartezeit: 0:05")
+- text_MatchFound ("Ready!" when opponent found)
+- Button_Cancel (CustomButton, becomes active after initial animation)
+- Nav_Settings (global)
+
+**Navigation:**
+- Up/Down arrows: Navigate elements
+- Enter: Activate buttons (Cancel, Settings)
+- Backspace: Cancel matchmaking
+
+**Technical Notes:**
+- Scene-scoped search within PreGameScene root objects
+- Targeted element discovery by name (not generic TMP_Text sweep)
+- Timer label updates on each poll cycle (0.5s) without re-announcing
+- Filters placeholder text ("Description description...") from initial load
+- Filters player name text (text_playerName, text_playerDetails) as not useful
+- TipsLabelSpecial filtered (duplicate of TipsLabel)
+- Polling continues for entire PreGame duration (no timeout) for timer updates
+- Navigation position preserved across poll cycles
+- PreGameScene added to GeneralMenuNavigator's ExcludedScenes
+- ~14-18 seconds typical wait time before DuelScene loads
 
 ## DuelScene
 
-After the VS screen, the game transitions to active gameplay.
+After the PreGame screen, the game transitions to active gameplay.
 
 ### Duel Gameplay
 **Navigator:** `DuelNavigator` + `ZoneNavigator`

@@ -1424,7 +1424,7 @@ if (elementName == "Nav_YourButton")
 - Added special UIActivator handling for Nav_Mail (onClick had no listeners)
 - Added Harmony patches for `NavBarController.MailboxButton_OnClick()` and `HideInboxIfActive()`
 
-#### Decision Tree: Content Screen vs Overlay Panel
+#### Decision Tree: Content Screen vs Overlay Panel vs Transitional Screen
 
 ```
 Is the new screen...
@@ -1434,13 +1434,21 @@ Is the new screen...
 │       - Add display name mapping
 │       - Backspace → NavigateToHome()
 │
-└── Appearing on top of existing content?
-    └── YES → Overlay Panel
-        - Add overlay detection
-        - Add ElementGroup
-        - Add custom backspace handler
-        - May need UIActivator special handling
-        - May need Harmony patches
+├── Appearing on top of existing content?
+│   └── YES → Overlay Panel
+│       - Add overlay detection
+│       - Add ElementGroup
+│       - Add custom backspace handler
+│       - May need UIActivator special handling
+│       - May need Harmony patches
+│
+└── Short-lived scene between game states? (loading, matchmaking, results)
+    └── YES → Transitional Screen (LoadingScreenNavigator)
+        - Add new ScreenMode enum value
+        - Add scene detection + element discovery methods
+        - Wire into 5 switch statements
+        - Add to GeneralMenuNavigator ExcludedScenes
+        - See "Transitional/Loading Screens" section above
 ```
 
 #### Common Pitfalls
@@ -1452,6 +1460,131 @@ Is the new screen...
 3. **Overlay elements appearing when closed**: Check overlay detection logic - the panel GameObject may exist but be inactive.
 
 4. **Double announcements**: Ensure only ONE detection method (Harmony OR reflection OR alpha) is used per panel type.
+
+#### 3. Transitional/Loading Screens (LoadingScreenNavigator)
+
+Transitional screens are short-lived scenes that appear between major game states (e.g., match end, matchmaking queue, loading). They differ from content screens and overlays because they use additive scene loading and have late-loading UI.
+
+**Characteristics:**
+- Loaded as additive scenes (not replacing MainNavigation content)
+- UI elements appear after the scene loads (animations, network responses)
+- Short-lived (seconds to tens of seconds)
+- Few interactive elements (1-3 buttons) plus info text
+- No NavBar content panels - standalone scenes
+
+**When to use LoadingScreenNavigator:**
+Add a new `ScreenMode` to `LoadingScreenNavigator` instead of creating a separate navigator. This keeps all transitional screen logic in one place with shared polling infrastructure.
+
+**Implementation Steps for a New Loading Screen Mode:**
+
+1. **Identify the scene**: Check MelonLoader logs for scene names during the transition. Look for `Scene loaded: SceneName` entries.
+
+2. **Add ScreenMode enum value** in LoadingScreenNavigator:
+```csharp
+private enum ScreenMode { None, MatchEnd, PreGame, Matchmaking, YourNewMode }
+```
+
+3. **Add detection method**:
+```csharp
+private bool DetectYourNewMode()
+{
+    // Iterate additive scenes to find yours
+    for (int i = 0; i < SceneManager.sceneCount; i++)
+    {
+        if (SceneManager.GetSceneAt(i).name == "YourSceneName")
+            return true;
+    }
+    return false;
+}
+```
+
+4. **Add element discovery method** (scene-scoped search):
+```csharp
+private void DiscoverYourNewModeElements()
+{
+    var scene = SceneManager.GetSceneByName("YourSceneName");
+    if (!scene.IsValid() || !scene.isLoaded) return;
+
+    var rootObjects = scene.GetRootGameObjects();
+
+    // Dump hierarchy on first poll for debugging
+    if (!_dumpedHierarchy)
+    {
+        _dumpedHierarchy = true;
+        foreach (var root in rootObjects)
+            DumpHierarchy(root.transform, 0, 4);
+    }
+
+    // Search by specific element names (not generic TMP_Text sweep)
+    foreach (var root in rootObjects)
+    {
+        foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
+        {
+            switch (text.gameObject.name)
+            {
+                case "your_text_element":
+                    if (text.gameObject.activeInHierarchy)
+                        AddElement(text.gameObject, text.text?.Trim());
+                    break;
+            }
+        }
+    }
+
+    // Always add Nav_Settings if visible (global element in NavBar scene)
+    var settings = GameObject.Find("Nav_Settings");
+    if (settings != null && settings.activeInHierarchy)
+        AddElement(settings, "Settings, button");
+}
+```
+
+5. **Wire into existing switch statements** (5 places):
+   - `DetectScreen()` - call your detection method, set `_currentMode`
+   - `DiscoverElements()` - call your discovery method
+   - `GetScreenName()` - return screen name string
+   - `GetActivationAnnouncement()` - return activation message
+   - `ValidateElements()` - call your detection method to verify still active
+
+6. **Add to GeneralMenuNavigator ExcludedScenes**:
+```csharp
+private static readonly HashSet<string> ExcludedScenes = new HashSet<string>
+{
+    "Bootstrap", "AssetPrep", "DuelScene", ..., "YourSceneName"
+};
+```
+
+7. **Add Backspace handler** if the mode has a primary action (cancel, continue):
+```csharp
+case ScreenMode.YourNewMode:
+    if (_yourButton != null && _yourButton.activeInHierarchy)
+    {
+        UIActivator.SimulatePointerClick(_yourButton);
+        return true;
+    }
+    break;
+```
+
+8. **Add OnElementActivated handler** if buttons need special activation:
+```csharp
+if (_currentMode == ScreenMode.YourNewMode)
+{
+    UIActivator.SimulatePointerClick(element);
+    return true;
+}
+```
+
+**Key Patterns for Loading Screens:**
+- **Always use scene-scoped search**: `scene.GetRootGameObjects()` then `GetComponentsInChildren` within each root. Never use `FindObjectsOfType` which crosses scene boundaries.
+- **Search by name, not generic sweep**: Target specific element names to avoid picking up decorative/internal text.
+- **CanvasGroup filtering**: Check `alpha > 0 && interactable` to filter invisible elements from other scenes.
+- **Preserve navigation index on poll**: Save and restore `_currentIndex` during element rebuild.
+- **Combine related text**: Merge label + value elements (e.g. "Wait time:" + "0:05") into single navigable items.
+- **Filter useless text**: Player names, placeholder text, duplicate elements.
+
+**Debugging a New Loading Screen:**
+1. Enable `DumpHierarchy` (set `_dumpedHierarchy = false` before activation)
+2. Check MelonLoader log for the full hierarchy dump
+3. Identify element names, which are INACTIVE, which have useful text
+4. Note which elements appear late (INACTIVE on first dump, active on later polls)
 
 ### Special Activation Cases
 Some elements (NPE chest/deck boxes) need controller reflection:

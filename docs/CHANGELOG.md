@@ -4,6 +4,16 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-09
 
+### Loading Screen Navigator (NEW)
+- New `LoadingScreenNavigator` for transitional screens (priority 65)
+- **Match End**: Announces victory/defeat result, rank info, navigable buttons (Continue, View Battlefield, Settings)
+- **PreGame/Matchmaking**: Announces "Searching for match" with live timer, cycling hints, Cancel and Settings buttons
+- Scene-scoped element discovery prevents cross-scene contamination from duel leftovers
+- Polling-based element discovery handles late-loading UI (animations, network responses)
+- Backspace shortcut: Continue (match end) or Cancel (matchmaking)
+- Replaced broken PreBattleNavigator and fixed MatchEndScene handling in GeneralMenuNavigator
+- CardInfoNavigator now deactivated on scene change (prevents stale card reading after duel)
+
 ### Browser Fixes (Scry, Surveil, London Mulligan)
 - Fixed card activation in Scry/Surveil/London browsers using correct game APIs
 - Browser card movement now uses drag simulation (HandleDrag/OnDragRelease) instead of RemoveCard/AddCard

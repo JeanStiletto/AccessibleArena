@@ -28,7 +28,7 @@ namespace AccessibleArena.Core.Services
         // Scenes where this navigator should NOT activate (handled by other navigators)
         private static readonly HashSet<string> ExcludedScenes = new HashSet<string>
         {
-            "Bootstrap", "AssetPrep", "DuelScene", "DraftScene", "SealedScene", "MatchEndScene"
+            "Bootstrap", "AssetPrep", "DuelScene", "DraftScene", "SealedScene", "MatchEndScene", "PreGameScene"
         };
 
         // Minimum CustomButtons needed to consider this a menu
