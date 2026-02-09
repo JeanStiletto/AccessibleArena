@@ -143,7 +143,7 @@ Enter (Toggle card), Space (Submit)
 
 **Global:**
 F1 (Help Menu - navigable with Up/Down, close with Backspace or F1)
-F2 (Context), Ctrl+R (Repeat)
+F3 (Current screen), Ctrl+R (Repeat)
 Backspace (Back/Dismiss/Cancel - universal)
 
 Do NOT override: Enter, Escape

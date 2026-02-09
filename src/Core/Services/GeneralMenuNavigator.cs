@@ -10,6 +10,7 @@ using AccessibleArena.Patches;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace AccessibleArena.Core.Services
 {
@@ -116,6 +117,7 @@ namespace AccessibleArena.Core.Services
         protected string _detectedMenuType;
         private bool _hasLoggedUIOnce;
         private float _activationDelay;
+        private bool _announcedServerLoading;
 
         // Helper instances
         private readonly MenuScreenDetector _screenDetector;
@@ -251,6 +253,32 @@ namespace AccessibleArena.Core.Services
         /// Used to deactivate this navigator so SettingsMenuNavigator can take over.
         /// </summary>
         private bool IsSettingsMenuOpen() => PanelStateManager.Instance?.IsSettingsMenuOpen == true;
+
+        // Cached reflection for LoadingPanelShowing.IsShowing (static property on game type)
+        private static PropertyInfo _loadingPanelIsShowingProp;
+        private static bool _loadingPanelReflectionResolved;
+
+        /// <summary>
+        /// Check if the game's loading panel overlay is currently showing.
+        /// Uses reflection to access MTGA.LoadingPanelShowing.IsShowing static property.
+        /// </summary>
+        private static bool IsLoadingPanelShowing()
+        {
+            if (!_loadingPanelReflectionResolved)
+            {
+                _loadingPanelReflectionResolved = true;
+                var type = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+                    .FirstOrDefault(t => t.FullName == "MTGA.LoadingPanelShowing");
+                if (type != null)
+                    _loadingPanelIsShowingProp = type.GetProperty("IsShowing", BindingFlags.Public | BindingFlags.Static);
+            }
+
+            if (_loadingPanelIsShowingProp == null)
+                return false;
+
+            return (bool)_loadingPanelIsShowingProp.GetValue(null);
+        }
 
         /// <summary>
         /// Check if the Social/Friends panel is currently open.
@@ -884,6 +912,13 @@ namespace AccessibleArena.Core.Services
             if (_screenDetector.IsNPERewardsScreenActive())
             {
                 LogDebug($"[{NavigatorId}] NPE rewards screen detected - deactivating to let NPERewardNavigator take over");
+                return false;
+            }
+
+            // Deactivate if loading panel overlay appears (e.g. waiting for server after scene load)
+            if (IsLoadingPanelShowing())
+            {
+                LogDebug($"[{NavigatorId}] Loading panel overlay detected - deactivating");
                 return false;
             }
 
@@ -2446,6 +2481,18 @@ namespace AccessibleArena.Core.Services
             // Don't activate when NPE rewards popup is showing - let NPERewardNavigator handle it
             if (_screenDetector.IsNPERewardsScreenActive())
                 return false;
+
+            // Don't activate when game loading panel overlay is showing (e.g. after scene transition)
+            if (IsLoadingPanelShowing())
+            {
+                if (!_announcedServerLoading)
+                {
+                    _announcedServerLoading = true;
+                    _announcer.AnnounceInterrupt("Waiting for server");
+                }
+                return false;
+            }
+            _announcedServerLoading = false;
 
             // Wait for UI to settle after scene change
             if (_activationDelay > 0)

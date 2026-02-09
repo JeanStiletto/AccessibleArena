@@ -338,7 +338,7 @@ namespace AccessibleArena.Core.Models
 
         // Global shortcuts
         public const string HelpF1Help = "F1: Help menu";
-        public const string HelpF2Context = "F2: Current screen";
+        public const string HelpF3Context = "F3: Current screen";
         public const string HelpCtrlRRepeat = "Control plus R: Repeat last announcement";
         public const string HelpBackspace = "Backspace: Back, dismiss, or cancel";
 

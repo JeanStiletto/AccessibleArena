@@ -382,6 +382,11 @@ The loading screen shown during game startup while connecting to servers. Displa
 - AssetPrepNavigator only relevant for fresh-install download screens with active buttons
 - Deactivates on scene change (e.g., MainNavigation after login)
 
+### Server Loading Overlay (Main Menu)
+**Navigator:** `GeneralMenuNavigator` (not a separate navigator)
+
+When the game's loading panel overlay is active after scene transition (e.g., logging in, reconnecting), GeneralMenuNavigator announces "Waiting for server" once and defers activation until the overlay clears. Uses reflection on `MTGA.LoadingPanelShowing.IsShowing` static property.
+
 ### Match End Screen (Victory/Defeat)
 **Navigator:** `LoadingScreenNavigator` (ScreenMode.MatchEnd)
 **Priority:** 65
@@ -400,7 +405,7 @@ The victory/defeat screen shown after a duel ends. UI loads late (after animatio
 - Up/Down arrows: Navigate elements
 - Enter: Activate buttons
 - Backspace: Continue (clicks ExitMatchOverlayButton or simulates screen center click)
-- F2: Announce match result
+- F3: Announce current screen
 
 **Technical Notes:**
 - Scene-scoped search via `scene.GetRootGameObjects()` to avoid duel leftover elements

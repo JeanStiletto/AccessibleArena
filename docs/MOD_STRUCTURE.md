@@ -11,12 +11,10 @@ C:\Users\fabia\arena\
 
     Core\
       Interfaces\
-        INavigable.cs            - Navigable item interface
-        INavigableContext.cs     - Context interface
-        IScreenNavigator.cs      - Screen navigator interface (NEW)
+        IScreenNavigator.cs      - Screen navigator interface
         ...
 
-      Models\                    - GameContext, AnnouncementPriority, Strings (localization), etc.
+      Models\                    - AnnouncementPriority, Strings (localization), etc.
 
       Models\
         TargetInfo.cs            - Target data model and CardTargetType enum
@@ -31,7 +29,6 @@ C:\Users\fabia\arena\
 
         # Central Services (held by main mod)
         AnnouncementService.cs   - Speech output management
-        ContextManager.cs        - Game context tracking
         InputManager.cs          - Custom shortcut handling
         ShortcutRegistry.cs      - Keybind registration
         DebugConfig.cs           - Centralized debug logging flags (NEW Phase 2)
@@ -84,7 +81,7 @@ C:\Users\fabia\arena\
         # Screen Navigators (all extend BaseNavigator)
         UIFocusTracker.cs            - EventSystem focus polling (fallback)
         AssetPrepNavigator.cs        - Download screen on fresh install (UNTESTED)
-        LoadingScreenNavigator.cs    - Transitional screens (MatchEnd, PreGame/matchmaking)
+        LoadingScreenNavigator.cs    - Transitional screens (MatchEnd, PreGame/matchmaking, GameLoading)
         BoosterOpenNavigator.cs      - Pack contents after opening
         NPERewardNavigator.cs        - NPE reward screens
         RewardPopupNavigator.cs      - Rewards popup from mail claims, store purchases
@@ -100,11 +97,6 @@ C:\Users\fabia\arena\
 
         # UI Classification
         UIElementClassifier.cs       - Element role detection (button, progress, etc.)
-
-    Contexts\
-      Base\                      - BaseNavigableContext, BaseMenuContext
-      Login\                     - LoginContext (login flow panels)
-      MainMenu\                  - MainMenuContext
 
     Patches\
       UXEventQueuePatch.cs       - Harmony patch for duel game event interception
@@ -128,6 +120,7 @@ C:\Users\fabia\arena\
 - [x] Tolk library configured (NVDA communication working)
 - [x] Assembly analysis completed
 - [x] Core framework (interfaces, services, base classes)
+  - Note: Legacy context system (ContextManager, GameContext, INavigableContext, Contexts/) was removed February 2026 — fully superseded by the navigator system
 - [x] Scene detection (Bootstrap, AssetPrep, Login)
 - [x] UI Focus tracking via EventSystem polling
 - [x] F1 Help Menu - Navigable keybind list (Up/Down navigation, Backspace/F1 to close)
@@ -136,7 +129,7 @@ C:\Users\fabia\arena\
 - [?] AssetPrepNavigator - Download screen on fresh install (UNTESTED, fail-safe design)
 - [x] Login scene - Handled by GeneralMenuNavigator with password masking
 - [x] Code of Conduct - Default navigation works correctly
-- [x] LoadingScreenNavigator - Transitional screens: match end (victory/defeat) and PreGame (matchmaking queue)
+- [x] LoadingScreenNavigator - Transitional screens: game loading (startup), match end (victory/defeat), PreGame (matchmaking queue)
 - [x] BoosterOpenNavigator - Pack contents after opening packs
 - [x] RewardPopupNavigator - Rewards popup from mail/store (cards, packs, currency)
 - [x] AdvancedFiltersNavigator - Advanced Filters popup in Collection/Deck Builder (grid navigation)

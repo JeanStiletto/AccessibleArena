@@ -152,7 +152,6 @@ namespace AccessibleArena.Core.Services
         }
 
         private readonly IShortcutRegistry _shortcuts;
-        private readonly IContextManager _contextManager;
         private readonly IAnnouncementService _announcer;
 
         // Only monitor keys we use for custom shortcuts (not game navigation)
@@ -184,10 +183,9 @@ namespace AccessibleArena.Core.Services
         public event Action OnAccept;
         public event Action OnCancel;
 
-        public InputManager(IShortcutRegistry shortcuts, IContextManager contextManager, IAnnouncementService announcer)
+        public InputManager(IShortcutRegistry shortcuts, IAnnouncementService announcer)
         {
             _shortcuts = shortcuts;
-            _contextManager = contextManager;
             _announcer = announcer;
         }
 
@@ -229,39 +227,22 @@ namespace AccessibleArena.Core.Services
         public void OnGameNavigateNext()
         {
             OnNavigateNext?.Invoke();
-            var context = _contextManager.ActiveContext;
-            context?.MoveNext();
         }
 
-        /// <summary>
-        /// Called by Harmony patches when game navigation occurs.
-        /// </summary>
         public void OnGameNavigatePrevious()
         {
             OnNavigatePrevious?.Invoke();
-            var context = _contextManager.ActiveContext;
-            context?.MovePrevious();
         }
 
-        /// <summary>
-        /// Called by Harmony patches when game accept action occurs.
-        /// </summary>
         public void OnGameAccept()
         {
             OnAccept?.Invoke();
-            var context = _contextManager.ActiveContext;
-            context?.Accept();
         }
 
-        /// <summary>
-        /// Called by Harmony patches when game cancel/back action occurs.
-        /// </summary>
         public void OnGameCancel()
         {
             OnCancel?.Invoke();
             _announcer.Silence();
-            var context = _contextManager.ActiveContext;
-            context?.Cancel();
         }
     }
 }

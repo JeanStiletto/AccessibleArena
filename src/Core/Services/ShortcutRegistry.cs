@@ -10,21 +10,15 @@ namespace AccessibleArena.Core.Services
     public class ShortcutRegistry : IShortcutRegistry
     {
         private readonly List<ShortcutDefinition> _shortcuts = new List<ShortcutDefinition>();
-        private readonly IContextManager _contextManager;
 
-        public ShortcutRegistry(IContextManager contextManager)
+        public void RegisterShortcut(KeyCode key, Action action, string description)
         {
-            _contextManager = contextManager;
+            _shortcuts.Add(new ShortcutDefinition(key, action, description));
         }
 
-        public void RegisterShortcut(KeyCode key, Action action, string description, GameContext? context = null)
+        public void RegisterShortcut(KeyCode key, KeyCode modifier, Action action, string description)
         {
-            _shortcuts.Add(new ShortcutDefinition(key, action, description, context));
-        }
-
-        public void RegisterShortcut(KeyCode key, KeyCode modifier, Action action, string description, GameContext? context = null)
-        {
-            _shortcuts.Add(new ShortcutDefinition(key, action, description, context, modifier));
+            _shortcuts.Add(new ShortcutDefinition(key, action, description, modifier));
         }
 
         public void UnregisterShortcut(KeyCode key, KeyCode? modifier = null)
@@ -34,12 +28,8 @@ namespace AccessibleArena.Core.Services
 
         public bool ProcessKey(KeyCode key, bool shift, bool ctrl, bool alt)
         {
-            var currentContext = _contextManager.CurrentGameContext;
-
             var shortcut = _shortcuts
                 .Where(s => s.Key == key && MatchesModifiers(s, shift, ctrl, alt))
-                .Where(s => s.Context == null || s.Context == currentContext)
-                .OrderByDescending(s => s.Context.HasValue)
                 .FirstOrDefault();
 
             if (shortcut != null)
@@ -63,16 +53,6 @@ namespace AccessibleArena.Core.Services
                 KeyCode.LeftAlt or KeyCode.RightAlt => alt && !shift && !ctrl,
                 _ => false
             };
-        }
-
-        public IEnumerable<ShortcutDefinition> GetShortcutsForContext(GameContext context)
-        {
-            return _shortcuts.Where(s => s.Context == context);
-        }
-
-        public IEnumerable<ShortcutDefinition> GetGlobalShortcuts()
-        {
-            return _shortcuts.Where(s => !s.Context.HasValue);
         }
 
         public IEnumerable<ShortcutDefinition> GetAllShortcuts()

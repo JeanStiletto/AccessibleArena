@@ -4,8 +4,6 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services;
 using AccessibleArena.Core.Services.PanelDetection;
-using AccessibleArena.Contexts.Login;
-using AccessibleArena.Contexts.MainMenu;
 using AccessibleArena.Patches;
 
 [assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "0.1.0-beta", "Accessible Arena Team")]
@@ -18,7 +16,6 @@ namespace AccessibleArena
         public static AccessibleArenaMod Instance { get; private set; }
 
         private IAnnouncementService _announcer;
-        private IContextManager _contextManager;
         private IShortcutRegistry _shortcuts;
         private IInputHandler _inputHandler;
         private UIFocusTracker _focusTracker;
@@ -49,7 +46,6 @@ namespace AccessibleArena
 
             InitializeServices();
             RegisterGlobalShortcuts();
-            RegisterContexts();
             InitializeHarmonyPatches();
 
             _initialized = true;
@@ -74,9 +70,8 @@ namespace AccessibleArena
         private void InitializeServices()
         {
             _announcer = new AnnouncementService();
-            _contextManager = new ContextManager();
-            _shortcuts = new ShortcutRegistry(_contextManager);
-            _inputHandler = new InputManager(_shortcuts, _contextManager, _announcer);
+            _shortcuts = new ShortcutRegistry();
+            _inputHandler = new InputManager(_shortcuts, _announcer);
             _focusTracker = new UIFocusTracker(_announcer);
             _cardInfoNavigator = new CardInfoNavigator(_announcer);
             _helpNavigator = new HelpNavigator(_announcer);
@@ -173,23 +168,12 @@ namespace AccessibleArena
         {
             _shortcuts.RegisterShortcut(KeyCode.F1, ToggleHelpMenu, "Help menu");
             _shortcuts.RegisterShortcut(KeyCode.R, KeyCode.LeftControl, RepeatLastAnnouncement, "Repeat last announcement");
-            _shortcuts.RegisterShortcut(KeyCode.F2, AnnounceCurrentContext, "Announce current screen");
+            _shortcuts.RegisterShortcut(KeyCode.F3, AnnounceCurrentScreen, "Announce current screen");
         }
 
         private void ToggleHelpMenu()
         {
             _helpNavigator?.Toggle();
-        }
-
-        private void RegisterContexts()
-        {
-            var loginContext = new LoginContext(_announcer, _contextManager);
-            var mainMenuContext = new MainMenuContext(_announcer, _contextManager, _shortcuts);
-
-            _contextManager.RegisterContext(GameContext.Login, loginContext);
-            _contextManager.RegisterContext(GameContext.MainMenu, mainMenuContext);
-
-            LoggerInstance.Msg("Contexts registered: Login, MainMenu");
         }
 
         private void RepeatLastAnnouncement()
@@ -200,19 +184,16 @@ namespace AccessibleArena
             }
         }
 
-        private void AnnounceCurrentContext()
+        private void AnnounceCurrentScreen()
         {
-            var context = _contextManager.ActiveContext;
-            if (context != null)
+            var nav = _navigatorManager?.ActiveNavigator;
+            if (nav != null)
             {
-                var position = context.CurrentIndex >= 0
-                    ? $"Item {context.CurrentIndex + 1} of {context.ItemCount}"
-                    : "No items";
-                _announcer.AnnounceInterrupt($"{context.ContextName}. {position}");
+                _announcer.AnnounceInterrupt(nav.ScreenName);
             }
             else
             {
-                _announcer.AnnounceInterrupt($"Current screen: {_contextManager.CurrentGameContext}");
+                _announcer.AnnounceInterrupt("No active screen");
             }
         }
 
@@ -244,46 +225,6 @@ namespace AccessibleArena
                 duelNav?.OnDuelSceneLoaded();
             }
 
-            var detectedContext = DetectContextFromScene(sceneName);
-            if (detectedContext != GameContext.Unknown)
-            {
-                _contextManager.SetContext(detectedContext);
-                LoggerInstance.Msg($"Context set to: {detectedContext}");
-            }
-        }
-
-        private GameContext DetectContextFromScene(string sceneName)
-        {
-            if (string.IsNullOrEmpty(sceneName))
-                return GameContext.Unknown;
-
-            var lowerName = sceneName.ToLowerInvariant();
-
-            if (lowerName.Contains("login") || lowerName.Contains("auth"))
-                return GameContext.Login;
-
-            if (lowerName.Contains("home") || lowerName.Contains("main") || lowerName.Contains("frontend"))
-                return GameContext.MainMenu;
-
-            if (lowerName == "pregamescene")
-                return GameContext.PreGame;
-
-            if (lowerName == "duelscene")
-                return GameContext.Duel;
-
-            if (lowerName.Contains("deck"))
-                return GameContext.DeckBuilder;
-
-            if (lowerName.Contains("store") || lowerName.Contains("shop"))
-                return GameContext.Shop;
-
-            if (lowerName.Contains("draft"))
-                return GameContext.Draft;
-
-            if (lowerName.Contains("loading"))
-                return GameContext.Loading;
-
-            return GameContext.Unknown;
         }
 
         public override void OnUpdate()

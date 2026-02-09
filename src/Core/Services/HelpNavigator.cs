@@ -37,7 +37,7 @@ namespace AccessibleArena.Core.Services
                 // Global shortcuts
                 Strings.HelpCategoryGlobal,
                 Strings.HelpF1Help,
-                Strings.HelpF2Context,
+                Strings.HelpF3Context,
                 Strings.HelpCtrlRRepeat,
                 Strings.HelpBackspace,
 

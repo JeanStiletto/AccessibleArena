@@ -9,15 +9,12 @@ namespace AccessibleArena.Core.Models
         public KeyCode? Modifier { get; set; }
         public Action Action { get; set; }
         public string Description { get; set; }
-        public GameContext? Context { get; set; }
-
-        public ShortcutDefinition(KeyCode key, Action action, string description, GameContext? context = null, KeyCode? modifier = null)
+        public ShortcutDefinition(KeyCode key, Action action, string description, KeyCode? modifier = null)
         {
             Key = key;
             Modifier = modifier;
             Action = action;
             Description = description;
-            Context = context;
         }
 
         public string GetKeyString()

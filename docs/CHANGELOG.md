@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-09
 
+### Context System Removed
+- Removed legacy context system (ContextManager, GameContext, INavigableContext, Contexts/) — fully superseded by the navigator system
+- Removed stale "Main Menu menu. 7 options" announcements on scene change
+- Removed unused P/D/S shortcut scoping and dead navigation forwarding code
+- F2 "Announce current screen" moved to F3, reimplemented using navigator's ScreenName
+- GeneralMenuNavigator now announces "Waiting for server" when the game's loading panel overlay is active
+
 ### Loading Screen Navigator
 - New `LoadingScreenNavigator` for transitional screens (priority 65)
 - **Game Loading**: Announces status messages during startup (e.g., "Starting...", "Waiting for server...")

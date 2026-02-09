@@ -90,7 +90,7 @@ Library Counts: D (Your Library), Shift+D (Opponent Library), Shift+C (Opponent 
 Card Details: Arrow Up/Down when focused on a card
 Zone Navigation: Left/Right (Navigate cards), Home/End (Jump to first/last)
 Deck Selection: Shift+Enter to edit deck name (Enter to select deck)
-Global: F1 (Help), F2 (Context info), Ctrl+R (Repeat last)
+Global: F1 (Help), F3 (Current screen), Ctrl+R (Repeat last)
 
 ### Keyboard Manager Architecture
 - `MTGA.KeyboardManager.KeyboardManager`: Central keyboard handling
