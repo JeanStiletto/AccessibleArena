@@ -249,22 +249,24 @@ When a deck is selected in PlayBlade, the Play button is automatically pressed t
 This streamlines the workflow - user just navigates to a deck and presses Enter to play.
 
 **Technical Implementation:**
-- Helper uses `GroupedNavigator.IsPlayBladeContext` flag (set on blade open/close)
+- `HandleEnter(element, group)` - checks element's group type directly, returns `PlayBladeResult`
+- `HandleBackspace()` - checks current group type directly (not `IsPlayBladeContext` flag, which is unreliable due to debounce during blade Hide/Show cycles), returns `PlayBladeResult`
+- `PlayBladeResult` enum: `NotHandled`, `Handled`, `RescanNeeded`, `CloseBlade`
+- GeneralMenuNavigator calls helper first, then acts on the result
 - In PlayBlade context, deck folders are wrapped in a `PlayBladeFolders` group
 - `PlayBladeFolders` contains folder toggles as elements; entering uses default folder logic
 - `HandleGroupedEnter` in GeneralMenuNavigator detects PlayBladeFolders context and enters the corresponding folder GROUP
 - Outside PlayBlade (Decks screen), folders remain as individual groups at top level
-- `HandleEnter(element, group)` - handles tab/mode activation, returns `PlayBladeResult`
-- `HandleBackspace()` - handles all backspace in PlayBlade context, returns `PlayBladeResult`
-- `PlayBladeResult` enum: `NotHandled`, `Handled`, `RescanNeeded`, `CloseBlade`
-- GeneralMenuNavigator calls helper first, then acts on the result
+
+**PlayBlade group detection caveat:**
+Elements are classified as PlayBlade groups by `IsInsidePlayBlade()` in `ElementGroupAssigner`, which matches broad parent path patterns (`Blade_`, `BladeContent`, `BladeContainer`, etc.). Deeper pages rendered inside the blade (deck selection, deck builder header) are excluded by name. If new UI is added inside the blade hierarchy without exclusions, it could be misclassified as PlayBladeContent and receive PlayBlade backspace handling. Check `ElementGroupAssigner.IsInsidePlayBlade()` and its exclusion list if unexpected navigation behavior occurs in screens that render inside the blade.
 
 **Why special handling needed:**
 - Tab clicks cause rapid blade Hide/Show events that would reset normal state tracking
 - Mode selection (Ranked/Play/Brawl) doesn't trigger panel changes, so manual rescan needed
 - Backspace behavior differs from normal groups (hierarchical: folder→folders→content→tabs→close)
 - Folder groups need to be presented as a list in PlayBlade, not as individual top-level groups
-- Group restore must be skipped in PlayBlade context to prevent overwriting auto-entries
+- Group restore must be skipped when PlayBlade auto-entries run (tracked via `playBladeAutoEntryPerformed` flag)
 
 **Blade Close/Open Cycles:**
 When activating a tab (e.g., "Find Match"), the blade briefly closes and reopens. During this:

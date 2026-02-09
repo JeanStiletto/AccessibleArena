@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-09
 
+### PlayBlade Fixes
+- Fixed stale PlayBladeState when blade GameObject is destroyed during page transition (entering events via Events tab showed empty screen)
+- Fixed Backspace not working when game gets stuck in "Waiting for server" loading state
+- Fixed PlayBlade auto-entry into content group being overridden by group restore during tab switch (debounce timing issue)
+- Fixed Backspace from Events play options going to group level instead of back to tabs (HandleBackspace now checks group type directly instead of unreliable IsPlayBladeContext flag)
+
 ### Context System Removed
 - Removed legacy context system (ContextManager, GameContext, INavigableContext, Contexts/) — fully superseded by the navigator system
 - Removed stale "Main Menu menu. 7 options" announcements on scene change

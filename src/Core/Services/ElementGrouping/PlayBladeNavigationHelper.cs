@@ -82,10 +82,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// <returns>Result indicating what action to take.</returns>
         public PlayBladeResult HandleBackspace()
         {
-            // Only handle if we're in PlayBlade context
-            if (!_groupedNavigator.IsPlayBladeContext)
-                return PlayBladeResult.NotHandled;
-
+            // Determine if we're in a PlayBlade group by checking the group type directly.
+            // Don't gate on IsPlayBladeContext - it can be stale due to debounce
+            // during blade Hide/Show cycles when switching tabs.
             var currentGroup = _groupedNavigator.CurrentGroup;
             if (!currentGroup.HasValue)
                 return PlayBladeResult.NotHandled;
