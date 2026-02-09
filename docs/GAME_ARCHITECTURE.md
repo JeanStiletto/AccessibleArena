@@ -260,7 +260,19 @@ When clicking the Play button on the HomePage, the PlayBlade system opens. (Note
 **Blade Views** (inherit from BladeContentView)
 - `EventBladeContentView` - Shows game modes (Ranked, Play, Brawl)
 - `FindMatchBladeContentView` - Shows deck selection and match finding
-- `LastPlayedBladeContentView` - Quick replay last mode
+- `LastPlayedBladeContentView` - Recently played entries (tiles with deck + play button)
+
+**LastPlayedBladeContentView (Recent Tab) Internals:**
+- `_tiles` (private List\<LastGamePlayedTile\>) - Up to 3 tile instances (count - 1 of available models)
+- `_models` (private List\<RecentlyPlayedInfo\>) - Model data for each tile
+- `RecentlyPlayedInfo` has public fields: `EventInfo` (BladeEventInfo), `SelectedDeckInfo` (DeckViewInfo), `IsQueueEvent` (bool)
+- `BladeEventInfo` has public fields: `LocTitle` (localization key), `EventName`, `IsInProgress`, etc.
+- Each `LastGamePlayedTile` contains:
+  - `_playButton` (CustomButton) - NOT wired to any action (onPlaySelected is null)
+  - `_secondaryButton` (CustomButton) - The actual play/continue button (triggers OnPlayButtonClicked)
+  - `_eventTitleText` (Localize) - Event title, resolved text readable from child TMP_Text
+  - A `DeckView` created via `DeckViewBuilder` inside `_deckBoxParent`
+- Tile GameObjects named: `LastPlayedTile - (EventName)`
 
 **Key Flow:**
 1. Click Play -> `PlayBladeVisualState` changes to Events

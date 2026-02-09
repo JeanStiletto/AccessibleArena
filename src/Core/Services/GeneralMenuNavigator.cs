@@ -2806,6 +2806,44 @@ namespace AccessibleArena.Core.Services
                 .Where(p => p.Value.mainButton != null && p.Value.editButton != null)
                 .ToDictionary(p => p.Value.mainButton, p => p.Value.editButton);
 
+            // Recent tab: build mapping of tile elements to event titles and play buttons
+            // So we can enrich deck labels and hide standalone play buttons
+            var recentTilePlayButtons = new HashSet<GameObject>();
+            var recentDeckEventTitles = new Dictionary<GameObject, string>();
+            RecentPlayAccessor.FindContentView();
+            if (RecentPlayAccessor.IsActive)
+            {
+                int tileCount = RecentPlayAccessor.GetTileCount();
+                MelonLogger.Msg($"[{NavigatorId}] Recent tab active with {tileCount} tiles");
+                foreach (var (obj, classification, _) in discoveredElements)
+                {
+                    int tileIdx = RecentPlayAccessor.FindTileIndexForElement(obj);
+                    if (tileIdx < 0) continue;
+
+                    // Find ALL non-deck buttons in this tile and mark them for skipping
+                    foreach (var btn in RecentPlayAccessor.FindAllButtonsInTile(tileIdx))
+                        recentTilePlayButtons.Add(btn);
+
+                    // If this is a deck entry, map it to the event title
+                    if (deckMainButtons.Contains(obj))
+                    {
+                        string eventTitle = RecentPlayAccessor.GetEventTitle(tileIdx);
+                        if (!string.IsNullOrEmpty(eventTitle))
+                            recentDeckEventTitles[obj] = eventTitle;
+                    }
+                }
+                // Also hide any MainButton not inside a tile (the PlayBlade's own play button)
+                // On Recent tab it's redundant — each tile has its own play button
+                foreach (var (obj2, classification2, _) in discoveredElements)
+                {
+                    if (obj2.name == "MainButton" && RecentPlayAccessor.FindTileIndexForElement(obj2) < 0)
+                    {
+                        recentTilePlayButtons.Add(obj2);
+                    }
+                }
+                MelonLogger.Msg($"[{NavigatorId}] Recent tab: {recentDeckEventTitles.Count} deck-event mappings, {recentTilePlayButtons.Count} play buttons to hide");
+            }
+
             // Sort by position and add elements with proper labels
             MelonLogger.Msg($"[{NavigatorId}] Processing {discoveredElements.Count} discovered elements for final addition");
             foreach (var (obj, classification, _) in discoveredElements.OrderBy(x => x.sortOrder))
@@ -2823,7 +2861,15 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
+                // Recent tab: skip standalone play buttons (they're auto-pressed on deck Enter)
+                if (recentTilePlayButtons.Contains(obj))
+                    continue;
+
                 string announcement = BuildAnnouncement(classification);
+
+                // Recent tab: enrich deck labels with event/mode name
+                if (recentDeckEventTitles.TryGetValue(obj, out var eventTitle))
+                    announcement += " — " + eventTitle;
 
                 // Build carousel info if this element supports arrow navigation (including sliders)
                 CarouselInfo carouselInfo = classification.HasArrowNavigation
@@ -3949,7 +3995,14 @@ namespace AccessibleArena.Core.Services
             // Handle PlayBlade activations BEFORE UIActivator.Activate
             // Helper sets up pending entry flags before blade Hide/Show events can interfere
             var elementGroup = _groupAssigner.DetermineGroup(element);
-            var playBladeResult = _playBladeHelper.HandleEnter(element, elementGroup);
+
+            // Recent tab decks: skip PlayBlade helper (it would request folders entry, but
+            // Recent tab has no folders — we handle auto-play directly below)
+            bool isRecentTabDeck = elementGroup == ElementGroup.PlayBladeContent
+                && RecentPlayAccessor.IsActive && UIActivator.IsDeckEntry(element);
+            var playBladeResult = isRecentTabDeck
+                ? PlayBladeResult.NotHandled
+                : _playBladeHelper.HandleEnter(element, elementGroup);
             // Note: Settings submenu button handling removed - handled by SettingsMenuNavigator
 
             // For toggles: Re-sync EventSystem selection before activating.
@@ -3971,7 +4024,28 @@ namespace AccessibleArena.Core.Services
             // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
             if (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))
             {
-                AutoPressPlayButtonInPlayBlade();
+                // Recent tab: press the tile's own play button instead of the generic PlayBlade one
+                if (isRecentTabDeck)
+                {
+                    int tileIdx = RecentPlayAccessor.FindTileIndexForElement(element);
+                    if (tileIdx >= 0)
+                    {
+                        var playBtn = RecentPlayAccessor.FindPlayButtonInTile(tileIdx);
+                        if (playBtn != null)
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Recent tab: auto-pressing play button for tile {tileIdx}");
+                            UIActivator.Activate(playBtn);
+                        }
+                        else
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Recent tab: no play button found for tile {tileIdx}");
+                        }
+                    }
+                }
+                else
+                {
+                    AutoPressPlayButtonInPlayBlade();
+                }
             }
 
             // Deck list card activated (removing card from deck) - trigger rescan to update both lists

@@ -4,6 +4,14 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-09
 
+### Recent Tab (Kürzlich gespielt) Improvements
+- Deck labels enriched with event/mode name (e.g., "Friedhofsgeschenke, deck — Standard mit Rangliste")
+- Event titles read from rendered UI text (localized) instead of raw localization keys
+- Enter on a deck auto-presses the tile's play/continue button (starts match directly)
+- Standalone play buttons hidden from navigation (redundant with auto-press on Enter)
+- PlayBlade HandleEnter bypass for Recent tab decks (no folders to enter)
+- New `RecentPlayAccessor.cs` — reflection wrapper for `LastPlayedBladeContentView` tile data
+
 ### PlayBlade Fixes
 - Fixed stale PlayBladeState when blade GameObject is destroyed during page transition (entering events via Events tab showed empty screen)
 - Fixed Backspace not working when game gets stuck in "Waiting for server" loading state

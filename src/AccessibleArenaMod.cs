@@ -204,6 +204,7 @@ namespace AccessibleArena
             // Clear card detection and deck info caches on scene change
             CardDetector.ClearCache();
             DeckInfoProvider.ClearCache();
+            RecentPlayAccessor.ClearCache();
 
             // Deactivate card info navigator on scene change (prevents stale card reading)
             if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)

@@ -26,6 +26,7 @@ C:\Users\fabia\arena\
         CardDetector.cs          - Card detection + card info extraction
         CardModelProvider.cs     - Card data from game models (deck list, collection)
         CardPoolAccessor.cs      - Reflection wrapper for CardPoolHolder (collection page API)
+        RecentPlayAccessor.cs    - Reflection wrapper for LastPlayedBladeContentView (Recent tab tiles)
 
         # Central Services (held by main mod)
         AnnouncementService.cs   - Speech output management
