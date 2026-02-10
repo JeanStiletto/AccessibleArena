@@ -618,7 +618,10 @@ namespace AccessibleArena.Core.Services
 
             var card = _browserCards[_currentCardIndex];
             var info = CardDetector.ExtractCardInfo(card);
-            string cardName = info.Name ?? "Unknown card";
+            bool isSelectionBrowser = _browserInfo?.BrowserType == "SelectCards" || _browserInfo?.BrowserType == "SelectCardsMultiZone";
+            string cardName = isSelectionBrowser && !string.IsNullOrEmpty(info.RulesText)
+                ? info.RulesText
+                : info.Name ?? "Unknown card";
 
             // Get selection state from zone navigator for zone-based browsers
             string selectionState = null;
@@ -650,8 +653,11 @@ namespace AccessibleArena.Core.Services
 
             _announcer.Announce(announcement, AnnouncementPriority.High);
 
-            // Prepare CardInfoNavigator
-            AccessibleArenaMod.Instance?.CardNavigator?.PrepareForCard(card, ZoneType.Library);
+            // Selection browsers show options, not cards - use Browser zone for rules-first ordering
+            var zone = (_browserInfo?.BrowserType == "SelectCards" || _browserInfo?.BrowserType == "SelectCardsMultiZone")
+                ? ZoneType.Browser
+                : ZoneType.Library;
+            AccessibleArenaMod.Instance?.CardNavigator?.PrepareForCard(card, zone);
         }
 
         /// <summary>

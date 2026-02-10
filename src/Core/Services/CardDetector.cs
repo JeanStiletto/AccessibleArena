@@ -654,24 +654,36 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoCollection, collectionText));
             }
 
-            // Battlefield: mana cost comes after rules (less important when card is in play)
+            // Block order varies by zone context
             bool isBattlefield = zone == ZoneType.Battlefield;
+            bool isBrowser = zone == ZoneType.Browser;
 
-            if (!isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
-
-            if (!string.IsNullOrEmpty(info.PowerToughness))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoPowerToughness, info.PowerToughness));
-
-            if (!string.IsNullOrEmpty(info.TypeLine))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoType, info.TypeLine));
-
-            if (!string.IsNullOrEmpty(info.RulesText))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
-
-            // Battlefield: mana cost after rules
-            if (isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
+            // Browser (selection): rules first - these are options, not cards to identify by name
+            if (isBrowser)
+            {
+                if (!string.IsNullOrEmpty(info.RulesText))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
+                if (!string.IsNullOrEmpty(info.ManaCost))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
+                if (!string.IsNullOrEmpty(info.PowerToughness))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoPowerToughness, info.PowerToughness));
+                if (!string.IsNullOrEmpty(info.TypeLine))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoType, info.TypeLine));
+            }
+            else
+            {
+                if (!isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
+                if (!string.IsNullOrEmpty(info.PowerToughness))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoPowerToughness, info.PowerToughness));
+                if (!string.IsNullOrEmpty(info.TypeLine))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoType, info.TypeLine));
+                if (!string.IsNullOrEmpty(info.RulesText))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
+                // Battlefield: mana cost after rules
+                if (isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
+                    blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
+            }
 
             if (!string.IsNullOrEmpty(info.FlavorText))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoFlavor, info.FlavorText));

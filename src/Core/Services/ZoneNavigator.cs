@@ -849,7 +849,8 @@ namespace AccessibleArena.Core.Services
         OpponentHand,
         OpponentGraveyard,
         OpponentLibrary,
-        OpponentExile
+        OpponentExile,
+        Browser
     }
 
     /// <summary>
