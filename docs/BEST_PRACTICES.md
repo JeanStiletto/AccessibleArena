@@ -570,22 +570,27 @@ This gives an overview when multiple attackers were declared.
 - "2 attackers. Declare blockers" (transitioning to blockers phase)
 - "1 attacker. Declare blockers"
 
-**Blocker Phase Announcements (January 2026):**
+**Blocker Phase Announcements (January 2026, enriched February 2026):**
 
 The `CombatNavigator` tracks blocker selection and assignment during the declare blockers phase.
+Uses **model-based detection** via `CardModelProvider` for attacking/blocking state, with UI fallback.
+Resolves blocker-attacker relationships via `Instance.BlockingIds` / `Instance.BlockedByIds` fields.
 
 *Two States Tracked:*
-1. **Selected blockers** - Creatures clicked as potential blockers (have `SelectedHighlightBattlefield` + `CombatIcon_BlockerFrame`)
-2. **Assigned blockers** - Creatures confirmed to block an attacker (have `IsBlocking` indicator active)
+1. **Selected blockers** - Creatures clicked as potential blockers (have `SelectedHighlightBattlefield` + `CombatIcon_BlockerFrame`) - UI-only, no model equivalent
+2. **Assigned blockers** - Creatures confirmed to block an attacker (model: `Instance.IsBlocking` property, UI fallback: active `IsBlocking` child)
 
 *Announcements:*
 - When selecting potential blockers: "3/4 blocking" (combined power/toughness)
-- When assigning blockers to attackers: "Spiritual Guardian assigned"
-- Multiple blockers assigned: "Spiritual Guardian, Llanowar Elves assigned"
+- When assigning blockers to attackers: "Cat blocking Angel" (resolves `BlockingIds` to attacker name)
+- Fallback if `BlockingIds` not yet populated: "Cat assigned"
+- Navigating assigned blocker: "Cat, blocking Angel, 2 of 5"
+- Navigating blocked attacker: "Angel, attacking, blocked by Cat, 3 of 5"
+- Navigating unblocked attacker: "Angel, attacking, 3 of 5" (unchanged)
 
 *Blocking Workflow:*
 1. Click a potential blocker → "X/Y blocking" (combined P/T of selected blockers)
-2. Click an attacker to assign the blocker(s) → "[Name] assigned"
+2. Click an attacker to assign the blocker(s) → "[Name] blocking [Attacker]"
 3. Repeat for other blockers/attackers
 4. Press Space or F to confirm all blocks
 
@@ -594,14 +599,32 @@ The `CombatNavigator` tracks blocker selection and assignment during the declare
 - Both trackers reset when entering/exiting the declare blockers phase
 - This prevents the P/T announcement from persisting after assignment
 
+*Model Fields on `MtgCardInstance` (accessed via reflection):*
+- `IsAttacking` (property, bool) - true when declared as attacker
+- `IsBlocking` (property, bool) - true when assigned as blocker
+- `BlockingIds` (field, `List<uint>`) - InstanceIds of attackers this blocker is blocking
+- `BlockedByIds` (field, `List<uint>`) - InstanceIds of blockers blocking this attacker
+- Access chain: `GetDuelSceneCDC(card)` → `GetCardModel(cdc)` → `GetModelInstance(model)` → read prop/field
+
 *Key Methods in CombatNavigator:*
 ```csharp
 UpdateBlockerSelection()      // Called each frame, tracks both states
 FindSelectedBlockers()        // Finds creatures with selection highlight + blocker frame
 FindAssignedBlockers()        // Finds creatures with IsBlocking active
-IsCreatureSelectedAsBlocker() // Checks selection highlight + blocker frame
-IsCreatureBlocking()          // Checks for active IsBlocking child
+IsCreatureSelectedAsBlocker() // Checks selection highlight + blocker frame (UI-only)
+IsCreatureAttacking()         // Model-first via CardModelProvider, UI fallback
+IsCreatureBlocking()          // Model-first via CardModelProvider, UI fallback
+GetBlockingText()             // Resolves BlockingIds → "blocking Angel"
+GetBlockedByText()            // Resolves BlockedByIds → "blocked by Cat"
 ```
+
+*UI Indicators (still used for "can block"/"can attack"/"selected to block"):*
+- `CombatIcon_AttackerFrame` - creature can attack (during declare attackers)
+- `CombatIcon_BlockerFrame` - creature can block (during declare blockers)
+- `SelectedHighlightBattlefield` - creature is selected/highlighted
+- `IsAttacking` child (active) - UI fallback for transitional states (Lobbed animations)
+- `IsBlocking` child (active) - UI fallback for blocker detection
+- `TappedIcon` - tapped state (non-attackers only)
 
 **Combat Damage Announcements (January 2026):**
 

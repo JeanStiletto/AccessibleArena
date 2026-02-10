@@ -44,10 +44,15 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Checks if a creature is currently selected/declared as an attacker.
+        /// Uses model data first, falls back to UI child scan for transitional states.
         /// </summary>
         public bool IsCreatureAttacking(GameObject card)
         {
             if (card == null) return false;
+
+            // Model-based check (authoritative)
+            if (CardModelProvider.GetIsAttackingFromCard(card))
+                return true;
 
             // Debug: Log relevant children to find the exact indicator
             if (_debugAttackerCards && _duelAnnouncer.IsInDeclareAttackersPhase)
@@ -55,18 +60,12 @@ namespace AccessibleArena.Core.Services
                 LogAttackerRelevantChildren(card);
             }
 
+            // UI fallback for transitional states (Lobbed animations, etc.)
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                // IsAttacking: Check if child EXISTS (not just if active)
-                // The indicator may be inactive but present, meaning the creature IS attacking
-                if (child.name == "IsAttacking")
-                    return true;
-
-                // For other indicators, require them to be active
                 if (!child.gameObject.activeInHierarchy)
                     continue;
 
-                // Check other possible indicators
                 if (child.name.Contains("Declared") ||
                     child.name.Contains("Selected") ||
                     child.name.Contains("Lobbed"))
@@ -107,19 +106,19 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Checks if a creature is currently assigned as a blocker.
-        /// Looks for the "IsBlocking" child within the card hierarchy.
-        /// Note: Unlike IsAttacking, we must check ACTIVE state because the game
-        /// pre-creates IsBlocking children on all potential blockers (inactive)
-        /// and only activates them when actually assigned.
+        /// Uses model data first, falls back to UI child scan.
         /// </summary>
         public bool IsCreatureBlocking(GameObject card)
         {
             if (card == null) return false;
 
+            // Model-based check (authoritative)
+            if (CardModelProvider.GetIsBlockingFromCard(card))
+                return true;
+
+            // UI fallback - "IsBlocking" child is ACTIVE when assigned as a blocker
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                // "IsBlocking" child is ACTIVE when the creature is assigned as a blocker
-                // Must check active state - game pre-creates inactive IsBlocking on all potential blockers
                 if (child.name == "IsBlocking" && child.gameObject.activeInHierarchy)
                 {
                     return true;
@@ -301,18 +300,24 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Announce newly assigned blockers
+                // Announce newly assigned blockers with attacker names
                 if (newlyAssigned.Count > 0)
                 {
-                    string blockerNames = "";
+                    var parts = new List<string>();
                     foreach (var blocker in newlyAssigned)
                     {
                         var info = CardDetector.ExtractCardInfo(blocker);
-                        if (!string.IsNullOrEmpty(blockerNames)) blockerNames += ", ";
-                        blockerNames += info.Name ?? "creature";
+                        string blockerName = info.Name ?? "creature";
+
+                        // Try to resolve what this blocker is blocking
+                        string blockingTarget = GetBlockingText(blocker);
+                        if (!string.IsNullOrEmpty(blockingTarget))
+                            parts.Add($"{blockerName} {blockingTarget}");
+                        else
+                            parts.Add($"{blockerName} assigned");
                     }
-                    string announcement = $"{blockerNames} assigned";
-                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count} - {blockerNames}");
+                    string announcement = string.Join(", ", parts);
+                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count} - {announcement}");
                     _announcer.Announce(announcement, AnnouncementPriority.High);
 
                     // Clear selected tracking since these blockers are now assigned
@@ -368,7 +373,8 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets text to append to card announcement indicating active states.
-        /// Scans for state indicators and reports them directly.
+        /// Uses model data for attacking/blocking with relationship names,
+        /// and UI scan for frames, selection, and tapped state.
         /// </summary>
         public string GetCombatStateText(GameObject card)
         {
@@ -379,29 +385,27 @@ namespace AccessibleArena.Core.Services
             bool hasBlockerFrame = false;
             bool isSelected = false;
             bool isTapped = false;
-            bool isAttacking = false;
-            bool isBlocking = false;
 
+            // Model-based combat state
+            bool isAttacking = CardModelProvider.GetIsAttackingFromCard(card);
+            bool isBlocking = CardModelProvider.GetIsBlockingFromCard(card);
+
+            // UI scan for frames, selection, tapped (still needed for "can block"/"can attack" etc.)
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
-                // For display purposes, check ACTIVE state for IsAttacking/IsBlocking
-                // (Internal tracking methods use existence check for correct counting)
-                if (child.name == "IsAttacking" && child.gameObject.activeInHierarchy)
+                // UI fallback for attacking/blocking if model didn't detect
+                if (!isAttacking && child.name == "IsAttacking" && child.gameObject.activeInHierarchy)
                     isAttacking = true;
-                if (child.name == "IsBlocking" && child.gameObject.activeInHierarchy)
+                if (!isBlocking && child.name == "IsBlocking" && child.gameObject.activeInHierarchy)
                     isBlocking = true;
 
-                // For other indicators, require them to be active
                 if (!child.gameObject.activeInHierarchy)
                     continue;
 
-                // Track combat frames
                 if (child.name.Contains("CombatIcon_AttackerFrame"))
                     hasAttackerFrame = true;
                 if (child.name.Contains("CombatIcon_BlockerFrame"))
                     hasBlockerFrame = true;
-
-                // Track selection and tapped state
                 if (child.name.Contains("SelectedHighlightBattlefield"))
                     isSelected = true;
                 if (child.name.Contains("TappedIcon"))
@@ -410,13 +414,27 @@ namespace AccessibleArena.Core.Services
 
             // Attacking states (priority: is attacking > can attack)
             if (isAttacking)
-                states.Add("attacking");
+            {
+                // Try to resolve who is blocking this attacker
+                string blockedByText = GetBlockedByText(card);
+                if (!string.IsNullOrEmpty(blockedByText))
+                    states.Add($"attacking, {blockedByText}");
+                else
+                    states.Add("attacking");
+            }
             else if (hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase)
                 states.Add("can attack");
 
             // Blocking states (priority: is blocking > selected to block > can block)
             if (isBlocking)
-                states.Add("blocking");
+            {
+                // Try to resolve what this blocker is blocking
+                string blockingText = GetBlockingText(card);
+                if (!string.IsNullOrEmpty(blockingText))
+                    states.Add(blockingText);
+                else
+                    states.Add("blocking");
+            }
             else if (hasBlockerFrame && isSelected)
                 states.Add("selected to block");
             else if (hasBlockerFrame && _duelAnnouncer.IsInDeclareBlockersPhase)
@@ -430,6 +448,68 @@ namespace AccessibleArena.Core.Services
                 return "";
 
             return ", " + string.Join(", ", states);
+        }
+
+        /// <summary>
+        /// Resolves BlockingIds to card names for a blocker card.
+        /// Returns e.g. "blocking Angel" or "blocking Angel and Dragon".
+        /// </summary>
+        private string GetBlockingText(GameObject card)
+        {
+            try
+            {
+                var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                if (cdc == null) return null;
+                var model = CardModelProvider.GetCardModel(cdc);
+                if (model == null) return null;
+
+                var blockingIds = CardModelProvider.GetBlockingIds(model);
+                if (blockingIds.Count == 0) return null;
+
+                var names = new List<string>();
+                foreach (var id in blockingIds)
+                {
+                    string name = CardModelProvider.ResolveInstanceIdToName(id);
+                    if (!string.IsNullOrEmpty(name))
+                        names.Add(name);
+                }
+
+                if (names.Count == 0) return null;
+                return "blocking " + string.Join(" and ", names);
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Resolves BlockedByIds to card names for an attacker card.
+        /// Returns e.g. "blocked by Cat" or "blocked by Cat and Bear".
+        /// </summary>
+        private string GetBlockedByText(GameObject card)
+        {
+            try
+            {
+                var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                if (cdc == null) return null;
+                var model = CardModelProvider.GetCardModel(cdc);
+                if (model == null) return null;
+
+                var blockedByIds = CardModelProvider.GetBlockedByIds(model);
+                if (blockedByIds.Count == 0) return null;
+
+                var names = new List<string>();
+                foreach (var id in blockedByIds)
+                {
+                    string name = CardModelProvider.ResolveInstanceIdToName(id);
+                    if (!string.IsNullOrEmpty(name))
+                        names.Add(name);
+                }
+
+                if (names.Count == 0) return null;
+                return "blocked by " + string.Join(" and ", names);
+            }
+            catch { }
+            return null;
         }
 
         /// <summary>

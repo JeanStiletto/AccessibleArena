@@ -291,12 +291,22 @@ The mod detects buttons by their **GameObject names** which never change regardl
 Button **text** is only used for announcements, not for routing decisions. This works with German, English, or any other language.
 
 **Combat State Detection:**
-Cards announce their current state based on active UI indicators:
-- "attacking" - `IsAttacking` child is active (creature declared as attacker)
-- "blocking" - `IsBlocking` child is active (creature assigned to block)
-- "selected to block" - Has `CombatIcon_BlockerFrame` + `SelectedHighlightBattlefield` (clicked, not yet assigned)
-- "can block" - Has `CombatIcon_BlockerFrame` only (during declare blockers phase)
+Cards announce their current state using **model data first** (via `CardModelProvider`), with UI child scan as fallback:
+- "attacking" - `Model.Instance.IsAttacking` property (model-based), UI fallback: `IsAttacking` child active
+- "attacking, blocked by Cat" - When attacker has `Instance.BlockedByIds` populated, resolves blocker names
+- "blocking Angel" - `Model.Instance.IsBlocking` property + `Instance.BlockingIds` resolved to attacker names
+- "blocking" - Fallback when `BlockingIds` not yet populated
+- "selected to block" - Has `CombatIcon_BlockerFrame` + `SelectedHighlightBattlefield` (UI-only, no model equivalent)
+- "can block" - Has `CombatIcon_BlockerFrame` only (during declare blockers phase, UI-only)
+- "can attack" - Has `CombatIcon_AttackerFrame` (during declare attackers phase, UI-only)
 - "tapped" - Has `TappedIcon` (shown for non-attackers only, since attackers are always tapped)
+
+*Model fields on `MtgCardInstance`:*
+- `IsAttacking` (property, bool) - true when declared as attacker
+- `IsBlocking` (property, bool) - true when assigned as blocker
+- `BlockingIds` (field, `List<uint>`) - InstanceIds of attackers this blocker is blocking
+- `BlockedByIds` (field, `List<uint>`) - InstanceIds of blockers blocking this attacker
+- Access chain: `GetDuelSceneCDC(card)` → `GetCardModel(cdc)` → `GetModelInstance(model)` → read prop/field
 
 **Declare Attackers Phase:**
 - [x] F/Space key handling - Clicks `PromptButton_Primary` (whatever text: "All Attack", "X Attackers", etc.)
@@ -311,17 +321,20 @@ Cards announce their current state based on active UI indicators:
 - [x] F/Space key handling - Clicks `PromptButton_Primary` (whatever text: "X Blocker", "Next", "Confirm", etc.)
 - [x] Backspace key handling - Clicks `PromptButton_Secondary` (whatever text: "No Blocks", "Cancel Blocks", etc.)
 - [x] **Full blocker state announcements** - "can block", "selected to block", "blocking" (see Combat State Detection above)
-- [x] **Attacker announcements during blockers** - Enemy attackers announce ", attacking"
-- [x] **Blocker state detection** - Checks for active `IsBlocking` child (not just presence of BlockerFrame)
+- [x] **Attacker announcements during blockers** - Enemy attackers announce ", attacking" (or ", attacking, blocked by Cat")
+- [x] **Blocker state detection** - Model-based via `CardModelProvider.GetIsBlockingFromCard()`, UI fallback for active `IsBlocking` child
+- [x] **Blocker-attacker relationships** - Resolves `BlockingIds`/`BlockedByIds` to card names for rich announcements
 - [x] **Blocker selection tracking** - Tracks selected blockers via `SelectedHighlightBattlefield` + `CombatIcon_BlockerFrame`
 - [x] **Combined P/T announcements** - Announces "X/Y blocking" when selection changes
+- [x] **Blocker assignment announcements** - "Cat blocking Angel" (or "Cat assigned" if BlockingIds not yet populated)
 
 **Blocker Selection System:**
-- `IsCreatureSelectedAsBlocker(card)` - Checks for both `CombatIcon_BlockerFrame` AND `SelectedHighlightBattlefield` active
+- `IsCreatureSelectedAsBlocker(card)` - Checks for both `CombatIcon_BlockerFrame` AND `SelectedHighlightBattlefield` active (UI-only, no model equivalent)
 - `FindSelectedBlockers()` - Returns all CDC cards currently selected as blockers
 - `GetPowerToughness(card)` - Extracts P/T from card using `CardDetector.ExtractCardInfo()`
 - `CalculateCombinedStats(blockers)` - Sums power and toughness across all selected blockers
-- `UpdateBlockerSelection()` - Called each frame, detects selection changes, announces combined stats
+- `UpdateBlockerSelection()` - Called each frame, detects selection changes, announces combined stats and blocker-attacker pairings
+- `GetBlockingText(card)` / `GetBlockedByText(card)` - Resolve combat relationships to card names via `CardModelProvider`
 - `FindPromptButton(isPrimary)` - Language-agnostic button finder by GameObject name
 - Tracking uses `HashSet<int>` of instance IDs to detect changes efficiently
 - Resets tracking when entering/exiting blockers phase

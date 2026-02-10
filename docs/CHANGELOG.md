@@ -2,7 +2,18 @@
 
 All notable changes to Accessible Arena.
 
-## v0.5 - 2026-02-09
+## v0.5 - 2026-02-10
+
+### Blocker-Attacker Relationship Announcements
+- Assigned blockers now announce what they're blocking: "Cat blocking Angel" instead of "Cat assigned"
+- Navigating a blocker shows attacker name: "Cat, blocking Angel, 2 of 5"
+- Navigating a blocked attacker shows blockers: "Angel, attacking, blocked by Cat, 3 of 5"
+- Unblocked attackers unchanged: "Angel, attacking, 3 of 5"
+- Uses `Model.Instance.BlockingIds` / `BlockedByIds` fields to resolve combat relationships
+- Combat detection now model-first (`CardModelProvider.GetIsAttackingFromCard/GetIsBlockingFromCard`) with UI fallback
+- New helpers in `CardModelProvider`: `GetBlockingIds`, `GetBlockedByIds`, `ResolveInstanceIdToName`
+- Refactored `GetModelInstance` as shared cached helper (also used by `GetAttachedToId`)
+- Files: `CardModelProvider.cs`, `CombatNavigator.cs`
 
 ### Attachment/Enchantment Announcements
 - Battlefield cards now announce attachments: "Grizzly Bears, enchanted by Pacifism"

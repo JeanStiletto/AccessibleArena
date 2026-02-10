@@ -64,6 +64,17 @@ namespace AccessibleArena.Core.Services
             _artistProvider = null;
             _getArtistMethod = null;
             _artistProviderSearched = false;
+            // Combat state cache
+            _instancePropCached = null;
+            _instancePropSearched = false;
+            _isAttackingProp = null;
+            _isAttackingPropSearched = false;
+            _isBlockingProp = null;
+            _isBlockingPropSearched = false;
+            _blockingIdsField = null;
+            _blockingIdsFieldSearched = false;
+            _blockedByIdsField = null;
+            _blockedByIdsFieldSearched = false;
         }
 
         #region Component Access
@@ -2132,13 +2143,10 @@ namespace AccessibleArena.Core.Services
 
         public static uint GetAttachedToId(object model)
         {
-            if (model == null) return 0;
+            var instance = GetModelInstance(model);
+            if (instance == null) return 0;
             try
             {
-                var instanceProp = model.GetType().GetProperty("Instance");
-                var instance = instanceProp?.GetValue(model);
-                if (instance == null) return 0;
-
                 // Cache the FieldInfo - AttachedToId is a field on MtgCardInstance, not a property
                 if (!_attachedToIdFieldSearched)
                 {
@@ -2351,6 +2359,213 @@ namespace AccessibleArena.Core.Services
 
             if (result.Count == 0) return "";
             return ", " + string.Join(", ", result);
+        }
+
+        #endregion
+
+        #region Combat State
+
+        // Cache for combat state reflection
+        private static PropertyInfo _instancePropCached;
+        private static bool _instancePropSearched;
+        private static PropertyInfo _isAttackingProp;
+        private static bool _isAttackingPropSearched;
+        private static PropertyInfo _isBlockingProp;
+        private static bool _isBlockingPropSearched;
+        private static FieldInfo _blockingIdsField;
+        private static bool _blockingIdsFieldSearched;
+        private static FieldInfo _blockedByIdsField;
+        private static bool _blockedByIdsFieldSearched;
+
+        /// <summary>
+        /// Gets the Instance object from a card model via cached reflection.
+        /// This is the MtgCardInstance that holds combat state fields.
+        /// </summary>
+        private static object GetModelInstance(object model)
+        {
+            if (model == null) return null;
+            try
+            {
+                if (!_instancePropSearched)
+                {
+                    _instancePropSearched = true;
+                    _instancePropCached = model.GetType().GetProperty("Instance");
+                }
+                // If cached type doesn't match (different model type), look up directly
+                if (_instancePropCached != null && _instancePropCached.DeclaringType.IsAssignableFrom(model.GetType()))
+                {
+                    return _instancePropCached.GetValue(model);
+                }
+                // Fallback: direct lookup
+                var prop = model.GetType().GetProperty("Instance");
+                return prop?.GetValue(model);
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Returns true if the card model's Instance.IsAttacking property is true.
+        /// </summary>
+        public static bool GetIsAttacking(object model)
+        {
+            var instance = GetModelInstance(model);
+            if (instance == null) return false;
+            try
+            {
+                if (!_isAttackingPropSearched)
+                {
+                    _isAttackingPropSearched = true;
+                    _isAttackingProp = instance.GetType().GetProperty("IsAttacking",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (_isAttackingProp != null)
+                {
+                    var val = _isAttackingProp.GetValue(instance);
+                    if (val is bool b) return b;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the card model's Instance.IsBlocking property is true.
+        /// </summary>
+        public static bool GetIsBlocking(object model)
+        {
+            var instance = GetModelInstance(model);
+            if (instance == null) return false;
+            try
+            {
+                if (!_isBlockingPropSearched)
+                {
+                    _isBlockingPropSearched = true;
+                    _isBlockingProp = instance.GetType().GetProperty("IsBlocking",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (_isBlockingProp != null)
+                {
+                    var val = _isBlockingProp.GetValue(instance);
+                    if (val is bool b) return b;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the list of attacker InstanceIds that this blocker is blocking.
+        /// Reads Instance.BlockingIds field (List of uint).
+        /// </summary>
+        public static List<uint> GetBlockingIds(object model)
+        {
+            var result = new List<uint>();
+            var instance = GetModelInstance(model);
+            if (instance == null) return result;
+            try
+            {
+                if (!_blockingIdsFieldSearched)
+                {
+                    _blockingIdsFieldSearched = true;
+                    _blockingIdsField = instance.GetType().GetField("BlockingIds",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                }
+                if (_blockingIdsField != null)
+                {
+                    var val = _blockingIdsField.GetValue(instance);
+                    if (val is IList list)
+                    {
+                        foreach (var item in list)
+                        {
+                            if (item is uint id) result.Add(id);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        /// <summary>
+        /// Gets the list of blocker InstanceIds blocking this attacker.
+        /// Reads Instance.BlockedByIds field (List of uint).
+        /// </summary>
+        public static List<uint> GetBlockedByIds(object model)
+        {
+            var result = new List<uint>();
+            var instance = GetModelInstance(model);
+            if (instance == null) return result;
+            try
+            {
+                if (!_blockedByIdsFieldSearched)
+                {
+                    _blockedByIdsFieldSearched = true;
+                    _blockedByIdsField = instance.GetType().GetField("BlockedByIds",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                }
+                if (_blockedByIdsField != null)
+                {
+                    var val = _blockedByIdsField.GetValue(instance);
+                    if (val is IList list)
+                    {
+                        foreach (var item in list)
+                        {
+                            if (item is uint id) result.Add(id);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        /// <summary>
+        /// Resolves an InstanceId to a card name by scanning all battlefield cards.
+        /// Returns null if not found.
+        /// </summary>
+        public static string ResolveInstanceIdToName(uint instanceId)
+        {
+            if (instanceId == 0) return null;
+            try
+            {
+                var allCards = GetAllBattlefieldCardModels();
+                foreach (var (cardModel, id, grpId) in allCards)
+                {
+                    if (id == instanceId)
+                    {
+                        return grpId > 0 ? GetNameFromGrpId(grpId) : null;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if a card GameObject is attacking, using model data.
+        /// Chains: GetDuelSceneCDC → GetCardModel → GetIsAttacking.
+        /// </summary>
+        public static bool GetIsAttackingFromCard(GameObject card)
+        {
+            if (card == null) return false;
+            var cdc = GetDuelSceneCDC(card);
+            if (cdc == null) return false;
+            var model = GetCardModel(cdc);
+            return GetIsAttacking(model);
+        }
+
+        /// <summary>
+        /// Checks if a card GameObject is blocking, using model data.
+        /// Chains: GetDuelSceneCDC → GetCardModel → GetIsBlocking.
+        /// </summary>
+        public static bool GetIsBlockingFromCard(GameObject card)
+        {
+            if (card == null) return false;
+            var cdc = GetDuelSceneCDC(card);
+            if (cdc == null) return false;
+            var model = GetCardModel(cdc);
+            return GetIsBlocking(model);
         }
 
         #endregion
