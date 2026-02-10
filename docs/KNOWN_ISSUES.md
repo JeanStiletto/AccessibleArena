@@ -422,6 +422,8 @@ Previous approach using `Model.Parent`/`Model.Children` always returned null - t
 
 Toggle mechanism for scry/surveil needs API discovery. Detection and navigation work.
 
+LargeScrollList browser (keyword choice UI, e.g. Entstellender Künstler) now discovers choice buttons. The scaffold MainButton ("Spielfeld betrachten") is still included at the end of navigation but may not be useful - consider removing it from LargeScrollList browsers if testing confirms it serves no purpose.
+
 ### Color Challenge (CampaignGraph)
 
 - **Navigation fixed (February 2026):** CampaignGraph is now treated as a regular content page, not a PlayBlade overlay

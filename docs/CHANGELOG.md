@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-10
 
+### LargeScrollList Browser Choice Discovery
+- Keyword choice browsers (e.g. Entstellender Künstler with 3+ choices) now discover actual choice buttons
+- Previously only scaffold controls (2Button_Left, MainButton, etc.) were found because choice buttons don't match standard ButtonPatterns
+- New `DiscoverLargeScrollListChoices` scans for all clickable elements that aren't standard scaffold buttons
+- Choices ordered first in Tab navigation, scaffold controls last
+- Files: `BrowserNavigator.cs`
+
 ### Blocker-Attacker Relationship Announcements
 - Assigned blockers now announce what they're blocking: "Cat blocking Angel" instead of "Cat assigned"
 - Navigating a blocker shows attacker name: "Cat, blocking Angel, 2 of 5"
