@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-09
 
+### Attachment/Enchantment Announcements
+- Battlefield cards now announce attachments: "Grizzly Bears, enchanted by Pacifism"
+- Auras/equipment announce their target: "Pacifism, attached to Grizzly Bears"
+- DuelAnnouncer announces enchantment resolution: "Pacifism enchanted Grizzly Bears"
+- Uses `Model.Instance.AttachedToId` field on `MtgCardInstance` (discovered via decompiling `UniversalBattlefieldStack`)
+- Files: `CardModelProvider.cs`, `DuelAnnouncer.cs`
+
 ### Recent Tab (Kürzlich gespielt) Improvements
 - Deck labels enriched with event/mode name (e.g., "Friedhofsgeschenke, deck — Standard mit Rangliste")
 - Event titles read from rendered UI text (localized) instead of raw localization keys

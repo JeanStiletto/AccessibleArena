@@ -24,7 +24,7 @@ C:\Users\fabia\arena\
         UIActivator.cs           - Centralized UI element activation
         UITextExtractor.cs       - Text extraction (GetText, GetButtonText, CleanText)
         CardDetector.cs          - Card detection + card info extraction
-        CardModelProvider.cs     - Card data from game models (deck list, collection)
+        CardModelProvider.cs     - Card data from game models (deck list, collection, attachments)
         CardPoolAccessor.cs      - Reflection wrapper for CardPoolHolder (collection page API)
         RecentPlayAccessor.cs    - Reflection wrapper for LastPlayedBladeContentView (Recent tab tiles)
 

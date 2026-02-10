@@ -2,8 +2,8 @@
 
 Investigation into how MTGA handles card attachments (auras, equipment) for accessibility announcements.
 
-**Date:** 2026-01-26
-**Status:** Research complete, implementation pending
+**Date:** 2026-01-26 (research), 2026-02-09 (implementation)
+**Status:** Implemented using Model.Instance.AttachedToId - needs in-game testing
 
 ## Current Problem
 

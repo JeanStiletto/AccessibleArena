@@ -2123,98 +2123,145 @@ namespace AccessibleArena.Core.Services
         #region Attachments
 
         /// <summary>
+        /// Gets the AttachedToId from a card's Model.Instance via reflection.
+        /// This is the InstanceId of the card this card is attached to (0 if not attached).
+        /// Used by the game's UniversalBattlefieldStack to track attachment relationships.
+        /// </summary>
+        private static FieldInfo _attachedToIdField;
+        private static bool _attachedToIdFieldSearched;
+
+        public static uint GetAttachedToId(object model)
+        {
+            if (model == null) return 0;
+            try
+            {
+                var instanceProp = model.GetType().GetProperty("Instance");
+                var instance = instanceProp?.GetValue(model);
+                if (instance == null) return 0;
+
+                // Cache the FieldInfo - AttachedToId is a field on MtgCardInstance, not a property
+                if (!_attachedToIdFieldSearched)
+                {
+                    _attachedToIdFieldSearched = true;
+                    _attachedToIdField = instance.GetType().GetField("AttachedToId",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                }
+
+                if (_attachedToIdField != null)
+                {
+                    var val = _attachedToIdField.GetValue(instance);
+                    if (val is uint id) return id;
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>
+        /// Gets the InstanceId from a card's model.
+        /// </summary>
+        private static uint GetModelInstanceId(object model)
+        {
+            if (model == null) return 0;
+            try
+            {
+                var prop = model.GetType().GetProperty("InstanceId");
+                if (prop != null)
+                {
+                    var val = prop.GetValue(model);
+                    if (val is uint id) return id;
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>
+        /// Gets the GrpId from a card's model.
+        /// </summary>
+        private static uint GetModelGrpId(object model)
+        {
+            if (model == null) return 0;
+            try
+            {
+                var prop = model.GetType().GetProperty("GrpId");
+                if (prop != null)
+                {
+                    var val = prop.GetValue(model);
+                    if (val is uint id) return id;
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>
+        /// Collects all DuelScene_CDC card models from the battlefield.
+        /// Returns list of (model, instanceId, grpId) for scanning attachment relationships.
+        /// </summary>
+        private static List<(object model, uint instanceId, uint grpId)> GetAllBattlefieldCardModels()
+        {
+            var results = new List<(object model, uint instanceId, uint grpId)>();
+
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (!go.name.Contains("BattlefieldCardHolder")) continue;
+
+                foreach (var child in go.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                    var cdc = GetDuelSceneCDC(child.gameObject);
+                    if (cdc == null) continue;
+
+                    var model = GetCardModel(cdc);
+                    if (model == null) continue;
+
+                    uint instanceId = GetModelInstanceId(model);
+                    if (instanceId == 0) continue;
+
+                    uint grpId = GetModelGrpId(model);
+                    results.Add((model, instanceId, grpId));
+                }
+                break; // Only one battlefield holder needed
+            }
+
+            return results;
+        }
+
+        /// <summary>
         /// Gets the list of cards attached to this card (enchantments, equipment, etc.).
-        /// Returns empty list if no attachments or if model is not available.
+        /// Scans all battlefield cards and checks whose Instance.AttachedToId matches this card's InstanceId.
         /// </summary>
         public static List<(uint instanceId, uint grpId, string name)> GetAttachments(GameObject card)
         {
             var attachments = new List<(uint instanceId, uint grpId, string name)>();
             if (card == null) return attachments;
 
-            // First try to get attachments from the visual layer (IBattlefieldStack)
-            attachments = GetAttachmentsFromVisualLayer(card);
-            if (attachments.Count > 0)
-            {
-                return attachments;
-            }
-
-            // Fallback to data model
             var cdcComponent = GetDuelSceneCDC(card);
             if (cdcComponent == null) return attachments;
 
             var model = GetCardModel(cdcComponent);
             if (model == null) return attachments;
 
+            uint myInstanceId = GetModelInstanceId(model);
+            if (myInstanceId == 0) return attachments;
+
             try
             {
-                var modelType = model.GetType();
-
-                // First check the Instance property which has Children
-                var instanceProp = modelType.GetProperty("Instance");
-                object instance = instanceProp?.GetValue(model);
-
-                IEnumerable children = null;
-
-                if (instance != null)
+                var allCards = GetAllBattlefieldCardModels();
+                foreach (var (cardModel, instanceId, grpId) in allCards)
                 {
-                    var instanceType = instance.GetType();
-                    var childrenProp = instanceType.GetProperty("Children");
-                    if (childrenProp != null)
+                    if (instanceId == myInstanceId) continue; // Skip self
+
+                    uint attachedToId = GetAttachedToId(cardModel);
+                    if (attachedToId == myInstanceId)
                     {
-                        children = childrenProp.GetValue(instance) as IEnumerable;
-                    }
-                }
-
-                // Fallback: Try Children directly on model
-                if (children == null)
-                {
-                    var childrenProp = modelType.GetProperty("Children");
-                    if (childrenProp != null)
-                    {
-                        children = childrenProp.GetValue(model) as IEnumerable;
-                    }
-                }
-
-                if (children == null)
-                {
-                    return attachments;
-                }
-
-                foreach (var child in children)
-                {
-                    if (child == null) continue;
-
-                    var childType = child.GetType();
-
-                    // Get InstanceId
-                    uint instanceId = 0;
-                    var instanceIdProp = childType.GetProperty("InstanceId");
-                    if (instanceIdProp != null)
-                    {
-                        var idVal = instanceIdProp.GetValue(child);
-                        if (idVal is uint uid) instanceId = uid;
-                    }
-
-                    // Get GrpId for name lookup
-                    uint grpId = 0;
-                    var grpIdProp = childType.GetProperty("GrpId");
-                    if (grpIdProp != null)
-                    {
-                        var gidVal = grpIdProp.GetValue(child);
-                        if (gidVal is uint gid) grpId = gid;
-                    }
-
-                    // Get name from GrpId
-                    string name = null;
-                    if (grpId > 0)
-                    {
-                        name = GetNameFromGrpId(grpId);
-                    }
-
-                    if (instanceId > 0)
-                    {
+                        string name = grpId > 0 ? GetNameFromGrpId(grpId) : null;
                         attachments.Add((instanceId, grpId, name));
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found attachment from model: InstanceId={instanceId}, GrpId={grpId}, Name={name ?? "unknown"}");
+                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                            $"Found attachment: {name ?? "unknown"} (InstanceId={instanceId}) attached to InstanceId={myInstanceId}");
                     }
                 }
             }
@@ -2227,179 +2274,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets attachments from the visual layer by looking at child GameObjects with CDC components.
-        /// Attachments (auras, equipment) are rendered as child objects of the card they're attached to.
-        /// </summary>
-        private static List<(uint instanceId, uint grpId, string name)> GetAttachmentsFromVisualLayer(GameObject card)
-        {
-            var attachments = new List<(uint instanceId, uint grpId, string name)>();
-            if (card == null) return attachments;
-
-            try
-            {
-                // Debug: Log the card's hierarchy info
-                string parentName = card.transform.parent != null ? card.transform.parent.name : "null";
-                int childCount = card.transform.childCount;
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetAttachments for {card.name}: parent={parentName}, children={childCount}");
-
-                // Look for child GameObjects that are cards (attachments are rendered as children)
-                foreach (Transform child in card.transform)
-                {
-                    if (child == null || !child.gameObject.activeInHierarchy) continue;
-
-                    // Check if this child has a DuelScene_CDC component (making it a card)
-                    var childCdc = GetDuelSceneCDC(child.gameObject);
-                    if (childCdc == null) continue;
-
-                    var childModel = GetCardModel(childCdc);
-                    if (childModel == null) continue;
-
-                    var childModelType = childModel.GetType();
-
-                    // Get GrpId
-                    uint grpId = 0;
-                    var grpIdProp = childModelType.GetProperty("GrpId");
-                    if (grpIdProp != null)
-                    {
-                        var gidVal = grpIdProp.GetValue(childModel);
-                        if (gidVal is uint gid) grpId = gid;
-                    }
-
-                    // Get InstanceId
-                    uint instanceId = 0;
-                    var instanceIdProp = childModelType.GetProperty("InstanceId");
-                    if (instanceIdProp != null)
-                    {
-                        var idVal = instanceIdProp.GetValue(childModel);
-                        if (idVal is uint uid) instanceId = uid;
-                    }
-
-                    if (grpId > 0)
-                    {
-                        string name = GetNameFromGrpId(grpId);
-                        attachments.Add((instanceId, grpId, name));
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found visual child attachment: {name} (GrpId={grpId}) on {card.name}");
-                    }
-                }
-
-                // Also check siblings that might be positioned on top of this card (equipment/auras sometimes rendered as siblings)
-                if (card.transform.parent != null)
-                {
-                    // Get this card's InstanceId to find related attachments
-                    var thisCdc = GetDuelSceneCDC(card);
-                    if (thisCdc != null)
-                    {
-                        var thisModel = GetCardModel(thisCdc);
-                        if (thisModel != null)
-                        {
-                            var thisModelType = thisModel.GetType();
-                            uint thisInstanceId = 0;
-                            var instanceIdProp = thisModelType.GetProperty("InstanceId");
-                            if (instanceIdProp != null)
-                            {
-                                var idVal = instanceIdProp.GetValue(thisModel);
-                                if (idVal is uint uid) thisInstanceId = uid;
-                            }
-
-                            int siblingCount = 0;
-                            int siblingCdcCount = 0;
-
-                            // Check siblings for cards that have this card as their Parent
-                            foreach (Transform sibling in card.transform.parent)
-                            {
-                                if (sibling == card.transform) continue;
-                                if (sibling == null || !sibling.gameObject.activeInHierarchy) continue;
-
-                                siblingCount++;
-                                var siblingCdc = GetDuelSceneCDC(sibling.gameObject);
-                                if (siblingCdc == null) continue;
-
-                                siblingCdcCount++;
-                                var siblingModel = GetCardModel(siblingCdc);
-                                if (siblingModel == null) continue;
-
-                                // Check if this sibling's Parent matches our card
-                                var siblingModelType = siblingModel.GetType();
-                                var parentProp = siblingModelType.GetProperty("Parent");
-                                if (parentProp != null)
-                                {
-                                    var parent = parentProp.GetValue(siblingModel);
-                                    if (parent != null)
-                                    {
-                                        var parentType = parent.GetType();
-                                        var parentIdProp = parentType.GetProperty("InstanceId");
-                                        if (parentIdProp != null)
-                                        {
-                                            var parentIdVal = parentIdProp.GetValue(parent);
-                                            uint parentId = parentIdVal is uint pid ? pid : 0;
-
-                                            // Get sibling name for logging
-                                            uint sibGrpId = 0;
-                                            var sibGrpIdProp = siblingModelType.GetProperty("GrpId");
-                                            if (sibGrpIdProp != null)
-                                            {
-                                                var gidVal = sibGrpIdProp.GetValue(siblingModel);
-                                                if (gidVal is uint gid) sibGrpId = gid;
-                                            }
-                                            string sibName = sibGrpId > 0 ? GetNameFromGrpId(sibGrpId) : sibling.name;
-
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Sibling {sibName} has Parent.InstanceId={parentId}, looking for {thisInstanceId}");
-
-                                            if (parentId == thisInstanceId)
-                                            {
-                                                // This sibling is attached to our card
-                                                uint instanceId = 0;
-                                                var sibInstanceIdProp = siblingModelType.GetProperty("InstanceId");
-                                                if (sibInstanceIdProp != null)
-                                                {
-                                                    var idVal = sibInstanceIdProp.GetValue(siblingModel);
-                                                    if (idVal is uint uid) instanceId = uid;
-                                                }
-
-                                                if (sibGrpId > 0)
-                                                {
-                                                    // Avoid duplicates
-                                                    if (!attachments.Any(a => a.instanceId == instanceId))
-                                                    {
-                                                        attachments.Add((instanceId, sibGrpId, sibName));
-                                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found sibling attachment: {sibName} (Parent matches InstanceId={thisInstanceId})");
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // Log siblings with null Parent
-                                        uint sibGrpId = 0;
-                                        var sibGrpIdProp = siblingModelType.GetProperty("GrpId");
-                                        if (sibGrpIdProp != null)
-                                        {
-                                            var gidVal = sibGrpIdProp.GetValue(siblingModel);
-                                            if (gidVal is uint gid) sibGrpId = gid;
-                                        }
-                                        string sibName = sibGrpId > 0 ? GetNameFromGrpId(sibGrpId) : sibling.name;
-                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Sibling {sibName} has Parent=null");
-                                    }
-                                }
-                            }
-
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Checked {siblingCount} siblings, {siblingCdcCount} with CDC components");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting visual attachments: {ex.Message}");
-            }
-
-            return attachments;
-        }
-
-        /// <summary>
         /// Gets the card that this card is attached to (for auras/equipment).
-        /// Returns null if not attached to anything.
+        /// Uses Model.Instance.AttachedToId to find the parent card on the battlefield.
         /// </summary>
         public static (uint instanceId, uint grpId, string name)? GetAttachedTo(GameObject card)
         {
@@ -2413,83 +2289,24 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var modelType = model.GetType();
-                object parent = null;
+                uint attachedToId = GetAttachedToId(model);
+                if (attachedToId == 0) return null;
 
-                // Debug: Get card name first
-                uint cardGrpId = 0;
-                var cardGrpIdProp = modelType.GetProperty("GrpId");
-                if (cardGrpIdProp != null)
+                // Find the parent card on the battlefield by its InstanceId
+                var allCards = GetAllBattlefieldCardModels();
+                foreach (var (cardModel, instanceId, grpId) in allCards)
                 {
-                    var gidVal = cardGrpIdProp.GetValue(model);
-                    if (gidVal is uint gid) cardGrpId = gid;
-                }
-                string cardName = cardGrpId > 0 ? GetNameFromGrpId(cardGrpId) : card.name;
-
-                // Try Parent directly on model first (CardData has Parent property)
-                var parentProp = modelType.GetProperty("Parent");
-                if (parentProp != null)
-                {
-                    parent = parentProp.GetValue(model);
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetAttachedTo({cardName}): Model.Parent = {(parent != null ? parent.ToString() : "null")}");
-                }
-
-                // Also check the Instance property which might have Parent
-                if (parent == null)
-                {
-                    var instanceProp = modelType.GetProperty("Instance");
-                    object instance = instanceProp?.GetValue(model);
-
-                    if (instance != null)
+                    if (instanceId == attachedToId)
                     {
-                        var instanceType = instance.GetType();
-                        var instParentProp = instanceType.GetProperty("Parent");
-                        if (instParentProp != null)
-                        {
-                            parent = instParentProp.GetValue(instance);
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetAttachedTo({cardName}): Instance.Parent = {(parent != null ? parent.ToString() : "null")}");
-                        }
+                        string name = grpId > 0 ? GetNameFromGrpId(grpId) : null;
+                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                            $"Card is attached to: {name ?? "unknown"} (InstanceId={instanceId}, GrpId={grpId})");
+                        return (instanceId, grpId, name);
                     }
                 }
 
-                if (parent == null)
-                {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetAttachedTo({cardName}): No parent found");
-                    return null;
-                }
-
-                var parentType = parent.GetType();
-
-                // Get InstanceId
-                uint instanceId = 0;
-                var instanceIdProp = parentType.GetProperty("InstanceId");
-                if (instanceIdProp != null)
-                {
-                    var idVal = instanceIdProp.GetValue(parent);
-                    if (idVal is uint uid) instanceId = uid;
-                }
-
-                // Get GrpId for name lookup
-                uint grpId = 0;
-                var grpIdProp = parentType.GetProperty("GrpId");
-                if (grpIdProp != null)
-                {
-                    var gidVal = grpIdProp.GetValue(parent);
-                    if (gidVal is uint gid) grpId = gid;
-                }
-
-                // Get name from GrpId
-                string name = null;
-                if (grpId > 0)
-                {
-                    name = GetNameFromGrpId(grpId);
-                }
-
-                if (instanceId > 0)
-                {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Card is attached to: InstanceId={instanceId}, GrpId={grpId}, Name={name ?? "unknown"}");
-                    return (instanceId, grpId, name);
-                }
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"AttachedToId={attachedToId} but parent card not found on battlefield");
             }
             catch (Exception ex)
             {

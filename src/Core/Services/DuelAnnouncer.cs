@@ -1463,30 +1463,54 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Get the Parent property which is the card this is attached to
-                var parent = GetNestedPropertyValue<object>(cardInstance, "Parent");
-                if (parent == null) return null;
+                // Use AttachedToId (the game's real attachment tracking field)
+                uint attachedToId = GetNestedPropertyValue<uint>(cardInstance, "AttachedToId");
+                if (attachedToId == 0) return null;
 
-                // Get the GrpId from the parent to look up its name
-                uint parentGrpId = GetNestedPropertyValue<uint>(parent, "GrpId");
-                if (parentGrpId == 0)
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card has AttachedToId={attachedToId}, scanning battlefield for parent");
+
+                // Find the parent card on the battlefield by scanning all CDCs
+                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
                 {
-                    // Try via Printing object
-                    var printing = GetNestedPropertyValue<object>(parent, "Printing");
-                    if (printing != null)
+                    if (go == null || !go.activeInHierarchy) continue;
+                    if (!go.name.Contains("BattlefieldCardHolder")) continue;
+
+                    foreach (var child in go.GetComponentsInChildren<Transform>(true))
                     {
-                        parentGrpId = GetNestedPropertyValue<uint>(printing, "GrpId");
+                        if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                        var cdc = CardModelProvider.GetDuelSceneCDC(child.gameObject);
+                        if (cdc == null) continue;
+
+                        var model = CardModelProvider.GetCardModel(cdc);
+                        if (model == null) continue;
+
+                        var instanceIdProp = model.GetType().GetProperty("InstanceId");
+                        if (instanceIdProp == null) continue;
+
+                        var idVal = instanceIdProp.GetValue(model);
+                        if (!(idVal is uint instanceId) || instanceId != attachedToId) continue;
+
+                        // Found matching card - get its name
+                        var grpIdProp = model.GetType().GetProperty("GrpId");
+                        if (grpIdProp != null)
+                        {
+                            var gidVal = grpIdProp.GetValue(model);
+                            if (gidVal is uint grpId && grpId > 0)
+                            {
+                                string parentName = CardModelProvider.GetNameFromGrpId(grpId);
+                                if (!string.IsNullOrEmpty(parentName))
+                                {
+                                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (InstanceId={attachedToId})");
+                                    return parentName;
+                                }
+                            }
+                        }
                     }
+                    break; // Only one battlefield holder needed
                 }
 
-                if (parentGrpId == 0) return null;
-
-                string parentName = CardModelProvider.GetNameFromGrpId(parentGrpId);
-                if (!string.IsNullOrEmpty(parentName))
-                {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (GrpId={parentGrpId})");
-                    return parentName;
-                }
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"AttachedToId={attachedToId} but parent not found on battlefield");
             }
             catch (Exception ex)
             {

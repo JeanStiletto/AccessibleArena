@@ -409,13 +409,12 @@ Backspace from PlayBladeContent group now correctly navigates back to PlayBladeT
 
 ### Enchantment/Attachment Announcements
 
-Code added but `Model.Parent` and `Model.Children` properties always return null/empty.
+**Implemented** using `Model.Instance.AttachedToId` (discovered via decompiling `UniversalBattlefieldStack`).
+Previous approach using `Model.Parent`/`Model.Children` always returned null - those properties aren't used by the game.
 
-**Research completed:** The game uses `UniversalBattlefieldStack` system instead of Model properties. See `docs/ATTACHMENT_RESEARCH.md` for implementation plan.
+**Status:** Working. `AttachedToId` is a field (not property) on `MtgCardInstance`, accessed via `GetField()`. Cached FieldInfo for performance.
 
-**Key insight:** Access `IBattlefieldStack` from card's CDC component to get `StackParent`, `StackedCards`, and `AttachmentCount`.
-
-**Files:** `CardModelProvider.cs`, `BattlefieldNavigator.cs`, `ZoneNavigator.cs`, `DuelAnnouncer.cs`
+**Files:** `CardModelProvider.cs` (GetAttachments, GetAttachedTo, GetAttachmentText), `DuelAnnouncer.cs` (GetAttachedToName)
 
 ## Limitations
 
