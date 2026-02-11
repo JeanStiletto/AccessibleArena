@@ -208,6 +208,38 @@ After clicking a pack, displays the cards you received in a scrollable list.
 - Cards are navigable via standard card detection
 - "Reveal All" speeds up card reveal animation
 
+## Deck Management
+
+### Deck Management Screen
+**Controller:** `DeckManagerController`
+**Navigator:** `GeneralMenuNavigator`
+
+The Deck Management screen shows all decks organized into folders (My Decks, Starter Decks, Brawl Sample Decks).
+
+**Groups:**
+- `New Deck` - Create a new deck (standalone)
+- `Alle Decks` - Format filter dropdown (standalone)
+- `Import Deck` - Import deck from clipboard (standalone)
+- `Sammlung` - Open collection (standalone)
+- `Filters` - Color checkboxes, search, sort order
+- Folder groups (My Decks, Starter Decks, Brawl Sample Decks) - Expandable deck lists
+
+**Navigation:**
+- Arrow Up/Down: Navigate between groups
+- Enter on folder: Open folder to browse decks inside
+- Enter on deck: Select the deck (clicks it)
+- Right Arrow on deck: Open actions menu (Rename, Edit, Details, Favorite, Clone, Export, Delete)
+- Backspace: Exit folder or go back
+
+**Deck Actions (Right Arrow menu):**
+Deck-specific toolbar buttons (Edit, Delete, Export, Favorite, Clone, Details) are hidden from top-level navigation since they require a deck to be selected. They are accessible via the Right Arrow actions menu on each deck entry.
+
+**Technical Notes:**
+- Deck-specific buttons live in `DeckManager_Desktop_16x9(Clone)/SafeArea/MainButtons/`
+- Standalone buttons (Import, Sammlung/Collection) are whitelisted and kept in top-level navigation
+- All other MainButtons children are filtered from navigation and attached as actions on deck entries
+- Deck entries are paired with their TextBox rename buttons for the Rename action
+
 ## Deck Builder
 
 ### Deck Builder Screen

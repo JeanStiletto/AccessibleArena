@@ -2869,6 +2869,10 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
+                // Skip deck-specific toolbar buttons (they're available as attached actions on each deck)
+                if (deckToolbarButtons.AllDeckSpecificButtons != null && deckToolbarButtons.AllDeckSpecificButtons.Contains(obj))
+                    continue;
+
                 // Recent tab: skip standalone play buttons (they're auto-pressed on deck Enter)
                 if (recentTilePlayButtons.Contains(obj))
                     continue;
@@ -3372,18 +3376,31 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private struct DeckToolbarButtons
         {
-            public GameObject EditButton;   // EditDeck_MainButtonBlue
-            public GameObject DeleteButton; // Delete_MainButton_Round
-            public GameObject ExportButton; // Export_MainButton_Round
+            public GameObject EditButton;       // EditDeck_MainButtonBlue
+            public GameObject DeleteButton;     // Delete_MainButton_Round
+            public GameObject ExportButton;     // Export_MainButton_Round
+            public GameObject FavoriteButton;   // Favorite button
+            public GameObject CloneButton;      // Clone button
+            public GameObject DetailsButton;    // DeckDetails_MainButton_Round
+            /// <summary>All deck-specific buttons to hide from top-level navigation.</summary>
+            public HashSet<GameObject> AllDeckSpecificButtons;
         }
 
         /// <summary>
-        /// Find the deck toolbar buttons (Delete, Edit, Export) in the DeckManager screen.
-        /// These buttons act on the currently selected deck.
+        /// Buttons inside MainButtons that work without a deck selected (standalone).
+        /// Everything else in MainButtons is deck-specific and will be hidden from navigation.
+        /// </summary>
+        private static readonly string[] StandaloneMainButtonNames = { "Import", "Sammlung", "Collection" };
+
+        /// <summary>
+        /// Find the deck toolbar buttons in the DeckManager screen.
+        /// Collects all deck-specific buttons (for attached actions + filtering from navigation)
+        /// and whitelists standalone buttons like Import and Sammlung.
         /// </summary>
         private DeckToolbarButtons FindDeckToolbarButtons()
         {
             var result = new DeckToolbarButtons();
+            result.AllDeckSpecificButtons = new HashSet<GameObject>();
 
             // Find MainButtons container in DeckManager
             var mainButtonsContainer = GameObject.FindObjectsOfType<Transform>()
@@ -3398,24 +3415,37 @@ namespace AccessibleArena.Core.Services
                 return result;
             }
 
-            // Find each button by name
+            // Categorize each button: standalone (keep) vs deck-specific (hide + use as actions)
             foreach (Transform child in mainButtonsContainer)
             {
                 if (!child.gameObject.activeInHierarchy) continue;
 
+                // Check if this is a standalone button (works without a deck selected)
+                bool isStandalone = StandaloneMainButtonNames.Any(s =>
+                    child.name.IndexOf(s, System.StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (isStandalone)
+                    continue; // Keep in navigation
+
+                // Deck-specific button - collect for filtering and actions
+                result.AllDeckSpecificButtons.Add(child.gameObject);
+
                 if (child.name.Contains("Delete"))
-                {
                     result.DeleteButton = child.gameObject;
-                }
                 else if (child.name.Contains("EditDeck"))
-                {
                     result.EditButton = child.gameObject;
-                }
                 else if (child.name.Contains("Export"))
-                {
                     result.ExportButton = child.gameObject;
-                }
+                else if (child.name.Contains("Favorite"))
+                    result.FavoriteButton = child.gameObject;
+                else if (child.name.Contains("Clone"))
+                    result.CloneButton = child.gameObject;
+                else if (child.name.Contains("DeckDetails"))
+                    result.DetailsButton = child.gameObject;
             }
+
+            if (result.AllDeckSpecificButtons.Count > 0)
+                MelonLogger.Msg($"[{NavigatorId}] DeckManager: {result.AllDeckSpecificButtons.Count} deck-specific buttons hidden from navigation");
 
             return result;
         }
@@ -3429,27 +3459,31 @@ namespace AccessibleArena.Core.Services
 
             // Rename (TextBox button on the deck)
             if (renameButton != null)
-            {
                 actions.Add(new AttachedAction { Label = "Rename", TargetButton = renameButton });
-            }
 
             // Edit (open deck builder)
             if (toolbarButtons.EditButton != null)
-            {
                 actions.Add(new AttachedAction { Label = "Edit", TargetButton = toolbarButtons.EditButton });
-            }
+
+            // Deck Details
+            if (toolbarButtons.DetailsButton != null)
+                actions.Add(new AttachedAction { Label = "Details", TargetButton = toolbarButtons.DetailsButton });
+
+            // Favorite
+            if (toolbarButtons.FavoriteButton != null)
+                actions.Add(new AttachedAction { Label = "Favorite", TargetButton = toolbarButtons.FavoriteButton });
+
+            // Clone
+            if (toolbarButtons.CloneButton != null)
+                actions.Add(new AttachedAction { Label = "Clone", TargetButton = toolbarButtons.CloneButton });
 
             // Export
             if (toolbarButtons.ExportButton != null)
-            {
                 actions.Add(new AttachedAction { Label = "Export", TargetButton = toolbarButtons.ExportButton });
-            }
 
             // Delete (last, as it's destructive)
             if (toolbarButtons.DeleteButton != null)
-            {
                 actions.Add(new AttachedAction { Label = "Delete", TargetButton = toolbarButtons.DeleteButton });
-            }
 
             return actions;
         }
