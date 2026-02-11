@@ -384,7 +384,7 @@ namespace AccessibleArena.Core.Models
         public const string HelpUpDownDetails = "Up or Down arrow: Navigate card details";
 
         // Combat
-        public const string HelpFSpaceCombat = "F or Space: Confirm attackers or blockers";
+        public const string HelpSpaceCombat = "Space: Confirm attackers or blockers";
         public const string HelpBackspaceCombat = "Backspace: No attacks or cancel blocks";
 
         // Browser

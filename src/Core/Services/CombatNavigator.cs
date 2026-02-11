@@ -11,11 +11,11 @@ namespace AccessibleArena.Core.Services
     /// <summary>
     /// Handles combat phase navigation.
     /// During Declare Attackers phase:
-    /// - Space or F presses "All Attack" or "X Attack" button
+    /// - Space presses "All Attack" or "X Attack" button
     /// - Backspace presses "No Attacks" button
     /// - Announces attacker selection state when navigating battlefield cards
     /// During Declare Blockers phase:
-    /// - Space or F presses confirm button (X Blocker / Next)
+    /// - Space presses confirm button (X Blocker / Next)
     /// - Backspace presses "No Blocks" or "Cancel Blocks" button
     /// - Tracks selected blockers and announces combined power/toughness
     /// </summary>
@@ -530,8 +530,8 @@ namespace AccessibleArena.Core.Services
                     return TryClickSecondaryButton();
                 }
 
-                // Space or F - press the primary button (All Attack / X Attack)
-                if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F))
+                // Space - press the primary button (All Attack / X Attack)
+                if (Input.GetKeyDown(KeyCode.Space))
                 {
                     return TryClickPrimaryButton();
                 }
@@ -546,8 +546,8 @@ namespace AccessibleArena.Core.Services
                     return TryClickSecondaryButton();
                 }
 
-                // Space or F - press the primary button (X Blocker / Next / Confirm)
-                if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F))
+                // Space - press the primary button (X Blocker / Next / Confirm)
+                if (Input.GetKeyDown(KeyCode.Space))
                 {
                     return TryClickPrimaryButton();
                 }

@@ -321,16 +321,16 @@ Cards announce targeting relationships using model data:
 - `ResolveInstanceIdToNameExtended()` scans both battlefield and stack for name resolution
 
 **Declare Attackers Phase:**
-- [x] F/Space key handling - Clicks `PromptButton_Primary` (whatever text: "All Attack", "X Attackers", etc.)
+- [x] Space key handling - Clicks `PromptButton_Primary` (whatever text: "All Attack", "X Attackers", etc.)
 - [x] Backspace key handling - Clicks `PromptButton_Secondary` (whatever text: "No Attacks", etc.)
 - [x] Attacker state detection - `IsAttacking` child indicates declared attacker state
 
 **Note:** Game requires two presses to complete attack declaration:
-1. First F/Space: Selects attackers (button shows "All Attack")
-2. Second F/Space: Confirms attackers (button shows "X Attackers")
+1. First Space: Selects attackers (button shows "All Attack")
+2. Second Space: Confirms attackers (button shows "X Attackers")
 
 **Declare Blockers Phase:**
-- [x] F/Space key handling - Clicks `PromptButton_Primary` (whatever text: "X Blocker", "Next", "Confirm", etc.)
+- [x] Space key handling - Clicks `PromptButton_Primary` (whatever text: "X Blocker", "Next", "Confirm", etc.)
 - [x] Backspace key handling - Clicks `PromptButton_Secondary` (whatever text: "No Blocks", "Cancel Blocks", etc.)
 - [x] **Full blocker state announcements** - "can block", "selected to block", "blocking" (see Combat State Detection above)
 - [x] **Attacker announcements during blockers** - Enemy attackers announce ", attacking" (or ", attacking, blocked by Cat")

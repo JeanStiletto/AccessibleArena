@@ -124,8 +124,8 @@ D (Your Library Count), Shift+D (Opponent Library Count), Shift+C (Opponent Hand
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 
 **Duel - Combat:**
-Declare Attackers: F (All Attack / X Attack), Backspace (No Attacks), Space (All Attack / X Attack)
-Declare Blockers: F (Confirm Blocks / Next), Backspace (No Blocks / Cancel Blocks), Space (Confirm Blocks / Next)
+Declare Attackers: Space (All Attack / X Attack), Backspace (No Attacks)
+Declare Blockers: Space (Confirm Blocks / Next), Backspace (No Blocks / Cancel Blocks)
 Main Phase: Space (Next / To Combat / Pass - clicks primary button)
 
 **Duel - Targeting:**
@@ -149,6 +149,5 @@ Backspace (Back/Dismiss/Cancel - universal)
 Do NOT override: Enter, Escape
 Note: Tab works for both menu navigation and duel highlights
 Note: Arrow keys used differently in menus (navigation) vs duels (zone/card navigation)
-Note: F key used contextually during combat phases (attackers/blockers)
 Note: Space used contextually during duels (main phase pass, combat confirmations)
 Note: Backspace is the universal back/dismiss/cancel key

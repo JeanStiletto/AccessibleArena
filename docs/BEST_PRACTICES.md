@@ -250,7 +250,7 @@ if (buttonText.Contains("Attack")) // Fails in German!
 4. Announce the localized text to user
 
 This pattern is used in:
-- `CombatNavigator` - F/Space clicks Primary, Backspace clicks Secondary
+- `CombatNavigator` - Space clicks Primary, Backspace clicks Secondary
 - `BrowserNavigator` - Space clicks Primary (confirm), Backspace clicks Secondary (cancel)
 - `DiscardNavigator` - Finds Primary button and extracts count from text
 
@@ -594,7 +594,7 @@ Resolves blocker-attacker relationships via `Instance.BlockingIds` / `Instance.B
 1. Click a potential blocker → "X/Y blocking" (combined P/T of selected blockers)
 2. Click an attacker to assign the blocker(s) → "[Name] blocking [Attacker]"
 3. Repeat for other blockers/attackers
-4. Press Space or F to confirm all blocks
+4. Press Space to confirm all blocks
 
 *Tracking Reset:*
 - Selected blocker tracking clears when blockers are assigned (IsBlocking activates)
@@ -807,14 +807,14 @@ mode tracking is simpler - we trust the game's highlight system.
 **Modes (Simplified):**
 1. **Highlight Mode** (HotHighlightNavigator) - Tab cycles whatever game highlights (targets OR playable cards)
 2. **Discard Mode** (DiscardNavigator) - Enter/Space during discard
-3. **Combat Phase** (CombatNavigator) - F/Space during declare attackers/blockers
+3. **Combat Phase** (CombatNavigator) - Space during declare attackers/blockers
 4. **Normal Mode** - Zone navigation
 
 **Input Priority in DuelNavigator.HandleCustomInput():**
 ```
 1. BrowserNavigator       → Scry/Surveil/Mulligan browsers
 2. DiscardNavigator       → Enter/Space during discard mode
-3. CombatNavigator        → F/Space during declare attackers/blockers
+3. CombatNavigator        → Space during declare attackers/blockers
 4. HotHighlightNavigator  → Tab/Enter/Backspace for highlights (UNIFIED)
 5. BattlefieldNavigator   → A/R/B shortcuts, row navigation
 6. ZoneNavigator          → C/G/X/S shortcuts, Left/Right in zones
@@ -867,11 +867,11 @@ public bool IsInDeclareAttackersPhase { get; private set; }
 public bool IsInDeclareBlockersPhase { get; private set; }
 ```
 - Set via `ToggleCombatUXEvent` and phase tracking
-- Used by CombatNavigator for F/Space shortcuts
+- Used by CombatNavigator for Space shortcut
 
 **Combat Button Handling (Language-Agnostic):**
 CombatNavigator uses the Primary/Secondary Button Pattern (see above):
-- **F or Space** → Clicks `PromptButton_Primary` (confirm attackers/blockers)
+- **Space** → Clicks `PromptButton_Primary` (confirm attackers/blockers)
 - **Backspace** → Clicks `PromptButton_Secondary` (no attacks/cancel blocks)
 
 The button text changes dynamically based on game state, but the function stays the same:

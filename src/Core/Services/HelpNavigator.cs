@@ -89,7 +89,7 @@ namespace AccessibleArena.Core.Services
 
                 // Combat
                 Strings.HelpCategoryCombat,
-                Strings.HelpFSpaceCombat,
+                Strings.HelpSpaceCombat,
                 Strings.HelpBackspaceCombat,
 
                 // Browser

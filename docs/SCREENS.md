@@ -529,7 +529,7 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 
 **CombatNavigator**
 - Handles declare attackers/blockers phases
-- F/Space triggers attack/block actions, Shift+F for no attacks/blocks
+- Space triggers attack/block actions, Backspace for no attacks/blocks
 - Announces combat state for creatures (attacking, blocking, can block)
 
 **BrowserNavigator**
