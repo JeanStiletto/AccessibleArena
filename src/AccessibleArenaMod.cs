@@ -26,6 +26,7 @@ namespace AccessibleArena
         private PanelStateManager _panelStateManager;
 
         private bool _initialized;
+        private string _lastActiveNavigatorId;
 
         public IAnnouncementService Announcer => _announcer;
         public CardInfoNavigator CardNavigator => _cardInfoNavigator;
@@ -256,6 +257,18 @@ namespace AccessibleArena
             {
                 _helpNavigator.HandleInput();
                 return;
+            }
+
+            // Deactivate card info navigator when active navigator changes (e.g., settings menu preempts duel)
+            var currentNavId = _navigatorManager?.ActiveNavigator?.NavigatorId;
+            if (currentNavId != _lastActiveNavigatorId)
+            {
+                if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)
+                {
+                    LoggerInstance.Msg($"[NavigatorChange] Deactivating card navigator (navigator changed: {_lastActiveNavigatorId} -> {currentNavId})");
+                    _cardInfoNavigator.Deactivate();
+                }
+                _lastActiveNavigatorId = currentNavId;
             }
 
             // Card navigation handles arrow keys when active, but allows other input through

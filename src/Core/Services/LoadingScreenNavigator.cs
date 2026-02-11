@@ -338,13 +338,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // 4. Find Nav_Settings button (global - lives in NavBar scene, not MatchEndScene)
-            var settingsButton = GameObject.Find("Nav_Settings");
-            if (settingsButton != null && settingsButton.activeInHierarchy)
-            {
-                AddElement(settingsButton, "Settings, button");
-                Log($"  ADDED (global): Nav_Settings");
-            }
+            // Settings button not added - accessible via Escape shortcut
 
             Log($"=== MatchEnd discovery complete: {_elements.Count} elements ===");
         }
@@ -476,21 +470,9 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // 4. Cancel button
+            // Store cancel button reference for Backspace shortcut (not added as navigable element)
             _cancelButton = cancelButtonObj;
-            if (cancelButtonObj != null)
-            {
-                AddElement(cancelButtonObj, "Cancel, button");
-                Log($"  ADDED (button): Button_Cancel");
-            }
-
-            // 5. Nav_Settings button
-            var settingsButton = GameObject.Find("Nav_Settings");
-            if (settingsButton != null && settingsButton.activeInHierarchy)
-            {
-                AddElement(settingsButton, "Settings, button");
-                Log($"  ADDED (global): Nav_Settings");
-            }
+            // Settings button not added - accessible via Escape shortcut
 
             Log($"=== PreGame discovery complete: {_elements.Count} elements ===");
         }
@@ -502,30 +484,15 @@ namespace AccessibleArena.Core.Services
             var waitingObj = GameObject.Find("FindMatchWaiting");
             if (waitingObj == null) return;
 
-            // Find cancel button
+            // Store cancel button reference for Backspace shortcut (not added as navigable element)
             var cancelButton = FindChildRecursive(waitingObj.transform, "CancelButton")
                 ?? FindChildRecursive(waitingObj.transform, "Cancel")
                 ?? FindChildRecursive(waitingObj.transform, "Button_Cancel");
 
             if (cancelButton != null && cancelButton.activeInHierarchy)
             {
-                string label = UITextExtractor.GetButtonText(cancelButton, null);
-                if (string.IsNullOrEmpty(label)) label = "Cancel";
-                AddElement(cancelButton, $"{label}, button");
-                Log($"  ADDED cancel: {cancelButton.name} -> '{label}'");
-            }
-
-            // Also look for any other visible buttons in the waiting UI
-            foreach (var selectable in waitingObj.GetComponentsInChildren<Selectable>(false))
-            {
-                if (selectable == null || !selectable.interactable) continue;
-                var go = selectable.gameObject;
-                if (go == cancelButton) continue;
-
-                string label = UITextExtractor.GetButtonText(go, null);
-                if (string.IsNullOrEmpty(label)) label = go.name;
-                AddElement(go, $"{label}, button");
-                Log($"  ADDED: {go.name} -> '{label}'");
+                _cancelButton = cancelButton;
+                Log($"  Found cancel button: {cancelButton.name} (Backspace shortcut only)");
             }
 
             Log($"=== Matchmaking discovery complete: {_elements.Count} elements ===");
