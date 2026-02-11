@@ -4,6 +4,22 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-11
 
+### Combat Cleanup
+- Removed F key shortcut from combat phases (was redundant alias for Space)
+- Space is now the only key for confirming attackers/blockers
+- Removed experimental cancel-skip code from HotHighlightNavigator (mana payment handled by workflow browser)
+- Removed commented-out Backspace handler from HotHighlightNavigator
+- Files: `CombatNavigator.cs`, `HotHighlightNavigator.cs`, `Strings.cs`, `HelpNavigator.cs`
+
+### Phase Announcement Debounce
+- Added 100ms debounce to phase announcements to prevent spam during auto-skip
+- When the game rapidly skips through phases (combat/ending/beginning), only the final phase is announced
+- Previously auto-skip produced up to 6 rapid announcements ("Combat phase, Declare attackers, End of combat, Second main phase, First main phase")
+- Now only the phase where the game actually stops is spoken (e.g., "First main phase")
+- Attacker summary announcements bypass debounce (real combat stops, not auto-skip)
+- Added Upkeep and Draw as announced phases (debounced away during auto-skip, announced when game gives priority)
+- Files: `DuelAnnouncer.cs`, `DuelNavigator.cs`
+
 ### Player Info Zone: Emotes and Rank Fix
 - Emote wheel now opens correctly via PortraitButton click on DuelScene_AvatarView (was clicking MatchTimer HoverArea which doesn't trigger emotes)
 - Emote buttons discovered from EmoteView children (custom click handlers, not standard UI.Button)

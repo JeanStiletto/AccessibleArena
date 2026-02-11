@@ -226,7 +226,8 @@ C:\Users\fabia\arena\
 - [x] Stack announcements - "Cast [name], [P/T], [rules]" when spell goes on stack (full card info)
 - [x] Zone change tracking - Tracks card counts per zone to detect changes
 - [x] Spell resolve tracking - `_lastSpellResolvedTime` set on stack decrease
-- [x] Phase announcements - Main phases, combat steps (declare attackers/blockers, damage, end combat)
+- [x] Phase announcements - Upkeep, draw, main phases, combat steps (declare attackers/blockers, damage, end combat)
+- [x] Phase debounce (100ms) - Prevents announcement spam during auto-skip, only final phase is spoken
 - [x] Combat announcements - "Combat begins", "Attacker declared", "Attacker removed"
 - [x] Opponent plays - "Opponent played a card" (hand count decrease detection)
 - [x] Code cleanup - Debug logging removed, dead code removed, file optimized

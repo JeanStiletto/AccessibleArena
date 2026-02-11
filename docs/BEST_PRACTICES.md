@@ -539,7 +539,8 @@ Announces game events via Harmony patch on `UXEventQueue.EnqueuePending()`.
 - Card draws: "Drew X card(s)" / "Opponent drew X card(s)"
 - Spell resolution: "Spell resolved" (when stack empties)
 - Stack announcements: "Cast [card name]" when spell goes on stack
-- Phase announcements: Main phases, combat steps (declare attackers/blockers, damage)
+- Phase announcements: Upkeep, draw, main phases, combat steps (declare attackers/blockers, damage, end of combat)
+- Phase debounce: 100ms debounce prevents announcement spam during auto-skip (only the final phase is spoken)
 - Combat announcements: "Combat begins", "[Name] [P/T] attacking", "Attacker removed"
 - Attacker count: "X attackers" when leaving declare attackers phase (summary)
 - Opponent plays: "Opponent played a card" (hand count decrease detection)
@@ -868,6 +869,17 @@ public bool IsInDeclareBlockersPhase { get; private set; }
 ```
 - Set via `ToggleCombatUXEvent` and phase tracking
 - Used by CombatNavigator for Space shortcut
+
+**Phase Announcement Debounce (100ms):**
+Phase announcements are debounced to prevent spam during auto-skip. When phases change rapidly
+(~30-60ms apart), only the final phase in the sequence is announced. During real gameplay where
+the game stops and gives priority, phases arrive seconds apart so the debounce has no effect.
+
+Announced phases: Upkeep, Draw, First main phase, Second main phase, Combat phase,
+Declare attackers, Declare blockers, Combat damage, End of combat, End step.
+
+Attacker summary announcements (leaving declare attackers) bypass debounce entirely since they
+only occur during real combat stops.
 
 **Combat Button Handling (Language-Agnostic):**
 CombatNavigator uses the Primary/Secondary Button Pattern (see above):

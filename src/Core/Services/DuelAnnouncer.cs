@@ -50,6 +50,11 @@ namespace AccessibleArena.Core.Services
         private string _currentPhase;
         private string _currentStep;
 
+        // Phase announcement debounce (100ms) to avoid spam during auto-skip
+        private string _pendingPhaseAnnouncement;
+        private float _phaseDebounceTimer;
+        private const float PHASE_DEBOUNCE_SECONDS = 0.1f;
+
         /// <summary>
         /// Returns true if currently in Declare Attackers phase.
         /// </summary>
@@ -107,6 +112,12 @@ namespace AccessibleArena.Core.Services
                         default:
                             return "combat phase";
                     }
+                case "Beginning":
+                    if (_currentStep == "Upkeep")
+                        return "upkeep";
+                    if (_currentStep == "Draw")
+                        return "draw";
+                    return "beginning phase";
                 case "Ending":
                     if (_currentStep == "End")
                         return "end step";
@@ -151,6 +162,24 @@ namespace AccessibleArena.Core.Services
             _currentPhase = null;
             _currentStep = null;
             _isUserTurn = true;
+            _pendingPhaseAnnouncement = null;
+        }
+
+        /// <summary>
+        /// Call each frame to flush debounced phase announcements.
+        /// </summary>
+        public void Update()
+        {
+            if (_pendingPhaseAnnouncement == null) return;
+
+            _phaseDebounceTimer -= UnityEngine.Time.deltaTime;
+            if (_phaseDebounceTimer <= 0)
+            {
+                _announcer.Announce(_pendingPhaseAnnouncement, AnnouncementPriority.Low);
+                _lastAnnouncement = _pendingPhaseAnnouncement;
+                _lastAnnouncementTime = DateTime.Now;
+                _pendingPhaseAnnouncement = null;
+            }
         }
 
         #region Zone Count Accessors
@@ -825,14 +854,26 @@ namespace AccessibleArena.Core.Services
                     else if (step == "EndCombat") phaseAnnouncement = "End of combat";
                     else if (step == "None") phaseAnnouncement = "Combat phase";
                 }
+                else if (phase == "Beginning" && step == "Upkeep") phaseAnnouncement = "Upkeep";
+                else if (phase == "Beginning" && step == "Draw") phaseAnnouncement = "Draw";
                 else if (phase == "Ending" && step == "End") phaseAnnouncement = "End step";
 
-                // Combine attacker count with phase announcement
-                if (attackerAnnouncement != null && phaseAnnouncement != null)
-                    return $"{attackerAnnouncement}. {phaseAnnouncement}";
+                // If we have attacker info, announce immediately (this is a real combat stop, not auto-skip)
                 if (attackerAnnouncement != null)
+                {
+                    _pendingPhaseAnnouncement = null;
+                    if (phaseAnnouncement != null)
+                        return $"{attackerAnnouncement}. {phaseAnnouncement}";
                     return attackerAnnouncement;
-                return phaseAnnouncement;
+                }
+
+                // Queue phase announcement for debounce - only the last phase in a rapid sequence gets spoken
+                if (phaseAnnouncement != null)
+                {
+                    _pendingPhaseAnnouncement = phaseAnnouncement;
+                    _phaseDebounceTimer = PHASE_DEBOUNCE_SECONDS;
+                }
+                return null;
             }
             catch
             {

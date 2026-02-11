@@ -362,6 +362,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override bool HandleCustomInput()
         {
+            // Flush debounced phase announcements
+            _duelAnnouncer.Update();
+
             // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
 

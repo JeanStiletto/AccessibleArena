@@ -178,21 +178,6 @@ namespace AccessibleArena.Core.Services
                 return false; // Let other handlers deal with Enter
             }
 
-            // COMMENTED OUT: This was consuming Backspace input and potentially blocking
-            // the game's actual undo/cancel functionality. The game handles cancel itself.
-            // if (Input.GetKeyDown(KeyCode.Backspace))
-            // {
-            //     if (HasTargetsHighlighted)
-            //     {
-            //         _announcer.Announce(Strings.TargetingCancelled, AnnouncementPriority.Normal);
-            //         MelonLogger.Msg("[HotHighlightNavigator] Cancel requested");
-            //         // Clear our state - game will update highlights
-            //         _items.Clear();
-            //         _currentIndex = -1;
-            //         return true;
-            //     }
-            // }
-
             // Space - click primary button when no highlights are available
             // The game's native Space handler doesn't work reliably when our mod has navigated
             // to a card (even after clearing focus). So we click the button directly.
@@ -204,18 +189,6 @@ namespace AccessibleArena.Core.Services
                     if (primaryButton != null)
                     {
                         string buttonText = GetPrimaryButtonText();
-
-                        // EXPERIMENTAL: Skip Cancel button to allow mana payment confirmation
-                        // TODO: This may break other cases where clicking Cancel on Space is intended
-                        // TO REVERT: Remove this entire if block (lines below until "END EXPERIMENTAL")
-                        var lowerText = buttonText?.ToLowerInvariant() ?? "";
-                        if (lowerText == "abbrechen" || lowerText == "cancel")
-                        {
-                            MelonLogger.Msg($"[HotHighlightNavigator] Space pressed but primary button is Cancel - passing to game (EXPERIMENTAL)");
-                            return false;
-                        }
-                        // END EXPERIMENTAL
-
                         MelonLogger.Msg($"[HotHighlightNavigator] Space pressed - clicking primary button: {buttonText}");
                         UIActivator.SimulatePointerClick(primaryButton);
                         _announcer.Announce(buttonText, AnnouncementPriority.Normal);
