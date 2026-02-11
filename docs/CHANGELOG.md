@@ -4,6 +4,15 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-11
 
+### Player Info Zone: Emotes and Rank Fix
+- Emote wheel now opens correctly via PortraitButton click on DuelScene_AvatarView (was clicking MatchTimer HoverArea which doesn't trigger emotes)
+- Emote buttons discovered from EmoteView children (custom click handlers, not standard UI.Button)
+- Player rank now reads from GameManager.MatchManager player info via reflection instead of searching for nonexistent text in RankAnchorPoint sprite
+- Rank displayed as "Bronze Tier 2", "Mythic #1234", "Mythic 95%", or "Unranked"
+- Player zone focus element uses PortraitButton.gameObject instead of timer HoverArea
+- Removed dead code: FindCurrentPlayerAvatar, HasPlayerTargetingHighlight, IsChildOfEmoteView
+- Files: `PlayerPortraitNavigator.cs`
+
 ### Player Targeting Fix
 - Spells that can target players (e.g., Cracked Blitz, Lightning Bolt) now correctly discover player avatars as valid targets
 - Previous approach searched for HotHighlight children on MatchTimer objects, which the game never adds

@@ -539,8 +539,10 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 
 **PlayerPortraitNavigator**
 - V key enters player info zone
-- Left/Right switches players, Up/Down cycles properties
-- Enter opens emote wheel (your portrait only)
+- Left/Right switches players, Up/Down cycles properties (Life, Timer, Timeouts, Wins, Rank)
+- Rank read from GameManager.MatchManager player info via reflection (e.g., "Gold Tier 2", "Mythic #1234")
+- Enter opens emote wheel (your portrait only) via PortraitButton click on DuelScene_AvatarView
+- Emotes discovered from EmoteView children in EmoteOptionsPanel, navigated with Up/Down, sent with Enter
 
 **Priority Order:**
 BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator > BattlefieldNavigator > ZoneNavigator

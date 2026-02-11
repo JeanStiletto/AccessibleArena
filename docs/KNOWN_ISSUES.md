@@ -707,10 +707,10 @@ During mana payment mode, Tab can navigate to the ManaPoolButton. FocusTracker a
 ### Upcoming
 
 1. Creature death/exile/graveyard announcements with card names
-2. Emote menu
+2. ~~Emote menu~~ **RESOLVED** - Emote wheel opens via PortraitButton on DuelScene_AvatarView, emotes discovered from EmoteView children (Feb 2026)
 3. Player username announcements
 4. Game wins display (WinPips)
-5. Player rank information
+5. ~~Player rank information~~ **RESOLVED** - Rank read from GameManager.MatchManager player info via reflection (Feb 2026)
 
 ### Future
 

@@ -4,6 +4,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Linq;
+using System.Reflection;
 using TMPro;
 
 namespace AccessibleArena.Core.Services
@@ -38,6 +39,26 @@ namespace AccessibleArena.Core.Services
         private GameObject _opponentTimerObj;
         private MonoBehaviour _localMatchTimer;
         private MonoBehaviour _opponentMatchTimer;
+
+        // Avatar reflection cache (for emote wheel via PortraitButton)
+        private static readonly BindingFlags PrivateInstance =
+            BindingFlags.NonPublic | BindingFlags.Instance;
+        private static readonly BindingFlags PublicInstance =
+            BindingFlags.Public | BindingFlags.Instance;
+        private static System.Type _avatarViewType;
+        private static PropertyInfo _isLocalPlayerProp;
+        private static FieldInfo _portraitButtonField;
+        private static bool _avatarReflectionInitialized;
+
+        // Rank reflection cache (GameManager -> MatchManager -> PlayerInfo)
+        private static PropertyInfo _matchManagerProp;
+        private static PropertyInfo _localPlayerInfoProp;
+        private static PropertyInfo _opponentInfoProp;
+        private static FieldInfo _rankingClassField;
+        private static FieldInfo _rankingTierField;
+        private static FieldInfo _mythicPercentileField;
+        private static FieldInfo _mythicPlacementField;
+        private static bool _rankReflectionInitialized;
 
         // Focus management - store previous focus to restore on exit
         private GameObject _previousFocus;
@@ -106,6 +127,8 @@ namespace AccessibleArena.Core.Services
                 string name = current.name;
                 if (name.Contains("MatchTimer") ||
                     name.Contains("PlayerPortrait") ||
+                    name.Contains("AvatarView") ||
+                    name.Contains("PortraitButton") ||
                     name.Contains("EmoteOptionsPanel") ||
                     name.Contains("CommunicationOptionsPanel") ||
                     name.Contains("EmoteView") ||
@@ -213,11 +236,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Finds the HoverArea element to focus on when entering player zone.
+        /// Finds the PortraitButton element to focus on when entering player zone.
         /// </summary>
         private GameObject FindPlayerZoneFocusElement()
         {
-            // Use local timer's HoverArea as the focus element
+            var avatarView = FindAvatarView(isLocal: true);
+            if (avatarView != null && _avatarReflectionInitialized)
+            {
+                var portraitButton = _portraitButtonField.GetValue(avatarView) as MonoBehaviour;
+                if (portraitButton != null)
+                    return portraitButton.gameObject;
+            }
+
+            // Fallback: use local timer's HoverArea
             if (_localTimerObj != null)
             {
                 var iconTransform = _localTimerObj.transform.Find("Icon");
@@ -225,9 +256,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var hoverArea = iconTransform.Find("HoverArea");
                     if (hoverArea != null)
-                    {
                         return hoverArea.gameObject;
-                    }
                 }
             }
             return null;
@@ -459,53 +488,80 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets player rank from RankAnchorPoint.
+        /// Gets player rank from GameManager.MatchManager player info.
         /// </summary>
         private string GetPlayerRank(bool isOpponent)
         {
-            string containerName = isOpponent ? "Opponent" : "LocalPlayer";
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Looking for rank for {containerName}");
-
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            try
             {
-                if (go == null || !go.activeInHierarchy) continue;
-                if (!go.name.Contains(containerName)) continue;
-
-                // Look for RankAnchorPoint or similar
-                var rankAnchor = go.transform.Find("RankAnchorPoint");
-                if (rankAnchor == null)
+                // Find GameManager (same pattern as GetLifeTotals)
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
-                    // Try alternative names
-                    foreach (Transform child in go.transform)
+                    if (mb != null && mb.GetType().Name == "GameManager")
                     {
-                        if (child.name.Contains("Rank"))
-                        {
-                            rankAnchor = child;
-                            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found alternative rank: {child.name}");
-                            break;
-                        }
+                        gameManager = mb;
+                        break;
                     }
                 }
-                if (rankAnchor == null) continue;
+                if (gameManager == null) return null;
 
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"RankAnchor found: {rankAnchor.name}");
-                foreach (Transform child in rankAnchor)
+                if (!_rankReflectionInitialized)
+                    InitializeRankReflection(gameManager);
+                if (!_rankReflectionInitialized) return null;
+
+                var matchManager = _matchManagerProp.GetValue(gameManager);
+                if (matchManager == null) return null;
+
+                var infoProp = isOpponent ? _opponentInfoProp : _localPlayerInfoProp;
+                if (infoProp == null) return null;
+
+                var playerInfo = infoProp.GetValue(matchManager);
+                if (playerInfo == null) return null;
+
+                // Read RankingClass enum value (None=-1, Spark=0, Bronze=1, Silver=2, Gold=3, Platinum=4, Diamond=5, Master=6, Mythic=7)
+                int rankingClass = System.Convert.ToInt32(_rankingClassField.GetValue(playerInfo));
+
+                if (rankingClass <= 0) return "Unranked";
+
+                // Mythic rank
+                if (rankingClass == 7)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Rank child: {child.name}");
+                    int placement = _mythicPlacementField != null ? System.Convert.ToInt32(_mythicPlacementField.GetValue(playerInfo)) : 0;
+                    if (placement > 0)
+                        return $"Mythic #{placement}";
+
+                    float percentile = _mythicPercentileField != null ? System.Convert.ToSingle(_mythicPercentileField.GetValue(playerInfo)) : 0f;
+                    if (percentile > 0f)
+                        return $"Mythic {percentile:0}%";
+
+                    return "Mythic";
                 }
 
-                // Look for TextMeshPro with rank text
-                var tmpComponents = rankAnchor.GetComponentsInChildren<TextMeshProUGUI>();
-                foreach (var tmp in tmpComponents)
+                // Standard ranks with tier
+                string rankName;
+                switch (rankingClass)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  TMP in rank: '{tmp.text}' on {tmp.gameObject.name}");
-                    if (!string.IsNullOrEmpty(tmp.text))
-                    {
-                        return tmp.text.Trim();
-                    }
+                    case 1: rankName = "Bronze"; break;
+                    case 2: rankName = "Silver"; break;
+                    case 3: rankName = "Gold"; break;
+                    case 4: rankName = "Platinum"; break;
+                    case 5: rankName = "Diamond"; break;
+                    case 6: rankName = "Master"; break;
+                    default: rankName = $"Rank {rankingClass}"; break;
                 }
+
+                int tier = _rankingTierField != null ? System.Convert.ToInt32(_rankingTierField.GetValue(playerInfo)) : 0;
+                if (tier > 0)
+                    return $"{rankName} Tier {tier}";
+
+                return rankName;
             }
-            return null;
+            catch (System.Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error getting rank: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
@@ -556,80 +612,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
             return null;
-        }
-
-        /// <summary>
-        /// Finds the avatar/portrait object for the currently selected player.
-        /// </summary>
-        private GameObject FindCurrentPlayerAvatar()
-        {
-            bool isOpponent = _currentPlayerIndex == 1;
-            string containerName = isOpponent ? "Opponent" : "LocalPlayer";
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Finding avatar for {containerName}");
-
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy) continue;
-
-                if (go.name.Contains(containerName) &&
-                    (go.name.Contains("Portrait") || go.name.Contains("Avatar") || go.name.Contains("Player")))
-                {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Potential avatar container: {go.name}");
-
-                    var iconTransform = go.transform.Find("Icon");
-                    if (iconTransform != null)
-                    {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Found Icon child");
-                        var hoverArea = iconTransform.Find("HoverArea");
-                        if (hoverArea != null)
-                        {
-                            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Found HoverArea under Icon");
-                            return hoverArea.gameObject;
-                        }
-                    }
-
-                    var directHover = go.transform.Find("HoverArea");
-                    if (directHover != null)
-                    {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Found direct HoverArea");
-                        return directHover.gameObject;
-                    }
-
-                    // Log children to help discover structure
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Children of {go.name}:");
-                    foreach (Transform child in go.transform)
-                    {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"    - {child.name}");
-                    }
-                }
-            }
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"No avatar found for {containerName}");
-            return null;
-        }
-
-        /// <summary>
-        /// Checks if a player avatar has an active targeting highlight.
-        /// </summary>
-        private bool HasPlayerTargetingHighlight(GameObject avatar)
-        {
-            if (avatar == null) return false;
-
-            // Check self and parent hierarchy for HotHighlight
-            Transform current = avatar.transform;
-            while (current != null)
-            {
-                foreach (Transform child in current.GetComponentsInChildren<Transform>(true))
-                {
-                    if (child == null) continue;
-                    if (!child.gameObject.activeInHierarchy) continue;
-                    if (child.name.Contains("HotHighlight"))
-                    {
-                        return true;
-                    }
-                }
-                current = current.parent;
-            }
-            return false;
         }
 
         /// <summary>
@@ -737,49 +719,24 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
-                // Check for Button component
-                var button = child.GetComponent<UnityEngine.UI.Button>();
-                if (button != null)
+                // EmoteView objects are the clickable emotes (no standard UI.Button)
+                if (childName.Contains("EmoteView"))
                 {
-                    // Only add if it has emote text or is in an EmoteView
                     var text = ExtractEmoteNameFromTransform(child);
-                    bool hasEmoteText = !string.IsNullOrEmpty(text) && !text.Contains("NavArrow");
-                    bool isInEmoteView = IsChildOfEmoteView(child);
-
-                    if (hasEmoteText || isInEmoteView)
+                    if (!string.IsNullOrEmpty(text))
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Adding emote button: '{text}'");
+                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Adding emote: '{text}'");
                         _emoteButtons.Add(child.gameObject);
                     }
-                    else
-                    {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Skipping button (no emote text)");
-                    }
+                    continue; // Don't recurse into EmoteView children
                 }
 
-                // Recurse into children
+                // Recurse into children to find EmoteViews
                 if (child.childCount > 0)
                 {
                     SearchForEmoteButtons(child, depth + 1);
                 }
             }
-        }
-
-        /// <summary>
-        /// Checks if a transform is a child of an EmoteView element.
-        /// </summary>
-        private bool IsChildOfEmoteView(Transform t)
-        {
-            Transform current = t.parent;
-            int depth = 0;
-            while (current != null && depth < 5)
-            {
-                if (current.name.Contains("EmoteView"))
-                    return true;
-                current = current.parent;
-                depth++;
-            }
-            return false;
         }
 
         /// <summary>
@@ -1250,38 +1207,164 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Clicks on the player's HoverArea to potentially trigger emote menu.
+        /// Initializes reflection cache for DuelScene_AvatarView fields.
+        /// </summary>
+        private static void InitializeAvatarReflection(System.Type avatarType)
+        {
+            try
+            {
+                _avatarViewType = avatarType;
+
+                _isLocalPlayerProp = avatarType.GetProperty("IsLocalPlayer", PublicInstance);
+                if (_isLocalPlayerProp == null)
+                {
+                    MelonLogger.Warning("[PlayerPortrait] Could not find IsLocalPlayer property on DuelScene_AvatarView");
+                    return;
+                }
+
+                _portraitButtonField = avatarType.GetField("PortraitButton", PrivateInstance);
+                if (_portraitButtonField == null)
+                {
+                    MelonLogger.Warning("[PlayerPortrait] Could not find PortraitButton field on DuelScene_AvatarView");
+                    return;
+                }
+
+                _avatarReflectionInitialized = true;
+                MelonLogger.Msg($"[PlayerPortrait] Avatar reflection initialized: PortraitButton={_portraitButtonField.FieldType.Name}");
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Error($"[PlayerPortrait] Failed to initialize avatar reflection: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Finds the DuelScene_AvatarView MonoBehaviour for the local or opponent player.
+        /// </summary>
+        private MonoBehaviour FindAvatarView(bool isLocal)
+        {
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName != "DuelScene_AvatarView") continue;
+
+                if (!_avatarReflectionInitialized)
+                    InitializeAvatarReflection(mb.GetType());
+                if (!_avatarReflectionInitialized) return null;
+
+                bool mbIsLocal = (bool)_isLocalPlayerProp.GetValue(mb);
+                if (mbIsLocal == isLocal) return mb;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Initializes reflection cache for rank data from MatchManager player info.
+        /// </summary>
+        private static void InitializeRankReflection(object gameManager)
+        {
+            try
+            {
+                var gmType = gameManager.GetType();
+                _matchManagerProp = gmType.GetProperty("MatchManager", PublicInstance);
+                if (_matchManagerProp == null)
+                {
+                    MelonLogger.Warning("[PlayerPortrait] Could not find MatchManager property on GameManager");
+                    return;
+                }
+
+                var matchManager = _matchManagerProp.GetValue(gameManager);
+                if (matchManager == null)
+                {
+                    MelonLogger.Warning("[PlayerPortrait] MatchManager is null");
+                    return;
+                }
+
+                var mmType = matchManager.GetType();
+                _localPlayerInfoProp = mmType.GetProperty("LocalPlayerInfo", PublicInstance);
+                _opponentInfoProp = mmType.GetProperty("OpponentInfo", PublicInstance);
+
+                if (_localPlayerInfoProp == null)
+                {
+                    MelonLogger.Warning("[PlayerPortrait] Could not find LocalPlayerInfo property on MatchManager");
+                    return;
+                }
+
+                // Get player info type from local player info
+                var playerInfo = _localPlayerInfoProp.GetValue(matchManager);
+                if (playerInfo == null)
+                {
+                    MelonLogger.Warning("[PlayerPortrait] LocalPlayerInfo is null");
+                    return;
+                }
+
+                var piType = playerInfo.GetType();
+                var allBindings = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                _rankingClassField = piType.GetField("RankingClass", allBindings);
+                _rankingTierField = piType.GetField("RankingTier", allBindings);
+                _mythicPercentileField = piType.GetField("MythicPercentile", allBindings);
+                _mythicPlacementField = piType.GetField("MythicPlacement", allBindings);
+
+                if (_rankingClassField == null)
+                {
+                    // Try as properties instead
+                    var rcProp = piType.GetProperty("RankingClass", allBindings);
+                    if (rcProp != null)
+                    {
+                        MelonLogger.Msg("[PlayerPortrait] RankingClass is a property, not a field - logging all members for debugging");
+                    }
+                    MelonLogger.Warning("[PlayerPortrait] Could not find RankingClass field on player info type " + piType.Name);
+                    // Log available fields for debugging
+                    foreach (var f in piType.GetFields(allBindings))
+                    {
+                        MelonLogger.Msg($"[PlayerPortrait]   Field: {f.Name} ({f.FieldType.Name})");
+                    }
+                    foreach (var p in piType.GetProperties(allBindings))
+                    {
+                        MelonLogger.Msg($"[PlayerPortrait]   Property: {p.Name} ({p.PropertyType.Name})");
+                    }
+                    return;
+                }
+
+                _rankReflectionInitialized = true;
+                MelonLogger.Msg($"[PlayerPortrait] Rank reflection initialized: RankingClass={_rankingClassField.FieldType.Name}, RankingTier={_rankingTierField?.FieldType.Name ?? "null"}");
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Error($"[PlayerPortrait] Failed to initialize rank reflection: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Clicks the local player's PortraitButton to open/close the emote wheel.
         /// </summary>
         public void TriggerEmoteMenu(bool opponent = false)
         {
-            var timerObj = opponent ? _opponentTimerObj : _localTimerObj;
-            if (timerObj == null)
+            var avatarView = FindAvatarView(isLocal: !opponent);
+            if (avatarView == null)
             {
-                DiscoverTimerElements();
-                timerObj = opponent ? _opponentTimerObj : _localTimerObj;
-            }
-
-            if (timerObj == null)
-            {
-                _announcer.Announce("Timer not found", AnnouncementPriority.Normal);
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"AvatarView not found for {(opponent ? "opponent" : "local")}");
+                _announcer.Announce("Portrait not found", AnnouncementPriority.Normal);
                 return;
             }
 
-            // Find the HoverArea child (Icon/HoverArea path)
-            var iconTransform = timerObj.transform.Find("Icon");
-            if (iconTransform != null)
+            if (!_avatarReflectionInitialized)
             {
-                var hoverArea = iconTransform.Find("HoverArea");
-                if (hoverArea != null)
-                {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Clicking HoverArea for {(opponent ? "opponent" : "local")} portrait");
-                    UIActivator.SimulatePointerClick(hoverArea.gameObject);
-                    _announcer.Announce(opponent ? "Opponent portrait clicked" : "Your portrait clicked", AnnouncementPriority.Normal);
-                    return;
-                }
+                _announcer.Announce("Portrait not available", AnnouncementPriority.Normal);
+                return;
             }
 
-            _announcer.Announce("Portrait hover area not found", AnnouncementPriority.Normal);
+            var portraitButton = _portraitButtonField.GetValue(avatarView) as MonoBehaviour;
+            if (portraitButton == null)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"PortraitButton is null on {(opponent ? "opponent" : "local")} AvatarView");
+                _announcer.Announce("Portrait button not found", AnnouncementPriority.Normal);
+                return;
+            }
+
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Clicking PortraitButton for {(opponent ? "opponent" : "local")} avatar");
+            UIActivator.SimulatePointerClick(portraitButton.gameObject);
         }
     }
 }
