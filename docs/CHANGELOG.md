@@ -2,6 +2,24 @@
 
 All notable changes to Accessible Arena.
 
+## v0.5.1 - 2026-02-11
+
+### Bug Fixes
+- Fix card navigator staying active when opening settings menu during duel
+  - Previously, pressing Escape with a card focused left CardInfoNavigator active
+  - Up/Down arrows in settings would announce card details instead of navigating menu items
+  - Now detects navigator transitions and deactivates CardInfoNavigator on switch
+- Fix matchmaking cancel button not wired to Backspace shortcut
+  - `_cancelButton` was never set in `DiscoverMatchmakingElements`, so Backspace did nothing
+
+### Loading Screen Cleanup
+- Removed Cancel and Settings buttons from loading screen navigation lists
+  - Cancel accessible via Backspace, Settings via Escape — no need to navigate to them
+  - Applies to MatchEnd, PreGame, and Matchmaking screens
+  - Button references kept internally for shortcut functionality
+
+---
+
 ## v0.5 - 2026-02-11
 
 ### Ctrl+Tab: Cycle Opponent Targets
