@@ -482,37 +482,18 @@ Zone change events can create redundant announcements when a creature dies and g
 
 ### Dropdown Auto-Open Suppression Mechanics (January 2025)
 
-Complex flag-based system to prevent unwanted behavior when MTGA auto-opens dropdowns during navigation. May need simplification in future refactoring.
+MTGA auto-opens dropdowns when they receive EventSystem selection. When user navigates to a dropdown with arrow keys, we set EventSystem selection, game auto-opens it. Auto-opened dropdowns are immediately closed; user must press Enter to open.
 
-**The Problem:**
-MTGA auto-opens dropdowns when they receive EventSystem selection. When user navigates to a dropdown with arrow keys, we set EventSystem selection, game auto-opens it, and this caused:
-1. Unwanted dropdown mode entry
-2. Double announcements (from navigator + sync logic)
+**Announcement Ownership:**
+- `UIFocusTracker.NavigatorHandlesAnnouncements` - When a navigator is active, UIFocusTracker skips announcements (navigators handle their own). Set each frame from `NavigatorManager.HasActiveNavigator`.
+- Exception: When a dropdown is open (`DropdownStateManager.IsInDropdownMode`), UIFocusTracker still announces because Unity's native navigation controls dropdown item focus.
 
-**Solution - Multiple Suppression Flags:**
+**Dropdown State (DropdownStateManager):**
+- `IsInDropdownMode` - Queries actual `IsExpanded` property, accounts for suppression after auto-close
+- `SuppressReentry()` - Prevents re-entering dropdown mode while `IsExpanded` is still true after `Hide()` call
+- `UpdateAndCheckExitTransition()` - Detects dropdown close for navigator index sync (handles game auto-advance like Month→Day→Year)
 
-**UIFocusTracker.cs:**
-- `_suppressNextFocusAnnouncement` - Prevents FocusTracker from announcing when navigator handles the focus change (navigator does its own announcement)
-- `_suppressDropdownModeEntry` - Prevents FocusTracker from entering dropdown mode when we just closed an auto-opened dropdown (IsExpanded may still be true briefly)
-
-**BaseNavigator.cs:**
-- `_wasInDropdownMode` - Tracks if we were in dropdown mode to trigger `SyncIndexToFocusedElement()` after exiting (for game's auto-advance like Month→Day→Year)
-- `_skipDropdownModeTracking` - Prevents `_wasInDropdownMode` from being re-set while IsExpanded is still true after closing auto-opened dropdown
-
-**Flow for closing auto-opened dropdown:**
-1. `CloseDropdownOnElement()` calls `Hide()` on dropdown
-2. Sets `_wasInDropdownMode = false`
-3. Sets `_skipDropdownModeTracking = true`
-4. Calls `UIFocusTracker.SuppressDropdownModeEntry()`
-5. Next frames: `IsExpanded` may still be true, but flags prevent unwanted mode entry
-6. Once `IsExpanded` becomes false, `_skipDropdownModeTracking` is cleared
-
-**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`
-
-**Future Simplification Ideas:**
-- Query dropdown state less frequently (cache with short TTL)
-- Single unified "dropdown operation in progress" flag
-- Consider if all this complexity is needed or if simpler approach exists
+**Files:** `UIFocusTracker.cs`, `DropdownStateManager.cs`, `AccessibleArenaMod.cs`
 
 ## Potential Issues (Monitor)
 

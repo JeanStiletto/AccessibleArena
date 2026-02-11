@@ -31,17 +31,13 @@ namespace AccessibleArena.Core.Services
         private static System.Reflection.PropertyInfo _cachedIsExpandedProperty;
         private static System.Type _cachedDropdownType;
 
-        // Flag to suppress focus announcements when navigator is handling the focus change
-        private static bool _suppressNextFocusAnnouncement;
-
         /// <summary>
-        /// Suppress the next focus change announcement. Called by navigators before they
-        /// change EventSystem selection, since they handle their own announcements.
+        /// When true, UIFocusTracker skips announcements because an active navigator handles them.
+        /// Set each frame by AccessibleArenaMod based on NavigatorManager.HasActiveNavigator.
+        /// Dropdown mode is excluded: when a dropdown is open, UIFocusTracker still announces
+        /// because Unity's native navigation controls dropdown items.
         /// </summary>
-        public static void SuppressNextFocusAnnouncement()
-        {
-            _suppressNextFocusAnnouncement = true;
-        }
+        public static bool NavigatorHandlesAnnouncements { get; set; }
 
         /// <summary>
         /// Fired when focus changes. Parameters: (oldElement, newElement)
@@ -488,11 +484,11 @@ namespace AccessibleArena.Core.Services
 
         private void AnnounceElement(GameObject element)
         {
-            // Check if navigator suppressed this announcement (it handles its own)
-            if (_suppressNextFocusAnnouncement)
+            // When a navigator is active, it handles its own announcements.
+            // Exception: dropdown mode, where Unity's native navigation controls focus.
+            if (NavigatorHandlesAnnouncements && !DropdownStateManager.IsInDropdownMode)
             {
-                _suppressNextFocusAnnouncement = false;
-                Log($"Skipping announcement (suppressed by navigator): {element.name}");
+                Log($"Skipping announcement (navigator active): {element.name}");
                 return;
             }
 

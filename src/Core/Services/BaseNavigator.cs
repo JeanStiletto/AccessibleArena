@@ -1429,9 +1429,6 @@ namespace AccessibleArena.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem != null)
             {
-                // Suppress FocusTracker's announcement since we handle our own via AnnounceCurrentElement()
-                UIFocusTracker.SuppressNextFocusAnnouncement();
-
                 bool isInputField = UIFocusTracker.IsInputField(element);
                 bool isArrowNavToInputField = isInputField && !_lastNavigationWasTab;
                 bool isToggle = element.GetComponent<Toggle>() != null;

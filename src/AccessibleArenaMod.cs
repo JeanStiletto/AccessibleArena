@@ -278,6 +278,9 @@ namespace AccessibleArena
 
             _inputHandler?.OnUpdate();
 
+            // When a navigator is active, it handles announcements - UIFocusTracker stays silent
+            UIFocusTracker.NavigatorHandlesAnnouncements = _navigatorManager?.HasActiveNavigator ?? false;
+
             // Always track focus changes for card navigation
             _focusTracker?.Update();
 

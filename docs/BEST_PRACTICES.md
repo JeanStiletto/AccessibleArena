@@ -117,7 +117,7 @@ MTGA uses `TMP_Dropdown` and `cTMP_Dropdown` for dropdown menus. The mod tracks 
 **Key Concepts:**
 - **Dropdown Edit Mode**: When a dropdown is expanded, the mod defers to Unity's built-in navigation
 - **Detection**: Checks if EventSystem focus is on a dropdown item (name starts with "Item")
-- **Exit Handling**: Tracks transitions out of dropdown mode to prevent double announcements
+- **Exit Handling**: Tracks transitions out of dropdown mode for navigator index sync
 
 **DropdownStateManager API:**
 ```csharp
