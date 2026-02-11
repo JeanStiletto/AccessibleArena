@@ -250,7 +250,7 @@ have HotHighlight. We trust the game and scan ALL zones, letting the zone determ
 - [x] Zone-based activation:
   - Hand cards: Two-click to play
   - All other targets: Single-click to select
-- [x] Player target detection - Scans MatchTimer objects for player portrait highlights
+- [x] Player target detection - Uses `DuelScene_AvatarView.HighlightSystem._currentHighlightType` via reflection
 - [x] Primary button text - When no highlights, announces game state ("Pass", "Resolve", "Next")
 - [x] Backspace to cancel - Available when targets are highlighted
 

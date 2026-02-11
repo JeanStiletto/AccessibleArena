@@ -700,6 +700,31 @@ LocalPlayerMatchTimer_Desktop_16x9(Clone)
 â””â”€â”€ WarningPrompt
 ```
 
+### DuelScene_AvatarView (Player Avatar)
+
+`DuelScene_AvatarView` is a MonoBehaviour on each player avatar (local + opponent). Used for player targeting detection.
+
+**Key Members:**
+- `IsLocalPlayer` (public property) - True for local player, false for opponent
+- `PortraitButton` (private SerializeField, `ClickAndHoldButton`) - Clickable portrait button
+- `_highlightSystem` (private SerializeField, `HighlightSystem`) - Controls highlight sprites
+- `Model` (public property, `MtgPlayer`) - Player model with `InstanceId`
+
+**HighlightSystem (nested class):**
+- `_currentHighlightType` (private field, `HighlightType` enum) - Current highlight state
+- `Update(HighlightType)` - Changes highlight sprite
+
+**HighlightType enum values:**
+- `None` (0) - No highlight
+- `Cold` (1) - Valid but risky target (shows confirmation)
+- `Tepid` (2) - Mapped to Hot sprite client-side
+- `Hot` (3) - Normal valid target
+- `Selected` (5) - Already selected
+
+**Click path:** `PortraitButton.OnPointerClick()` -> `AvatarInput.Clicked` -> `AvatarClicked.Execute()` -> `SelectTargetsWorkflow.OnClick(avatarView)`
+
+**Important:** The game does NOT add HotHighlight child GameObjects to player avatars. It uses `HighlightSystem` sprite swapping instead.
+
 ### GameManager Properties
 
 - `CurrentGameState` / `LatestGameState` - MtgGameState (populated during gameplay)

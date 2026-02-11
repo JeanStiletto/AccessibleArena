@@ -5,9 +5,11 @@ using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace AccessibleArena.Core.Services
@@ -38,6 +40,18 @@ namespace AccessibleArena.Core.Services
         // Selection mode detection (discard, choose cards to exile, etc.)
         // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
         private static readonly Regex ButtonNumberPattern = new Regex(@"(\d+)", RegexOptions.IgnoreCase);
+
+        // Avatar targeting reflection cache
+        private static readonly BindingFlags PrivateInstance =
+            BindingFlags.NonPublic | BindingFlags.Instance;
+        private static readonly BindingFlags PublicInstance =
+            BindingFlags.Public | BindingFlags.Instance;
+        private static Type _avatarViewType;
+        private static FieldInfo _highlightSystemField;    // DuelScene_AvatarView._highlightSystem
+        private static FieldInfo _currentHighlightField;   // HighlightSystem._currentHighlightType
+        private static PropertyInfo _isLocalPlayerProp;    // DuelScene_AvatarView.IsLocalPlayer
+        private static FieldInfo _portraitButtonField;     // DuelScene_AvatarView.PortraitButton
+        private static bool _avatarReflectionInitialized;
 
         public bool IsActive => _isActive;
         public int ItemCount => _items.Count;
@@ -356,95 +370,110 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Discovers player portraits as targets if they have HotHighlight.
+        /// Discovers player portraits as targets using DuelScene_AvatarView reflection.
+        /// The game highlights player avatars via HighlightSystem._currentHighlightType,
+        /// NOT via HotHighlight child GameObjects.
         /// </summary>
         private void DiscoverPlayerTargets(HashSet<int> addedIds)
         {
-            // Check local player
-            var (localHighlight, localClickable) = FindPlayerWithHighlight(isOpponent: false);
-            if (localHighlight != null && localClickable != null)
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
-                int id = localClickable.GetInstanceID();
-                if (!addedIds.Contains(id))
-                {
-                    _items.Add(new HighlightedItem
-                    {
-                        GameObject = localClickable,
-                        Name = Strings.You,
-                        Zone = "Player",
-                        HighlightType = "PlayerHighlight",
-                        IsOpponent = false,
-                        IsPlayer = true,
-                        CardType = "Player"
-                    });
-                    addedIds.Add(id);
-                    MelonLogger.Msg("[HotHighlightNavigator] Added local player as target");
-                }
-            }
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name != "DuelScene_AvatarView") continue;
 
-            // Check opponent
-            var (opponentHighlight, opponentClickable) = FindPlayerWithHighlight(isOpponent: true);
-            if (opponentHighlight != null && opponentClickable != null)
-            {
-                int id = opponentClickable.GetInstanceID();
-                if (!addedIds.Contains(id))
+                // Initialize reflection cache on first encounter
+                if (!_avatarReflectionInitialized)
                 {
-                    _items.Add(new HighlightedItem
-                    {
-                        GameObject = opponentClickable,
-                        Name = Strings.Opponent,
-                        Zone = "Player",
-                        HighlightType = "PlayerHighlight",
-                        IsOpponent = true,
-                        IsPlayer = true,
-                        CardType = "Player"
-                    });
-                    addedIds.Add(id);
-                    MelonLogger.Msg("[HotHighlightNavigator] Added opponent as target");
+                    InitializeAvatarReflection(mb.GetType());
+                    if (!_avatarReflectionInitialized) return;
                 }
+
+                // Read highlight state: _highlightSystem → _currentHighlightType
+                var highlightSystem = _highlightSystemField?.GetValue(mb);
+                if (highlightSystem == null) continue;
+
+                int highlightValue = (int)_currentHighlightField.GetValue(highlightSystem);
+
+                // Accept Hot(3), Tepid(2), Cold(1) — skip None(0), Selected(5), others
+                if (highlightValue != 1 && highlightValue != 2 && highlightValue != 3)
+                    continue;
+
+                // Determine if local or opponent
+                bool isLocal = (bool)_isLocalPlayerProp.GetValue(mb);
+
+                // Get clickable element: PortraitButton.gameObject
+                var portraitButton = _portraitButtonField?.GetValue(mb) as MonoBehaviour;
+                if (portraitButton == null)
+                {
+                    MelonLogger.Warning($"[HotHighlightNavigator] AvatarView has highlight={highlightValue} but no PortraitButton");
+                    continue;
+                }
+
+                GameObject clickable = portraitButton.gameObject;
+                int id = clickable.GetInstanceID();
+                if (addedIds.Contains(id)) continue;
+
+                string name = isLocal ? Strings.You : Strings.Opponent;
+                _items.Add(new HighlightedItem
+                {
+                    GameObject = clickable,
+                    Name = name,
+                    Zone = "Player",
+                    HighlightType = $"AvatarHighlight({highlightValue})",
+                    IsOpponent = !isLocal,
+                    IsPlayer = true,
+                    CardType = "Player"
+                });
+                addedIds.Add(id);
+                MelonLogger.Msg($"[HotHighlightNavigator] Added {(isLocal ? "local" : "opponent")} player as target (highlight={highlightValue})");
             }
         }
 
         /// <summary>
-        /// Finds player portrait with HotHighlight.
-        /// Returns (objectWithHighlight, clickableObject).
+        /// Initializes reflection cache for DuelScene_AvatarView fields.
         /// </summary>
-        private (GameObject, GameObject) FindPlayerWithHighlight(bool isOpponent)
+        private static void InitializeAvatarReflection(Type avatarType)
         {
-            string prefix = isOpponent ? "Opponent" : "LocalPlayer";
-            GameObject foundWithHighlight = null;
-            GameObject clickable = null;
-
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            try
             {
-                if (go == null || !go.activeInHierarchy) continue;
+                _avatarViewType = avatarType;
 
-                string goName = go.name;
-
-                // Check MatchTimer objects
-                if (goName.Contains(prefix) && goName.Contains("MatchTimer"))
+                _highlightSystemField = avatarType.GetField("_highlightSystem", PrivateInstance);
+                if (_highlightSystemField == null)
                 {
-                    if (CardDetector.HasHotHighlight(go))
-                    {
-                        foundWithHighlight = go;
-
-                        // Find clickable child (HoverArea or Icon)
-                        var iconTransform = go.transform.Find("Icon");
-                        if (iconTransform != null)
-                        {
-                            var hoverArea = iconTransform.Find("HoverArea");
-                            clickable = hoverArea != null ? hoverArea.gameObject : iconTransform.gameObject;
-                        }
-                        else
-                        {
-                            clickable = go;
-                        }
-                        break;
-                    }
+                    MelonLogger.Warning("[HotHighlightNavigator] Could not find _highlightSystem field on DuelScene_AvatarView");
+                    return;
                 }
-            }
 
-            return (foundWithHighlight, clickable);
+                Type highlightSystemType = _highlightSystemField.FieldType;
+                _currentHighlightField = highlightSystemType.GetField("_currentHighlightType", PrivateInstance);
+                if (_currentHighlightField == null)
+                {
+                    MelonLogger.Warning($"[HotHighlightNavigator] Could not find _currentHighlightType on {highlightSystemType.Name}");
+                    return;
+                }
+
+                _isLocalPlayerProp = avatarType.GetProperty("IsLocalPlayer", PublicInstance);
+                if (_isLocalPlayerProp == null)
+                {
+                    MelonLogger.Warning("[HotHighlightNavigator] Could not find IsLocalPlayer property on DuelScene_AvatarView");
+                    return;
+                }
+
+                _portraitButtonField = avatarType.GetField("PortraitButton", PrivateInstance);
+                if (_portraitButtonField == null)
+                {
+                    MelonLogger.Warning("[HotHighlightNavigator] Could not find PortraitButton field on DuelScene_AvatarView");
+                    return;
+                }
+
+                _avatarReflectionInitialized = true;
+                MelonLogger.Msg($"[HotHighlightNavigator] Avatar reflection initialized: HighlightSystem={highlightSystemType.Name}, HighlightField={_currentHighlightField.FieldType.Name}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[HotHighlightNavigator] Failed to initialize avatar reflection: {ex.Message}");
+            }
         }
 
         /// <summary>

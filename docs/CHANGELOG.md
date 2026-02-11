@@ -2,7 +2,15 @@
 
 All notable changes to Accessible Arena.
 
-## v0.5 - 2026-02-10
+## v0.5 - 2026-02-11
+
+### Player Targeting Fix
+- Spells that can target players (e.g., Cracked Blitz, Lightning Bolt) now correctly discover player avatars as valid targets
+- Previous approach searched for HotHighlight children on MatchTimer objects, which the game never adds
+- New approach reads `DuelScene_AvatarView.HighlightSystem._currentHighlightType` via reflection
+- Accepts Hot (3), Tepid (2), and Cold (1) highlight values as valid targets
+- Click activates `PortraitButton` (private SerializeField) which triggers the same click path as a mouse click
+- Files: `HotHighlightNavigator.cs`
 
 ### Targeting/Targeted-By Announcements
 - Stack spells now announce their targets: "Lightning Bolt, targeting Grizzly Bears, 1 of 2"

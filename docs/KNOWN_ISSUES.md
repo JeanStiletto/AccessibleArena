@@ -366,7 +366,7 @@ NullClaimButton ("Take reward") not being added to navigation. Fix attempted - s
 
 ### Targeting Mode
 
-- Player targets (V key zone)
+- ~~Player targets~~ **RESOLVED** - Player avatars now detected via `DuelScene_AvatarView.HighlightSystem._currentHighlightType` reflection (Feb 2026)
 - "Any target" spells
 - Stack spell targets
 - Triggered abilities requiring targets
