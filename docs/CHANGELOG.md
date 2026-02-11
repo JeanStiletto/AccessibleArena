@@ -4,6 +4,14 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-10
 
+### Targeting/Targeted-By Announcements
+- Stack spells now announce their targets: "Lightning Bolt, targeting Grizzly Bears, 1 of 2"
+- Battlefield cards announce what's targeting them: "Grizzly Bears, targeted by Lightning Bolt, 1 of 3"
+- Multiple targets supported: "targeting Angel and Dragon"
+- Resolves names from both battlefield and stack zones
+- Uses `Model.Instance.TargetIds` / `TargetedByIds` fields via reflection
+- Files: `CardModelProvider.cs`, `BattlefieldNavigator.cs`, `ZoneNavigator.cs`
+
 ### LargeScrollList Browser Choice Discovery
 - Keyword choice browsers (e.g. Entstellender Künstler with 3+ choices) now discover actual choice buttons
 - Previously only scaffold controls (2Button_Left, MainButton, etc.) were found because choice buttons don't match standard ButtonPatterns

@@ -703,7 +703,14 @@ namespace AccessibleArena.Core.Services
                 attachmentText = CardModelProvider.GetAttachmentText(card);
             }
 
-            _announcer.Announce($"{cardName}{selectionState}{combatState}{attachmentText}, {position} of {total}", AnnouncementPriority.Normal);
+            // Add targeting info for battlefield and stack cards
+            string targetingText = "";
+            if (_currentZone == ZoneType.Battlefield || _currentZone == ZoneType.Stack)
+            {
+                targetingText = CardModelProvider.GetTargetingText(card);
+            }
+
+            _announcer.Announce($"{cardName}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", AnnouncementPriority.Normal);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

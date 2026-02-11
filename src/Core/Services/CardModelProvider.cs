@@ -75,6 +75,11 @@ namespace AccessibleArena.Core.Services
             _blockingIdsFieldSearched = false;
             _blockedByIdsField = null;
             _blockedByIdsFieldSearched = false;
+            // Targeting cache
+            _targetIdsField = null;
+            _targetIdsFieldSearched = false;
+            _targetedByIdsField = null;
+            _targetedByIdsFieldSearched = false;
         }
 
         #region Component Access
@@ -2566,6 +2571,223 @@ namespace AccessibleArena.Core.Services
             if (cdc == null) return false;
             var model = GetCardModel(cdc);
             return GetIsBlocking(model);
+        }
+
+        #endregion
+
+        #region Targeting
+
+        // Cache for targeting reflection
+        private static FieldInfo _targetIdsField;
+        private static bool _targetIdsFieldSearched;
+        private static FieldInfo _targetedByIdsField;
+        private static bool _targetedByIdsFieldSearched;
+
+        /// <summary>
+        /// Gets the list of InstanceIds this card is targeting.
+        /// Reads Instance.TargetIds field (List of uint).
+        /// </summary>
+        public static List<uint> GetTargetIds(object model)
+        {
+            var result = new List<uint>();
+            var instance = GetModelInstance(model);
+            if (instance == null) return result;
+            try
+            {
+                if (!_targetIdsFieldSearched)
+                {
+                    _targetIdsFieldSearched = true;
+                    _targetIdsField = instance.GetType().GetField("TargetIds",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                }
+                if (_targetIdsField != null)
+                {
+                    var val = _targetIdsField.GetValue(instance);
+                    if (val is IList list)
+                    {
+                        foreach (var item in list)
+                        {
+                            if (item is uint id) result.Add(id);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        /// <summary>
+        /// Gets the list of InstanceIds of cards targeting this card.
+        /// Reads Instance.TargetedByIds field (List of uint) from MtgEntity.
+        /// </summary>
+        public static List<uint> GetTargetedByIds(object model)
+        {
+            var result = new List<uint>();
+            var instance = GetModelInstance(model);
+            if (instance == null) return result;
+            try
+            {
+                if (!_targetedByIdsFieldSearched)
+                {
+                    _targetedByIdsFieldSearched = true;
+                    _targetedByIdsField = instance.GetType().GetField("TargetedByIds",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                }
+                if (_targetedByIdsField != null)
+                {
+                    var val = _targetedByIdsField.GetValue(instance);
+                    if (val is IList list)
+                    {
+                        foreach (var item in list)
+                        {
+                            if (item is uint id) result.Add(id);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        /// <summary>
+        /// Collects all DuelScene_CDC card models from the stack zone.
+        /// Returns list of (model, instanceId, grpId) for name resolution.
+        /// </summary>
+        private static List<(object model, uint instanceId, uint grpId)> GetAllStackCardModels()
+        {
+            var results = new List<(object model, uint instanceId, uint grpId)>();
+
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (!go.name.Contains("StackCardHolder")) continue;
+
+                foreach (var child in go.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                    var cdc = GetDuelSceneCDC(child.gameObject);
+                    if (cdc == null) continue;
+
+                    var model = GetCardModel(cdc);
+                    if (model == null) continue;
+
+                    uint instanceId = GetModelInstanceId(model);
+                    if (instanceId == 0) continue;
+
+                    uint grpId = GetModelGrpId(model);
+                    results.Add((model, instanceId, grpId));
+                }
+                break;
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Resolves an InstanceId to a card name by scanning battlefield and stack cards.
+        /// Returns null if not found.
+        /// </summary>
+        public static string ResolveInstanceIdToNameExtended(uint instanceId)
+        {
+            if (instanceId == 0) return null;
+
+            // Try battlefield first
+            string name = ResolveInstanceIdToName(instanceId);
+            if (name != null) return name;
+
+            // Try stack
+            try
+            {
+                var stackCards = GetAllStackCardModels();
+                foreach (var (cardModel, id, grpId) in stackCards)
+                {
+                    if (id == instanceId)
+                    {
+                        return grpId > 0 ? GetNameFromGrpId(grpId) : null;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets formatted targeting text for announcing a card.
+        /// Returns text describing what this card targets and what targets it.
+        /// Format: ", targeting X, targeted by Y" (with leading ", " like GetAttachmentText).
+        /// </summary>
+        public static string GetTargetingText(GameObject card)
+        {
+            if (card == null) return "";
+
+            var cdcComponent = GetDuelSceneCDC(card);
+            if (cdcComponent == null) return "";
+
+            var model = GetCardModel(cdcComponent);
+            if (model == null) return "";
+
+            var result = new List<string>();
+
+            try
+            {
+                // Check what this card targets
+                var targetIds = GetTargetIds(model);
+                if (targetIds.Count > 0)
+                {
+                    var names = new List<string>();
+                    foreach (var id in targetIds)
+                    {
+                        string name = ResolveInstanceIdToNameExtended(id);
+                        if (!string.IsNullOrEmpty(name))
+                            names.Add(name);
+                    }
+                    if (names.Count == 1)
+                    {
+                        result.Add($"targeting {names[0]}");
+                    }
+                    else if (names.Count == 2)
+                    {
+                        result.Add($"targeting {names[0]} and {names[1]}");
+                    }
+                    else if (names.Count > 2)
+                    {
+                        result.Add($"targeting {string.Join(", ", names)}");
+                    }
+                }
+
+                // Check what targets this card
+                var targetedByIds = GetTargetedByIds(model);
+                if (targetedByIds.Count > 0)
+                {
+                    var names = new List<string>();
+                    foreach (var id in targetedByIds)
+                    {
+                        string name = ResolveInstanceIdToNameExtended(id);
+                        if (!string.IsNullOrEmpty(name))
+                            names.Add(name);
+                    }
+                    if (names.Count == 1)
+                    {
+                        result.Add($"targeted by {names[0]}");
+                    }
+                    else if (names.Count == 2)
+                    {
+                        result.Add($"targeted by {names[0]} and {names[1]}");
+                    }
+                    else if (names.Count > 2)
+                    {
+                        result.Add($"targeted by {string.Join(", ", names)}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting targeting text: {ex.Message}");
+            }
+
+            if (result.Count == 0) return "";
+            return ", " + string.Join(", ", result);
         }
 
         #endregion

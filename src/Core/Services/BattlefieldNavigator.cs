@@ -547,7 +547,10 @@ namespace AccessibleArena.Core.Services
             // Add attachment info (enchantments, equipment attached to this card)
             string attachmentText = CardModelProvider.GetAttachmentText(card);
 
-            _announcer.Announce($"{cardName}{combatState}{attachmentText}, {position} of {total}", AnnouncementPriority.Normal);
+            // Add targeting info (what this card targets / what targets it)
+            string targetingText = CardModelProvider.GetTargetingText(card);
+
+            _announcer.Announce($"{cardName}{combatState}{attachmentText}{targetingText}, {position} of {total}", AnnouncementPriority.Normal);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

@@ -24,7 +24,7 @@ C:\Users\fabia\arena\
         UIActivator.cs           - Centralized UI element activation
         UITextExtractor.cs       - Text extraction (GetText, GetButtonText, CleanText)
         CardDetector.cs          - Card detection + card info extraction
-        CardModelProvider.cs     - Card data from game models (deck list, collection, attachments)
+        CardModelProvider.cs     - Card data from game models (deck list, collection, attachments, targeting)
         CardPoolAccessor.cs      - Reflection wrapper for CardPoolHolder (collection page API)
         RecentPlayAccessor.cs    - Reflection wrapper for LastPlayedBladeContentView (Recent tab tiles)
 
@@ -307,6 +307,18 @@ Cards announce their current state using **model data first** (via `CardModelPro
 - `BlockingIds` (field, `List<uint>`) - InstanceIds of attackers this blocker is blocking
 - `BlockedByIds` (field, `List<uint>`) - InstanceIds of blockers blocking this attacker
 - Access chain: `GetDuelSceneCDC(card)` → `GetCardModel(cdc)` → `GetModelInstance(model)` → read prop/field
+
+**Targeting State Detection:**
+Cards announce targeting relationships using model data:
+- "targeting Angel" - When card has `Instance.TargetIds` populated, resolves target names
+- "targeting Angel and Dragon" - Multiple targets joined with "and" (2) or ", " (3+)
+- "targeted by Lightning Bolt" - When card has `Instance.TargetedByIds` populated, resolves source names
+- Shown on both battlefield and stack cards
+
+*Model fields on `MtgCardInstance` / `MtgEntity`:*
+- `TargetIds` (field, `List<uint>`) - InstanceIds of what this card targets
+- `TargetedByIds` (field, `List<uint>`) - InstanceIds of what is targeting this card
+- `ResolveInstanceIdToNameExtended()` scans both battlefield and stack for name resolution
 
 **Declare Attackers Phase:**
 - [x] F/Space key handling - Clicks `PromptButton_Primary` (whatever text: "All Attack", "X Attackers", etc.)
