@@ -520,7 +520,8 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 - Trusts game's HotHighlight system - no separate mode tracking needed
 - Zone-based announcements: "in hand", "opponent's Creature", "on stack"
 - Zone-based activation: hand cards use two-click, others use single-click
-- Tab/Shift+Tab cycles, Enter activates, Backspace cancels
+- Tab/Shift+Tab cycles all targets, Ctrl+Tab/Ctrl+Shift+Tab cycles opponent targets only
+- Enter activates, Backspace cancels
 
 **Selection Mode (in HotHighlightNavigator)**
 - Detects Submit button with count AND no battlefield targets

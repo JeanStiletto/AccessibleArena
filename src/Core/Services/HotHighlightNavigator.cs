@@ -35,6 +35,7 @@ namespace AccessibleArena.Core.Services
 
         private List<HighlightedItem> _items = new List<HighlightedItem>();
         private int _currentIndex = -1;
+        private int _opponentIndex = -1;
         private bool _isActive;
 
         // Selection mode detection (discard, choose cards to exile, etc.)
@@ -89,6 +90,7 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _items.Clear();
             _currentIndex = -1;
+            _opponentIndex = -1;
             MelonLogger.Msg("[HotHighlightNavigator] Deactivated");
         }
 
@@ -103,6 +105,7 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg("[HotHighlightNavigator] Clearing state due to zone navigation");
                 _items.Clear();
                 _currentIndex = -1;
+                _opponentIndex = -1;
             }
         }
 
@@ -113,6 +116,42 @@ namespace AccessibleArena.Core.Services
         public bool HandleInput()
         {
             if (!_isActive) return false;
+
+            // Ctrl+Tab / Ctrl+Shift+Tab - cycle through opponent targets only
+            if (Input.GetKeyDown(KeyCode.Tab) &&
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                DiscoverAllHighlights();
+
+                var opponentItems = new List<int>();
+                for (int i = 0; i < _items.Count; i++)
+                {
+                    if (_items[i].IsOpponent)
+                        opponentItems.Add(i);
+                }
+
+                if (opponentItems.Count == 0)
+                    return true; // No opponent targets, consume input silently
+
+                // Cycle forward or backward through opponent items
+                if (shift)
+                {
+                    _opponentIndex--;
+                    if (_opponentIndex < 0)
+                        _opponentIndex = opponentItems.Count - 1;
+                }
+                else
+                {
+                    _opponentIndex++;
+                    if (_opponentIndex >= opponentItems.Count)
+                        _opponentIndex = 0;
+                }
+
+                _currentIndex = opponentItems[_opponentIndex];
+                AnnounceCurrentItem();
+                return true;
+            }
 
             // Tab - cycle through highlighted items
             if (Input.GetKeyDown(KeyCode.Tab))
@@ -166,6 +205,7 @@ namespace AccessibleArena.Core.Services
                         MelonLogger.Msg($"[HotHighlightNavigator] Clearing stale state - zone owner is {_zoneNavigator.CurrentZoneOwner}");
                         _items.Clear();
                         _currentIndex = -1;
+                        _opponentIndex = -1;
                     }
                     return false;
                 }
@@ -306,9 +346,10 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[HotHighlightNavigator] Found {_items.Count} highlighted items");
 
-            // Reset index if out of range
+            // Reset indices if out of range
             if (_currentIndex >= _items.Count)
                 _currentIndex = _items.Count > 0 ? 0 : -1;
+            // _opponentIndex is validated at use site against filtered list
         }
 
         /// <summary>
@@ -624,6 +665,7 @@ namespace AccessibleArena.Core.Services
             // Clear state after activation - highlights will update
             _items.Clear();
             _currentIndex = -1;
+            _opponentIndex = -1;
         }
 
         /// <summary>

@@ -129,7 +129,7 @@ Declare Blockers: Space (Confirm Blocks / Next), Backspace (No Blocks / Cancel B
 Main Phase: Space (Next / To Combat / Pass - clicks primary button)
 
 **Duel - Targeting:**
-Tab (Cycle targets), Enter (Select), Backspace (Cancel)
+Tab (Cycle targets), Ctrl+Tab (Cycle opponent targets only), Enter (Select), Backspace (Cancel)
 
 **Duel - Browser (Scry/Surveil/etc.):**
 Tab (Navigate all cards), C/D (Jump to top/bottom zone)

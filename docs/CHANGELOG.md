@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v0.5 - 2026-02-11
 
+### Ctrl+Tab: Cycle Opponent Targets
+- Ctrl+Tab cycles through only opponent targets during targeting (skips your own cards)
+- Ctrl+Shift+Tab cycles opponent targets in reverse
+- Does nothing silently when no opponent targets are highlighted
+- Files: `HotHighlightNavigator.cs`
+
 ### Combat Cleanup
 - Removed F key shortcut from combat phases (was redundant alias for Space)
 - Space is now the only key for confirming attackers/blockers
