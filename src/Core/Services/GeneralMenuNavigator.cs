@@ -2490,6 +2490,11 @@ namespace AccessibleArena.Core.Services
             if (_screenDetector.IsNPERewardsScreenActive())
                 return false;
 
+            // Don't activate when Store content controller is active - let StoreNavigator handle it
+            // Refresh detection to ensure we have current state
+            if (DetectActiveContentController() == "ContentController_StoreCarousel")
+                return false;
+
             // Don't activate when game loading panel overlay is showing (e.g. after scene transition)
             if (IsLoadingPanelShowing())
             {

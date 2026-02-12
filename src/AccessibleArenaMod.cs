@@ -97,6 +97,7 @@ namespace AccessibleArena
                 // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),
                 new LoadingScreenNavigator(_announcer),  // MatchEnd/Matchmaking transitional screens (priority 65)
+                new StoreNavigator(_announcer),           // Store screen - tabs and items (priority 55)
                 // CodeOfConductNavigator removed - default navigation handles this screen
                 new GeneralMenuNavigator(_announcer),
                 // EventTriggerNavigator removed - GeneralMenuNavigator now handles NPE screens

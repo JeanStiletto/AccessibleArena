@@ -92,6 +92,13 @@ namespace AccessibleArena.Core.Services
                 return npeObjectiveText;
             }
 
+            // Check if this is a store item - extract label from StoreItemBase
+            string storeItemLabel = TryGetStoreItemLabel(gameObject);
+            if (!string.IsNullOrEmpty(storeItemLabel))
+            {
+                return storeItemLabel;
+            }
+
             // Check if this is a play mode tab - extract mode from element name
             string playModeText = TryGetPlayModeTabText(gameObject);
             if (!string.IsNullOrEmpty(playModeText))
@@ -1238,6 +1245,125 @@ namespace AccessibleArena.Core.Services
             // Fallback: clean up the name
             string cleaned = name.Replace("Input Field", "").Replace("InputField", "").Trim();
             return string.IsNullOrEmpty(cleaned) ? "text field" : cleaned;
+        }
+
+        /// <summary>
+        /// Tries to extract a label from a Store item (StoreItemBase component).
+        /// Store items have a _label OptionalObject with text, plus purchase buttons whose
+        /// text should not be used as the item label.
+        /// </summary>
+        public static string TryGetStoreItemLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            // Check if this has a StoreItemBase component
+            MonoBehaviour storeItemBase = null;
+            foreach (var mb in gameObject.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "StoreItemBase")
+                {
+                    storeItemBase = mb;
+                    break;
+                }
+            }
+
+            // Also check parent hierarchy (element might be a child of the store item)
+            if (storeItemBase == null)
+            {
+                Transform current = gameObject.transform.parent;
+                int maxLevels = 3;
+                while (current != null && maxLevels > 0)
+                {
+                    foreach (var mb in current.GetComponents<MonoBehaviour>())
+                    {
+                        if (mb != null && mb.GetType().Name == "StoreItemBase")
+                        {
+                            storeItemBase = mb;
+                            break;
+                        }
+                    }
+                    if (storeItemBase != null) break;
+                    current = current.parent;
+                    maxLevels--;
+                }
+            }
+
+            if (storeItemBase == null) return null;
+
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+            var itemType = storeItemBase.GetType();
+
+            // Try 1: Get label from _label OptionalObject -> GameObject -> TMPro text
+            var labelField = itemType.GetField("_label", flags);
+            if (labelField != null)
+            {
+                try
+                {
+                    var labelObj = labelField.GetValue(storeItemBase);
+                    if (labelObj != null)
+                    {
+                        var optType = labelObj.GetType();
+                        var goField = optType.GetField("GameObject", flags);
+                        if (goField != null)
+                        {
+                            var labelGo = goField.GetValue(labelObj) as GameObject;
+                            if (labelGo != null && labelGo.activeInHierarchy)
+                            {
+                                var tmpText = labelGo.GetComponentInChildren<TMP_Text>();
+                                if (tmpText != null && !string.IsNullOrEmpty(tmpText.text))
+                                {
+                                    return CleanText(tmpText.text);
+                                }
+                            }
+                        }
+
+                        // Try the Localize component's text
+                        var textField = optType.GetField("Text", flags);
+                        if (textField != null)
+                        {
+                            var localizeComp = textField.GetValue(labelObj) as MonoBehaviour;
+                            if (localizeComp != null)
+                            {
+                                var tmpInLoc = localizeComp.GetComponentInChildren<TMP_Text>();
+                                if (tmpInLoc != null && !string.IsNullOrEmpty(tmpInLoc.text))
+                                {
+                                    return CleanText(tmpInLoc.text);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Try 2: Get text from any TMP_Text child (excluding price-like text)
+            var texts = storeItemBase.GetComponentsInChildren<TMP_Text>(false);
+            foreach (var t in texts)
+            {
+                string text = t.text?.Trim();
+                if (!string.IsNullOrEmpty(text) && text.Length > 2 && !IsPriceText(text))
+                {
+                    return CleanText(text);
+                }
+            }
+
+            // Try 3: Use GameObject name, cleaned up
+            string name = storeItemBase.gameObject.name;
+            if (name.StartsWith("StoreItem - "))
+                name = name.Substring("StoreItem - ".Length);
+            return name;
+        }
+
+        /// <summary>
+        /// Checks if text looks like a price (starts with currency symbol or is short numeric).
+        /// Used to filter out purchase button text when extracting item labels.
+        /// </summary>
+        private static bool IsPriceText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            char first = text[0];
+            return first == '$' || first == '\u20AC' || first == '\u00A3' ||
+                   (char.IsDigit(first) && text.Length < 15);
         }
 
         /// <summary>

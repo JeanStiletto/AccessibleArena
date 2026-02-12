@@ -676,6 +676,51 @@ The Rewards screen shows mastery pass progression and rewards.
 - Screen displays as "Rewards" in announcements
 - Backspace triggers `NavigateToHome()` via content panel back handling
 
+## Store Screen
+
+**Controller:** `ContentController_StoreCarousel`
+**Navigator:** `StoreNavigator` (standalone, not GeneralMenuNavigator)
+**Priority:** 55 (preempts GeneralMenuNavigator)
+
+The Store screen provides two-level keyboard navigation for browsing and purchasing items.
+
+**Two-Level Navigation:**
+- **Tab Level**: Browse store tabs (Featured, Gems, Packs, Daily Deals, Bundles, Cosmetics, Decks, Prize Wall)
+- **Item Level**: Browse items within a tab with purchase option cycling
+
+**Navigation - Tab Level:**
+- Up/Down arrows (or W/S): Navigate between tabs
+- Tab/Shift+Tab: Navigate between tabs
+- Enter/Space: Activate tab and enter items
+- Home/End: Jump to first/last tab
+- Backspace: Leave store (returns to GeneralMenuNavigator)
+
+**Navigation - Item Level:**
+- Up/Down arrows (or W/S): Navigate between store items
+- Left/Right arrows (or A/D): Cycle purchase options within item (Gems/Gold/Real Money/Token)
+- Tab/Shift+Tab: Navigate between items
+- Enter/Space: Activate selected purchase option (opens confirmation modal)
+- Home/End: Jump to first/last item
+- Backspace: Return to tab level
+
+**Announcements:**
+- On activation: "Store, {TabName}. {N} items. Navigate with arrows, Enter to buy, Backspace for tabs."
+- Tab navigation: "{Index} of {Total}: {TabName}, active" (if currently active tab)
+- Item navigation: "{Index} of {Total}: {ItemLabel}, {Price} {Currency}, option {X} of {Y}"
+- Purchase option cycling: "{Price} {Currency}, option {X} of {Y}"
+
+**Technical Notes:**
+- Standalone navigator because store items (`StoreItemBase`) are not standard CustomButtons
+- Accesses `ContentController_StoreCarousel` via reflection for all game state
+- Tab discovery via 8 named fields: `_featuredTab` through `_prizeWallTab`
+- Item discovery via `GetComponentsInChildren<StoreItemBase>()` on controller
+- Purchase options from `PurchaseCostUtils.PurchaseButton` structs: Blue=Gems, Orange=Gold, Clear=Real Money, Green=Token
+- Async loading detection: polls `_itemDisplayQueue.Count` after tab switch (0.1s interval)
+- Confirmation modal detection: yields (deactivates) when `_confirmationModal.gameObject.activeSelf`
+- GeneralMenuNavigator suppressed when `ContentController_StoreCarousel` is active
+- Tab activation via `Tab.OnClicked()` reflection call
+- Item labels extracted from TMPro text on `_label` OptionalObject, with fallback to child TMP_Text
+
 ## Adding New Screens
 
 For implementing accessibility for a new screen, see the "Adding Support for New Screens" section in BEST_PRACTICES.md which covers:
