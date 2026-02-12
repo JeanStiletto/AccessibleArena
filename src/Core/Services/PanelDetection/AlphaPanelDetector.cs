@@ -102,7 +102,8 @@ namespace AccessibleArena.Core.Services.PanelDetection
             "systemmessageview", // Confirmation dialogs
             "dialog",           // Dialog popups
             "modal",            // Modal popups
-            "invitefriend"      // Friend invite popup
+            "invitefriend",     // Friend invite popup
+            "fullscreenzfbrowsercanvas" // Embedded browser overlay (payment setup, etc.)
         };
 
         /// <summary>
