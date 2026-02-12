@@ -44,16 +44,22 @@ Xsolla's Content-Security-Policy blocks `unsafe-eval`. `EvalJS` uses `eval()` in
 
 **CRITICAL:** Always use `EvalJSCSP`, never `EvalJS`, for any script that runs on payment pages.
 
-### Why execCommand for text input
-We tried three approaches for typing into form fields:
+### Text input: 3-tier approach
+Typing into form fields uses three approaches in order, because different payment forms respond to different methods:
 
-1. **browser.TypeText() / browser.PressKey()** - Failed because these depend on ZFBrowser's `KeyboardHasFocus` being true. Since our mod intercepts all keyboard input before ZFBrowser sees it, the browser never gets keyboard focus.
+1. **`document.execCommand('insertText')`** — Works for most standard forms (Xsolla login, PayPal login). Same API that Puppeteer/Playwright use. Triggers React/Angular/Vue change events natively.
 
-2. **Native value setter via Object.getOwnPropertyDescriptor** - Failed on cross-iframe elements. When `findEl()` returns an element from an iframe, calling `HTMLInputElement.prototype.value.set.call(el, ...)` with a setter from the wrong JavaScript realm throws "Illegal invocation". Even using `el.ownerDocument.defaultView` to get the correct realm failed — likely because CEF's iframe `defaultView` returns null or has other cross-realm quirks.
+2. **Full keyboard event sequence** (per character) — Dispatches `keydown`, `keypress`, `InputEvent` (with `data`/`inputType`), `keyup` for each character. Works for masked input components (card number fields, date fields) that listen for individual keystroke events.
 
-3. **document.execCommand('insertText')** (current approach) - Works reliably across all pages and iframes. This is the same API that browser automation tools (Puppeteer, Playwright) use. It triggers all the correct React/Angular/Vue change events natively. Falls back to direct `el.value` assignment if `execCommand` fails.
+3. **Direct `el.value` set + React-compatible `InputEvent`** — Fallback. Sets value directly and dispatches `InputEvent` with `inputType: 'insertText'` plus a `change` event.
 
-**CRITICAL:** Never try to use `Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')` on elements that might be from iframes. The cross-realm prototype mismatch causes "Illegal invocation" errors that are extremely hard to debug.
+The script returns which method succeeded (e.g. `execCommand:4242`, `keyboard_events:4242`, `all_failed:`) for debugging.
+
+**Approaches that don't work:**
+- **browser.TypeText() / browser.PressKey()** - Depend on ZFBrowser's `KeyboardHasFocus` being true. Since our mod intercepts all keyboard input before ZFBrowser sees it, the browser never gets keyboard focus.
+- **Native value setter via Object.getOwnPropertyDescriptor** - Fails on cross-iframe elements due to cross-realm prototype mismatch ("Illegal invocation"). CEF's iframe `defaultView` returns null.
+
+**CRITICAL:** Never try to use `Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')` on elements that might be from iframes.
 
 ### Why iframe scanning is needed
 The Xsolla payment page (main document) loads its actual content inside same-origin iframes. Without recursive iframe scanning, only the "Back to Arena" button is found (0 web elements). The extraction script and `findEl()` helper both search iframes.
@@ -92,12 +98,12 @@ Silent rescan: if the element count hasn't changed, the rescan result is discard
 - Backspace - Click "Back to Arena" (exit browser)
 
 **Edit mode (text fields):**
-- Printable keys - Append text via execCommand
-- Backspace - Delete last character via execCommand
-- Arrow Up/Down - Read current field value
-- Arrow Left/Right - Read current field value
+- Printable keys - Append text (3-tier: execCommand, keyboard events, direct value)
+- Backspace - Delete last character (3-tier approach)
+- Arrow Up/Down - Read full field content (live from JS)
+- Arrow Left/Right - Read character at cursor position
 - Enter - Submit form, exit edit mode
-- Escape - Exit edit mode
+- Escape - Exit edit mode (blocked from reaching game)
 - Tab/Shift+Tab - Exit edit mode, move to next/previous element
 
 ## Announcements
@@ -111,13 +117,34 @@ Silent rescan: if the element count hasn't changed, the rescan result is discard
 - Page load: "Page loaded. Reading elements..."
 - Loading: "Payment page loading..."
 
+## CAPTCHA Detection
+
+PayPal's security step-up flow loads a visual CAPTCHA (Arkose Labs FunCaptcha) in a cross-origin iframe. This is completely inaccessible to blind users — there is no audio alternative.
+
+**Detection:** After 3 consecutive empty rescans (~4.5 seconds), the mod:
+1. Checks the browser URL for keywords: `authflow`, `challenge`, `captcha`, `stepup`, `security`, `verify`
+2. Runs a JS script to detect cross-origin iframes (iframes where `contentDocument` throws or returns null)
+3. If either indicator is found, announces a warning and stops the rescan loop
+
+**Warning message:** "Security verification detected. This is a visual CAPTCHA that cannot be solved without sight. PayPal does not provide an audio alternative. Please ask someone for sighted assistance, or press Backspace to go back and try a different payment method."
+
+The detection resets on new page loads, so normal operation resumes after navigating past the CAPTCHA.
+
+## Escape Key Blocking
+
+While the web browser is active, Escape is blocked from reaching the game via `KeyboardManagerPatch.BlockEscape`. This prevents the settings menu from opening when Escape is used to exit edit mode. The flag is set on `Activate()` and cleared on `Deactivate()`.
+
+## Live Field Value Reading
+
+When navigating to a text field (Up/Down/Tab), the mod live-reads the current value from JS via `ReadValueScript` instead of using the cached value from extraction time. This ensures fields that were filled in are announced correctly (e.g. "Kartennummer, text field, 4242 4242 4242 4242" instead of "empty").
+
 ## Known Limitations
 
-- **Cross-origin iframes**: Elements inside cross-origin iframes (e.g. bank 3D-Secure frames) cannot be accessed. The extraction script silently skips them.
+- **Cross-origin iframes**: Elements inside cross-origin iframes (e.g. bank 3D-Secure frames, PayPal CAPTCHA) cannot be accessed. The extraction script silently skips them. CAPTCHA detection warns the user.
 - **Shadow DOM**: Elements inside Shadow DOM are not scanned. Not currently encountered in Xsolla/PayPal.
 - **Dropdowns**: HTML `<select>` elements are clicked to open, but native Chromium dropdown rendering is inaccessible. Arrow keys work inside the opened dropdown but items are not announced.
-- **execCommand deprecation**: `document.execCommand` is deprecated but still works in all Chromium versions. If it stops working in a future CEF update, the fallback (direct value assignment) will take over, though it may not trigger framework change handlers on some pages.
-- **Password field value reading**: `el.value` on password fields returns the actual value. We only announce the character count for security.
+- **execCommand deprecation**: `document.execCommand` is deprecated but still works in all Chromium versions. If it stops working, the keyboard event and direct value fallbacks take over.
+- **Password field value reading**: `el.value` on password fields returns the actual value. We only announce the character count (full read) or "star" (per-character) for security.
 - **Page wipe on repeated extraction**: Running the extraction script too many times in quick succession can trigger some frameworks' mutation observers, causing them to re-render and wipe the page. The concurrent-extraction guard and timer cancellation on page load prevent this.
 
 ## Debugging
@@ -133,7 +160,11 @@ Key log messages:
 - `Element count unchanged, silent rescan` - Rescan found same elements
 - `Extraction timed out, resetting` - Promise never resolved, retrying
 - `Extraction already in progress, skipping` - Concurrent extraction prevented
+- `Typing 'X' into element N: ...` - Character being sent to JS
+- `TypeText result: method:value` - Which input method worked (execCommand/keyboard_events/direct_value/all_failed)
 - `TypeText error: ...` / `Backspace error: ...` - Input script errors
+- `Checking for CAPTCHA / security verification...` - CAPTCHA detection triggered
+- `CAPTCHA detected! Stopping rescan loop.` - CAPTCHA confirmed
 
 ## Related Files
 

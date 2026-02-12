@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Patches;
 using ZenFulcrum.EmbeddedBrowser;
 
 namespace AccessibleArena.Core.Services
@@ -41,6 +42,10 @@ namespace AccessibleArena.Core.Services
         private bool _isLoading;
         private int _lastWebElementCount; // Track for silent rescan comparison
 
+        // Edit mode cursor tracking for character-by-character reading
+        private string _editFieldValue = "";
+        private int _editCursorPos;
+
         // Rescan timers for detecting page changes after clicks
         private bool _pendingRescan;
         private float _rescanTimer;
@@ -49,6 +54,11 @@ namespace AccessibleArena.Core.Services
 
         // "Back to Arena" button (Unity button outside the browser)
         private GameObject _backToArenaButton;
+
+        // CAPTCHA / security check detection
+        private int _emptyRescanCount;
+        private bool _captchaDetected;
+        private const int MaxEmptyRescansBeforeCheck = 3; // ~4.5 seconds of empty rescans
 
         #endregion
 
@@ -289,8 +299,10 @@ namespace AccessibleArena.Core.Services
                 try {{ return el.value || ''; }} catch(e) {{ return ''; }}";
         }
 
-        // Append text to an input field via execCommand (most compatible approach)
-        // Works across iframes and with all frameworks (React, Angular, etc.)
+        // Append text to an input field. Tries multiple approaches:
+        // 1. execCommand('insertText') — works for most forms
+        // 2. Full keyboard event sequence — works for masked inputs (card numbers, dates)
+        // 3. Direct value + React-compatible InputEvent — fallback
         private static string AppendTextScript(int index, string text)
         {
             string escaped = text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
@@ -299,19 +311,58 @@ namespace AccessibleArena.Core.Services
                 if (!el) return 'not_found';
                 el.focus();
                 var doc = el.ownerDocument;
+                var win = doc.defaultView || window;
+                var valueBefore = el.value || '';
+                var method = 'none';
+
+                // Approach 1: execCommand
                 var ok = false;
                 try {{ ok = doc.execCommand('insertText', false, '{escaped}'); }} catch(e) {{}}
-                if (!ok) {{
-                    try {{ el.value = (el.value || '') + '{escaped}'; }} catch(e) {{}}
-                    try {{
-                        el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                        el.dispatchEvent(new Event('change', {{bubbles: true}}));
-                    }} catch(e) {{}}
+                if (ok && el.value !== valueBefore) {{
+                    method = 'execCommand';
+                }} else {{
+                    // Approach 2: keyboard events per character (for masked inputs)
+                    var text = '{escaped}';
+                    for (var ci = 0; ci < text.length; ci++) {{
+                        var ch = text[ci];
+                        var kc = ch.charCodeAt(0);
+                        var evInit = {{key: ch, code: 'Key' + ch.toUpperCase(), keyCode: kc, charCode: kc, which: kc, bubbles: true, cancelable: true, composed: true}};
+                        try {{
+                            el.dispatchEvent(new win.KeyboardEvent('keydown', evInit));
+                            el.dispatchEvent(new win.KeyboardEvent('keypress', evInit));
+                        }} catch(e) {{}}
+                        try {{
+                            el.dispatchEvent(new win.InputEvent('input', {{
+                                data: ch, inputType: 'insertText', bubbles: true, cancelable: false, composed: true
+                            }}));
+                        }} catch(e) {{
+                            el.dispatchEvent(new win.Event('input', {{bubbles: true}}));
+                        }}
+                        try {{
+                            el.dispatchEvent(new win.KeyboardEvent('keyup', evInit));
+                        }} catch(e) {{}}
+                    }}
+                    if (el.value !== valueBefore) {{
+                        method = 'keyboard_events';
+                    }} else {{
+                        // Approach 3: direct value set + events
+                        try {{ el.value = valueBefore + text; }} catch(e) {{}}
+                        try {{
+                            el.dispatchEvent(new win.InputEvent('input', {{
+                                data: text, inputType: 'insertText', bubbles: true, cancelable: false, composed: true
+                            }}));
+                        }} catch(e) {{
+                            el.dispatchEvent(new win.Event('input', {{bubbles: true}}));
+                        }}
+                        el.dispatchEvent(new win.Event('change', {{bubbles: true}}));
+                        method = el.value !== valueBefore ? 'direct_value' : 'all_failed';
+                    }}
                 }}
-                try {{ return el.value || ''; }} catch(e) {{ return 'typed'; }}";
+                var result = el.value || '';
+                return method + ':' + result;";
         }
 
-        // Delete last character from input field via execCommand
+        // Delete last character from input field
         private static string BackspaceScript(int index)
         {
             return FindElementFunc + $@"
@@ -319,15 +370,37 @@ namespace AccessibleArena.Core.Services
                 if (!el) return 'not_found';
                 el.focus();
                 var doc = el.ownerDocument;
-                el.selectionStart = el.selectionEnd = (el.value || '').length;
+                var win = doc.defaultView || window;
+                var valueBefore = el.value || '';
+                try {{ el.selectionStart = el.selectionEnd = valueBefore.length; }} catch(e) {{}}
+
+                // Approach 1: execCommand
                 var ok = false;
                 try {{ ok = doc.execCommand('delete', false); }} catch(e) {{}}
-                if (!ok) {{
-                    try {{ el.value = (el.value || '').slice(0, -1); }} catch(e) {{}}
+                if (ok && el.value !== valueBefore) {{
+                    // worked
+                }} else {{
+                    // Approach 2: keyboard event for Backspace
+                    var bsInit = {{key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8, bubbles: true, cancelable: true, composed: true}};
                     try {{
-                        el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                        el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                        el.dispatchEvent(new win.KeyboardEvent('keydown', bsInit));
+                        el.dispatchEvent(new win.InputEvent('input', {{
+                            inputType: 'deleteContentBackward', bubbles: true, cancelable: false, composed: true
+                        }}));
+                        el.dispatchEvent(new win.KeyboardEvent('keyup', bsInit));
                     }} catch(e) {{}}
+                    if (el.value === valueBefore) {{
+                        // Approach 3: direct value trim
+                        try {{ el.value = valueBefore.slice(0, -1); }} catch(e) {{}}
+                        try {{
+                            el.dispatchEvent(new win.InputEvent('input', {{
+                                inputType: 'deleteContentBackward', bubbles: true, cancelable: false, composed: true
+                            }}));
+                        }} catch(e) {{
+                            el.dispatchEvent(new win.Event('input', {{bubbles: true}}));
+                        }}
+                        el.dispatchEvent(new win.Event('change', {{bubbles: true}}));
+                    }}
                 }}
                 try {{ return el.value || ''; }} catch(e) {{ return ''; }}";
         }
@@ -353,6 +426,23 @@ namespace AccessibleArena.Core.Services
                 return 'key_enter';";
         }
 
+        // Detects cross-origin iframes (CAPTCHA signature: content is in unreachable iframe)
+        private const string DetectCrossOriginIframesScript = @"
+            var iframes = document.querySelectorAll('iframe');
+            var crossOrigin = 0;
+            var srcs = [];
+            for (var i = 0; i < iframes.length; i++) {
+                try {
+                    var doc = iframes[i].contentDocument;
+                    if (!doc) { crossOrigin++; srcs.push(iframes[i].src || '(no src)'); }
+                } catch(e) {
+                    crossOrigin++;
+                    srcs.push(iframes[i].src || '(no src)');
+                }
+            }
+            return JSON.stringify({crossOrigin: crossOrigin, srcs: srcs});
+        ";
+
         #endregion
 
         #region Public API
@@ -372,6 +462,8 @@ namespace AccessibleArena.Core.Services
             _isLoading = true;
             _pendingRescan = false;
             _secondRescanTimer = 0;
+            _emptyRescanCount = 0;
+            _captchaDetected = false;
             _elements.Clear();
 
             // Find ZFBrowser.Browser component
@@ -385,6 +477,9 @@ namespace AccessibleArena.Core.Services
             }
 
             _isActive = true;
+
+            // Block Escape from reaching the game (would open settings menu)
+            KeyboardManagerPatch.BlockEscape = true;
 
             // Find "Back to Arena" button (Unity Button outside/alongside the browser)
             FindBackToArenaButton(panel);
@@ -422,8 +517,13 @@ namespace AccessibleArena.Core.Services
             _isLoading = false;
             _pendingRescan = false;
             _secondRescanTimer = 0;
+            _emptyRescanCount = 0;
+            _captchaDetected = false;
             _elements.Clear();
             _backToArenaButton = null;
+
+            // Release Escape blocking
+            KeyboardManagerPatch.BlockEscape = false;
 
             MelonLogger.Msg("[WebBrowser] Deactivated");
         }
@@ -591,6 +691,7 @@ namespace AccessibleArena.Core.Services
             // Escape — exit edit mode
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                InputManager.ConsumeKey(KeyCode.Escape);
                 ExitEditMode();
                 _announcer.AnnounceInterrupt("Stopped editing");
                 return;
@@ -623,17 +724,22 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Arrow Up/Down — read current field value
+            // Arrow Up/Down — read full field content
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {
-                ReadCurrentFieldValue();
+                RefreshAndReadFieldValue(readFull: true);
                 return;
             }
 
-            // Arrow Left/Right — read value (cursor movement not supported via JS)
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            // Arrow Left/Right — read character at cursor position
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
-                ReadCurrentFieldValue();
+                RefreshAndReadFieldValue(readFull: false, cursorDelta: -1);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                RefreshAndReadFieldValue(readFull: false, cursorDelta: 1);
                 return;
             }
 
@@ -672,7 +778,14 @@ namespace AccessibleArena.Core.Services
                 if (filtered.Length > 0 && _currentIndex >= 0 && _currentIndex < _elements.Count)
                 {
                     var elem = _elements[_currentIndex];
-                    _browser.EvalJSCSP(AppendTextScript(elem.Index, filtered.ToString()))
+                    string chars = filtered.ToString();
+                    MelonLogger.Msg($"[WebBrowser] Typing '{chars}' into element {elem.Index}: {elem.Text}");
+                    _browser.EvalJSCSP(AppendTextScript(elem.Index, chars))
+                        .Then(result =>
+                        {
+                            string res = (string)result;
+                            MelonLogger.Msg($"[WebBrowser] TypeText result: {res}");
+                        })
                         .Catch(ex => MelonLogger.Msg($"[WebBrowser] TypeText error: {ex.Message}"));
                 }
             }
@@ -683,7 +796,7 @@ namespace AccessibleArena.Core.Services
             _isEditingField = false;
         }
 
-        private void ReadCurrentFieldValue()
+        private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0)
         {
             if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
             var elem = _elements[_currentIndex];
@@ -692,17 +805,48 @@ namespace AccessibleArena.Core.Services
                 .Then(result =>
                 {
                     string val = (string)result;
-                    if (string.IsNullOrEmpty(val))
+                    _editFieldValue = val ?? "";
+
+                    if (readFull)
                     {
-                        _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
-                    }
-                    else if (elem.InputType == "password")
-                    {
-                        _announcer.AnnounceInterrupt($"{val.Length} characters");
+                        // Up/Down: read full value
+                        if (string.IsNullOrEmpty(val))
+                        {
+                            _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
+                        }
+                        else if (elem.InputType == "password")
+                        {
+                            _announcer.AnnounceInterrupt($"{val.Length} characters");
+                        }
+                        else
+                        {
+                            _announcer.AnnounceInterrupt(val);
+                        }
                     }
                     else
                     {
-                        _announcer.AnnounceInterrupt(val);
+                        // Left/Right: read character at cursor
+                        if (string.IsNullOrEmpty(_editFieldValue))
+                        {
+                            _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
+                            return;
+                        }
+
+                        _editCursorPos += cursorDelta;
+                        if (_editCursorPos < 0) _editCursorPos = 0;
+                        if (_editCursorPos >= _editFieldValue.Length)
+                            _editCursorPos = _editFieldValue.Length - 1;
+
+                        if (elem.InputType == "password")
+                        {
+                            _announcer.AnnounceInterrupt("star");
+                        }
+                        else
+                        {
+                            char c = _editFieldValue[_editCursorPos];
+                            string charName = c == ' ' ? "space" : c.ToString();
+                            _announcer.AnnounceInterrupt(charName);
+                        }
                     }
                 })
                 .Catch(ex =>
@@ -805,11 +949,29 @@ namespace AccessibleArena.Core.Services
             // If we found no web elements, iframes may still be loading — schedule retry
             if (webElementCount == 0 && !_pendingRescan)
             {
+                _emptyRescanCount++;
+
+                // After several failed attempts, check for cross-origin CAPTCHA iframes
+                if (_emptyRescanCount >= MaxEmptyRescansBeforeCheck && !_captchaDetected)
+                {
+                    CheckForCaptcha();
+                    return;
+                }
+
+                // If CAPTCHA already detected, don't keep rescanning
+                if (_captchaDetected)
+                {
+                    return;
+                }
+
                 MelonLogger.Msg("[WebBrowser] No web elements found, scheduling rescan for iframe content");
                 ScheduleRescan(1.5f);
                 _announcer.AnnounceInterrupt("Payment page loading...");
                 return;
             }
+
+            // Reset empty counter when we find elements
+            _emptyRescanCount = 0;
 
             // If element count hasn't changed, this is likely a silent rescan — don't re-announce
             if (webElementCount == _lastWebElementCount)
@@ -850,6 +1012,8 @@ namespace AccessibleArena.Core.Services
             // Cancel any pending rescan timers — they were for the previous page
             _pendingRescan = false;
             _secondRescanTimer = 0;
+            _emptyRescanCount = 0;
+            _captchaDetected = false;
 
             _isEditingField = false;
             _isLoading = false; // Reset in case a previous extraction never resolved
@@ -893,8 +1057,38 @@ namespace AccessibleArena.Core.Services
             if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
 
             var elem = _elements[_currentIndex];
-            string announcement = FormatElementAnnouncement(elem, _currentIndex, _elements.Count);
-            _announcer.AnnounceInterrupt(announcement);
+
+            // For text fields, live-read the value from JS (cached value may be stale)
+            if (elem.Role == "textbox" && !elem.IsBackToArena && _browser != null)
+            {
+                int idx = _currentIndex; // capture for closure
+                _browser.EvalJSCSP(ReadValueScript(elem.Index))
+                    .Then(result =>
+                    {
+                        string val = (string)result ?? "";
+                        // Update cached value
+                        if (idx >= 0 && idx < _elements.Count)
+                        {
+                            var updated = _elements[idx];
+                            updated.Value = val;
+                            _elements[idx] = updated;
+                        }
+                        string announcement = FormatElementAnnouncement(
+                            idx < _elements.Count ? _elements[idx] : elem, idx, _elements.Count);
+                        _announcer.AnnounceInterrupt(announcement);
+                    })
+                    .Catch(ex =>
+                    {
+                        // Fallback to cached value
+                        string announcement = FormatElementAnnouncement(elem, idx, _elements.Count);
+                        _announcer.AnnounceInterrupt(announcement);
+                    });
+            }
+            else
+            {
+                string announcement = FormatElementAnnouncement(elem, _currentIndex, _elements.Count);
+                _announcer.AnnounceInterrupt(announcement);
+            }
         }
 
         private string FormatElementAnnouncement(WebElement elem, int index, int total)
@@ -1014,6 +1208,8 @@ namespace AccessibleArena.Core.Services
         private void EnterEditMode(WebElement elem)
         {
             _isEditingField = true;
+            _editFieldValue = elem.Value ?? "";
+            _editCursorPos = _editFieldValue.Length > 0 ? _editFieldValue.Length - 1 : 0;
 
             // Focus the element in the browser
             _browser.EvalJSCSP(FocusScript(elem.Index))
@@ -1043,6 +1239,96 @@ namespace AccessibleArena.Core.Services
                 .Catch(ex =>
                 {
                     MelonLogger.Msg($"[WebBrowser] Click error: {ex.Message}");
+                });
+        }
+
+        #endregion
+
+        #region CAPTCHA Detection
+
+        private void CheckForCaptcha()
+        {
+            MelonLogger.Msg("[WebBrowser] Checking for CAPTCHA / security verification...");
+
+            // Check the URL for known security step-up patterns
+            string url = _browser?.Url?.ToLowerInvariant() ?? "";
+            bool urlSuspicious = url.Contains("authflow") || url.Contains("challenge") ||
+                                 url.Contains("captcha") || url.Contains("stepup") ||
+                                 url.Contains("security") || url.Contains("verify");
+
+            // Also check for cross-origin iframes (CAPTCHA content is typically in one)
+            _browser.EvalJSCSP(DetectCrossOriginIframesScript)
+                .Then(result =>
+                {
+                    string json = (string)result;
+                    bool hasCrossOriginIframes = false;
+                    string iframeSrcs = "";
+
+                    if (!string.IsNullOrEmpty(json))
+                    {
+                        try
+                        {
+                            // Simple parsing — look for crossOrigin count
+                            int coIdx = json.IndexOf("\"crossOrigin\":");
+                            if (coIdx >= 0)
+                            {
+                                int numStart = coIdx + "\"crossOrigin\":".Length;
+                                string numStr = "";
+                                while (numStart < json.Length && (char.IsDigit(json[numStart]) || json[numStart] == ' '))
+                                {
+                                    if (char.IsDigit(json[numStart]))
+                                        numStr += json[numStart];
+                                    numStart++;
+                                }
+                                int crossOriginCount;
+                                if (int.TryParse(numStr, out crossOriginCount) && crossOriginCount > 0)
+                                {
+                                    hasCrossOriginIframes = true;
+                                }
+                            }
+                            iframeSrcs = json;
+                        }
+                        catch { }
+                    }
+
+                    MelonLogger.Msg($"[WebBrowser] CAPTCHA check: urlSuspicious={urlSuspicious}, crossOriginIframes={hasCrossOriginIframes}, details={iframeSrcs}");
+
+                    if (urlSuspicious || hasCrossOriginIframes)
+                    {
+                        _captchaDetected = true;
+                        MelonLogger.Msg("[WebBrowser] CAPTCHA detected! Stopping rescan loop.");
+                        _announcer.AnnounceInterrupt(
+                            "Security verification detected. " +
+                            "This is a visual CAPTCHA that cannot be solved without sight. " +
+                            "PayPal does not provide an audio alternative. " +
+                            "Please ask someone for sighted assistance, or press Backspace to go back and try a different payment method.");
+                    }
+                    else
+                    {
+                        // Not a CAPTCHA — keep retrying a few more times
+                        MelonLogger.Msg("[WebBrowser] No CAPTCHA indicators found, continuing rescans");
+                        ScheduleRescan(1.5f);
+                        _announcer.AnnounceInterrupt("Payment page loading...");
+                    }
+                })
+                .Catch(ex =>
+                {
+                    MelonLogger.Msg($"[WebBrowser] CAPTCHA detection error: {ex.Message}");
+                    // If the URL alone was suspicious, still warn
+                    if (urlSuspicious)
+                    {
+                        _captchaDetected = true;
+                        _announcer.AnnounceInterrupt(
+                            "Security verification detected. " +
+                            "This is a visual CAPTCHA that cannot be solved without sight. " +
+                            "PayPal does not provide an audio alternative. " +
+                            "Please ask someone for sighted assistance, or press Backspace to go back and try a different payment method.");
+                    }
+                    else
+                    {
+                        ScheduleRescan(1.5f);
+                        _announcer.AnnounceInterrupt("Payment page loading...");
+                    }
                 });
         }
 

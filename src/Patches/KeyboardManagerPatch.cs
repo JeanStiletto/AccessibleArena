@@ -28,6 +28,12 @@ namespace AccessibleArena.Patches
         private static int _lastSceneCheck = -1;
 
         /// <summary>
+        /// When true, Escape is blocked from reaching the game.
+        /// Set by WebBrowserAccessibility to prevent settings menu from opening.
+        /// </summary>
+        public static bool BlockEscape { get; set; }
+
+        /// <summary>
         /// Check if we're currently in DuelScene (cached per frame).
         /// </summary>
         private static bool IsInDuelScene()
@@ -65,6 +71,12 @@ namespace AccessibleArena.Patches
         /// </summary>
         private static bool ShouldBlockKey(KeyCode key)
         {
+            // Block Escape when WebBrowser is active or input field is focused
+            if (key == KeyCode.Escape && BlockEscape)
+            {
+                return true;
+            }
+
             // When any input field is focused or a dropdown is open,
             // block Escape from game so we can use it to exit edit mode / close dropdown
             // without the game closing the menu/panel
