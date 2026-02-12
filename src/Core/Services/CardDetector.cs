@@ -694,6 +694,36 @@ namespace AccessibleArena.Core.Services
             return blocks;
         }
 
+        /// <summary>
+        /// Builds info blocks from a pre-populated CardInfo struct (no GameObject needed).
+        /// Uses the same block order as Hand zone.
+        /// </summary>
+        public static List<CardInfoBlock> BuildInfoBlocks(CardInfo info)
+        {
+            var blocks = new List<CardInfoBlock>();
+
+            if (!string.IsNullOrEmpty(info.Name))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, info.Name));
+
+            if (info.Quantity > 0)
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, info.Quantity.ToString()));
+
+            if (!string.IsNullOrEmpty(info.ManaCost))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
+            if (!string.IsNullOrEmpty(info.PowerToughness))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoPowerToughness, info.PowerToughness));
+            if (!string.IsNullOrEmpty(info.TypeLine))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoType, info.TypeLine));
+            if (!string.IsNullOrEmpty(info.RulesText))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
+            if (!string.IsNullOrEmpty(info.FlavorText))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoFlavor, info.FlavorText));
+            if (!string.IsNullOrEmpty(info.Artist))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoArtist, info.Artist));
+
+            return blocks;
+        }
+
         #endregion
 
         #region Card Categorization (Delegated to CardModelProvider)

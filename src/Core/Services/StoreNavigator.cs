@@ -62,6 +62,23 @@ namespace AccessibleArena.Core.Services
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
         private bool _isWebBrowserActive;
 
+        // Details view state
+        private bool _isDetailsViewActive;
+        private string _detailsDescription;              // Tooltip description (announced on open, re-read with D)
+        private List<DetailCardEntry> _detailsCards = new List<DetailCardEntry>();
+        private int _detailsCardIndex;
+        private List<CardInfoBlock> _detailsCardBlocks = new List<CardInfoBlock>();
+        private int _detailsBlockIndex;
+
+        private struct DetailCardEntry
+        {
+            public uint GrpId;
+            public int Quantity;
+            public string Name;       // Cached card name
+            public string ManaCost;   // Screen-reader formatted mana
+            public object CardDataObj; // Raw CardData for info block extraction
+        }
+
         #endregion
 
         #region Cached Controller & Reflection
@@ -125,6 +142,26 @@ namespace AccessibleArena.Core.Services
         // Controller utility methods
         private MethodInfo _onButtonPaymentSetupMethod;
 
+        // Store display types for details view
+        private Type _storeItemDisplayType;
+        private Type _storeDisplayPreconDeckType;
+        private Type _storeDisplayCardViewBundleType;
+        private FieldInfo _itemDisplayField;              // StoreItemBase._itemDisplay (private field)
+        private PropertyInfo _preconCardDataProp;       // StoreDisplayPreconDeck.CardData (public)
+        private PropertyInfo _bundleCardViewsProp;      // StoreDisplayCardViewBundle.BundleCardViews (public)
+        private Type _cardDataForTileType;
+        private PropertyInfo _cardDataForTileCardProp;  // CardDataForTile.Card
+        private PropertyInfo _cardDataForTileQuantityProp; // CardDataForTile.Quantity
+        private Type _cardDataType;
+        private PropertyInfo _cardDataGrpIdProp;        // CardData.GrpId
+        private PropertyInfo _cardDataTitleIdProp;      // CardData.TitleId
+        private PropertyInfo _cardDataManaTextProp;     // CardData.OldSchoolManaText
+        // TooltipTrigger -> LocalizedString
+        private Type _localizedStringType;
+        private FieldInfo _locStringField;              // TooltipTrigger.LocString (public)
+        private FieldInfo _locStringMTermField;         // LocalizedString.mTerm (public)
+        private MethodInfo _locStringToStringMethod;    // LocalizedString.ToString()
+
         // Cached StoreConfirmationModal reflection
         private Type _confirmationModalType;
         private static readonly string[] ModalPurchaseButtonFields = new[]
@@ -159,6 +196,7 @@ namespace AccessibleArena.Core.Services
             public string Label;
             public string Description;
             public List<PurchaseOption> PurchaseOptions;
+            public bool HasDetails;
         }
 
         private struct PurchaseOption
@@ -453,8 +491,83 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Store display types for details view
+            _storeItemDisplayType = null;
+            _storeDisplayPreconDeckType = null;
+            _storeDisplayCardViewBundleType = null;
+            _cardDataForTileType = null;
+            _cardDataType = null;
+            _localizedStringType = null;
+
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (_storeItemDisplayType == null)
+                    _storeItemDisplayType = asm.GetType("StoreItemDisplay");
+                if (_storeDisplayPreconDeckType == null)
+                    _storeDisplayPreconDeckType = asm.GetType("Core.Meta.MainNavigation.Store.StoreDisplayPreconDeck");
+                if (_storeDisplayCardViewBundleType == null)
+                    _storeDisplayCardViewBundleType = asm.GetType("StoreDisplayCardViewBundle");
+                if (_cardDataForTileType == null)
+                    _cardDataForTileType = asm.GetType("Wizards.MDN.Store.CardDataForTile");
+                if (_cardDataType == null)
+                    _cardDataType = asm.GetType("GreClient.CardData.CardData");
+                if (_localizedStringType == null)
+                    _localizedStringType = asm.GetType("Wotc.Mtga.Loc.LocalizedString");
+            }
+
+            if (_storeItemBaseType != null)
+            {
+                _itemDisplayField = _storeItemBaseType.GetField("_itemDisplay", flags);
+            }
+
+            if (_storeDisplayPreconDeckType != null)
+            {
+                _preconCardDataProp = _storeDisplayPreconDeckType.GetProperty("CardData",
+                    BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            if (_storeDisplayCardViewBundleType != null)
+            {
+                _bundleCardViewsProp = _storeDisplayCardViewBundleType.GetProperty("BundleCardViews",
+                    BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            if (_cardDataForTileType != null)
+            {
+                _cardDataForTileCardProp = _cardDataForTileType.GetProperty("Card",
+                    BindingFlags.Public | BindingFlags.Instance);
+                _cardDataForTileQuantityProp = _cardDataForTileType.GetProperty("Quantity",
+                    BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            if (_cardDataType != null)
+            {
+                _cardDataGrpIdProp = _cardDataType.GetProperty("GrpId",
+                    BindingFlags.Public | BindingFlags.Instance);
+                _cardDataTitleIdProp = _cardDataType.GetProperty("TitleId",
+                    BindingFlags.Public | BindingFlags.Instance);
+                _cardDataManaTextProp = _cardDataType.GetProperty("OldSchoolManaText",
+                    BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            // TooltipTrigger fields: LocString is a public LocalizedString field
+            if (_tooltipTriggerField != null)
+            {
+                var ttType = _tooltipTriggerField.FieldType;
+                _locStringField = ttType.GetField("LocString",
+                    BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            if (_localizedStringType != null)
+            {
+                _locStringMTermField = _localizedStringType.GetField("mTerm",
+                    BindingFlags.Public | BindingFlags.Instance);
+                _locStringToStringMethod = _localizedStringType.GetMethod("ToString",
+                    BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+            }
+
             _reflectionInitialized = true;
-            MelonLogger.Msg($"[Store] Reflection cached. StoreItemBase={_storeItemBaseType != null}, Tab={_tabType != null}, PurchaseButton={_purchaseButtonType != null}");
+            MelonLogger.Msg($"[Store] Reflection cached. StoreItemBase={_storeItemBaseType != null}, Tab={_tabType != null}, PurchaseButton={_purchaseButtonType != null}, PreconDeck={_storeDisplayPreconDeckType != null}, CardViewBundle={_storeDisplayCardViewBundleType != null}");
         }
 
         #endregion
@@ -667,6 +780,18 @@ namespace AccessibleArena.Core.Services
             string label = ExtractItemLabel(storeItemBase);
             string description = ExtractItemDescription(storeItemBase);
             var purchaseOptions = ExtractPurchaseOptions(storeItemBase);
+            bool hasDetails = HasItemDetails(storeItemBase);
+
+            // Prepend synthetic "Details" option when item has details
+            if (hasDetails)
+            {
+                purchaseOptions.Insert(0, new PurchaseOption
+                {
+                    ButtonObject = null,
+                    PriceText = "Details",
+                    CurrencyName = ""
+                });
+            }
 
             return new ItemInfo
             {
@@ -674,7 +799,8 @@ namespace AccessibleArena.Core.Services
                 GameObject = storeItemBase.gameObject,
                 Label = label,
                 Description = description,
-                PurchaseOptions = purchaseOptions
+                PurchaseOptions = purchaseOptions,
+                HasDetails = hasDetails
             };
         }
 
@@ -824,6 +950,10 @@ namespace AccessibleArena.Core.Services
             _tabs.Clear();
             _items.Clear();
             _waitingForTabLoad = false;
+            _isDetailsViewActive = false;
+            _detailsCards.Clear();
+            _detailsCardBlocks.Clear();
+            _detailsDescription = null;
             _activePopup = null;
             _isPopupActive = false;
             _popupElements.Clear();
@@ -967,6 +1097,9 @@ namespace AccessibleArena.Core.Services
 
         private string FormatPurchaseOption(PurchaseOption option)
         {
+            // Synthetic Details option
+            if (option.ButtonObject == null && option.PriceText == "Details")
+                return "Details";
             // If currency name is empty (real money), just show the price
             if (string.IsNullOrEmpty(option.CurrencyName))
                 return option.PriceText;
@@ -1184,6 +1317,13 @@ namespace AccessibleArena.Core.Services
 
         private void HandleItemInput()
         {
+            // Details view takes over input when active
+            if (_isDetailsViewActive)
+            {
+                HandleDetailsInput();
+                return;
+            }
+
             // Up/Down navigate items
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
             {
@@ -1506,9 +1646,506 @@ namespace AccessibleArena.Core.Services
 
             var option = item.PurchaseOptions[_currentPurchaseOptionIndex];
 
+            // Synthetic Details option - open details view instead of purchasing
+            if (option.ButtonObject == null && option.PriceText == "Details")
+            {
+                OpenDetailsView(item);
+                return;
+            }
+
             MelonLogger.Msg($"[Store] Activating purchase: {item.Label} - {option.PriceText} {option.CurrencyName}");
 
             UIActivator.Activate(option.ButtonObject);
+        }
+
+        #endregion
+
+        #region Details View
+
+        private bool HasItemDetails(MonoBehaviour storeItemBase)
+        {
+            // Check tooltip mTerm
+            if (HasTooltipText(storeItemBase))
+                return true;
+
+            // Check for StoreDisplayPreconDeck or StoreDisplayCardViewBundle child
+            if (_storeItemDisplayType != null)
+            {
+                var display = GetItemDisplay(storeItemBase);
+                if (display != null)
+                {
+                    var displayType = display.GetType();
+                    if ((_storeDisplayPreconDeckType != null && _storeDisplayPreconDeckType.IsAssignableFrom(displayType)) ||
+                        (_storeDisplayCardViewBundleType != null && _storeDisplayCardViewBundleType.IsAssignableFrom(displayType)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasTooltipText(MonoBehaviour storeItemBase)
+        {
+            if (_tooltipTriggerField == null || _locStringField == null || _locStringMTermField == null)
+                return false;
+
+            try
+            {
+                var tooltip = _tooltipTriggerField.GetValue(storeItemBase);
+                if (tooltip == null) return false;
+
+                var locString = _locStringField.GetValue(tooltip);
+                if (locString == null) return false;
+
+                string mTerm = _locStringMTermField.GetValue(locString) as string;
+                return !string.IsNullOrEmpty(mTerm) && mTerm != "MainNav/General/Empty_String";
+            }
+            catch { return false; }
+        }
+
+        private MonoBehaviour GetItemDisplay(MonoBehaviour storeItemBase)
+        {
+            if (_itemDisplayField == null) return null;
+            try
+            {
+                return _itemDisplayField.GetValue(storeItemBase) as MonoBehaviour;
+            }
+            catch { return null; }
+        }
+
+        private void OpenDetailsView(ItemInfo item)
+        {
+            _detailsCards.Clear();
+            _detailsCardBlocks.Clear();
+            _detailsCardIndex = 0;
+            _detailsBlockIndex = 0;
+
+            // Extract tooltip description
+            _detailsDescription = ExtractTooltipDescription(item.StoreItemBase);
+
+            // Extract card list from display
+            ExtractCardEntries(item.StoreItemBase, _detailsCards);
+
+            if (string.IsNullOrEmpty(_detailsDescription) && _detailsCards.Count == 0)
+            {
+                _announcer.Announce("No details available", AnnouncementPriority.Normal);
+                return;
+            }
+
+            _isDetailsViewActive = true;
+
+            // Build announcement
+            var parts = new List<string>();
+            parts.Add("Details");
+
+            if (!string.IsNullOrEmpty(_detailsDescription))
+                parts.Add(_detailsDescription);
+
+            if (_detailsCards.Count > 0)
+            {
+                string cardCount = _detailsCards.Count == 1 ? "1 card" : $"{_detailsCards.Count} cards";
+                parts.Add(cardCount);
+                // Announce first card
+                parts.Add(FormatCardAnnouncement(_detailsCards[0], 0));
+            }
+
+            _announcer.AnnounceInterrupt(string.Join(". ", parts));
+            MelonLogger.Msg($"[Store] Opened details view: {_detailsCards.Count} cards, description={!string.IsNullOrEmpty(_detailsDescription)}");
+        }
+
+        private string ExtractTooltipDescription(MonoBehaviour storeItemBase)
+        {
+            if (_tooltipTriggerField == null || _locStringField == null ||
+                _locStringMTermField == null || _locStringToStringMethod == null)
+                return null;
+
+            try
+            {
+                var tooltip = _tooltipTriggerField.GetValue(storeItemBase);
+                if (tooltip == null) return null;
+
+                var locString = _locStringField.GetValue(tooltip);
+                if (locString == null) return null;
+
+                string mTerm = _locStringMTermField.GetValue(locString) as string;
+                if (string.IsNullOrEmpty(mTerm) || mTerm == "MainNav/General/Empty_String")
+                    return null;
+
+                // Call ToString() on the LocalizedString struct which resolves the term
+                string resolved = _locStringToStringMethod.Invoke(locString, null) as string;
+                if (!string.IsNullOrEmpty(resolved) && !resolved.StartsWith("$"))
+                {
+                    // Clean rich text tags
+                    resolved = System.Text.RegularExpressions.Regex.Replace(resolved, @"<[^>]+>", "").Trim();
+                    return resolved;
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[Store] Error extracting tooltip description: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        private void ExtractCardEntries(MonoBehaviour storeItemBase, List<DetailCardEntry> entries)
+        {
+            var display = GetItemDisplay(storeItemBase);
+            if (display == null) return;
+
+            var displayType = display.GetType();
+
+            try
+            {
+                // PreconDeck path: CardData property returns List<CardDataForTile>
+                if (_storeDisplayPreconDeckType != null &&
+                    _storeDisplayPreconDeckType.IsAssignableFrom(displayType) &&
+                    _preconCardDataProp != null)
+                {
+                    var cardDataList = _preconCardDataProp.GetValue(display);
+                    if (cardDataList is System.Collections.IList list)
+                        ExtractFromCardDataList(list, entries);
+                }
+                // CardViewBundle path: BundleCardViews returns List<StoreCardView>
+                else if (_storeDisplayCardViewBundleType != null &&
+                         _storeDisplayCardViewBundleType.IsAssignableFrom(displayType) &&
+                         _bundleCardViewsProp != null)
+                {
+                    var cardViews = _bundleCardViewsProp.GetValue(display);
+                    if (cardViews is System.Collections.IList viewList)
+                        ExtractFromBundleCardViews(viewList, entries);
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[Store] Error extracting card entries: {ex.Message}");
+            }
+        }
+
+        private void ExtractFromCardDataList(System.Collections.IList list, List<DetailCardEntry> entries)
+        {
+            if (_cardDataForTileCardProp == null || _cardDataForTileQuantityProp == null || _cardDataGrpIdProp == null)
+                return;
+
+            foreach (var item in list)
+            {
+                try
+                {
+                    var cardData = _cardDataForTileCardProp.GetValue(item);
+                    if (cardData == null) continue;
+
+                    uint grpId = (uint)_cardDataGrpIdProp.GetValue(cardData);
+                    if (grpId == 0) continue;
+
+                    int quantity = (int)_cardDataForTileQuantityProp.GetValue(item);
+                    string name = CardModelProvider.GetNameFromGrpId(grpId);
+                    if (string.IsNullOrEmpty(name))
+                        name = $"Card #{grpId}";
+
+                    string manaCost = null;
+                    if (_cardDataManaTextProp != null)
+                    {
+                        try { manaCost = _cardDataManaTextProp.GetValue(cardData) as string; }
+                        catch { }
+                    }
+
+                    entries.Add(new DetailCardEntry
+                    {
+                        GrpId = grpId,
+                        Quantity = quantity,
+                        Name = name,
+                        ManaCost = !string.IsNullOrEmpty(manaCost) ? FormatManaForScreenReader(manaCost) : null,
+                        CardDataObj = cardData
+                    });
+                }
+                catch { }
+            }
+        }
+
+        private void ExtractFromBundleCardViews(System.Collections.IList viewList, List<DetailCardEntry> entries)
+        {
+            if (_cardDataGrpIdProp == null) return;
+
+            foreach (var view in viewList)
+            {
+                try
+                {
+                    var viewMb = view as MonoBehaviour;
+                    if (viewMb == null || !viewMb.gameObject.activeInHierarchy) continue;
+
+                    var viewType = viewMb.GetType();
+                    var cardProp = viewType.GetProperty("Card", BindingFlags.Public | BindingFlags.Instance);
+                    if (cardProp == null) continue;
+
+                    var cardData = cardProp.GetValue(viewMb);
+                    if (cardData == null) continue;
+
+                    uint grpId = (uint)_cardDataGrpIdProp.GetValue(cardData);
+                    if (grpId == 0) continue;
+
+                    string name = CardModelProvider.GetNameFromGrpId(grpId);
+                    if (string.IsNullOrEmpty(name))
+                        name = $"Card #{grpId}";
+
+                    string manaCost = null;
+                    if (_cardDataManaTextProp != null)
+                    {
+                        try { manaCost = _cardDataManaTextProp.GetValue(cardData) as string; }
+                        catch { }
+                    }
+
+                    entries.Add(new DetailCardEntry
+                    {
+                        GrpId = grpId,
+                        Quantity = 1,
+                        Name = name,
+                        ManaCost = !string.IsNullOrEmpty(manaCost) ? FormatManaForScreenReader(manaCost) : null,
+                        CardDataObj = cardData
+                    });
+                }
+                catch { }
+            }
+        }
+
+        private string FormatCardAnnouncement(DetailCardEntry card, int index)
+        {
+            var parts = new List<string>();
+            parts.Add(card.Name);
+            if (card.Quantity > 1)
+                parts.Add($"times {card.Quantity}");
+            if (!string.IsNullOrEmpty(card.ManaCost))
+                parts.Add(card.ManaCost);
+            parts.Add($"{index + 1} of {_detailsCards.Count}");
+            return string.Join(", ", parts);
+        }
+
+        private static string FormatManaForScreenReader(string manaText)
+        {
+            if (string.IsNullOrEmpty(manaText)) return "";
+
+            // Convert "{2}{B}{B}" -> "2, B, B"
+            var parts = new List<string>();
+            int i = 0;
+            while (i < manaText.Length)
+            {
+                if (manaText[i] == '{')
+                {
+                    int end = manaText.IndexOf('}', i);
+                    if (end > i)
+                    {
+                        string symbol = manaText.Substring(i + 1, end - i - 1);
+                        // Expand common shorthand
+                        switch (symbol.ToUpper())
+                        {
+                            case "W": parts.Add("White"); break;
+                            case "U": parts.Add("Blue"); break;
+                            case "B": parts.Add("Black"); break;
+                            case "R": parts.Add("Red"); break;
+                            case "G": parts.Add("Green"); break;
+                            case "C": parts.Add("Colorless"); break;
+                            case "X": parts.Add("X"); break;
+                            default: parts.Add(symbol); break;
+                        }
+                        i = end + 1;
+                        continue;
+                    }
+                }
+                i++;
+            }
+
+            return parts.Count > 0 ? string.Join(", ", parts) : manaText;
+        }
+
+        private void HandleDetailsInput()
+        {
+            // Left/Right: navigate between cards
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
+            {
+                MoveDetailsCard(-1);
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
+            {
+                MoveDetailsCard(1);
+                return;
+            }
+
+            // Up/Down: navigate card info blocks
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+            {
+                MoveDetailsBlock(-1);
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+            {
+                MoveDetailsBlock(1);
+                return;
+            }
+
+            // Home/End: jump to first/last card
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                if (_detailsCards.Count > 0 && _detailsCardIndex != 0)
+                {
+                    _detailsCardIndex = 0;
+                    _detailsCardBlocks.Clear();
+                    _detailsBlockIndex = 0;
+                    _announcer.AnnounceInterrupt(FormatCardAnnouncement(_detailsCards[0], 0));
+                }
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                if (_detailsCards.Count > 0 && _detailsCardIndex != _detailsCards.Count - 1)
+                {
+                    _detailsCardIndex = _detailsCards.Count - 1;
+                    _detailsCardBlocks.Clear();
+                    _detailsBlockIndex = 0;
+                    _announcer.AnnounceInterrupt(FormatCardAnnouncement(_detailsCards[_detailsCardIndex], _detailsCardIndex));
+                }
+                return;
+            }
+
+            // Tab/Shift+Tab: navigate cards like Left/Right
+            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                MoveDetailsCard(shift ? -1 : 1);
+                return;
+            }
+
+            // Enter/Space: re-read current card or description
+            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
+            if (enterPressed || spacePressed)
+            {
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                if (_detailsCards.Count > 0 && _detailsCardIndex >= 0 && _detailsCardIndex < _detailsCards.Count)
+                    _announcer.AnnounceInterrupt(FormatCardAnnouncement(_detailsCards[_detailsCardIndex], _detailsCardIndex));
+                else if (!string.IsNullOrEmpty(_detailsDescription))
+                    _announcer.AnnounceInterrupt(_detailsDescription);
+                return;
+            }
+
+            // Backspace: close details view
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                InputManager.ConsumeKey(KeyCode.Backspace);
+                CloseDetailsView();
+                return;
+            }
+        }
+
+        private void MoveDetailsCard(int direction)
+        {
+            if (_detailsCards.Count == 0)
+            {
+                if (!string.IsNullOrEmpty(_detailsDescription))
+                    _announcer.AnnounceInterrupt(_detailsDescription);
+                return;
+            }
+
+            int newIndex = _detailsCardIndex + direction;
+
+            if (newIndex < 0)
+            {
+                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (newIndex >= _detailsCards.Count)
+            {
+                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            _detailsCardIndex = newIndex;
+            _detailsCardBlocks.Clear();
+            _detailsBlockIndex = 0;
+            _announcer.AnnounceInterrupt(FormatCardAnnouncement(_detailsCards[_detailsCardIndex], _detailsCardIndex));
+        }
+
+        private void MoveDetailsBlock(int direction)
+        {
+            if (_detailsCards.Count == 0) return;
+
+            // Lazy-load card info blocks on first Up/Down press
+            if (_detailsCardBlocks.Count == 0)
+            {
+                var card = _detailsCards[_detailsCardIndex];
+                CardInfo info = default;
+                if (card.CardDataObj != null)
+                {
+                    info = CardModelProvider.ExtractCardInfoFromObject(card.CardDataObj);
+                }
+                if (!info.IsValid)
+                {
+                    var cardInfo = CardModelProvider.GetCardInfoFromGrpId(card.GrpId);
+                    if (cardInfo.HasValue)
+                        info = cardInfo.Value;
+                }
+
+                if (info.IsValid)
+                {
+                    info.Quantity = card.Quantity;
+                    _detailsCardBlocks = CardDetector.BuildInfoBlocks(info);
+                }
+
+                if (_detailsCardBlocks.Count == 0)
+                {
+                    _announcer.Announce("No card details available", AnnouncementPriority.Normal);
+                    return;
+                }
+
+                // Start at first block for Down, last for Up
+                _detailsBlockIndex = direction > 0 ? 0 : _detailsCardBlocks.Count - 1;
+                AnnounceDetailsBlock();
+                return;
+            }
+
+            int newIndex = _detailsBlockIndex + direction;
+
+            if (newIndex < 0)
+            {
+                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (newIndex >= _detailsCardBlocks.Count)
+            {
+                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            _detailsBlockIndex = newIndex;
+            AnnounceDetailsBlock();
+        }
+
+        private void AnnounceDetailsBlock()
+        {
+            if (_detailsBlockIndex < 0 || _detailsBlockIndex >= _detailsCardBlocks.Count) return;
+
+            var block = _detailsCardBlocks[_detailsBlockIndex];
+            _announcer.AnnounceInterrupt($"{block.Label}: {block.Content}");
+        }
+
+        private void CloseDetailsView()
+        {
+            _isDetailsViewActive = false;
+            _detailsCards.Clear();
+            _detailsCardBlocks.Clear();
+            _detailsDescription = null;
+            _detailsCardIndex = 0;
+            _detailsBlockIndex = 0;
+
+            // Re-announce current item
+            AnnounceCurrentItem();
         }
 
         #endregion
@@ -1936,6 +2573,10 @@ namespace AccessibleArena.Core.Services
 
         private void ReturnToTabs()
         {
+            _isDetailsViewActive = false;
+            _detailsCards.Clear();
+            _detailsCardBlocks.Clear();
+            _detailsDescription = null;
             _navLevel = NavigationLevel.Tabs;
             _items.Clear();
 

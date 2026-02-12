@@ -1891,31 +1891,55 @@ namespace AccessibleArena.Core.Services
             // Log properties for discovery (only once)
             LogModelProperties(model);
 
+            return ExtractCardInfoFromObject(model);
+        }
+
+        /// <summary>
+        /// Extracts card info from any card data object (Model, CardData, CardPrintingData, etc.)
+        /// using generic property access. Tries structured properties first (Supertypes/CardTypes/Subtypes,
+        /// ManaQuantity[] PrintedCastingCost), falling back to simpler properties (TypeLine, ManaCost string).
+        /// This is the shared extraction logic used by both ExtractCardInfoFromModel and store card details.
+        /// </summary>
+        public static CardInfo ExtractCardInfoFromObject(object dataObj)
+        {
+            if (dataObj == null) return new CardInfo();
+
             var info = new CardInfo();
-            var modelType = model.GetType();
+            var objType = dataObj.GetType();
 
             try
             {
                 // Name - get from GrpId using CardTitleProvider lookup
-                // GrpId is the card database ID, TitleId is a localization key
-                var grpIdObj = GetModelPropertyValue(model, modelType, "GrpId");
-                if (grpIdObj != null && grpIdObj is uint grpId)
+                uint cardGrpId = 0;
+                var grpIdObj = GetModelPropertyValue(dataObj, objType, "GrpId");
+                if (grpIdObj is uint grpId)
                 {
+                    cardGrpId = grpId;
                     info.Name = GetNameFromGrpId(grpId);
                 }
 
-                // Mana Cost - parse PrintedCastingCost (ManaQuantity[])
-                var castingCost = GetModelPropertyValue(model, modelType, "PrintedCastingCost");
-                if (castingCost is IEnumerable costEnum)
+                // Mana Cost - try PrintedCastingCost (ManaQuantity[]) first, fall back to string
+                var castingCost = GetModelPropertyValue(dataObj, objType, "PrintedCastingCost");
+                if (castingCost != null && castingCost is IEnumerable costEnum && !(castingCost is string))
                 {
                     info.ManaCost = ParseManaQuantityArray(costEnum);
                 }
+                if (string.IsNullOrEmpty(info.ManaCost))
+                {
+                    var manaCostProp = objType.GetProperty("ManaCost") ?? objType.GetProperty("CastingCost");
+                    if (manaCostProp != null)
+                    {
+                        var manaCostVal = manaCostProp.GetValue(dataObj);
+                        if (manaCostVal is string manaStr && !string.IsNullOrEmpty(manaStr))
+                            info.ManaCost = ParseManaSymbolsInText(manaStr);
+                    }
+                }
 
-                // Type Line - build from Supertypes + CardTypes + Subtypes
+                // Type Line - try structured Supertypes + CardTypes + Subtypes first
                 var typeLineParts = new List<string>();
+                bool hasStructuredTypes = false;
 
-                // Supertypes (Legendary, Basic, etc.)
-                var supertypes = GetModelPropertyValue(model, modelType, "Supertypes");
+                var supertypes = GetModelPropertyValue(dataObj, objType, "Supertypes");
                 if (supertypes is IEnumerable superEnum)
                 {
                     foreach (var st in superEnum)
@@ -1924,13 +1948,15 @@ namespace AccessibleArena.Core.Services
                         {
                             string s = st.ToString();
                             if (s != "None" && !string.IsNullOrEmpty(s))
+                            {
                                 typeLineParts.Add(s);
+                                hasStructuredTypes = true;
+                            }
                         }
                     }
                 }
 
-                // CardTypes (Creature, Land, Instant, etc.)
-                var cardTypes = GetModelPropertyValue(model, modelType, "CardTypes");
+                var cardTypes = GetModelPropertyValue(dataObj, objType, "CardTypes");
                 if (cardTypes is IEnumerable cardEnum)
                 {
                     foreach (var ct in cardEnum)
@@ -1939,14 +1965,16 @@ namespace AccessibleArena.Core.Services
                         {
                             string c = ct.ToString();
                             if (!string.IsNullOrEmpty(c))
+                            {
                                 typeLineParts.Add(c);
+                                hasStructuredTypes = true;
+                            }
                         }
                     }
                 }
 
-                // Subtypes (Goblin, Warrior, Forest, etc.) - add after a dash
-                var subtypes = GetModelPropertyValue(model, modelType, "Subtypes");
                 var subtypeList = new List<string>();
+                var subtypes = GetModelPropertyValue(dataObj, objType, "Subtypes");
                 if (subtypes is IEnumerable subEnum)
                 {
                     foreach (var sub in subEnum)
@@ -1967,25 +1995,40 @@ namespace AccessibleArena.Core.Services
                         info.TypeLine += " - " + string.Join(" ", subtypeList);
                 }
 
-                // Power and Toughness - only for creatures (check if CardTypes contains Creature)
-                bool isCreature = false;
-                var cardTypesForPT = GetModelPropertyValue(model, modelType, "CardTypes");
-                if (cardTypesForPT is IEnumerable cardTypesEnumPT)
+                // Fall back to TypeLine/TypeText string property
+                if (string.IsNullOrEmpty(info.TypeLine))
                 {
-                    foreach (var ct in cardTypesEnumPT)
+                    var typeLineProp = objType.GetProperty("TypeLine") ?? objType.GetProperty("TypeText");
+                    if (typeLineProp != null)
+                        info.TypeLine = typeLineProp.GetValue(dataObj)?.ToString();
+                }
+
+                // Power and Toughness - only for creatures
+                bool isCreature = false;
+                if (hasStructuredTypes)
+                {
+                    var cardTypesForPT = GetModelPropertyValue(dataObj, objType, "CardTypes");
+                    if (cardTypesForPT is IEnumerable cardTypesEnumPT)
                     {
-                        if (ct != null && ct.ToString().Contains("Creature"))
+                        foreach (var ct in cardTypesEnumPT)
                         {
-                            isCreature = true;
-                            break;
+                            if (ct != null && ct.ToString().Contains("Creature"))
+                            {
+                                isCreature = true;
+                                break;
+                            }
                         }
                     }
+                }
+                else if (!string.IsNullOrEmpty(info.TypeLine))
+                {
+                    isCreature = info.TypeLine.Contains("Creature");
                 }
 
                 if (isCreature)
                 {
-                    var power = GetModelPropertyValue(model, modelType, "Power");
-                    var toughness = GetModelPropertyValue(model, modelType, "Toughness");
+                    var power = GetModelPropertyValue(dataObj, objType, "Power");
+                    var toughness = GetModelPropertyValue(dataObj, objType, "Toughness");
                     if (power != null && toughness != null)
                     {
                         string powerStr = GetStringBackedIntValue(power);
@@ -1998,23 +2041,18 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Rules Text - parse from Abilities array
-                // Get card context needed for ability text lookup
-                uint cardGrpId = 0;
                 uint cardTitleId = 0;
-                var grpIdVal = GetModelPropertyValue(model, modelType, "GrpId");
-                if (grpIdVal is uint gid) cardGrpId = gid;
-                var titleIdVal = GetModelPropertyValue(model, modelType, "TitleId");
+                var titleIdVal = GetModelPropertyValue(dataObj, objType, "TitleId");
                 if (titleIdVal is uint tid) cardTitleId = tid;
 
-                // Get all ability IDs for the lookup
-                var abilityIdsVal = GetModelPropertyValue(model, modelType, "AbilityIds");
+                var abilityIdsVal = GetModelPropertyValue(dataObj, objType, "AbilityIds");
                 uint[] abilityIds = null;
                 if (abilityIdsVal is IEnumerable<uint> aidEnum)
                     abilityIds = aidEnum.ToArray();
                 else if (abilityIdsVal is uint[] aidArray)
                     abilityIds = aidArray;
 
-                var abilities = GetModelPropertyValue(model, modelType, "Abilities");
+                var abilities = GetModelPropertyValue(dataObj, objType, "Abilities");
                 if (abilities is IEnumerable abilityEnum)
                 {
                     var rulesLines = new List<string>();
@@ -2022,12 +2060,10 @@ namespace AccessibleArena.Core.Services
                     {
                         if (ability == null) continue;
 
-                        // Log ability properties for discovery (only once)
                         LogAbilityProperties(ability);
 
                         var abilityType = ability.GetType();
 
-                        // Get the ability's Id for the lookup
                         uint abilityId = 0;
                         var abilityIdProp = abilityType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
                         if (abilityIdProp != null)
@@ -2036,7 +2072,6 @@ namespace AccessibleArena.Core.Services
                             if (idVal is uint aid) abilityId = aid;
                         }
 
-                        // Try to get text from the ability with card context
                         var textValue = GetAbilityText(ability, abilityType, cardGrpId, abilityId, abilityIds, cardTitleId);
                         if (!string.IsNullOrEmpty(textValue))
                         {
@@ -2046,80 +2081,65 @@ namespace AccessibleArena.Core.Services
 
                     if (rulesLines.Count > 0)
                     {
-                        // Join all ability texts and parse mana symbols to readable text
                         string rawRulesText = string.Join(" ", rulesLines);
                         info.RulesText = ParseManaSymbolsInText(rawRulesText);
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Extracted rules text: {info.RulesText}");
                     }
                 }
 
-                // Flavor Text - lookup via FlavorTextId (not FlavorId!)
-                var flavorIdValue = GetModelPropertyValue(model, modelType, "FlavorTextId");
+                // Flavor Text - lookup via FlavorTextId
+                var flavorIdValue = GetModelPropertyValue(dataObj, objType, "FlavorTextId");
                 if (flavorIdValue != null)
                 {
                     uint flavorId = 0;
                     if (flavorIdValue is uint fid) flavorId = fid;
                     else if (flavorIdValue is int fidInt && fidInt > 0) flavorId = (uint)fidInt;
 
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"FlavorTextId = {flavorId}");
-
                     if (flavorId > 0)
                     {
                         var flavorText = GetFlavorText(flavorId);
                         if (!string.IsNullOrEmpty(flavorText))
-                        {
                             info.FlavorText = flavorText;
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Extracted flavor text: {info.FlavorText}");
-                        }
-                        else
-                        {
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"FlavorText lookup returned empty for id {flavorId}");
-                        }
                     }
                 }
 
-                // Artist - try to get from Printing object which may have ArtistCredit
-                var printing = GetModelPropertyValue(model, modelType, "Printing");
-                if (printing != null)
-                {
-                    var printingType = printing.GetType();
+                // Artist - try Printing sub-object first, then direct properties
+                var printing = GetModelPropertyValue(dataObj, objType, "Printing");
+                object artistSource = printing ?? dataObj;
+                var artistSourceType = artistSource.GetType();
 
-                    // Try ArtistCredit or Artist property on Printing
-                    var artistProp = printingType.GetProperty("ArtistCredit") ??
-                                     printingType.GetProperty("Artist") ??
-                                     printingType.GetProperty("ArtistName");
-                    if (artistProp != null)
+                var artistProp = artistSourceType.GetProperty("ArtistCredit") ??
+                                 artistSourceType.GetProperty("Artist") ??
+                                 artistSourceType.GetProperty("ArtistName");
+                if (artistProp != null)
+                {
+                    var artistValue = artistProp.GetValue(artistSource);
+                    if (artistValue is string artistStr && !string.IsNullOrEmpty(artistStr))
                     {
-                        var artistValue = artistProp.GetValue(printing);
-                        if (artistValue != null)
-                        {
-                            // Could be a string or an ID
-                            if (artistValue is string artistStr && !string.IsNullOrEmpty(artistStr))
-                            {
-                                info.Artist = artistStr;
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Extracted artist from Printing: {info.Artist}");
-                            }
-                            else if (artistValue is uint artistId && artistId > 0)
-                            {
-                                var artistName = GetArtistName(artistId);
-                                if (!string.IsNullOrEmpty(artistName))
-                                {
-                                    info.Artist = artistName;
-                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Extracted artist: {info.Artist}");
-                                }
-                            }
-                        }
+                        info.Artist = artistStr;
                     }
-                    else
+                    else if (artistValue is uint artistId && artistId > 0)
                     {
-                        // Log available properties on Printing for discovery
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Printing type: {printingType.Name}, checking for artist properties...");
-                        foreach (var prop in printingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                        var artistName = GetArtistName(artistId);
+                        if (!string.IsNullOrEmpty(artistName))
+                            info.Artist = artistName;
+                    }
+                }
+                // If Printing path found nothing, try direct on dataObj
+                if (string.IsNullOrEmpty(info.Artist) && printing != null)
+                {
+                    var directArtistProp = objType.GetProperty("ArtistCredit") ??
+                                           objType.GetProperty("Artist") ??
+                                           objType.GetProperty("ArtistName");
+                    if (directArtistProp != null)
+                    {
+                        var av = directArtistProp.GetValue(dataObj);
+                        if (av is string aStr && !string.IsNullOrEmpty(aStr))
+                            info.Artist = aStr;
+                        else if (av is uint aId && aId > 0)
                         {
-                            if (prop.Name.ToLower().Contains("artist"))
-                            {
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found artist-related property: {prop.Name}");
-                            }
+                            var an = GetArtistName(aId);
+                            if (!string.IsNullOrEmpty(an))
+                                info.Artist = an;
                         }
                     }
                 }
@@ -2129,8 +2149,8 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error extracting model data: {ex.Message}");
-                return null;
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error extracting card data: {ex.Message}");
+                return new CardInfo();
             }
         }
 
@@ -3354,6 +3374,31 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets full CardInfo from a GrpId by looking up CardPrintingData from the CardDatabase.
+        /// Returns null if the card cannot be found.
+        /// </summary>
+        public static CardInfo? GetCardInfoFromGrpId(uint grpId)
+        {
+            if (grpId == 0) return null;
+
+            try
+            {
+                var cardData = GetCardDataFromGrpId(grpId);
+                if (cardData == null) return null;
+
+                var info = ExtractCardInfoFromCardData(cardData, grpId);
+                if (info.IsValid)
+                    return info;
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting card info for GrpId {grpId}: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Gets CardPrintingData from CardDatabase using GrpId.
         /// </summary>
         private static object GetCardDataFromGrpId(uint grpId)
@@ -3449,7 +3494,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Extracts CardInfo from CardPrintingData object.
         /// </summary>
-        private static CardInfo ExtractCardInfoFromCardData(object cardData, uint grpId)
+        public static CardInfo ExtractCardInfoFromCardData(object cardData, uint grpId)
         {
             var info = new CardInfo { IsValid = true };
 

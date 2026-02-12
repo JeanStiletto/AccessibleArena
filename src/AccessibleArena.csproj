@@ -74,6 +74,10 @@
       <HintPath>..\libs\Unity.InputSystem.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="ZFBrowser">
+      <HintPath>..\libs\ZFBrowser.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>
