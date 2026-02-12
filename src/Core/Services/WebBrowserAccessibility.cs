@@ -280,9 +280,82 @@ namespace AccessibleArena.Core.Services
         }
 
         // Read current value of a text input by its data-aa-idx
+        // Uses element's own window context to handle cross-iframe elements
         private static string ReadValueScript(int index)
         {
-            return FindElementFunc + $" var el = findEl({index}); if (el) return el.value || ''; return '';";
+            return FindElementFunc + $@"
+                var el = findEl({index});
+                if (!el) return '';
+                var win = el.ownerDocument.defaultView || window;
+                var proto = (el.tagName === 'TEXTAREA') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
+                var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+                return (desc && desc.get) ? (desc.get.call(el) || '') : (el.value || '');";
+        }
+
+        // Append text to an input field via JS (bypasses browser keyboard pipeline)
+        // Uses native value setter from element's own window context (handles cross-iframe elements)
+        private static string AppendTextScript(int index, string text)
+        {
+            // Escape the text for JS string literal
+            string escaped = text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
+            return FindElementFunc + $@"
+                var el = findEl({index});
+                if (!el) return 'not_found';
+                var win = el.ownerDocument.defaultView || window;
+                var proto = (el.tagName === 'TEXTAREA') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
+                var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');
+                var curVal = nativeSetter && nativeSetter.get ? nativeSetter.get.call(el) : (el.value || '');
+                if (nativeSetter && nativeSetter.set) {{
+                    nativeSetter.set.call(el, curVal + '{escaped}');
+                }} else {{
+                    el.value = curVal + '{escaped}';
+                }}
+                el.dispatchEvent(new win.Event('input', {{bubbles: true}}));
+                el.dispatchEvent(new win.Event('change', {{bubbles: true}}));
+                return nativeSetter && nativeSetter.get ? nativeSetter.get.call(el) : (el.value || '');";
+        }
+
+        // Delete last character from input field via JS
+        // Uses element's own window context to handle cross-iframe elements
+        private static string BackspaceScript(int index)
+        {
+            return FindElementFunc + $@"
+                var el = findEl({index});
+                if (!el) return 'not_found';
+                var win = el.ownerDocument.defaultView || window;
+                var proto = (el.tagName === 'TEXTAREA') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
+                var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');
+                var curVal = nativeSetter && nativeSetter.get ? nativeSetter.get.call(el) : (el.value || '');
+                var newVal = curVal.slice(0, -1);
+                if (nativeSetter && nativeSetter.set) {{
+                    nativeSetter.set.call(el, newVal);
+                }} else {{
+                    el.value = newVal;
+                }}
+                el.dispatchEvent(new win.Event('input', {{bubbles: true}}));
+                el.dispatchEvent(new win.Event('change', {{bubbles: true}}));
+                return newVal;";
+        }
+
+        // Submit form via JS (simulates Enter on input)
+        // Uses element's own window context for Event constructors (cross-iframe support)
+        private static string SubmitScript(int index)
+        {
+            return FindElementFunc + $@"
+                var el = findEl({index});
+                if (!el) return 'not_found';
+                var win = el.ownerDocument.defaultView || window;
+                var form = el.closest('form');
+                if (form) {{
+                    var submitBtn = form.querySelector('button[type=""submit""], input[type=""submit""]');
+                    if (submitBtn) {{ submitBtn.click(); return 'clicked_submit'; }}
+                    form.dispatchEvent(new win.Event('submit', {{bubbles: true, cancelable: true}}));
+                    return 'form_submit';
+                }}
+                el.dispatchEvent(new win.KeyboardEvent('keydown', {{key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}}));
+                el.dispatchEvent(new win.KeyboardEvent('keypress', {{key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}}));
+                el.dispatchEvent(new win.KeyboardEvent('keyup', {{key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}}));
+                return 'key_enter';";
         }
 
         #endregion
@@ -529,15 +602,21 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Enter — submit (forward to browser), exit edit mode, schedule rescan
+            // Enter — submit form, exit edit mode, schedule rescan
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
-                _browser.PressKey(KeyCode.Return);
+                if (_currentIndex >= 0 && _currentIndex < _elements.Count)
+                {
+                    var elem = _elements[_currentIndex];
+                    _browser.EvalJSCSP(SubmitScript(elem.Index))
+                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] Submit error: {ex.Message}"));
+                }
                 ExitEditMode();
                 _announcer.AnnounceInterrupt("Submitted");
                 ScheduleRescan(RescanDelayClick);
+                _secondRescanTimer = RescanDelaySecond;
                 return;
             }
 
@@ -548,34 +627,33 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Arrow Left/Right — forward to browser for cursor movement
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            // Arrow Left/Right — read value (cursor movement not supported via JS)
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
-                _browser.PressKey(KeyCode.LeftArrow);
-                return;
-            }
-            if (Input.GetKeyDown(KeyCode.RightArrow))
-            {
-                _browser.PressKey(KeyCode.RightArrow);
+                ReadCurrentFieldValue();
                 return;
             }
 
-            // Backspace — forward to browser (delete character)
+            // Backspace — delete last character via JS
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
-                _browser.PressKey(KeyCode.Backspace);
+                if (_currentIndex >= 0 && _currentIndex < _elements.Count)
+                {
+                    var elem = _elements[_currentIndex];
+                    _browser.EvalJSCSP(BackspaceScript(elem.Index))
+                        .Then(result =>
+                        {
+                            string val = (string)result;
+                            if (val == "not_found")
+                                _announcer.AnnounceInterrupt("Field not found");
+                        })
+                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] Backspace error: {ex.Message}"));
+                }
                 return;
             }
 
-            // Delete key
-            if (Input.GetKeyDown(KeyCode.Delete))
-            {
-                _browser.PressKey(KeyCode.Delete);
-                return;
-            }
-
-            // Printable characters — forward via TypeText
+            // Printable characters — append via JS
             string inputStr = Input.inputString;
             if (!string.IsNullOrEmpty(inputStr))
             {
@@ -588,9 +666,11 @@ namespace AccessibleArena.Core.Services
                         filtered.Append(c);
                     }
                 }
-                if (filtered.Length > 0)
+                if (filtered.Length > 0 && _currentIndex >= 0 && _currentIndex < _elements.Count)
                 {
-                    _browser.TypeText(filtered.ToString());
+                    var elem = _elements[_currentIndex];
+                    _browser.EvalJSCSP(AppendTextScript(elem.Index, filtered.ToString()))
+                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] TypeText error: {ex.Message}"));
                 }
             }
         }
@@ -637,6 +717,12 @@ namespace AccessibleArena.Core.Services
             if (_browser == null || !_browser.IsReady)
             {
                 MelonLogger.Msg("[WebBrowser] Cannot extract - browser not ready");
+                return;
+            }
+
+            if (_isLoading)
+            {
+                MelonLogger.Msg("[WebBrowser] Extraction already in progress, skipping");
                 return;
             }
 
@@ -757,7 +843,12 @@ namespace AccessibleArena.Core.Services
 
             if (!_isActive) return;
 
+            // Cancel any pending rescan timers — they were for the previous page
+            _pendingRescan = false;
+            _secondRescanTimer = 0;
+
             _isEditingField = false;
+            _isLoading = false; // Reset in case a previous extraction never resolved
             _announcer.AnnounceInterrupt("Page loaded. Reading elements...");
             ExtractElements();
         }
