@@ -1,9 +1,12 @@
 using UnityEngine;
+using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Services.PanelDetection;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace AccessibleArena.Core.Services
@@ -46,6 +49,12 @@ namespace AccessibleArena.Core.Services
         private int _currentPurchaseOptionIndex;
         private bool _waitingForTabLoad;
         private float _loadCheckTimer;
+
+        // Popup overlay tracking (follows SettingsMenuNavigator pattern)
+        private GameObject _activePopup;
+        private bool _isPopupActive;
+        private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
+        private int _popupElementIndex;
 
         #endregion
 
@@ -104,6 +113,9 @@ namespace AccessibleArena.Core.Services
         // StoreItem properties
         private Type _storeItemType;
         private PropertyInfo _storeItemIdProp;
+
+        // Controller utility methods
+        private MethodInfo _onButtonPaymentSetupMethod;
 
         private bool _reflectionInitialized;
 
@@ -238,6 +250,48 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
+        /// <summary>
+        /// Handle panel changes - detect popups appearing on top of store.
+        /// Follows the SettingsMenuNavigator pattern: subscribe to PanelStateManager events.
+        /// </summary>
+        private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
+        {
+            if (!_isActive) return;
+
+            if (newPanel != null && IsPopupPanel(newPanel))
+            {
+                MelonLogger.Msg($"[Store] Popup detected on top of store: {newPanel.Name}");
+                _activePopup = newPanel.GameObject;
+                _isPopupActive = true;
+                DiscoverPopupElements();
+                AnnouncePopup();
+            }
+            else if (_isPopupActive && newPanel == null)
+            {
+                MelonLogger.Msg($"[Store] Popup closed, returning to store");
+                _activePopup = null;
+                _isPopupActive = false;
+                _popupElements.Clear();
+                // Re-announce current position
+                if (_navLevel == NavigationLevel.Items && _items.Count > 0)
+                    AnnounceCurrentItem();
+                else if (_navLevel == NavigationLevel.Tabs && _tabs.Count > 0)
+                    AnnounceCurrentTab();
+            }
+        }
+
+        private static bool IsPopupPanel(PanelInfo panel)
+        {
+            if (panel == null) return false;
+            if (panel.Type == PanelType.Popup) return true;
+
+            string name = panel.Name;
+            return name.Contains("SystemMessageView") ||
+                   name.Contains("Popup") ||
+                   name.Contains("Dialog") ||
+                   name.Contains("Modal");
+        }
+
         #endregion
 
         #region Reflection Caching
@@ -264,6 +318,9 @@ namespace AccessibleArena.Core.Services
             _paymentInfoButtonField = controllerType.GetField("_paymentInfoButton", flags);
             _redeemCodeInputField = controllerType.GetField("_redeemCodeInput", flags);
             _dropRatesLinkField = controllerType.GetField("_dropRatesLink", flags);
+
+            // Controller utility methods
+            _onButtonPaymentSetupMethod = controllerType.GetMethod("OnButton_PaymentSetup", BindingFlags.Public | BindingFlags.Instance);
 
             // Tab fields
             _tabFields = new FieldInfo[TabFieldNames.Length];
@@ -561,6 +618,12 @@ namespace AccessibleArena.Core.Services
 
             _currentItemIndex = 0;
             _currentPurchaseOptionIndex = 0;
+
+            // Subscribe to panel changes to detect popups (follows SettingsMenuNavigator pattern)
+            if (PanelStateManager.Instance != null)
+            {
+                PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
+            }
         }
 
         protected override void OnDeactivating()
@@ -568,6 +631,15 @@ namespace AccessibleArena.Core.Services
             _tabs.Clear();
             _items.Clear();
             _waitingForTabLoad = false;
+            _activePopup = null;
+            _isPopupActive = false;
+            _popupElements.Clear();
+
+            // Unsubscribe from panel changes
+            if (PanelStateManager.Instance != null)
+            {
+                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
+            }
         }
 
         public override void OnSceneChanged(string sceneName)
@@ -731,6 +803,15 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Check if popup is still valid
+            if (_isPopupActive && (_activePopup == null || !_activePopup.activeInHierarchy))
+            {
+                MelonLogger.Msg("[Store] Popup became invalid, returning to store");
+                _activePopup = null;
+                _isPopupActive = false;
+                _popupElements.Clear();
+            }
+
             // Handle loading state
             if (_waitingForTabLoad)
             {
@@ -765,6 +846,13 @@ namespace AccessibleArena.Core.Services
             if (UIFocusTracker.IsEditingInputField())
             {
                 HandleInputFieldNavigation();
+                return;
+            }
+
+            // If popup is active, handle popup input
+            if (_isPopupActive)
+            {
+                HandlePopupInput();
                 return;
             }
 
@@ -964,7 +1052,7 @@ namespace AccessibleArena.Core.Services
             if (tab.IsUtility)
             {
                 MelonLogger.Msg($"[Store] Activating utility: {tab.DisplayName}");
-                UIActivator.Activate(tab.GameObject);
+                ActivateUtilityElement(tab);
                 return;
             }
 
@@ -1170,6 +1258,257 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[Store] Activating purchase: {item.Label} - {option.PriceText} {option.CurrencyName}");
 
             UIActivator.Activate(option.ButtonObject);
+        }
+
+        #endregion
+
+        #region Utility Activation
+
+        private void ActivateUtilityElement(TabInfo tab)
+        {
+            // Payment button: call OnButton_PaymentSetup() directly on controller
+            // Note: UIActivator on TextButton_PaymentInfo also works - revert to UIActivator if reflection causes issues
+            if (tab.DisplayName == "Change payment method" && _onButtonPaymentSetupMethod != null && _controller != null)
+            {
+                try
+                {
+                    MelonLogger.Msg("[Store] Calling OnButton_PaymentSetup() via reflection");
+                    _onButtonPaymentSetupMethod.Invoke(_controller, null);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg($"[Store] Error calling OnButton_PaymentSetup: {ex.Message}");
+                }
+            }
+
+            // Default: use UIActivator for other utility elements
+            UIActivator.Activate(tab.GameObject);
+        }
+
+        #endregion
+
+        #region Popup Handling (follows SettingsMenuNavigator pattern)
+
+        private void DiscoverPopupElements()
+        {
+            _popupElements.Clear();
+            _popupElementIndex = 0;
+
+            if (_activePopup == null) return;
+
+            MelonLogger.Msg($"[Store] Discovering popup elements in: {_activePopup.name}");
+
+            var addedObjects = new HashSet<GameObject>();
+            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+
+            // Find SystemMessageButtonView buttons (MTGA's standard popup buttons)
+            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (addedObjects.Contains(mb.gameObject)) continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName == "SystemMessageButtonView" || typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                {
+                    string label = UITextExtractor.GetText(mb.gameObject);
+                    if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
+
+                    var pos = mb.gameObject.transform.position;
+                    discovered.Add((mb.gameObject, $"{label}, button", -pos.y * 1000 + pos.x));
+                    addedObjects.Add(mb.gameObject);
+                }
+            }
+
+            // Also check standard Unity Buttons
+            foreach (var button in _activePopup.GetComponentsInChildren<Button>(true))
+            {
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
+                if (addedObjects.Contains(button.gameObject)) continue;
+
+                string label = UITextExtractor.GetText(button.gameObject);
+                if (string.IsNullOrEmpty(label)) label = button.gameObject.name;
+
+                var pos = button.gameObject.transform.position;
+                discovered.Add((button.gameObject, $"{label}, button", -pos.y * 1000 + pos.x));
+                addedObjects.Add(button.gameObject);
+            }
+
+            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+            {
+                _popupElements.Add((obj, label));
+            }
+
+            MelonLogger.Msg($"[Store] Found {_popupElements.Count} popup elements");
+        }
+
+        private void AnnouncePopup()
+        {
+            // Try to extract popup message
+            string message = ExtractPopupMessage(_activePopup);
+            string announcement = !string.IsNullOrEmpty(message)
+                ? $"Confirmation. {message}. {_popupElements.Count} options."
+                : $"Confirmation. {_popupElements.Count} options.";
+
+            _announcer.AnnounceInterrupt(announcement);
+
+            if (_popupElements.Count > 0)
+            {
+                _popupElementIndex = 0;
+                _announcer.Announce($"{_popupElements[0].label}", AnnouncementPriority.Normal);
+            }
+        }
+
+        private string ExtractPopupMessage(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            var texts = popup.GetComponentsInChildren<TMPro.TMP_Text>(true)
+                .Where(t => t != null && t.gameObject.activeInHierarchy)
+                .OrderByDescending(t => t.fontSize)
+                .ToList();
+
+            foreach (var text in texts)
+            {
+                string content = text.text?.Trim();
+                if (string.IsNullOrEmpty(content) || content.Length < 3) continue;
+
+                // Skip button labels
+                var parent = text.transform.parent;
+                bool isButtonText = false;
+                while (parent != null)
+                {
+                    if (parent.name.ToLower().Contains("button"))
+                    {
+                        isButtonText = true;
+                        break;
+                    }
+                    parent = parent.parent;
+                }
+
+                if (!isButtonText && content.Length > 5)
+                {
+                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
+                    if (!string.IsNullOrEmpty(content))
+                        return content;
+                }
+            }
+
+            return null;
+        }
+
+        private void HandlePopupInput()
+        {
+            if (_popupElements.Count == 0) return;
+
+            // Up/Down navigate popup elements
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+            {
+                MovePopupElement(-1);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+            {
+                MovePopupElement(1);
+                return;
+            }
+            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                MovePopupElement(shift ? -1 : 1);
+                return;
+            }
+
+            // Enter activates current popup element
+            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
+            if (enterPressed || spacePressed)
+            {
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                if (_popupElementIndex >= 0 && _popupElementIndex < _popupElements.Count)
+                {
+                    var elem = _popupElements[_popupElementIndex];
+                    MelonLogger.Msg($"[Store] Activating popup element: {elem.label}");
+                    UIActivator.Activate(elem.obj);
+                }
+                return;
+            }
+
+            // Backspace dismisses popup
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                InputManager.ConsumeKey(KeyCode.Backspace);
+                DismissPopup();
+                return;
+            }
+        }
+
+        private void MovePopupElement(int direction)
+        {
+            int newIndex = _popupElementIndex + direction;
+            if (newIndex < 0)
+            {
+                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return;
+            }
+            if (newIndex >= _popupElements.Count)
+            {
+                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                return;
+            }
+            _popupElementIndex = newIndex;
+            _announcer.AnnounceInterrupt(
+                $"{_popupElementIndex + 1} of {_popupElements.Count}: {_popupElements[_popupElementIndex].label}");
+        }
+
+        private void DismissPopup()
+        {
+            if (_activePopup == null) return;
+
+            // Look for cancel/close button
+            string[] cancelPatterns = { "cancel", "close", "no", "abbrechen", "nein", "zurück" };
+
+            foreach (var (obj, label) in _popupElements)
+            {
+                string lowerLabel = label.ToLower();
+                foreach (var pattern in cancelPatterns)
+                {
+                    if (lowerLabel.Contains(pattern))
+                    {
+                        MelonLogger.Msg($"[Store] Dismissing popup via: {label}");
+                        _announcer.Announce("Cancelled", AnnouncementPriority.High);
+                        UIActivator.Activate(obj);
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: try SystemMessageView.OnBack()
+            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView")
+                {
+                    var onBack = mb.GetType().GetMethod("OnBack",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (onBack != null && onBack.GetParameters().Length == 1)
+                    {
+                        try
+                        {
+                            MelonLogger.Msg("[Store] Invoking SystemMessageView.OnBack()");
+                            onBack.Invoke(mb, new object[] { null });
+                            _announcer.Announce("Cancelled", AnnouncementPriority.High);
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            MelonLogger.Msg($"[Store] Error invoking OnBack: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            MelonLogger.Msg("[Store] No cancel button found in popup");
         }
 
         #endregion
