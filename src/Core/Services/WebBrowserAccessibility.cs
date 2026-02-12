@@ -21,7 +21,8 @@ namespace AccessibleArena.Core.Services
     {
         #region Constants
 
-        private const float RescanDelayClick = 0.8f;
+        private const float RescanDelayClick = 1.2f;
+        private const float RescanDelaySecond = 3.0f; // Second rescan for slow page transitions
         private const float RescanDelayCheckbox = 0.3f;
         private const float LoadTimeout = 10f;
 
@@ -38,10 +39,12 @@ namespace AccessibleArena.Core.Services
         private int _currentIndex;
         private bool _isEditingField;
         private bool _isLoading;
+        private int _lastWebElementCount; // Track for silent rescan comparison
 
-        // Rescan timer for detecting page changes after clicks
+        // Rescan timers for detecting page changes after clicks
         private bool _pendingRescan;
         private float _rescanTimer;
+        private float _secondRescanTimer; // Second delayed rescan for slow transitions
 
         // "Back to Arena" button (Unity button outside the browser)
         private GameObject _backToArenaButton;
@@ -141,11 +144,36 @@ namespace AccessibleArena.Core.Services
                     role = 'textbox';
                     placeholder = el.placeholder || '';
                     value = el.value || '';
-                    text = el.getAttribute('aria-label') || placeholder || '';
-                    if (!text) {
+                    text = el.getAttribute('aria-label') || '';
+                    // Try label[for=id]
+                    if (!text && el.id) {
                         var lbl = doc.querySelector('label[for=""' + el.id + '""]');
                         if (lbl) text = lbl.textContent.trim();
                     }
+                    // Try wrapping label
+                    if (!text) {
+                        var lbl = el.closest('label');
+                        if (lbl) text = lbl.textContent.trim();
+                    }
+                    // Try preceding sibling label/span (common in Xsolla forms)
+                    if (!text) {
+                        var prev = el.previousElementSibling;
+                        if (prev && (prev.tagName === 'LABEL' || prev.tagName === 'SPAN' || prev.tagName === 'DIV')) {
+                            var lt = prev.textContent.trim();
+                            if (lt && lt.length < 60) text = lt;
+                        }
+                    }
+                    // Try parent's label child before this input
+                    if (!text && el.parentElement) {
+                        var siblings = el.parentElement.children;
+                        for (var si = 0; si < siblings.length; si++) {
+                            if (siblings[si] === el) break;
+                            var st = siblings[si].textContent.trim();
+                            if (st && st.length < 60) text = st;
+                        }
+                    }
+                    // Fallback to placeholder or name attribute
+                    if (!text) text = placeholder || el.getAttribute('name') || '';
                 }
                 isInteractive = true;
             } else if (tag === 'select') {
@@ -275,6 +303,7 @@ namespace AccessibleArena.Core.Services
             _isEditingField = false;
             _isLoading = true;
             _pendingRescan = false;
+            _secondRescanTimer = 0;
             _elements.Clear();
 
             // Find ZFBrowser.Browser component
@@ -324,6 +353,7 @@ namespace AccessibleArena.Core.Services
             _isEditingField = false;
             _isLoading = false;
             _pendingRescan = false;
+            _secondRescanTimer = 0;
             _elements.Clear();
             _backToArenaButton = null;
 
@@ -353,6 +383,16 @@ namespace AccessibleArena.Core.Services
                 if (_rescanTimer <= 0)
                 {
                     _pendingRescan = false;
+                    ExtractElements();
+                }
+            }
+
+            // Second rescan timer (catches slow page transitions)
+            if (_secondRescanTimer > 0)
+            {
+                _secondRescanTimer -= Time.deltaTime;
+                if (_secondRescanTimer <= 0)
+                {
                     ExtractElements();
                 }
             }
@@ -594,9 +634,9 @@ namespace AccessibleArena.Core.Services
 
         private void ExtractElements()
         {
-            if (_browser == null || !_browser.IsLoaded)
+            if (_browser == null || !_browser.IsReady)
             {
-                MelonLogger.Msg("[WebBrowser] Cannot extract - browser not loaded");
+                MelonLogger.Msg("[WebBrowser] Cannot extract - browser not ready");
                 return;
             }
 
@@ -620,19 +660,31 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            var seenTexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < result.Count; i++)
             {
                 var node = result[i];
+                string text = (string)node["text"] ?? "";
+                string role = (string)node["role"] ?? "text";
+                bool isInteractive = (bool)node["isInteractive"];
+
+                // Deduplicate non-interactive text elements with identical content
+                if (!isInteractive && (role == "text" || role == "heading"))
+                {
+                    if (seenTexts.Contains(text)) continue;
+                    seenTexts.Add(text);
+                }
+
                 _elements.Add(new WebElement
                 {
                     Tag = (string)node["tag"] ?? "",
-                    Text = (string)node["text"] ?? "",
-                    Role = (string)node["role"] ?? "text",
+                    Text = text,
+                    Role = role,
                     InputType = (string)node["inputType"] ?? "",
                     Placeholder = (string)node["placeholder"] ?? "",
                     Value = (string)node["value"] ?? "",
                     Index = (int)node["index"],
-                    IsInteractive = (bool)node["isInteractive"],
+                    IsInteractive = isInteractive,
                     IsChecked = (bool)node["isChecked"],
                     IsBackToArena = false
                 });
@@ -668,6 +720,15 @@ namespace AccessibleArena.Core.Services
                 _announcer.AnnounceInterrupt("Payment page loading...");
                 return;
             }
+
+            // If element count hasn't changed, this is likely a silent rescan — don't re-announce
+            if (webElementCount == _lastWebElementCount)
+            {
+                MelonLogger.Msg("[WebBrowser] Element count unchanged, silent rescan");
+                return;
+            }
+
+            _lastWebElementCount = webElementCount;
 
             // Reset to first element
             _currentIndex = 0;
@@ -773,6 +834,10 @@ namespace AccessibleArena.Core.Services
                     break;
             }
 
+            // For text/heading, omit role — just announce content
+            if (elem.Role == "text" || elem.Role == "heading")
+                return $"{position}: {text}";
+
             return $"{position}: {text}, {roleStr}{extra}";
         }
 
@@ -835,6 +900,7 @@ namespace AccessibleArena.Core.Services
                 case "menuitem":
                     ClickElement(elem);
                     ScheduleRescan(RescanDelayClick);
+                    _secondRescanTimer = RescanDelaySecond;
                     break;
 
                 case "combobox":
