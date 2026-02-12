@@ -45,6 +45,7 @@ namespace AccessibleArena.Core.Services
         private bool _pendingRescan;
         private float _rescanTimer;
         private float _secondRescanTimer; // Second delayed rescan for slow transitions
+        private float _extractionStartTime; // For timeout detection
 
         // "Back to Arena" button (Unity button outside the browser)
         private GameObject _backToArenaButton;
@@ -247,7 +248,7 @@ namespace AccessibleArena.Core.Services
         }
     }
 
-    scanDocument(document);
+    try { scanDocument(document); } catch(e) {}
     return results;
 ";
 
@@ -280,61 +281,55 @@ namespace AccessibleArena.Core.Services
         }
 
         // Read current value of a text input by its data-aa-idx
-        // Uses element's own window context to handle cross-iframe elements
         private static string ReadValueScript(int index)
         {
             return FindElementFunc + $@"
                 var el = findEl({index});
                 if (!el) return '';
-                var win = el.ownerDocument.defaultView || window;
-                var proto = (el.tagName === 'TEXTAREA') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
-                var desc = Object.getOwnPropertyDescriptor(proto, 'value');
-                return (desc && desc.get) ? (desc.get.call(el) || '') : (el.value || '');";
+                try {{ return el.value || ''; }} catch(e) {{ return ''; }}";
         }
 
-        // Append text to an input field via JS (bypasses browser keyboard pipeline)
-        // Uses native value setter from element's own window context (handles cross-iframe elements)
+        // Append text to an input field via execCommand (most compatible approach)
+        // Works across iframes and with all frameworks (React, Angular, etc.)
         private static string AppendTextScript(int index, string text)
         {
-            // Escape the text for JS string literal
             string escaped = text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
             return FindElementFunc + $@"
                 var el = findEl({index});
                 if (!el) return 'not_found';
-                var win = el.ownerDocument.defaultView || window;
-                var proto = (el.tagName === 'TEXTAREA') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
-                var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');
-                var curVal = nativeSetter && nativeSetter.get ? nativeSetter.get.call(el) : (el.value || '');
-                if (nativeSetter && nativeSetter.set) {{
-                    nativeSetter.set.call(el, curVal + '{escaped}');
-                }} else {{
-                    el.value = curVal + '{escaped}';
+                el.focus();
+                var doc = el.ownerDocument;
+                var ok = false;
+                try {{ ok = doc.execCommand('insertText', false, '{escaped}'); }} catch(e) {{}}
+                if (!ok) {{
+                    try {{ el.value = (el.value || '') + '{escaped}'; }} catch(e) {{}}
+                    try {{
+                        el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                        el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                    }} catch(e) {{}}
                 }}
-                el.dispatchEvent(new win.Event('input', {{bubbles: true}}));
-                el.dispatchEvent(new win.Event('change', {{bubbles: true}}));
-                return nativeSetter && nativeSetter.get ? nativeSetter.get.call(el) : (el.value || '');";
+                try {{ return el.value || ''; }} catch(e) {{ return 'typed'; }}";
         }
 
-        // Delete last character from input field via JS
-        // Uses element's own window context to handle cross-iframe elements
+        // Delete last character from input field via execCommand
         private static string BackspaceScript(int index)
         {
             return FindElementFunc + $@"
                 var el = findEl({index});
                 if (!el) return 'not_found';
-                var win = el.ownerDocument.defaultView || window;
-                var proto = (el.tagName === 'TEXTAREA') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
-                var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');
-                var curVal = nativeSetter && nativeSetter.get ? nativeSetter.get.call(el) : (el.value || '');
-                var newVal = curVal.slice(0, -1);
-                if (nativeSetter && nativeSetter.set) {{
-                    nativeSetter.set.call(el, newVal);
-                }} else {{
-                    el.value = newVal;
+                el.focus();
+                var doc = el.ownerDocument;
+                el.selectionStart = el.selectionEnd = (el.value || '').length;
+                var ok = false;
+                try {{ ok = doc.execCommand('delete', false); }} catch(e) {{}}
+                if (!ok) {{
+                    try {{ el.value = (el.value || '').slice(0, -1); }} catch(e) {{}}
+                    try {{
+                        el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                        el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                    }} catch(e) {{}}
                 }}
-                el.dispatchEvent(new win.Event('input', {{bubbles: true}}));
-                el.dispatchEvent(new win.Event('change', {{bubbles: true}}));
-                return newVal;";
+                try {{ return el.value || ''; }} catch(e) {{ return ''; }}";
         }
 
         // Submit form via JS (simulates Enter on input)
@@ -447,6 +442,14 @@ namespace AccessibleArena.Core.Services
             {
                 Deactivate();
                 return;
+            }
+
+            // Extraction timeout — if Promise never resolved, reset and retry
+            if (_isLoading && Time.realtimeSinceStartup - _extractionStartTime > 5f)
+            {
+                MelonLogger.Msg("[WebBrowser] Extraction timed out, resetting");
+                _isLoading = false;
+                ScheduleRescan(1.0f);
             }
 
             // Rescan timer
@@ -727,6 +730,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _isLoading = true;
+            _extractionStartTime = Time.realtimeSinceStartup;
             MelonLogger.Msg("[WebBrowser] Extracting page elements...");
 
             _browser.EvalJSCSP(ExtractionScript)
