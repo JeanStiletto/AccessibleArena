@@ -35,6 +35,13 @@ namespace AccessibleArena.Core.Services.PanelDetection
             // NavContentController, SettingsMenu handled by Harmony
         };
 
+        // PopupBase descendants that are NOT real popups (info overlays, progress bars)
+        // These should not be tracked as panels - they don't filter navigation
+        private static readonly string[] ExcludedTypeNames = new[]
+        {
+            "PackProgressMeter"
+        };
+
         // Login scene panel name patterns
         private static readonly string[] LoginPanelPatterns = new[]
         {
@@ -189,6 +196,10 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 }
 
                 if (!isOwnedController)
+                    continue;
+
+                // Skip excluded types (info overlays that inherit PopupBase but aren't real popups)
+                if (ExcludedTypeNames.Contains(typeName))
                     continue;
 
                 // Check IsOpen state

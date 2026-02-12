@@ -1,6 +1,6 @@
 # Payment Method Popup Investigation
 
-## Status: Blocked (stale panel in stack prevents detection)
+## Status: Fixed (PackProgressMeter excluded from panel detection)
 
 ## Problem
 When pressing Enter on "Change payment method" in the Store, a browser-based popup opens (confirmed by OCR) but StoreNavigator does not detect or handle it.
@@ -50,19 +50,10 @@ The panel is added to the stack, but `OnPanelChanged` never fires because:
 ## Root Cause
 `PackProgressMeter` (detected by ReflectionPanelDetector) opens during Store navigation and its closure is never detected. It remains in the panel stack as the "active panel", blocking any new panel with equal or lower priority from triggering `OnPanelChanged`.
 
-## Possible Fixes (not yet implemented)
+## Fix Applied
+PackProgressMeter excluded from `ReflectionPanelDetector.ExcludedTypeNames`. It's a bonus pack progress bar (not a real popup) that inherits from PopupBase. Its stale entry in the panel stack was blocking the browser canvas from becoming the active panel. With the exclusion, AlphaPanelDetector's browser canvas detection flows through to StoreNavigator's popup handler.
 
-### Option 1: Fix PackProgressMeter tracking
-Ensure ReflectionPanelDetector properly detects when PackProgressMeter closes (polls `IsOpen` property). If `IsOpen` becomes false, report panel closed.
-
-### Option 2: Higher priority for browser canvas
-Give the browser canvas a priority higher than 1000. But this requires changes to how PanelInfo assigns priority.
-
-### Option 3: Direct detection in StoreNavigator
-Bypass PanelStateManager entirely. After calling `OnButton_PaymentSetup()`, poll for `FullscreenZFBrowserCanvas(Clone)` CanvasGroup alpha directly in StoreNavigator's Update loop. This avoids the stale panel stack issue.
-
-### Option 4: Panel stack cleanup
-Add periodic validation that checks if panels in the stack are still truly visible (check CanvasGroup alpha for alpha-detected panels, `IsOpen` for reflection-detected panels). Remove stale entries.
+Additionally, pack progress info is now shown as a utility element in StoreNavigator's tab list.
 
 ## Infrastructure Already Built
 StoreNavigator already has full popup handling code (following SettingsMenuNavigator pattern):
