@@ -56,6 +56,10 @@ namespace AccessibleArena.Core.Services
         private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
         private int _popupElementIndex;
 
+        // Web browser accessibility (payment popup)
+        private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
+        private bool _isWebBrowserActive;
+
         #endregion
 
         #region Cached Controller & Reflection
@@ -258,7 +262,13 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            if (newPanel != null && IsPopupPanel(newPanel))
+            if (newPanel != null && IsWebBrowserPanel(newPanel))
+            {
+                MelonLogger.Msg($"[Store] Web browser panel detected: {newPanel.Name}");
+                _isWebBrowserActive = true;
+                _webBrowser.Activate(newPanel.GameObject, _announcer);
+            }
+            else if (newPanel != null && IsPopupPanel(newPanel))
             {
                 MelonLogger.Msg($"[Store] Popup detected on top of store: {newPanel.Name}");
                 _activePopup = newPanel.GameObject;
@@ -266,18 +276,34 @@ namespace AccessibleArena.Core.Services
                 DiscoverPopupElements();
                 AnnouncePopup();
             }
-            else if (_isPopupActive && newPanel == null)
+            else if ((_isPopupActive || _isWebBrowserActive) && newPanel == null)
             {
-                MelonLogger.Msg($"[Store] Popup closed, returning to store");
-                _activePopup = null;
-                _isPopupActive = false;
-                _popupElements.Clear();
+                if (_isWebBrowserActive)
+                {
+                    MelonLogger.Msg("[Store] Web browser closed, returning to store");
+                    _webBrowser.Deactivate();
+                    _isWebBrowserActive = false;
+                }
+                if (_isPopupActive)
+                {
+                    MelonLogger.Msg("[Store] Popup closed, returning to store");
+                    _activePopup = null;
+                    _isPopupActive = false;
+                    _popupElements.Clear();
+                }
                 // Re-announce current position
                 if (_navLevel == NavigationLevel.Items && _items.Count > 0)
                     AnnounceCurrentItem();
                 else if (_navLevel == NavigationLevel.Tabs && _tabs.Count > 0)
                     AnnounceCurrentTab();
             }
+        }
+
+        private static bool IsWebBrowserPanel(PanelInfo panel)
+        {
+            if (panel == null || panel.GameObject == null) return false;
+            // Check if the panel contains a ZFBrowser.Browser component
+            return panel.GameObject.GetComponentInChildren<ZenFulcrum.EmbeddedBrowser.Browser>(true) != null;
         }
 
         private static bool IsPopupPanel(PanelInfo panel)
@@ -692,6 +718,12 @@ namespace AccessibleArena.Core.Services
             _isPopupActive = false;
             _popupElements.Clear();
 
+            if (_isWebBrowserActive)
+            {
+                _webBrowser.Deactivate();
+                _isWebBrowserActive = false;
+            }
+
             // Unsubscribe from panel changes
             if (PanelStateManager.Instance != null)
             {
@@ -860,6 +892,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Update web browser accessibility (handles rescan timer)
+            if (_isWebBrowserActive)
+            {
+                _webBrowser.Update();
+                if (!_webBrowser.IsActive)
+                {
+                    MelonLogger.Msg("[Store] Web browser became inactive, returning to store");
+                    _isWebBrowserActive = false;
+                }
+            }
+
             // Check if popup is still valid
             if (_isPopupActive && (_activePopup == null || !_activePopup.activeInHierarchy))
             {
@@ -899,6 +942,13 @@ namespace AccessibleArena.Core.Services
 
         private void HandleStoreInput()
         {
+            // Web browser takes full control when active
+            if (_isWebBrowserActive)
+            {
+                _webBrowser.HandleInput();
+                return;
+            }
+
             // Let base handle input field editing if active
             if (UIFocusTracker.IsEditingInputField())
             {
