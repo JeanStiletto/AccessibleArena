@@ -55,6 +55,8 @@ namespace AccessibleArena.Core.Services
         private bool _isPopupActive;
         private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
         private int _popupElementIndex;
+        private bool _wasConfirmationModalOpen; // Track modal transitions
+        private MonoBehaviour _confirmationModalMb; // Reference for calling Close()
 
         // Web browser accessibility (payment popup)
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
@@ -103,6 +105,8 @@ namespace AccessibleArena.Core.Services
         private FieldInfo _orangeButtonField;    // OrangeButton
         private FieldInfo _clearButtonField;     // ClearButton
         private FieldInfo _greenButtonField;     // GreenButton
+        private FieldInfo _descriptionField;     // _description (OptionalObject)
+        private FieldInfo _tooltipTriggerField;  // _tooltipTrigger (TooltipTrigger)
 
         // PurchaseButton struct fields
         private Type _purchaseButtonType;
@@ -120,6 +124,18 @@ namespace AccessibleArena.Core.Services
 
         // Controller utility methods
         private MethodInfo _onButtonPaymentSetupMethod;
+
+        // Cached StoreConfirmationModal reflection
+        private Type _confirmationModalType;
+        private static readonly string[] ModalPurchaseButtonFields = new[]
+        {
+            "_buttonGemPurchase", "_buttonCoinPurchase", "_buttonCashPurchase", "_buttonFreePurchase"
+        };
+        private FieldInfo[] _modalButtonFields;
+        private Type _modalPurchaseButtonType;
+        private FieldInfo _modalPbButtonField;    // Button (CustomButton)
+        private FieldInfo _modalPbLabelField;     // Label (TMP_Text)
+        private MethodInfo _modalCloseMethod;
 
         private bool _reflectionInitialized;
 
@@ -141,6 +157,7 @@ namespace AccessibleArena.Core.Services
             public MonoBehaviour StoreItemBase;
             public GameObject GameObject;
             public string Label;
+            public string Description;
             public List<PurchaseOption> PurchaseOptions;
         }
 
@@ -173,8 +190,7 @@ namespace AccessibleArena.Core.Services
             // Check if open and ready
             if (!IsControllerOpenAndReady(controller)) return false;
 
-            // Check if confirmation modal is active (yield to popup handlers)
-            if (IsConfirmationModalOpen(controller)) return false;
+            // Note: confirmation modal is handled as a popup while navigator stays active
 
             _controller = controller;
             _controllerGameObject = controller.gameObject;
@@ -252,6 +268,21 @@ namespace AccessibleArena.Core.Services
             catch { }
 
             return false;
+        }
+
+        private GameObject GetConfirmationModalGameObject()
+        {
+            if (_confirmationModalField == null || _controller == null) return null;
+
+            try
+            {
+                var modal = _confirmationModalField.GetValue(_controller) as MonoBehaviour;
+                if (modal != null && modal.gameObject != null)
+                    return modal.gameObject;
+            }
+            catch { }
+
+            return null;
         }
 
         /// <summary>
@@ -378,6 +409,8 @@ namespace AccessibleArena.Core.Services
                 _orangeButtonField = _storeItemBaseType.GetField("OrangeButton", flags);
                 _clearButtonField = _storeItemBaseType.GetField("ClearButton", flags);
                 _greenButtonField = _storeItemBaseType.GetField("GreenButton", flags);
+                _descriptionField = _storeItemBaseType.GetField("_description", flags);
+                _tooltipTriggerField = _storeItemBaseType.GetField("_tooltipTrigger", flags);
 
                 // PurchaseButton struct type from BlueButton field
                 if (_blueButtonField != null)
@@ -393,6 +426,31 @@ namespace AccessibleArena.Core.Services
             {
                 _storeItemType = _storeItemField.FieldType;
                 _storeItemIdProp = _storeItemType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            // StoreConfirmationModal type
+            _confirmationModalType = null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                _confirmationModalType = asm.GetType("StoreConfirmationModal");
+                if (_confirmationModalType != null) break;
+            }
+            if (_confirmationModalType != null)
+            {
+                _modalButtonFields = new FieldInfo[ModalPurchaseButtonFields.Length];
+                for (int i = 0; i < ModalPurchaseButtonFields.Length; i++)
+                {
+                    _modalButtonFields[i] = _confirmationModalType.GetField(ModalPurchaseButtonFields[i], flags);
+                }
+                _modalCloseMethod = _confirmationModalType.GetMethod("Close", BindingFlags.Public | BindingFlags.Instance);
+
+                // Modal's PurchaseButton struct (different from StoreItemBase's PurchaseCostUtils.PurchaseButton)
+                if (_modalButtonFields[0] != null)
+                {
+                    _modalPurchaseButtonType = _modalButtonFields[0].FieldType;
+                    _modalPbButtonField = _modalPurchaseButtonType.GetField("Button", flags);
+                    _modalPbLabelField = _modalPurchaseButtonType.GetField("Label", flags);
+                }
             }
 
             _reflectionInitialized = true;
@@ -580,6 +638,7 @@ namespace AccessibleArena.Core.Services
         private void DiscoverItems()
         {
             _items.Clear();
+            _loggedDescriptionDiag = false;
 
             if (_controller == null || _storeItemBaseType == null) return;
 
@@ -607,6 +666,7 @@ namespace AccessibleArena.Core.Services
         private ItemInfo? ExtractItemInfo(MonoBehaviour storeItemBase)
         {
             string label = ExtractItemLabel(storeItemBase);
+            string description = ExtractItemDescription(storeItemBase);
             var purchaseOptions = ExtractPurchaseOptions(storeItemBase);
 
             return new ItemInfo
@@ -614,6 +674,7 @@ namespace AccessibleArena.Core.Services
                 StoreItemBase = storeItemBase,
                 GameObject = storeItemBase.gameObject,
                 Label = label,
+                Description = description,
                 PurchaseOptions = purchaseOptions
             };
         }
@@ -630,6 +691,164 @@ namespace AccessibleArena.Core.Services
             if (name.StartsWith("StoreItem - "))
                 name = name.Substring("StoreItem - ".Length);
             return name;
+        }
+
+        private bool _loggedDescriptionDiag;
+
+        private string ExtractItemDescription(MonoBehaviour storeItemBase)
+        {
+            bool shouldLog = !_loggedDescriptionDiag;
+            var flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+
+            // Try _description OptionalObject -> GameObject -> TMP_Text
+            if (_descriptionField != null)
+            {
+                try
+                {
+                    var descObj = _descriptionField.GetValue(storeItemBase);
+                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: _descriptionField found, value={(descObj != null ? descObj.GetType().Name : "null")}");
+                    if (descObj != null)
+                    {
+                        var goField = descObj.GetType().GetField("GameObject", flags);
+                        if (goField != null)
+                        {
+                            var descGo = goField.GetValue(descObj) as GameObject;
+                            if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: desc GO={(descGo != null ? descGo.name : "null")}, active={(descGo != null ? descGo.activeInHierarchy.ToString() : "N/A")}");
+                            if (descGo != null)
+                            {
+                                // Check even if not active - the text may still be set
+                                var tmpText = descGo.GetComponentInChildren<TMPro.TMP_Text>(true);
+                                if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: TMP_Text={(tmpText != null ? $"'{tmpText.text}'" : "null")}");
+                                if (tmpText != null && !string.IsNullOrEmpty(tmpText.text?.Trim()))
+                                {
+                                    string text = tmpText.text.Trim();
+                                    text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]+>", "").Trim();
+                                    if (text.Length > 3)
+                                    {
+                                        _loggedDescriptionDiag = true;
+                                        return text;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: _description error: {ex.Message}");
+                }
+            }
+            else if (shouldLog)
+            {
+                MelonLogger.Msg("[Store] Desc diag: _descriptionField is null");
+            }
+
+            // Try _tooltipTrigger
+            if (_tooltipTriggerField != null)
+            {
+                try
+                {
+                    var tooltip = _tooltipTriggerField.GetValue(storeItemBase) as MonoBehaviour;
+                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: tooltip={(tooltip != null ? $"active={tooltip.gameObject.activeInHierarchy}" : "null")}");
+                    if (tooltip != null)
+                    {
+                        // Try LocString as property first, then as field
+                        object locString = null;
+                        var locStringProp = tooltip.GetType().GetProperty("LocString", flags);
+                        if (locStringProp != null)
+                        {
+                            locString = locStringProp.GetValue(tooltip);
+                            if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: LocString via property, type={locString?.GetType().Name ?? "null"}");
+                        }
+                        else
+                        {
+                            var locStringField = tooltip.GetType().GetField("LocString", flags);
+                            if (locStringField != null)
+                            {
+                                locString = locStringField.GetValue(tooltip);
+                                if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: LocString via field, type={locString?.GetType().Name ?? "null"}");
+                            }
+                            else if (shouldLog)
+                            {
+                                MelonLogger.Msg("[Store] Desc diag: no LocString property or field found");
+                                // Dump all members
+                                foreach (var m in tooltip.GetType().GetMembers(flags))
+                                    MelonLogger.Msg($"[Store] Desc diag:   member: {m.MemberType} {m.Name}");
+                            }
+                        }
+
+                        if (locString != null)
+                        {
+                            var mTermField = locString.GetType().GetField("mTerm", flags);
+                            string term = mTermField?.GetValue(locString) as string;
+                            if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: mTerm='{term}'");
+
+                            if (!string.IsNullOrEmpty(term))
+                            {
+                                // Try I2 Localization
+                                Type locMgrType = null;
+                                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                                {
+                                    locMgrType = asm.GetType("I2.Loc.LocalizationManager");
+                                    if (locMgrType != null) break;
+                                }
+
+                                if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: LocalizationManager={(locMgrType != null ? "found" : "not found")}");
+
+                                if (locMgrType != null)
+                                {
+                                    // Try all GetTranslation overloads
+                                    var methods = locMgrType.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                        .Where(m => m.Name == "GetTranslation").ToArray();
+                                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: GetTranslation overloads: {methods.Length}");
+
+                                    foreach (var method in methods)
+                                    {
+                                        var parms = method.GetParameters();
+                                        if (shouldLog) MelonLogger.Msg($"[Store] Desc diag:   overload: ({string.Join(", ", parms.Select(p => p.ParameterType.Name + " " + p.Name))})");
+                                    }
+
+                                    // Try the simplest overload: GetTranslation(string)
+                                    var getTranslation = methods.FirstOrDefault(m => m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(string));
+                                    if (getTranslation != null)
+                                    {
+                                        string translated = getTranslation.Invoke(null, new object[] { term }) as string;
+                                        if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: translated='{translated}'");
+                                        if (!string.IsNullOrEmpty(translated))
+                                        {
+                                            translated = System.Text.RegularExpressions.Regex.Replace(translated, @"<[^>]+>", "").Trim();
+                                            if (translated.Length > 3)
+                                            {
+                                                _loggedDescriptionDiag = true;
+                                                return translated;
+                                            }
+                                        }
+                                    }
+
+                                    // Try TryGetTranslation
+                                    var tryGetTranslation = locMgrType.GetMethod("TryGetTranslation",
+                                        BindingFlags.Public | BindingFlags.Static);
+                                    if (tryGetTranslation != null && shouldLog)
+                                    {
+                                        MelonLogger.Msg($"[Store] Desc diag: TryGetTranslation found: ({string.Join(", ", tryGetTranslation.GetParameters().Select(p => p.ParameterType.Name + " " + p.Name))})");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: tooltip error: {ex.Message}");
+                }
+            }
+            else if (shouldLog)
+            {
+                MelonLogger.Msg("[Store] Desc diag: _tooltipTriggerField is null");
+            }
+
+            if (shouldLog) _loggedDescriptionDiag = true;
+            return null;
         }
 
         private List<PurchaseOption> ExtractPurchaseOptions(MonoBehaviour storeItemBase)
@@ -701,6 +920,7 @@ namespace AccessibleArena.Core.Services
 
             _currentItemIndex = 0;
             _currentPurchaseOptionIndex = 0;
+            _wasConfirmationModalOpen = false;
 
             // Subscribe to panel changes to detect popups (follows SettingsMenuNavigator pattern)
             if (PanelStateManager.Instance != null)
@@ -717,6 +937,8 @@ namespace AccessibleArena.Core.Services
             _activePopup = null;
             _isPopupActive = false;
             _popupElements.Clear();
+            _wasConfirmationModalOpen = false;
+            _confirmationModalMb = null;
 
             if (_isWebBrowserActive)
             {
@@ -834,8 +1056,10 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            string descText = !string.IsNullOrEmpty(item.Description) ? $". {item.Description}" : "";
+
             _announcer.AnnounceInterrupt(
-                $"{_currentItemIndex + 1} of {_items.Count}: {item.Label}{optionText}");
+                $"{_currentItemIndex + 1} of {_items.Count}: {item.Label}{descText}{optionText}");
         }
 
         private void AnnouncePurchaseOption()
@@ -885,11 +1109,41 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if confirmation modal opened (yield to other navigators)
-            if (IsConfirmationModalOpen(_controller))
+            // Check if confirmation modal opened - handle as popup instead of deactivating
+            bool modalOpen = IsConfirmationModalOpen(_controller);
+            if (modalOpen && !_wasConfirmationModalOpen)
             {
-                Deactivate();
+                // Modal just opened - treat it as a popup
+                _wasConfirmationModalOpen = true;
+                var modalObj = GetConfirmationModalGameObject();
+                if (modalObj != null)
+                {
+                    MelonLogger.Msg($"[Store] Confirmation modal opened, handling as popup");
+                    _activePopup = modalObj;
+                    _isPopupActive = true;
+                    _confirmationModalMb = GetConfirmationModalMb();
+                    DiscoverConfirmationModalElements();
+                    AnnounceConfirmationModal();
+                }
                 return;
+            }
+            else if (!modalOpen && _wasConfirmationModalOpen)
+            {
+                // Modal just closed - return to store
+                _wasConfirmationModalOpen = false;
+                if (_isPopupActive)
+                {
+                    MelonLogger.Msg("[Store] Confirmation modal closed, returning to store");
+                    _activePopup = null;
+                    _isPopupActive = false;
+                    _popupElements.Clear();
+                    _confirmationModalMb = null;
+                    // Re-announce current position
+                    if (_navLevel == NavigationLevel.Items && _items.Count > 0)
+                        AnnounceCurrentItem();
+                    else if (_navLevel == NavigationLevel.Tabs && _tabs.Count > 0)
+                        AnnounceCurrentTab();
+                }
             }
 
             // Update web browser accessibility (handles rescan timer)
@@ -1404,6 +1658,143 @@ namespace AccessibleArena.Core.Services
 
         #region Popup Handling (follows SettingsMenuNavigator pattern)
 
+        private MonoBehaviour GetConfirmationModalMb()
+        {
+            if (_confirmationModalField == null || _controller == null) return null;
+            try
+            {
+                return _confirmationModalField.GetValue(_controller) as MonoBehaviour;
+            }
+            catch { return null; }
+        }
+
+        private void DiscoverConfirmationModalElements()
+        {
+            _popupElements.Clear();
+            _popupElementIndex = 0;
+
+            if (_confirmationModalMb == null || _modalButtonFields == null) return;
+
+            MelonLogger.Msg($"[Store] Discovering confirmation modal elements");
+
+            var flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+
+            // Get the modal's own purchase buttons (not the reparented item widget's)
+            foreach (var field in _modalButtonFields)
+            {
+                if (field == null) continue;
+                try
+                {
+                    var buttonStruct = field.GetValue(_confirmationModalMb);
+                    if (buttonStruct == null) continue;
+
+                    // Get CustomButton from the struct
+                    var customButton = _modalPbButtonField?.GetValue(buttonStruct) as MonoBehaviour;
+                    if (customButton == null || !customButton.gameObject.activeInHierarchy) continue;
+
+                    // Check Interactable property
+                    var interactableProp = customButton.GetType().GetProperty("Interactable", flags);
+                    if (interactableProp != null)
+                    {
+                        bool interactable = (bool)interactableProp.GetValue(customButton);
+                        if (!interactable) continue;
+                    }
+
+                    // Get price text from Label (TMP_Text)
+                    var labelTmp = _modalPbLabelField?.GetValue(buttonStruct) as TMPro.TMP_Text;
+                    string priceText = labelTmp?.text?.Trim() ?? "";
+
+                    // Also try getting text from button children as fallback
+                    if (string.IsNullOrEmpty(priceText))
+                        priceText = UITextExtractor.GetText(customButton.gameObject) ?? customButton.gameObject.name;
+
+                    _popupElements.Add((customButton.gameObject, $"{priceText}, button"));
+                }
+                catch { }
+            }
+
+            // Add Cancel option
+            _popupElements.Add((null, "Cancel"));
+
+            MelonLogger.Msg($"[Store] Found {_popupElements.Count} confirmation modal elements");
+        }
+
+        private void AnnounceConfirmationModal()
+        {
+            // Extract text from the modal's label and product description
+            string labelText = null;
+            string descText = null;
+
+            if (_confirmationModalMb != null)
+            {
+                var flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+
+                // Get _label (Localize) -> TMP_Text
+                var labelField = _confirmationModalType?.GetField("_label", flags);
+                if (labelField != null)
+                {
+                    try
+                    {
+                        var localize = labelField.GetValue(_confirmationModalMb) as MonoBehaviour;
+                        if (localize != null)
+                        {
+                            var tmp = localize.GetComponentInChildren<TMPro.TMP_Text>();
+                            if (tmp != null && !string.IsNullOrEmpty(tmp.text?.Trim()))
+                                labelText = tmp.text.Trim();
+                        }
+                    }
+                    catch { }
+                }
+
+                // Get product list text from _productListContainer children
+                var productField = _confirmationModalType?.GetField("_productListContainer", flags);
+                if (productField != null)
+                {
+                    try
+                    {
+                        var container = productField.GetValue(_confirmationModalMb) as Transform;
+                        if (container != null && container.gameObject.activeInHierarchy)
+                        {
+                            var texts = container.GetComponentsInChildren<TMPro.TMP_Text>(false);
+                            foreach (var t in texts)
+                            {
+                                string text = t.text?.Trim();
+                                if (!string.IsNullOrEmpty(text) && text.Length > 3)
+                                {
+                                    text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]+>", "").Trim();
+                                    if (text.Length > 3)
+                                    {
+                                        descText = text;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // Fallback to generic text extraction
+            if (string.IsNullOrEmpty(labelText))
+                labelText = ExtractPopupMessage(_activePopup);
+
+            string announcement = "Confirm purchase";
+            if (!string.IsNullOrEmpty(labelText))
+                announcement += $": {labelText}";
+            if (!string.IsNullOrEmpty(descText))
+                announcement += $". {descText}";
+            announcement += $". {_popupElements.Count} options.";
+
+            _announcer.AnnounceInterrupt(announcement);
+
+            if (_popupElements.Count > 0)
+            {
+                _popupElementIndex = 0;
+                _announcer.Announce($"1 of {_popupElements.Count}: {_popupElements[0].label}", AnnouncementPriority.Normal);
+            }
+        }
+
         private void DiscoverPopupElements()
         {
             _popupElements.Clear();
@@ -1544,7 +1935,15 @@ namespace AccessibleArena.Core.Services
                 {
                     var elem = _popupElements[_popupElementIndex];
                     MelonLogger.Msg($"[Store] Activating popup element: {elem.label}");
-                    UIActivator.Activate(elem.obj);
+                    if (elem.obj == null)
+                    {
+                        // Synthetic cancel option
+                        DismissPopup();
+                    }
+                    else
+                    {
+                        UIActivator.Activate(elem.obj);
+                    }
                 }
                 return;
             }
@@ -1579,6 +1978,22 @@ namespace AccessibleArena.Core.Services
         private void DismissPopup()
         {
             if (_activePopup == null) return;
+
+            // If this is the confirmation modal, call Close() directly
+            if (_confirmationModalMb != null && _modalCloseMethod != null)
+            {
+                try
+                {
+                    MelonLogger.Msg("[Store] Closing confirmation modal via Close()");
+                    _modalCloseMethod.Invoke(_confirmationModalMb, null);
+                    _announcer.Announce("Cancelled", AnnouncementPriority.High);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg($"[Store] Error calling Close(): {ex.Message}");
+                }
+            }
 
             // Look for cancel/close button
             string[] cancelPatterns = { "cancel", "close", "no", "abbrechen", "nein", "zurück" };
