@@ -443,6 +443,10 @@ CardDetector.ClearCache(); // Call on scene change (clears both caches)
 CardInfo info = CardDetector.ExtractCardInfo(element);
 List<CardInfoBlock> blocks = CardDetector.GetInfoBlocks(element);
 
+// Build info blocks from CardInfo struct (no GameObject needed)
+// Useful when you have card data but no on-screen card (e.g., store details)
+List<CardInfoBlock> blocks = CardDetector.BuildInfoBlocks(cardInfo);
+
 // Card categorization (delegates to CardModelProvider)
 var (isCreature, isLand, isOpponent) = CardDetector.GetCardCategory(card);
 bool creature = CardDetector.IsCreatureCard(card);
@@ -457,22 +461,34 @@ Direct access to card Model data. Use when you already have a card and need its 
 Component cdc = CardModelProvider.GetDuelSceneCDC(card);
 object model = CardModelProvider.GetCardModel(cdc);
 
-// Card info from Model (DuelScene cards only)
-CardInfo? info = CardModelProvider.ExtractCardInfoFromModel(card);
+// Card info from GameObject (finds Model via CDC or MetaCardView)
+CardInfo? info = CardModelProvider.ExtractCardInfoFromModel(cardGameObject);
+
+// Card info from any data object (Model, CardData, CardPrintingData, etc.)
+// This is the shared extraction logic - works without a GameObject
+CardInfo info = CardModelProvider.ExtractCardInfoFromObject(dataObject);
 
 // Card categorization (efficient single Model lookup)
 var (isCreature, isLand, isOpponent) = CardModelProvider.GetCardCategory(card);
-bool creature = CardModelProvider.IsCreatureCard(card);
-bool land = CardModelProvider.IsLandCard(card);
-bool opponent = CardModelProvider.IsOpponentCard(card);
 
 // Name lookup from database
 string name = CardModelProvider.GetNameFromGrpId(grpId);
+
+// Build navigable info blocks from CardInfo (no GameObject needed)
+List<CardInfoBlock> blocks = CardDetector.BuildInfoBlocks(info);
 ```
 
+**Card info extraction hierarchy:**
+- `CardDetector.ExtractCardInfo(gameObject)` - Entry point. Tries deck list, then Model, then UI fallback
+- `CardModelProvider.ExtractCardInfoFromModel(gameObject)` - Finds Model via CDC/MetaCardView, delegates to `ExtractCardInfoFromObject`
+- `CardModelProvider.ExtractCardInfoFromObject(dataObj)` - Shared extraction from any card data object. Tries structured properties first (Supertypes/CardTypes/Subtypes, ManaQuantity[]), falls back to simpler properties (TypeLine string, ManaCost string). Only shows P/T for creatures. Resolves artist from Printing sub-object.
+- `CardModelProvider.ExtractCardInfoFromCardData(cardData, grpId)` - Legacy extraction from CardPrintingData (less rich than `ExtractCardInfoFromObject`)
+
 **When to use which:**
-- **CardDetector**: When you need to check if something IS a card, or need UI fallback
-- **CardModelProvider**: When you already know it's a card and only need Model data
+- **CardDetector.ExtractCardInfo**: Default choice - handles all card types with automatic fallback
+- **CardModelProvider.ExtractCardInfoFromModel**: When you have a card GameObject and want Model-based extraction only
+- **CardModelProvider.ExtractCardInfoFromObject**: When you have a raw data object (not a GameObject) like store CardData, and want full card info extraction
+- **CardDetector.BuildInfoBlocks(CardInfo)**: When you have a CardInfo struct and need navigable info blocks without a GameObject (e.g., store details view)
 
 **Mana Cost Parsing:**
 The Model's `PrintedCastingCost` is a `ManaQuantity[]` array. Each ManaQuantity has:
@@ -1144,11 +1160,21 @@ string text = UITextExtractor.GetText(element);
 string buttonText = UITextExtractor.GetButtonText(button, null);
 ```
 
-**CardDetector** - Card detection:
+**CardDetector + CardModelProvider** - Card detection and data extraction:
 ```csharp
+// When you have a card GameObject (duel, deck builder, collection)
 if (CardDetector.IsCard(element))
 {
     var cardInfo = CardDetector.ExtractCardInfo(element);
+    var blocks = CardDetector.GetInfoBlocks(element);
+}
+
+// When you have a raw data object without a GameObject (store items, external data)
+CardInfo info = CardModelProvider.ExtractCardInfoFromObject(cardDataObject);
+if (info.IsValid)
+{
+    var blocks = CardDetector.BuildInfoBlocks(info);
+    // Navigate blocks with Up/Down arrows
 }
 ```
 
@@ -1357,6 +1383,125 @@ follow these guidelines to avoid common pitfalls:
 3. `AccessibleArenaMod.cs` to register new navigator
 4. Source navigator to remove duplicate code
 5. `OverlayDetector.cs` to update comments (detection kept for filtering)
+
+### Popup Handling Pattern (February 2026)
+
+Navigators that manage screens where popups can appear (confirmation dialogs, system messages, purchase modals) should use this pattern. StoreNavigator is the reference implementation.
+
+**Key Concepts:**
+- Popups are detected via `PanelStateManager.OnPanelChanged` events (system popups) or polling (screen-specific modals)
+- When a popup is active, navigation switches to popup elements only
+- Popup input is handled before normal navigation in the input loop
+- Backspace dismisses the popup and returns to normal navigation
+
+**State Fields:**
+```csharp
+private GameObject _activePopup;
+private bool _isPopupActive;
+private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
+private int _popupElementIndex;
+```
+
+**Detection - Subscribe to PanelStateManager:**
+```csharp
+protected override void OnActivated()
+{
+    if (PanelStateManager.Instance != null)
+        PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
+}
+
+protected override void OnDeactivating()
+{
+    if (PanelStateManager.Instance != null)
+        PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
+    _isPopupActive = false;
+    _popupElements.Clear();
+}
+
+private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
+{
+    if (!_isActive) return;
+
+    if (newPanel != null && IsPopupPanel(newPanel))
+    {
+        _activePopup = newPanel.GameObject;
+        _isPopupActive = true;
+        DiscoverPopupElements();
+        AnnouncePopup();
+    }
+    else if (_isPopupActive && newPanel == null)
+    {
+        _isPopupActive = false;
+        _activePopup = null;
+        _popupElements.Clear();
+        // Re-announce current position
+    }
+}
+```
+
+**Detection - Polling for screen-specific modals:**
+```csharp
+// In Update(), track modal state transitions
+bool modalOpen = IsMyModalOpen();
+if (modalOpen && !_wasModalOpen)
+{
+    _wasModalOpen = true;
+    _isPopupActive = true;
+    DiscoverModalElements();
+}
+else if (!modalOpen && _wasModalOpen)
+{
+    _wasModalOpen = false;
+    _isPopupActive = false;
+    _popupElements.Clear();
+}
+```
+
+**Input Switching:**
+```csharp
+protected override void HandleInput()
+{
+    // Popup input takes priority
+    if (_isPopupActive)
+    {
+        HandlePopupInput();
+        return;
+    }
+    // Normal navigation...
+}
+```
+
+**Popup Element Discovery:**
+```csharp
+private void DiscoverPopupElements()
+{
+    _popupElements.Clear();
+    _popupElementIndex = 0;
+    if (_activePopup == null) return;
+
+    // Find buttons in popup (SystemMessageButtonView, CustomButton, standard Button)
+    foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+    {
+        if (!mb.gameObject.activeInHierarchy) continue;
+        string typeName = mb.GetType().Name;
+        if (typeName == "SystemMessageButtonView" || typeName == "CustomButton")
+        {
+            string label = UITextExtractor.GetText(mb.gameObject) ?? mb.gameObject.name;
+            _popupElements.Add((mb.gameObject, $"{label}, button"));
+        }
+    }
+}
+```
+
+**Popup Dismissal (fallback chain):**
+1. Call modal's own `Close()` method via reflection (if available)
+2. Find and click a cancel/close button by label pattern matching
+3. Invoke `SystemMessageView.OnBack()` as last resort
+
+**When to use this pattern:**
+- Store (confirmation modals, system messages)
+- Any navigator where the game can show popups/dialogs on top of your screen
+- Navigators that manage web browser overlays (store bundles open external browser)
 
 ### Adding Support for New Screens
 

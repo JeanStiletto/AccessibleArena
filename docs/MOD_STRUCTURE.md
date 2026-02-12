@@ -91,6 +91,7 @@ C:\Users\fabia\arena\
         OverlayNavigator.cs          - Modal overlays (What's New, announcements)
         SettingsMenuNavigator.cs     - Settings menu (works in all scenes including duels)
         GeneralMenuNavigator.cs      - Main menu, login, NPE, and general menu screens
+        StoreNavigator.cs            - Store screen (tabs, items, purchase options, details view, popups)
 
         # Deprecated navigators (in old/ folder)
         # WelcomeGateNavigator, LoginPanelNavigator, CodeOfConductNavigator
@@ -139,6 +140,7 @@ C:\Users\fabia\arena\
 - [x] SettingsMenuNavigator - Settings menu accessible in all scenes including duels
 - [x] GeneralMenuNavigator - Main menu, login, NPE screens, and general navigation
 - [x] NPERewardNavigator - NPE reward screens (chest, deck boxes)
+- [x] StoreNavigator - Store screen with tab/item/purchase navigation, card details view, popup handling
 
 ### Menu Panel Detection (Harmony Patches)
 - [x] PanelStatePatch - Harmony patches for panel state changes
@@ -199,7 +201,9 @@ C:\Users\fabia\arena\
 - [x] Mana cost parsing (sprite tags to readable text for UI, ManaQuantity[] for Model)
 - [x] Model-based extraction - Uses game's internal Model data for battlefield cards
 - [x] UI fallback - Falls back to TMP_Text extraction for Meta scene cards (rewards, deck building)
-- [ ] Rules text from Model - Abilities array parsing not yet implemented (future enhancement)
+- [x] Unified extraction - `ExtractCardInfoFromObject` works with any card data object (Model, CardData, CardPrintingData)
+- [x] Rules text from Model - Abilities array parsing via AbilityTextProvider lookup
+- [x] Info block building - `CardDetector.BuildInfoBlocks(CardInfo)` creates navigable blocks without a GameObject
 
 ### Zone System (Duel)
 - [x] ZoneNavigator - Separate service for zone navigation
@@ -470,6 +474,48 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - Only detects CardBrowserCardHolder from DEFAULT holder (ViewDismiss without scaffold is animation remnant)
 - Zone detection from parent hierarchy (Scry) or API methods (London: `IsInHand`/`IsInLibrary`)
 - Card movement via reflection: Scry uses `RemoveCard`/`AddCard`, London uses `HandleDrag`/`OnDragRelease`
+
+### Store Navigator (February 2026)
+
+Dedicated navigator for the Store screen. Uses a three-level navigation model (Tabs, Items, Purchase Options) with popup handling and a card details view.
+
+**Architecture:**
+- `StoreNavigator.cs` - Standalone navigator with custom store-specific navigation
+- Priority 85 (above GeneralMenuNavigator at 15)
+- Subscribes to `PanelStateManager.OnPanelChanged` for popup detection
+
+**Navigation Model:**
+- **Tab level (Up/Down)**: Navigate store tabs (Featured, Packs, Decks, etc.)
+- **Item level (Up/Down)**: Navigate items within current tab
+- **Purchase options (Left/Right)**: Cycle between Details, Gems, Gold purchase options
+- **Enter/Space**: Activate current purchase option or open details view
+- **Backspace**: Go back one level (Items → Tabs → Exit store)
+
+**Details View (Card List):**
+Store items that contain decks or bundles offer a "Details" option as the first purchase option. When activated:
+- Extracts card list from `StoreDisplayPreconDeck.CardData` or `StoreDisplayCardViewBundle.BundleCardViews`
+- Left/Right navigates between cards (announced as "CardName, times Qty, ManaCost, X of N")
+- Up/Down navigates card info blocks (same as all other card contexts via `CardDetector.BuildInfoBlocks`)
+- Card info extracted via `CardModelProvider.ExtractCardInfoFromObject(cardDataObj)` using the stored CardData object
+- Backspace closes details view, returns to item navigation
+
+**Popup Handling:**
+StoreNavigator uses a reusable popup pattern with dual detection:
+- **PanelStateManager events**: Subscribes to `OnPanelChanged` to detect system popups (SystemMessageView, Dialog, etc.)
+- **Confirmation modal polling**: Polls `_confirmationModalField` on the store controller to detect the store's own confirmation modal
+- When popup is active, navigation switches to popup elements (Up/Down navigate, Enter activates, Backspace dismisses)
+- Dismissal tries: modal `Close()` method, cancel button pattern matching, `SystemMessageView.OnBack()`
+
+**Key Implementation Details:**
+- Uses reflection to access `ContentController_StoreCarousel` internals (tabs, items, confirmation modal)
+- Item descriptions extracted from active tag text and tooltip LocString
+- Purchase options extracted from `PurchaseButton` structs on `StoreItemBase` components
+- Details view stores raw `CardData` objects in `DetailCardEntry.CardDataObj` for direct extraction (avoids dependency on `_cachedDeckHolder` which doesn't exist in Store scene)
+
+**Files:**
+- `src/Core/Services/StoreNavigator.cs` - Main navigator implementation
+
+---
 
 ### Advanced Filters Navigator (February 2026)
 

@@ -789,30 +789,41 @@ CardDatabase.GreLocProvider.GetLocalizedText(uint locId, string overrideLangCode
 
 ### Card Model Properties
 
-Cards have a `Model` object with these key properties:
+Cards have a `Model` object (type `GreClient.CardData.CardData`) with these key properties.
+The same properties are available on CardData objects from store items, making unified extraction possible via `CardModelProvider.ExtractCardInfoFromObject()`.
 
-| Property | Type | Notes |
-|----------|------|-------|
-| `GrpId` | uint | Card database ID |
-| `TitleId` | uint | Localization key for name |
-| `FlavorTextId` | uint | Localization key for flavor (1 = none) |
-| `PrintedCastingCost` | ManaQuantity[] | Mana cost array |
-| `CardTypes` | enum[] | Creature, Land, Instant, etc. |
-| `Supertypes` | enum[] | Legendary, Basic, etc. |
-| `Subtypes` | enum[] | Goblin, Forest, etc. |
-| `Power` | StringBackedInt | Creature power |
-| `Toughness` | StringBackedInt | Creature toughness |
-| `Abilities` | AbilityPrintingData[] | Card abilities |
-| `Printing` | object | Print-specific data |
+**Identity:**
+- `GrpId` (uint) - Card database ID
+- `TitleId` (uint) - Localization key for name
+- `FlavorTextId` (uint) - Localization key for flavor (1 = none)
+- `InstanceId` (uint) - Unique instance in a duel (0 for non-duel cards)
 
-### Printing Object Properties
+**Types (structured):**
+- `Supertypes` (SuperType[]) - Legendary, Basic, etc.
+- `CardTypes` (CardType[]) - Creature, Land, Instant, Sorcery, etc.
+- `Subtypes` (SubType[]) - Goblin, Forest, Aura, etc.
 
-The `Printing` object contains print-run specific data:
+**Stats:**
+- `PrintedCastingCost` (ManaQuantity[]) - Mana cost array (structured)
+- `Power` (StringBackedInt) - Creature power (use `GetStringBackedIntValue()`)
+- `Toughness` (StringBackedInt) - Creature toughness
 
-| Property | Type | Notes |
-|----------|------|-------|
-| `ArtistCredit` | string | Artist name |
-| `SetCode` | string | Set identifier |
+**Abilities:**
+- `Abilities` (AbilityPrintingData[]) - Card abilities
+- `AbilityIds` (uint[]) - Ability GRP IDs for text lookup
+
+**Print-specific:**
+- `Printing` (CardPrintingData) - Print-run specific data (artist, set)
+- `Printing.ArtistCredit` (string) - Artist name
+- `ExpansionCode` (string) - Set code (e.g., "FDN")
+- `Rarity` (CardRarity) - Common, Uncommon, Rare, MythicRare
+
+**Fallback properties** (available on CardPrintingData but not structured):
+- `TypeLine` / `TypeText` (string) - Full type line as string
+- `ManaCost` / `CastingCost` (string) - Mana cost as string (e.g., "oU")
+- `OldSchoolManaText` (string) - Mana cost in old format
+
+`ExtractCardInfoFromObject` tries structured properties first, falling back to string properties. This means it works with both full Model objects (duel, deck builder) and simpler CardData objects (store items).
 
 ### Mana Symbol Formats
 
