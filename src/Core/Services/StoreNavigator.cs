@@ -638,7 +638,6 @@ namespace AccessibleArena.Core.Services
         private void DiscoverItems()
         {
             _items.Clear();
-            _loggedDescriptionDiag = false;
 
             if (_controller == null || _storeItemBaseType == null) return;
 
@@ -693,162 +692,53 @@ namespace AccessibleArena.Core.Services
             return name;
         }
 
-        private bool _loggedDescriptionDiag;
-
         private string ExtractItemDescription(MonoBehaviour storeItemBase)
         {
-            bool shouldLog = !_loggedDescriptionDiag;
-            var flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+            // Collect active text elements that aren't the label or purchase buttons.
+            // Known useful elements: Tag_Badge (discount), Tag_Ribbon (discount),
+            // Tag_Header (promo), Tag_Footer (promo), Text_Timer (time-limited),
+            // Text_ItemLimit (purchase limit), Text_FeatureCallout (callout),
+            // Item Description (if active), Text_PriceSlash (original price)
+            var parts = new List<string>();
 
-            // Try _description OptionalObject -> GameObject -> TMP_Text
-            if (_descriptionField != null)
+            foreach (var t in storeItemBase.GetComponentsInChildren<TMPro.TMP_Text>(false))
             {
-                try
+                if (t == null || !t.gameObject.activeInHierarchy) continue;
+
+                string raw = t.text?.Trim();
+                if (string.IsNullOrEmpty(raw) || raw.Length < 2) continue;
+
+                // Strip rich text tags
+                string text = System.Text.RegularExpressions.Regex.Replace(raw, @"<[^>]+>", "").Trim();
+                if (string.IsNullOrEmpty(text) || text.Length < 2) continue;
+
+                string objName = t.gameObject.name;
+
+                // Skip the item label (already announced separately)
+                if (objName == "Text_ItemLabel") continue;
+
+                // Skip purchase button prices (already announced as purchase options)
+                bool isButton = false;
+                var parent = t.transform.parent;
+                while (parent != null && parent != storeItemBase.transform)
                 {
-                    var descObj = _descriptionField.GetValue(storeItemBase);
-                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: _descriptionField found, value={(descObj != null ? descObj.GetType().Name : "null")}");
-                    if (descObj != null)
+                    if (parent.name.StartsWith("MainButton"))
                     {
-                        var goField = descObj.GetType().GetField("GameObject", flags);
-                        if (goField != null)
-                        {
-                            var descGo = goField.GetValue(descObj) as GameObject;
-                            if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: desc GO={(descGo != null ? descGo.name : "null")}, active={(descGo != null ? descGo.activeInHierarchy.ToString() : "N/A")}");
-                            if (descGo != null)
-                            {
-                                // Check even if not active - the text may still be set
-                                var tmpText = descGo.GetComponentInChildren<TMPro.TMP_Text>(true);
-                                if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: TMP_Text={(tmpText != null ? $"'{tmpText.text}'" : "null")}");
-                                if (tmpText != null && !string.IsNullOrEmpty(tmpText.text?.Trim()))
-                                {
-                                    string text = tmpText.text.Trim();
-                                    text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]+>", "").Trim();
-                                    if (text.Length > 3)
-                                    {
-                                        _loggedDescriptionDiag = true;
-                                        return text;
-                                    }
-                                }
-                            }
-                        }
+                        isButton = true;
+                        break;
                     }
+                    parent = parent.parent;
                 }
-                catch (Exception ex)
-                {
-                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: _description error: {ex.Message}");
-                }
-            }
-            else if (shouldLog)
-            {
-                MelonLogger.Msg("[Store] Desc diag: _descriptionField is null");
-            }
+                if (isButton) continue;
 
-            // Try _tooltipTrigger
-            if (_tooltipTriggerField != null)
-            {
-                try
-                {
-                    var tooltip = _tooltipTriggerField.GetValue(storeItemBase) as MonoBehaviour;
-                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: tooltip={(tooltip != null ? $"active={tooltip.gameObject.activeInHierarchy}" : "null")}");
-                    if (tooltip != null)
-                    {
-                        // Try LocString as property first, then as field
-                        object locString = null;
-                        var locStringProp = tooltip.GetType().GetProperty("LocString", flags);
-                        if (locStringProp != null)
-                        {
-                            locString = locStringProp.GetValue(tooltip);
-                            if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: LocString via property, type={locString?.GetType().Name ?? "null"}");
-                        }
-                        else
-                        {
-                            var locStringField = tooltip.GetType().GetField("LocString", flags);
-                            if (locStringField != null)
-                            {
-                                locString = locStringField.GetValue(tooltip);
-                                if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: LocString via field, type={locString?.GetType().Name ?? "null"}");
-                            }
-                            else if (shouldLog)
-                            {
-                                MelonLogger.Msg("[Store] Desc diag: no LocString property or field found");
-                                // Dump all members
-                                foreach (var m in tooltip.GetType().GetMembers(flags))
-                                    MelonLogger.Msg($"[Store] Desc diag:   member: {m.MemberType} {m.Name}");
-                            }
-                        }
+                // Skip generic UI noise
+                if (text == "?" || text == "!") continue;
 
-                        if (locString != null)
-                        {
-                            var mTermField = locString.GetType().GetField("mTerm", flags);
-                            string term = mTermField?.GetValue(locString) as string;
-                            if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: mTerm='{term}'");
-
-                            if (!string.IsNullOrEmpty(term))
-                            {
-                                // Try I2 Localization
-                                Type locMgrType = null;
-                                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                                {
-                                    locMgrType = asm.GetType("I2.Loc.LocalizationManager");
-                                    if (locMgrType != null) break;
-                                }
-
-                                if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: LocalizationManager={(locMgrType != null ? "found" : "not found")}");
-
-                                if (locMgrType != null)
-                                {
-                                    // Try all GetTranslation overloads
-                                    var methods = locMgrType.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                                        .Where(m => m.Name == "GetTranslation").ToArray();
-                                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: GetTranslation overloads: {methods.Length}");
-
-                                    foreach (var method in methods)
-                                    {
-                                        var parms = method.GetParameters();
-                                        if (shouldLog) MelonLogger.Msg($"[Store] Desc diag:   overload: ({string.Join(", ", parms.Select(p => p.ParameterType.Name + " " + p.Name))})");
-                                    }
-
-                                    // Try the simplest overload: GetTranslation(string)
-                                    var getTranslation = methods.FirstOrDefault(m => m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(string));
-                                    if (getTranslation != null)
-                                    {
-                                        string translated = getTranslation.Invoke(null, new object[] { term }) as string;
-                                        if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: translated='{translated}'");
-                                        if (!string.IsNullOrEmpty(translated))
-                                        {
-                                            translated = System.Text.RegularExpressions.Regex.Replace(translated, @"<[^>]+>", "").Trim();
-                                            if (translated.Length > 3)
-                                            {
-                                                _loggedDescriptionDiag = true;
-                                                return translated;
-                                            }
-                                        }
-                                    }
-
-                                    // Try TryGetTranslation
-                                    var tryGetTranslation = locMgrType.GetMethod("TryGetTranslation",
-                                        BindingFlags.Public | BindingFlags.Static);
-                                    if (tryGetTranslation != null && shouldLog)
-                                    {
-                                        MelonLogger.Msg($"[Store] Desc diag: TryGetTranslation found: ({string.Join(", ", tryGetTranslation.GetParameters().Select(p => p.ParameterType.Name + " " + p.Name))})");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (shouldLog) MelonLogger.Msg($"[Store] Desc diag: tooltip error: {ex.Message}");
-                }
-            }
-            else if (shouldLog)
-            {
-                MelonLogger.Msg("[Store] Desc diag: _tooltipTriggerField is null");
+                if (!parts.Contains(text))
+                    parts.Add(text);
             }
 
-            if (shouldLog) _loggedDescriptionDiag = true;
-            return null;
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
 
         private List<PurchaseOption> ExtractPurchaseOptions(MonoBehaviour storeItemBase)
