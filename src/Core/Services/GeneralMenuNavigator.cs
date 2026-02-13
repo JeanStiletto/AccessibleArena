@@ -2495,6 +2495,10 @@ namespace AccessibleArena.Core.Services
             if (DetectActiveContentController() == "ContentController_StoreCarousel")
                 return false;
 
+            // Don't activate when Mastery/Rewards screen is active - let MasteryNavigator handle it
+            if (DetectActiveContentController() == "ProgressionTracksContentController")
+                return false;
+
             // Don't activate when game loading panel overlay is showing (e.g. after scene transition)
             if (IsLoadingPanelShowing())
             {

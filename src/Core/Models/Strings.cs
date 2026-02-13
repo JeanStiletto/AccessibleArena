@@ -420,5 +420,30 @@ namespace AccessibleArena.Core.Models
             $"{browserName}. {count} {(count == 1 ? "card" : "cards")}. Tab to navigate, Enter to select";
         public static string BrowserOptions(string browserName) =>
             $"{browserName}. Tab to navigate options";
+
+        // ===========================================
+        // MASTERY SCREEN
+        // ===========================================
+        public static string MasteryActivation(string trackName, int level, int total, string xp) =>
+            $"{trackName}. Level {level} of {total}, {xp}. Arrow keys to navigate levels.";
+        public static string MasteryLevel(int level, string reward, string status) =>
+            string.IsNullOrEmpty(status)
+                ? $"Level {level}: {reward}"
+                : $"Level {level}: {reward}. {status}";
+        public static string MasteryTier(string tierName, string reward, int quantity) =>
+            quantity > 1 ? $"{tierName}: {quantity}x {reward}" : $"{tierName}: {reward}";
+        public static string MasteryPage(int current, int total) =>
+            $"Page {current} of {total}";
+        public static string MasteryLevelDetail(int level, string tiers, string status) =>
+            string.IsNullOrEmpty(status)
+                ? $"Level {level}. {tiers}"
+                : $"Level {level}. {tiers}. {status}";
+        public const string MasteryCompleted = "completed";
+        public const string MasteryCurrentLevel = "current level";
+        public const string MasteryPremiumLocked = "premium locked";
+        public const string MasteryFree = "Free";
+        public const string MasteryPremium = "Premium";
+        public const string MasteryRenewal = "Renewal";
+        public const string MasteryNoReward = "no reward";
     }
 }
