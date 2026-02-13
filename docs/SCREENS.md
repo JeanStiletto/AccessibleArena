@@ -707,6 +707,45 @@ Subscribes to `PanelStateManager.OnPanelChanged` for popup detection (same patte
 - Button labels extracted from child `TMP_Text` components with rich text tag cleaning
 - GeneralMenuNavigator suppressed when `ProgressionTracksContentController` is active
 
+### PrizeWall Mode (Mastery Tree / Spend Spheres)
+
+**Controller:** `ContentController_PrizeWall`
+**Mode:** `MasteryMode.PrizeWall` (same MasteryNavigator, different mode)
+
+When the user activates the "Mastery Tree" button from the mastery levels screen, the game closes `ProgressionTracksContentController` and opens `ContentController_PrizeWall` (the sphere-spending screen). MasteryNavigator detects this and reactivates in PrizeWall mode.
+
+**Navigation Model:**
+- Virtual **Sphere Status item** at position 0: announces available sphere count
+- Remaining items: purchasable cosmetics from the PrizeWall layout group
+
+**Controls:**
+- Up/Down (or W/S, Tab/Shift+Tab): Navigate items
+- Home/End: Jump to first/last item
+- Enter: Activate selected item (opens purchase confirmation popup)
+- Backspace: Return to mastery levels screen
+- F3/Ctrl+R: Re-announce current position with sphere count
+
+**Announcements:**
+- Activation: "Prize Wall. N items. X spheres available. Arrow keys to navigate."
+- Item navigation: "X of Y: ItemName, N spheres"
+- Sphere status (position 0): "X spheres available"
+
+**Confirmation Popup:**
+- Triggered by Enter on a purchasable item
+- Announces popup body text + available options
+- Up/Down to navigate options, Enter to confirm
+- Synthetic Cancel option appended (modal has no built-in cancel button)
+- Dismiss via `StoreConfirmationModal.Close()` reflection call
+
+**Technical Notes:**
+- Detected via `ContentController_PrizeWall` MonoBehaviour with inherited `IsOpen` property
+- Mode transitions happen naturally: controller closes -> MasteryNavigator deactivates -> next frame detects new controller -> reactivates in appropriate mode
+- `ConfirmationModal` is reused (not re-instantiated), so polling `activeInHierarchy` is used instead of `PanelStateManager` events
+- Item labels extracted from `TMP_Text` children of `StoreItemBase`, combining item name with cost
+- Popup element discovery filters out `CustomButton`s that are children of `StoreItemBase` widgets (which get moved into the modal)
+- Sphere count read from `PrizeWallCurrency._currencyQuantity` (TextMeshProUGUI)
+- Back button accessed via `ContentController_PrizeWall._prizeWallBackButton`
+
 ## Store Screen
 
 **Controller:** `ContentController_StoreCarousel`

@@ -450,5 +450,16 @@ namespace AccessibleArena.Core.Models
             string.IsNullOrEmpty(xp)
                 ? $"Level {level} of {total}"
                 : $"Level {level} of {total}, {xp}";
+
+        // ===========================================
+        // PRIZE WALL
+        // ===========================================
+        public static string PrizeWallActivation(int itemCount, string spheres) =>
+            $"Prize Wall. {itemCount} items. {spheres} spheres available. Arrow keys to navigate.";
+        public static string PrizeWallItem(int index, int total, string name) =>
+            $"{index} of {total}: {name}";
+        public static string PrizeWallSphereStatus(string spheres) =>
+            $"{spheres} spheres available";
+        public const string PopupCancel = "Cancel";
     }
 }

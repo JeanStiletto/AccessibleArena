@@ -6,6 +6,7 @@ using AccessibleArena.Core.Services.PanelDetection;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace AccessibleArena.Core.Services
@@ -24,10 +25,17 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Mode
+
+        private enum MasteryMode { Levels, PrizeWall }
+        private MasteryMode _mode;
+
+        #endregion
+
         #region Navigator Identity
 
         public override string NavigatorId => "Mastery";
-        public override string ScreenName => "Mastery";
+        public override string ScreenName => _mode == MasteryMode.PrizeWall ? "Prize Wall" : "Mastery";
         public override int Priority => MasteryPriority;
         protected override bool SupportsCardNavigation => false;
         protected override bool AcceptSpaceKey => false;
@@ -44,6 +52,14 @@ namespace AccessibleArena.Core.Services
         private bool _isPopupActive;
         private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
         private int _popupElementIndex;
+
+        // PrizeWall state
+        private MonoBehaviour _prizeWallController;
+        private GameObject _prizeWallGameObject;
+        private List<(GameObject obj, string label)> _prizeWallItems = new List<(GameObject, string)>();
+        private int _prizeWallIndex;
+        private string _sphereCount;
+        private GameObject _prizeWallBackButton;
 
         #endregion
 
@@ -115,6 +131,19 @@ namespace AccessibleArena.Core.Services
 
         private bool _reflectionInitialized;
 
+        // PrizeWall reflection
+        private Type _prizeWallControllerType;
+        private PropertyInfo _prizeWallIsOpenProp;
+        private FieldInfo _prizeWallCurrencyField;          // PrizeWallCurrency _currencyPrizeWall
+        private FieldInfo _prizeWallBackButtonField;         // CustomButton _prizeWallBackButton
+        private FieldInfo _prizeWallContentsField;           // GameObject _contentsContainer
+        private FieldInfo _prizeWallLayoutGroupField;        // HorizontalLayoutGroup _storeButtonLayoutGroup
+        private FieldInfo _prizeWallConfirmModalField;       // StoreConfirmationModal _confirmationModal
+        private Type _prizeWallCurrencyType;
+        private FieldInfo _currencyQuantityField;            // TMP_Text _currencyQuantity
+        private bool _prizeWallReflectionInitialized;
+        private GameObject _confirmationModalGameObject;     // Cached modal GO for polling
+
         #endregion
 
         #region Discovered Data
@@ -163,18 +192,30 @@ namespace AccessibleArena.Core.Services
 
         protected override bool DetectScreen()
         {
-            var controller = FindController();
-            if (controller == null) return false;
+            // Check for ProgressionTracksContentController (Levels mode)
+            var levelsController = FindLevelsController();
+            if (levelsController != null && IsControllerOpen(levelsController))
+            {
+                _mode = MasteryMode.Levels;
+                _controller = levelsController;
+                _controllerGameObject = levelsController.gameObject;
+                return true;
+            }
 
-            if (!IsControllerOpen(controller)) return false;
+            // Check for ContentController_PrizeWall (PrizeWall mode)
+            var prizeWall = FindPrizeWallController();
+            if (prizeWall != null && IsPrizeWallOpen(prizeWall))
+            {
+                _mode = MasteryMode.PrizeWall;
+                _prizeWallController = prizeWall;
+                _prizeWallGameObject = prizeWall.gameObject;
+                return true;
+            }
 
-            _controller = controller;
-            _controllerGameObject = controller.gameObject;
-
-            return true;
+            return false;
         }
 
-        private MonoBehaviour FindController()
+        private MonoBehaviour FindLevelsController()
         {
             // Use cached reference if still valid
             if (_controller != null && _controller.gameObject != null && _controller.gameObject.activeInHierarchy)
@@ -187,6 +228,26 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                 if (mb.GetType().Name == "ProgressionTracksContentController")
+                    return mb;
+            }
+
+            return null;
+        }
+
+        private MonoBehaviour FindPrizeWallController()
+        {
+            // Use cached reference if still valid
+            if (_prizeWallController != null && _prizeWallController.gameObject != null &&
+                _prizeWallController.gameObject.activeInHierarchy)
+                return _prizeWallController;
+
+            _prizeWallController = null;
+            _prizeWallGameObject = null;
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == "ContentController_PrizeWall")
                     return mb;
             }
 
@@ -211,6 +272,22 @@ namespace AccessibleArena.Core.Services
             return true;
         }
 
+        private bool IsPrizeWallOpen(MonoBehaviour controller)
+        {
+            EnsurePrizeWallReflectionCached(controller.GetType());
+
+            if (_prizeWallIsOpenProp != null)
+            {
+                try
+                {
+                    return (bool)_prizeWallIsOpenProp.GetValue(controller);
+                }
+                catch { return false; }
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Handle panel changes - detect popups appearing on top of mastery.
         /// </summary>
@@ -228,12 +305,15 @@ namespace AccessibleArena.Core.Services
             }
             else if (_isPopupActive && newPanel == null)
             {
-                MelonLogger.Msg("[Mastery] Popup closed, returning to mastery");
+                MelonLogger.Msg("[Mastery] Popup closed, returning to navigation");
                 _activePopup = null;
                 _isPopupActive = false;
                 _popupElements.Clear();
-                // Re-announce current position
-                AnnounceCurrentLevel();
+                // Re-announce current position based on mode
+                if (_mode == MasteryMode.PrizeWall)
+                    AnnouncePrizeWallItem();
+                else
+                    AnnounceCurrentLevel();
             }
         }
 
@@ -393,13 +473,52 @@ namespace AccessibleArena.Core.Services
                 $"GetCurrentLevelIndex={_getCurrentLevelIndexMethod != null}");
         }
 
+        private void EnsurePrizeWallReflectionCached(Type controllerType)
+        {
+            if (_prizeWallReflectionInitialized && _prizeWallControllerType == controllerType) return;
+
+            _prizeWallControllerType = controllerType;
+            var flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+
+            // IsOpen from NavContentController base
+            _prizeWallIsOpenProp = controllerType.GetProperty("IsOpen", flags | BindingFlags.FlattenHierarchy);
+
+            // Key fields on ContentController_PrizeWall
+            _prizeWallCurrencyField = controllerType.GetField("_currencyPrizeWall", flags);
+            _prizeWallBackButtonField = controllerType.GetField("_prizeWallBackButton", flags);
+            _prizeWallContentsField = controllerType.GetField("_contentsContainer", flags);
+            _prizeWallLayoutGroupField = controllerType.GetField("_storeButtonLayoutGroup", flags);
+            _prizeWallConfirmModalField = controllerType.GetField("_confirmationModal", flags);
+
+            // PrizeWallCurrency type -> _currencyQuantity TMP field
+            if (_prizeWallCurrencyField != null)
+            {
+                _prizeWallCurrencyType = _prizeWallCurrencyField.FieldType;
+                _currencyQuantityField = _prizeWallCurrencyType?.GetField("_currencyQuantity", flags);
+            }
+
+            _prizeWallReflectionInitialized = true;
+            MelonLogger.Msg($"[Mastery] PrizeWall reflection cached. Currency={_prizeWallCurrencyField != null}, " +
+                $"BackButton={_prizeWallBackButtonField != null}, " +
+                $"Contents={_prizeWallContentsField != null}, " +
+                $"Layout={_prizeWallLayoutGroupField != null}, " +
+                $"CurrencyQty={_currencyQuantityField != null}, " +
+                $"ConfirmModal={_prizeWallConfirmModalField != null}");
+        }
+
         #endregion
 
         #region Element Discovery
 
         protected override void DiscoverElements()
         {
-            // Build level data and action buttons from the view
+            if (_mode == MasteryMode.PrizeWall)
+            {
+                DiscoverPrizeWallItems();
+                return;
+            }
+
+            // Levels mode: Build level data and action buttons from the view
             BuildLevelData();
             BuildActionButtons();
 
@@ -729,6 +848,184 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[Mastery] Inserted status item with {tiers.Count} tiers ({_actionButtons.Count} buttons)");
         }
 
+        private void DiscoverPrizeWallItems()
+        {
+            _prizeWallItems.Clear();
+            _prizeWallIndex = 0;
+            _sphereCount = "0";
+            _prizeWallBackButton = null;
+
+            if (_prizeWallController == null) return;
+
+            EnsurePrizeWallReflectionCached(_prizeWallController.GetType());
+
+            // Get sphere count from PrizeWallCurrency._currencyQuantity
+            if (_prizeWallCurrencyField != null && _currencyQuantityField != null)
+            {
+                try
+                {
+                    var currency = _prizeWallCurrencyField.GetValue(_prizeWallController);
+                    if (currency != null)
+                    {
+                        var tmpText = _currencyQuantityField.GetValue(currency) as TMPro.TMP_Text;
+                        if (tmpText != null && !string.IsNullOrEmpty(tmpText.text))
+                            _sphereCount = tmpText.text.Trim();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg($"[Mastery] Error reading sphere count: {ex.Message}");
+                }
+            }
+
+            // Get back button
+            if (_prizeWallBackButtonField != null)
+            {
+                try
+                {
+                    var backBtn = _prizeWallBackButtonField.GetValue(_prizeWallController) as MonoBehaviour;
+                    if (backBtn != null && backBtn.gameObject != null && backBtn.gameObject.activeInHierarchy)
+                        _prizeWallBackButton = backBtn.gameObject;
+                }
+                catch { }
+            }
+
+            // Find StoreItemBase components under the layout group (the purchasable items)
+            Transform layoutParent = null;
+            if (_prizeWallLayoutGroupField != null)
+            {
+                try
+                {
+                    var layoutGroup = _prizeWallLayoutGroupField.GetValue(_prizeWallController) as Component;
+                    if (layoutGroup != null)
+                        layoutParent = layoutGroup.transform;
+                }
+                catch { }
+            }
+
+            // Fallback: search under contents container
+            if (layoutParent == null && _prizeWallContentsField != null)
+            {
+                try
+                {
+                    var contents = _prizeWallContentsField.GetValue(_prizeWallController) as GameObject;
+                    if (contents != null)
+                        layoutParent = contents.transform;
+                }
+                catch { }
+            }
+
+            if (layoutParent != null)
+            {
+                // Find all active StoreItemBase children - these are the purchasable items
+                var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+
+                foreach (var mb in layoutParent.GetComponentsInChildren<MonoBehaviour>(false))
+                {
+                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                    if (mb.GetType().Name != "StoreItemBase") continue;
+
+                    string label = ExtractStoreItemLabel(mb.gameObject);
+
+                    var pos = mb.transform.position;
+                    // Sort by Y descending (top first), then X ascending (left first)
+                    discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
+                }
+
+                foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+                {
+                    _prizeWallItems.Add((obj, label));
+                }
+            }
+
+            // Insert virtual sphere status item at position 0
+            _prizeWallItems.Insert(0, (null, Strings.PrizeWallSphereStatus(_sphereCount)));
+
+            // Cache confirmation modal GameObject for polling
+            _confirmationModalGameObject = null;
+            if (_prizeWallConfirmModalField != null)
+            {
+                try
+                {
+                    var modal = _prizeWallConfirmModalField.GetValue(_prizeWallController) as MonoBehaviour;
+                    if (modal != null)
+                        _confirmationModalGameObject = modal.gameObject;
+                }
+                catch { }
+            }
+
+            if (_prizeWallItems.Count > 0 || _prizeWallGameObject != null)
+            {
+                // Add dummy element for BaseNavigator validation
+                AddElement(_prizeWallGameObject ?? _prizeWallController.gameObject, "PrizeWall");
+            }
+
+            MelonLogger.Msg($"[Mastery] PrizeWall: {_prizeWallItems.Count} items (incl. status), spheres={_sphereCount}, " +
+                $"backButton={_prizeWallBackButton != null}, modal={_confirmationModalGameObject != null}");
+        }
+
+        /// <summary>
+        /// Extract a descriptive label from a StoreItemBase including item name and sphere cost.
+        /// </summary>
+        private string ExtractStoreItemLabel(GameObject storeItemGo)
+        {
+            // Collect all visible TMP_Text that aren't under purchase buttons
+            var allTexts = storeItemGo.GetComponentsInChildren<TMPro.TMP_Text>(false);
+            string itemName = null;
+            string costText = null;
+
+            foreach (var tmp in allTexts)
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+                string text = tmp.text?.Trim();
+                if (string.IsNullOrEmpty(text)) continue;
+
+                // Clean rich text tags
+                text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]+>", "").Trim();
+                if (string.IsNullOrEmpty(text)) continue;
+
+                // Check if this TMP is inside a purchase button (MainButtonGreen/Blue/Orange/Clear)
+                bool isPurchaseButton = false;
+                var parent = tmp.transform.parent;
+                while (parent != null && parent != storeItemGo.transform)
+                {
+                    string pName = parent.name;
+                    if (pName.Contains("MainButton") || pName.Contains("BlueButton") ||
+                        pName.Contains("OrangeButton") || pName.Contains("ClearButton"))
+                    {
+                        isPurchaseButton = true;
+                        break;
+                    }
+                    parent = parent.parent;
+                }
+
+                if (isPurchaseButton)
+                {
+                    // This is a cost label (e.g., "2" for 2 spheres)
+                    if (costText == null)
+                        costText = text;
+                }
+                else if (itemName == null && text.Length > 1)
+                {
+                    // First non-button text is the item name
+                    itemName = text;
+                }
+            }
+
+            if (string.IsNullOrEmpty(itemName))
+            {
+                itemName = UITextExtractor.GetText(storeItemGo);
+                if (string.IsNullOrEmpty(itemName)) itemName = storeItemGo.name;
+                itemName = System.Text.RegularExpressions.Regex.Replace(itemName, @"<[^>]+>", "").Trim();
+            }
+
+            // Append sphere cost if found
+            if (!string.IsNullOrEmpty(costText))
+                return $"{itemName}, {costText} spheres";
+
+            return itemName;
+        }
+
         #endregion
 
         #region Localization
@@ -837,8 +1134,15 @@ namespace AccessibleArena.Core.Services
         {
             _currentTierIndex = 0;
 
-            // Start at current player level (skips status item at 0)
-            _currentLevelIndex = _currentPlayerLevel >= 0 ? _currentPlayerLevel : 0;
+            if (_mode == MasteryMode.PrizeWall)
+            {
+                _prizeWallIndex = 0;
+            }
+            else
+            {
+                // Start at current player level (skips status item at 0)
+                _currentLevelIndex = _currentPlayerLevel >= 0 ? _currentPlayerLevel : 0;
+            }
 
             // Subscribe to panel changes for popup detection
             if (PanelStateManager.Instance != null)
@@ -852,6 +1156,8 @@ namespace AccessibleArena.Core.Services
             _activePopup = null;
             _isPopupActive = false;
             _popupElements.Clear();
+            _prizeWallItems.Clear();
+            _confirmationModalGameObject = null;
 
             // Unsubscribe from panel changes
             if (PanelStateManager.Instance != null)
@@ -863,6 +1169,9 @@ namespace AccessibleArena.Core.Services
             _controller = null;
             _controllerGameObject = null;
             _reflectionInitialized = false;
+            _prizeWallController = null;
+            _prizeWallGameObject = null;
+            _prizeWallReflectionInitialized = false;
 
             base.OnSceneChanged(sceneName);
         }
@@ -873,6 +1182,11 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
+            if (_mode == MasteryMode.PrizeWall)
+            {
+                return Strings.PrizeWallActivation(_prizeWallItems.Count, _sphereCount);
+            }
+
             if (_levelData.Count == 0)
                 return $"{_trackTitle}. No levels found.";
 
@@ -1092,27 +1406,64 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Verify controller is still valid
-            if (_controller == null || _controllerGameObject == null || !_controllerGameObject.activeInHierarchy)
+            if (_mode == MasteryMode.PrizeWall)
             {
-                Deactivate();
-                return;
+                // Verify PrizeWall controller is still valid
+                if (_prizeWallController == null || _prizeWallGameObject == null ||
+                    !_prizeWallGameObject.activeInHierarchy)
+                {
+                    Deactivate();
+                    return;
+                }
+
+                if (!IsPrizeWallOpen(_prizeWallController))
+                {
+                    Deactivate();
+                    return;
+                }
+            }
+            else
+            {
+                // Verify levels controller is still valid
+                if (_controller == null || _controllerGameObject == null || !_controllerGameObject.activeInHierarchy)
+                {
+                    Deactivate();
+                    return;
+                }
+
+                if (!IsControllerOpen(_controller))
+                {
+                    Deactivate();
+                    return;
+                }
             }
 
-            // Check if mastery screen is still open
-            if (!IsControllerOpen(_controller))
+            // Poll for confirmation modal in PrizeWall mode (modal is reused, not re-instantiated,
+            // so PanelStateManager doesn't fire events after the first time)
+            if (_mode == MasteryMode.PrizeWall && !_isPopupActive && _confirmationModalGameObject != null)
             {
-                Deactivate();
-                return;
+                if (_confirmationModalGameObject.activeInHierarchy)
+                {
+                    MelonLogger.Msg("[Mastery] Confirmation modal detected via polling");
+                    _activePopup = _confirmationModalGameObject;
+                    _isPopupActive = true;
+                    DiscoverPopupElements();
+                    AnnouncePopup();
+                }
             }
 
             // Check if popup is still valid
             if (_isPopupActive && (_activePopup == null || !_activePopup.activeInHierarchy))
             {
-                MelonLogger.Msg("[Mastery] Popup became invalid, returning to mastery");
+                MelonLogger.Msg("[Mastery] Popup became invalid, returning to navigation");
                 _activePopup = null;
                 _isPopupActive = false;
                 _popupElements.Clear();
+                // Re-announce current position based on mode
+                if (_mode == MasteryMode.PrizeWall)
+                    AnnouncePrizeWallItem();
+                else
+                    AnnounceCurrentLevel();
             }
 
             HandleMasteryInput();
@@ -1120,6 +1471,9 @@ namespace AccessibleArena.Core.Services
 
         protected override bool ValidateElements()
         {
+            if (_mode == MasteryMode.PrizeWall)
+                return _prizeWallController != null && _prizeWallGameObject != null && _prizeWallGameObject.activeInHierarchy;
+
             return _controller != null && _controllerGameObject != null && _controllerGameObject.activeInHierarchy;
         }
 
@@ -1133,6 +1487,12 @@ namespace AccessibleArena.Core.Services
             if (_isPopupActive)
             {
                 HandlePopupInput();
+                return;
+            }
+
+            if (_mode == MasteryMode.PrizeWall)
+            {
+                HandlePrizeWallInput();
                 return;
             }
 
@@ -1307,6 +1667,139 @@ namespace AccessibleArena.Core.Services
             _announcer.AnnounceInterrupt("No back button found");
         }
 
+        private void HandlePrizeWallInput()
+        {
+            if (_prizeWallItems.Count == 0) return;
+
+            // Up/W/Shift+Tab: Previous item
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) ||
+                (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))))
+            {
+                if (_prizeWallIndex > 0)
+                {
+                    _prizeWallIndex--;
+                    AnnouncePrizeWallItem();
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.BeginningOfList);
+                }
+                return;
+            }
+
+            // Down/S/Tab: Next item
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) ||
+                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
+            {
+                if (_prizeWallIndex < _prizeWallItems.Count - 1)
+                {
+                    _prizeWallIndex++;
+                    AnnouncePrizeWallItem();
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.EndOfList);
+                }
+                return;
+            }
+
+            // Home: Jump to first
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                _prizeWallIndex = 0;
+                AnnouncePrizeWallItem();
+                return;
+            }
+
+            // End: Jump to last
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                _prizeWallIndex = _prizeWallItems.Count - 1;
+                AnnouncePrizeWallItem();
+                return;
+            }
+
+            // Enter: Activate selected item (find its purchase button)
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                ActivatePrizeWallItem();
+                return;
+            }
+
+            // Backspace: Go back (returns to mastery levels)
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                InputManager.ConsumeKey(KeyCode.Backspace);
+                if (_prizeWallBackButton != null)
+                {
+                    _announcer.AnnounceInterrupt(Strings.NavigatingBack);
+                    UIActivator.Activate(_prizeWallBackButton);
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt("No back button found");
+                }
+                return;
+            }
+
+            // F3/Ctrl+R: Re-announce current position
+            if (Input.GetKeyDown(KeyCode.F3) ||
+                ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && Input.GetKeyDown(KeyCode.R)))
+            {
+                AnnouncePrizeWallItem();
+                return;
+            }
+        }
+
+        private void AnnouncePrizeWallItem()
+        {
+            if (_prizeWallIndex < 0 || _prizeWallIndex >= _prizeWallItems.Count) return;
+
+            var item = _prizeWallItems[_prizeWallIndex];
+            _announcer.AnnounceInterrupt(
+                Strings.PrizeWallItem(_prizeWallIndex + 1, _prizeWallItems.Count, item.label));
+        }
+
+        private void ActivatePrizeWallItem()
+        {
+            if (_prizeWallIndex < 0 || _prizeWallIndex >= _prizeWallItems.Count) return;
+
+            var item = _prizeWallItems[_prizeWallIndex];
+
+            // Virtual status item (obj=null) - just re-announce
+            if (item.obj == null)
+            {
+                AnnouncePrizeWallItem();
+                return;
+            }
+
+            // Find the first active CustomButton under this StoreItemBase (the purchase button)
+            GameObject buttonToClick = null;
+            foreach (var mb in item.obj.GetComponentsInChildren<MonoBehaviour>(false))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == "CustomButton")
+                {
+                    buttonToClick = mb.gameObject;
+                    break;
+                }
+            }
+
+            if (buttonToClick != null)
+            {
+                _announcer.AnnounceInterrupt(Strings.Activating(item.label));
+                UIActivator.Activate(buttonToClick);
+            }
+            else
+            {
+                // Fallback: activate the item itself
+                _announcer.AnnounceInterrupt(Strings.Activating(item.label));
+                UIActivator.Activate(item.obj);
+            }
+        }
+
         #endregion
 
         #region Popup Handling
@@ -1318,55 +1811,139 @@ namespace AccessibleArena.Core.Services
 
             if (_activePopup == null) return;
 
-            // Find buttons and text in the popup
-            var buttons = _activePopup.GetComponentsInChildren<UnityEngine.UI.Button>(false);
-            foreach (var btn in buttons)
+            MelonLogger.Msg($"[Mastery] Discovering popup elements in: {_activePopup.name}");
+
+            var addedObjects = new HashSet<GameObject>();
+            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+
+            // Collect StoreItemBase GameObjects so we can skip buttons inside item widgets
+            var storeItemBases = new HashSet<Transform>();
+            foreach (var sib in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
             {
-                if (btn == null || !btn.gameObject.activeInHierarchy || !btn.interactable) continue;
-                string label = UITextExtractor.GetText(btn.gameObject);
-                if (string.IsNullOrEmpty(label)) label = btn.gameObject.name;
-                _popupElements.Add((btn.gameObject, label));
+                if (sib != null && sib.GetType().Name == "StoreItemBase")
+                    storeItemBases.Add(sib.transform);
             }
 
-            // Also check for CustomButton-type components
-            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(false))
+            // Find CustomButton and SystemMessageButtonView components
+            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "CustomButton")
+                if (addedObjects.Contains(mb.gameObject)) continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName == "SystemMessageButtonView" || typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
                 {
-                    // Don't add if we already have it as a Button
-                    bool exists = false;
-                    foreach (var elem in _popupElements)
-                    {
-                        if (elem.obj == mb.gameObject) { exists = true; break; }
-                    }
-                    if (!exists)
-                    {
-                        string label = UITextExtractor.GetText(mb.gameObject);
-                        if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
-                        _popupElements.Add((mb.gameObject, label));
-                    }
+                    // Skip buttons that are children of a StoreItemBase (item preview widget)
+                    if (IsChildOfAny(mb.transform, storeItemBases)) continue;
+
+                    string label = UITextExtractor.GetText(mb.gameObject);
+                    if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
+
+                    var pos = mb.gameObject.transform.position;
+                    discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
+                    addedObjects.Add(mb.gameObject);
                 }
             }
 
-            MelonLogger.Msg($"[Mastery] Popup has {_popupElements.Count} elements");
+            // Also check standard Unity Buttons
+            foreach (var button in _activePopup.GetComponentsInChildren<UnityEngine.UI.Button>(true))
+            {
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
+                if (addedObjects.Contains(button.gameObject)) continue;
+
+                // Skip buttons inside item preview widget
+                if (IsChildOfAny(button.transform, storeItemBases)) continue;
+
+                string label = UITextExtractor.GetText(button.gameObject);
+                if (string.IsNullOrEmpty(label)) label = button.gameObject.name;
+
+                var pos = button.gameObject.transform.position;
+                discovered.Add((button.gameObject, label, -pos.y * 1000 + pos.x));
+                addedObjects.Add(button.gameObject);
+            }
+
+            // Sort by visual position: top-to-bottom, left-to-right
+            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+            {
+                _popupElements.Add((obj, label));
+            }
+
+            // Add synthetic Cancel option (dismisses the modal)
+            _popupElements.Add((null, Strings.PopupCancel));
+
+            MelonLogger.Msg($"[Mastery] Popup has {_popupElements.Count} elements " +
+                $"(skipped {storeItemBases.Count} item widgets)");
+        }
+
+        private static bool IsChildOfAny(Transform child, HashSet<Transform> parents)
+        {
+            var current = child.parent;
+            while (current != null)
+            {
+                if (parents.Contains(current)) return true;
+                current = current.parent;
+            }
+            return false;
         }
 
         private void AnnouncePopup()
         {
-            if (_popupElements.Count == 0)
+            // Extract popup body text (skipping button labels)
+            string bodyText = ExtractPopupBodyText(_activePopup);
+            string announcement;
+
+            if (!string.IsNullOrEmpty(bodyText))
+                announcement = $"Popup: {bodyText}. {_popupElements.Count} options.";
+            else
+                announcement = $"Popup. {_popupElements.Count} options.";
+
+            _announcer.AnnounceInterrupt(announcement);
+
+            if (_popupElements.Count > 0)
             {
-                // Try to read popup text
-                string text = UITextExtractor.GetText(_activePopup);
-                if (!string.IsNullOrEmpty(text))
-                    _announcer.AnnounceInterrupt($"Popup: {text}");
-                else
-                    _announcer.AnnounceInterrupt("Popup");
-                return;
+                _popupElementIndex = 0;
+                _announcer.Announce($"1 of {_popupElements.Count}: {_popupElements[0].label}",
+                    AnnouncementPriority.Normal);
+            }
+        }
+
+        private string ExtractPopupBodyText(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            var texts = popup.GetComponentsInChildren<TMPro.TMP_Text>(true)
+                .Where(t => t != null && t.gameObject.activeInHierarchy)
+                .OrderByDescending(t => t.fontSize)
+                .ToList();
+
+            foreach (var text in texts)
+            {
+                string content = text.text?.Trim();
+                if (string.IsNullOrEmpty(content) || content.Length < 5) continue;
+
+                // Skip text that lives under a button parent
+                var parent = text.transform.parent;
+                bool isButtonText = false;
+                while (parent != null)
+                {
+                    string parentName = parent.name.ToLower();
+                    if (parentName.Contains("button"))
+                    {
+                        isButtonText = true;
+                        break;
+                    }
+                    parent = parent.parent;
+                }
+
+                if (!isButtonText)
+                {
+                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
+                    if (!string.IsNullOrEmpty(content))
+                        return content;
+                }
             }
 
-            string label = _popupElements[0].label;
-            _announcer.AnnounceInterrupt($"Popup. {_popupElements.Count} options. 1 of {_popupElements.Count}: {label}");
+            return null;
         }
 
         private void HandlePopupInput()
@@ -1406,8 +1983,16 @@ namespace AccessibleArena.Core.Services
                 if (_popupElements.Count > 0 && _popupElementIndex < _popupElements.Count)
                 {
                     var elem = _popupElements[_popupElementIndex];
-                    _announcer.AnnounceInterrupt(Strings.Activating(elem.label));
-                    UIActivator.Activate(elem.obj);
+                    if (elem.obj == null)
+                    {
+                        // Synthetic Cancel option - dismiss the modal
+                        DismissPopup();
+                    }
+                    else
+                    {
+                        _announcer.AnnounceInterrupt(Strings.Activating(elem.label));
+                        UIActivator.Activate(elem.obj);
+                    }
                 }
                 return;
             }
@@ -1415,13 +2000,45 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
-                // Try to dismiss popup via last element (often a close/cancel button)
-                if (_popupElements.Count > 0)
-                {
-                    var lastElem = _popupElements[_popupElements.Count - 1];
-                    UIActivator.Activate(lastElem.obj);
-                }
+                DismissPopup();
                 return;
+            }
+        }
+
+        private void DismissPopup()
+        {
+            _announcer.AnnounceInterrupt(Strings.Cancelled);
+
+            // For confirmation modal, call Close() via the StoreConfirmationModal
+            if (_confirmationModalGameObject != null && _activePopup == _confirmationModalGameObject)
+            {
+                // Find the Close method on StoreConfirmationModal
+                foreach (var mb in _confirmationModalGameObject.GetComponents<MonoBehaviour>())
+                {
+                    if (mb == null) continue;
+                    var closeMethod = mb.GetType().GetMethod("Close",
+                        BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                    if (closeMethod != null)
+                    {
+                        try
+                        {
+                            closeMethod.Invoke(mb, null);
+                            MelonLogger.Msg("[Mastery] Dismissed confirmation modal via Close()");
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            MelonLogger.Msg($"[Mastery] Error calling Close(): {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            // Fallback: deactivate the popup
+            if (_activePopup != null)
+            {
+                _activePopup.SetActive(false);
+                MelonLogger.Msg("[Mastery] Dismissed popup via SetActive(false)");
             }
         }
 
