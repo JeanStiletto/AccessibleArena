@@ -661,20 +661,51 @@ Some reward screens have multiple pages of rewards. The "Mehr" (More) button:
 ## Rewards/Mastery Screen
 
 **Controller:** `ProgressionTracksContentController`
-**Navigator:** `GeneralMenuNavigator`
-**Scene:** `RewardTrack`
+**Navigator:** `MasteryNavigator` (standalone, not GeneralMenuNavigator)
+**Priority:** 60 (preempts GeneralMenuNavigator)
 
-The Rewards screen shows mastery pass progression and rewards.
+The Mastery screen shows battle pass progression, level rewards, and XP progress.
 
-**Navigation:**
-- Up/Down arrows: Navigate between reward items
-- Enter: Claim available rewards
-- Backspace: Close and return to Home
+**Navigation Model:**
+The list begins with a virtual **Status item** (position 0) containing XP info and action buttons, followed by all mastery levels.
+
+**Status Item (position 0):**
+- Default announcement: current level and XP progress (e.g., "Level 15 of 80, 250/1000 XP")
+- Left/Right arrows: Cycle through XP status and action buttons (Spend Orbs, Previous Season, Purchase, Back)
+- Enter on button tier: Activates the button
+- Enter on XP tier: Reads detailed status info
+
+**Level Navigation:**
+- Up/Down arrows (or W/S, Tab/Shift+Tab): Navigate levels
+- Left/Right arrows (or A/D): Cycle reward tiers within level (Free, Premium, Renewal)
+- Home/End: Jump to first (status item) / last level
+- PageUp/PageDown: Jump ~10 levels
+- Enter: Announce detailed level info (all tiers, XP, status)
+- Backspace: Return to Home
+
+**Announcements:**
+- Activation: Track title, current level, XP progress
+- Level navigation: "X of Y: Level N: reward. status" (completed / current level)
+- Tier cycling: "Free: reward" / "Premium: reward, tier X of Y"
+- Detail (Enter): All tiers with quantities, XP if current level
+
+**Page Sync:**
+Visual page automatically syncs when navigating past page boundaries. Announces "Page X of Y" on page change.
+
+**Popup Handling:**
+Subscribes to `PanelStateManager.OnPanelChanged` for popup detection (same pattern as StoreNavigator). Filters benign overlays: ObjectivePopup, FullscreenZFBrowser, RewardPopup3DIcon.
 
 **Technical Notes:**
-- Detected as content panel via `ProgressionTracksContentController` in MenuScreenDetector
-- Screen displays as "Rewards" in announcements
-- Backspace triggers `NavigateToHome()` via content panel back handling
+- Detected via `ProgressionTracksContentController` MonoBehaviour with `IsOpen` property
+- Data provider accessed via `RewardTrackView._masteryPassProvider` (computed property: `Pantry.Get<SetMasteryDataProvider>()`)
+- Current level determined by `SetMasteryDataProvider.GetCurrentLevelIndex(trackName)` - returns the Index of the in-progress level
+- Level completion: levels with Index < curLevelIndex are completed
+- Reward names resolved via `MTGALocalizedString.ToString()` (auto-resolves loc key + parameters)
+- Page sync via `RewardTrackView.CurrentPage` property setter (triggers game page animation)
+- `PageLevels` nested class on `RewardTrackView` maps level Index values to pages
+- Action buttons discovered via reflection: `_masteryTreeButton`, `_previousTreeButton`, `_purchaseButton`, `_backButton`
+- Button labels extracted from child `TMP_Text` components with rich text tag cleaning
+- GeneralMenuNavigator suppressed when `ProgressionTracksContentController` is active
 
 ## Store Screen
 

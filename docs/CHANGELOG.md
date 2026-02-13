@@ -2,6 +2,32 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6 - 2026-02-13
+
+### New Navigator: MasteryNavigator
+- Dedicated navigator for the Mastery/Rewards screen (priority 60)
+- Replaces GeneralMenuNavigator's unusable 55-group flat list with structured level navigation
+- Up/Down navigates mastery levels with reward name and completion status announced
+- Left/Right cycles between reward tiers within a level (Free, Premium, Renewal)
+- Virtual status item at position 0 with XP progress info and action buttons as tiers
+- Action buttons (Mastery Tree, Previous Season, Purchase, Back) accessible via Left/Right on status item, Enter to activate
+- PageUp/PageDown jumps ~10 levels, Home/End jumps to status item/last level
+- Enter on a level announces detailed info (all tiers, quantities, status)
+- Backspace returns to Home screen
+- Automatic page sync when navigating past page boundaries
+- Level completion derived from game's `SetMasteryDataProvider.GetCurrentLevelIndex()` via reflection
+- Reward names resolved via `MTGALocalizedString` localization system
+- Popup handling via `PanelStateManager.OnPanelChanged` subscription
+- GeneralMenuNavigator now excludes `ProgressionTracksContentController` screens
+
+### Files
+- New: `src/Core/Services/MasteryNavigator.cs`
+- Modified: `src/Core/Models/Strings.cs` (mastery announcement strings)
+- Modified: `src/AccessibleArenaMod.cs` (navigator registration)
+- Modified: `src/Core/Services/GeneralMenuNavigator.cs` (mastery screen exclusion)
+
+---
+
 ## v0.5.1 - 2026-02-11
 
 ### Bug Fixes

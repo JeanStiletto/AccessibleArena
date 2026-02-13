@@ -36,16 +36,8 @@ namespace AccessibleArena.Core.Services
 
         #region Navigation State
 
-        private enum Section
-        {
-            Levels,
-            Buttons
-        }
-
-        private Section _section = Section.Levels;
-        private int _currentLevelIndex;    // Index into _levelData list
+        private int _currentLevelIndex;    // Index into _levelData list (0 = status item, 1+ = levels)
         private int _currentTierIndex;     // Which reward tier within level (0=Free, 1=Premium, 2=Renewal)
-        private int _currentButtonIndex;   // Index into _actionButtons list
 
         // Popup overlay tracking
         private GameObject _activePopup;
@@ -104,6 +96,13 @@ namespace AccessibleArena.Core.Services
         private FieldInfo _rewardDescTextField;    // MTGALocalizedString DescriptionText
         private FieldInfo _rewardSecondaryField;   // MTGALocalizedString SecondaryText
 
+        // Reflection: SetMasteryDataProvider (for current level / XP progress)
+        private PropertyInfo _masteryPassProviderProp; // private prop on view: _masteryPassProvider
+        private Type _setMasteryDataProviderType;
+        private MethodInfo _getCurrentLevelIndexMethod;  // GetCurrentLevelIndex(string) -> int
+        private MethodInfo _getCurrentXpProgressMethod;  // GetCurrentXpProgress(string) -> int
+        private MethodInfo _playerHitPremiumTierMethod;  // PlayerHitPremiumRewardTier(string) -> bool
+
         // Reflection: MTGALocalizedString
         private Type _mtgaLocStringType;
         private FieldInfo _locStringKeyField;      // string Key
@@ -122,10 +121,11 @@ namespace AccessibleArena.Core.Services
 
         private struct LevelData
         {
-            public int LevelNumber;          // Display level (1-based, from Index field)
+            public int LevelNumber;          // Display level (1-based)
             public int ExpProgress;          // Current XP (if current level)
             public int XpToComplete;         // XP needed
             public bool IsComplete;
+            public bool IsCurrent;           // Is this the player's current in-progress level
             public bool IsRepeatable;
             public List<TierReward> Tiers;   // Free, Premium, etc.
         }
@@ -291,6 +291,20 @@ namespace AccessibleArena.Core.Services
                 _purchaseButtonField = _viewType.GetField("_purchaseButton", flags);
                 _purchaseCenterField = _viewType.GetField("_purchaseCenter", flags);
 
+                // SetMasteryDataProvider via view's _masteryPassProvider property
+                _masteryPassProviderProp = _viewType.GetProperty("_masteryPassProvider", flags);
+                if (_masteryPassProviderProp != null)
+                {
+                    _setMasteryDataProviderType = _masteryPassProviderProp.PropertyType;
+                    var pubInstance = BindingFlags.Public | BindingFlags.Instance;
+                    _getCurrentLevelIndexMethod = _setMasteryDataProviderType.GetMethod("GetCurrentLevelIndex",
+                        pubInstance, null, new[] { typeof(string) }, null);
+                    _getCurrentXpProgressMethod = _setMasteryDataProviderType.GetMethod("GetCurrentXpProgress",
+                        pubInstance, null, new[] { typeof(string) }, null);
+                    _playerHitPremiumTierMethod = _setMasteryDataProviderType.GetMethod("PlayerHitPremiumRewardTier",
+                        pubInstance, null, new[] { typeof(string) }, null);
+                }
+
                 // PageLevels nested class
                 _pageLevelsType = _viewType.GetNestedType("PageLevels", BindingFlags.NonPublic);
                 if (_pageLevelsType != null)
@@ -374,7 +388,9 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[Mastery] Reflection cached. View={_viewType != null}, " +
                 $"Level={_trackLevelType != null}, RewardData={_rewardDisplayType != null}, " +
                 $"LocString={_mtgaLocStringType != null}, Languages={_languagesType != null}, " +
-                $"PageLevels={_pageLevelsType != null}");
+                $"PageLevels={_pageLevelsType != null}, " +
+                $"DataProvider={_setMasteryDataProviderType != null}, " +
+                $"GetCurrentLevelIndex={_getCurrentLevelIndexMethod != null}");
         }
 
         #endregion
@@ -383,11 +399,14 @@ namespace AccessibleArena.Core.Services
 
         protected override void DiscoverElements()
         {
-            // Build level data from the view
+            // Build level data and action buttons from the view
             BuildLevelData();
             BuildActionButtons();
 
-            if (_levelData.Count > 0 || _actionButtons.Count > 0)
+            // Insert virtual status item at position 0 with XP info + action buttons as tiers
+            InsertStatusItem();
+
+            if (_levelData.Count > 0)
             {
                 // Add a dummy element for BaseNavigator validation
                 AddElement(_controllerGameObject, "Mastery");
@@ -425,42 +444,75 @@ namespace AccessibleArena.Core.Services
 
             _totalLevels = levelsList.Count;
 
+            // Get current level from data provider (the level the player is working on)
+            // curLevelIndex is the Index field value of the current in-progress level
+            int curLevelIndex = -1;
+            try
+            {
+                if (_masteryPassProviderProp != null && _getCurrentLevelIndexMethod != null)
+                {
+                    var provider = _masteryPassProviderProp.GetValue(view);
+                    if (provider != null)
+                    {
+                        string trackName = _trackNameField?.GetValue(view) as string;
+                        if (!string.IsNullOrEmpty(trackName))
+                        {
+                            curLevelIndex = (int)_getCurrentLevelIndexMethod.Invoke(provider, new object[] { trackName });
+                            MelonLogger.Msg($"[Mastery] Data provider: curLevelIndex={curLevelIndex}, trackName={trackName}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[Mastery] Error getting current level from provider: {ex.Message}");
+            }
+
             for (int i = 0; i < levelsList.Count; i++)
             {
                 var level = levelsList[i];
                 if (level == null) continue;
 
-                var levelData = ExtractLevelData(level, i, rewardDataList);
+                var levelData = ExtractLevelData(level, i, rewardDataList, curLevelIndex);
                 _levelData.Add(levelData);
-
-                // Find current player level
-                if (!levelData.IsComplete && _currentPlayerLevel < 0)
-                    _currentPlayerLevel = i;
             }
 
-            // If all complete, set to last
+            // Find current player level in our list (the in-progress level)
+            // curLevelIndex is the Index field of the current level, which equals list position
+            if (curLevelIndex >= 0)
+            {
+                // Find the level data entry matching curLevelIndex
+                for (int i = 0; i < _levelData.Count; i++)
+                {
+                    if (_levelData[i].IsCurrent)
+                    {
+                        _currentPlayerLevel = i;
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: if no current level found, default to last level
             if (_currentPlayerLevel < 0)
                 _currentPlayerLevel = _levelData.Count - 1;
 
-            MelonLogger.Msg($"[Mastery] Built {_levelData.Count} levels, current={_currentPlayerLevel}, track={_trackTitle}");
+            MelonLogger.Msg($"[Mastery] Built {_levelData.Count} levels, current={_currentPlayerLevel}, " +
+                $"curLevelIdx={curLevelIndex}, track={_trackTitle}");
         }
 
-        private LevelData ExtractLevelData(object level, int listIndex, IList rewardDataList)
+        private LevelData ExtractLevelData(object level, int listIndex, IList rewardDataList, int curLevelIndex)
         {
-            int levelNum = 1;
+            int levelIndex = 0;  // The Index field (0-based, matches list position)
             int expProgress = 0;
             int xpToComplete = 0;
-            bool isComplete = false;
             bool isRepeatable = false;
 
             try
             {
                 if (_levelIndexField != null)
-                    levelNum = (int)_levelIndexField.GetValue(level);
+                    levelIndex = (int)_levelIndexField.GetValue(level);
                 if (_levelExpField != null)
                     expProgress = (int)_levelExpField.GetValue(level);
-                if (_levelCompleteField != null)
-                    isComplete = (bool)_levelCompleteField.GetValue(level);
                 if (_levelRepeatableField != null)
                     isRepeatable = (bool)_levelRepeatableField.GetValue(level);
 
@@ -475,6 +527,12 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[Mastery] Error reading level data: {ex.Message}");
             }
+
+            // Determine completion status from data provider's current level index
+            // Game logic: levels with (Index + 1) <= curLevelIndex are completed
+            // The level with Index == curLevelIndex is the current in-progress level
+            bool isComplete = curLevelIndex >= 0 && levelIndex < curLevelIndex;
+            bool isCurrent = curLevelIndex >= 0 && levelIndex == curLevelIndex;
 
             // Extract reward tiers
             var tiers = new List<TierReward>();
@@ -521,10 +579,11 @@ namespace AccessibleArena.Core.Services
 
             return new LevelData
             {
-                LevelNumber = levelNum,
+                LevelNumber = listIndex + 1,  // 1-based display number
                 ExpProgress = expProgress,
                 XpToComplete = xpToComplete,
                 IsComplete = isComplete,
+                IsCurrent = isCurrent,
                 IsRepeatable = isRepeatable,
                 Tiers = tiers
             };
@@ -612,6 +671,62 @@ namespace AccessibleArena.Core.Services
                 });
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Inserts a virtual "Status" item at position 0 containing XP info and action buttons as tiers.
+        /// This allows the user to re-read XP status and access buttons via Left/Right cycling.
+        /// </summary>
+        private void InsertStatusItem()
+        {
+            // Build XP info from the current player level
+            string xpInfo = "";
+            int displayLevel = 1;
+            if (_currentPlayerLevel >= 0 && _currentPlayerLevel < _levelData.Count)
+            {
+                var curLevel = _levelData[_currentPlayerLevel];
+                displayLevel = curLevel.LevelNumber;
+                if (curLevel.XpToComplete > 0 && !curLevel.IsComplete)
+                    xpInfo = $"{curLevel.ExpProgress}/{curLevel.XpToComplete} XP";
+                else if (curLevel.IsComplete)
+                    xpInfo = Strings.MasteryCompleted;
+            }
+
+            // Build tiers: XP status first, then action buttons
+            var tiers = new List<TierReward>();
+
+            // Tier 0: XP status
+            tiers.Add(new TierReward
+            {
+                TierName = Strings.MasteryStatus,
+                RewardName = Strings.MasteryStatusInfo(displayLevel, _totalLevels, xpInfo),
+                Quantity = 0,
+                Description = ""
+            });
+
+            // Tier 1+: action buttons
+            foreach (var btn in _actionButtons)
+            {
+                tiers.Add(new TierReward
+                {
+                    TierName = btn.Label,
+                    RewardName = btn.Label,
+                    Quantity = 0,
+                    Description = ""
+                });
+            }
+
+            _levelData.Insert(0, new LevelData
+            {
+                LevelNumber = 0, // marker for virtual status item
+                Tiers = tiers
+            });
+
+            // Shift current player level index to account for inserted item
+            if (_currentPlayerLevel >= 0)
+                _currentPlayerLevel++;
+
+            MelonLogger.Msg($"[Mastery] Inserted status item with {tiers.Count} tiers ({_actionButtons.Count} buttons)");
         }
 
         #endregion
@@ -720,12 +835,10 @@ namespace AccessibleArena.Core.Services
 
         protected override void OnActivated()
         {
-            _section = Section.Levels;
             _currentTierIndex = 0;
 
-            // Start at current player level
+            // Start at current player level (skips status item at 0)
             _currentLevelIndex = _currentPlayerLevel >= 0 ? _currentPlayerLevel : 0;
-            _currentButtonIndex = 0;
 
             // Subscribe to panel changes for popup detection
             if (PanelStateManager.Instance != null)
@@ -765,16 +878,16 @@ namespace AccessibleArena.Core.Services
 
             // Build XP string for current level
             string xpStr = "";
-            if (_currentLevelIndex >= 0 && _currentLevelIndex < _levelData.Count)
+            if (_currentPlayerLevel >= 0 && _currentPlayerLevel < _levelData.Count)
             {
-                var level = _levelData[_currentLevelIndex];
+                var level = _levelData[_currentPlayerLevel];
                 if (level.XpToComplete > 0 && !level.IsComplete)
                     xpStr = $"{level.ExpProgress}/{level.XpToComplete} XP";
                 else if (level.IsComplete)
                     xpStr = "completed";
             }
 
-            return Strings.MasteryActivation(_trackTitle, _currentLevelIndex + 1, _totalLevels, xpStr);
+            return Strings.MasteryActivation(_trackTitle, _levelData[_currentPlayerLevel].LevelNumber, _totalLevels, xpStr);
         }
 
         protected override string GetElementAnnouncement(int index)
@@ -788,11 +901,22 @@ namespace AccessibleArena.Core.Services
             if (_currentLevelIndex < 0 || _currentLevelIndex >= _levelData.Count) return;
 
             var level = _levelData[_currentLevelIndex];
+
+            // Virtual status item at index 0
+            if (level.LevelNumber == 0)
+            {
+                string statusText = level.Tiers != null && level.Tiers.Count > 0
+                    ? level.Tiers[0].RewardName : Strings.MasteryStatus;
+                _announcer.AnnounceInterrupt(statusText);
+                return;
+            }
+
             string reward = GetPrimaryRewardName(level);
             string status = GetLevelStatus(level);
 
+            // _currentLevelIndex starts at 1 for real levels (0 is status item)
             _announcer.AnnounceInterrupt(
-                $"{_currentLevelIndex + 1} of {_totalLevels}: " +
+                $"{_currentLevelIndex} of {_totalLevels}: " +
                 Strings.MasteryLevel(level.LevelNumber, reward, status));
         }
 
@@ -845,15 +969,6 @@ namespace AccessibleArena.Core.Services
             _announcer.AnnounceInterrupt(Strings.MasteryLevelDetail(level.LevelNumber, tiers, status));
         }
 
-        private void AnnounceCurrentButton()
-        {
-            if (_currentButtonIndex < 0 || _currentButtonIndex >= _actionButtons.Count) return;
-
-            var button = _actionButtons[_currentButtonIndex];
-            _announcer.AnnounceInterrupt(
-                $"{_currentButtonIndex + 1} of {_actionButtons.Count}: {button.Label}");
-        }
-
         private string GetPrimaryRewardName(LevelData level)
         {
             if (level.Tiers == null || level.Tiers.Count == 0) return Strings.MasteryNoReward;
@@ -869,8 +984,7 @@ namespace AccessibleArena.Core.Services
         private string GetLevelStatus(LevelData level)
         {
             if (level.IsComplete) return Strings.MasteryCompleted;
-            if (_currentPlayerLevel >= 0 && level.LevelNumber == _levelData[_currentPlayerLevel].LevelNumber)
-                return Strings.MasteryCurrentLevel;
+            if (level.IsCurrent) return Strings.MasteryCurrentLevel;
             return "";
         }
 
@@ -921,6 +1035,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void SyncPageForLevel()
         {
+            // Skip for virtual status item (no game page to sync)
+            if (_currentLevelIndex <= 0) return;
+
             var view = GetActiveView();
             if (view == null || _pagesField == null || _currentPageProp == null) return;
 
@@ -1019,20 +1136,12 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            switch (_section)
-            {
-                case Section.Levels:
-                    HandleLevelInput();
-                    break;
-                case Section.Buttons:
-                    HandleButtonInput();
-                    break;
-            }
+            HandleLevelInput();
         }
 
         private void HandleLevelInput()
         {
-            // Up/Down: Navigate levels
+            // Up/Down: Navigate levels (index 0 = status item, 1+ = real levels)
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) ||
                 Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
             {
@@ -1042,13 +1151,6 @@ namespace AccessibleArena.Core.Services
                     _currentTierIndex = 0;
                     SyncPageForLevel();
                     AnnounceCurrentLevel();
-                }
-                else if (_actionButtons.Count > 0)
-                {
-                    // Move to action buttons
-                    _section = Section.Buttons;
-                    _currentButtonIndex = _actionButtons.Count - 1;
-                    AnnounceCurrentButton();
                 }
                 else
                 {
@@ -1074,7 +1176,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Left/Right: Cycle reward tiers
+            // Left/Right: Cycle reward tiers (or buttons on status item)
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
             {
                 CycleTier(-1);
@@ -1087,12 +1189,11 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Home/End: Jump to first/last level
+            // Home/End: Jump to first/last
             if (Input.GetKeyDown(KeyCode.Home))
             {
                 _currentLevelIndex = 0;
                 _currentTierIndex = 0;
-                SyncPageForLevel();
                 AnnounceCurrentLevel();
                 return;
             }
@@ -1125,69 +1226,23 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Enter: Announce detailed level info
+            // Enter: On status item, activate button tier or announce detail. On levels, announce detail.
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
+
+                // Status item: activate button if a button tier is selected
+                if (_currentLevelIndex == 0 && _currentTierIndex > 0 &&
+                    _currentTierIndex - 1 < _actionButtons.Count)
+                {
+                    var btn = _actionButtons[_currentTierIndex - 1];
+                    _announcer.AnnounceInterrupt(Strings.Activating(btn.Label));
+                    UIActivator.Activate(btn.GameObject);
+                    return;
+                }
+
                 AnnounceLevelDetail();
-                return;
-            }
-
-            // Backspace: Go back
-            if (Input.GetKeyDown(KeyCode.Backspace))
-            {
-                InputManager.ConsumeKey(KeyCode.Backspace);
-                ActivateBackButton();
-                return;
-            }
-        }
-
-        private void HandleButtonInput()
-        {
-            // Up/Down: Navigate buttons
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) ||
-                Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
-            {
-                if (_currentButtonIndex > 0)
-                {
-                    _currentButtonIndex--;
-                    AnnounceCurrentButton();
-                }
-                else
-                {
-                    _announcer.AnnounceInterrupt(Strings.BeginningOfList);
-                }
-                return;
-            }
-
-            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) ||
-                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
-            {
-                if (_currentButtonIndex < _actionButtons.Count - 1)
-                {
-                    _currentButtonIndex++;
-                    AnnounceCurrentButton();
-                }
-                else
-                {
-                    // Move back to levels
-                    _section = Section.Levels;
-                    _currentLevelIndex = 0;
-                    _currentTierIndex = 0;
-                    SyncPageForLevel();
-                    AnnounceCurrentLevel();
-                }
-                return;
-            }
-
-            // Enter/Space: Activate current button
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
-                Input.GetKeyDown(KeyCode.Space))
-            {
-                InputManager.ConsumeKey(KeyCode.Return);
-                InputManager.ConsumeKey(KeyCode.KeypadEnter);
-                ActivateCurrentButton();
                 return;
             }
 
@@ -1218,15 +1273,6 @@ namespace AccessibleArena.Core.Services
             if (_currentTierIndex >= level.Tiers.Count) _currentTierIndex = 0;
 
             AnnounceCurrentTier();
-        }
-
-        private void ActivateCurrentButton()
-        {
-            if (_currentButtonIndex < 0 || _currentButtonIndex >= _actionButtons.Count) return;
-
-            var button = _actionButtons[_currentButtonIndex];
-            _announcer.AnnounceInterrupt(Strings.Activating(button.Label));
-            UIActivator.Activate(button.GameObject);
         }
 
         private void ActivateBackButton()

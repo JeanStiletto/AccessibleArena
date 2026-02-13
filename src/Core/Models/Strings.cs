@@ -445,5 +445,10 @@ namespace AccessibleArena.Core.Models
         public const string MasteryPremium = "Premium";
         public const string MasteryRenewal = "Renewal";
         public const string MasteryNoReward = "no reward";
+        public const string MasteryStatus = "Status";
+        public static string MasteryStatusInfo(int level, int total, string xp) =>
+            string.IsNullOrEmpty(xp)
+                ? $"Level {level} of {total}"
+                : $"Level {level} of {total}, {xp}";
     }
 }

@@ -92,6 +92,7 @@ C:\Users\fabia\arena\
         SettingsMenuNavigator.cs     - Settings menu (works in all scenes including duels)
         GeneralMenuNavigator.cs      - Main menu, login, NPE, and general menu screens
         StoreNavigator.cs            - Store screen (tabs, items, purchase options, details view, popups)
+        MasteryNavigator.cs          - Mastery/Rewards screen (levels, tiers, XP progress, action buttons)
 
         # Deprecated navigators (in old/ folder)
         # WelcomeGateNavigator, LoginPanelNavigator, CodeOfConductNavigator
@@ -141,6 +142,7 @@ C:\Users\fabia\arena\
 - [x] GeneralMenuNavigator - Main menu, login, NPE screens, and general navigation
 - [x] NPERewardNavigator - NPE reward screens (chest, deck boxes)
 - [x] StoreNavigator - Store screen with tab/item/purchase navigation, card details view, popup handling
+- [x] MasteryNavigator - Mastery/Rewards screen with level navigation, reward tiers, XP progress, action buttons
 
 ### Menu Panel Detection (Harmony Patches)
 - [x] PanelStatePatch - Harmony patches for panel state changes
@@ -514,6 +516,37 @@ StoreNavigator uses a reusable popup pattern with dual detection:
 
 **Files:**
 - `src/Core/Services/StoreNavigator.cs` - Main navigator implementation
+
+---
+
+### Mastery Navigator (February 2026)
+
+Dedicated navigator for the Mastery/Rewards screen. Replaces GeneralMenuNavigator's flat element list with structured level-based navigation.
+
+**Architecture:**
+- `MasteryNavigator.cs` - Standalone navigator with custom level/tier navigation
+- Priority 60 (above StoreNavigator at 55, below LoadingScreenNavigator at 65)
+- Subscribes to `PanelStateManager.OnPanelChanged` for popup detection
+
+**Navigation Model:**
+- **Virtual status item (index 0)**: XP progress info + action buttons as tiers
+  - Left/Right cycles: Status info, Mastery Tree, Previous Season, Purchase, Back
+  - Enter activates the selected button tier
+- **Levels (Up/Down)**: Navigate mastery levels with reward announcements
+- **Tiers (Left/Right)**: Cycle between Free, Premium, Renewal reward tiers within a level
+- **Enter**: Announce detailed level info (all tiers, quantities, completion status)
+- **PageUp/PageDown**: Jump ~10 levels with page sync
+- **Home/End**: Jump to status item / last level
+- **Backspace**: Return to Home screen
+
+**Data Access:**
+- `ProgressionTracksContentController` detection via MonoBehaviour scan + `IsOpen` check
+- `RewardTrackView._levels` and `_levelRewardData` for level/reward data
+- `SetMasteryDataProvider.GetCurrentLevelIndex()` for completion status
+- `MTGALocalizedString` key resolution via `Languages.ActiveLocProvider`
+
+**Files:**
+- `src/Core/Services/MasteryNavigator.cs` - Main navigator implementation
 
 ---
 
