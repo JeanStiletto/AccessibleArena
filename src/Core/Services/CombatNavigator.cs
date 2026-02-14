@@ -373,8 +373,8 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets text to append to card announcement indicating active states.
-        /// Uses model data for attacking/blocking with relationship names,
-        /// and UI scan for frames, selection, and tapped state.
+        /// Uses model data for attacking/blocking/tapped with relationship names,
+        /// and UI scan for frames and selection state.
         /// </summary>
         public string GetCombatStateText(GameObject card)
         {
@@ -384,13 +384,13 @@ namespace AccessibleArena.Core.Services
             bool hasAttackerFrame = false;
             bool hasBlockerFrame = false;
             bool isSelected = false;
-            bool isTapped = false;
 
-            // Model-based combat state
+            // Model-based state (authoritative)
             bool isAttacking = CardModelProvider.GetIsAttackingFromCard(card);
             bool isBlocking = CardModelProvider.GetIsBlockingFromCard(card);
+            bool isTapped = CardModelProvider.GetIsTappedFromCard(card);
 
-            // UI scan for frames, selection, tapped (still needed for "can block"/"can attack" etc.)
+            // UI scan for frames, selection (still needed for "can block"/"can attack" etc.)
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
                 // UI fallback for attacking/blocking if model didn't detect
@@ -408,8 +408,6 @@ namespace AccessibleArena.Core.Services
                     hasBlockerFrame = true;
                 if (child.name.Contains("SelectedHighlightBattlefield"))
                     isSelected = true;
-                if (child.name.Contains("TappedIcon"))
-                    isTapped = true;
             }
 
             // Attacking states (priority: is attacking > can attack)

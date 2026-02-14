@@ -71,6 +71,8 @@ namespace AccessibleArena.Core.Services
             _isAttackingPropSearched = false;
             _isBlockingProp = null;
             _isBlockingPropSearched = false;
+            _isTappedField = null;
+            _isTappedFieldSearched = false;
             _blockingIdsField = null;
             _blockingIdsFieldSearched = false;
             _blockedByIdsField = null;
@@ -2397,6 +2399,8 @@ namespace AccessibleArena.Core.Services
         private static bool _isAttackingPropSearched;
         private static PropertyInfo _isBlockingProp;
         private static bool _isBlockingPropSearched;
+        private static FieldInfo _isTappedField;
+        private static bool _isTappedFieldSearched;
         private static FieldInfo _blockingIdsField;
         private static bool _blockingIdsFieldSearched;
         private static FieldInfo _blockedByIdsField;
@@ -2565,6 +2569,45 @@ namespace AccessibleArena.Core.Services
             }
             catch { }
             return null;
+        }
+
+        /// <summary>
+        /// Returns true if the card model's Instance.IsTapped field is true.
+        /// Note: IsTapped is a public FIELD on MtgCardInstance, not a property.
+        /// </summary>
+        public static bool GetIsTapped(object model)
+        {
+            var instance = GetModelInstance(model);
+            if (instance == null) return false;
+            try
+            {
+                if (!_isTappedFieldSearched)
+                {
+                    _isTappedFieldSearched = true;
+                    _isTappedField = instance.GetType().GetField("IsTapped",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (_isTappedField != null)
+                {
+                    var val = _isTappedField.GetValue(instance);
+                    if (val is bool b) return b;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a card GameObject is tapped, using model data.
+        /// Chains: GetDuelSceneCDC → GetCardModel → GetIsTapped.
+        /// </summary>
+        public static bool GetIsTappedFromCard(GameObject card)
+        {
+            if (card == null) return false;
+            var cdc = GetDuelSceneCDC(card);
+            if (cdc == null) return false;
+            var model = GetCardModel(cdc);
+            return GetIsTapped(model);
         }
 
         /// <summary>
