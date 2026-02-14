@@ -2,7 +2,30 @@
 
 All notable changes to Accessible Arena.
 
-## v0.6 - 2026-02-13
+## v0.6 - 2026-02-14
+
+### New Navigator: StoreNavigator
+- Dedicated navigator for the Store screen (priority 55)
+- Two-level navigation: tabs (Up/Down) and items within tabs (Up/Down after Enter)
+- Left/Right cycles purchase options on store items (gems, gold, real money)
+- Details view for deck/bundle items with navigable card list (Left/Right for cards, Up/Down for info blocks)
+- Store item descriptions extracted from active tag text (discount badges, timers, limits, callouts)
+- Confirmation modal handled as popup with Cancel option and proper button discovery via reflection
+- Utility elements at tab level: payment method, redeem code, drop rates
+- Pack progress info (goal count, description) shown as utility element
+- GeneralMenuNavigator suppressed when store is active
+
+### New: WebBrowserAccessibility
+- Keyboard navigation for embedded ZFBrowser popups (Xsolla payment dialogs)
+- Extracts page elements via JavaScript (EvalJSCSP to bypass CSP restrictions), recursively scans iframes
+- Up/Down navigates elements, Enter activates buttons/links, Tab/Shift+Tab for form fields
+- Text input support with 3-tier fallback: execCommand, keyboard events per char, direct value set
+- Left/Right reads character-by-character in edit mode, Enter/Escape to start/stop editing
+- PayPal CAPTCHA detection after 3 empty rescans with warning announcement
+- Escape blocked from game while web browser is active
+- Loading state detection via IsReady, delayed rescan after button clicks for slow page transitions
+- Label detection: wrapping labels, preceding siblings, parent sibling labels, name attribute fallback
+- Deduplicated repeated text elements
 
 ### New Navigator: MasteryNavigator
 - Dedicated navigator for the Mastery/Rewards screen (priority 60)
@@ -10,21 +33,24 @@ All notable changes to Accessible Arena.
 - Up/Down navigates mastery levels with reward name and completion status announced
 - Left/Right cycles between reward tiers within a level (Free, Premium, Renewal)
 - Virtual status item at position 0 with XP progress info and action buttons as tiers
-- Action buttons (Mastery Tree, Previous Season, Purchase, Back) accessible via Left/Right on status item, Enter to activate
 - PageUp/PageDown jumps ~10 levels, Home/End jumps to status item/last level
 - Enter on a level announces detailed info (all tiers, quantities, status)
 - Backspace returns to Home screen
 - Automatic page sync when navigating past page boundaries
+- PrizeWall mode: "Mastery Tree" opens sphere-spending navigator with item navigation and purchase confirmation
 - Level completion derived from game's `SetMasteryDataProvider.GetCurrentLevelIndex()` via reflection
 - Reward names resolved via `MTGALocalizedString` localization system
-- Popup handling via `PanelStateManager.OnPanelChanged` subscription
-- GeneralMenuNavigator now excludes `ProgressionTracksContentController` screens
 
-### Files
-- New: `src/Core/Services/MasteryNavigator.cs`
-- Modified: `src/Core/Models/Strings.cs` (mastery announcement strings)
-- Modified: `src/AccessibleArenaMod.cs` (navigator registration)
-- Modified: `src/Core/Services/GeneralMenuNavigator.cs` (mastery screen exclusion)
+### DeckManager Improvements
+- Deck-specific toolbar buttons (Edit, Delete, Export, Favorite, Clone, Deck Details) hidden from top-level navigation
+- These actions now only accessible via Right Arrow actions menu on each deck entry (expanded from 4 to 7 actions)
+- Standalone buttons (Import, Collection) remain visible at top level
+
+### Bug Fixes
+- Fix tapped state not displayed for some battlefield cards
+  - Was using unreliable UI scan for TappedIcon child element which the game doesn't render consistently
+  - Now reads IsTapped field directly from game model via reflection (authoritative source)
+- Exclude PackProgressMeter from panel detection (inherits PopupBase but isn't a real popup, was blocking payment popup detection)
 
 ---
 
