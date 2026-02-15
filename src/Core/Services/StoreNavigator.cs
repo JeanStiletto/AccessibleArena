@@ -1457,13 +1457,12 @@ namespace AccessibleArena.Core.Services
                 {
                     _currentItemIndex = 0;
                     _currentPurchaseOptionIndex = 0;
-                    _announcer.AnnounceInterrupt(
-                        $"{tab.DisplayName}. {_items.Count} items.");
+                    _announcer.AnnounceInterrupt(Strings.TabItems(tab.DisplayName, _items.Count));
                     AnnounceCurrentItem();
                 }
                 else
                 {
-                    _announcer.AnnounceInterrupt($"{tab.DisplayName}. No items available.");
+                    _announcer.AnnounceInterrupt(Strings.NoItemsAvailable(tab.DisplayName));
                     _navLevel = NavigationLevel.Tabs;
                 }
                 return;
@@ -1490,7 +1489,7 @@ namespace AccessibleArena.Core.Services
                 UIActivator.Activate(tab.GameObject);
             }
 
-            _announcer.AnnounceInterrupt($"Loading {tab.DisplayName}...");
+            _announcer.AnnounceInterrupt(Strings.Loading(tab.DisplayName));
 
             // Start waiting for items to load
             _waitingForTabLoad = true;
@@ -1558,7 +1557,7 @@ namespace AccessibleArena.Core.Services
                     ? _tabs[_currentTabIndex].DisplayName
                     : "Store";
 
-                _announcer.AnnounceInterrupt($"{tabName}. {_items.Count} items.");
+                _announcer.AnnounceInterrupt(Strings.TabItems(tabName, _items.Count));
                 AnnounceCurrentItem();
             }
             else
@@ -1567,7 +1566,7 @@ namespace AccessibleArena.Core.Services
                     ? _tabs[_currentTabIndex].DisplayName
                     : "tab";
 
-                _announcer.AnnounceInterrupt($"{tabName}. No items available.");
+                _announcer.AnnounceInterrupt(Strings.TabNoItems(tabName));
                 _navLevel = NavigationLevel.Tabs;
             }
         }
@@ -1637,7 +1636,7 @@ namespace AccessibleArena.Core.Services
             var item = _items[_currentItemIndex];
             if (item.PurchaseOptions.Count == 0)
             {
-                _announcer.Announce("No purchase option available", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.NoPurchaseOption, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -1730,7 +1729,7 @@ namespace AccessibleArena.Core.Services
 
             if (string.IsNullOrEmpty(_detailsDescription) && _detailsCards.Count == 0)
             {
-                _announcer.Announce("No details available", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.NoDetailsAvailable, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -2099,7 +2098,7 @@ namespace AccessibleArena.Core.Services
 
                 if (_detailsCardBlocks.Count == 0)
                 {
-                    _announcer.Announce("No card details available", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.NoCardDetails, AnnouncementPriority.Normal);
                     return;
                 }
 
@@ -2513,7 +2512,7 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg("[Store] Closing confirmation modal via Close()");
                     _modalCloseMethod.Invoke(_confirmationModalMb, null);
-                    _announcer.Announce("Cancelled", AnnouncementPriority.High);
+                    _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
                     return;
                 }
                 catch (Exception ex)
@@ -2533,7 +2532,7 @@ namespace AccessibleArena.Core.Services
                     if (lowerLabel.Contains(pattern))
                     {
                         MelonLogger.Msg($"[Store] Dismissing popup via: {label}");
-                        _announcer.Announce("Cancelled", AnnouncementPriority.High);
+                        _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
                         UIActivator.Activate(obj);
                         return;
                     }
@@ -2553,7 +2552,7 @@ namespace AccessibleArena.Core.Services
                         {
                             MelonLogger.Msg("[Store] Invoking SystemMessageView.OnBack()");
                             onBack.Invoke(mb, new object[] { null });
-                            _announcer.Announce("Cancelled", AnnouncementPriority.High);
+                            _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
                             return;
                         }
                         catch (Exception ex)
@@ -2586,7 +2585,7 @@ namespace AccessibleArena.Core.Services
             if (_currentTabIndex < 0 && _tabs.Count > 0)
                 _currentTabIndex = 0;
 
-            _announcer.AnnounceInterrupt($"Tabs. {_tabs.Count} tabs.");
+            _announcer.AnnounceInterrupt(Strings.TabsCount(_tabs.Count));
             AnnounceCurrentTab();
         }
 

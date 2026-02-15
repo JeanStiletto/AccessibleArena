@@ -81,14 +81,20 @@ namespace AccessibleArena.Core.Services
             return index >= 0 ? LanguageNames[index] : Language;
         }
 
+        /// <summary>Fired when the language setting changes.</summary>
+        public event Action OnLanguageChanged;
+
         /// <summary>
         /// Cycle to the next language in the list.
+        /// Updates LocaleManager and fires OnLanguageChanged.
         /// </summary>
         public void CycleLanguage()
         {
             int index = Array.IndexOf(LanguageCodes, Language);
             index = (index + 1) % LanguageCodes.Length;
             Language = LanguageCodes[index];
+            LocaleManager.Instance?.SetLanguage(Language);
+            OnLanguageChanged?.Invoke();
         }
 
         /// <summary>

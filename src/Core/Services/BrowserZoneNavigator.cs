@@ -373,7 +373,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce($"Could not move {cardName}", AnnouncementPriority.High);
+                _announcer.Announce(Strings.CouldNotMove(cardName), AnnouncementPriority.High);
             }
         }
 
@@ -1187,7 +1187,7 @@ namespace AccessibleArena.Core.Services
                 string newZoneName = cardZone == BrowserZoneType.Top
                     ? GetZoneName(BrowserZoneType.Bottom)
                     : GetZoneName(BrowserZoneType.Top);
-                _announcer.Announce($"{cardName} moved to {newZoneName}", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.MovedTo(cardName, newZoneName), AnnouncementPriority.Normal);
 
                 // Refresh card lists
                 MelonCoroutines.Start(RefreshAfterGenericActivation());

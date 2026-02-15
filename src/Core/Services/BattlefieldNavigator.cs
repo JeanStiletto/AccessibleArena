@@ -112,7 +112,7 @@ namespace AccessibleArena.Core.Services
                     string mana = DuelAnnouncer.CurrentManaPool;
                     if (!string.IsNullOrEmpty(mana))
                     {
-                        _announcer.Announce($"Mana: {mana}", AnnouncementPriority.High);
+                        _announcer.Announce(Strings.ManaAmount(mana), AnnouncementPriority.High);
                     }
                     NavigateToRow(BattlefieldRow.PlayerLands);
                 }

@@ -1,107 +1,130 @@
+using AccessibleArena.Core.Services;
+
 namespace AccessibleArena.Core.Models
 {
     /// <summary>
     /// Centralized storage for all user-facing announcement strings.
-    /// This enables future localization support.
+    /// All strings are resolved through LocaleManager for localization.
     /// </summary>
     public static class Strings
     {
+        // Shorthand for locale manager
+        private static LocaleManager L => LocaleManager.Instance;
+
+        // Category filters
+        private static bool ShowHints => AccessibleArenaMod.Instance?.Settings?.TutorialMessages ?? true;
+        private static bool ShowVerbose => AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements ?? true;
+
+        /// <summary>
+        /// Appends a tutorial hint to a core message if TutorialMessages is enabled.
+        /// </summary>
+        public static string WithHint(string core, string hintKey) =>
+            ShowHints ? $"{core}. {L.Get(hintKey)}" : core;
+
+        /// <summary>
+        /// Appends verbose detail to a core message if VerboseAnnouncements is enabled.
+        /// </summary>
+        public static string WithDetail(string core, string detail) =>
+            ShowVerbose ? $"{core}. {detail}" : core;
+
         // ===========================================
         // GENERAL / SYSTEM
         // ===========================================
-        public const string ModLoaded = "MTGA Accessibility Mod loaded";
-        public const string Back = "Back";
-        public const string NoSelection = "No selection";
-        public const string NoAlternateAction = "No alternate action available";
-        public const string NoNextItem = "No next item";
-        public const string NoPreviousItem = "No previous item";
-        public const string ItemDisabled = "Item is disabled";
+        public static string ModLoaded => L.Get("ModLoaded");
+        public static string Back => L.Get("Back");
+        public static string NoSelection => L.Get("NoSelection");
+        public static string NoAlternateAction => L.Get("NoAlternateAction");
+        public static string NoNextItem => L.Get("NoNextItem");
+        public static string NoPreviousItem => L.Get("NoPreviousItem");
+        public static string ItemDisabled => L.Get("ItemDisabled");
 
         // ===========================================
         // ACTIVATION
         // ===========================================
-        public static string Activating(string name) => $"Activating {name}";
-        public static string CannotActivate(string name) => $"Cannot activate {name}";
-        public static string CouldNotPlay(string name) => $"Could not play {name}";
-        public static string NoAbilityAvailable(string name) => $"{name} has no activatable ability";
-        public const string NoCardSelected = "No card selected";
+        public static string Activating(string name) => L.Format("Activating_Format", name);
+        public static string CannotActivate(string name) => L.Format("CannotActivate_Format", name);
+        public static string CouldNotPlay(string name) => L.Format("CouldNotPlay_Format", name);
+        public static string NoAbilityAvailable(string name) => L.Format("NoAbilityAvailable_Format", name);
+        public static string NoCardSelected => L.Get("NoCardSelected");
 
         // ===========================================
         // MENU NAVIGATION
         // ===========================================
-        public const string NavigateWithArrows = "Arrow keys to navigate";
-        public const string BeginningOfList = "Beginning of list";
-        public const string EndOfList = "End of list";
-        public const string OpeningPlayModes = "Opening play modes...";
-        public const string OpeningDeckManager = "Opening deck manager...";
-        public const string OpeningStore = "Opening store...";
-        public const string OpeningMastery = "Opening mastery...";
-        public const string OpeningProfile = "Opening profile...";
-        public const string OpeningSettings = "Opening settings...";
-        public const string QuittingGame = "Quitting game...";
-        public const string CannotNavigateHome = "Cannot navigate to Home";
-        public const string HomeNotAvailable = "Home button not available";
-        public const string ReturningHome = "Returning to Home";
-        public const string OpeningColorChallenges = "Opening color challenges";
-        public const string NavigatingBack = "Back";
-        public const string ClosingSettings = "Closing settings";
-        public const string ClosingPlayBlade = "Closing play menu";
-        public const string ExitingDeckBuilder = "Exiting deck builder";
+        public static string NavigateWithArrows => L.Get("NavigateWithArrows");
+        public static string BeginningOfList => L.Get("BeginningOfList");
+        public static string EndOfList => L.Get("EndOfList");
+        public static string OpeningPlayModes => L.Get("OpeningPlayModes");
+        public static string OpeningDeckManager => L.Get("OpeningDeckManager");
+        public static string OpeningStore => L.Get("OpeningStore");
+        public static string OpeningMastery => L.Get("OpeningMastery");
+        public static string OpeningProfile => L.Get("OpeningProfile");
+        public static string OpeningSettings => L.Get("OpeningSettings");
+        public static string QuittingGame => L.Get("QuittingGame");
+        public static string CannotNavigateHome => L.Get("CannotNavigateHome");
+        public static string HomeNotAvailable => L.Get("HomeNotAvailable");
+        public static string ReturningHome => L.Get("ReturningHome");
+        public static string OpeningColorChallenges => L.Get("OpeningColorChallenges");
+        public static string NavigatingBack => L.Get("NavigatingBack");
+        public static string ClosingSettings => L.Get("ClosingSettings");
+        public static string ClosingPlayBlade => L.Get("ClosingPlayBlade");
+        public static string ExitingDeckBuilder => L.Get("ExitingDeckBuilder");
 
         // ===========================================
         // DECK BUILDER INFO
         // ===========================================
-        public const string DeckInfoCardCount = "Card Count";
-        public const string DeckInfoManaCurve = "Mana Curve";
-        public const string DeckInfoTypeBreakdown = "Types";
+        public static string DeckInfoCardCount => L.Get("DeckInfoCardCount");
+        public static string DeckInfoManaCurve => L.Get("DeckInfoManaCurve");
+        public static string DeckInfoTypeBreakdown => L.Get("DeckInfoTypeBreakdown");
 
         // ===========================================
         // LOGIN / ACCOUNT
         // ===========================================
-        public const string BirthYearField = "Birth year field. Use arrow keys to select year.";
-        public const string BirthMonthField = "Birth month field. Use arrow keys to select month.";
-        public const string BirthDayField = "Birth day field. Use arrow keys to select day.";
-        public const string CountryField = "Country field. Use arrow keys to select country.";
-        public const string EmailField = "Email field. Type your email address.";
-        public const string PasswordField = "Password field. Type your password.";
-        public const string ConfirmPasswordField = "Confirm password field. Retype your password.";
-        public const string AcceptTermsCheckbox = "Accept terms checkbox. Press Enter to toggle.";
-        public const string LoggingIn = "Logging in...";
-        public const string CreatingAccount = "Creating account...";
-        public const string SubmittingPasswordReset = "Submitting password reset request...";
-        public const string CheckingQueuePosition = "Checking queue position...";
-        public const string OpeningSupportWebsite = "Opening support website...";
-        public const string NoTermsContentFound = "No terms content found";
+        public static string BirthYearField => L.Get("BirthYearField");
+        public static string BirthMonthField => L.Get("BirthMonthField");
+        public static string BirthDayField => L.Get("BirthDayField");
+        public static string CountryField => L.Get("CountryField");
+        public static string EmailField => L.Get("EmailField");
+        public static string PasswordField => L.Get("PasswordField");
+        public static string ConfirmPasswordField => L.Get("ConfirmPasswordField");
+        public static string AcceptTermsCheckbox => L.Get("AcceptTermsCheckbox");
+        public static string LoggingIn => L.Get("LoggingIn");
+        public static string CreatingAccount => L.Get("CreatingAccount");
+        public static string SubmittingPasswordReset => L.Get("SubmittingPasswordReset");
+        public static string CheckingQueuePosition => L.Get("CheckingQueuePosition");
+        public static string OpeningSupportWebsite => L.Get("OpeningSupportWebsite");
+        public static string NoTermsContentFound => L.Get("NoTermsContentFound");
 
         // ===========================================
         // BATTLEFIELD NAVIGATION
         // ===========================================
-        public const string EndOfBattlefield = "End of battlefield";
-        public const string BeginningOfBattlefield = "Beginning of battlefield";
-        public const string EndOfRow = "End of row";
-        public const string BeginningOfRow = "Beginning of row";
-        public static string RowEmpty(string rowName) => $"{rowName} is empty";
-        public static string RowWithCount(string rowName, int count) => $"{rowName}, {count} card{(count != 1 ? "s" : "")}";
-        public static string RowEmptyShort(string rowName) => $"{rowName}, empty";
+        public static string EndOfBattlefield => L.Get("EndOfBattlefield");
+        public static string BeginningOfBattlefield => L.Get("BeginningOfBattlefield");
+        public static string EndOfRow => L.Get("EndOfRow");
+        public static string BeginningOfRow => L.Get("BeginningOfRow");
+        public static string RowEmpty(string rowName) => L.Format("RowEmpty_Format", rowName);
+        public static string RowWithCount(string rowName, int count) =>
+            count == 1 ? L.Format("RowWithCount_One", rowName) : L.Format("RowWithCount_Format", rowName, count);
+        public static string RowEmptyShort(string rowName) => L.Format("RowEmptyShort_Format", rowName);
 
         // ===========================================
         // ZONE NAVIGATION
         // ===========================================
-        public const string EndOfZone = "End of zone";
-        public const string BeginningOfZone = "Beginning of zone";
-        public static string ZoneNotFound(string zoneName) => $"{zoneName} not found";
-        public static string ZoneEmpty(string zoneName) => $"{zoneName}, empty";
-        public static string ZoneWithCount(string zoneName, int count) => $"{zoneName}, {count} card{(count != 1 ? "s" : "")}";
+        public static string EndOfZone => L.Get("EndOfZone");
+        public static string BeginningOfZone => L.Get("BeginningOfZone");
+        public static string ZoneNotFound(string zoneName) => L.Format("ZoneNotFound_Format", zoneName);
+        public static string ZoneEmpty(string zoneName) => L.Format("ZoneEmpty_Format", zoneName);
+        public static string ZoneWithCount(string zoneName, int count) =>
+            count == 1 ? L.Format("ZoneWithCount_One", zoneName) : L.Format("ZoneWithCount_Format", zoneName, count);
 
         // ===========================================
         // TARGETING
         // ===========================================
-        public const string NoValidTargets = "No valid targets";
-        public const string NoTargetSelected = "No target selected";
-        public const string TargetingCancelled = "Targeting cancelled";
-        public const string SelectTargetNoValid = "Select a target. No valid targets found.";
-        public static string Targeted(string name) => $"Targeted {name}";
-        public static string CouldNotTarget(string name) => $"Could not target {name}";
+        public static string NoValidTargets => L.Get("NoValidTargets");
+        public static string NoTargetSelected => L.Get("NoTargetSelected");
+        public static string TargetingCancelled => L.Get("TargetingCancelled");
+        public static string SelectTargetNoValid => L.Get("SelectTargetNoValid");
+        public static string Targeted(string name) => L.Format("Targeted_Format", name);
+        public static string CouldNotTarget(string name) => L.Format("CouldNotTarget_Format", name);
 
         // ===========================================
         // COMBAT
@@ -111,134 +134,144 @@ namespace AccessibleArena.Core.Models
         // ===========================================
         // CARD ACTIONS
         // ===========================================
-        public const string NoPlayableCards = "No playable cards";
-        public const string SpellCast = "Spell cast";
-        public const string SpellCastPrefix = "Cast";
-        public const string SpellUnknown = "unknown spell";
-        public const string ResolveStackFirst = "Resolve stack first. Press Space to resolve or Tab to select targets.";
+        public static string NoPlayableCards => L.Get("NoPlayableCards");
+        public static string SpellCast => L.Get("SpellCast");
+        public static string SpellCastPrefix => L.Get("SpellCastPrefix");
+        public static string SpellUnknown => L.Get("SpellUnknown");
+        public static string ResolveStackFirst => L.Get("ResolveStackFirst");
 
         // Ability announcements (for triggered/activated abilities on stack)
-        public const string AbilityTriggered = "triggered";
-        public const string AbilityActivated = "activated";
-        public const string AbilityUnknown = "Ability";
+        public static string AbilityTriggered => L.Get("AbilityTriggered");
+        public static string AbilityActivated => L.Get("AbilityActivated");
+        public static string AbilityUnknown => L.Get("AbilityUnknown");
 
         // ===========================================
         // DISCARD
         // ===========================================
-        public const string NoSubmitButtonFound = "No submit button found";
-        public const string CouldNotSubmitDiscard = "Could not submit discard";
-        public static string DiscardCount(int count) => $"Discard {count} {(count == 1 ? "card" : "cards")}";
-        public static string CardsSelected(int count) => count == 1 ? "1 card selected" : $"{count} cards selected";
-        public static string NeedHaveSelected(int required, int selected) => $"Need {required}, have {selected} selected";
-        public static string SubmittingDiscard(int count) => $"Submitting {count} cards for discard";
-        public static string CouldNotSelect(string name) => $"Could not select {name}";
+        public static string NoSubmitButtonFound => L.Get("NoSubmitButtonFound");
+        public static string CouldNotSubmitDiscard => L.Get("CouldNotSubmitDiscard");
+        public static string DiscardCount(int count) =>
+            count == 1 ? L.Get("DiscardCount_One") : L.Format("DiscardCount_Format", count);
+        public static string CardsSelected(int count) =>
+            count == 1 ? L.Get("CardsSelected_One") : L.Format("CardsSelected_Format", count);
+        public static string NeedHaveSelected(int required, int selected) =>
+            L.Format("NeedHaveSelected_Format", required, selected);
+        public static string SubmittingDiscard(int count) => L.Format("SubmittingDiscard_Format", count);
+        public static string CouldNotSelect(string name) => L.Format("CouldNotSelect_Format", name);
 
         // ===========================================
         // CARD INFO
         // ===========================================
-        public const string EndOfCard = "End of card";
-        public const string BeginningOfCard = "Beginning of card";
+        public static string EndOfCard => L.Get("EndOfCard");
+        public static string BeginningOfCard => L.Get("BeginningOfCard");
 
         // Card info block labels
-        public const string CardInfoName = "Name";
-        public const string CardInfoQuantity = "Quantity";
-        public const string CardInfoCollection = "Collection";
-        public const string CardInfoManaCost = "Mana Cost";
-        public const string CardInfoPowerToughness = "Power and Toughness";
-        public const string CardInfoType = "Type";
-        public const string CardInfoRules = "Rules";
-        public const string CardInfoFlavor = "Flavor";
-        public const string CardInfoArtist = "Artist";
+        public static string CardInfoName => L.Get("CardInfoName");
+        public static string CardInfoQuantity => L.Get("CardInfoQuantity");
+        public static string CardInfoCollection => L.Get("CardInfoCollection");
+        public static string CardInfoManaCost => L.Get("CardInfoManaCost");
+        public static string CardInfoPowerToughness => L.Get("CardInfoPowerToughness");
+        public static string CardInfoType => L.Get("CardInfoType");
+        public static string CardInfoRules => L.Get("CardInfoRules");
+        public static string CardInfoFlavor => L.Get("CardInfoFlavor");
+        public static string CardInfoArtist => L.Get("CardInfoArtist");
 
         // ===========================================
         // POSITION / COUNTS
         // ===========================================
         public static string CardPosition(string cardName, string state, int position, int total) =>
-            string.IsNullOrEmpty(state)
-                ? $"{cardName}, {position} of {total}"
-                : $"{cardName}{state}, {position} of {total}";
+            L.Format("CardPosition_Format", cardName, state ?? "", position, total);
 
         // ===========================================
         // HIDDEN ZONE INFO (Library, Opponent Hand)
         // ===========================================
-        public static string LibraryCount(int count) => $"Library, {count} {(count == 1 ? "card" : "cards")}";
-        public static string OpponentLibraryCount(int count) => $"Opponent's library, {count} {(count == 1 ? "card" : "cards")}";
-        public static string OpponentHandCount(int count) => $"Opponent's hand, {count} {(count == 1 ? "card" : "cards")}";
-        public const string LibraryCountNotAvailable = "Library count not available";
-        public const string OpponentLibraryCountNotAvailable = "Opponent's library count not available";
-        public const string OpponentHandCountNotAvailable = "Opponent's hand count not available";
+        public static string LibraryCount(int count) =>
+            count == 1 ? L.Get("LibraryCount_One") : L.Format("LibraryCount_Format", count);
+        public static string OpponentLibraryCount(int count) =>
+            count == 1 ? L.Get("OpponentLibraryCount_One") : L.Format("OpponentLibraryCount_Format", count);
+        public static string OpponentHandCount(int count) =>
+            count == 1 ? L.Get("OpponentHandCount_One") : L.Format("OpponentHandCount_Format", count);
+        public static string LibraryCountNotAvailable => L.Get("LibraryCountNotAvailable");
+        public static string OpponentLibraryCountNotAvailable => L.Get("OpponentLibraryCountNotAvailable");
+        public static string OpponentHandCountNotAvailable => L.Get("OpponentHandCountNotAvailable");
 
         // ===========================================
         // PLAYER INFO ZONE
         // ===========================================
-        public const string PlayerInfo = "Player info";
-        public const string You = "You";
-        public const string Opponent = "Opponent";
-        public const string EndOfProperties = "End of properties";
-        public const string PlayerType = "player";
+        public static string PlayerInfo => L.Get("PlayerInfo");
+        public static string You => L.Get("You");
+        public static string Opponent => L.Get("Opponent");
+        public static string EndOfProperties => L.Get("EndOfProperties");
+        public static string PlayerType => L.Get("PlayerType");
 
         // Property announcements
-        public static string Life(int amount) => $"{amount} life";
-        public const string LifeNotAvailable = "Life not available";
+        public static string Life(int amount) => L.Format("Life_Format", amount);
+        public static string LifeNotAvailable => L.Get("LifeNotAvailable");
         public static string Timer(string formatted) => formatted;
-        public const string TimerNotAvailable = "Timer not available";
-        public static string Timeouts(int count) => count == 1 ? "1 timeout" : $"{count} timeouts";
-        public static string GamesWon(int count) => count == 1 ? "1 game won" : $"{count} games won";
-        public const string WinsNotAvailable = "Wins not available";
+        public static string TimerNotAvailable => L.Get("TimerNotAvailable");
+        public static string Timeouts(int count) =>
+            count == 1 ? L.Get("Timeouts_One") : L.Format("Timeouts_Format", count);
+        public static string GamesWon(int count) =>
+            count == 1 ? L.Get("GamesWon_One") : L.Format("GamesWon_Format", count);
+        public static string WinsNotAvailable => L.Get("WinsNotAvailable");
         public static string Rank(string rank) => rank;
-        public const string RankNotAvailable = "Rank not available";
+        public static string RankNotAvailable => L.Get("RankNotAvailable");
 
         // Emote menu
-        public const string Emotes = "Emotes";
-        public static string EmoteSent(string emoteName) => $"{emoteName} sent";
-        public const string EmotesNotAvailable = "Emotes not available";
+        public static string Emotes => L.Get("Emotes");
+        public static string EmoteSent(string emoteName) => L.Format("EmoteSent_Format", emoteName);
+        public static string EmotesNotAvailable => L.Get("EmotesNotAvailable");
 
         // ===========================================
         // INPUT FIELD NAVIGATION
         // ===========================================
-        public const string InputFieldEmpty = "empty";
-        public const string InputFieldStart = "start";
-        public const string InputFieldEnd = "end";
-        public const string InputFieldStar = "star"; // For password characters
-        public static string InputFieldCharacterCount(int count) => $"{count} characters";
-        public static string InputFieldContent(string label, string content) => $"{label}: {content}";
-        public static string InputFieldEmptyWithLabel(string label) => $"{label}, empty";
-        public static string InputFieldPasswordWithCount(string label, int count) => $"{label}, {count} characters";
+        public static string InputFieldEmpty => L.Get("InputFieldEmpty");
+        public static string InputFieldStart => L.Get("InputFieldStart");
+        public static string InputFieldEnd => L.Get("InputFieldEnd");
+        public static string InputFieldStar => L.Get("InputFieldStar");
+        public static string InputFieldCharacterCount(int count) =>
+            count == 1 ? L.Get("InputFieldCharacterCount_One") : L.Format("InputFieldCharacterCount_Format", count);
+        public static string InputFieldContent(string label, string content) =>
+            L.Format("InputFieldContent_Format", label, content);
+        public static string InputFieldEmptyWithLabel(string label) =>
+            L.Format("InputFieldEmptyWithLabel_Format", label);
+        public static string InputFieldPasswordWithCount(string label, int count) =>
+            L.Format("InputFieldPasswordWithCount_Format", label, count);
 
         // Character names for cursor navigation
-        public const string CharSpace = "space";
-        public const string CharDot = "dot";
-        public const string CharComma = "comma";
-        public const string CharExclamation = "exclamation";
-        public const string CharQuestion = "question";
-        public const string CharAt = "at";
-        public const string CharHash = "hash";
-        public const string CharDollar = "dollar";
-        public const string CharPercent = "percent";
-        public const string CharAnd = "and";
-        public const string CharStar = "star";
-        public const string CharDash = "dash";
-        public const string CharUnderscore = "underscore";
-        public const string CharPlus = "plus";
-        public const string CharEquals = "equals";
-        public const string CharSlash = "slash";
-        public const string CharBackslash = "backslash";
-        public const string CharColon = "colon";
-        public const string CharSemicolon = "semicolon";
-        public const string CharQuote = "quote";
-        public const string CharApostrophe = "apostrophe";
-        public const string CharOpenParen = "open paren";
-        public const string CharCloseParen = "close paren";
-        public const string CharOpenBracket = "open bracket";
-        public const string CharCloseBracket = "close bracket";
-        public const string CharOpenBrace = "open brace";
-        public const string CharCloseBrace = "close brace";
-        public const string CharLessThan = "less than";
-        public const string CharGreaterThan = "greater than";
-        public const string CharPipe = "pipe";
-        public const string CharTilde = "tilde";
-        public const string CharBacktick = "backtick";
-        public const string CharCaret = "caret";
+        public static string CharSpace => L.Get("CharSpace");
+        public static string CharDot => L.Get("CharDot");
+        public static string CharComma => L.Get("CharComma");
+        public static string CharExclamation => L.Get("CharExclamation");
+        public static string CharQuestion => L.Get("CharQuestion");
+        public static string CharAt => L.Get("CharAt");
+        public static string CharHash => L.Get("CharHash");
+        public static string CharDollar => L.Get("CharDollar");
+        public static string CharPercent => L.Get("CharPercent");
+        public static string CharAnd => L.Get("CharAnd");
+        public static string CharStar => L.Get("CharStar");
+        public static string CharDash => L.Get("CharDash");
+        public static string CharUnderscore => L.Get("CharUnderscore");
+        public static string CharPlus => L.Get("CharPlus");
+        public static string CharEquals => L.Get("CharEquals");
+        public static string CharSlash => L.Get("CharSlash");
+        public static string CharBackslash => L.Get("CharBackslash");
+        public static string CharColon => L.Get("CharColon");
+        public static string CharSemicolon => L.Get("CharSemicolon");
+        public static string CharQuote => L.Get("CharQuote");
+        public static string CharApostrophe => L.Get("CharApostrophe");
+        public static string CharOpenParen => L.Get("CharOpenParen");
+        public static string CharCloseParen => L.Get("CharCloseParen");
+        public static string CharOpenBracket => L.Get("CharOpenBracket");
+        public static string CharCloseBracket => L.Get("CharCloseBracket");
+        public static string CharOpenBrace => L.Get("CharOpenBrace");
+        public static string CharCloseBrace => L.Get("CharCloseBrace");
+        public static string CharLessThan => L.Get("CharLessThan");
+        public static string CharGreaterThan => L.Get("CharGreaterThan");
+        public static string CharPipe => L.Get("CharPipe");
+        public static string CharTilde => L.Get("CharTilde");
+        public static string CharBacktick => L.Get("CharBacktick");
+        public static string CharCaret => L.Get("CharCaret");
 
         /// <summary>
         /// Get a speakable name for a character (handles spaces, punctuation, etc.)
@@ -253,7 +286,7 @@ namespace AccessibleArena.Core.Models
             if (char.IsLetter(c))
                 return c.ToString();
 
-            // Common punctuation
+            // Common punctuation - mapped to locale keys
             return c switch
             {
                 '.' => CharDot,
@@ -295,186 +328,245 @@ namespace AccessibleArena.Core.Models
         // ===========================================
         // MANA SYMBOLS (for rules text parsing)
         // ===========================================
-        // Tap/Untap
-        public const string ManaTap = "Tap";
-        public const string ManaUntap = "Untap";
-
-        // Colors
-        public const string ManaWhite = "White";
-        public const string ManaBlue = "Blue";
-        public const string ManaBlack = "Black";
-        public const string ManaRed = "Red";
-        public const string ManaGreen = "Green";
-        public const string ManaColorless = "Colorless";
-
-        // Special
-        public const string ManaX = "X";
-        public const string ManaSnow = "Snow";
-        public const string ManaEnergy = "Energy";
-
-        // Phyrexian format
-        public static string ManaPhyrexian(string color) => $"Phyrexian {color}";
-
-        // Hybrid mana format (e.g., "White or Blue")
-        public static string ManaHybrid(string color1, string color2) => $"{color1} or {color2}";
+        public static string ManaTap => L.Get("ManaTap");
+        public static string ManaUntap => L.Get("ManaUntap");
+        public static string ManaWhite => L.Get("ManaWhite");
+        public static string ManaBlue => L.Get("ManaBlue");
+        public static string ManaBlack => L.Get("ManaBlack");
+        public static string ManaRed => L.Get("ManaRed");
+        public static string ManaGreen => L.Get("ManaGreen");
+        public static string ManaColorless => L.Get("ManaColorless");
+        public static string ManaX => L.Get("ManaX");
+        public static string ManaSnow => L.Get("ManaSnow");
+        public static string ManaEnergy => L.Get("ManaEnergy");
+        public static string ManaPhyrexian(string color) => L.Format("ManaPhyrexian_Format", color);
+        public static string ManaHybrid(string color1, string color2) => L.Format("ManaHybrid_Format", color1, color2);
 
         // ===========================================
         // SETTINGS MENU
         // ===========================================
-        public const string SettingsMenuTitle = "Mod Settings";
-        public const string SettingsMenuInstructions = "Arrow Up and Down to navigate, Enter to change, Backspace or F2 to close";
-        public const string SettingsMenuClosed = "Mod settings closed";
-        public const string SettingLanguage = "Language";
-        public const string SettingTutorialMessages = "Tutorial messages";
-        public const string SettingVerboseAnnouncements = "Verbose announcements";
-        public const string SettingOn = "On";
-        public const string SettingOff = "Off";
-        public static string SettingChanged(string name, string value) => $"{name} set to {value}";
-        public static string SettingItemPosition(int index, int total, string text) => $"{index} of {total}: {text}";
+        public static string SettingsMenuTitle => L.Get("SettingsMenuTitle");
+        public static string SettingsMenuInstructions => L.Get("SettingsMenuInstructions");
+        public static string SettingsMenuClosed => L.Get("SettingsMenuClosed");
+        public static string SettingLanguage => L.Get("SettingLanguage");
+        public static string SettingTutorialMessages => L.Get("SettingTutorialMessages");
+        public static string SettingVerboseAnnouncements => L.Get("SettingVerboseAnnouncements");
+        public static string SettingOn => L.Get("SettingOn");
+        public static string SettingOff => L.Get("SettingOff");
+        public static string SettingChanged(string name, string value) => L.Format("SettingChanged_Format", name, value);
+        public static string SettingItemPosition(int index, int total, string text) => L.Format("SettingItemPosition_Format", index, total, text);
 
         // ===========================================
         // HELP MENU
         // ===========================================
-        public const string HelpMenuTitle = "Help Menu";
-        public const string HelpMenuInstructions = "Arrow Up and Down to navigate, Backspace or F1 to close";
-        public static string HelpItemPosition(int index, int total, string text) => $"{index} of {total}: {text}";
-        public const string HelpMenuClosed = "Help closed";
+        public static string HelpMenuTitle => L.Get("HelpMenuTitle");
+        public static string HelpMenuInstructions => L.Get("HelpMenuInstructions");
+        public static string HelpItemPosition(int index, int total, string text) => L.Format("HelpItemPosition_Format", index, total, text);
+        public static string HelpMenuClosed => L.Get("HelpMenuClosed");
 
         // Help categories
-        public const string HelpCategoryGlobal = "Global shortcuts";
-        public const string HelpCategoryMenuNavigation = "Menu navigation";
-        public const string HelpCategoryDuelZones = "Zones in duel";
-        public const string HelpCategoryDuelInfo = "Duel information";
-        public const string HelpCategoryCardNavigation = "Card navigation in zone";
-        public const string HelpCategoryCardDetails = "Card details";
-        public const string HelpCategoryCombat = "Combat";
-        public const string HelpCategoryBrowser = "Browser (Scry, Surveil, Mulligan)";
+        public static string HelpCategoryGlobal => L.Get("HelpCategoryGlobal");
+        public static string HelpCategoryMenuNavigation => L.Get("HelpCategoryMenuNavigation");
+        public static string HelpCategoryDuelZones => L.Get("HelpCategoryDuelZones");
+        public static string HelpCategoryDuelInfo => L.Get("HelpCategoryDuelInfo");
+        public static string HelpCategoryCardNavigation => L.Get("HelpCategoryCardNavigation");
+        public static string HelpCategoryCardDetails => L.Get("HelpCategoryCardDetails");
+        public static string HelpCategoryCombat => L.Get("HelpCategoryCombat");
+        public static string HelpCategoryBrowser => L.Get("HelpCategoryBrowser");
 
         // Global shortcuts
-        public const string HelpF1Help = "F1: Help menu";
-        public const string HelpF2Settings = "F2: Settings menu";
-        public const string HelpF3Context = "F3: Current screen";
-        public const string HelpCtrlRRepeat = "Control plus R: Repeat last announcement";
-        public const string HelpBackspace = "Backspace: Back, dismiss, or cancel";
+        public static string HelpF1Help => L.Get("HelpF1Help");
+        public static string HelpF2Settings => L.Get("HelpF2Settings");
+        public static string HelpF3Context => L.Get("HelpF3Context");
+        public static string HelpCtrlRRepeat => L.Get("HelpCtrlRRepeat");
+        public static string HelpBackspace => L.Get("HelpBackspace");
 
         // Menu navigation
-        public const string HelpArrowUpDown = "Arrow Up or Down: Navigate menu items";
-        public const string HelpTabNavigation = "Tab or Shift plus Tab: Navigate menu items, or switch groups in collection";
-        public const string HelpArrowLeftRight = "Arrow Left or Right: Carousel and stepper controls";
-        public const string HelpHomeEnd = "Home or End: Jump to first or last item";
-        public const string HelpPageUpDown = "Page Up or Page Down: Previous or next page in collection";
-        public const string HelpNumberKeysFilters = "Number keys 1 to 0: Activate filters 1 to 10 in collection";
-        public const string HelpEnterSpace = "Enter or Space: Activate";
+        public static string HelpArrowUpDown => L.Get("HelpArrowUpDown");
+        public static string HelpTabNavigation => L.Get("HelpTabNavigation");
+        public static string HelpArrowLeftRight => L.Get("HelpArrowLeftRight");
+        public static string HelpHomeEnd => L.Get("HelpHomeEnd");
+        public static string HelpPageUpDown => L.Get("HelpPageUpDown");
+        public static string HelpNumberKeysFilters => L.Get("HelpNumberKeysFilters");
+        public static string HelpEnterSpace => L.Get("HelpEnterSpace");
 
         // Input fields (text entry)
-        public const string HelpCategoryInputFields = "Input fields";
-        public const string HelpEnterEditField = "Enter: Start editing text field";
-        public const string HelpEscapeExitField = "Escape: Stop editing, stay on field";
-        public const string HelpTabNextField = "Tab: Stop editing and move to next element";
-        public const string HelpShiftTabPrevField = "Shift plus Tab: Stop editing and move to previous element";
-        public const string HelpArrowsInField = "Arrows in field: Left or Right reads character, Up or Down reads content";
+        public static string HelpCategoryInputFields => L.Get("HelpCategoryInputFields");
+        public static string HelpEnterEditField => L.Get("HelpEnterEditField");
+        public static string HelpEscapeExitField => L.Get("HelpEscapeExitField");
+        public static string HelpTabNextField => L.Get("HelpTabNextField");
+        public static string HelpShiftTabPrevField => L.Get("HelpShiftTabPrevField");
+        public static string HelpArrowsInField => L.Get("HelpArrowsInField");
 
         // Zones (yours and opponent)
-        public const string HelpCHand = "C: Your hand, Shift plus C: Opponent hand count";
-        public const string HelpBBattlefield = "B: Your creatures, Shift plus B: Opponent creatures";
-        public const string HelpALands = "A: Your lands, Shift plus A: Opponent lands";
-        public const string HelpRNonCreatures = "R: Your non-creatures, Shift plus R: Opponent non-creatures";
-        public const string HelpGGraveyard = "G: Your graveyard, Shift plus G: Opponent graveyard";
-        public const string HelpXExile = "X: Your exile, Shift plus X: Opponent exile";
-        public const string HelpSStack = "S: Stack";
-        public const string HelpDLibrary = "D: Your library count, Shift plus D: Opponent library count";
+        public static string HelpCHand => L.Get("HelpCHand");
+        public static string HelpBBattlefield => L.Get("HelpBBattlefield");
+        public static string HelpALands => L.Get("HelpALands");
+        public static string HelpRNonCreatures => L.Get("HelpRNonCreatures");
+        public static string HelpGGraveyard => L.Get("HelpGGraveyard");
+        public static string HelpXExile => L.Get("HelpXExile");
+        public static string HelpSStack => L.Get("HelpSStack");
+        public static string HelpDLibrary => L.Get("HelpDLibrary");
 
         // Duel info
-        public const string HelpLLifeTotals = "L: Life totals";
-        public const string HelpTTurnPhase = "T: Turn and phase";
-        public const string HelpVPlayerInfo = "V: Player info zone";
+        public static string HelpLLifeTotals => L.Get("HelpLLifeTotals");
+        public static string HelpTTurnPhase => L.Get("HelpTTurnPhase");
+        public static string HelpVPlayerInfo => L.Get("HelpVPlayerInfo");
 
         // Card navigation
-        public const string HelpLeftRightCards = "Left or Right arrow: Previous or next card";
-        public const string HelpHomeEndCards = "Home or End: First or last card";
-        public const string HelpEnterPlay = "Enter: Play or activate card";
-        public const string HelpTabTargets = "Tab: Cycle through targets or playable cards";
+        public static string HelpLeftRightCards => L.Get("HelpLeftRightCards");
+        public static string HelpHomeEndCards => L.Get("HelpHomeEndCards");
+        public static string HelpEnterPlay => L.Get("HelpEnterPlay");
+        public static string HelpTabTargets => L.Get("HelpTabTargets");
 
         // Card details
-        public const string HelpUpDownDetails = "Up or Down arrow: Navigate card details";
+        public static string HelpUpDownDetails => L.Get("HelpUpDownDetails");
 
         // Combat
-        public const string HelpSpaceCombat = "Space: Confirm attackers or blockers";
-        public const string HelpBackspaceCombat = "Backspace: No attacks or cancel blocks";
+        public static string HelpSpaceCombat => L.Get("HelpSpaceCombat");
+        public static string HelpBackspaceCombat => L.Get("HelpBackspaceCombat");
 
         // Browser
-        public const string HelpTabBrowser = "Tab: Navigate all cards";
-        public const string HelpCDZones = "C or D: Jump to keep or bottom zone";
-        public const string HelpEnterToggle = "Enter: Toggle card between zones";
-        public const string HelpSpaceConfirm = "Space: Confirm selection";
+        public static string HelpTabBrowser => L.Get("HelpTabBrowser");
+        public static string HelpCDZones => L.Get("HelpCDZones");
+        public static string HelpEnterToggle => L.Get("HelpEnterToggle");
+        public static string HelpSpaceConfirm => L.Get("HelpSpaceConfirm");
 
         // Debug keys
-        public const string HelpCategoryDebug = "Debug keys (developers)";
-        public const string HelpF4Refresh = "F4: Refresh current navigator";
-        public const string HelpF11CardDump = "F11: Dump card details to log (pack opening)";
-        public const string HelpF12UIDump = "F12: Dump UI hierarchy to log";
+        public static string HelpCategoryDebug => L.Get("HelpCategoryDebug");
+        public static string HelpF4Refresh => L.Get("HelpF4Refresh");
+        public static string HelpF11CardDump => L.Get("HelpF11CardDump");
+        public static string HelpF12UIDump => L.Get("HelpF12UIDump");
 
         // ===========================================
         // BROWSER (Scry, Surveil, Mulligan, etc.)
         // ===========================================
-        public const string NoCards = "No cards";
-        public const string NoButtonSelected = "No button selected";
-        public const string NoButtonsAvailable = "No buttons available";
-        public const string CouldNotTogglePosition = "Could not toggle position";
-        public const string Selected = "selected";
-        public const string Deselected = "deselected";
-        public const string InHand = "in hand";
-        public const string OnStack = "on stack";
-        public const string Confirmed = "Confirmed";
-        public const string Cancelled = "Cancelled";
-        public const string NoConfirmButton = "No confirm button found";
-        public const string KeepOnTop = "keep";
-        public const string PutOnBottom = "selected";
-        public static string CouldNotClick(string label) => $"Could not click {label}";
+        public static string NoCards => L.Get("NoCards");
+        public static string NoButtonSelected => L.Get("NoButtonSelected");
+        public static string NoButtonsAvailable => L.Get("NoButtonsAvailable");
+        public static string CouldNotTogglePosition => L.Get("CouldNotTogglePosition");
+        public static string Selected => L.Get("Selected");
+        public static string Deselected => L.Get("Deselected");
+        public static string InHand => L.Get("InHand");
+        public static string OnStack => L.Get("OnStack");
+        public static string Confirmed => L.Get("Confirmed");
+        public static string Cancelled => L.Get("Cancelled");
+        public static string NoConfirmButton => L.Get("NoConfirmButton");
+        public static string KeepOnTop => L.Get("KeepOnTop");
+        public static string PutOnBottom => L.Get("PutOnBottom");
+        public static string CouldNotClick(string label) => L.Format("CouldNotClick_Format", label);
         public static string BrowserCards(int count, string browserName) =>
-            $"{browserName}. {count} {(count == 1 ? "card" : "cards")}. Tab to navigate, Enter to select";
-        public static string BrowserOptions(string browserName) =>
-            $"{browserName}. Tab to navigate options";
+            count == 1 ? L.Format("BrowserCards_One", browserName) : L.Format("BrowserCards_Format", browserName, count);
+        public static string BrowserOptions(string browserName) => L.Format("BrowserOptions_Format", browserName);
 
         // ===========================================
         // MASTERY SCREEN
         // ===========================================
         public static string MasteryActivation(string trackName, int level, int total, string xp) =>
-            $"{trackName}. Level {level} of {total}, {xp}. Arrow keys to navigate levels.";
+            L.Format("MasteryActivation_Format", trackName, level, total, xp);
         public static string MasteryLevel(int level, string reward, string status) =>
             string.IsNullOrEmpty(status)
-                ? $"Level {level}: {reward}"
-                : $"Level {level}: {reward}. {status}";
+                ? L.Format("MasteryLevel_Format", level, reward)
+                : L.Format("MasteryLevelWithStatus_Format", level, reward, status);
         public static string MasteryTier(string tierName, string reward, int quantity) =>
-            quantity > 1 ? $"{tierName}: {quantity}x {reward}" : $"{tierName}: {reward}";
-        public static string MasteryPage(int current, int total) =>
-            $"Page {current} of {total}";
+            quantity > 1 ? L.Format("MasteryTierWithQuantity_Format", tierName, quantity, reward) : L.Format("MasteryTier_Format", tierName, reward);
+        public static string MasteryPage(int current, int total) => L.Format("MasteryPage_Format", current, total);
         public static string MasteryLevelDetail(int level, string tiers, string status) =>
             string.IsNullOrEmpty(status)
-                ? $"Level {level}. {tiers}"
-                : $"Level {level}. {tiers}. {status}";
-        public const string MasteryCompleted = "completed";
-        public const string MasteryCurrentLevel = "current level";
-        public const string MasteryPremiumLocked = "premium locked";
-        public const string MasteryFree = "Free";
-        public const string MasteryPremium = "Premium";
-        public const string MasteryRenewal = "Renewal";
-        public const string MasteryNoReward = "no reward";
-        public const string MasteryStatus = "Status";
+                ? L.Format("MasteryLevelDetail_Format", level, tiers)
+                : L.Format("MasteryLevelDetailWithStatus_Format", level, tiers, status);
+        public static string MasteryCompleted => L.Get("MasteryCompleted");
+        public static string MasteryCurrentLevel => L.Get("MasteryCurrentLevel");
+        public static string MasteryPremiumLocked => L.Get("MasteryPremiumLocked");
+        public static string MasteryFree => L.Get("MasteryFree");
+        public static string MasteryPremium => L.Get("MasteryPremium");
+        public static string MasteryRenewal => L.Get("MasteryRenewal");
+        public static string MasteryNoReward => L.Get("MasteryNoReward");
+        public static string MasteryStatus => L.Get("MasteryStatus");
         public static string MasteryStatusInfo(int level, int total, string xp) =>
             string.IsNullOrEmpty(xp)
-                ? $"Level {level} of {total}"
-                : $"Level {level} of {total}, {xp}";
+                ? L.Format("MasteryStatusInfo_Format", level, total)
+                : L.Format("MasteryStatusInfoWithXP_Format", level, total, xp);
 
         // ===========================================
         // PRIZE WALL
         // ===========================================
         public static string PrizeWallActivation(int itemCount, string spheres) =>
-            $"Prize Wall. {itemCount} items. {spheres} spheres available. Arrow keys to navigate.";
+            L.Format("PrizeWallActivation_Format", itemCount, spheres);
         public static string PrizeWallItem(int index, int total, string name) =>
-            $"{index} of {total}: {name}";
+            L.Format("PrizeWallItem_Format", index, total, name);
         public static string PrizeWallSphereStatus(string spheres) =>
-            $"{spheres} spheres available";
-        public const string PopupCancel = "Cancel";
+            L.Format("PrizeWallSphereStatus_Format", spheres);
+        public static string PopupCancel => L.Get("PopupCancel");
+
+        // ===========================================
+        // INLINE STRING MIGRATIONS
+        // ===========================================
+        public static string SearchResults(int count) => L.Format("SearchResults_Format", count);
+        public static string SearchResultsItems(int count) => L.Format("SearchResultsItems_Format", count);
+        public static string ExitedEditMode => L.Get("ExitedEditMode");
+        public static string DropdownClosed => L.Get("DropdownClosed");
+        public static string PopupClosed => L.Get("PopupClosed");
+        public static string Percent(int value) => L.Format("Percent_Format", value);
+        public static string ActionNotAvailable => L.Get("ActionNotAvailable");
+        public static string EditingTextField => L.Get("EditingTextField");
+        public static string ManaAmount(string mana) => L.Format("Mana_Format", mana);
+        public static string FirstSection => L.Get("FirstSection");
+        public static string LastSection => L.Get("LastSection");
+        public static string StartOfRow => L.Get("StartOfRow");
+        public static string EndOfRowNav => L.Get("EndOfRowNav");
+        public static string ApplyingFilters => L.Get("ApplyingFilters");
+        public static string FiltersReset => L.Get("FiltersReset");
+        public static string FiltersCancelled => L.Get("FiltersCancelled");
+        public static string FiltersDismissed => L.Get("FiltersDismissed");
+        public static string CouldNotClosePopup => L.Get("CouldNotClosePopup");
+        public static string Opening(string name) => L.Format("Opening_Format", name);
+        public static string Toggled(string label) => L.Format("Toggled_Format", label);
+        public static string FirstPack => L.Get("FirstPack");
+        public static string LastPack => L.Get("LastPack");
+        public static string ExitedInputField => L.Get("ExitedInputField");
+        public static string PageOf(int current, int total) => L.Format("Page_Format", current, total);
+        public static string PageLabel(string label) => L.Format("PageLabel_Format", label);
+        public static string FilterLabel(string label, string state) => L.Format("FilterLabel_Format", label, state);
+        public static string Activated(string label) => L.Format("Activated_Format", label);
+        public static string NoFilter(int index, int count) => L.Format("NoFilter_Format", index, count);
+        public static string NoFiltersAvailable => L.Get("NoFiltersAvailable");
+        public static string BackToMailList => L.Get("BackToMailList");
+        public static string AtTopLevel => L.Get("AtTopLevel");
+        public static string NoItemsAvailable(string name) => L.Format("NoItemsAvailable_Format", name);
+        public static string Loading(string name) => L.Format("Loading_Format", name);
+        public static string TabItems(string name, int count) => L.Format("TabItems_Format", name, count);
+        public static string TabNoItems(string name) => L.Format("TabNoItems_Format", name);
+        public static string NoPurchaseOption => L.Get("NoPurchaseOption");
+        public static string NoDetailsAvailable => L.Get("NoDetailsAvailable");
+        public static string NoCardDetails => L.Get("NoCardDetails");
+        public static string TabsCount(int count) => L.Format("Tabs_Format", count);
+        public static string OptionsAvailable(int count, string hint) => L.Format("OptionsAvailable_Format", count, hint);
+        public static string Continuing => L.Get("Continuing");
+        public static string FoundRewards(int count) => L.Format("FoundRewards_Format", count);
+        public static string Characters(int count) => L.Format("Characters_Format", count);
+        public static string PaymentPage(int count) => L.Format("PaymentPage_Format", count);
+        public static string DropdownOpened => L.Get("DropdownOpened");
+        public static string CouldNotMove(string name) => L.Format("CouldNotMove_Format", name);
+        public static string MovedTo(string card, string zone) => L.Format("MovedTo_Format", card, zone);
+        public static string ZoneEntry(string zoneName, int count, string cardName) =>
+            L.Format("ZoneEntry_Format", zoneName, count, cardName, count);
+        public static string ZoneEntryEmpty(string zoneName) => L.Format("ZoneEntryEmpty_Format", zoneName);
+        public static string CardInZone(string cardName, string zoneName, int index, int total) =>
+            L.Format("CardInZone_Format", cardName, zoneName, index, total);
+        public static string CouldNotSend(string name) => L.Format("CouldNotSend_Format", name);
+        public static string PortraitNotFound => L.Get("PortraitNotFound");
+        public static string PortraitNotAvailable => L.Get("PortraitNotAvailable");
+        public static string PortraitButtonNotFound => L.Get("PortraitButtonNotFound");
+        public static string NoActiveScreen => L.Get("NoActiveScreen");
+        public static string NoCardToInspect => L.Get("NoCardToInspect");
+        public static string NoElementSelected => L.Get("NoElementSelected");
+        public static string DebugDumpComplete => L.Get("DebugDumpComplete");
+        public static string CardDetailsDumped => L.Get("CardDetailsDumped");
+        public static string NoPackToInspect => L.Get("NoPackToInspect");
+        public static string CouldNotFindPackParent => L.Get("CouldNotFindPackParent");
+        public static string PackDetailsDumped => L.Get("PackDetailsDumped");
+        public static string WaitingForPlayable => L.Get("WaitingForPlayable");
+        public static string NoSearchResults => L.Get("NoSearchResults");
     }
 }

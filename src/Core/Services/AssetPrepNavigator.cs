@@ -252,7 +252,7 @@ namespace AccessibleArena.Core.Services
                 // If we gained elements, announce
                 if (!hadElements && _elements.Count > 0)
                 {
-                    _announcer.AnnounceInterrupt($"{_elements.Count} options available. {Models.Strings.NavigateWithArrows}");
+                    _announcer.AnnounceInterrupt(Strings.OptionsAvailable(_elements.Count, Strings.NavigateWithArrows));
                 }
             }
             catch (Exception ex)

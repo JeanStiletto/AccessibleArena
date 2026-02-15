@@ -399,7 +399,7 @@ namespace AccessibleArena.Core.Services
             }
 
             DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== END DEBUG DUMP ===");
-            announcer?.Announce("Debug dump complete. Check log.", Models.AnnouncementPriority.High);
+            announcer?.Announce(Models.Strings.DebugDumpComplete, Models.AnnouncementPriority.High);
         }
 
         /// <summary>
@@ -680,7 +680,7 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{tag}] ===========================================");
             MelonLogger.Msg($"[{tag}] === END CARD DETAILS DUMP ===");
             MelonLogger.Msg($"[{tag}] ===========================================");
-            announcer?.Announce("Card details dumped to log.", Models.AnnouncementPriority.High);
+            announcer?.Announce(Models.Strings.CardDetailsDumped, Models.AnnouncementPriority.High);
         }
 
         /// <summary>
@@ -695,7 +695,7 @@ namespace AccessibleArena.Core.Services
             if (packObj == null)
             {
                 DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"DumpBoosterPackDetails: No pack object provided");
-                announcer?.Announce("No pack to inspect.", Models.AnnouncementPriority.High);
+                announcer?.Announce(Models.Strings.NoPackToInspect, Models.AnnouncementPriority.High);
                 return;
             }
 
@@ -736,7 +736,7 @@ namespace AccessibleArena.Core.Services
             if (carouselBooster == null)
             {
                 MelonLogger.Msg($"[{tag}] Could not find CarouselBooster parent!");
-                announcer?.Announce("Could not find pack parent.", Models.AnnouncementPriority.High);
+                announcer?.Announce(Models.Strings.CouldNotFindPackParent, Models.AnnouncementPriority.High);
                 return;
             }
 
@@ -878,7 +878,7 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{tag}] === END BOOSTER PACK INVESTIGATION ===");
             MelonLogger.Msg($"[{tag}] =================================");
 
-            announcer?.Announce("Pack details dumped to log.", Models.AnnouncementPriority.High);
+            announcer?.Announce(Models.Strings.PackDetailsDumped, Models.AnnouncementPriority.High);
         }
 
         /// <summary>

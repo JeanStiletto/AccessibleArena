@@ -814,7 +814,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce($"Could not send {emoteName}", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.CouldNotSend(emoteName), AnnouncementPriority.Normal);
             }
 
             // Return to player navigation
@@ -1345,13 +1345,13 @@ namespace AccessibleArena.Core.Services
             if (avatarView == null)
             {
                 DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"AvatarView not found for {(opponent ? "opponent" : "local")}");
-                _announcer.Announce("Portrait not found", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.PortraitNotFound, AnnouncementPriority.Normal);
                 return;
             }
 
             if (!_avatarReflectionInitialized)
             {
-                _announcer.Announce("Portrait not available", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.PortraitNotAvailable, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -1359,7 +1359,7 @@ namespace AccessibleArena.Core.Services
             if (portraitButton == null)
             {
                 DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"PortraitButton is null on {(opponent ? "opponent" : "local")} AvatarView");
-                _announcer.Announce("Portrait button not found", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.PortraitButtonNotFound, AnnouncementPriority.Normal);
                 return;
             }
 

@@ -654,7 +654,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer?.Announce("No card selected to inspect.", Models.AnnouncementPriority.High);
+                    _announcer?.Announce(Models.Strings.NoCardToInspect, Models.AnnouncementPriority.High);
                 }
                 return;
             }

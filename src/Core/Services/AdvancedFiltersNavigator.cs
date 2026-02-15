@@ -406,7 +406,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce("First section", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.FirstSection, AnnouncementPriority.Normal);
             }
         }
 
@@ -424,7 +424,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce("Last section", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.LastSection, AnnouncementPriority.Normal);
             }
         }
 
@@ -440,7 +440,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce("Start of row", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.StartOfRow, AnnouncementPriority.Normal);
             }
         }
 
@@ -456,7 +456,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce("End of row", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.EndOfRowNav, AnnouncementPriority.Normal);
             }
         }
 
@@ -530,7 +530,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.Announce($"{item.Label}, toggled", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.Toggled(item.Label), AnnouncementPriority.Normal);
                 }
             }
             else if (item.IsDropdown)
@@ -538,7 +538,7 @@ namespace AccessibleArena.Core.Services
                 // Activate dropdown and notify state manager
                 UIActivator.Activate(item.GameObject);
                 DropdownStateManager.OnDropdownOpened(item.GameObject);
-                _announcer.Announce($"Opening {item.Label}", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.Opening(item.Label), AnnouncementPriority.Normal);
             }
             else
             {
@@ -548,11 +548,11 @@ namespace AccessibleArena.Core.Services
                 // If it's the OK/Apply button, popup will close
                 if (item.Label.Contains("OK") || item.Label.Contains("Apply"))
                 {
-                    _announcer.Announce("Applying filters", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.ApplyingFilters, AnnouncementPriority.Normal);
                 }
                 else if (item.Label.Contains("Reset"))
                 {
-                    _announcer.Announce("Filters reset", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.FiltersReset, AnnouncementPriority.Normal);
                     // Rescan to update toggle states
                     ForceRescan();
                 }
@@ -570,7 +570,7 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown");
                 tmpDropdown.Hide();
                 DropdownStateManager.OnDropdownClosed();
-                _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -580,7 +580,7 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown");
                 legacyDropdown.Hide();
                 DropdownStateManager.OnDropdownClosed();
-                _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
             }
         }
 
@@ -590,7 +590,7 @@ namespace AccessibleArena.Core.Services
 
             if (_popup == null)
             {
-                _announcer.Announce("Popup closed", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.PopupClosed, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -600,7 +600,7 @@ namespace AccessibleArena.Core.Services
             if (closeButton != null)
             {
                 UIActivator.Activate(closeButton);
-                _announcer.Announce("Filters cancelled", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.FiltersCancelled, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -610,7 +610,7 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Clicking blocker to dismiss popup");
                 UIActivator.Activate(blocker);
-                _announcer.Announce("Filters dismissed", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.FiltersDismissed, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -619,11 +619,11 @@ namespace AccessibleArena.Core.Services
             if (okButton != null)
             {
                 UIActivator.Activate(okButton);
-                _announcer.Announce("Applying filters", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.ApplyingFilters, AnnouncementPriority.Normal);
                 return;
             }
 
-            _announcer.Announce("Could not close popup", AnnouncementPriority.High);
+            _announcer.Announce(Strings.CouldNotClosePopup, AnnouncementPriority.High);
         }
 
         private GameObject FindBlockerOrBackground()

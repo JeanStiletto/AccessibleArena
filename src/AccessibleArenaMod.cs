@@ -1,3 +1,4 @@
+using System.IO;
 using MelonLoader;
 using UnityEngine;
 using AccessibleArena.Core.Interfaces;
@@ -78,9 +79,19 @@ namespace AccessibleArena
             _inputHandler = new InputManager(_shortcuts, _announcer);
             _focusTracker = new UIFocusTracker(_announcer);
             _cardInfoNavigator = new CardInfoNavigator(_announcer);
-            _helpNavigator = new HelpNavigator(_announcer);
+
+            // Load settings first so we know the language
             _settings = ModSettings.Load();
+
+            // Initialize locale system before any Strings.* usage
+            LocaleManager.EnsureDefaultLocaleFile(GetDefaultEnJson());
+            LocaleManager.Initialize(_settings.Language);
+
+            _helpNavigator = new HelpNavigator(_announcer);
             _settingsNavigator = new ModSettingsNavigator(_announcer, _settings);
+
+            // Rebuild help items when language changes
+            _settings.OnLanguageChanged += () => _helpNavigator.RebuildItems();
             _panelDiagnostic = new PanelAnimationDiagnostic();
 
             // Initialize panel state manager (single source of truth for panel state)
@@ -207,7 +218,7 @@ namespace AccessibleArena
             }
             else
             {
-                _announcer.AnnounceInterrupt("No active screen");
+                _announcer.AnnounceInterrupt(Strings.NoActiveScreen);
             }
         }
 
@@ -329,6 +340,23 @@ namespace AccessibleArena
             LoggerInstance.Msg("Accessible Arena shutting down...");
             _settings?.Save();
             ScreenReaderOutput.Shutdown();
+        }
+
+        /// <summary>
+        /// Returns the default English locale JSON to write if en.json doesn't exist.
+        /// This ensures the mod works even on first run.
+        /// </summary>
+        private static string GetDefaultEnJson()
+        {
+            string langDir = Path.Combine("UserData", "AccessibleArena", "lang");
+            string enPath = Path.Combine(langDir, "en.json");
+
+            // If en.json already exists, no need to generate default
+            if (File.Exists(enPath)) return "";
+
+            // Minimal bootstrap - just enough for the mod to initialize.
+            // Full en.json should be deployed with the mod.
+            return "{\n  \"ModLoaded\": \"MTGA Accessibility Mod loaded\"\n}";
         }
     }
 }

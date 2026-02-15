@@ -736,7 +736,7 @@ namespace AccessibleArena.Core.Services
             if (cancelButton != null)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Clicking popup cancel button: {cancelButton.name}");
-                _announcer.Announce("Cancelled", Models.AnnouncementPriority.High);
+                _announcer.Announce(Models.Strings.Cancelled, Models.AnnouncementPriority.High);
                 UIActivator.Activate(cancelButton);
                 return true;
             }
@@ -752,7 +752,7 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Found SystemMessageView, invoking OnBack()");
                 if (TryInvokeOnBack(systemMessageView))
                 {
-                    _announcer.Announce("Cancelled", Models.AnnouncementPriority.High);
+                    _announcer.Announce(Models.Strings.Cancelled, Models.AnnouncementPriority.High);
                     _isPopupActive = false;
                     _activePopup = null;
                     TriggerRescan();

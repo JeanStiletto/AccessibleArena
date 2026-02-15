@@ -27,6 +27,13 @@ namespace AccessibleArena.Core.Services
             _announcer = announcer;
             _settings = settings;
             _items = BuildSettingItems();
+
+            // Rebuild menu labels when language changes (so labels show in new language)
+            _settings.OnLanguageChanged += () =>
+            {
+                _items.Clear();
+                _items.AddRange(BuildSettingItems());
+            };
         }
 
         /// <summary>

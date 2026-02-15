@@ -27,6 +27,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Rebuild help items when the language changes.
+        /// Call this after LocaleManager reloads strings.
+        /// </summary>
+        public void RebuildItems()
+        {
+            _helpItems.Clear();
+            _helpItems.AddRange(BuildHelpItems());
+        }
+
+        /// <summary>
         /// Build the list of help items from localized strings.
         /// Each item is a single help entry (category header or keybind).
         /// </summary>

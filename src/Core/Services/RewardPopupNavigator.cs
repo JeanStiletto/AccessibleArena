@@ -751,7 +751,7 @@ namespace AccessibleArena.Core.Services
             if (clickBlocker != null)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Clicking Background_ClickBlocker to dismiss rewards popup");
-                _announcer.Announce("Continuing", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
                 UIActivator.SimulatePointerClick(clickBlocker.gameObject);
                 ForceRescan();
                 return true;
@@ -765,7 +765,7 @@ namespace AccessibleArena.Core.Services
             if (dismissButton != null)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Clicking {dismissButton.name} to dismiss rewards popup");
-                _announcer.Announce("Continuing", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
                 UIActivator.Activate(dismissButton.gameObject);
                 ForceRescan();
                 return true;
@@ -795,7 +795,7 @@ namespace AccessibleArena.Core.Services
                     // If we found rewards this time, announce them
                     if (_rewardCount > 0)
                     {
-                        _announcer.AnnounceInterrupt($"Found {_rewardCount} rewards");
+                        _announcer.AnnounceInterrupt(Strings.FoundRewards(_rewardCount));
                     }
                 }
             }

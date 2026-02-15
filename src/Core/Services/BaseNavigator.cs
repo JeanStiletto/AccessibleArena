@@ -152,7 +152,8 @@ namespace AccessibleArena.Core.Services
         protected virtual string GetActivationAnnouncement()
         {
             string countInfo = _elements.Count > 1 ? $"{_elements.Count} items. " : "";
-            return $"{ScreenName}. {countInfo}{Strings.NavigateWithArrows}, Enter to select.";
+            string core = $"{ScreenName}. {countInfo}".TrimEnd();
+            return Strings.WithHint(core, "NavigateHint");
         }
 
         /// <summary>Build announcement for current element</summary>
@@ -339,13 +340,13 @@ namespace AccessibleArena.Core.Services
                 // Only announce if count changed (filter was applied)
                 if (_elements.Count != oldCount)
                 {
-                    _announcer.AnnounceInterrupt($"Search results: {_elements.Count} items");
+                    _announcer.AnnounceInterrupt(Strings.SearchResultsItems(_elements.Count));
                 }
             }
             else
             {
                 MelonLogger.Msg($"[{NavigatorId}] Search rescan found no elements");
-                _announcer.AnnounceInterrupt("No search results");
+                _announcer.AnnounceInterrupt(Strings.NoSearchResults);
             }
         }
 
@@ -560,7 +561,7 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 ExitInputFieldEditMode();
-                _announcer.Announce("Exited edit mode", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.ExitedEditMode, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -646,7 +647,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown via ActiveDropdown reference");
                     tmpDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
 
@@ -656,7 +657,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown via ActiveDropdown reference");
                     legacyDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
             }
@@ -672,7 +673,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown via Escape/Backspace");
                     tmpDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
 
@@ -683,7 +684,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown via Escape/Backspace");
                     legacyDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
 
@@ -700,7 +701,7 @@ namespace AccessibleArena.Core.Services
                             MelonLogger.Msg($"[{NavigatorId}] Closing cTMP_Dropdown via Escape/Backspace");
                             hideMethod.Invoke(component, null);
                             DropdownStateManager.OnDropdownClosed();
-                            _announcer.Announce("Dropdown closed", AnnouncementPriority.Normal);
+                            _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                             return;
                         }
                     }
@@ -1283,7 +1284,7 @@ namespace AccessibleArena.Core.Services
                 (!isNext && slider.value <= slider.minValue))
             {
                 int currentPercent = Mathf.RoundToInt((slider.value - slider.minValue) / range * 100);
-                _announcer.Announce($"{currentPercent} percent", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.Percent(currentPercent), AnnouncementPriority.Normal);
                 return true;
             }
 
@@ -1292,7 +1293,7 @@ namespace AccessibleArena.Core.Services
             // Announce new value
             int percent = Mathf.RoundToInt((newValue - slider.minValue) / range * 100);
             MelonLogger.Msg($"[{NavigatorId}] Slider {(isNext ? "increase" : "decrease")}: {percent}%");
-            _announcer.AnnounceInterrupt($"{percent} percent");
+            _announcer.AnnounceInterrupt(Strings.Percent(percent));
 
             return true;
         }
@@ -1655,7 +1656,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.Announce("Action not available", AnnouncementPriority.Normal);
+                    _announcer.Announce(Strings.ActionNotAvailable, AnnouncementPriority.Normal);
                     return;
                 }
             }
@@ -1667,7 +1668,7 @@ namespace AccessibleArena.Core.Services
             {
                 _editingInputField = element;
                 UIFocusTracker.EnterInputFieldEditMode(element);
-                _announcer.Announce("Editing. Type to enter text, Escape to exit.", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.EditingTextField, AnnouncementPriority.Normal);
 
                 // Also activate the field so it receives keyboard input
                 UIActivator.Activate(element);

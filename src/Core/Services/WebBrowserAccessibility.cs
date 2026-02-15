@@ -816,7 +816,7 @@ namespace AccessibleArena.Core.Services
                         }
                         else if (elem.InputType == "password")
                         {
-                            _announcer.AnnounceInterrupt($"{val.Length} characters");
+                            _announcer.AnnounceInterrupt(Strings.Characters(val.Length));
                         }
                         else
                         {
@@ -984,7 +984,7 @@ namespace AccessibleArena.Core.Services
 
             // Reset to first element
             _currentIndex = 0;
-            _announcer.AnnounceInterrupt($"Payment page. {_elements.Count} elements.");
+            _announcer.AnnounceInterrupt(Strings.PaymentPage(_elements.Count));
 
             if (_elements.Count > 0)
             {
@@ -1195,7 +1195,7 @@ namespace AccessibleArena.Core.Services
                 case "combobox":
                     // Click to open native dropdown, let browser handle arrow keys
                     ClickElement(elem);
-                    _announcer.AnnounceInterrupt($"Dropdown opened. Use arrow keys to select, Enter to confirm.");
+                    _announcer.AnnounceInterrupt(Strings.DropdownOpened);
                     break;
 
                 default:

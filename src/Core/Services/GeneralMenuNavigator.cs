@@ -585,12 +585,12 @@ namespace AccessibleArena.Core.Services
             // Bounds check
             if (newIndex < 0)
             {
-                _announcer.Announce("First pack", Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Models.Strings.FirstPack, Models.AnnouncementPriority.Normal);
                 return true;
             }
             if (newIndex >= _boosterPackHitboxes.Count)
             {
-                _announcer.Announce("Last pack", Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Models.Strings.LastPack, Models.AnnouncementPriority.Normal);
                 return true;
             }
 
@@ -879,7 +879,7 @@ namespace AccessibleArena.Core.Services
                     }
                     else
                     {
-                        _announcer.AnnounceInterrupt($"Search results: {newCollectionCount} cards");
+                        _announcer.AnnounceInterrupt(Models.Strings.SearchResults(newCollectionCount));
                     }
                 }
             }
@@ -1035,7 +1035,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.Announce("No element selected for pack investigation.", Models.AnnouncementPriority.High);
+                    _announcer.Announce(Models.Strings.NoElementSelected, Models.AnnouncementPriority.High);
                 }
                 return true;
             }
@@ -1093,7 +1093,7 @@ namespace AccessibleArena.Core.Services
                 {
                     LogDebug($"[{NavigatorId}] Escape pressed while input field focused - deactivating field");
                     UIFocusTracker.DeactivateFocusedInputField();
-                    _announcer.Announce("Exited input field", Models.AnnouncementPriority.Normal);
+                    _announcer.Announce(Models.Strings.ExitedInputField, Models.AnnouncementPriority.Normal);
                     return true;
                 }
             }
@@ -1192,7 +1192,7 @@ namespace AccessibleArena.Core.Services
                 {
                     int currentPage = CardPoolAccessor.GetCurrentPageIndex() + 1; // 1-based for user
                     int totalPages = CardPoolAccessor.GetPageCount();
-                    _announcer.Announce($"Page {currentPage} of {totalPages}", Models.AnnouncementPriority.Normal);
+                    _announcer.Announce(Models.Strings.PageOf(currentPage, totalPages), Models.AnnouncementPriority.Normal);
 
                     // Save group state for restoration after rescan
                     // Reset element index so new page starts at first card
@@ -1254,7 +1254,7 @@ namespace AccessibleArena.Core.Services
                     var result = UIActivator.Activate(element.GameObject);
                     if (result.Success)
                     {
-                        _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
+                        _announcer.Announce(Models.Strings.PageLabel(targetLabel), Models.AnnouncementPriority.Normal);
                         TriggerRescan();
                         return true;
                     }
@@ -1273,7 +1273,7 @@ namespace AccessibleArena.Core.Services
                     var result = UIActivator.Activate(btn);
                     if (result.Success)
                     {
-                        _announcer.Announce($"{targetLabel} page", Models.AnnouncementPriority.Normal);
+                        _announcer.Announce(Models.Strings.PageLabel(targetLabel), Models.AnnouncementPriority.Normal);
                         TriggerRescan();
                         return true;
                     }
@@ -1348,11 +1348,11 @@ namespace AccessibleArena.Core.Services
                     {
                         // Toggle state will be inverted after activation
                         string state = toggle.isOn ? "off" : "on"; // Inverted because it hasn't changed yet
-                        _announcer.Announce($"{label}: {state}", Models.AnnouncementPriority.High);
+                        _announcer.Announce(Models.Strings.FilterLabel(label, state), Models.AnnouncementPriority.High);
                     }
                     else
                     {
-                        _announcer.Announce($"Activated {label}", Models.AnnouncementPriority.High);
+                        _announcer.Announce(Models.Strings.Activated(label), Models.AnnouncementPriority.High);
                     }
 
                     // Trigger rescan to update UI state
@@ -1366,11 +1366,11 @@ namespace AccessibleArena.Core.Services
                 int filterCount = _groupedNavigator.GetGroupElementCount(ElementGroup.Filters);
                 if (filterCount > 0)
                 {
-                    _announcer.Announce($"No filter {index + 1}. {filterCount} filters available.", Models.AnnouncementPriority.Normal);
+                    _announcer.Announce(Models.Strings.NoFilter(index + 1, filterCount), Models.AnnouncementPriority.Normal);
                 }
                 else
                 {
-                    _announcer.Announce("No filters available", Models.AnnouncementPriority.Normal);
+                    _announcer.Announce(Models.Strings.NoFiltersAvailable, Models.AnnouncementPriority.Normal);
                 }
             }
 
@@ -1714,7 +1714,7 @@ namespace AccessibleArena.Core.Services
                                 _isInMailDetailView = false;
                                 _currentMailLetterId = Guid.Empty;
                                 ResetMailFieldNavigation();
-                                _announcer.Announce("Back to mail list", Models.AnnouncementPriority.High);
+                                _announcer.Announce(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
                                 TriggerRescan();
                                 return true;
                             }
@@ -4019,7 +4019,7 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 LogDebug($"[{NavigatorId}] At group level in deck builder - backspace blocked");
-                _announcer.Announce("At top level. Use Done button to exit.", Models.AnnouncementPriority.Normal);
+                _announcer.Announce(Models.Strings.AtTopLevel, Models.AnnouncementPriority.Normal);
                 return true;
             }
 
