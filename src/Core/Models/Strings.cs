@@ -319,6 +319,20 @@ namespace AccessibleArena.Core.Models
         public static string ManaHybrid(string color1, string color2) => $"{color1} or {color2}";
 
         // ===========================================
+        // SETTINGS MENU
+        // ===========================================
+        public const string SettingsMenuTitle = "Mod Settings";
+        public const string SettingsMenuInstructions = "Arrow Up and Down to navigate, Enter to change, Backspace or F2 to close";
+        public const string SettingsMenuClosed = "Mod settings closed";
+        public const string SettingLanguage = "Language";
+        public const string SettingTutorialMessages = "Tutorial messages";
+        public const string SettingVerboseAnnouncements = "Verbose announcements";
+        public const string SettingOn = "On";
+        public const string SettingOff = "Off";
+        public static string SettingChanged(string name, string value) => $"{name} set to {value}";
+        public static string SettingItemPosition(int index, int total, string text) => $"{index} of {total}: {text}";
+
+        // ===========================================
         // HELP MENU
         // ===========================================
         public const string HelpMenuTitle = "Help Menu";
@@ -338,6 +352,7 @@ namespace AccessibleArena.Core.Models
 
         // Global shortcuts
         public const string HelpF1Help = "F1: Help menu";
+        public const string HelpF2Settings = "F2: Settings menu";
         public const string HelpF3Context = "F3: Current screen";
         public const string HelpCtrlRRepeat = "Control plus R: Repeat last announcement";
         public const string HelpBackspace = "Backspace: Back, dismiss, or cancel";

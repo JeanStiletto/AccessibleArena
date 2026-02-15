@@ -373,25 +373,6 @@ namespace AccessibleArena.Core.Services
 
         protected override bool HandleCustomInput()
         {
-            // F2 to repeat current status
-            if (Input.GetKeyDown(KeyCode.F2))
-            {
-                try
-                {
-                    string status = GetCurrentStatusText();
-                    if (!string.IsNullOrEmpty(status))
-                    {
-                        _announcer.AnnounceInterrupt(status);
-                    }
-                    else
-                    {
-                        _announcer.AnnounceInterrupt("Waiting for download screen...");
-                    }
-                }
-                catch { }
-                return true;
-            }
-
             return false;
         }
 

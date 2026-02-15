@@ -22,6 +22,8 @@ namespace AccessibleArena
         private CardInfoNavigator _cardInfoNavigator;
         private NavigatorManager _navigatorManager;
         private HelpNavigator _helpNavigator;
+        private ModSettingsNavigator _settingsNavigator;
+        private ModSettings _settings;
         private PanelAnimationDiagnostic _panelDiagnostic;
         private PanelStateManager _panelStateManager;
 
@@ -30,6 +32,7 @@ namespace AccessibleArena
 
         public IAnnouncementService Announcer => _announcer;
         public CardInfoNavigator CardNavigator => _cardInfoNavigator;
+        public ModSettings Settings => _settings;
 
         public override void OnInitializeMelon()
         {
@@ -76,6 +79,8 @@ namespace AccessibleArena
             _focusTracker = new UIFocusTracker(_announcer);
             _cardInfoNavigator = new CardInfoNavigator(_announcer);
             _helpNavigator = new HelpNavigator(_announcer);
+            _settings = ModSettings.Load();
+            _settingsNavigator = new ModSettingsNavigator(_announcer, _settings);
             _panelDiagnostic = new PanelAnimationDiagnostic();
 
             // Initialize panel state manager (single source of truth for panel state)
@@ -170,6 +175,7 @@ namespace AccessibleArena
         private void RegisterGlobalShortcuts()
         {
             _shortcuts.RegisterShortcut(KeyCode.F1, ToggleHelpMenu, "Help menu");
+            _shortcuts.RegisterShortcut(KeyCode.F2, ToggleSettingsMenu, "Settings menu");
             _shortcuts.RegisterShortcut(KeyCode.R, KeyCode.LeftControl, RepeatLastAnnouncement, "Repeat last announcement");
             _shortcuts.RegisterShortcut(KeyCode.F3, AnnounceCurrentScreen, "Announce current screen");
         }
@@ -177,6 +183,11 @@ namespace AccessibleArena
         private void ToggleHelpMenu()
         {
             _helpNavigator?.Toggle();
+        }
+
+        private void ToggleSettingsMenu()
+        {
+            _settingsNavigator?.Toggle();
         }
 
         private void RepeatLastAnnouncement()
@@ -261,6 +272,13 @@ namespace AccessibleArena
                 return;
             }
 
+            // Settings menu - second highest priority after help
+            if (_settingsNavigator != null && _settingsNavigator.IsActive)
+            {
+                _settingsNavigator.HandleInput();
+                return;
+            }
+
             // Deactivate card info navigator when active navigator changes (e.g., settings menu preempts duel)
             var currentNavId = _navigatorManager?.ActiveNavigator?.NavigatorId;
             if (currentNavId != _lastActiveNavigatorId)
@@ -309,6 +327,7 @@ namespace AccessibleArena
         public override void OnApplicationQuit()
         {
             LoggerInstance.Msg("Accessible Arena shutting down...");
+            _settings?.Save();
             ScreenReaderOutput.Shutdown();
         }
     }

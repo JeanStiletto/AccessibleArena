@@ -25,6 +25,9 @@ Example - instead of tables, format like this:
 - Property: Value
 - Property: Value
 
+## Permissions
+- NEVER add broad PowerShell wildcard permissions like `Bash(powershell -Command:*)` or `Bash(powershell:*)` to settings.local.json - always use specific, scoped commands only
+
 ## Code Standards
 - Modular, maintainable, efficient code
 - Avoid redundancy
@@ -143,6 +146,7 @@ Enter (Toggle card), Space (Submit)
 
 **Global:**
 F1 (Help Menu - navigable with Up/Down, close with Backspace or F1)
+F2 (Settings Menu - navigable with Up/Down, Enter to change, close with Backspace or F2)
 F3 (Current screen), Ctrl+R (Repeat)
 Backspace (Back/Dismiss/Cancel - universal)
 
