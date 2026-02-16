@@ -286,10 +286,11 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Ensure the lang directory exists and write the default en.json if it's missing.
+        /// Ensure the lang directory exists and extract all embedded lang files.
+        /// Always overwrites so mod updates ship updated translations.
         /// Call this during mod initialization.
         /// </summary>
-        public static void EnsureDefaultLocaleFile(string defaultEnJson)
+        public static void EnsureDefaultLocaleFiles()
         {
             try
             {
@@ -299,16 +300,32 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[LocaleManager] Created lang directory: {LangDir}");
                 }
 
-                string enPath = Path.Combine(LangDir, "en.json");
-                if (!File.Exists(enPath))
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                int count = 0;
+                foreach (string resourceName in assembly.GetManifestResourceNames())
                 {
-                    File.WriteAllText(enPath, defaultEnJson);
-                    MelonLogger.Msg($"[LocaleManager] Wrote default en.json");
+                    if (!resourceName.StartsWith("lang.") || !resourceName.EndsWith(".json"))
+                        continue;
+
+                    // Resource name is "lang.xx.json" -> file name is "xx.json"
+                    string fileName = resourceName.Substring("lang.".Length);
+                    string filePath = Path.Combine(LangDir, fileName);
+
+                    using (var stream = assembly.GetManifestResourceStream(resourceName))
+                    {
+                        if (stream == null) continue;
+                        using (var reader = new StreamReader(stream))
+                        {
+                            File.WriteAllText(filePath, reader.ReadToEnd());
+                        }
+                    }
+                    count++;
                 }
+                MelonLogger.Msg($"[LocaleManager] Deployed {count} locale files");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[LocaleManager] Could not ensure default locale: {ex.Message}");
+                MelonLogger.Warning($"[LocaleManager] Could not deploy locale files: {ex.Message}");
             }
         }
     }

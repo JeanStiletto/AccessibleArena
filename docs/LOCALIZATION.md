@@ -5,8 +5,9 @@ How the mod's string handling works, how to add languages, and how to extend it.
 ## Architecture Overview
 
 ```
-lang/en.json          <- Source of truth for all English strings (~280 keys)
+lang/en.json          <- Source of truth for all English strings (~360 keys)
 lang/{code}.json      <- Translations (de, fr, es, it, pt-BR, ja, ko, ru, pl, zh-CN, zh-TW)
+                         All embedded in DLL at build time, extracted on startup.
 
 src/Core/Services/LocaleManager.cs   <- Loads JSON, resolves keys, handles plurals
 src/Core/Models/Strings.cs           <- Public API: Strings.ModLoaded, Strings.ZoneWithCount(...)
@@ -176,7 +177,7 @@ For Slavic languages, also add `"ItemCount_Few": "{0} przedmioty"` in pl.json / 
    { "xx", PluralRule.OneOther },  // or Slavic, or NoPluralForm
    ```
 
-3. Create `lang/xx.json` by copying `en.json` and translating the values. Keep all keys and `{0}` placeholders intact.
+3. Create `lang/xx.json` by copying `en.json` and translating the values. Keep all keys and `{0}` placeholders intact. The file will be automatically embedded in the DLL on next build.
 
 4. For Slavic languages: add `_Few` keys where `_One` keys exist.
 
@@ -196,23 +197,33 @@ The hint key (`"NavigateHint"`) must exist in `en.json`.
 
 ## File Deployment
 
-Locale files live in `lang/` in the repo and must be deployed to `UserData/AccessibleArena/lang/` in the game directory alongside the mod DLL. The `LocaleManager.EnsureDefaultLocaleFile()` method creates the directory and a minimal `en.json` on first run if the files are missing.
+All 12 locale JSON files are embedded as .NET resources in the DLL at build time (via `EmbeddedResource` glob in the csproj). On every mod startup, `LocaleManager.EnsureDefaultLocaleFiles()` extracts them to `UserData/AccessibleArena/lang/`. This means:
+
+- **No separate file deployment needed** - the DLL is fully self-contained
+- **Mod updates ship updated translations** - files are overwritten on each launch
+- **Users can still edit files** - but edits will be reset on next launch (by design, to keep translations in sync with code)
+
+Source files live in `lang/` in the repo. The build embeds them via:
+
+```xml
+<EmbeddedResource Include="..\lang\*.json" LogicalName="lang.%(Filename)%(Extension)" />
+```
+
+At runtime, the extraction code iterates `Assembly.GetManifestResourceNames()` and writes each `lang.*.json` resource to the lang directory.
 
 ## Supported Languages
 
-| Code | Language | Plural Rule |
-|------|----------|-------------|
-| en | English | OneOther |
-| de | German | OneOther |
-| fr | French | OneOther |
-| es | Spanish | OneOther |
-| it | Italian | OneOther |
-| pt-BR | Portuguese (Brazil) | OneOther |
-| ja | Japanese | NoPluralForm |
-| ko | Korean | NoPluralForm |
-| ru | Russian | Slavic (3 forms) |
-| pl | Polish | Slavic (3 forms) |
-| zh-CN | Chinese (Simplified) | NoPluralForm |
-| zh-TW | Chinese (Traditional) | NoPluralForm |
+- **en** - English (OneOther plural rule)
+- **de** - German (OneOther)
+- **fr** - French (OneOther)
+- **es** - Spanish (OneOther)
+- **it** - Italian (OneOther)
+- **pt-BR** - Portuguese, Brazil (OneOther)
+- **ja** - Japanese (NoPluralForm)
+- **ko** - Korean (NoPluralForm)
+- **ru** - Russian (Slavic, 3 forms)
+- **pl** - Polish (Slavic, 3 forms)
+- **zh-CN** - Chinese, Simplified (NoPluralForm)
+- **zh-TW** - Chinese, Traditional (NoPluralForm)
 
 These match the languages available in MTGA itself.

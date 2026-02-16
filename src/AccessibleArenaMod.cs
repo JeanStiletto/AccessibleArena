@@ -84,7 +84,7 @@ namespace AccessibleArena
             _settings = ModSettings.Load();
 
             // Initialize locale system before any Strings.* usage
-            LocaleManager.EnsureDefaultLocaleFile(GetDefaultEnJson());
+            LocaleManager.EnsureDefaultLocaleFiles();
             LocaleManager.Initialize(_settings.Language);
 
             _helpNavigator = new HelpNavigator(_announcer);
@@ -342,21 +342,5 @@ namespace AccessibleArena
             ScreenReaderOutput.Shutdown();
         }
 
-        /// <summary>
-        /// Returns the default English locale JSON to write if en.json doesn't exist.
-        /// This ensures the mod works even on first run.
-        /// </summary>
-        private static string GetDefaultEnJson()
-        {
-            string langDir = Path.Combine("UserData", "AccessibleArena", "lang");
-            string enPath = Path.Combine(langDir, "en.json");
-
-            // If en.json already exists, no need to generate default
-            if (File.Exists(enPath)) return "";
-
-            // Minimal bootstrap - just enough for the mod to initialize.
-            // Full en.json should be deployed with the mod.
-            return "{\n  \"ModLoaded\": \"MTGA Accessibility Mod loaded\"\n}";
-        }
     }
 }
