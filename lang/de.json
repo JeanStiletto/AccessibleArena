@@ -428,5 +428,18 @@
   "ItemPositionOf_Format": "{0} von {1}: {2}",
   "ScreenGroupsSummary_Format": "{0}. {1}. {2}",
   "ScreenItemsSummary_Format": "{0}. {1}. {2}",
-  "ObjectivesEntry_Format": "Aufgaben, {0}"
+  "ObjectivesEntry_Format": "Aufgaben, {0}",
+
+  "LangEnglish": "Englisch",
+  "LangGerman": "Deutsch",
+  "LangFrench": "Französisch",
+  "LangSpanish": "Spanisch",
+  "LangItalian": "Italienisch",
+  "LangPortuguese": "Portugiesisch",
+  "LangJapanese": "Japanisch",
+  "LangKorean": "Koreanisch",
+  "LangRussian": "Russisch",
+  "LangPolish": "Polnisch",
+  "LangChineseSimplified": "Chinesisch vereinfacht",
+  "LangChineseTraditional": "Chinesisch traditionell"
 }

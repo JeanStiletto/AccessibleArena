@@ -428,5 +428,18 @@
   "ItemPositionOf_Format": "{0} de {1}: {2}",
   "ScreenGroupsSummary_Format": "{0}. {1}. {2}",
   "ScreenItemsSummary_Format": "{0}. {1}. {2}",
-  "ObjectivesEntry_Format": "Objetivos, {0}"
+  "ObjectivesEntry_Format": "Objetivos, {0}",
+
+  "LangEnglish": "Inglés",
+  "LangGerman": "Alemán",
+  "LangFrench": "Francés",
+  "LangSpanish": "Español",
+  "LangItalian": "Italiano",
+  "LangPortuguese": "Portugués",
+  "LangJapanese": "Japonés",
+  "LangKorean": "Coreano",
+  "LangRussian": "Ruso",
+  "LangPolish": "Polaco",
+  "LangChineseSimplified": "Chino simplificado",
+  "LangChineseTraditional": "Chino tradicional"
 }

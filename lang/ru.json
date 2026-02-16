@@ -442,5 +442,18 @@
   "ItemPositionOf_Format": "{0} из {1}: {2}",
   "ScreenGroupsSummary_Format": "{0}. {1}. {2}",
   "ScreenItemsSummary_Format": "{0}. {1}. {2}",
-  "ObjectivesEntry_Format": "Задания, {0}"
+  "ObjectivesEntry_Format": "Задания, {0}",
+
+  "LangEnglish": "Английский",
+  "LangGerman": "Немецкий",
+  "LangFrench": "Французский",
+  "LangSpanish": "Испанский",
+  "LangItalian": "Итальянский",
+  "LangPortuguese": "Португальский",
+  "LangJapanese": "Японский",
+  "LangKorean": "Корейский",
+  "LangRussian": "Русский",
+  "LangPolish": "Польский",
+  "LangChineseSimplified": "Китайский упрощённый",
+  "LangChineseTraditional": "Китайский традиционный"
 }

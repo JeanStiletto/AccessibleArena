@@ -428,5 +428,18 @@
   "ItemPositionOf_Format": "第{0}个，共{1}个：{2}",
   "ScreenGroupsSummary_Format": "{0}。{1}。{2}",
   "ScreenItemsSummary_Format": "{0}。{1}。{2}",
-  "ObjectivesEntry_Format": "任务，{0}"
+  "ObjectivesEntry_Format": "任务，{0}",
+
+  "LangEnglish": "英语",
+  "LangGerman": "德语",
+  "LangFrench": "法语",
+  "LangSpanish": "西班牙语",
+  "LangItalian": "意大利语",
+  "LangPortuguese": "葡萄牙语",
+  "LangJapanese": "日语",
+  "LangKorean": "韩语",
+  "LangRussian": "俄语",
+  "LangPolish": "波兰语",
+  "LangChineseSimplified": "简体中文",
+  "LangChineseTraditional": "繁体中文"
 }

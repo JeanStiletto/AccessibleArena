@@ -442,5 +442,18 @@
   "ItemPositionOf_Format": "{0} z {1}: {2}",
   "ScreenGroupsSummary_Format": "{0}. {1}. {2}",
   "ScreenItemsSummary_Format": "{0}. {1}. {2}",
-  "ObjectivesEntry_Format": "Cele, {0}"
+  "ObjectivesEntry_Format": "Cele, {0}",
+
+  "LangEnglish": "Angielski",
+  "LangGerman": "Niemiecki",
+  "LangFrench": "Francuski",
+  "LangSpanish": "Hiszpański",
+  "LangItalian": "Włoski",
+  "LangPortuguese": "Portugalski",
+  "LangJapanese": "Japoński",
+  "LangKorean": "Koreański",
+  "LangRussian": "Rosyjski",
+  "LangPolish": "Polski",
+  "LangChineseSimplified": "Chiński uproszczony",
+  "LangChineseTraditional": "Chiński tradycyjny"
 }

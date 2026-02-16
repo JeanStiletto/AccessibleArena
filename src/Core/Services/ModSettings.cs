@@ -13,9 +13,11 @@ namespace AccessibleArena.Core.Services
     {
         private static readonly string SettingsPath = Path.Combine("UserData", "AccessibleArena.json");
 
-        // Available languages (code -> display name)
+        // Available language codes
         public static readonly string[] LanguageCodes = { "en", "de", "fr", "es", "it", "pt-BR", "ja", "ko", "ru", "pl", "zh-CN", "zh-TW" };
-        public static readonly string[] LanguageNames = { "English", "German", "French", "Spanish", "Italian", "Portuguese", "Japanese", "Korean", "Russian", "Polish", "Chinese Simplified", "Chinese Traditional" };
+
+        // Locale keys for language display names (translated per language)
+        private static readonly string[] LanguageKeys = { "LangEnglish", "LangGerman", "LangFrench", "LangSpanish", "LangItalian", "LangPortuguese", "LangJapanese", "LangKorean", "LangRussian", "LangPolish", "LangChineseSimplified", "LangChineseTraditional" };
 
         // --- Settings ---
         public string Language { get; set; } = "en";
@@ -77,12 +79,23 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public string GetLanguageDisplayName()
         {
-            int index = Array.IndexOf(LanguageCodes, Language);
-            return index >= 0 ? LanguageNames[index] : Language;
+            return GetLanguageDisplayName(GetLanguageIndex(Language));
         }
 
         /// <summary>Fired when the language setting changes.</summary>
         public event Action OnLanguageChanged;
+
+        /// <summary>
+        /// Set a specific language by code.
+        /// Updates LocaleManager and fires OnLanguageChanged.
+        /// </summary>
+        public void SetLanguage(string code)
+        {
+            if (code == Language) return;
+            Language = code;
+            LocaleManager.Instance?.SetLanguage(Language);
+            OnLanguageChanged?.Invoke();
+        }
 
         /// <summary>
         /// Cycle to the next language in the list.
@@ -92,9 +105,26 @@ namespace AccessibleArena.Core.Services
         {
             int index = Array.IndexOf(LanguageCodes, Language);
             index = (index + 1) % LanguageCodes.Length;
-            Language = LanguageCodes[index];
-            LocaleManager.Instance?.SetLanguage(Language);
-            OnLanguageChanged?.Invoke();
+            SetLanguage(LanguageCodes[index]);
+        }
+
+        /// <summary>
+        /// Get the language index for a given code.
+        /// </summary>
+        public static int GetLanguageIndex(string code)
+        {
+            int index = Array.IndexOf(LanguageCodes, code);
+            return index >= 0 ? index : 0;
+        }
+
+        /// <summary>
+        /// Get the localized display name for a language at a given index.
+        /// </summary>
+        public static string GetLanguageDisplayName(int index)
+        {
+            if (index >= 0 && index < LanguageKeys.Length)
+                return LocaleManager.Instance?.Get(LanguageKeys[index]) ?? LanguageCodes[index];
+            return "Unknown";
         }
 
         /// <summary>

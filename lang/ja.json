@@ -428,5 +428,18 @@
   "ItemPositionOf_Format": "{1}件中{0}件目: {2}",
   "ScreenGroupsSummary_Format": "{0}。{1}。{2}",
   "ScreenItemsSummary_Format": "{0}。{1}。{2}",
-  "ObjectivesEntry_Format": "目標、{0}"
+  "ObjectivesEntry_Format": "目標、{0}",
+
+  "LangEnglish": "英語",
+  "LangGerman": "ドイツ語",
+  "LangFrench": "フランス語",
+  "LangSpanish": "スペイン語",
+  "LangItalian": "イタリア語",
+  "LangPortuguese": "ポルトガル語",
+  "LangJapanese": "日本語",
+  "LangKorean": "韓国語",
+  "LangRussian": "ロシア語",
+  "LangPolish": "ポーランド語",
+  "LangChineseSimplified": "中国語（簡体字）",
+  "LangChineseTraditional": "中国語（繁体字）"
 }

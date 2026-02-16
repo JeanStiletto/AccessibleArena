@@ -10,6 +10,8 @@ namespace AccessibleArena.Core.Services
     /// <summary>
     /// Modal settings menu navigator. When active, blocks all other input
     /// and allows navigating and toggling mod settings with Up/Down arrows.
+    /// Language setting uses dropdown-like behavior (Enter to open, Left/Right
+    /// to browse, Enter to confirm, Escape/Backspace to cancel).
     /// Closes with Backspace or F2.
     /// </summary>
     public class ModSettingsNavigator
@@ -19,6 +21,11 @@ namespace AccessibleArena.Core.Services
         private readonly List<SettingItem> _items;
         private int _currentIndex;
         private bool _isActive;
+
+        // Dropdown state for language picker
+        private bool _isInDropdownMode;
+        private int _dropdownLanguageIndex;
+        private string _originalLanguageCode;
 
         public bool IsActive => _isActive;
 
@@ -44,6 +51,8 @@ namespace AccessibleArena.Core.Services
             public string Name { get; set; }
             public Func<string> GetValue { get; set; }
             public Action Toggle { get; set; }
+            /// <summary>True if this item uses dropdown mode instead of simple toggle.</summary>
+            public bool IsDropdown { get; set; }
         }
 
         private List<SettingItem> BuildSettingItems()
@@ -54,7 +63,8 @@ namespace AccessibleArena.Core.Services
                 {
                     Name = Strings.SettingLanguage,
                     GetValue = () => _settings.GetLanguageDisplayName(),
-                    Toggle = () => _settings.CycleLanguage()
+                    Toggle = null, // Handled by dropdown mode
+                    IsDropdown = true
                 },
                 new SettingItem
                 {
@@ -91,9 +101,10 @@ namespace AccessibleArena.Core.Services
 
             _isActive = true;
             _currentIndex = 0;
+            _isInDropdownMode = false;
 
             MelonLogger.Msg("[ModSettingsNavigator] Opened");
-            _announcer.AnnounceInterrupt($"{Strings.SettingsMenuTitle}. {_items.Count} items. {Strings.SettingsMenuInstructions}");
+            _announcer.AnnounceInterrupt($"{Strings.SettingsMenuTitle}. {Strings.ItemCount(_items.Count)}. {Strings.SettingsMenuInstructions}");
         }
 
         /// <summary>
@@ -102,6 +113,10 @@ namespace AccessibleArena.Core.Services
         public void Close()
         {
             if (!_isActive) return;
+
+            // If closing while in dropdown mode, cancel the dropdown first
+            if (_isInDropdownMode)
+                CancelDropdown();
 
             _isActive = false;
             _currentIndex = 0;
@@ -120,6 +135,13 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return false;
 
+            // Dropdown mode has its own input handling
+            if (_isInDropdownMode)
+            {
+                HandleDropdownInput();
+                return true;
+            }
+
             // F2 or Backspace closes the menu
             if (Input.GetKeyDown(KeyCode.F2) || Input.GetKeyDown(KeyCode.Backspace))
             {
@@ -127,10 +149,10 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Enter or Space: toggle/cycle current setting
+            // Enter or Space: toggle/cycle current setting or enter dropdown
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
             {
-                ToggleCurrentSetting();
+                ActivateCurrentSetting();
                 return true;
             }
 
@@ -166,19 +188,152 @@ namespace AccessibleArena.Core.Services
             return true;
         }
 
-        private void ToggleCurrentSetting()
+        private void ActivateCurrentSetting()
         {
             if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
             var item = _items[_currentIndex];
-            item.Toggle();
 
-            string newValue = item.GetValue();
-            string announcement = Strings.SettingChanged(item.Name, newValue);
-            _announcer.AnnounceInterrupt(announcement);
-
-            MelonLogger.Msg($"[ModSettingsNavigator] {item.Name} set to {newValue}");
+            if (item.IsDropdown)
+            {
+                EnterDropdownMode();
+            }
+            else
+            {
+                item.Toggle?.Invoke();
+                string newValue = item.GetValue();
+                string announcement = Strings.SettingChanged(item.Name, newValue);
+                _announcer.AnnounceInterrupt(announcement);
+                MelonLogger.Msg($"[ModSettingsNavigator] {item.Name} set to {newValue}");
+            }
         }
+
+        #region Dropdown Mode (Language Picker)
+
+        private void EnterDropdownMode()
+        {
+            _isInDropdownMode = true;
+            _originalLanguageCode = _settings.Language;
+            _dropdownLanguageIndex = ModSettings.GetLanguageIndex(_settings.Language);
+
+            string currentName = ModSettings.GetLanguageDisplayName(_dropdownLanguageIndex);
+            int position = _dropdownLanguageIndex + 1;
+            int total = ModSettings.LanguageCodes.Length;
+
+            _announcer.AnnounceInterrupt($"{Strings.DropdownOpened} {Strings.ItemPositionOf(position, total, currentName)}");
+            MelonLogger.Msg($"[ModSettingsNavigator] Language dropdown opened at {currentName}");
+        }
+
+        private void HandleDropdownInput()
+        {
+            // Enter or Space: confirm selection and apply
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
+            {
+                ConfirmDropdown();
+                return;
+            }
+
+            // Escape or Backspace: cancel, restore original
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+            {
+                CancelDropdown();
+                return;
+            }
+
+            // Down/Right arrow or S/D: next language
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.RightArrow)
+                || Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.D))
+            {
+                CycleDropdown(1);
+                return;
+            }
+
+            // Up/Left arrow or W/A: previous language
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.LeftArrow)
+                || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.A))
+            {
+                CycleDropdown(-1);
+                return;
+            }
+
+            // Home: first language
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                JumpDropdown(0);
+                return;
+            }
+
+            // End: last language
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                JumpDropdown(ModSettings.LanguageCodes.Length - 1);
+                return;
+            }
+        }
+
+        private void CycleDropdown(int direction)
+        {
+            int total = ModSettings.LanguageCodes.Length;
+            int newIndex = _dropdownLanguageIndex + direction;
+
+            if (newIndex < 0)
+            {
+                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return;
+            }
+            if (newIndex >= total)
+            {
+                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            _dropdownLanguageIndex = newIndex;
+            AnnounceDropdownItem();
+        }
+
+        private void JumpDropdown(int index)
+        {
+            if (index == _dropdownLanguageIndex)
+            {
+                _announcer.Announce(index == 0 ? Strings.BeginningOfList : Strings.EndOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            _dropdownLanguageIndex = index;
+            AnnounceDropdownItem();
+        }
+
+        private void AnnounceDropdownItem()
+        {
+            string name = ModSettings.GetLanguageDisplayName(_dropdownLanguageIndex);
+            int position = _dropdownLanguageIndex + 1;
+            int total = ModSettings.LanguageCodes.Length;
+            _announcer.AnnounceInterrupt(Strings.ItemPositionOf(position, total, name));
+        }
+
+        private void ConfirmDropdown()
+        {
+            _isInDropdownMode = false;
+            string selectedCode = ModSettings.LanguageCodes[_dropdownLanguageIndex];
+
+            _settings.SetLanguage(selectedCode);
+
+            // Fetch name AFTER language switch so it reads from the new locale
+            string selectedName = ModSettings.GetLanguageDisplayName(_dropdownLanguageIndex);
+            _announcer.AnnounceInterrupt(Strings.SettingChanged(Strings.SettingLanguage, selectedName));
+            MelonLogger.Msg($"[ModSettingsNavigator] Language confirmed: {selectedCode} ({selectedName})");
+        }
+
+        private void CancelDropdown()
+        {
+            _isInDropdownMode = false;
+            _dropdownLanguageIndex = ModSettings.GetLanguageIndex(_originalLanguageCode);
+
+            _announcer.AnnounceInterrupt(Strings.DropdownClosed);
+            MelonLogger.Msg("[ModSettingsNavigator] Language dropdown cancelled");
+        }
+
+        #endregion
 
         private void MoveNext()
         {
