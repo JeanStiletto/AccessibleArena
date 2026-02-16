@@ -16,6 +16,7 @@ namespace AccessibleArena.Core.Services
     {
         private GameObject _rewardsContainer;
         private int _totalCards;
+        private string _lastDetectState;
 
         public override string NavigatorId => "NPEReward";
         public override string ScreenName => GetScreenName();
@@ -49,115 +50,106 @@ namespace AccessibleArena.Core.Services
             var npeContainer = GameObject.Find("NPE-Rewards_Container");
             if (npeContainer == null)
             {
+                LogStateChange("not_found");
                 _rewardsContainer = null;
                 return false;
             }
 
             if (!npeContainer.activeInHierarchy)
             {
-                Log($"NPE-Rewards_Container found but NOT active");
+                LogStateChange("inactive", "NPE-Rewards_Container found but NOT active");
                 _rewardsContainer = null;
                 return false;
-            }
-
-            Log($"=== NPE REWARD SCREEN DETECTION ===");
-            Log($"NPE-Rewards_Container: FOUND and ACTIVE");
-            Log($"  Path: {GetPath(npeContainer.transform)}");
-
-            // Log all direct children
-            Log($"  Direct children ({npeContainer.transform.childCount}):");
-            foreach (Transform child in npeContainer.transform)
-            {
-                Log($"    - {child.name} (active={child.gameObject.activeInHierarchy})");
             }
 
             // Check for ActiveContainer with RewardsCONTAINER (actual reward cards)
             var activeContainer = npeContainer.transform.Find("ActiveContainer");
             if (activeContainer == null)
             {
-                Log($"ActiveContainer: NOT FOUND");
+                LogStateChange("no_active_container", "ActiveContainer: NOT FOUND");
                 _rewardsContainer = null;
                 return false;
             }
 
             if (!activeContainer.gameObject.activeInHierarchy)
             {
-                Log($"ActiveContainer: FOUND but NOT active");
+                LogStateChange("active_container_inactive", "ActiveContainer: FOUND but NOT active");
                 _rewardsContainer = null;
                 return false;
-            }
-
-            Log($"ActiveContainer: FOUND and ACTIVE");
-            Log($"  Direct children ({activeContainer.childCount}):");
-            foreach (Transform child in activeContainer)
-            {
-                Log($"    - {child.name} (active={child.gameObject.activeInHierarchy})");
             }
 
             var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
             if (rewardsContainer == null)
             {
-                Log($"RewardsCONTAINER: NOT FOUND");
+                LogStateChange("no_rewards_container", "RewardsCONTAINER: NOT FOUND");
                 _rewardsContainer = null;
                 return false;
             }
 
             if (!rewardsContainer.gameObject.activeInHierarchy)
             {
-                Log($"RewardsCONTAINER: FOUND but NOT active");
+                LogStateChange("rewards_inactive", "RewardsCONTAINER: FOUND but NOT active");
                 _rewardsContainer = null;
                 return false;
             }
 
-            Log($"RewardsCONTAINER: FOUND and ACTIVE");
-            Log($"  Direct children ({rewardsContainer.childCount}):");
-            foreach (Transform child in rewardsContainer)
-            {
-                string components = string.Join(", ", child.GetComponents<Component>().Select(c => c?.GetType().Name ?? "null"));
-                Log($"    - {child.name} (active={child.gameObject.activeInHierarchy}) [{components}]");
-            }
-
             // Verify we have actual card prefabs in the rewards container
-            bool hasCards = false;
             int cardCount = 0;
             foreach (Transform child in rewardsContainer)
             {
                 if (child.name.Contains("NPERewardPrefab_IndividualCard"))
-                {
-                    hasCards = true;
                     cardCount++;
-                }
             }
 
-            Log($"Card prefabs found: {cardCount}");
-
-            if (!hasCards)
+            if (cardCount == 0)
             {
-                Log($"NO card prefabs found - screen not ready");
+                LogStateChange("no_cards", "NO card prefabs found - screen not ready");
                 _rewardsContainer = null;
                 return false;
             }
 
-            // Check for NPEContentControllerRewards (needed for button activation)
-            bool foundController = false;
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            // Only log full details on state change to "success"
+            if (_lastDetectState != "success")
             {
-                if (mb != null && mb.GetType().Name == "NPEContentControllerRewards")
+                Log($"=== NPE REWARD SCREEN DETECTION: SUCCESS ===");
+                Log($"  Path: {GetPath(npeContainer.transform)}");
+                Log($"  Card prefabs found: {cardCount}");
+
+                Log($"  RewardsCONTAINER children ({rewardsContainer.childCount}):");
+                foreach (Transform child in rewardsContainer)
                 {
-                    foundController = true;
-                    Log($"NPEContentControllerRewards: FOUND on {mb.gameObject.name}");
-                    Log($"  Path: {GetPath(mb.transform)}");
-                    break;
+                    string components = string.Join(", ", child.GetComponents<Component>().Select(c => c?.GetType().Name ?? "null"));
+                    Log($"    - {child.name} (active={child.gameObject.activeInHierarchy}) [{components}]");
+                }
+
+                // Check for NPEContentControllerRewards (needed for button activation)
+                bool foundController = false;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "NPEContentControllerRewards")
+                    {
+                        foundController = true;
+                        Log($"  NPEContentControllerRewards: FOUND on {mb.gameObject.name}");
+                        break;
+                    }
+                }
+                if (!foundController)
+                {
+                    Log($"  NPEContentControllerRewards: NOT FOUND (button activation may fail!)");
                 }
             }
-            if (!foundController)
-            {
-                Log($"NPEContentControllerRewards: NOT FOUND (button activation may fail!)");
-            }
 
+            _lastDetectState = "success";
             _rewardsContainer = npeContainer;
-            Log($"=== SCREEN DETECTION: SUCCESS ===");
             return true;
+        }
+
+        private void LogStateChange(string newState, string message = null)
+        {
+            if (_lastDetectState == newState) return;
+            _lastDetectState = newState;
+            if (message != null)
+                Log(message);
         }
 
         protected override void DiscoverElements()
@@ -541,6 +533,7 @@ namespace AccessibleArena.Core.Services
                 Deactivate();
             }
             _rewardsContainer = null;
+            _lastDetectState = null;
         }
     }
 }
