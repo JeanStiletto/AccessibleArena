@@ -640,18 +640,18 @@ namespace AccessibleArena.Core.Services
             if (info.Quantity > 0)
             {
                 string qtyText = info.IsUnowned
-                    ? $"{info.Quantity}, missing"
+                    ? Models.Strings.CardQuantityMissing(info.Quantity)
                     : info.Quantity.ToString();
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, qtyText));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, qtyText, false));
             }
 
             // For collection cards, show owned and in-deck counts as one block
             if (info.OwnedCount > 0)
             {
                 string collectionText = info.UsedInDeckCount > 0
-                    ? $"Owned {info.OwnedCount}, In Deck {info.UsedInDeckCount}"
-                    : $"Owned {info.OwnedCount}";
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoCollection, collectionText));
+                    ? Models.Strings.CardOwnedInDeck(info.OwnedCount, info.UsedInDeckCount)
+                    : Models.Strings.CardOwned(info.OwnedCount);
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoCollection, collectionText, false));
             }
 
             // Block order varies by zone context
@@ -706,7 +706,7 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, info.Name));
 
             if (info.Quantity > 0)
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, info.Quantity.ToString()));
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoQuantity, info.Quantity.ToString(), false));
 
             if (!string.IsNullOrEmpty(info.ManaCost))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
@@ -863,11 +863,13 @@ namespace AccessibleArena.Core.Services
     {
         public string Label { get; }
         public string Content { get; }
+        public bool IsVerbose { get; }
 
-        public CardInfoBlock(string label, string content)
+        public CardInfoBlock(string label, string content, bool isVerbose = true)
         {
             Label = label;
             Content = content;
+            IsVerbose = isVerbose;
         }
     }
 }

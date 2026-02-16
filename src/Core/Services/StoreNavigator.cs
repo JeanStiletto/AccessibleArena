@@ -2131,7 +2131,9 @@ namespace AccessibleArena.Core.Services
             if (_detailsBlockIndex < 0 || _detailsBlockIndex >= _detailsCardBlocks.Count) return;
 
             var block = _detailsCardBlocks[_detailsBlockIndex];
-            _announcer.AnnounceInterrupt($"{block.Label}: {block.Content}");
+            bool showLabel = !block.IsVerbose ||
+                             (AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false);
+            _announcer.AnnounceInterrupt(showLabel ? $"{block.Label}: {block.Content}" : block.Content);
         }
 
         private void CloseDetailsView()

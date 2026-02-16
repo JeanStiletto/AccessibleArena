@@ -106,6 +106,9 @@
   "CardInfoRules": "Règles",
   "CardInfoFlavor": "Texte d'ambiance",
   "CardInfoArtist": "Artiste",
+  "CardQuantityMissing_Format": "{0}, missing",
+  "CardOwned_Format": "Owned {0}",
+  "CardOwnedInDeck_Format": "Owned {0}, In Deck {1}",
 
   "CardPosition_Format": "{0}{1}, {2} sur {3}",
 

@@ -170,6 +170,11 @@ namespace AccessibleArena.Core.Models
         public static string CardInfoQuantity => L.Get("CardInfoQuantity");
         public static string CardInfoCollection => L.Get("CardInfoCollection");
         public static string CardInfoManaCost => L.Get("CardInfoManaCost");
+
+        // Card info content (localized values inside blocks)
+        public static string CardQuantityMissing(int qty) => L.Format("CardQuantityMissing_Format", qty);
+        public static string CardOwned(int count) => L.Format("CardOwned_Format", count);
+        public static string CardOwnedInDeck(int owned, int inDeck) => L.Format("CardOwnedInDeck_Format", owned, inDeck);
         public static string CardInfoPowerToughness => L.Get("CardInfoPowerToughness");
         public static string CardInfoType => L.Get("CardInfoType");
         public static string CardInfoRules => L.Get("CardInfoRules");

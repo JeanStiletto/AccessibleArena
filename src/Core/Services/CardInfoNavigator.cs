@@ -87,7 +87,7 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[CardInfo] Activated with {_blocks.Count} blocks for: {_blocks[0].Content}");
 
             // Announce first block (card name)
-            _announcer.AnnounceInterrupt($"{_blocks[0].Label}: {_blocks[0].Content}");
+            _announcer.AnnounceInterrupt(FormatBlock(_blocks[0]));
             return true;
         }
 
@@ -235,7 +235,14 @@ namespace AccessibleArena.Core.Services
             if (_currentBlockIndex < 0 || _currentBlockIndex >= _blocks.Count) return;
 
             var block = _blocks[_currentBlockIndex];
-            _announcer.AnnounceInterrupt($"{block.Label}: {block.Content}");
+            _announcer.AnnounceInterrupt(FormatBlock(block));
+        }
+
+        private static string FormatBlock(CardInfoBlock block)
+        {
+            bool showLabel = !block.IsVerbose ||
+                             (AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false);
+            return showLabel ? $"{block.Label}: {block.Content}" : block.Content;
         }
     }
 }

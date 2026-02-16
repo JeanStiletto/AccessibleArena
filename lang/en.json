@@ -107,6 +107,10 @@
   "CardInfoFlavor": "Flavor",
   "CardInfoArtist": "Artist",
 
+  "CardQuantityMissing_Format": "{0}, missing",
+  "CardOwned_Format": "Owned {0}",
+  "CardOwnedInDeck_Format": "Owned {0}, In Deck {1}",
+
   "CardPosition_Format": "{0}{1}, {2} of {3}",
 
   "LibraryCount_One": "Library, 1 card",
