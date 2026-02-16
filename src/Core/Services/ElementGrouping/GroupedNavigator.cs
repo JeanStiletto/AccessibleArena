@@ -561,7 +561,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                             elementsWithSubgroup.Add(new GroupedElement
                             {
                                 GameObject = null, // No physical object, this is a virtual entry
-                                Label = $"Objectives, {objectives.Count} {(objectives.Count == 1 ? "item" : "items")}",
+                                Label = Strings.ObjectivesEntry(Strings.ItemCount(objectives.Count)),
                                 Group = ElementGroup.Progress,
                                 SubgroupType = ElementGroup.Objectives
                             });
@@ -619,7 +619,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     _groups.Add(new ElementGroupInfo
                     {
                         Group = ElementGroup.PlayBladeFolders,
-                        DisplayName = "Folders",
+                        DisplayName = ElementGroup.PlayBladeFolders.GetDisplayName(),
                         Elements = folderSelectors,
                         IsFolderGroup = false,
                         FolderToggle = null,
@@ -1225,17 +1225,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public string GetActivationAnnouncement(string screenName)
         {
             if (_groups.Count == 0)
-                return $"{screenName}. No items found.";
+                return $"{screenName}. {Strings.NoItemsFound}";
 
             if (_groups.Count == 1)
             {
                 // Single group - auto-entered, announce first element
                 var group = _groups[0];
                 var firstElement = group.Elements.Count > 0 ? group.Elements[0].Label : "";
-                return $"{screenName}. {group.Count} items. 1 of {group.Count}: {firstElement}";
+                return Strings.ScreenItemsSummary(screenName, Strings.ItemCount(group.Count),
+                    Strings.ItemPositionOf(1, group.Count, firstElement));
             }
 
-            return $"{screenName}. {_groups.Count} groups. {GetCurrentAnnouncement()}";
+            return Strings.ScreenGroupsSummary(screenName, Strings.GroupCount(_groups.Count), GetCurrentAnnouncement());
         }
 
         private bool MoveNextGroup()
@@ -1304,7 +1305,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (group.IsStandaloneElement)
                 return group.DisplayName;
 
-            return $"{group.DisplayName}, {group.Count} {(group.Count == 1 ? "item" : "items")}";
+            return Strings.GroupItemCount(group.DisplayName, Strings.ItemCount(group.Count));
         }
 
         private string GetElementAnnouncement()
@@ -1313,7 +1314,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (!element.HasValue) return "";
 
             int count = GetCurrentElementCount();
-            return $"{_currentElementIndex + 1} of {count}: {element.Value.Label}";
+            return Strings.ItemPositionOf(_currentElementIndex + 1, count, element.Value.Label);
         }
 
         private void AnnounceCurrentGroup()

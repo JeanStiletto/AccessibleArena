@@ -568,5 +568,55 @@ namespace AccessibleArena.Core.Models
         public static string PackDetailsDumped => L.Get("PackDetailsDumped");
         public static string WaitingForPlayable => L.Get("WaitingForPlayable");
         public static string NoSearchResults => L.Get("NoSearchResults");
+        public static string EnterToSelect => L.Get("EnterToSelect");
+
+        // ===========================================
+        // ELEMENT GROUPS
+        // ===========================================
+        public static string GroupName(Services.ElementGrouping.ElementGroup group)
+        {
+            switch (group)
+            {
+                case Services.ElementGrouping.ElementGroup.Primary: return L.Get("GroupPrimaryActions");
+                case Services.ElementGrouping.ElementGroup.Play: return L.Get("GroupPlay");
+                case Services.ElementGrouping.ElementGroup.Progress: return L.Get("GroupProgress");
+                case Services.ElementGrouping.ElementGroup.Objectives: return L.Get("GroupObjectives");
+                case Services.ElementGrouping.ElementGroup.Social: return L.Get("GroupSocial");
+                case Services.ElementGrouping.ElementGroup.Filters: return L.Get("GroupFilters");
+                case Services.ElementGrouping.ElementGroup.Content: return L.Get("GroupContent");
+                case Services.ElementGrouping.ElementGroup.Settings: return L.Get("GroupSettings");
+                case Services.ElementGrouping.ElementGroup.Secondary: return L.Get("GroupSecondaryActions");
+                case Services.ElementGrouping.ElementGroup.Popup: return L.Get("GroupDialog");
+                case Services.ElementGrouping.ElementGroup.FriendsPanel: return L.Get("GroupFriends");
+                case Services.ElementGrouping.ElementGroup.PlayBladeTabs: return L.Get("GroupTabs");
+                case Services.ElementGrouping.ElementGroup.PlayBladeContent: return L.Get("GroupPlayOptions");
+                case Services.ElementGrouping.ElementGroup.PlayBladeFolders: return L.Get("GroupFolders");
+                case Services.ElementGrouping.ElementGroup.SettingsMenu: return L.Get("GroupSettingsMenu");
+                case Services.ElementGrouping.ElementGroup.NPE: return L.Get("GroupTutorial");
+                case Services.ElementGrouping.ElementGroup.DeckBuilderCollection: return L.Get("GroupCollection");
+                case Services.ElementGrouping.ElementGroup.DeckBuilderDeckList: return L.Get("GroupDeckList");
+                case Services.ElementGrouping.ElementGroup.DeckBuilderInfo: return L.Get("GroupDeckInfo");
+                case Services.ElementGrouping.ElementGroup.MailboxList: return L.Get("GroupMailList");
+                case Services.ElementGrouping.ElementGroup.MailboxContent: return L.Get("GroupMail");
+                case Services.ElementGrouping.ElementGroup.RewardsPopup: return L.Get("GroupRewards");
+                default: return L.Get("GroupOther");
+            }
+        }
+
+        public static string NoItemsFound => L.Get("NoItemsFound");
+        public static string NoNavigableItemsFound => L.Get("NoNavigableItemsFound");
+        public static string ItemCount(int count) =>
+            count == 1 ? L.Get("ItemCount_One") : L.Format("ItemCount_Format", count);
+        public static string GroupCount(int count) => L.Format("GroupCount_Format", count);
+        public static string GroupItemCount(string groupName, string itemCount) =>
+            L.Format("GroupItemCount_Format", groupName, itemCount);
+        public static string ItemPositionOf(int index, int total, string label) =>
+            L.Format("ItemPositionOf_Format", index, total, label);
+        public static string ScreenGroupsSummary(string screenName, string groupCount, string currentAnnouncement) =>
+            L.Format("ScreenGroupsSummary_Format", screenName, groupCount, currentAnnouncement);
+        public static string ScreenItemsSummary(string screenName, string itemCount, string firstElement) =>
+            L.Format("ScreenItemsSummary_Format", screenName, itemCount, firstElement);
+        public static string ObjectivesEntry(string itemCount) =>
+            L.Format("ObjectivesEntry_Format", itemCount);
     }
 }

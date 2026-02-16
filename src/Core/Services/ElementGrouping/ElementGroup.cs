@@ -1,3 +1,5 @@
+using AccessibleArena.Core.Models;
+
 namespace AccessibleArena.Core.Services.ElementGrouping
 {
     /// <summary>
@@ -162,36 +164,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Returns a screen-reader friendly name for the group.
+        /// Returns a screen-reader friendly localized name for the group.
         /// </summary>
         public static string GetDisplayName(this ElementGroup group)
         {
-            switch (group)
-            {
-                case ElementGroup.Primary: return "Primary Actions";
-                case ElementGroup.Play: return "Play";
-                case ElementGroup.Progress: return "Progress";
-                case ElementGroup.Objectives: return "Objectives";
-                case ElementGroup.Social: return "Social";
-                case ElementGroup.Filters: return "Filters";
-                case ElementGroup.Content: return "Content";
-                case ElementGroup.Settings: return "Settings";
-                case ElementGroup.Secondary: return "Secondary Actions";
-                case ElementGroup.Popup: return "Dialog";
-                case ElementGroup.FriendsPanel: return "Friends";
-                case ElementGroup.PlayBladeTabs: return "Tabs";
-                case ElementGroup.PlayBladeContent: return "Play Options";
-                case ElementGroup.PlayBladeFolders: return "Folders";
-                case ElementGroup.SettingsMenu: return "Settings Menu";
-                case ElementGroup.NPE: return "Tutorial";
-                case ElementGroup.DeckBuilderCollection: return "Collection";
-                case ElementGroup.DeckBuilderDeckList: return "Deck List";
-                case ElementGroup.DeckBuilderInfo: return "Deck Info";
-                case ElementGroup.MailboxList: return "Mail List";
-                case ElementGroup.MailboxContent: return "Mail";
-                case ElementGroup.RewardsPopup: return "Rewards";
-                default: return "Other";
-            }
+            return Strings.GroupName(group);
         }
     }
 }

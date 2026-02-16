@@ -3504,7 +3504,7 @@ namespace AccessibleArena.Core.Services
             string menuName = GetMenuScreenName();
             if (_elements.Count == 0)
             {
-                return $"{menuName}. No navigable items found.";
+                return $"{menuName}. {Models.Strings.NoNavigableItemsFound}";
             }
 
             // Use grouped navigator announcement when enabled
@@ -3513,7 +3513,8 @@ namespace AccessibleArena.Core.Services
                 return _groupedNavigator.GetActivationAnnouncement(menuName);
             }
 
-            return $"{menuName}. {_elements.Count} items. {Models.Strings.NavigateWithArrows}, Enter to select.";
+            return Models.Strings.ScreenItemsSummary(menuName, Models.Strings.ItemCount(_elements.Count),
+                $"{Models.Strings.NavigateWithArrows}, {Models.Strings.EnterToSelect}");
         }
 
         #region Grouped Navigation Overrides
