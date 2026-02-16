@@ -276,6 +276,10 @@ namespace AccessibleArena
             // Update diagnostic tracking if active
             _panelDiagnostic?.Update();
 
+            // Tell KeyboardManagerPatch to block Escape from reaching the game
+            // when a mod menu is open (persistent flag avoids timing issues with per-frame consume)
+            InputManager.ModMenuActive = (_helpNavigator?.IsActive == true) || (_settingsNavigator?.IsActive == true);
+
             // Help menu has highest priority - blocks all other input when active
             if (_helpNavigator != null && _helpNavigator.IsActive)
             {

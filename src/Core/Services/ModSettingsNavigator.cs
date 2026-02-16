@@ -142,8 +142,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // F2 or Backspace closes the menu
-            if (Input.GetKeyDown(KeyCode.F2) || Input.GetKeyDown(KeyCode.Backspace))
+            // F2, Backspace, or Escape closes the menu
+            if (Input.GetKeyDown(KeyCode.F2) || Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Escape))
             {
                 Close();
                 return true;

@@ -2,6 +2,13 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6.1 - 2026-02-16
+
+### Fix: Escape key in mod menus
+- Escape now closes Help (F1) and Settings (F2) menus
+- Escape is blocked from reaching the game while mod menus are open, preventing unintended game actions
+- Uses persistent `ModMenuActive` flag on InputManager (same pattern as input field/dropdown escape blocking)
+
 ## v0.6 - 2026-02-14
 
 ### New Navigator: StoreNavigator

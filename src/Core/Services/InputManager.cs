@@ -21,6 +21,12 @@ namespace AccessibleArena.Core.Services
         private static int _lastConsumeFrame = -1;
 
         /// <summary>
+        /// When true, Escape is blocked from reaching the game.
+        /// Set when mod overlay menus (Help, Settings) are active.
+        /// </summary>
+        public static bool ModMenuActive { get; set; }
+
+        /// <summary>
         /// When true, EventSystemPatch blocks Unity's Submit events for toggles.
         /// Set by navigators when the current element is a toggle, cleared when moving away.
         /// This persistent flag works around the timing issue where EventSystem.Update()

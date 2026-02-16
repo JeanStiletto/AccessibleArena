@@ -71,8 +71,9 @@ namespace AccessibleArena.Patches
         /// </summary>
         private static bool ShouldBlockKey(KeyCode key)
         {
-            // Block Escape when WebBrowser is active or input field is focused
-            if (key == KeyCode.Escape && BlockEscape)
+            // Block Escape when WebBrowser is active, input field is focused,
+            // or a mod menu (Help/Settings) is open
+            if (key == KeyCode.Escape && (BlockEscape || InputManager.ModMenuActive))
             {
                 return true;
             }

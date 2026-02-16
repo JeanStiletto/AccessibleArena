@@ -145,8 +145,8 @@ Left/Right (Navigate), Home/End (Jump to first/last)
 Enter (Toggle card), Space (Submit)
 
 **Global:**
-F1 (Help Menu - navigable with Up/Down, close with Backspace or F1)
-F2 (Settings Menu - navigable with Up/Down, Enter to change, close with Backspace or F2)
+F1 (Help Menu - navigable with Up/Down, close with Escape, Backspace, or F1)
+F2 (Settings Menu - navigable with Up/Down, Enter to change, close with Escape, Backspace, or F2)
 F3 (Current screen), Ctrl+R (Repeat)
 Backspace (Back/Dismiss/Cancel - universal)
 
