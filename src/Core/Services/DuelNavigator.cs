@@ -332,12 +332,8 @@ namespace AccessibleArena.Core.Services
         {
             int handCards = _zoneNavigator.HandCardCount;
 
-            return $"Duel started. {handCards} cards in hand. " +
-                   $"Tab cycles playable cards. " +
-                   $"C for hand. B for your creatures, A for your lands, R for your non-creatures. " +
-                   $"Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. " +
-                   $"P for your timer, Shift plus P for opponent timer. " +
-                   $"Alt plus up or down switches battlefield rows.";
+            string core = $"Duel started. {handCards} cards in hand";
+            return Strings.WithHint(core, "DuelKeybindingsHint");
         }
 
         protected override bool OnElementActivated(int index, GameObject element)

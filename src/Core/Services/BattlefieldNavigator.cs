@@ -363,7 +363,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            _announcer.AnnounceInterrupt(Strings.EndOfBattlefield);
+            _announcer.AnnounceInterruptVerbose(Strings.EndOfBattlefield);
         }
 
         /// <summary>
@@ -389,7 +389,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            _announcer.AnnounceInterrupt(Strings.BeginningOfBattlefield);
+            _announcer.AnnounceInterruptVerbose(Strings.BeginningOfBattlefield);
         }
 
         /// <summary>
@@ -411,7 +411,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt(Strings.EndOfRow);
+                _announcer.AnnounceInterruptVerbose(Strings.EndOfRow);
             }
         }
 
@@ -434,7 +434,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt(Strings.BeginningOfRow);
+                _announcer.AnnounceInterruptVerbose(Strings.BeginningOfRow);
             }
         }
 
@@ -452,7 +452,7 @@ namespace AccessibleArena.Core.Services
 
             if (_currentIndex == 0)
             {
-                _announcer.AnnounceInterrupt(Strings.BeginningOfRow);
+                _announcer.AnnounceInterruptVerbose(Strings.BeginningOfRow);
                 return;
             }
 
@@ -475,7 +475,7 @@ namespace AccessibleArena.Core.Services
             int lastIndex = cards.Count - 1;
             if (_currentIndex == lastIndex)
             {
-                _announcer.AnnounceInterrupt(Strings.EndOfRow);
+                _announcer.AnnounceInterruptVerbose(Strings.EndOfRow);
                 return;
             }
 

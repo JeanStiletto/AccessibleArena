@@ -1214,7 +1214,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.NoAlternateAction, AnnouncementPriority.Normal);
             }
         }
 
@@ -1312,12 +1312,12 @@ namespace AccessibleArena.Core.Services
             // Clamp to valid range (no wrapping)
             if (newActionIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return true;
             }
             if (newActionIndex >= totalOptions)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return true;
             }
 
@@ -1395,13 +1395,13 @@ namespace AccessibleArena.Core.Services
             // Check boundaries - no wrapping
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             if (newIndex >= _elements.Count)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 

@@ -319,6 +319,7 @@
   "PopupCancel": "취소",
 
   "NavigateHint": "방향키로 이동, Enter로 선택",
+  "DuelKeybindingsHint": "Tab cycles playable cards. C for hand. B for your creatures, A for your lands, R for your non-creatures. Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. P for your timer, Shift plus P for opponent timer. Alt plus up or down switches battlefield rows",
   "ItemsCount_One": "1개 항목",
   "ItemsCount_Format": "{0}개 항목",
   "ActivationWithItems_Format": "{0}. {1}. {2}",

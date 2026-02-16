@@ -295,7 +295,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.Announce(Strings.EndOfZone, AnnouncementPriority.Normal);
+                    _announcer.AnnounceVerbose(Strings.EndOfZone, AnnouncementPriority.Normal);
                 }
                 return true;
             }
@@ -310,7 +310,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.Announce(Strings.EndOfZone, AnnouncementPriority.Normal);
+                    _announcer.AnnounceVerbose(Strings.EndOfZone, AnnouncementPriority.Normal);
                 }
                 return true;
             }
@@ -326,7 +326,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.Announce(Strings.EndOfProperties, AnnouncementPriority.Normal);
+                    _announcer.AnnounceVerbose(Strings.EndOfProperties, AnnouncementPriority.Normal);
                 }
                 return true;
             }
@@ -341,7 +341,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.Announce(Strings.EndOfProperties, AnnouncementPriority.Normal);
+                    _announcer.AnnounceVerbose(Strings.EndOfProperties, AnnouncementPriority.Normal);
                 }
                 return true;
             }

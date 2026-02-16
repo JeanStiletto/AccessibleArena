@@ -1243,7 +1243,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (_currentGroupIndex >= _groups.Count - 1)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return false;
             }
 
@@ -1256,7 +1256,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (_currentGroupIndex <= 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return false;
             }
 
@@ -1272,7 +1272,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             if (_currentElementIndex >= count - 1)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return false;
             }
 
@@ -1285,7 +1285,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (_currentElementIndex <= 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return false;
             }
 

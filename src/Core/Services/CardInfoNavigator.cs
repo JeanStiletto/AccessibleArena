@@ -213,7 +213,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt(Strings.EndOfCard);
+                _announcer.AnnounceInterruptVerbose(Strings.EndOfCard);
             }
         }
 
@@ -226,7 +226,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt(Strings.BeginningOfCard);
+                _announcer.AnnounceInterruptVerbose(Strings.BeginningOfCard);
             }
         }
 

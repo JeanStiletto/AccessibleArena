@@ -319,6 +319,7 @@
   "PopupCancel": "Annulla",
 
   "NavigateHint": "Tasti freccia per navigare, Invio per selezionare",
+  "DuelKeybindingsHint": "Tab cycles playable cards. C for hand. B for your creatures, A for your lands, R for your non-creatures. Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. P for your timer, Shift plus P for opponent timer. Alt plus up or down switches battlefield rows",
   "ItemsCount_One": "1 oggetto",
   "ItemsCount_Format": "{0} oggetti",
   "ActivationWithItems_Format": "{0}. {1}. {2}",

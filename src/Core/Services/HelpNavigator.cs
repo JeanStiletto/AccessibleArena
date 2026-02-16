@@ -146,7 +146,8 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg("[HelpNavigator] Opened");
 
             // Announce title and instructions
-            _announcer.AnnounceInterrupt($"{Strings.HelpMenuTitle}. {_helpItems.Count} items. {Strings.HelpMenuInstructions}");
+            string core = $"{Strings.HelpMenuTitle}. {_helpItems.Count} items";
+            _announcer.AnnounceInterrupt(Strings.WithHint(core, "HelpMenuInstructions"));
         }
 
         /// <summary>
@@ -214,7 +215,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex >= _helpItems.Count - 1)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -226,7 +227,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex <= 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -238,7 +239,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex == 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -251,7 +252,7 @@ namespace AccessibleArena.Core.Services
             int lastIndex = _helpItems.Count - 1;
             if (_currentIndex == lastIndex)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 

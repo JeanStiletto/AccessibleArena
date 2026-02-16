@@ -248,7 +248,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt(Strings.EndOfZone);
+                _announcer.AnnounceInterruptVerbose(Strings.EndOfZone);
             }
         }
 
@@ -273,7 +273,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.AnnounceInterrupt(Strings.BeginningOfZone);
+                _announcer.AnnounceInterruptVerbose(Strings.BeginningOfZone);
             }
         }
 
@@ -292,7 +292,7 @@ namespace AccessibleArena.Core.Services
 
             if (_cardIndex == 0)
             {
-                _announcer.AnnounceInterrupt(Strings.BeginningOfZone);
+                _announcer.AnnounceInterruptVerbose(Strings.BeginningOfZone);
                 return;
             }
 
@@ -316,7 +316,7 @@ namespace AccessibleArena.Core.Services
             int lastIndex = currentList.Count - 1;
             if (_cardIndex == lastIndex)
             {
-                _announcer.AnnounceInterrupt(Strings.EndOfZone);
+                _announcer.AnnounceInterruptVerbose(Strings.EndOfZone);
                 return;
             }
 

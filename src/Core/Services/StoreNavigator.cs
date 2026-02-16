@@ -1419,13 +1419,13 @@ namespace AccessibleArena.Core.Services
 
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             if (newIndex >= _tabs.Count)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -1583,13 +1583,13 @@ namespace AccessibleArena.Core.Services
 
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             if (newIndex >= _items.Count)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -1615,13 +1615,13 @@ namespace AccessibleArena.Core.Services
 
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             if (newIndex >= item.PurchaseOptions.Count)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -2054,13 +2054,13 @@ namespace AccessibleArena.Core.Services
 
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             if (newIndex >= _detailsCards.Count)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -2112,13 +2112,13 @@ namespace AccessibleArena.Core.Services
 
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
             if (newIndex >= _detailsCardBlocks.Count)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -2488,12 +2488,12 @@ namespace AccessibleArena.Core.Services
             int newIndex = _popupElementIndex + direction;
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
             if (newIndex >= _popupElements.Count)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
             _popupElementIndex = newIndex;

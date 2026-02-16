@@ -619,11 +619,11 @@ namespace AccessibleArena.Core.Services
 
                 case ScreenMode.PreGame:
                     if (_elements.Count > 0)
-                        return $"{Strings.ScreenSearchingForMatch}. {Strings.ItemCount(_elements.Count)}. {Strings.NavigateWithArrows}.";
+                        return Strings.WithHint($"{Strings.ScreenSearchingForMatch}. {Strings.ItemCount(_elements.Count)}", "NavigateHint");
                     return $"{Strings.ScreenSearchingForMatch}.";
 
                 case ScreenMode.Matchmaking:
-                    return $"{Strings.ScreenSearchingForMatch}. {Strings.NavigateWithArrows}.";
+                    return Strings.WithHint(Strings.ScreenSearchingForMatch, "NavigateHint");
 
                 case ScreenMode.GameLoading:
                     string loadingStatus = _lastLoadingStatusText;

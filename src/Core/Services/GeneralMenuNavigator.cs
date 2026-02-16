@@ -586,12 +586,12 @@ namespace AccessibleArena.Core.Services
             // Bounds check
             if (newIndex < 0)
             {
-                _announcer.Announce(Models.Strings.FirstPack, Models.AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Models.Strings.FirstPack, Models.AnnouncementPriority.Normal);
                 return true;
             }
             if (newIndex >= _boosterPackHitboxes.Count)
             {
-                _announcer.Announce(Models.Strings.LastPack, Models.AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Models.Strings.LastPack, Models.AnnouncementPriority.Normal);
                 return true;
             }
 
@@ -1449,7 +1449,7 @@ namespace AccessibleArena.Core.Services
                 if (dismissButton != null)
                 {
                     LogDebug($"[{NavigatorId}] Found dismiss button in content panel: {dismissButton.name}");
-                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(dismissButton);
                     TriggerRescan();
                     return true;
@@ -1505,7 +1505,7 @@ namespace AccessibleArena.Core.Services
         private bool HandleCampaignGraphBack()
         {
             LogDebug($"[{NavigatorId}] CampaignGraph: navigating Home");
-            _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+            _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
             return NavigateToHome();
         }
 
@@ -1547,7 +1547,7 @@ namespace AccessibleArena.Core.Services
             if (backButton != null)
             {
                 LogDebug($"[{NavigatorId}] Found back button: {backButton.name}");
-                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                 UIActivator.Activate(backButton);
                 TriggerRescan();
                 return true;
@@ -1568,7 +1568,7 @@ namespace AccessibleArena.Core.Services
                 var closeButton = FindCloseButtonInPanel(_foregroundPanel);
                 if (closeButton != null)
                 {
-                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(closeButton);
                     TriggerRescan();
                     return true;
@@ -1611,7 +1611,7 @@ namespace AccessibleArena.Core.Services
                 var closeButton = FindCloseButtonInPanel(socialPanel);
                 if (closeButton != null)
                 {
-                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(closeButton);
                     TriggerRescan();
                     return true;
@@ -1655,7 +1655,7 @@ namespace AccessibleArena.Core.Services
                             {
                                 LogDebug($"[{NavigatorId}] Invoking NavBarController.HideInboxIfActive()");
                                 method.Invoke(mb, null);
-                                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                                _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                                 TriggerRescan();
                                 return true;
                             }
@@ -1676,7 +1676,7 @@ namespace AccessibleArena.Core.Services
                 var closeButton = FindCloseButtonInPanel(mailboxPanel);
                 if (closeButton != null)
                 {
-                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(closeButton);
                     TriggerRescan();
                     return true;
@@ -1715,7 +1715,7 @@ namespace AccessibleArena.Core.Services
                                 _isInMailDetailView = false;
                                 _currentMailLetterId = Guid.Empty;
                                 ResetMailFieldNavigation();
-                                _announcer.Announce(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
+                                _announcer.AnnounceVerbose(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
                                 TriggerRescan();
                                 return true;
                             }
@@ -4021,7 +4021,7 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 LogDebug($"[{NavigatorId}] At group level in deck builder - backspace blocked");
-                _announcer.Announce(Models.Strings.AtTopLevel, Models.AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Models.Strings.AtTopLevel, Models.AnnouncementPriority.Normal);
                 return true;
             }
 
@@ -4283,7 +4283,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (_deckInfoEntryIndex >= entries.Count - 1)
                 {
-                    _announcer.Announce(Models.Strings.EndOfList, Models.AnnouncementPriority.Normal);
+                    _announcer.AnnounceVerbose(Models.Strings.EndOfList, Models.AnnouncementPriority.Normal);
                     return true;
                 }
                 _deckInfoEntryIndex++;
@@ -4292,7 +4292,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (_deckInfoEntryIndex <= 0)
                 {
-                    _announcer.Announce(Models.Strings.BeginningOfList, Models.AnnouncementPriority.Normal);
+                    _announcer.AnnounceVerbose(Models.Strings.BeginningOfList, Models.AnnouncementPriority.Normal);
                     return true;
                 }
                 _deckInfoEntryIndex--;

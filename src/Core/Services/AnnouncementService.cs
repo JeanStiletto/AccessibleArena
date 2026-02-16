@@ -34,6 +34,18 @@ namespace AccessibleArena.Core.Services
             Announce(message, AnnouncementPriority.Immediate);
         }
 
+        public void AnnounceVerbose(string message, AnnouncementPriority priority = AnnouncementPriority.Normal)
+        {
+            if (AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false)
+                Announce(message, priority);
+        }
+
+        public void AnnounceInterruptVerbose(string message)
+        {
+            if (AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false)
+                Announce(message, AnnouncementPriority.Immediate);
+        }
+
         public void Silence()
         {
             ScreenReaderOutput.Silence();

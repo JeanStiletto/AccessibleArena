@@ -104,7 +104,8 @@ namespace AccessibleArena.Core.Services
             _isInDropdownMode = false;
 
             MelonLogger.Msg("[ModSettingsNavigator] Opened");
-            _announcer.AnnounceInterrupt($"{Strings.SettingsMenuTitle}. {Strings.ItemCount(_items.Count)}. {Strings.SettingsMenuInstructions}");
+            string core = $"{Strings.SettingsMenuTitle}. {Strings.ItemCount(_items.Count)}";
+            _announcer.AnnounceInterrupt(Strings.WithHint(core, "SettingsMenuInstructions"));
         }
 
         /// <summary>
@@ -278,12 +279,12 @@ namespace AccessibleArena.Core.Services
 
             if (newIndex < 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
             if (newIndex >= total)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -295,7 +296,7 @@ namespace AccessibleArena.Core.Services
         {
             if (index == _dropdownLanguageIndex)
             {
-                _announcer.Announce(index == 0 ? Strings.BeginningOfList : Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(index == 0 ? Strings.BeginningOfList : Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -339,7 +340,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex >= _items.Count - 1)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -351,7 +352,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex <= 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -363,7 +364,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex == 0)
             {
-                _announcer.Announce(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -376,7 +377,7 @@ namespace AccessibleArena.Core.Services
             int lastIndex = _items.Count - 1;
             if (_currentIndex == lastIndex)
             {
-                _announcer.Announce(Strings.EndOfList, AnnouncementPriority.Normal);
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
 

@@ -711,7 +711,7 @@ namespace AccessibleArena.Core.Services
                 if (backButton != null)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Activating Settings submenu back button");
-                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(backButton);
                     TriggerRescan();
                     return true;

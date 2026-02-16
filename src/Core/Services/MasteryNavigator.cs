@@ -1514,7 +1514,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.AnnounceInterrupt(Strings.BeginningOfList);
+                    _announcer.AnnounceInterruptVerbose(Strings.BeginningOfList);
                 }
                 return;
             }
@@ -1531,7 +1531,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.AnnounceInterrupt(Strings.EndOfList);
+                    _announcer.AnnounceInterruptVerbose(Strings.EndOfList);
                 }
                 return;
             }
@@ -1642,7 +1642,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (btn.Label == Strings.Back)
                 {
-                    _announcer.AnnounceInterrupt(Strings.NavigatingBack);
+                    _announcer.AnnounceInterruptVerbose(Strings.NavigatingBack);
                     UIActivator.Activate(btn.GameObject);
                     return;
                 }
@@ -1656,7 +1656,7 @@ namespace AccessibleArena.Core.Services
                     var backBtn = _backButtonField.GetValue(_controller) as MonoBehaviour;
                     if (backBtn != null && backBtn.gameObject != null)
                     {
-                        _announcer.AnnounceInterrupt(Strings.NavigatingBack);
+                        _announcer.AnnounceInterruptVerbose(Strings.NavigatingBack);
                         UIActivator.Activate(backBtn.gameObject);
                         return;
                     }
@@ -1682,7 +1682,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.AnnounceInterrupt(Strings.BeginningOfList);
+                    _announcer.AnnounceInterruptVerbose(Strings.BeginningOfList);
                 }
                 return;
             }
@@ -1698,7 +1698,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.AnnounceInterrupt(Strings.EndOfList);
+                    _announcer.AnnounceInterruptVerbose(Strings.EndOfList);
                 }
                 return;
             }
@@ -1734,7 +1734,7 @@ namespace AccessibleArena.Core.Services
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 if (_prizeWallBackButton != null)
                 {
-                    _announcer.AnnounceInterrupt(Strings.NavigatingBack);
+                    _announcer.AnnounceInterruptVerbose(Strings.NavigatingBack);
                     UIActivator.Activate(_prizeWallBackButton);
                 }
                 else
