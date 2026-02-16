@@ -38,7 +38,7 @@ namespace AccessibleArena.Core.Services
         private const float ProgressAnnounceInterval = 5f; // Announce progress every 5 seconds
 
         public override string NavigatorId => "AssetPrep";
-        public override string ScreenName => "Download screen";
+        public override string ScreenName => Strings.ScreenDownload;
 
         // Low priority - let login screens take over ASAP
         public override int Priority => 5;

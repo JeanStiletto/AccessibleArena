@@ -16,7 +16,7 @@ namespace AccessibleArena.Core.Services
     public class AdvancedFiltersNavigator : BaseNavigator
     {
         public override string NavigatorId => "AdvancedFilters";
-        public override string ScreenName => "Advanced Filters";
+        public override string ScreenName => Strings.ScreenAdvancedFilters;
         public override int Priority => 87; // Higher than RewardPopup (86), below SettingsMenu (90)
 
         // Row structure for grid navigation

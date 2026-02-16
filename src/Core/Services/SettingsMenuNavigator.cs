@@ -94,19 +94,19 @@ namespace AccessibleArena.Core.Services
             // If popup is active, return popup name
             if (_isPopupActive && _activePopup != null)
             {
-                return "Confirmation";
+                return Models.Strings.ScreenConfirmation;
             }
 
             if (_settingsContentPanel == null)
-                return "Settings";
+                return Models.Strings.ScreenSettings;
 
             return _settingsContentPanel.name switch
             {
-                "Content - MainMenu" => "Settings",
-                "Content - Gameplay" => "Settings, Gameplay",
-                "Content - Graphics" => "Settings, Graphics",
-                "Content - Audio" => "Settings, Audio",
-                _ => "Settings"
+                "Content - MainMenu" => Models.Strings.ScreenSettings,
+                "Content - Gameplay" => Models.Strings.ScreenSettingsGameplay,
+                "Content - Graphics" => Models.Strings.ScreenSettingsGraphics,
+                "Content - Audio" => Models.Strings.ScreenSettingsAudio,
+                _ => Models.Strings.ScreenSettings
             };
         }
 

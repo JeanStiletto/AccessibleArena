@@ -36,8 +36,8 @@ namespace AccessibleArena.Core.Services
         private string GetScreenName()
         {
             if (_totalCards > 0)
-                return $"Pack Contents, {_totalCards} cards";
-            return "Pack Contents";
+                return Strings.ScreenPackContentsCount(_totalCards);
+            return Strings.ScreenPackContents;
         }
 
         protected override bool DetectScreen()

@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,15 +66,15 @@ namespace AccessibleArena.Core.Services
             switch (_currentMode)
             {
                 case ScreenMode.MatchEnd:
-                    return string.IsNullOrEmpty(_matchResultText) ? "Match ended" : _matchResultText;
+                    return string.IsNullOrEmpty(_matchResultText) ? Strings.ScreenMatchEnded : _matchResultText;
                 case ScreenMode.PreGame:
-                    return "Searching for match";
+                    return Strings.ScreenSearchingForMatch;
                 case ScreenMode.Matchmaking:
-                    return "Searching for match";
+                    return Strings.ScreenSearchingForMatch;
                 case ScreenMode.GameLoading:
-                    return "Loading";
+                    return Strings.ScreenLoading;
                 default:
-                    return "Loading";
+                    return Strings.ScreenLoading;
             }
         }
 
@@ -568,7 +569,7 @@ namespace AccessibleArena.Core.Services
             }
 
             if (string.IsNullOrEmpty(resultText))
-                resultText = "Match ended";
+                resultText = Strings.ScreenMatchEnded;
 
             return resultText;
         }
@@ -611,24 +612,24 @@ namespace AccessibleArena.Core.Services
             switch (_currentMode)
             {
                 case ScreenMode.MatchEnd:
-                    string result = string.IsNullOrEmpty(_matchResultText) ? "Match ended" : _matchResultText;
+                    string result = string.IsNullOrEmpty(_matchResultText) ? Strings.ScreenMatchEnded : _matchResultText;
                     if (_elements.Count > 0)
-                        return $"{result}. {_elements.Count} options. Navigate with arrows, Enter to select. Backspace to continue.";
-                    return $"{result}. Backspace to continue.";
+                        return Strings.WithHint($"{result}. {Strings.ItemCount(_elements.Count)}", "NavigateHint");
+                    return result;
 
                 case ScreenMode.PreGame:
                     if (_elements.Count > 0)
-                        return $"Searching for match. {_elements.Count} items. Navigate with arrows.";
-                    return "Searching for match.";
+                        return $"{Strings.ScreenSearchingForMatch}. {Strings.ItemCount(_elements.Count)}. {Strings.NavigateWithArrows}.";
+                    return $"{Strings.ScreenSearchingForMatch}.";
 
                 case ScreenMode.Matchmaking:
-                    return "Searching for match. Navigate with arrows, Backspace to cancel.";
+                    return $"{Strings.ScreenSearchingForMatch}. {Strings.NavigateWithArrows}.";
 
                 case ScreenMode.GameLoading:
                     string loadingStatus = _lastLoadingStatusText;
                     if (!string.IsNullOrEmpty(loadingStatus))
-                        return $"Loading. {loadingStatus}";
-                    return "Loading.";
+                        return $"{Strings.ScreenLoading}. {loadingStatus}";
+                    return $"{Strings.ScreenLoading}.";
 
                 default:
                     return base.GetActivationAnnouncement();

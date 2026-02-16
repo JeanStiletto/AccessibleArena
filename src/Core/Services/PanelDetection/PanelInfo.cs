@@ -1,3 +1,4 @@
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -98,16 +99,16 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
             var lower = panelName.ToLowerInvariant();
 
-            if (lower.Contains("systemmessage")) return "Confirmation";
-            if (lower.Contains("invitefriend")) return "Invite Friend";
-            if (lower.Contains("friendswidget")) return "Friends";
-            if (lower.Contains("socialui")) return "Social";
-            if (lower.Contains("settingsmenu")) return "Settings";
-            if (lower.Contains("playblade")) return "Play";
-            if (lower.Contains("eventblade")) return "Events";
-            if (lower.Contains("deckselectblade")) return "Deck Selection";
-            if (lower.Contains("findmatchblade")) return "Find Match";
-            if (lower.Contains("campaigngraph")) return "Color Challenge";
+            if (lower.Contains("systemmessage")) return Strings.ScreenConfirmation;
+            if (lower.Contains("invitefriend")) return Strings.ScreenInviteFriend;
+            if (lower.Contains("friendswidget")) return Strings.ScreenFriends;
+            if (lower.Contains("socialui")) return Strings.ScreenSocial;
+            if (lower.Contains("settingsmenu")) return Strings.ScreenSettings;
+            if (lower.Contains("playblade")) return Strings.ScreenPlay;
+            if (lower.Contains("eventblade")) return Strings.ScreenEvents;
+            if (lower.Contains("deckselectblade")) return Strings.ScreenDeckSelection;
+            if (lower.Contains("findmatchblade")) return Strings.ScreenFindMatch;
+            if (lower.Contains("campaigngraph")) return Strings.ScreenColorChallenge;
 
             if (panelName.StartsWith("Panel - "))
                 return panelName.Substring("Panel - ".Length).Replace("(Clone)", "").Trim();

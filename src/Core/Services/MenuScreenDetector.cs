@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -311,22 +312,22 @@ namespace AccessibleArena.Core.Services
         {
             return controllerTypeName switch
             {
-                "HomePageContentController" => "Home",
-                "DeckManagerController" => "Decks",
-                "ProfileContentController" => "Profile",
-                "ContentController_StoreCarousel" => "Store",
-                "MasteryContentController" => "Mastery",
-                "AchievementsContentController" => "Achievements",
-                "LearnToPlayControllerV2" => "Learn to Play",
-                "PackOpeningController" => "Pack Opening",
-                "CampaignGraphContentController" => "Color Challenge",
-                "WrapperDeckBuilder" => "Deck Builder",
-                "ConstructedDeckSelectController" => "Deck Selection",
-                "EventPageContentController" => "Event",
-                "RewardsOverlay" => "Rewards",
-                "BoosterChamber" => "Packs",
-                "NPERewards" => "Card Unlocked",
-                "ProgressionTracksContentController" => "Rewards",
+                "HomePageContentController" => Strings.ScreenHome,
+                "DeckManagerController" => Strings.ScreenDecks,
+                "ProfileContentController" => Strings.ScreenProfile,
+                "ContentController_StoreCarousel" => Strings.ScreenStore,
+                "MasteryContentController" => Strings.ScreenMastery,
+                "AchievementsContentController" => Strings.ScreenAchievements,
+                "LearnToPlayControllerV2" => Strings.ScreenLearnToPlay,
+                "PackOpeningController" => Strings.ScreenPackOpening,
+                "CampaignGraphContentController" => Strings.ScreenColorChallenge,
+                "WrapperDeckBuilder" => Strings.ScreenDeckBuilder,
+                "ConstructedDeckSelectController" => Strings.ScreenDeckSelection,
+                "EventPageContentController" => Strings.ScreenEvent,
+                "RewardsOverlay" => Strings.ScreenRewards,
+                "BoosterChamber" => Strings.ScreenPacks,
+                "NPERewards" => Strings.ScreenCardUnlocked,
+                "ProgressionTracksContentController" => Strings.ScreenRewards,
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
             };
         }

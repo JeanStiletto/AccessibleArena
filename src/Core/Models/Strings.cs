@@ -571,6 +571,62 @@ namespace AccessibleArena.Core.Models
         public static string EnterToSelect => L.Get("EnterToSelect");
 
         // ===========================================
+        // SCREEN TITLES
+        // ===========================================
+        public static string ScreenHome => L.Get("ScreenHome");
+        public static string ScreenDecks => L.Get("ScreenDecks");
+        public static string ScreenProfile => L.Get("ScreenProfile");
+        public static string ScreenStore => L.Get("ScreenStore");
+        public static string ScreenMastery => L.Get("ScreenMastery");
+        public static string ScreenAchievements => L.Get("ScreenAchievements");
+        public static string ScreenLearnToPlay => L.Get("ScreenLearnToPlay");
+        public static string ScreenPackOpening => L.Get("ScreenPackOpening");
+        public static string ScreenColorChallenge => L.Get("ScreenColorChallenge");
+        public static string ScreenDeckBuilder => L.Get("ScreenDeckBuilder");
+        public static string ScreenDeckSelection => L.Get("ScreenDeckSelection");
+        public static string ScreenEvent => L.Get("ScreenEvent");
+        public static string ScreenRewards => L.Get("ScreenRewards");
+        public static string ScreenPacks => L.Get("ScreenPacks");
+        public static string ScreenCardUnlocked => L.Get("ScreenCardUnlocked");
+        public static string ScreenCardUnlockedCount(int count) =>
+            count == 1 ? L.Get("ScreenCardUnlocked_One") : L.Format("ScreenCardUnlocked_Format", count);
+        public static string ScreenPackContents => L.Get("ScreenPackContents");
+        public static string ScreenPackContentsCount(int count) =>
+            count == 1 ? L.Get("ScreenPackContents_One") : L.Format("ScreenPackContents_Format", count);
+        public static string ScreenFriends => L.Get("ScreenFriends");
+        public static string ScreenHomeWithEvents => L.Get("ScreenHomeWithEvents");
+        public static string ScreenHomeWithColorChallenge => L.Get("ScreenHomeWithColorChallenge");
+        public static string ScreenNavigationBar => L.Get("ScreenNavigationBar");
+        public static string ScreenCollection => L.Get("ScreenCollection");
+        public static string ScreenSettings => L.Get("ScreenSettings");
+        public static string ScreenMenu => L.Get("ScreenMenu");
+        public static string ScreenPlayModeSelection => L.Get("ScreenPlayModeSelection");
+        public static string ScreenDirectChallenge => L.Get("ScreenDirectChallenge");
+        public static string ScreenFriendChallenge => L.Get("ScreenFriendChallenge");
+        public static string ScreenConfirmation => L.Get("ScreenConfirmation");
+        public static string ScreenInviteFriend => L.Get("ScreenInviteFriend");
+        public static string ScreenSocial => L.Get("ScreenSocial");
+        public static string ScreenPlay => L.Get("ScreenPlay");
+        public static string ScreenEvents => L.Get("ScreenEvents");
+        public static string ScreenFindMatch => L.Get("ScreenFindMatch");
+        public static string ScreenMatchEnded => L.Get("ScreenMatchEnded");
+        public static string ScreenSearchingForMatch => L.Get("ScreenSearchingForMatch");
+        public static string ScreenLoading => L.Get("ScreenLoading");
+        public static string ScreenSettingsGameplay => L.Get("ScreenSettingsGameplay");
+        public static string ScreenSettingsGraphics => L.Get("ScreenSettingsGraphics");
+        public static string ScreenSettingsAudio => L.Get("ScreenSettingsAudio");
+        public static string ScreenDownload => L.Get("ScreenDownload");
+        public static string ScreenAdvancedFilters => L.Get("ScreenAdvancedFilters");
+        public static string ScreenPrizeWall => L.Get("ScreenPrizeWall");
+        public static string ScreenDuel => L.Get("ScreenDuel");
+        public static string ScreenPreGame => L.Get("ScreenPreGame");
+        public static string ScreenWhatsNew => L.Get("ScreenWhatsNew");
+        public static string ScreenAnnouncement => L.Get("ScreenAnnouncement");
+        public static string ScreenRewardPopup => L.Get("ScreenRewardPopup");
+        public static string ScreenOverlay => L.Get("ScreenOverlay");
+        public static string WaitingForServer => L.Get("WaitingForServer");
+
+        // ===========================================
         // ELEMENT GROUPS
         // ===========================================
         public static string GroupName(Services.ElementGrouping.ElementGroup group)

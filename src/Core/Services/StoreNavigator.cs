@@ -28,7 +28,7 @@ namespace AccessibleArena.Core.Services
         #region Navigator Identity
 
         public override string NavigatorId => "Store";
-        public override string ScreenName => "Store";
+        public override string ScreenName => Strings.ScreenStore;
         public override int Priority => StorePriority;
         protected override bool SupportsCardNavigation => false;
         protected override bool AcceptSpaceKey => true;

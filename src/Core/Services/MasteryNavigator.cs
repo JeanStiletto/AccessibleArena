@@ -35,7 +35,7 @@ namespace AccessibleArena.Core.Services
         #region Navigator Identity
 
         public override string NavigatorId => "Mastery";
-        public override string ScreenName => _mode == MasteryMode.PrizeWall ? "Prize Wall" : "Mastery";
+        public override string ScreenName => _mode == MasteryMode.PrizeWall ? Strings.ScreenPrizeWall : Strings.ScreenMastery;
         public override int Priority => MasteryPriority;
         protected override bool SupportsCardNavigation => false;
         protected override bool AcceptSpaceKey => false;

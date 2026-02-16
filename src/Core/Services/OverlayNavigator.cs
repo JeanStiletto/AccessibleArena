@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -27,10 +28,10 @@ namespace AccessibleArena.Core.Services
         {
             return _overlayType switch
             {
-                "WhatsNew" => "What's New",
-                "Announcement" => "Announcement",
-                "Reward" => "Reward popup",
-                _ => "Overlay"
+                "WhatsNew" => Strings.ScreenWhatsNew,
+                "Announcement" => Strings.ScreenAnnouncement,
+                "Reward" => Strings.ScreenRewardPopup,
+                _ => Strings.ScreenOverlay
             };
         }
 

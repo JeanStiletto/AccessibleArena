@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.PanelDetection;
 using AccessibleArena.Core.Services.ElementGrouping;
 using AccessibleArena.Patches;
@@ -708,7 +709,7 @@ namespace AccessibleArena.Core.Services
             // Check if Social/Friends panel is open
             if (IsSocialPanelOpen())
             {
-                return "Friends";
+                return Strings.ScreenFriends;
             }
 
             // Check for PlayBlade state (deck selection, play mode)
@@ -732,13 +733,13 @@ namespace AccessibleArena.Core.Services
                     bool hasColorChallenge = HasColorChallengeVisible();
 
                     if (hasCarousel && hasColorChallenge)
-                        return "Home";
+                        return Strings.ScreenHome;
                     else if (hasCarousel)
-                        return "Home with Events";
+                        return Strings.ScreenHomeWithEvents;
                     else if (hasColorChallenge)
-                        return "Home with Color Challenge";
+                        return Strings.ScreenHomeWithColorChallenge;
                     else
-                        return "Home";
+                        return Strings.ScreenHome;
                 }
 
                 return baseName;
@@ -748,7 +749,7 @@ namespace AccessibleArena.Core.Services
             // This is checked separately because we don't filter elements to it
             if (_screenDetector.IsNPERewardsScreenActive())
             {
-                return "Card Unlocked";
+                return Strings.ScreenCardUnlocked;
             }
 
             // Fall back to detected menu type from button patterns
@@ -758,14 +759,14 @@ namespace AccessibleArena.Core.Services
             // Last resort: use scene name
             return _currentScene switch
             {
-                "HomePage" => "Home",
-                "NavBar" => "Navigation Bar",
-                "Store" => "Store",
-                "Collection" => "Collection",
-                "Decks" => "Decks",
-                "Profile" => "Profile",
-                "Settings" => "Settings",
-                _ => "Menu"
+                "HomePage" => Strings.ScreenHome,
+                "NavBar" => Strings.ScreenNavigationBar,
+                "Store" => Strings.ScreenStore,
+                "Collection" => Strings.ScreenCollection,
+                "Decks" => Strings.ScreenDecks,
+                "Profile" => Strings.ScreenProfile,
+                "Settings" => Strings.ScreenSettings,
+                _ => Strings.ScreenMenu
             };
         }
 
@@ -2505,7 +2506,7 @@ namespace AccessibleArena.Core.Services
                 if (!_announcedServerLoading)
                 {
                     _announcedServerLoading = true;
-                    _announcer.AnnounceInterrupt("Waiting for server");
+                    _announcer.AnnounceInterrupt(Strings.WaitingForServer);
                 }
                 return false;
             }
@@ -2555,21 +2556,21 @@ namespace AccessibleArena.Core.Services
 
             // Check for main menu indicators
             var playButton = FindButtonByPattern("Play", "Battle", "Start");
-            if (playButton != null) return "Main Menu";
+            if (playButton != null) return Strings.ScreenHome;
 
             // Check for store
             var storeIndicator = FindButtonByPattern("Purchase", "Buy", "Pack", "Bundle");
-            if (storeIndicator != null) return "Store";
+            if (storeIndicator != null) return Strings.ScreenStore;
 
             // Check for collection/decks
             var deckIndicator = FindButtonByPattern("Deck", "Collection", "Card");
-            if (deckIndicator != null) return "Collection";
+            if (deckIndicator != null) return Strings.ScreenCollection;
 
             // Check for settings
             var settingsIndicator = FindButtonByPattern("Settings", "Options", "Audio", "Graphics");
-            if (settingsIndicator != null) return "Settings";
+            if (settingsIndicator != null) return Strings.ScreenSettings;
 
-            return "Menu";
+            return Strings.ScreenMenu;
         }
 
         protected GameObject FindButtonByPattern(params string[] patterns)
@@ -4409,9 +4410,9 @@ namespace AccessibleArena.Core.Services
             // PlayBlade states: 0=Hidden, 1=Events, 2=DirectChallenge, 3=FriendChallenge
             return PanelStateManager.Instance.PlayBladeState switch
             {
-                1 => "Play Mode Selection",
-                2 => "Direct Challenge",
-                3 => "Friend Challenge",
+                1 => Strings.ScreenPlayModeSelection,
+                2 => Strings.ScreenDirectChallenge,
+                3 => Strings.ScreenFriendChallenge,
                 _ => null
             };
         }

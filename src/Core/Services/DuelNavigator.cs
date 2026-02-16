@@ -45,7 +45,7 @@ namespace AccessibleArena.Core.Services
         // Both moved to: src/Core/Services/old/
 
         public override string NavigatorId => "Duel";
-        public override string ScreenName => "Duel";
+        public override string ScreenName => Strings.ScreenDuel;
         public override int Priority => 70; // Lower than PreBattle so it activates after
 
         // Let game handle Space natively (for Submit/Confirm, discard, etc.)

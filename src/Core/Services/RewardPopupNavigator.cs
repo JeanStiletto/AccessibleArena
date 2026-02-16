@@ -16,7 +16,7 @@ namespace AccessibleArena.Core.Services
     public class RewardPopupNavigator : BaseNavigator
     {
         public override string NavigatorId => "RewardPopup";
-        public override string ScreenName => "Rewards";
+        public override string ScreenName => Strings.ScreenRewards;
         public override int Priority => 86; // Higher than Overlay (85), below SettingsMenu (90)
 
         private GameObject _activePopup;

@@ -19,7 +19,7 @@ namespace AccessibleArena.Core.Services
         private const float TRANSITION_WAIT = 2.0f;
 
         public override string NavigatorId => "PreBattle";
-        public override string ScreenName => "Pre-game screen";
+        public override string ScreenName => Strings.ScreenPreGame;
         public override int Priority => 80;
 
         // Don't accept space - only Enter for battle confirmation

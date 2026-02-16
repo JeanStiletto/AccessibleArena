@@ -1,6 +1,7 @@
 using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -27,8 +28,8 @@ namespace AccessibleArena.Core.Services
         private string GetScreenName()
         {
             if (_totalCards > 0)
-                return $"Card Unlocked, {_totalCards} {(_totalCards == 1 ? "card" : "cards")}";
-            return "Card Unlocked";
+                return Strings.ScreenCardUnlockedCount(_totalCards);
+            return Strings.ScreenCardUnlocked;
         }
 
         private string GetPath(Transform t)
