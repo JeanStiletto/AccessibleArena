@@ -62,41 +62,7 @@ namespace AccessibleArena.Core.Services
         public static readonly string[] ConfirmPatterns = { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary" };
         public static readonly string[] CancelPatterns = { "Cancel", "No", "Back", "Close", "Secondary" };
 
-        // Friendly browser name mappings (keyword -> display name)
-        private static readonly Dictionary<string, string> FriendlyBrowserNames = new Dictionary<string, string>
-        {
-            // Library manipulation
-            { "Scryish", "Scry" },
-            { "Scry", "Scry" },
-            { "Surveil", "Surveil" },
-            { "ReadAhead", "Read ahead" },
-            { "LibrarySideboard", "Search library" },
-            // Opening hand
-            { "London", "Mulligan" },
-            { "Mulligan", "Mulligan" },
-            { "OpeningHand", "Opening hand" },
-            // Card ordering
-            { "OrderCards", "Order cards" },
-            { "SplitCards", "Split cards into piles" },
-            // Combat
-            { "AssignDamage", "Assign damage" },
-            { "Attachment", "View attachments" },
-            // List selection
-            { "LargeScrollList", "Choose from list" },
-            // Selection
-            { "SelectCards", "Select cards" },
-            { "SelectGroup", "Select group" },
-            { "SelectMana", "Choose mana type" },
-            { "Keyword", "Choose keyword" },
-            // Special
-            { "Dungeon", "Choose dungeon room" },
-            { "Mutate", "Mutate choice" },
-            { "YesNo", "Choose yes or no" },
-            { "Optional", "Optional action" },
-            { "Informational", "Information" },
-            // Workflow (ability activation, mana payment, etc.)
-            { "Workflow", "Choose action" }
-        };
+        // Friendly browser name mappings now handled by Strings.GetFriendlyBrowserName()
 
         #endregion
 
@@ -285,18 +251,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static string GetFriendlyBrowserName(string typeName)
         {
-            if (string.IsNullOrEmpty(typeName)) return "Browser";
-
-            // Check each keyword in the dictionary
-            foreach (var kvp in FriendlyBrowserNames)
-            {
-                if (typeName.Contains(kvp.Key))
-                {
-                    return kvp.Value;
-                }
-            }
-
-            return "Browser";
+            return Models.Strings.GetFriendlyBrowserName(typeName);
         }
 
         /// <summary>

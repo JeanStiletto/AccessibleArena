@@ -811,21 +811,7 @@ namespace AccessibleArena.Core.Services
 
         private string GetZoneName(ZoneType zone)
         {
-            switch (zone)
-            {
-                case ZoneType.Hand: return "Your hand";
-                case ZoneType.Battlefield: return "Battlefield";
-                case ZoneType.Graveyard: return "Your graveyard";
-                case ZoneType.Exile: return "Exile";
-                case ZoneType.Stack: return "Stack";
-                case ZoneType.Library: return "Your library";
-                case ZoneType.Command: return "Command zone";
-                case ZoneType.OpponentHand: return "Opponent's hand";
-                case ZoneType.OpponentGraveyard: return "Opponent's graveyard";
-                case ZoneType.OpponentLibrary: return "Opponent's library";
-                case ZoneType.OpponentExile: return "Opponent's exile";
-                default: return zone.ToString();
-            }
+            return Strings.GetZoneName(zone);
         }
 
         private int ParseZoneId(string name)

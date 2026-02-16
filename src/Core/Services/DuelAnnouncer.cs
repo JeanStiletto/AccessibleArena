@@ -71,60 +71,20 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public string GetTurnPhaseInfo()
         {
-            string owner = _isUserTurn ? "Your" : "Opponent's";
-            string phaseDescription = GetPhaseDescription() ?? "turn";
+            string owner = _isUserTurn ? Strings.Duel_Your : Strings.Duel_Opponents;
+            string phaseDescription = Strings.GetPhaseDescription(_currentPhase, _currentStep)
+                                      ?? Strings.Duel_PhaseDesc_Turn;
 
-            if (_userTurnCount > 0)
-            {
-                return $"{owner} {phaseDescription}, turn {_userTurnCount}";
-            }
-            else
-            {
-                return $"{owner} {phaseDescription}";
-            }
+            return Strings.Duel_TurnPhase(owner, phaseDescription, _userTurnCount);
         }
 
         /// <summary>
         /// Gets a human-readable description of the current phase and step.
+        /// Delegates to Strings.GetPhaseDescription() for localization.
         /// </summary>
         private string GetPhaseDescription()
         {
-            if (string.IsNullOrEmpty(_currentPhase))
-                return null;
-
-            switch (_currentPhase)
-            {
-                case "Main1":
-                    return "first main phase";
-                case "Main2":
-                    return "second main phase";
-                case "Combat":
-                    switch (_currentStep)
-                    {
-                        case "DeclareAttack":
-                            return "declare attackers";
-                        case "DeclareBlock":
-                            return "declare blockers";
-                        case "CombatDamage":
-                            return "combat damage";
-                        case "EndCombat":
-                            return "end of combat";
-                        default:
-                            return "combat phase";
-                    }
-                case "Beginning":
-                    if (_currentStep == "Upkeep")
-                        return "upkeep";
-                    if (_currentStep == "Draw")
-                        return "draw";
-                    return "beginning phase";
-                case "Ending":
-                    if (_currentStep == "End")
-                        return "end step";
-                    return "ending phase";
-                default:
-                    return _currentPhase.ToLower();
-            }
+            return Strings.GetPhaseDescription(_currentPhase, _currentStep);
         }
 
         /// <summary>
@@ -326,16 +286,16 @@ namespace AccessibleArena.Core.Services
                 if (isYourTurn)
                 {
                     _userTurnCount++;
-                    return $"Turn {_userTurnCount}";
+                    return Strings.Duel_YourTurn(_userTurnCount);
                 }
                 else
                 {
-                    return "Opponent's turn";
+                    return Strings.Duel_OpponentTurn;
                 }
             }
             catch
             {
-                return "Turn changed";
+                return Strings.Duel_TurnChanged;
             }
         }
 
@@ -384,12 +344,12 @@ namespace AccessibleArena.Core.Services
                     if (diff > 0)
                     {
                         return isLocal
-                            ? $"Drew {diff} card{(diff > 1 ? "s" : "")}"
-                            : $"Opponent drew {diff} card{(diff > 1 ? "s" : "")}";
+                            ? Strings.Duel_Drew(diff)
+                            : Strings.Duel_OpponentDrew(diff);
                     }
                     else if (diff < 0 && isOpponent)
                     {
-                        return "Opponent played a card";
+                        return Strings.Duel_OpponentPlayedCard;
                     }
                 }
                 else if (zoneName == "Battlefield")
@@ -397,7 +357,7 @@ namespace AccessibleArena.Core.Services
                     if (diff > 0)
                     {
                         if (isOpponent)
-                            return $"Opponent: {diff} permanent{(diff > 1 ? "s" : "")} entered battlefield";
+                            return Strings.Duel_OpponentEnteredBattlefield(diff);
                         _lastSpellResolvedTime = DateTime.Now;
                     }
                     else if (diff < 0)
@@ -405,12 +365,12 @@ namespace AccessibleArena.Core.Services
                         int removed = Math.Abs(diff);
                         // Battlefield is a shared zone - can't determine ownership from zone string
                         // Graveyard/Exile announcements will specify correct ownership
-                        return $"{removed} permanent{(removed > 1 ? "s" : "")} left battlefield";
+                        return Strings.Duel_LeftBattlefield(removed);
                     }
                 }
                 else if (zoneName == "Graveyard" && diff > 0)
                 {
-                    return isOpponent ? "Card went to opponent's graveyard" : "Card went to your graveyard";
+                    return isOpponent ? Strings.Duel_CardToOpponentGraveyard : Strings.Duel_CardToYourGraveyard;
                 }
                 else if (zoneName == "Stack")
                 {
@@ -422,7 +382,7 @@ namespace AccessibleArena.Core.Services
                     else if (diff < 0)
                     {
                         _lastSpellResolvedTime = DateTime.Now;
-                        return "Spell resolved";
+                        return Strings.Duel_SpellResolved;
                     }
                 }
             }
@@ -509,9 +469,10 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                string who = isLocal ? "You" : "Opponent";
-                string direction = change > 0 ? "gained" : "lost";
-                return $"{who} {direction} {Math.Abs(change)} life";
+                string who = isLocal ? Strings.Duel_You : Strings.Duel_Opponent;
+                return change > 0
+                    ? Strings.Duel_LifeGained(who, Math.Abs(change))
+                    : Strings.Duel_LifeLost(who, Math.Abs(change));
             }
             catch (Exception ex)
             {
@@ -547,24 +508,23 @@ namespace AccessibleArena.Core.Services
                 // Build announcement
                 var parts = new List<string>();
 
+                string damageText;
                 if (!string.IsNullOrEmpty(sourceName))
                 {
-                    parts.Add($"{sourceName} deals {damage}");
+                    damageText = Strings.Duel_DamageDeals(sourceName, damage, targetName);
                 }
                 else
                 {
-                    parts.Add(damage.ToString());
+                    damageText = Strings.Duel_DamageAmount(damage, targetName);
                 }
 
-                // Add damage type modifiers
+                // Append damage type modifiers (lifelink, trample, etc.)
                 if (!string.IsNullOrEmpty(damageFlags))
                 {
-                    parts.Add(damageFlags);
+                    damageText += " " + damageFlags;
                 }
 
-                parts.Add($"to {targetName}");
-
-                return string.Join(" ", parts);
+                return damageText;
             }
             catch (Exception ex)
             {
@@ -666,9 +626,9 @@ namespace AccessibleArena.Core.Services
         {
             // If target is a player
             if (targetPlayerId == _localPlayerId)
-                return "you";
+                return Strings.Duel_DamageToYou;
             if (targetPlayerId != 0)
-                return "opponent";
+                return Strings.Duel_DamageToOpponent;
 
             // Try to find target card by InstanceId
             if (targetInstanceId != 0)
@@ -678,7 +638,7 @@ namespace AccessibleArena.Core.Services
                     return cardName;
             }
 
-            return "target";
+            return Strings.Duel_DamageTarget;
         }
 
         private string GetDamageSourceName(object uxEvent)
@@ -720,7 +680,7 @@ namespace AccessibleArena.Core.Services
             // Check if damage is from combat (during CombatDamage step)
             if (_currentPhase == "Combat" && _currentStep == "CombatDamage")
             {
-                return "Combat damage";
+                return Strings.Duel_CombatDamageSource;
             }
 
             return null;
@@ -831,7 +791,7 @@ namespace AccessibleArena.Core.Services
                     {
                         // Build announcement: "X attackers. Name P/T. Name P/T."
                         var parts = new List<string>();
-                        parts.Add($"{attackers.Count} attacker{(attackers.Count != 1 ? "s" : "")}");
+                        parts.Add(Strings.Duel_Attackers(attackers.Count));
                         parts.AddRange(attackers);
                         attackerAnnouncement = string.Join(". ", parts);
                         DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Leaving declare attackers: {attackerAnnouncement}");
@@ -844,19 +804,19 @@ namespace AccessibleArena.Core.Services
                 DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Phase change: {phase}/{step}");
 
                 string phaseAnnouncement = null;
-                if (phase == "Main1") phaseAnnouncement = "First main phase";
-                else if (phase == "Main2") phaseAnnouncement = "Second main phase";
+                if (phase == "Main1") phaseAnnouncement = Strings.Duel_Phase_FirstMain;
+                else if (phase == "Main2") phaseAnnouncement = Strings.Duel_Phase_SecondMain;
                 else if (phase == "Combat")
                 {
-                    if (step == "DeclareAttack") phaseAnnouncement = "Declare attackers";
-                    else if (step == "DeclareBlock") phaseAnnouncement = "Declare blockers";
-                    else if (step == "CombatDamage") phaseAnnouncement = "Combat damage";
-                    else if (step == "EndCombat") phaseAnnouncement = "End of combat";
-                    else if (step == "None") phaseAnnouncement = "Combat phase";
+                    if (step == "DeclareAttack") phaseAnnouncement = Strings.Duel_Phase_DeclareAttackers;
+                    else if (step == "DeclareBlock") phaseAnnouncement = Strings.Duel_Phase_DeclareBlockers;
+                    else if (step == "CombatDamage") phaseAnnouncement = Strings.Duel_Phase_CombatDamage;
+                    else if (step == "EndCombat") phaseAnnouncement = Strings.Duel_Phase_EndOfCombat;
+                    else if (step == "None") phaseAnnouncement = Strings.Duel_Phase_Combat;
                 }
-                else if (phase == "Beginning" && step == "Upkeep") phaseAnnouncement = "Upkeep";
-                else if (phase == "Beginning" && step == "Draw") phaseAnnouncement = "Draw";
-                else if (phase == "Ending" && step == "End") phaseAnnouncement = "End step";
+                else if (phase == "Beginning" && step == "Upkeep") phaseAnnouncement = Strings.Duel_Phase_Upkeep;
+                else if (phase == "Beginning" && step == "Draw") phaseAnnouncement = Strings.Duel_Phase_Draw;
+                else if (phase == "Ending" && step == "End") phaseAnnouncement = Strings.Duel_Phase_EndStep;
 
                 // If we have attacker info, announce immediately (this is a real combat stop, not auto-skip)
                 if (attackerAnnouncement != null)
@@ -930,7 +890,7 @@ namespace AccessibleArena.Core.Services
             try
             {
                 var cardName = GetFieldValue<string>(uxEvent, "CardName");
-                return !string.IsNullOrEmpty(cardName) ? $"Revealed {cardName}" : null;
+                return !string.IsNullOrEmpty(cardName) ? Strings.Duel_Revealed(cardName) : null;
             }
             catch
             {
@@ -948,10 +908,9 @@ namespace AccessibleArena.Core.Services
 
                 if (change == 0) return null;
 
-                string action = change > 0 ? "gained" : "lost";
-                string target = !string.IsNullOrEmpty(cardName) ? cardName : "creature";
+                string target = !string.IsNullOrEmpty(cardName) ? cardName : Strings.Duel_CounterCreature;
 
-                return $"{target} {action} {Math.Abs(change)} {counterType} counter{(Math.Abs(change) != 1 ? "s" : "")}";
+                return Strings.Duel_CounterChanged(target, Math.Abs(change), counterType, change > 0);
             }
             catch
             {
@@ -964,11 +923,11 @@ namespace AccessibleArena.Core.Services
             try
             {
                 var winnerId = GetFieldValue<uint>(uxEvent, "WinnerId");
-                return winnerId == _localPlayerId ? "Victory!" : "Defeat";
+                return winnerId == _localPlayerId ? Strings.Duel_Victory : Strings.Duel_Defeat;
             }
             catch
             {
-                return "Game ended";
+                return Strings.Duel_GameEnded;
             }
         }
 
@@ -983,7 +942,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var combatModeField = type.GetField("_CombatMode", BindingFlags.NonPublic | BindingFlags.Instance);
                     var modeValue = combatModeField?.GetValue(uxEvent)?.ToString();
-                    if (modeValue == "CombatBegun") return "Combat begins";
+                    if (modeValue == "CombatBegun") return Strings.Duel_CombatBegins;
                     return null;
                 }
 
@@ -997,7 +956,7 @@ namespace AccessibleArena.Core.Services
                     }
                     return BuildAttackerDeclaredAnnouncement(uxEvent);
                 }
-                if (typeName == "AttackDecrementUXEvent") return "Attacker removed";
+                if (typeName == "AttackDecrementUXEvent") return Strings.Duel_AttackerRemoved;
 
                 return null;
             }
@@ -1036,21 +995,21 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Build announcement with ownership prefix for opponent's attackers
-                string ownerPrefix = isOpponent ? "Opponent's " : "";
+                string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
 
                 if (!string.IsNullOrEmpty(cardName))
                 {
                     if (!string.IsNullOrEmpty(powerToughness))
-                        return $"{ownerPrefix}{cardName} {powerToughness} attacking";
-                    return $"{ownerPrefix}{cardName} attacking";
+                        return Strings.Duel_AttackingPT($"{ownerPrefix}{cardName}", powerToughness);
+                    return Strings.Duel_Attacking($"{ownerPrefix}{cardName}");
                 }
 
-                return isOpponent ? "Opponent's attacker declared" : "Attacker declared";
+                return isOpponent ? Strings.Duel_OpponentAttackerDeclared : Strings.Duel_AttackerDeclared;
             }
             catch (Exception ex)
             {
                 MelonLogger.Warning($"[DuelAnnouncer] Error building attacker announcement: {ex.Message}");
-                return "Attacker declared";
+                return Strings.Duel_AttackerDeclared;
             }
         }
 
@@ -1193,9 +1152,9 @@ namespace AccessibleArena.Core.Services
                                 // Try to correlate with last resolving card
                                 if (!string.IsNullOrEmpty(_lastResolvingCardName))
                                 {
-                                    return $"{_lastResolvingCardName} deals {damageDealt} to {cardName}";
+                                    return Strings.Duel_DamageDeals(_lastResolvingCardName, (int)damageDealt, cardName);
                                 }
-                                return $"{damageDealt} damage to {cardName}";
+                                return Strings.Duel_DamageAmount((int)damageDealt, cardName);
                             }
                         }
                     }
@@ -1372,7 +1331,7 @@ namespace AccessibleArena.Core.Services
                     return null;
                 }
 
-                string ownerPrefix = isOpponent ? "Opponent's " : "";
+                string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
                 string announcement = null;
 
                 // Determine announcement based on zone transfer type
@@ -1420,13 +1379,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string ProcessBattlefieldEntry(string fromZone, string reason, string cardName, uint grpId, object cardInstance, bool isOpponent)
         {
-            string owner = isOpponent ? "Opponent" : "You";
+            string owner = isOpponent ? Strings.Duel_Opponent : Strings.Duel_You;
 
             // Token creation (from None zone with CardCreated reason)
             // Note: Game doesn't provide ownership info for tokens, so we don't announce who created it
             if ((fromZone == "None" || string.IsNullOrEmpty(fromZone)) && reason == "CardCreated")
             {
-                return $"{cardName} token created";
+                return Strings.Duel_TokenCreated(cardName);
             }
 
             // Check if this card is an aura/equipment attaching to another card
@@ -1438,14 +1397,14 @@ namespace AccessibleArena.Core.Services
                 bool isLand = IsLandByGrpId(grpId, cardInstance);
                 if (isLand)
                 {
-                    return $"{owner} played {cardName}";
+                    return Strings.Duel_Played(owner, cardName);
                 }
                 // Non-land from hand without going through stack (e.g., put onto battlefield effects)
                 if (!string.IsNullOrEmpty(attachedToName))
                 {
-                    return $"{cardName} enchanted {attachedToName}";
+                    return Strings.Duel_Enchanted(cardName, attachedToName);
                 }
-                return $"{cardName} enters battlefield";
+                return Strings.Duel_EntersBattlefield(cardName);
             }
 
             // From stack = spell resolved (creature/artifact/enchantment)
@@ -1454,7 +1413,7 @@ namespace AccessibleArena.Core.Services
                 // Check if it's an aura that attached to something
                 if (!string.IsNullOrEmpty(attachedToName))
                 {
-                    return $"{cardName} enchanted {attachedToName}";
+                    return Strings.Duel_Enchanted(cardName, attachedToName);
                 }
                 // We already announce spell cast, so just note it entered
                 // Could skip this to avoid double announcement, or make it brief
@@ -1466,9 +1425,9 @@ namespace AccessibleArena.Core.Services
             {
                 if (!string.IsNullOrEmpty(attachedToName))
                 {
-                    return $"{cardName} returned from graveyard, enchanting {attachedToName}";
+                    return Strings.Duel_ReturnedFromGraveyardEnchanting(cardName, attachedToName);
                 }
-                return $"{cardName} returned from graveyard";
+                return Strings.Duel_ReturnedFromGraveyard(cardName);
             }
 
             // From exile = returned from exile
@@ -1476,9 +1435,9 @@ namespace AccessibleArena.Core.Services
             {
                 if (!string.IsNullOrEmpty(attachedToName))
                 {
-                    return $"{cardName} returned from exile, enchanting {attachedToName}";
+                    return Strings.Duel_ReturnedFromExileEnchanting(cardName, attachedToName);
                 }
-                return $"{cardName} returned from exile";
+                return Strings.Duel_ReturnedFromExile(cardName);
             }
 
             // From library = put onto battlefield from library
@@ -1486,9 +1445,9 @@ namespace AccessibleArena.Core.Services
             {
                 if (!string.IsNullOrEmpty(attachedToName))
                 {
-                    return $"{cardName} enters battlefield from library, enchanting {attachedToName}";
+                    return Strings.Duel_EntersBattlefieldFromLibraryEnchanting(cardName, attachedToName);
                 }
-                return $"{cardName} enters battlefield from library";
+                return Strings.Duel_EntersBattlefieldFromLibrary(cardName);
             }
 
             return null;
@@ -1570,35 +1529,35 @@ namespace AccessibleArena.Core.Services
             switch (reason)
             {
                 case "Died":
-                    return $"{ownerPrefix}{cardName} died";
+                    return Strings.Duel_Died(ownerPrefix, cardName);
                 case "Destroyed":
-                    return $"{ownerPrefix}{cardName} was destroyed";
+                    return Strings.Duel_Destroyed(ownerPrefix, cardName);
                 case "Sacrificed":
-                    return $"{ownerPrefix}{cardName} was sacrificed";
+                    return Strings.Duel_Sacrificed(ownerPrefix, cardName);
                 case "Countered":
-                    return $"{ownerPrefix}{cardName} was countered";
+                    return Strings.Duel_Countered(ownerPrefix, cardName);
                 case "Discarded":
-                    return $"{ownerPrefix}{cardName} was discarded";
+                    return Strings.Duel_Discarded(ownerPrefix, cardName);
                 case "Milled":
-                    return $"{ownerPrefix}{cardName} was milled";
+                    return Strings.Duel_Milled(ownerPrefix, cardName);
             }
 
             // Fallback based on source zone
             switch (fromZone)
             {
                 case "Battlefield":
-                    return $"{ownerPrefix}{cardName} died";
+                    return Strings.Duel_Died(ownerPrefix, cardName);
                 case "Hand":
-                    return $"{ownerPrefix}{cardName} was discarded";
+                    return Strings.Duel_Discarded(ownerPrefix, cardName);
                 case "Stack":
                     // Don't announce "countered" as fallback - countering is only when reason == "Countered"
                     // Normal spell resolution (instant/sorcery) also goes Stack -> Graveyard
                     // "Spell resolved" is already announced via UpdateZoneUXEvent, so skip here
                     return null;
                 case "Library":
-                    return $"{ownerPrefix}{cardName} was milled";
+                    return Strings.Duel_Milled(ownerPrefix, cardName);
                 default:
-                    return $"{ownerPrefix}{cardName} went to graveyard";
+                    return Strings.Duel_WentToGraveyard(ownerPrefix, cardName);
             }
         }
 
@@ -1610,24 +1569,24 @@ namespace AccessibleArena.Core.Services
             // Check for countered spells that exile (e.g., Dissipate, Syncopate)
             if (reason == "Countered")
             {
-                return $"{ownerPrefix}{cardName} was countered and exiled";
+                return Strings.Duel_CounteredAndExiled(ownerPrefix, cardName);
             }
 
             if (fromZone == "Battlefield")
             {
-                return $"{ownerPrefix}{cardName} was exiled";
+                return Strings.Duel_Exiled(ownerPrefix, cardName);
             }
             if (fromZone == "Graveyard")
             {
-                return $"{ownerPrefix}{cardName} was exiled from graveyard";
+                return Strings.Duel_ExiledFromGraveyard(ownerPrefix, cardName);
             }
             if (fromZone == "Hand")
             {
-                return $"{ownerPrefix}{cardName} was exiled from hand";
+                return Strings.Duel_ExiledFromHand(ownerPrefix, cardName);
             }
             if (fromZone == "Library")
             {
-                return $"{ownerPrefix}{cardName} was exiled from library";
+                return Strings.Duel_ExiledFromLibrary(ownerPrefix, cardName);
             }
             if (fromZone == "Stack")
             {
@@ -1635,7 +1594,7 @@ namespace AccessibleArena.Core.Services
                 // Skip announcement since "Spell resolved" handles the stack clearing
                 return null;
             }
-            return $"{ownerPrefix}{cardName} was exiled";
+            return Strings.Duel_Exiled(ownerPrefix, cardName);
         }
 
         /// <summary>
@@ -1643,11 +1602,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string ProcessHandEntry(string fromZone, string reason, string cardName, bool isOpponent)
         {
+            string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
+
             // Bounce from battlefield
             if (fromZone == "Battlefield")
             {
-                string owner = isOpponent ? "Opponent's " : "";
-                return $"{owner}{cardName} returned to hand";
+                return Strings.Duel_ReturnedToHand(ownerPrefix, cardName);
             }
 
             // From library = draw, but we handle this via UpdateZoneUXEvent with count
@@ -1660,15 +1620,13 @@ namespace AccessibleArena.Core.Services
             // From graveyard = returned to hand
             if (fromZone == "Graveyard")
             {
-                string owner = isOpponent ? "Opponent's " : "";
-                return $"{owner}{cardName} returned to hand from graveyard";
+                return Strings.Duel_ReturnedToHandFromGraveyard(ownerPrefix, cardName);
             }
 
             // From exile = returned from exile to hand
             if (fromZone == "Exile")
             {
-                string owner = isOpponent ? "Opponent's " : "";
-                return $"{owner}{cardName} returned to hand from exile";
+                return Strings.Duel_ReturnedToHandFromExile(ownerPrefix, cardName);
             }
 
             return null;
@@ -1789,7 +1747,7 @@ namespace AccessibleArena.Core.Services
                                 var dmg = damageChain[0];
                                 if (dmg.Amount > 0 && !string.IsNullOrEmpty(dmg.SourceName) && !string.IsNullOrEmpty(dmg.TargetName))
                                 {
-                                    announcements.Add($"{dmg.SourceName} deals {dmg.Amount} to {dmg.TargetName}");
+                                    announcements.Add(Strings.Duel_DamageDeals(dmg.SourceName, dmg.Amount, dmg.TargetName));
                                 }
                             }
                             else if (damageChain.Count >= 2)
@@ -1800,7 +1758,7 @@ namespace AccessibleArena.Core.Services
                                 {
                                     if (dmg.Amount > 0 && !string.IsNullOrEmpty(dmg.SourceName) && !string.IsNullOrEmpty(dmg.TargetName))
                                     {
-                                        parts.Add($"{dmg.SourceName} deals {dmg.Amount} to {dmg.TargetName}");
+                                        parts.Add(Strings.Duel_DamageDeals(dmg.SourceName, dmg.Amount, dmg.TargetName));
                                     }
                                 }
                                 if (parts.Count > 0)
@@ -1879,7 +1837,7 @@ namespace AccessibleArena.Core.Services
                         break;
                     case "look":
                     case "lookat":
-                        effectDescription = "Look at top card";
+                        effectDescription = Strings.Duel_LookAtTopCard;
                         break;
                     case "mill":
                         effectDescription = "Mill";
@@ -1933,15 +1891,15 @@ namespace AccessibleArena.Core.Services
                 string announcement;
                 if (effectName.ToLower() == "scry")
                 {
-                    announcement = $"{effectDescription}. Tab to see card, Enter to keep on top, Space to put on bottom";
+                    announcement = $"{effectDescription}. {Strings.Duel_ScryHint}";
                 }
                 else if (effectName.ToLower() == "surveil")
                 {
-                    announcement = $"{effectDescription}. Tab to see card, Enter to keep on top, Space to put in graveyard";
+                    announcement = $"{effectDescription}. {Strings.Duel_SurveilHint}";
                 }
                 else
                 {
-                    announcement = $"{effectDescription}. Tab to navigate, Enter to select";
+                    announcement = Strings.Duel_EffectHint(effectDescription);
                 }
 
                 if (!string.IsNullOrEmpty(cardName))
@@ -2006,11 +1964,11 @@ namespace AccessibleArena.Core.Services
                 var targetStr = target.ToString();
                 if (targetStr.Contains("LocalPlayer"))
                 {
-                    info.TargetName = "you";
+                    info.TargetName = Strings.Duel_DamageToYou;
                 }
                 else if (targetStr.Contains("Opponent"))
                 {
-                    info.TargetName = "opponent";
+                    info.TargetName = Strings.Duel_DamageToOpponent;
                 }
                 else
                 {
@@ -2226,7 +2184,7 @@ namespace AccessibleArena.Core.Services
                     if (!string.IsNullOrEmpty(manaPoolString))
                     {
                         DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Mana pool: {manaPoolString}");
-                        return $"Mana: {manaPoolString}";
+                        return Strings.ManaAmount(manaPoolString);
                     }
                 }
 

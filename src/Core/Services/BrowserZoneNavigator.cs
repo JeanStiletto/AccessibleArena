@@ -209,7 +209,7 @@ namespace AccessibleArena.Core.Services
 
             if (currentList.Count == 0)
             {
-                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.High);
+                _announcer.Announce(Strings.BrowserZoneEmpty(zoneName), AnnouncementPriority.High);
             }
             else
             {
@@ -217,7 +217,7 @@ namespace AccessibleArena.Core.Services
                 _cardIndex = 0;
                 var firstCard = currentList[0];
                 var cardName = CardDetector.GetCardName(firstCard);
-                _announcer.Announce($"{zoneName}: {currentList.Count} cards. {cardName}, 1 of {currentList.Count}", AnnouncementPriority.High);
+                _announcer.Announce(Strings.BrowserZoneEntry(zoneName, currentList.Count, cardName), AnnouncementPriority.High);
 
                 // Update CardInfoNavigator with this card
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -237,7 +237,7 @@ namespace AccessibleArena.Core.Services
             if (currentList.Count == 0)
             {
                 string zoneName = GetZoneName(_currentZone);
-                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.BrowserZoneEmpty(zoneName), AnnouncementPriority.Normal);
                 return;
             }
 
@@ -262,7 +262,7 @@ namespace AccessibleArena.Core.Services
             if (currentList.Count == 0)
             {
                 string zoneName = GetZoneName(_currentZone);
-                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.BrowserZoneEmpty(zoneName), AnnouncementPriority.Normal);
                 return;
             }
 
@@ -286,7 +286,7 @@ namespace AccessibleArena.Core.Services
             if (currentList.Count == 0)
             {
                 string zoneName = GetZoneName(_currentZone);
-                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.BrowserZoneEmpty(zoneName), AnnouncementPriority.Normal);
                 return;
             }
 
@@ -309,7 +309,7 @@ namespace AccessibleArena.Core.Services
             if (currentList.Count == 0)
             {
                 string zoneName = GetZoneName(_currentZone);
-                _announcer.Announce($"{zoneName}: empty", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.BrowserZoneEmpty(zoneName), AnnouncementPriority.Normal);
                 return;
             }
 
@@ -336,7 +336,7 @@ namespace AccessibleArena.Core.Services
             var cardName = CardDetector.GetCardName(card);
             string zoneName = GetShortZoneName(_currentZone);
 
-            _announcer.Announce($"{cardName}, {zoneName}, {_cardIndex + 1} of {currentList.Count}", AnnouncementPriority.High);
+            _announcer.Announce(Strings.BrowserZoneCard(cardName, zoneName, _cardIndex + 1, currentList.Count), AnnouncementPriority.High);
 
             // Update CardInfoNavigator
             var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -355,7 +355,7 @@ namespace AccessibleArena.Core.Services
             var currentList = GetCurrentZoneCards();
             if (_cardIndex < 0 || _cardIndex >= currentList.Count)
             {
-                _announcer.Announce("No card selected", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.BrowserZone_NoCardSelected, AnnouncementPriority.Normal);
                 return;
             }
 
@@ -397,12 +397,12 @@ namespace AccessibleArena.Core.Services
             {
                 // Card moved to the other zone
                 string newZone = GetZoneName(_currentZone == BrowserZoneType.Top ? BrowserZoneType.Bottom : BrowserZoneType.Top);
-                string announcement = $"{movedCardName} moved to {newZone}. {zoneName}: empty";
+                string announcement = Strings.MovedTo(movedCardName, newZone) + ". " + Strings.BrowserZoneEmpty(zoneName);
 
                 // Add London progress info
                 if (BrowserDetector.IsLondonBrowser(_browserType) && _mulliganCount > 0)
                 {
-                    announcement += $". {_bottomCards.Count} of {_mulliganCount} selected for bottom";
+                    announcement += ". " + Strings.Duel_SelectedForBottom(_bottomCards.Count, _mulliganCount);
                 }
 
                 _announcer.Announce(announcement, AnnouncementPriority.Normal);
@@ -413,12 +413,12 @@ namespace AccessibleArena.Core.Services
                 var currentCardName = CardDetector.GetCardName(currentCard);
                 string newZone = GetZoneName(_currentZone == BrowserZoneType.Top ? BrowserZoneType.Bottom : BrowserZoneType.Top);
 
-                string announcement = $"{movedCardName} moved to {newZone}. Now: {currentCardName}, {_cardIndex + 1} of {currentList.Count}";
+                string announcement = Strings.MovedTo(movedCardName, newZone) + ". " + Strings.BrowserZoneCard(currentCardName, "", _cardIndex + 1, currentList.Count);
 
                 // Add London progress info
                 if (BrowserDetector.IsLondonBrowser(_browserType) && _mulliganCount > 0)
                 {
-                    announcement += $". {_bottomCards.Count} of {_mulliganCount} selected for bottom";
+                    announcement += ". " + Strings.Duel_SelectedForBottom(_bottomCards.Count, _mulliganCount);
                 }
 
                 _announcer.Announce(announcement, AnnouncementPriority.Normal);
@@ -996,12 +996,11 @@ namespace AccessibleArena.Core.Services
         {
             if (BrowserDetector.IsLondonBrowser(_browserType))
             {
-                return zone == BrowserZoneType.Top ? "Keep pile" : "Bottom pile";
+                return zone == BrowserZoneType.Top ? Strings.BrowserZone_KeepPile : Strings.BrowserZone_BottomPile;
             }
             else
             {
-                // Descriptive names for zone entry announcements
-                return zone == BrowserZoneType.Top ? "Keep on top" : "Put on bottom";
+                return zone == BrowserZoneType.Top ? Strings.BrowserZone_KeepOnTop : Strings.BrowserZone_PutOnBottom;
             }
         }
 
@@ -1009,11 +1008,10 @@ namespace AccessibleArena.Core.Services
         {
             if (BrowserDetector.IsLondonBrowser(_browserType))
             {
-                return zone == BrowserZoneType.Top ? "keep" : "bottom";
+                return zone == BrowserZoneType.Top ? Strings.BrowserZone_KeepShort : Strings.BrowserZone_BottomShort;
             }
             else
             {
-                // Short names for card navigation announcements (matches Strings constants)
                 return zone == BrowserZoneType.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
             }
         }
@@ -1046,8 +1044,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_mulliganCount > 0)
             {
-                string cardWord = _mulliganCount == 1 ? "card" : "cards";
-                return $"Select {_mulliganCount} {cardWord} to put on bottom. {cardCount} cards. Enter to toggle, Space when done";
+                return Strings.Duel_SelectForBottom(_mulliganCount, cardCount);
             }
             return null;
         }
@@ -1062,11 +1059,11 @@ namespace AccessibleArena.Core.Services
             var zone = DetectCardZone(card);
             if (zone == BrowserZoneType.Top)
             {
-                return BrowserDetector.IsLondonBrowser(_browserType) ? "keep" : Strings.KeepOnTop;
+                return BrowserDetector.IsLondonBrowser(_browserType) ? Strings.BrowserZone_KeepShort : Strings.KeepOnTop;
             }
             if (zone == BrowserZoneType.Bottom)
             {
-                return BrowserDetector.IsLondonBrowser(_browserType) ? "bottom" : Strings.PutOnBottom;
+                return BrowserDetector.IsLondonBrowser(_browserType) ? Strings.BrowserZone_BottomShort : Strings.PutOnBottom;
             }
 
             return null;

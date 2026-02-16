@@ -584,16 +584,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string GetRowName(BattlefieldRow row)
         {
-            return row switch
-            {
-                BattlefieldRow.EnemyLands => "Enemy lands",
-                BattlefieldRow.EnemyNonCreatures => "Enemy non-creatures",
-                BattlefieldRow.EnemyCreatures => "Enemy creatures",
-                BattlefieldRow.PlayerCreatures => "Your creatures",
-                BattlefieldRow.PlayerNonCreatures => "Your non-creatures",
-                BattlefieldRow.PlayerLands => "Your lands",
-                _ => row.ToString()
-            };
+            return Strings.GetRowName(row);
         }
     }
 

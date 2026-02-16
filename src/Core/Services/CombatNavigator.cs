@@ -314,7 +314,7 @@ namespace AccessibleArena.Core.Services
                         if (!string.IsNullOrEmpty(blockingTarget))
                             parts.Add($"{blockerName} {blockingTarget}");
                         else
-                            parts.Add($"{blockerName} assigned");
+                            parts.Add($"{blockerName} {Models.Strings.Combat_Assigned}");
                     }
                     string announcement = string.Join(", ", parts);
                     MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count} - {announcement}");
@@ -357,7 +357,7 @@ namespace AccessibleArena.Core.Services
                 if (selectedNotAssigned.Count > 0)
                 {
                     var (totalPower, totalToughness) = CalculateCombinedStats(selectedNotAssigned);
-                    string announcement = $"{totalPower}/{totalToughness} blocking";
+                    string announcement = Models.Strings.Combat_PTBlocking(totalPower, totalToughness);
                     MelonLogger.Msg($"[CombatNavigator] Blocker selection changed: {selectedNotAssigned.Count} blockers, {announcement}");
                     _announcer.Announce(announcement, AnnouncementPriority.High);
                 }
@@ -416,12 +416,12 @@ namespace AccessibleArena.Core.Services
                 // Try to resolve who is blocking this attacker
                 string blockedByText = GetBlockedByText(card);
                 if (!string.IsNullOrEmpty(blockedByText))
-                    states.Add($"attacking, {blockedByText}");
+                    states.Add($"{Models.Strings.Combat_Attacking}, {blockedByText}");
                 else
-                    states.Add("attacking");
+                    states.Add(Models.Strings.Combat_Attacking);
             }
             else if (hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase)
-                states.Add("can attack");
+                states.Add(Models.Strings.Combat_CanAttack);
 
             // Blocking states (priority: is blocking > selected to block > can block)
             if (isBlocking)
@@ -431,16 +431,16 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(blockingText))
                     states.Add(blockingText);
                 else
-                    states.Add("blocking");
+                    states.Add(Models.Strings.Combat_BlockingSimple);
             }
             else if (hasBlockerFrame && isSelected)
-                states.Add("selected to block");
+                states.Add(Models.Strings.Combat_SelectedToBlock);
             else if (hasBlockerFrame && _duelAnnouncer.IsInDeclareBlockersPhase)
-                states.Add("can block");
+                states.Add(Models.Strings.Combat_CanBlock);
 
             // Show tapped state only if not attacking (attackers are always tapped)
             if (isTapped && !isAttacking)
-                states.Add("tapped");
+                states.Add(Models.Strings.Combat_Tapped);
 
             if (states.Count == 0)
                 return "";
@@ -473,7 +473,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 if (names.Count == 0) return null;
-                return "blocking " + string.Join(" and ", names);
+                return Models.Strings.Combat_Blocking(string.Join(" and ", names));
             }
             catch { }
             return null;
@@ -504,7 +504,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 if (names.Count == 0) return null;
-                return "blocked by " + string.Join(" and ", names);
+                return Models.Strings.Combat_BlockedBy(string.Join(" and ", names));
             }
             catch { }
             return null;

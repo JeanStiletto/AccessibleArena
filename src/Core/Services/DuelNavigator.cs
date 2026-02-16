@@ -332,7 +332,7 @@ namespace AccessibleArena.Core.Services
         {
             int handCards = _zoneNavigator.HandCardCount;
 
-            string core = $"Duel started. {handCards} cards in hand";
+            string core = Models.Strings.Duel_Started(handCards);
             return Strings.WithHint(core, "DuelKeybindingsHint");
         }
 

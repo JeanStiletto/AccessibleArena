@@ -127,6 +127,297 @@ namespace AccessibleArena.Core.Models
         public static string CouldNotTarget(string name) => L.Format("CouldNotTarget_Format", name);
 
         // ===========================================
+        // ZONE NAMES
+        // ===========================================
+        public static string Zone_Hand => L.Get("Zone_Hand");
+        public static string Zone_Battlefield => L.Get("Zone_Battlefield");
+        public static string Zone_Graveyard => L.Get("Zone_Graveyard");
+        public static string Zone_Exile => L.Get("Zone_Exile");
+        public static string Zone_Stack => L.Get("Zone_Stack");
+        public static string Zone_Library => L.Get("Zone_Library");
+        public static string Zone_Command => L.Get("Zone_Command");
+        public static string Zone_OpponentHand => L.Get("Zone_OpponentHand");
+        public static string Zone_OpponentGraveyard => L.Get("Zone_OpponentGraveyard");
+        public static string Zone_OpponentLibrary => L.Get("Zone_OpponentLibrary");
+        public static string Zone_OpponentExile => L.Get("Zone_OpponentExile");
+
+        public static string GetZoneName(Services.ZoneType zone)
+        {
+            switch (zone)
+            {
+                case Services.ZoneType.Hand: return Zone_Hand;
+                case Services.ZoneType.Battlefield: return Zone_Battlefield;
+                case Services.ZoneType.Graveyard: return Zone_Graveyard;
+                case Services.ZoneType.Exile: return Zone_Exile;
+                case Services.ZoneType.Stack: return Zone_Stack;
+                case Services.ZoneType.Library: return Zone_Library;
+                case Services.ZoneType.Command: return Zone_Command;
+                case Services.ZoneType.OpponentHand: return Zone_OpponentHand;
+                case Services.ZoneType.OpponentGraveyard: return Zone_OpponentGraveyard;
+                case Services.ZoneType.OpponentLibrary: return Zone_OpponentLibrary;
+                case Services.ZoneType.OpponentExile: return Zone_OpponentExile;
+                default: return zone.ToString();
+            }
+        }
+
+        // ===========================================
+        // BATTLEFIELD ROW NAMES
+        // ===========================================
+        public static string Row_PlayerCreatures => L.Get("Row_PlayerCreatures");
+        public static string Row_PlayerNonCreatures => L.Get("Row_PlayerNonCreatures");
+        public static string Row_PlayerLands => L.Get("Row_PlayerLands");
+        public static string Row_EnemyCreatures => L.Get("Row_EnemyCreatures");
+        public static string Row_EnemyNonCreatures => L.Get("Row_EnemyNonCreatures");
+        public static string Row_EnemyLands => L.Get("Row_EnemyLands");
+
+        public static string GetRowName(Services.BattlefieldRow row)
+        {
+            return row switch
+            {
+                Services.BattlefieldRow.PlayerCreatures => Row_PlayerCreatures,
+                Services.BattlefieldRow.PlayerNonCreatures => Row_PlayerNonCreatures,
+                Services.BattlefieldRow.PlayerLands => Row_PlayerLands,
+                Services.BattlefieldRow.EnemyCreatures => Row_EnemyCreatures,
+                Services.BattlefieldRow.EnemyNonCreatures => Row_EnemyNonCreatures,
+                Services.BattlefieldRow.EnemyLands => Row_EnemyLands,
+                _ => row.ToString()
+            };
+        }
+
+        // ===========================================
+        // BROWSER ZONE NAMES
+        // ===========================================
+        public static string BrowserZone_KeepOnTop => L.Get("BrowserZone_KeepOnTop");
+        public static string BrowserZone_PutOnBottom => L.Get("BrowserZone_PutOnBottom");
+        public static string BrowserZone_KeepPile => L.Get("BrowserZone_KeepPile");
+        public static string BrowserZone_BottomPile => L.Get("BrowserZone_BottomPile");
+        public static string BrowserZone_KeepShort => L.Get("BrowserZone_KeepShort");
+        public static string BrowserZone_BottomShort => L.Get("BrowserZone_BottomShort");
+        public static string BrowserZoneEmpty(string zoneName) => L.Format("BrowserZone_Empty_Format", zoneName);
+        public static string BrowserZoneEntry(string zoneName, int count, string cardName) =>
+            L.Format("BrowserZone_Entry_Format", zoneName, count, cardName, count);
+        public static string BrowserZoneCard(string cardName, string zoneName, int index, int total) =>
+            L.Format("BrowserZone_Card_Format", cardName, zoneName, index, total);
+        public static string BrowserZone_NoCardSelected => L.Get("BrowserZone_NoCardSelected");
+
+        // ===========================================
+        // BROWSER TYPE NAMES
+        // ===========================================
+        public static string GetFriendlyBrowserName(string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName)) return L.Get("Browser_Default");
+
+            if (typeName.Contains("Scryish") || typeName.Contains("Scry")) return L.Get("Browser_Scry");
+            if (typeName.Contains("Surveil")) return L.Get("Browser_Surveil");
+            if (typeName.Contains("ReadAhead")) return L.Get("Browser_ReadAhead");
+            if (typeName.Contains("LibrarySideboard")) return L.Get("Browser_SearchLibrary");
+            if (typeName.Contains("London")) return L.Get("Browser_Mulligan");
+            if (typeName.Contains("Mulligan")) return L.Get("Browser_Mulligan");
+            if (typeName.Contains("OpeningHand")) return L.Get("Browser_OpeningHand");
+            if (typeName.Contains("OrderCards")) return L.Get("Browser_OrderCards");
+            if (typeName.Contains("SplitCards")) return L.Get("Browser_SplitCards");
+            if (typeName.Contains("AssignDamage")) return L.Get("Browser_AssignDamage");
+            if (typeName.Contains("Attachment")) return L.Get("Browser_ViewAttachments");
+            if (typeName.Contains("LargeScrollList")) return L.Get("Browser_ChooseFromList");
+            if (typeName.Contains("SelectCards")) return L.Get("Browser_SelectCards");
+            if (typeName.Contains("SelectGroup")) return L.Get("Browser_SelectGroup");
+            if (typeName.Contains("SelectMana")) return L.Get("Browser_ChooseManaType");
+            if (typeName.Contains("Keyword")) return L.Get("Browser_ChooseKeyword");
+            if (typeName.Contains("Dungeon")) return L.Get("Browser_ChooseDungeonRoom");
+            if (typeName.Contains("Mutate")) return L.Get("Browser_MutateChoice");
+            if (typeName.Contains("YesNo")) return L.Get("Browser_ChooseYesOrNo");
+            if (typeName.Contains("Optional")) return L.Get("Browser_OptionalAction");
+            if (typeName.Contains("Informational")) return L.Get("Browser_Information");
+            if (typeName.Contains("Workflow")) return L.Get("Browser_ChooseAction");
+
+            return L.Get("Browser_Default");
+        }
+
+        // ===========================================
+        // COMBAT STATES
+        // ===========================================
+        public static string Combat_Attacking => L.Get("Combat_Attacking");
+        public static string Combat_CanAttack => L.Get("Combat_CanAttack");
+        public static string Combat_Blocking(string target) => L.Format("Combat_Blocking_Format", target);
+        public static string Combat_BlockingSimple => L.Get("Combat_Blocking");
+        public static string Combat_BlockedBy(string blockers) => L.Format("Combat_BlockedBy_Format", blockers);
+        public static string Combat_SelectedToBlock => L.Get("Combat_SelectedToBlock");
+        public static string Combat_CanBlock => L.Get("Combat_CanBlock");
+        public static string Combat_Tapped => L.Get("Combat_Tapped");
+        public static string Combat_PTBlocking(int power, int toughness) => L.Format("Combat_PTBlocking_Format", power, toughness);
+        public static string Combat_Assigned => L.Get("Combat_Assigned");
+
+        // Target/selection actions
+        public static string Target_Targeted(string name) => L.Format("Target_Targeted_Format", name);
+        public static string Target_Selected(string name) => L.Format("Target_Selected_Format", name);
+
+        // ===========================================
+        // CARD RELATIONSHIP PATTERNS
+        // ===========================================
+        public static string Card_EnchantedBy(string names) => L.Format("Card_EnchantedBy_One_Format", names);
+        public static string Card_AttachedTo(string name) => L.Format("Card_AttachedTo_Format", name);
+        public static string Card_Targeting(string name) => L.Format("Card_Targeting_One_Format", name);
+        public static string Card_TargetingTwo(string name1, string name2) => L.Format("Card_Targeting_Two_Format", name1, name2);
+        public static string Card_TargetingMany(string names) => L.Format("Card_Targeting_Many_Format", names);
+        public static string Card_TargetedBy(string name) => L.Format("Card_TargetedBy_One_Format", name);
+        public static string Card_TargetedByTwo(string name1, string name2) => L.Format("Card_TargetedBy_Two_Format", name1, name2);
+        public static string Card_TargetedByMany(string names) => L.Format("Card_TargetedBy_Many_Format", names);
+
+        // ===========================================
+        // DUEL ANNOUNCEMENTS
+        // ===========================================
+        public static string Duel_Started(int handCards) => L.Format("Duel_Started_Format", handCards);
+        public static string Duel_YourTurn(int turnNum) => L.Format("Duel_YourTurn_Format", turnNum);
+        public static string Duel_OpponentTurn => L.Get("Duel_OpponentTurn");
+        public static string Duel_TurnChanged => L.Get("Duel_TurnChanged");
+
+        public static string Duel_Drew(int count) =>
+            count == 1 ? L.Get("Duel_Drew_One") : L.Format("Duel_Drew_Format", count);
+        public static string Duel_OpponentDrew(int count) =>
+            count == 1 ? L.Get("Duel_OpponentDrew_One") : L.Format("Duel_OpponentDrew_Format", count);
+        public static string Duel_OpponentPlayedCard => L.Get("Duel_OpponentPlayedCard");
+        public static string Duel_OpponentEnteredBattlefield(int count) =>
+            count == 1 ? L.Get("Duel_OpponentEnteredBattlefield_One") : L.Format("Duel_OpponentEnteredBattlefield_Format", count);
+        public static string Duel_LeftBattlefield(int count) =>
+            count == 1 ? L.Get("Duel_LeftBattlefield_One") : L.Format("Duel_LeftBattlefield_Format", count);
+        public static string Duel_CardToYourGraveyard => L.Get("Duel_CardToYourGraveyard");
+        public static string Duel_CardToOpponentGraveyard => L.Get("Duel_CardToOpponentGraveyard");
+        public static string Duel_SpellResolved => L.Get("Duel_SpellResolved");
+
+        // Phase announcement strings
+        public static string Duel_Phase_FirstMain => L.Get("Duel_Phase_FirstMain");
+        public static string Duel_Phase_SecondMain => L.Get("Duel_Phase_SecondMain");
+        public static string Duel_Phase_DeclareAttackers => L.Get("Duel_Phase_DeclareAttackers");
+        public static string Duel_Phase_DeclareBlockers => L.Get("Duel_Phase_DeclareBlockers");
+        public static string Duel_Phase_CombatDamage => L.Get("Duel_Phase_CombatDamage");
+        public static string Duel_Phase_EndOfCombat => L.Get("Duel_Phase_EndOfCombat");
+        public static string Duel_Phase_Combat => L.Get("Duel_Phase_Combat");
+        public static string Duel_Phase_Upkeep => L.Get("Duel_Phase_Upkeep");
+        public static string Duel_Phase_Draw => L.Get("Duel_Phase_Draw");
+        public static string Duel_Phase_EndStep => L.Get("Duel_Phase_EndStep");
+
+        // Phase descriptions (lowercase for "Your first main phase, turn 5")
+        public static string Duel_PhaseDesc_Turn => L.Get("Duel_PhaseDesc_Turn");
+        public static string GetPhaseDescription(string phase, string step)
+        {
+            if (string.IsNullOrEmpty(phase)) return null;
+
+            switch (phase)
+            {
+                case "Main1": return L.Get("Duel_PhaseDesc_FirstMain");
+                case "Main2": return L.Get("Duel_PhaseDesc_SecondMain");
+                case "Combat":
+                    switch (step)
+                    {
+                        case "DeclareAttack": return L.Get("Duel_PhaseDesc_DeclareAttackers");
+                        case "DeclareBlock": return L.Get("Duel_PhaseDesc_DeclareBlockers");
+                        case "CombatDamage": return L.Get("Duel_PhaseDesc_CombatDamage");
+                        case "EndCombat": return L.Get("Duel_PhaseDesc_EndOfCombat");
+                        default: return L.Get("Duel_PhaseDesc_Combat");
+                    }
+                case "Beginning":
+                    if (step == "Upkeep") return L.Get("Duel_PhaseDesc_Upkeep");
+                    if (step == "Draw") return L.Get("Duel_PhaseDesc_Draw");
+                    return L.Get("Duel_PhaseDesc_Beginning");
+                case "Ending":
+                    if (step == "End") return L.Get("Duel_PhaseDesc_EndStep");
+                    return L.Get("Duel_PhaseDesc_Ending");
+                default: return phase.ToLower();
+            }
+        }
+
+        public static string Duel_TurnPhase(string owner, string phaseDesc, int turnCount) =>
+            turnCount > 0 ? L.Format("Duel_TurnPhase_Format", owner, phaseDesc, turnCount)
+                          : L.Format("Duel_TurnPhaseNoCount_Format", owner, phaseDesc);
+        public static string Duel_Your => L.Get("Duel_Your");
+        public static string Duel_Opponents => L.Get("Duel_Opponents");
+        public static string Duel_You => L.Get("Duel_You");
+        public static string Duel_Opponent => L.Get("Duel_Opponent");
+
+        // Life changes
+        public static string Duel_LifeGained(string who, int amount) => L.Format("Duel_LifeGained_Format", who, amount);
+        public static string Duel_LifeLost(string who, int amount) => L.Format("Duel_LifeLost_Format", who, amount);
+
+        // Damage
+        public static string Duel_DamageDeals(string source, int amount, string target) => L.Format("Duel_DamageDeals_Format", source, amount, target);
+        public static string Duel_DamageAmount(int amount, string target) => L.Format("Duel_DamageAmount_Format", amount, target);
+        public static string Duel_DamageToYou => L.Get("Duel_DamageToYou");
+        public static string Duel_DamageToOpponent => L.Get("Duel_DamageToOpponent");
+        public static string Duel_DamageTarget => L.Get("Duel_DamageTarget");
+        public static string Duel_CombatDamageSource => L.Get("Duel_CombatDamageSource");
+
+        // Reveals and counters
+        public static string Duel_Revealed(string name) => L.Format("Duel_Revealed_Format", name);
+        public static string Duel_CounterChanged(string target, int absChange, string counterType, bool gained) =>
+            gained
+                ? (absChange == 1 ? L.Format("Duel_CounterGained_Format", target, absChange, counterType)
+                                  : L.Format("Duel_CounterGainedPlural_Format", target, absChange, counterType))
+                : (absChange == 1 ? L.Format("Duel_CounterLost_Format", target, absChange, counterType)
+                                  : L.Format("Duel_CounterLostPlural_Format", target, absChange, counterType));
+        public static string Duel_CounterCreature => L.Get("Duel_CounterCreature");
+
+        // Game end
+        public static string Duel_Victory => L.Get("Duel_Victory");
+        public static string Duel_Defeat => L.Get("Duel_Defeat");
+        public static string Duel_GameEnded => L.Get("Duel_GameEnded");
+
+        // Combat events
+        public static string Duel_CombatBegins => L.Get("Duel_CombatBegins");
+        public static string Duel_AttackerDeclared => L.Get("Duel_AttackerDeclared");
+        public static string Duel_OpponentAttackerDeclared => L.Get("Duel_OpponentAttackerDeclared");
+        public static string Duel_Attacking(string name) => L.Format("Duel_Attacking_Format", name);
+        public static string Duel_AttackingPT(string name, string pt) => L.Format("Duel_AttackingPT_Format", name, pt);
+        public static string Duel_AttackerRemoved => L.Get("Duel_AttackerRemoved");
+        public static string Duel_Attackers(int count) =>
+            count == 1 ? L.Get("Duel_Attackers_One") : L.Format("Duel_Attackers_Format", count);
+
+        // Zone transfers - battlefield entry
+        public static string Duel_TokenCreated(string name) => L.Format("Duel_TokenCreated_Format", name);
+        public static string Duel_Played(string owner, string name) => L.Format("Duel_Played_Format", owner, name);
+        public static string Duel_Enchanted(string name, string target) => L.Format("Duel_Enchanted_Format", name, target);
+        public static string Duel_EntersBattlefield(string name) => L.Format("Duel_EntersBattlefield_Format", name);
+        public static string Duel_ReturnedFromGraveyard(string name) => L.Format("Duel_ReturnedFromGraveyard_Format", name);
+        public static string Duel_ReturnedFromGraveyardEnchanting(string name, string target) => L.Format("Duel_ReturnedFromGraveyardEnchanting_Format", name, target);
+        public static string Duel_ReturnedFromExile(string name) => L.Format("Duel_ReturnedFromExile_Format", name);
+        public static string Duel_ReturnedFromExileEnchanting(string name, string target) => L.Format("Duel_ReturnedFromExileEnchanting_Format", name, target);
+        public static string Duel_EntersBattlefieldFromLibrary(string name) => L.Format("Duel_EntersBattlefieldFromLibrary_Format", name);
+        public static string Duel_EntersBattlefieldFromLibraryEnchanting(string name, string target) => L.Format("Duel_EntersBattlefieldFromLibraryEnchanting_Format", name, target);
+
+        // Zone transfers - graveyard
+        public static string Duel_Died(string owner, string name) => L.Format("Duel_Died_Format", owner, name);
+        public static string Duel_Destroyed(string owner, string name) => L.Format("Duel_Destroyed_Format", owner, name);
+        public static string Duel_Sacrificed(string owner, string name) => L.Format("Duel_Sacrificed_Format", owner, name);
+        public static string Duel_Countered(string owner, string name) => L.Format("Duel_Countered_Format", owner, name);
+        public static string Duel_Discarded(string owner, string name) => L.Format("Duel_Discarded_Format", owner, name);
+        public static string Duel_Milled(string owner, string name) => L.Format("Duel_Milled_Format", owner, name);
+        public static string Duel_WentToGraveyard(string owner, string name) => L.Format("Duel_WentToGraveyard_Format", owner, name);
+
+        // Zone transfers - exile
+        public static string Duel_Exiled(string owner, string name) => L.Format("Duel_Exiled_Format", owner, name);
+        public static string Duel_ExiledFromGraveyard(string owner, string name) => L.Format("Duel_ExiledFromGraveyard_Format", owner, name);
+        public static string Duel_ExiledFromHand(string owner, string name) => L.Format("Duel_ExiledFromHand_Format", owner, name);
+        public static string Duel_ExiledFromLibrary(string owner, string name) => L.Format("Duel_ExiledFromLibrary_Format", owner, name);
+        public static string Duel_CounteredAndExiled(string owner, string name) => L.Format("Duel_CounteredAndExiled_Format", owner, name);
+
+        // Zone transfers - hand (bounce)
+        public static string Duel_ReturnedToHand(string owner, string name) => L.Format("Duel_ReturnedToHand_Format", owner, name);
+        public static string Duel_ReturnedToHandFromGraveyard(string owner, string name) => L.Format("Duel_ReturnedToHandFromGraveyard_Format", owner, name);
+        public static string Duel_ReturnedToHandFromExile(string owner, string name) => L.Format("Duel_ReturnedToHandFromExile_Format", owner, name);
+
+        // Library effects
+        public static string Duel_ScryHint => L.Get("Duel_ScryHint");
+        public static string Duel_SurveilHint => L.Get("Duel_SurveilHint");
+        public static string Duel_EffectHint(string name) => L.Format("Duel_EffectHint_Format", name);
+        public static string Duel_LookAtTopCard => L.Get("Duel_LookAtTopCard");
+
+        // London mulligan
+        public static string Duel_SelectForBottom(int count, int cardCount) =>
+            count == 1 ? L.Format("Duel_SelectForBottom_One", cardCount) : L.Format("Duel_SelectForBottom_Format", count, cardCount);
+        public static string Duel_SelectedForBottom(int selected, int required) => L.Format("Duel_SelectedForBottom_Format", selected, required);
+
+        public static string Duel_OwnerPrefix_Opponent => L.Get("Duel_OwnerPrefix_Opponent");
+
+        // ===========================================
         // COMBAT
         // ===========================================
         // Combat button activation uses language-agnostic detection (by button name, not text)

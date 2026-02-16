@@ -840,3 +840,96 @@ Rules text uses these mana symbol formats:
 **Bare Format (Activated Abilities):** `2oW:` at start of ability text
 - Number followed by `oX` sequences, ending with colon
 - Example: `2oW:` = "2, White:"
+
+## Language & Localization System
+
+The game has a comprehensive localization system. The current language is a static property accessible without instance references.
+
+### Reading the Current Language
+
+**Assembly:** `SharedClientCore.dll`
+**Class:** `Wotc.Mtga.Loc.Languages` (static)
+
+```csharp
+// Get current language code (e.g., "de-DE", "en-US")
+string lang = Wotc.Mtga.Loc.Languages.CurrentLanguage;
+```
+
+### Key Members of `Wotc.Mtga.Loc.Languages`
+
+- `CurrentLanguage` (static string property) - Gets/sets the current language code. Setting it also updates `Thread.CurrentThread.CurrentCulture` and dispatches `LanguageChangedSignal`.
+- `_currentLanguage` (private static string) - Backing field, defaults to `"en-US"`.
+- `ActiveLocProvider` (static `IClientLocProvider`) - Active localization provider for translating loc keys to text.
+- `LanguageChangedSignal` (static `ISignalListen`) - Signal dispatched when language changes. UI `Localize` components subscribe to this.
+- `AllLanguages` / `ClientLanguages` / `ExternalLanguages` - String arrays of supported language codes.
+- `Converter` - Dictionary mapping human-readable names ("English", "German") to codes ("en-US", "de-DE").
+- `ShortLangCodes` - Maps "en-US" to "enUS", "de-DE" to "deDE" (used for SQL column lookups).
+- `MTGAtoI2LangCode` - Maps MTGA codes to I2 loc codes ("en-US" -> "en", "de-DE" -> "de").
+- `TriggerLocalizationRefresh()` - Dispatches the language changed signal to refresh all UI.
+
+### Language Enum
+
+**Assembly:** `Wizards.Arena.Enums.dll`
+**Enum:** `Wizards.Arena.Enums.Language`
+
+- `English` ("en-US")
+- `Portuguese` ("pt-BR")
+- `French` ("fr-FR")
+- `Italian` ("it-IT")
+- `German` ("de-DE")
+- `Spanish` ("es-ES")
+- `Russian` ("ru-RU") - in enum but not in ClientLanguages
+- `Japanese` ("ja-JP")
+- `Korean` ("ko-KR")
+- `ChineseSimplified` ("zh-CN") - in enum but not in ClientLanguages
+- `ChineseTraditional` ("zh-TW") - in enum but not in ClientLanguages
+
+### Persistence
+
+**Assembly:** `Core.dll`
+**Class:** `MDNPlayerPrefs`
+
+Stored in Unity PlayerPrefs under key `"ClientLanguage"`:
+- Getter validates against `Languages.ExternalLanguages`, falls back to `"en-US"`
+- Setter writes to `CachedPlayerPrefs` and calls `Save()`
+
+### Initialization Flow
+
+In `Wotc.Mtga.Loc.LocalizationManagerFactory.Create()`:
+```csharp
+Languages.CurrentLanguage = MDNPlayerPrefs.PLAYERPREFS_ClientLanguage;
+// Then creates CompositeLocProvider as the ActiveLocProvider
+```
+
+### Localization Text Lookup
+
+```csharp
+// Get localized text for a key
+string text = Languages.ActiveLocProvider?.GetLocalizedText("some/loc/key");
+```
+
+Backed by `SqlLocalizationManager` reading from SQLite database with columns per language (enUS, deDE, etc.). Listens to `LanguageChangedSignal` to clear its text cache.
+
+### Language Change Detection
+
+Subscribe to `Languages.LanguageChangedSignal` to detect language changes at runtime. All `Localize` MonoBehaviours already do this to refresh their text.
+
+### UI Component: `Wotc.Mtga.Loc.Localize`
+
+**Assembly:** `Core.dll`
+
+MonoBehaviour attached to GameObjects with text. On enable, subscribes to `Languages.LanguageChangedSignal`. Uses `Pantry.Get<IClientLocProvider>()` and `Pantry.Get<IFontProvider>()` to localize text and font targets.
+
+### Loc String Class: `MTGALocalizedString`
+
+**Assembly:** `Core.dll`
+
+- `Key` field (loc key like `"MainNav/Settings/LanguageNative_en"`)
+- `Parameters` (optional)
+- `ToString()` resolves via `Languages.ActiveLocProvider.GetLocalizedText(Key, ...)`
+
+### Language Selection UI
+
+**Class:** `Wotc.Mtga.Login.BirthLanguagePanel` (Core.dll)
+
+Uses `TMP_Dropdown` populated from `Languages.ExternalLanguages`. Display text from loc keys like `"MainNav/Settings/LanguageNative_de"`. Initial language can come from PlayerPrefs, `MTGAUpdater.ini`, or Windows registry `ProductLanguage`.

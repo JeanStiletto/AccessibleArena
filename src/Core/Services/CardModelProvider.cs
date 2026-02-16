@@ -2369,11 +2369,11 @@ namespace AccessibleArena.Core.Services
 
                 if (names.Count == 1)
                 {
-                    result.Add($"enchanted by {names[0]}");
+                    result.Add(Models.Strings.Card_EnchantedBy(names[0]));
                 }
                 else
                 {
-                    result.Add($"enchanted by {string.Join(", ", names)}");
+                    result.Add(Models.Strings.Card_EnchantedBy(string.Join(", ", names)));
                 }
             }
 
@@ -2381,7 +2381,7 @@ namespace AccessibleArena.Core.Services
             var attachedTo = GetAttachedTo(card);
             if (attachedTo.HasValue && !string.IsNullOrEmpty(attachedTo.Value.name))
             {
-                result.Add($"attached to {attachedTo.Value.name}");
+                result.Add(Models.Strings.Card_AttachedTo(attachedTo.Value.name));
             }
 
             if (result.Count == 0) return "";
@@ -2807,15 +2807,15 @@ namespace AccessibleArena.Core.Services
                     }
                     if (names.Count == 1)
                     {
-                        result.Add($"targeting {names[0]}");
+                        result.Add(Models.Strings.Card_Targeting(names[0]));
                     }
                     else if (names.Count == 2)
                     {
-                        result.Add($"targeting {names[0]} and {names[1]}");
+                        result.Add(Models.Strings.Card_TargetingTwo(names[0], names[1]));
                     }
                     else if (names.Count > 2)
                     {
-                        result.Add($"targeting {string.Join(", ", names)}");
+                        result.Add(Models.Strings.Card_TargetingMany(string.Join(", ", names)));
                     }
                 }
 
@@ -2832,15 +2832,15 @@ namespace AccessibleArena.Core.Services
                     }
                     if (names.Count == 1)
                     {
-                        result.Add($"targeted by {names[0]}");
+                        result.Add(Models.Strings.Card_TargetedBy(names[0]));
                     }
                     else if (names.Count == 2)
                     {
-                        result.Add($"targeted by {names[0]} and {names[1]}");
+                        result.Add(Models.Strings.Card_TargetedByTwo(names[0], names[1]));
                     }
                     else if (names.Count > 2)
                     {
-                        result.Add($"targeted by {string.Join(", ", names)}");
+                        result.Add(Models.Strings.Card_TargetedByMany(string.Join(", ", names)));
                     }
                 }
             }

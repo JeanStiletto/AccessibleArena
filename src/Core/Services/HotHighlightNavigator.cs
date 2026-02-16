@@ -651,9 +651,9 @@ namespace AccessibleArena.Core.Services
 
                 if (result.Success)
                 {
-                    string action = item.IsPlayer ? "Targeted" : "Selected";
-                    _announcer.Announce($"{action} {item.Name}", AnnouncementPriority.Normal);
-                    MelonLogger.Msg($"[HotHighlightNavigator] {action} {item.Name}");
+                    string announcement = item.IsPlayer ? Strings.Target_Targeted(item.Name) : Strings.Target_Selected(item.Name);
+                    _announcer.Announce(announcement, AnnouncementPriority.Normal);
+                    MelonLogger.Msg($"[HotHighlightNavigator] {announcement}");
                 }
                 else
                 {
