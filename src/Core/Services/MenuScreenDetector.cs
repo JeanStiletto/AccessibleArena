@@ -175,8 +175,9 @@ namespace AccessibleArena.Core.Services
             // the interactive elements (Continue button, etc.) are siblings of the controller,
             // not children. Setting it as controller would filter out all navigable elements.
             // This is the same approach used for NPE rewards below.
-            var rewardsObj = GameObject.Find("ContentController - Rewards_Desktop_16x9(Clone)");
-            if (rewardsObj != null && rewardsObj.activeInHierarchy)
+            // IMPORTANT: Must verify actual reward content exists, not just the container object.
+            // The container can be active but empty during scene transitions.
+            if (IsRewardsOverlayWithContent())
             {
                 _activeContentController = "RewardsOverlay";
                 return "RewardsOverlay";
@@ -327,9 +328,48 @@ namespace AccessibleArena.Core.Services
                 "RewardsOverlay" => Strings.ScreenRewards,
                 "BoosterChamber" => Strings.ScreenPacks,
                 "NPERewards" => Strings.ScreenCardUnlocked,
-                "ProgressionTracksContentController" => Strings.ScreenRewards,
+                "ProgressionTracksContentController" => Strings.ScreenMastery,
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
             };
+        }
+
+        /// <summary>
+        /// Check if the rewards overlay has actual content (not just an empty container).
+        /// The container object can be active but empty during scene transitions.
+        /// Mirrors the strict check in OverlayDetector/RewardPopupNavigator.
+        /// </summary>
+        private bool IsRewardsOverlayWithContent()
+        {
+            var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
+            if (screenspacePopups == null)
+                return false;
+
+            foreach (Transform child in screenspacePopups.transform)
+            {
+                if (!child.name.Contains("ContentController") || !child.name.Contains("Rewards") ||
+                    !child.gameObject.activeInHierarchy)
+                    continue;
+
+                // Check for Container with active RewardsCONTAINER or Buttons
+                var container = child.Find("Container");
+                if (container != null)
+                {
+                    var rewardsContainer = container.Find("RewardsCONTAINER");
+                    var buttons = container.Find("Buttons");
+                    if ((rewardsContainer != null && rewardsContainer.gameObject.activeInHierarchy) ||
+                        (buttons != null && buttons.gameObject.activeInHierarchy))
+                        return true;
+                }
+
+                // Fallback: check for any active RewardPrefab children
+                foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.gameObject.activeInHierarchy && t.name.Contains("RewardPrefab"))
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
