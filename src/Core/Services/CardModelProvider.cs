@@ -3672,9 +3672,7 @@ namespace AccessibleArena.Core.Services
 
         #region Extended Card Info (Keywords + Linked Faces)
 
-        // Cache for keyword/linked face reflection
-        private static PropertyInfo _abilitiesTextIdProp;
-        private static bool _abilitiesTextIdPropSearched;
+        // Cache for linked face reflection
         private static PropertyInfo _linkedFaceTypeProp;
         private static bool _linkedFaceTypePropSearched;
         private static PropertyInfo _linkedFaceGrpIdsProp;
@@ -3690,8 +3688,6 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static void ClearExtendedInfoCache()
         {
-            _abilitiesTextIdProp = null;
-            _abilitiesTextIdPropSearched = false;
             _linkedFaceTypeProp = null;
             _linkedFaceTypePropSearched = false;
             _linkedFaceGrpIdsProp = null;
@@ -3703,8 +3699,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets keyword ability descriptions for the focused card.
-        /// Uses Abilities[].TextId resolved via GreLocProvider to get descriptions like
-        /// "Flying: This creature can't be blocked except by creatures with flying or reach."
+        /// Uses AbilityTextProvider with formatted=true to get descriptions including reminder text,
+        /// then compares with the unformatted text (already shown in rules) to extract only the extra info.
+        /// Also tries formatted=false text that isn't in the card's rules text (e.g. keyword names not shown).
         /// </summary>
         public static List<string> GetKeywordDescriptions(GameObject card)
         {
@@ -3728,61 +3725,102 @@ namespace AccessibleArena.Core.Services
 
                 var objType = model.GetType();
 
+                // Get card GrpId and TitleId for ability text provider
+                uint cardGrpId = 0;
+                uint cardTitleId = 0;
+                var grpIdProp = objType.GetProperty("GrpId", BindingFlags.Public | BindingFlags.Instance);
+                if (grpIdProp != null)
+                {
+                    var v = grpIdProp.GetValue(model);
+                    if (v is uint g) cardGrpId = g;
+                }
+                var titleIdProp = objType.GetProperty("TitleId", BindingFlags.Public | BindingFlags.Instance);
+                if (titleIdProp != null)
+                {
+                    var v = titleIdProp.GetValue(model);
+                    if (v is uint t) cardTitleId = t;
+                }
+
                 // Get Abilities list
                 var abilities = GetModelPropertyValue(model, objType, "Abilities");
                 if (abilities == null || !(abilities is IEnumerable abilityEnum)) return result;
 
-                // Also get rules text for dedup
-                string rulesText = null;
-                var existingInfo = ExtractCardInfoFromObject(model);
-                rulesText = existingInfo.RulesText ?? "";
-
-                // Ensure flavor text provider is available (it resolves TextId the same way)
-                if (!_flavorTextProviderSearched)
-                {
-                    _flavorTextProviderSearched = true;
-                    FindFlavorTextProvider();
-                }
-
-                var seen = new HashSet<string>();
-
+                // Collect ability IDs and abilities
+                var abilityList = new List<(object ability, uint id)>();
                 foreach (var ability in abilityEnum)
                 {
                     if (ability == null) continue;
-                    var abilityType = ability.GetType();
-
-                    // Cache TextId property lookup
-                    if (!_abilitiesTextIdPropSearched)
+                    var aType = ability.GetType();
+                    var idProp = aType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+                    uint abilityId = 0;
+                    if (idProp != null)
                     {
-                        _abilitiesTextIdPropSearched = true;
-                        _abilitiesTextIdProp = abilityType.GetProperty("TextId", BindingFlags.Public | BindingFlags.Instance);
+                        var v = idProp.GetValue(ability);
+                        if (v is uint u) abilityId = u;
+                    }
+                    abilityList.Add((ability, abilityId));
+                }
+
+                uint[] abilityIds = abilityList.Select(a => a.id).Where(id => id > 0).ToArray();
+
+                // Get rules text for dedup
+                var existingInfo = ExtractCardInfoFromObject(model);
+                string rulesText = existingInfo.RulesText ?? "";
+
+                var seen = new HashSet<string>();
+
+                foreach (var (ability, abilityId) in abilityList)
+                {
+                    if (abilityId == 0) continue;
+
+                    // Get formatted text (may include reminder text in parentheses)
+                    string formattedText = GetAbilityTextForExtendedInfo(
+                        cardGrpId, abilityId, abilityIds, cardTitleId, true);
+
+                    // Get unformatted text (what's shown in rules text)
+                    string unformattedText = GetAbilityTextForExtendedInfo(
+                        cardGrpId, abilityId, abilityIds, cardTitleId, false);
+
+                    // Log for debugging
+                    MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Ability {abilityId}: " +
+                        $"unformatted='{unformattedText ?? "null"}', formatted='{formattedText ?? "null"}'");
+
+                    // Try formatted text first - if it has more content than unformatted, use it
+                    string textToUse = null;
+                    if (!string.IsNullOrEmpty(formattedText) && !string.IsNullOrEmpty(unformattedText))
+                    {
+                        if (formattedText.Length > unformattedText.Length)
+                        {
+                            // Formatted has extra info (reminder text) - use it
+                            textToUse = formattedText;
+                        }
+                        else
+                        {
+                            // Same length - use unformatted (it's the ability text)
+                            textToUse = unformattedText;
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(formattedText))
+                    {
+                        textToUse = formattedText;
+                    }
+                    else if (!string.IsNullOrEmpty(unformattedText))
+                    {
+                        textToUse = unformattedText;
                     }
 
-                    if (_abilitiesTextIdProp == null) continue;
+                    if (string.IsNullOrEmpty(textToUse)) continue;
 
-                    var textIdVal = _abilitiesTextIdProp.GetValue(ability);
-                    if (textIdVal == null) continue;
+                    // Parse mana symbols
+                    textToUse = ParseManaSymbolsInText(textToUse);
 
-                    uint textId = 0;
-                    if (textIdVal is uint uid) textId = uid;
-                    else if (textIdVal is int iid && iid > 0) textId = (uint)iid;
-
-                    if (textId <= 1) continue; // 0 or 1 = no text
-
-                    // Resolve via same provider used for flavor text (GreLocProvider.GetLocalizedText)
-                    string desc = ResolveLocText(textId);
-                    if (string.IsNullOrEmpty(desc)) continue;
-
-                    // Parse mana symbols in the description
-                    desc = ParseManaSymbolsInText(desc);
-
-                    // Skip if it's the same as a rules text line (dedup)
-                    if (!string.IsNullOrEmpty(rulesText) && rulesText.Contains(desc))
+                    // Skip if it's the same as rules text (already shown to user)
+                    if (!string.IsNullOrEmpty(rulesText) && rulesText.Contains(textToUse))
                         continue;
 
                     // Deduplicate
-                    if (seen.Add(desc))
-                        result.Add(desc);
+                    if (seen.Add(textToUse))
+                        result.Add(textToUse);
                 }
             }
             catch (Exception ex)
@@ -3795,31 +3833,56 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Resolves a localization text ID via the flavor text provider (GreLocProvider).
-        /// Returns null if not found or provider unavailable.
+        /// Gets ability text via AbilityTextProvider for extended card info.
+        /// Similar to GetAbilityTextFromProvider but with configurable 'formatted' flag.
+        /// Filters out marker texts like #NoTranslationNeeded.
         /// </summary>
-        private static string ResolveLocText(uint locId)
+        private static string GetAbilityTextForExtendedInfo(
+            uint cardGrpId, uint abilityId, uint[] abilityIds, uint cardTitleId, bool formatted)
         {
-            if (locId <= 1) return null;
-            if (_flavorTextProvider == null || _getFlavorTextMethod == null) return null;
+            if (!_abilityTextProviderSearched || _getAbilityTextMethod == null)
+            {
+                _abilityTextProviderSearched = true;
+                FindAbilityTextProvider();
+            }
+
+            if (_getAbilityTextMethod == null || _abilityTextProvider == null)
+                return null;
 
             try
             {
-                var parameters = _getFlavorTextMethod.GetParameters();
-                object result;
+                var parameters = _getAbilityTextMethod.GetParameters();
+                object result = null;
 
-                if (parameters.Length == 3)
-                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId, null, false });
-                else if (parameters.Length == 1)
-                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId });
-                else
-                    return null;
+                if (parameters.Length == 6)
+                {
+                    IEnumerable<uint> abilityIdsList = abilityIds ?? Array.Empty<uint>();
+                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] {
+                        cardGrpId, abilityId, abilityIdsList, cardTitleId,
+                        null,      // overrideLanguageCode
+                        formatted  // formatted flag
+                    });
+                }
+                else if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(uint))
+                {
+                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] { abilityId });
+                }
 
-                var text = result as string;
-                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.Contains("Unknown"))
+                string text = result?.ToString();
+                if (!string.IsNullOrEmpty(text) &&
+                    !text.StartsWith("$") &&
+                    !text.StartsWith("#") &&
+                    !text.Contains("Unknown") &&
+                    !text.Contains("NoTranslationNeeded"))
+                {
                     return text;
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error getting ability text for extended info (id={abilityId}): {ex.Message}");
+            }
 
             return null;
         }

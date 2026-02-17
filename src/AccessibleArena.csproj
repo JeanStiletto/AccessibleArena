@@ -10,7 +10,7 @@
     <AssemblyName>AccessibleArena</AssemblyName>
     <RootNamespace>AccessibleArena</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <Version>0.6.5</Version>
+    <Version>0.6.6</Version>
   </PropertyGroup>
 
   <ItemGroup>

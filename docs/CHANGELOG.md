@@ -5,8 +5,8 @@ All notable changes to Accessible Arena.
 ## v0.6.6 - 2026-02-17
 
 ### Mod Improvements
-- Launch announcement now shows "Accessible Arena v0.6.5 launched" instead of generic "MTGA Accessibility Mod loaded"
-- MelonInfo version updated from placeholder "0.1.0-beta" to actual release version
+- Launch announcement now shows "Accessible Arena v0.6.6 launched" instead of generic "MTGA Accessibility Mod loaded"
+- MelonInfo version updated from placeholder to actual release version
 
 ### Installer: Full Localization (12 Languages)
 - All user-facing installer strings are now localized
