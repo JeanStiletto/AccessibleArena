@@ -2,6 +2,16 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6.2 - 2026-02-17
+
+### Localize all duel announcements
+- Extracted ~135 hardcoded English strings from 8 source files into the localization system
+- All duel announcements now use `Strings.*` properties (phase names, turn changes, zone events, combat, damage, card movement, game end, scry/surveil hints)
+- Zone names, battlefield row names, browser type names, combat states, and card relationship strings all localized
+- Added `Strings.cs` centralized accessor with ~135 new properties and helper methods (`GetPhaseDescription`, `GetFriendlyBrowserName`, `GetZoneName`, `GetRowName`)
+- Translated all new keys into 11 languages (de, fr, es, it, pt-BR, ja, ko, zh-CN, zh-TW, ru, pl)
+- Files updated: DuelAnnouncer, DuelNavigator, CombatNavigator, CardModelProvider, BrowserDetector, BrowserZoneNavigator, BattlefieldNavigator, ZoneNavigator, HotHighlightNavigator
+
 ## v0.6.1 - 2026-02-16
 
 ### Fix: Escape key in mod menus

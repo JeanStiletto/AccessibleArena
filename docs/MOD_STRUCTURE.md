@@ -236,6 +236,7 @@ C:\Users\fabia\arena\
 - [x] Phase debounce (100ms) - Prevents announcement spam during auto-skip, only final phase is spoken
 - [x] Combat announcements - "Combat begins", "Attacker declared", "Attacker removed"
 - [x] Opponent plays - "Opponent played a card" (hand count decrease detection)
+- [x] Full localization - All ~80 announcement strings use `Strings.*` properties, translated to 12 languages
 - [x] Code cleanup - Debug logging removed, dead code removed, file optimized
 
 ### Unified HotHighlight Navigator System (Working)

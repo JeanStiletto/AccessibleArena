@@ -694,6 +694,325 @@ These are announced when entering a screen. They should be short and descriptive
 | `ScreenOverlay` | "Overlay" | Generic overlay |
 | `WaitingForServer` | "Waiting for server" | Server response pending |
 
+### Zone Names
+
+Zone names announced during duel navigation when pressing zone shortcut keys.
+
+| Key | English | Context |
+|-----|---------|---------|
+| `Zone_Hand` | "Your hand" | Announced when pressing C to enter your hand |
+| `Zone_Battlefield` | "Battlefield" | General battlefield label |
+| `Zone_Graveyard` | "Your graveyard" | Announced when pressing G for your graveyard |
+| `Zone_Exile` | "Exile" | Announced when pressing X for exile zone |
+| `Zone_Stack` | "Stack" | Announced when pressing S for the stack |
+| `Zone_Library` | "Your library" | Your library zone |
+| `Zone_Command` | "Command zone" | Commander format command zone |
+| `Zone_OpponentHand` | "Opponent's hand" | Announced when pressing Shift+C for opponent hand count |
+| `Zone_OpponentGraveyard` | "Opponent's graveyard" | Announced when pressing Shift+G |
+| `Zone_OpponentLibrary` | "Opponent's library" | Announced when pressing Shift+D |
+| `Zone_OpponentExile` | "Opponent's exile" | Announced when pressing Shift+X |
+
+### Battlefield Rows
+
+Battlefield row names announced when navigating rows with Shift+Up/Down or shortcut keys.
+
+| Key | English | Context |
+|-----|---------|---------|
+| `Row_PlayerCreatures` | "Your creatures" | Announced when pressing B |
+| `Row_PlayerNonCreatures` | "Your non-creatures" | Announced when pressing R |
+| `Row_PlayerLands` | "Your lands" | Announced when pressing A |
+| `Row_EnemyCreatures` | "Enemy creatures" | Announced when pressing Shift+B |
+| `Row_EnemyNonCreatures` | "Enemy non-creatures" | Announced when pressing Shift+R |
+| `Row_EnemyLands` | "Enemy lands" | Announced when pressing Shift+A |
+
+### Browser Zone Names
+
+Zone names used in Scry, Surveil, and London mulligan browser navigation. Announced when pressing C or D to jump between zones.
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `BrowserZone_KeepOnTop` | "Keep on top" | | Scry: zone label for cards staying on top of library |
+| `BrowserZone_PutOnBottom` | "Put on bottom" | | Scry: zone label for cards going to bottom |
+| `BrowserZone_KeepPile` | "Keep pile" | | London mulligan: zone label for cards kept in hand |
+| `BrowserZone_BottomPile` | "Bottom pile" | | London mulligan: zone label for cards put on bottom |
+| `BrowserZone_KeepShort` | "keep" | | Short zone label suffix for keep zone |
+| `BrowserZone_BottomShort` | "bottom" | | Short zone label suffix for bottom zone |
+| `BrowserZone_Empty_Format` | "{0}: empty" | {0} = zone name | Announced when entering an empty browser zone |
+| `BrowserZone_Entry_Format` | "{0}: {1} cards. {2}, 1 of {3}" | {0} = zone name, {1} = total cards, {2} = first card name, {3} = total | Announced when entering a browser zone with cards |
+| `BrowserZone_Card_Format` | "{0}, {1}, {2} of {3}" | {0} = card name, {1} = zone label, {2} = position, {3} = total | Card position within a browser zone |
+| `BrowserZone_NoCardSelected` | "No card selected" | | No card is focused in browser |
+
+### Browser Types
+
+Friendly names for browser types, announced when a browser opens (e.g., "Scry. 2 cards. Tab to navigate...").
+
+| Key | English | Context |
+|-----|---------|---------|
+| `Browser_Scry` | "Scry" | Scry effect browser |
+| `Browser_Surveil` | "Surveil" | Surveil effect browser |
+| `Browser_ReadAhead` | "Read ahead" | Read ahead (Saga) browser |
+| `Browser_SearchLibrary` | "Search library" | Library search effect |
+| `Browser_Mulligan` | "Mulligan" | London mulligan browser |
+| `Browser_OpeningHand` | "Opening hand" | Opening hand display |
+| `Browser_OrderCards` | "Order cards" | Card ordering effect |
+| `Browser_SplitCards` | "Split cards into piles" | Fact or Fiction style pile splitting |
+| `Browser_AssignDamage` | "Assign damage" | Damage assignment browser |
+| `Browser_ViewAttachments` | "View attachments" | Viewing card attachments |
+| `Browser_ChooseFromList` | "Choose from list" | Generic list choice |
+| `Browser_SelectCards` | "Select cards" | Card selection browser |
+| `Browser_SelectGroup` | "Select group" | Group selection browser |
+| `Browser_ChooseManaType` | "Choose mana type" | Mana type choice |
+| `Browser_ChooseKeyword` | "Choose keyword" | Keyword ability choice |
+| `Browser_ChooseDungeonRoom` | "Choose dungeon room" | Dungeon room choice |
+| `Browser_MutateChoice` | "Mutate choice" | Mutate positioning choice |
+| `Browser_ChooseYesOrNo` | "Choose yes or no" | Yes/no decision |
+| `Browser_OptionalAction` | "Optional action" | Optional ability trigger |
+| `Browser_Information` | "Information" | Informational display |
+| `Browser_ChooseAction` | "Choose action" | Action choice browser |
+| `Browser_Default` | "Browser" | Fallback browser name for unknown types |
+
+### Combat States
+
+Status strings appended to card names during combat to describe their combat state.
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Combat_Attacking` | "attacking" | | Card is declared as an attacker |
+| `Combat_CanAttack` | "can attack" | | Card is eligible to attack |
+| `Combat_Blocking_Format` | "blocking {0}" | {0} = attacker name | Card is blocking a specific attacker |
+| `Combat_Blocking` | "blocking" | | Card is blocking (no specific attacker known) |
+| `Combat_BlockedBy_Format` | "blocked by {0}" | {0} = blocker name(s) | Attacker is blocked by named creature(s) |
+| `Combat_SelectedToBlock` | "selected to block" | | Card has been selected as a blocker |
+| `Combat_CanBlock` | "can block" | | Card is eligible to block |
+| `Combat_Tapped` | "tapped" | | Card is tapped |
+| `Combat_PTBlocking_Format` | "{0}/{1} blocking" | {0} = power, {1} = toughness | Blocker with P/T shown |
+| `Combat_Assigned` | "assigned" | | Blocker has been assigned to an attacker |
+
+### Target Actions
+
+Announcement strings for target and selection actions during spells and abilities.
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Target_Targeted_Format` | "Targeted {0}" | {0} = target name | Announced when a target is selected via targeting mode |
+| `Target_Selected_Format` | "Selected {0}" | {0} = target name | Announced when a target is selected via selection mode |
+
+### Card Relationships
+
+Strings describing card relationships (enchantments, attachments, targeting) shown in card details and announcements.
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Card_EnchantedBy_One_Format` | "enchanted by {0}" | {0} = enchantment name | Card has one enchantment attached |
+| `Card_EnchantedBy_Many_Format` | "enchanted by {0}" | {0} = comma-separated enchantment names | Card has multiple enchantments |
+| `Card_AttachedTo_Format` | "attached to {0}" | {0} = host card name | Card is attached to another card (equipment, aura) |
+| `Card_Targeting_One_Format` | "targeting {0}" | {0} = target name | Spell or ability targeting one card |
+| `Card_Targeting_Two_Format` | "targeting {0} and {1}" | {0} = first target, {1} = second target | Spell targeting exactly two cards |
+| `Card_Targeting_Many_Format` | "targeting {0}" | {0} = comma-separated target names | Spell targeting three or more cards |
+| `Card_TargetedBy_One_Format` | "targeted by {0}" | {0} = source name | Card is targeted by one spell/ability |
+| `Card_TargetedBy_Two_Format` | "targeted by {0} and {1}" | {0} = first source, {1} = second source | Card targeted by two sources |
+| `Card_TargetedBy_Many_Format` | "targeted by {0}" | {0} = comma-separated source names | Card targeted by three or more sources |
+
+### Duel Announcements
+
+All duel event announcements. These are spoken automatically as game events occur.
+
+**Game Start and Turns:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_Started_Format` | "Duel started. {0} cards in hand" | {0} = hand size | Announced at duel start |
+| `Duel_YourTurn_Format` | "Turn {0}" | {0} = turn number | Announced at start of your turn |
+| `Duel_OpponentTurn` | "Opponent's turn" | | Announced at start of opponent's turn |
+| `Duel_TurnChanged` | "Turn changed" | | Generic turn change notification |
+| `Duel_Your` | "Your" | | Possessive label for your phase announcements |
+| `Duel_Opponents` | "Opponent's" | | Possessive label for opponent's phase announcements |
+| `Duel_You` | "You" | | Subject label for your actions |
+| `Duel_Opponent` | "Opponent" | | Subject label for opponent actions |
+
+**Phases (capitalized, announced as phase transitions):**
+
+| Key | English | Context |
+|-----|---------|---------|
+| `Duel_Phase_FirstMain` | "First main phase" | Phase announcement |
+| `Duel_Phase_SecondMain` | "Second main phase" | Phase announcement |
+| `Duel_Phase_DeclareAttackers` | "Declare attackers" | Phase announcement |
+| `Duel_Phase_DeclareBlockers` | "Declare blockers" | Phase announcement |
+| `Duel_Phase_CombatDamage` | "Combat damage" | Phase announcement |
+| `Duel_Phase_EndOfCombat` | "End of combat" | Phase announcement |
+| `Duel_Phase_Combat` | "Combat phase" | Phase announcement |
+| `Duel_Phase_Upkeep` | "Upkeep" | Phase announcement |
+| `Duel_Phase_Draw` | "Draw" | Phase announcement |
+| `Duel_Phase_EndStep` | "End step" | Phase announcement |
+
+**Phase Descriptions (lowercase, used in combined turn/phase strings):**
+
+| Key | English | Context |
+|-----|---------|---------|
+| `Duel_PhaseDesc_FirstMain` | "first main phase" | Used in turn info via T key |
+| `Duel_PhaseDesc_SecondMain` | "second main phase" | Used in turn info via T key |
+| `Duel_PhaseDesc_DeclareAttackers` | "declare attackers" | Used in turn info via T key |
+| `Duel_PhaseDesc_DeclareBlockers` | "declare blockers" | Used in turn info via T key |
+| `Duel_PhaseDesc_CombatDamage` | "combat damage" | Used in turn info via T key |
+| `Duel_PhaseDesc_EndOfCombat` | "end of combat" | Used in turn info via T key |
+| `Duel_PhaseDesc_Combat` | "combat phase" | Used in turn info via T key |
+| `Duel_PhaseDesc_Upkeep` | "upkeep" | Used in turn info via T key |
+| `Duel_PhaseDesc_Draw` | "draw" | Used in turn info via T key |
+| `Duel_PhaseDesc_EndStep` | "end step" | Used in turn info via T key |
+| `Duel_PhaseDesc_Beginning` | "beginning phase" | Used in turn info via T key |
+| `Duel_PhaseDesc_Ending` | "ending phase" | Used in turn info via T key |
+| `Duel_PhaseDesc_Turn` | "turn" | Used in turn info via T key |
+
+**Turn and Phase Combined Formats:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_TurnPhase_Format` | "{0} {1}, turn {2}" | {0} = "Your"/"Opponent's", {1} = phase desc, {2} = turn number | Full turn/phase info via T key |
+| `Duel_TurnPhaseNoCount_Format` | "{0} {1}" | {0} = "Your"/"Opponent's", {1} = phase desc | Turn/phase when turn number unknown |
+
+**Card Draws:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_Drew_One` | "Drew 1 card" | | You drew one card |
+| `Duel_Drew_Format` | "Drew {0} cards" | {0} = count | You drew multiple cards |
+| `Duel_OpponentDrew_One` | "Opponent drew 1 card" | | Opponent drew one card |
+| `Duel_OpponentDrew_Format` | "Opponent drew {0} cards" | {0} = count | Opponent drew multiple cards |
+
+**Life Changes:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_LifeGained_Format` | "{0} gained {1} life" | {0} = "You"/"Opponent", {1} = amount | Life gain event |
+| `Duel_LifeLost_Format` | "{0} lost {1} life" | {0} = "You"/"Opponent", {1} = amount | Life loss event |
+
+**Damage:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_DamageDeals_Format` | "{0} deals {1} to {2}" | {0} = source, {1} = amount, {2} = target | Damage event with named source |
+| `Duel_DamageAmount_Format` | "{0} to {1}" | {0} = amount, {1} = target | Damage amount to target |
+| `Duel_DamageToYou` | "you" | | Target label when damage goes to you |
+| `Duel_DamageToOpponent` | "opponent" | | Target label when damage goes to opponent |
+| `Duel_DamageTarget` | "target" | | Generic target label for damage |
+| `Duel_CombatDamageSource` | "Combat damage" | | Source label for combat damage |
+| `Duel_DamageTo_Format` | "{0} deals {1} to {2}" | {0} = source, {1} = amount, {2} = target | Alternate damage format |
+| `Duel_DamageAmountTo_Format` | "{0} damage to {1}" | {0} = amount, {1} = target | Damage amount description |
+| `Duel_CreatureDamage_Format` | "{0} deals {1} to {2}" | {0} = creature, {1} = amount, {2} = target | Creature dealing damage |
+
+**Combat Events:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_CombatBegins` | "Combat begins" | | Combat phase started |
+| `Duel_AttackerDeclared` | "Attacker declared" | | You declared an attacker |
+| `Duel_OpponentAttackerDeclared` | "Opponent's attacker declared" | | Opponent declared an attacker |
+| `Duel_Attacking_Format` | "{0} attacking" | {0} = creature name | Named creature is attacking |
+| `Duel_AttackingPT_Format` | "{0} {1} attacking" | {0} = creature name, {1} = P/T | Named creature with P/T attacking |
+| `Duel_AttackerRemoved` | "Attacker removed" | | An attacker was undeclared |
+| `Duel_Attackers_One` | "1 attacker" | | Attacker count summary |
+| `Duel_Attackers_Format` | "{0} attackers" | {0} = count | Multiple attackers count |
+
+**Battlefield Enter/Leave:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_OpponentPlayedCard` | "Opponent played a card" | | Opponent played a card (name unknown) |
+| `Duel_OpponentEnteredBattlefield_One` | "Opponent: 1 permanent entered battlefield" | | One opponent permanent entered |
+| `Duel_OpponentEnteredBattlefield_Format` | "Opponent: {0} permanents entered battlefield" | {0} = count | Multiple opponent permanents entered |
+| `Duel_LeftBattlefield_One` | "1 permanent left battlefield" | | One permanent left battlefield |
+| `Duel_LeftBattlefield_Format` | "{0} permanents left battlefield" | {0} = count | Multiple permanents left |
+| `Duel_EntersBattlefield_Format` | "{0} enters battlefield" | {0} = card name | Named card entering battlefield |
+| `Duel_EntersBattlefieldFromLibrary_Format` | "{0} enters battlefield from library" | {0} = card name | Card entering from library |
+| `Duel_EntersBattlefieldFromLibraryEnchanting_Format` | "{0} enters battlefield from library, enchanting {1}" | {0} = card name, {1} = target | Card entering from library attached to target |
+| `Duel_TokenCreated_Format` | "{0} token created" | {0} = token name | A token was created |
+| `Duel_Played_Format` | "{0} played {1}" | {0} = player, {1} = card name | Player played a card |
+| `Duel_Enchanted_Format` | "{0} enchanted {1}" | {0} = aura name, {1} = target | Aura attached to a permanent |
+
+**Graveyard Events:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_CardToYourGraveyard` | "Card went to your graveyard" | | Generic graveyard event (name unknown) |
+| `Duel_CardToOpponentGraveyard` | "Card went to opponent's graveyard" | | Generic graveyard event for opponent |
+| `Duel_Died_Format` | "{0}{1} died" | {0} = owner prefix, {1} = card name | Creature died (state-based action) |
+| `Duel_Destroyed_Format` | "{0}{1} was destroyed" | {0} = owner prefix, {1} = card name | Permanent was destroyed |
+| `Duel_Sacrificed_Format` | "{0}{1} was sacrificed" | {0} = owner prefix, {1} = card name | Permanent was sacrificed |
+| `Duel_Countered_Format` | "{0}{1} was countered" | {0} = owner prefix, {1} = spell name | Spell was countered |
+| `Duel_Discarded_Format` | "{0}{1} was discarded" | {0} = owner prefix, {1} = card name | Card was discarded |
+| `Duel_Milled_Format` | "{0}{1} was milled" | {0} = owner prefix, {1} = card name | Card was milled from library |
+| `Duel_WentToGraveyard_Format` | "{0}{1} went to graveyard" | {0} = owner prefix, {1} = card name | Generic card-to-graveyard |
+| `Duel_SpellResolved` | "Spell resolved" | | A spell on the stack resolved |
+| `Duel_ReturnedFromGraveyard_Format` | "{0} returned from graveyard" | {0} = card name | Card returned from graveyard to battlefield |
+| `Duel_ReturnedFromGraveyardEnchanting_Format` | "{0} returned from graveyard, enchanting {1}" | {0} = card name, {1} = target | Card returned from graveyard attached to target |
+
+**Exile Events:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_Exiled_Format` | "{0}{1} was exiled" | {0} = owner prefix, {1} = card name | Card was exiled from battlefield |
+| `Duel_ExiledFromGraveyard_Format` | "{0}{1} was exiled from graveyard" | {0} = owner prefix, {1} = card name | Card exiled from graveyard |
+| `Duel_ExiledFromHand_Format` | "{0}{1} was exiled from hand" | {0} = owner prefix, {1} = card name | Card exiled from hand |
+| `Duel_ExiledFromLibrary_Format` | "{0}{1} was exiled from library" | {0} = owner prefix, {1} = card name | Card exiled from library |
+| `Duel_CounteredAndExiled_Format` | "{0}{1} was countered and exiled" | {0} = owner prefix, {1} = spell name | Spell countered and exiled |
+| `Duel_ReturnedFromExile_Format` | "{0} returned from exile" | {0} = card name | Card returned from exile to battlefield |
+| `Duel_ReturnedFromExileEnchanting_Format` | "{0} returned from exile, enchanting {1}" | {0} = card name, {1} = target | Card returned from exile attached to target |
+
+**Hand Events:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_ReturnedToHand_Format` | "{0}{1} returned to hand" | {0} = owner prefix, {1} = card name | Card bounced to hand from battlefield |
+| `Duel_ReturnedToHandFromGraveyard_Format` | "{0}{1} returned to hand from graveyard" | {0} = owner prefix, {1} = card name | Card returned to hand from graveyard |
+| `Duel_ReturnedToHandFromExile_Format` | "{0}{1} returned to hand from exile" | {0} = owner prefix, {1} = card name | Card returned to hand from exile |
+
+**Counters:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_CounterGained_Format` | "{0} gained {1} {2} counter" | {0} = card name, {1} = count, {2} = counter type | Singular counter gained |
+| `Duel_CounterGainedPlural_Format` | "{0} gained {1} {2} counters" | {0} = card name, {1} = count, {2} = counter type | Multiple counters gained |
+| `Duel_CounterLost_Format` | "{0} lost {1} {2} counter" | {0} = card name, {1} = count, {2} = counter type | Singular counter lost |
+| `Duel_CounterLostPlural_Format` | "{0} lost {1} {2} counters" | {0} = card name, {1} = count, {2} = counter type | Multiple counters lost |
+| `Duel_CounterCreature` | "creature" | | Default counter type label |
+
+**Reveals:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_Revealed_Format` | "Revealed {0}" | {0} = card name | A card was revealed |
+
+**Game End:**
+
+| Key | English | Context |
+|-----|---------|---------|
+| `Duel_Victory` | "Victory!" | You won the game |
+| `Duel_Defeat` | "Defeat" | You lost the game |
+| `Duel_GameEnded` | "Game ended" | Generic game end |
+
+**Browser Hints:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_ScryHint` | "Scry. Tab to see card, Enter to keep on top, Space to put on bottom" | | Announced when scry browser opens |
+| `Duel_SurveilHint` | "Surveil. Tab to see card, Enter to keep on top, Space to put in graveyard" | | Announced when surveil browser opens |
+| `Duel_EffectHint_Format` | "{0}. Tab to navigate, Enter to select" | {0} = effect name | Announced for other browser-style effects |
+| `Duel_LookAtTopCard` | "Look at top card" | | Announced for top-of-library peek effects |
+
+**London Mulligan:**
+
+| Key | English | Placeholders | Context |
+|-----|---------|------------|---------|
+| `Duel_SelectForBottom_One` | "Select 1 card to put on bottom. {0} cards. Enter to toggle, Space when done" | {0} = total cards in hand | Mulligan prompt for 1 card |
+| `Duel_SelectForBottom_Format` | "Select {0} cards to put on bottom. {1} cards. Enter to toggle, Space when done" | {0} = cards to select, {1} = total cards | Mulligan prompt for multiple cards |
+| `Duel_SelectedForBottom_Format` | "{0} of {1} selected for bottom" | {0} = currently selected, {1} = required | Selection progress during mulligan |
+
+**Owner Prefix:**
+
+| Key | English | Context |
+|-----|---------|---------|
+| `Duel_OwnerPrefix_Opponent` | "Opponent's " | Prepended to card names for opponent's cards in zone change announcements. Note the trailing space. |
+
 ## Translation Tips
 
 - **Be concise.** These strings are read aloud by a screen reader. Short and clear is better than long and formal.

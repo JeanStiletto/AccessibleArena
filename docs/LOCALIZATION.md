@@ -5,7 +5,7 @@ How the mod's string handling works, how to add languages, and how to extend it.
 ## Architecture Overview
 
 ```
-lang/en.json          <- Source of truth for all English strings (~360 keys)
+lang/en.json          <- Source of truth for all English strings (~630 keys)
 lang/{code}.json      <- Translations (de, fr, es, it, pt-BR, ja, ko, ru, pl, zh-CN, zh-TW)
                          All embedded in DLL at build time, extracted on startup.
 
