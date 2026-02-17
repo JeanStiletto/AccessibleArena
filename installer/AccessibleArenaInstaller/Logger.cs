@@ -99,12 +99,12 @@ namespace AccessibleArenaInstaller
             }
 
             string message = _hasErrors
-                ? "There were some warnings or errors during installation.\n\nWould you like to save a log file to your Desktop for troubleshooting?"
-                : "Would you like to save a log file to your Desktop?";
+                ? InstallerLocale.Get("Logger_SaveLog_Errors")
+                : InstallerLocale.Get("Logger_SaveLog_Normal");
 
             var result = MessageBox.Show(
                 message,
-                "Save Log File?",
+                InstallerLocale.Get("Logger_SaveLog_Title"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 

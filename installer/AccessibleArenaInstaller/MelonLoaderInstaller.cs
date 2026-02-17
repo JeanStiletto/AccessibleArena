@@ -65,7 +65,7 @@ namespace AccessibleArenaInstaller
             try
             {
                 // Step 1: Get latest version
-                progress?.Invoke(0, "Checking latest MelonLoader version...");
+                progress?.Invoke(0, InstallerLocale.Get("MelonLoader_CheckingVersion"));
                 string version = await _githubClient.GetLatestMelonLoaderVersionAsync();
 
                 if (string.IsNullOrEmpty(version))
@@ -76,30 +76,30 @@ namespace AccessibleArenaInstaller
                 Logger.Info($"Will install MelonLoader {version}");
 
                 // Step 2: Download ZIP
-                progress?.Invoke(10, $"Downloading MelonLoader {version}...");
+                progress?.Invoke(10, InstallerLocale.Format("MelonLoader_Downloading_Format", version));
                 zipPath = await _githubClient.DownloadMelonLoaderAsync(version, p =>
                 {
                     // Map download progress (0-100) to overall progress (10-70)
                     int overallProgress = 10 + (p * 60 / 100);
-                    progress?.Invoke(overallProgress, $"Downloading MelonLoader {version}... {p}%");
+                    progress?.Invoke(overallProgress, InstallerLocale.Format("MelonLoader_DownloadingProgress_Format", version, p));
                 });
 
                 // Step 3: Backup existing installation if present
-                progress?.Invoke(70, "Preparing installation...");
+                progress?.Invoke(70, InstallerLocale.Get("MelonLoader_Preparing"));
                 BackupExistingInstallation();
 
                 // Step 4: Extract ZIP
-                progress?.Invoke(75, "Extracting MelonLoader...");
+                progress?.Invoke(75, InstallerLocale.Get("MelonLoader_Extracting"));
                 ExtractMelonLoader(zipPath);
 
                 // Step 5: Verify installation
-                progress?.Invoke(95, "Verifying installation...");
+                progress?.Invoke(95, InstallerLocale.Get("MelonLoader_Verifying"));
                 if (!IsInstalled())
                 {
                     throw new Exception("MelonLoader installation verification failed");
                 }
 
-                progress?.Invoke(100, "MelonLoader installed successfully!");
+                progress?.Invoke(100, InstallerLocale.Get("MelonLoader_Complete"));
                 Logger.Info("MelonLoader installation completed successfully");
             }
             finally

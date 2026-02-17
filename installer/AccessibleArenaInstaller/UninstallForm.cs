@@ -27,7 +27,7 @@ namespace AccessibleArenaInstaller
         private void InitializeComponents()
         {
             // Form settings
-            Text = "Accessible Arena - Uninstall";
+            Text = InstallerLocale.Get("Uninstall_Title");
             Size = new Size(450, 280);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -36,7 +36,7 @@ namespace AccessibleArenaInstaller
             // Title
             _titleLabel = new Label
             {
-                Text = "Uninstall Accessible Arena",
+                Text = InstallerLocale.Get("Uninstall_Heading"),
                 Font = new Font(Font.FontFamily, 14, FontStyle.Bold),
                 Location = new Point(20, 20),
                 Size = new Size(400, 30),
@@ -46,7 +46,7 @@ namespace AccessibleArenaInstaller
             // Status label
             _statusLabel = new Label
             {
-                Text = "This will remove the Accessible Arena from your system.",
+                Text = InstallerLocale.Get("Uninstall_Description"),
                 Location = new Point(20, 60),
                 Size = new Size(400, 40),
                 TextAlign = ContentAlignment.TopLeft
@@ -55,7 +55,7 @@ namespace AccessibleArenaInstaller
             // Path label
             _pathLabel = new Label
             {
-                Text = $"MTGA Location: {_mtgaPath}",
+                Text = InstallerLocale.Format("Uninstall_PathLabel_Format", _mtgaPath),
                 Location = new Point(20, 100),
                 Size = new Size(400, 20),
                 ForeColor = SystemColors.GrayText
@@ -64,7 +64,7 @@ namespace AccessibleArenaInstaller
             // MelonLoader checkbox
             _removeMelonLoaderCheckBox = new CheckBox
             {
-                Text = "Also remove MelonLoader (only if you don't use other mods)",
+                Text = InstallerLocale.Get("Uninstall_MelonLoaderCheckBox"),
                 Location = new Point(20, 130),
                 Size = new Size(400, 25),
                 Checked = false
@@ -82,7 +82,7 @@ namespace AccessibleArenaInstaller
             // Uninstall button
             _uninstallButton = new Button
             {
-                Text = "Uninstall",
+                Text = InstallerLocale.Get("Uninstall_UninstallButton"),
                 Location = new Point(230, 200),
                 Size = new Size(90, 30)
             };
@@ -91,7 +91,7 @@ namespace AccessibleArenaInstaller
             // Cancel button
             _cancelButton = new Button
             {
-                Text = "Cancel",
+                Text = InstallerLocale.Get("Uninstall_CancelButton"),
                 Location = new Point(330, 200),
                 Size = new Size(80, 30)
             };
@@ -112,15 +112,23 @@ namespace AccessibleArenaInstaller
 
         private async void UninstallButton_Click(object sender, EventArgs e)
         {
+            // Build confirmation message with optional MelonLoader line
+            string confirmText = InstallerLocale.Get("Uninstall_Confirm_Text");
+            if (_removeMelonLoaderCheckBox.Checked)
+            {
+                // Insert MelonLoader line before the last item (Registry entries)
+                string mlLine = InstallerLocale.Get("Uninstall_Confirm_MelonLoader");
+                int lastDash = confirmText.LastIndexOf("\n- Registry");
+                if (lastDash >= 0)
+                {
+                    confirmText = confirmText.Insert(lastDash, "\n" + mlLine.TrimEnd('\n'));
+                }
+            }
+
             // Confirm uninstallation
             var result = MessageBox.Show(
-                "Are you sure you want to uninstall the Accessible Arena?\n\n" +
-                "This will remove:\n" +
-                "- AccessibleArena.dll from Mods folder\n" +
-                "- Tolk screen reader libraries\n" +
-                (_removeMelonLoaderCheckBox.Checked ? "- MelonLoader mod framework\n" : "") +
-                "- Registry entries",
-                "Confirm Uninstall",
+                confirmText,
+                InstallerLocale.Get("Uninstall_Confirm_Title"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
 
@@ -134,7 +142,7 @@ namespace AccessibleArenaInstaller
 
             try
             {
-                UpdateStatus("Removing mod files...");
+                UpdateStatus(InstallerLocale.Get("Uninstall_StatusRemoving"));
                 _progressBar.Value = 20;
 
                 await Task.Run(() => Program.PerformUninstall(_mtgaPath));
@@ -143,18 +151,18 @@ namespace AccessibleArenaInstaller
 
                 if (_removeMelonLoaderCheckBox.Checked)
                 {
-                    UpdateStatus("Removing MelonLoader...");
+                    UpdateStatus(InstallerLocale.Get("Uninstall_StatusRemovingMelonLoader"));
                     await Task.Run(() => Program.UninstallMelonLoader(_mtgaPath));
                 }
 
                 _progressBar.Value = 100;
-                UpdateStatus("Uninstallation complete!");
+                UpdateStatus(InstallerLocale.Get("Uninstall_StatusComplete"));
 
                 Logger.Info("Uninstallation completed successfully");
 
                 MessageBox.Show(
-                    "Accessible Arena has been uninstalled.",
-                    "Uninstall Complete",
+                    InstallerLocale.Get("Uninstall_Complete_Text"),
+                    InstallerLocale.Get("Uninstall_Complete_Title"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
@@ -168,8 +176,8 @@ namespace AccessibleArenaInstaller
                 Logger.Error("Uninstallation failed", ex);
 
                 MessageBox.Show(
-                    $"Uninstallation failed: {ex.Message}",
-                    "Uninstall Error",
+                    InstallerLocale.Format("Uninstall_Error_Format", ex.Message),
+                    InstallerLocale.Get("Uninstall_Error_Title"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
 

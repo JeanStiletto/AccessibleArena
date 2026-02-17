@@ -12,6 +12,12 @@ namespace AccessibleArenaInstaller
         private const string MtgaDirectDownloadUrl = "https://mtgarena.downloads.wizards.com/Live/Windows64/MTGAInstaller.exe";
 
         private ComboBox _languageComboBox;
+        private Label _titleLabel;
+        private Label _descriptionLabel;
+        private Label _languageLabel;
+        private Button _directDownloadButton;
+        private Button _downloadPageButton;
+        private Button _installButton;
 
         public bool ProceedWithInstall { get; private set; } = false;
 
@@ -24,6 +30,8 @@ namespace AccessibleArenaInstaller
         {
             SelectedLanguage = LanguageDetector.DetectLanguage();
             InitializeComponents();
+            ApplyLocale();
+            InstallerLocale.OnLanguageChanged += ApplyLocale;
         }
 
         private void InitializeComponents()
@@ -37,9 +45,8 @@ namespace AccessibleArenaInstaller
             StartPosition = FormStartPosition.CenterScreen;
 
             // Welcome title
-            var titleLabel = new Label
+            _titleLabel = new Label
             {
-                Text = $"Welcome to {Config.DisplayName}",
                 Font = new Font(Font.FontFamily, 14, FontStyle.Bold),
                 Location = new Point(20, 20),
                 Size = new Size(450, 30),
@@ -47,21 +54,16 @@ namespace AccessibleArenaInstaller
             };
 
             // Description
-            var descriptionLabel = new Label
+            _descriptionLabel = new Label
             {
-                Text = "This will install the accessibility mod for Magic: The Gathering Arena.\n\n" +
-                       "The mod enables blind and visually impaired players to play MTGA " +
-                       "using the NVDA screen reader.\n\n" +
-                       "If you don't have MTGA installed yet, please download and install it first.",
                 Location = new Point(20, 60),
                 Size = new Size(450, 100),
                 TextAlign = ContentAlignment.TopLeft
             };
 
             // Language label
-            var languageLabel = new Label
+            _languageLabel = new Label
             {
-                Text = "Mod language:",
                 Location = new Point(20, 170),
                 Size = new Size(100, 20)
             };
@@ -92,43 +94,41 @@ namespace AccessibleArenaInstaller
                 {
                     SelectedLanguage = LanguageDetector.SupportedLanguages[idx];
                     Logger.Info($"User selected language: {SelectedLanguage}");
+                    InstallerLocale.SetLanguage(SelectedLanguage);
                 }
             };
 
             // Direct Download button
-            var directDownloadButton = new Button
+            _directDownloadButton = new Button
             {
-                Text = "Direct Download",
                 Location = new Point(20, 220),
                 Size = new Size(140, 35)
             };
-            directDownloadButton.Click += (s, e) =>
+            _directDownloadButton.Click += (s, e) =>
             {
                 Logger.Info($"Starting direct MTGA download: {MtgaDirectDownloadUrl}");
                 Process.Start(MtgaDirectDownloadUrl);
             };
 
             // Download Page button
-            var downloadPageButton = new Button
+            _downloadPageButton = new Button
             {
-                Text = "Download Page",
                 Location = new Point(175, 220),
                 Size = new Size(140, 35)
             };
-            downloadPageButton.Click += (s, e) =>
+            _downloadPageButton.Click += (s, e) =>
             {
                 Logger.Info($"Opening MTGA download page: {MtgaDownloadPageUrl}");
                 Process.Start(MtgaDownloadPageUrl);
             };
 
             // Install Mod button
-            var installButton = new Button
+            _installButton = new Button
             {
-                Text = "Install Mod",
                 Location = new Point(330, 220),
                 Size = new Size(140, 35)
             };
-            installButton.Click += (s, e) =>
+            _installButton.Click += (s, e) =>
             {
                 ProceedWithInstall = true;
                 Close();
@@ -137,23 +137,34 @@ namespace AccessibleArenaInstaller
             // Add controls
             Controls.AddRange(new Control[]
             {
-                titleLabel,
-                descriptionLabel,
-                languageLabel,
+                _titleLabel,
+                _descriptionLabel,
+                _languageLabel,
                 _languageComboBox,
-                directDownloadButton,
-                downloadPageButton,
-                installButton
+                _directDownloadButton,
+                _downloadPageButton,
+                _installButton
             });
 
             // Handle form closing with X button
             FormClosing += (s, e) =>
             {
+                InstallerLocale.OnLanguageChanged -= ApplyLocale;
                 if (!ProceedWithInstall)
                 {
                     Logger.Info("User closed welcome dialog without proceeding");
                 }
             };
+        }
+
+        private void ApplyLocale()
+        {
+            _titleLabel.Text = InstallerLocale.Get("Welcome_Title");
+            _descriptionLabel.Text = InstallerLocale.Get("Welcome_Description");
+            _languageLabel.Text = InstallerLocale.Get("Welcome_LanguageLabel");
+            _directDownloadButton.Text = InstallerLocale.Get("Welcome_DirectDownload");
+            _downloadPageButton.Text = InstallerLocale.Get("Welcome_DownloadPage");
+            _installButton.Text = InstallerLocale.Get("Welcome_InstallMod");
         }
     }
 }

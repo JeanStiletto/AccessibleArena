@@ -33,7 +33,7 @@ namespace AccessibleArenaInstaller
         private void InitializeComponents()
         {
             // Form settings
-            Text = _updateOnly ? "Accessible Arena Updater" : "Accessible Arena Installer";
+            Text = InstallerLocale.Get(_updateOnly ? "Main_TitleUpdater" : "Main_TitleInstaller");
             Size = new Size(500, 320);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -42,7 +42,7 @@ namespace AccessibleArenaInstaller
             // Title
             _titleLabel = new Label
             {
-                Text = _updateOnly ? "Accessible Arena Updater" : "Accessible Arena Installer",
+                Text = InstallerLocale.Get(_updateOnly ? "Main_TitleUpdater" : "Main_TitleInstaller"),
                 Font = new Font(Font.FontFamily, 14, FontStyle.Bold),
                 Location = new Point(20, 20),
                 Size = new Size(440, 30),
@@ -52,9 +52,7 @@ namespace AccessibleArenaInstaller
             // Status label
             _statusLabel = new Label
             {
-                Text = _updateOnly
-                    ? "This will update the accessibility mod to the latest version."
-                    : "This will install the accessibility mod for Magic: The Gathering Arena.\nThe mod enables blind players to play using NVDA screen reader.",
+                Text = InstallerLocale.Get(_updateOnly ? "Main_StatusUpdate" : "Main_StatusInstall"),
                 Location = new Point(20, 60),
                 Size = new Size(440, 50),
                 TextAlign = ContentAlignment.TopLeft
@@ -63,7 +61,7 @@ namespace AccessibleArenaInstaller
             // Path label
             _pathLabel = new Label
             {
-                Text = "MTGA Installation Path:",
+                Text = InstallerLocale.Get("Main_PathLabel"),
                 Location = new Point(20, 120),
                 Size = new Size(150, 20)
             };
@@ -80,7 +78,7 @@ namespace AccessibleArenaInstaller
             // Browse button
             _browseButton = new Button
             {
-                Text = "Browse...",
+                Text = InstallerLocale.Get("Main_BrowseButton"),
                 Location = new Point(380, 143),
                 Size = new Size(80, 27)
             };
@@ -98,7 +96,7 @@ namespace AccessibleArenaInstaller
             // Launch checkbox
             _launchCheckBox = new CheckBox
             {
-                Text = "Launch MTGA after installation",
+                Text = InstallerLocale.Get("Main_LaunchCheckBox"),
                 Location = new Point(20, 220),
                 Size = new Size(250, 25),
                 Checked = false
@@ -107,7 +105,7 @@ namespace AccessibleArenaInstaller
             // Install button
             _installButton = new Button
             {
-                Text = _updateOnly ? "Update" : "Install",
+                Text = InstallerLocale.Get(_updateOnly ? "Main_UpdateButton" : "Main_InstallButton"),
                 Location = new Point(280, 245),
                 Size = new Size(90, 30)
             };
@@ -116,7 +114,7 @@ namespace AccessibleArenaInstaller
             // Cancel button
             _cancelButton = new Button
             {
-                Text = "Cancel",
+                Text = InstallerLocale.Get("Main_CancelButton"),
                 Location = new Point(380, 245),
                 Size = new Size(80, 30)
             };
@@ -144,7 +142,7 @@ namespace AccessibleArenaInstaller
         {
             using (var dialog = new FolderBrowserDialog())
             {
-                dialog.Description = "Select MTGA installation folder (contains MTGA.exe)";
+                dialog.Description = InstallerLocale.Get("Main_BrowseDialogDescription");
                 dialog.ShowNewFolderButton = false;
 
                 if (!string.IsNullOrEmpty(_pathTextBox.Text) && Directory.Exists(_pathTextBox.Text))
@@ -169,12 +167,12 @@ namespace AccessibleArenaInstaller
 
             if (!isValid && !string.IsNullOrEmpty(_pathTextBox.Text))
             {
-                _statusLabel.Text = "MTGA.exe not found in the selected folder.\nPlease select the correct MTGA installation folder.";
+                _statusLabel.Text = InstallerLocale.Get("Main_PathNotFound");
                 _statusLabel.ForeColor = Color.Red;
             }
             else
             {
-                _statusLabel.Text = "This will install the accessibility mod for Magic: The Gathering Arena.\nThe mod enables blind players to play using NVDA screen reader.";
+                _statusLabel.Text = InstallerLocale.Get(_updateOnly ? "Main_StatusUpdate" : "Main_StatusInstall");
                 _statusLabel.ForeColor = SystemColors.ControlText;
             }
         }
@@ -184,10 +182,10 @@ namespace AccessibleArenaInstaller
             _mtgaPath = _pathTextBox.Text;
 
             // Confirm installation
-            string confirmMessage = _updateOnly
-                ? $"Update Accessible Arena mod at:\n{_mtgaPath}\n\nContinue?"
-                : $"Install Accessible Arena to:\n{_mtgaPath}\n\nContinue?";
-            string confirmTitle = _updateOnly ? "Confirm Update" : "Confirm Installation";
+            string confirmMessage = InstallerLocale.Format(
+                _updateOnly ? "Main_ConfirmUpdate_Format" : "Main_ConfirmInstall_Format", _mtgaPath);
+            string confirmTitle = InstallerLocale.Get(
+                _updateOnly ? "Main_ConfirmUpdate_Title" : "Main_ConfirmInstall_Title");
 
             var result = MessageBox.Show(
                 confirmMessage,
@@ -214,7 +212,7 @@ namespace AccessibleArenaInstaller
                     if (_updateOnly)
                     {
                         // Update mode - skip Tolk DLLs and MelonLoader
-                        UpdateStatus("Preparing update...");
+                        UpdateStatus(InstallerLocale.Get("Main_StatusPreparing"));
                         UpdateProgress(70);
                     }
                     else
@@ -223,7 +221,7 @@ namespace AccessibleArenaInstaller
                         var melonLoaderInstaller = new MelonLoaderInstaller(_mtgaPath, githubClient);
 
                         // Step 1: Copy Tolk DLLs
-                        UpdateStatus("Copying screen reader libraries...");
+                        UpdateStatus(InstallerLocale.Get("Main_StatusCopyingLibraries"));
                         UpdateProgress(5);
                         await Task.Run(() => installationManager.CopyTolkDlls());
                         UpdateProgress(15);
@@ -236,16 +234,14 @@ namespace AccessibleArenaInstaller
                         {
                             // Ask user if they want to install MelonLoader
                             var mlResult = MessageBox.Show(
-                                "MelonLoader is required but not installed.\n\n" +
-                                "MelonLoader is a mod loader that allows the accessibility mod to work.\n\n" +
-                                "Do you want to download and install MelonLoader now?",
-                                "MelonLoader Required",
+                                InstallerLocale.Get("Main_MelonRequired_Text"),
+                                InstallerLocale.Get("Main_MelonRequired_Title"),
                                 MessageBoxButtons.YesNo,
                                 MessageBoxIcon.Question);
 
                             if (mlResult == DialogResult.Yes)
                             {
-                                UpdateStatus("Installing MelonLoader...");
+                                UpdateStatus(InstallerLocale.Get("Main_StatusInstallingMelonLoader"));
                                 await melonLoaderInstaller.InstallAsync((progress, status) =>
                                 {
                                     // Map MelonLoader progress (0-100) to overall progress (15-70)
@@ -258,10 +254,8 @@ namespace AccessibleArenaInstaller
                             {
                                 Logger.Warning("User declined MelonLoader installation");
                                 MessageBox.Show(
-                                    "MelonLoader is required for the accessibility mod to work.\n\n" +
-                                    "The installer will continue, but the mod will not function until MelonLoader is installed.\n\n" +
-                                    "You can install MelonLoader manually from:\nhttps://github.com/LavaGang/MelonLoader/releases",
-                                    "MelonLoader Skipped",
+                                    InstallerLocale.Get("Main_MelonSkipped_Text"),
+                                    InstallerLocale.Get("Main_MelonSkipped_Title"),
                                     MessageBoxButtons.OK,
                                     MessageBoxIcon.Warning);
                             }
@@ -272,17 +266,15 @@ namespace AccessibleArenaInstaller
 
                             // Ask user if they want to reinstall or continue
                             var mlResult = MessageBox.Show(
-                                "MelonLoader is already installed.\n\n" +
-                                "Do you want to reinstall MelonLoader?\n\n" +
-                                "Click 'Yes' to reinstall, or 'No' to continue with the existing installation.",
-                                "MelonLoader Found",
+                                InstallerLocale.Get("Main_MelonFound_Text"),
+                                InstallerLocale.Get("Main_MelonFound_Title"),
                                 MessageBoxButtons.YesNo,
                                 MessageBoxIcon.Information);
 
                             if (mlResult == DialogResult.Yes)
                             {
                                 Logger.Info("User chose to reinstall MelonLoader");
-                                UpdateStatus("Reinstalling MelonLoader...");
+                                UpdateStatus(InstallerLocale.Get("Main_StatusReinstallingMelonLoader"));
                                 await melonLoaderInstaller.InstallAsync((progress, status) =>
                                 {
                                     int overallProgress = 15 + (progress * 55 / 100);
@@ -293,19 +285,19 @@ namespace AccessibleArenaInstaller
                             else
                             {
                                 Logger.Info("User chose to keep existing MelonLoader");
-                                UpdateStatus("Keeping existing MelonLoader");
+                                UpdateStatus(InstallerLocale.Get("Main_StatusKeepingMelonLoader"));
                                 UpdateProgress(70);
                             }
                         }
 
                         // Step 3: Create Mods folder
-                        UpdateStatus("Creating Mods folder...");
+                        UpdateStatus(InstallerLocale.Get("Main_StatusCreatingMods"));
                         UpdateProgress(72);
                         installationManager.EnsureModsFolderExists();
                     }
 
                     // Step 4: Download and install mod DLL
-                    UpdateStatus("Checking mod version...");
+                    UpdateStatus(InstallerLocale.Get("Main_StatusCheckingVersion"));
                     UpdateProgress(75);
 
                     bool modInstalled = false;
@@ -332,11 +324,8 @@ namespace AccessibleArenaInstaller
                             if (IsVersionNewer(latestVersion, installedVersion))
                             {
                                 var updateResult = MessageBox.Show(
-                                    $"A newer version of the mod is available.\n\n" +
-                                    $"Installed: v{installedVersion}\n" +
-                                    $"Available: v{latestVersion}\n\n" +
-                                    "Do you want to update?",
-                                    "Update Available",
+                                    InstallerLocale.Format("Main_UpdateAvailable_Format", installedVersion, latestVersion),
+                                    InstallerLocale.Get("Main_UpdateAvailable_Title"),
                                     MessageBoxButtons.YesNo,
                                     MessageBoxIcon.Question);
 
@@ -353,13 +342,8 @@ namespace AccessibleArenaInstaller
                         {
                             // Could not fetch version - ask user
                             var downloadResult = MessageBox.Show(
-                                "Could not check for the latest mod version.\n\n" +
-                                "This may be because:\n" +
-                                "- No internet connection\n" +
-                                "- GitHub repository not found\n" +
-                                "- No releases published yet\n\n" +
-                                "Do you want to try downloading the mod anyway?",
-                                "Version Check Failed",
+                                InstallerLocale.Get("Main_VersionCheckFailed_Text"),
+                                InstallerLocale.Get("Main_VersionCheckFailed_Title"),
                                 MessageBoxButtons.YesNo,
                                 MessageBoxIcon.Warning);
 
@@ -371,7 +355,7 @@ namespace AccessibleArenaInstaller
                     {
                         try
                         {
-                            UpdateStatus("Downloading mod...");
+                            UpdateStatus(InstallerLocale.Get("Main_StatusDownloading"));
                             string tempModPath = await githubClient.DownloadModDllAsync(
                                 Config.ModRepositoryUrl,
                                 Config.ModDllName,
@@ -382,7 +366,7 @@ namespace AccessibleArenaInstaller
                                     UpdateProgress(overallProgress);
                                 });
 
-                            UpdateStatus("Installing mod...");
+                            UpdateStatus(InstallerLocale.Get("Main_StatusInstalling"));
                             UpdateProgress(96);
                             installationManager.InstallModDll(tempModPath);
 
@@ -397,11 +381,9 @@ namespace AccessibleArenaInstaller
                             Logger.Error("Failed to download/install mod", modEx);
 
                             MessageBox.Show(
-                                $"Could not download the mod: {modEx.Message}\n\n" +
-                                "The installer will continue, but you will need to install the mod manually.\n\n" +
-                                $"Download from: {Config.ModRepositoryUrl}/releases\n" +
-                                $"Copy {Config.ModDllName} to the Mods folder.",
-                                "Mod Download Failed",
+                                InstallerLocale.Format("Main_ModDownloadFailed_Format",
+                                    modEx.Message, Config.ModRepositoryUrl, Config.ModDllName),
+                                InstallerLocale.Get("Main_ModDownloadFailed_Title"),
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Warning);
                         }
@@ -410,49 +392,43 @@ namespace AccessibleArenaInstaller
                     // Step 5: Write mod settings with selected language
                     if (_language != null)
                     {
-                        UpdateStatus("Configuring mod language...");
+                        UpdateStatus(InstallerLocale.Get("Main_StatusConfiguringLanguage"));
                         installationManager.WriteModSettings(_language);
                     }
 
                     // Step 6: Register in Add/Remove Programs
-                    UpdateStatus("Registering installation...");
+                    UpdateStatus(InstallerLocale.Get("Main_StatusRegistering"));
                     string installedModVersion = installationManager.GetInstalledModVersion() ?? latestVersion ?? "1.0.0";
                     RegistryManager.Register(_mtgaPath, installedModVersion);
 
                     UpdateProgress(100);
-                    UpdateStatus(_updateOnly ? "Update complete!" : "Installation complete!");
+                    UpdateStatus(InstallerLocale.Get(_updateOnly ? "Main_StatusUpdateComplete" : "Main_StatusInstallComplete"));
 
                     Logger.Info($"{(_updateOnly ? "Update" : "Installation")} completed successfully");
 
                     // Show completion message with first-launch warning
-                    string completionMessage = _updateOnly
-                        ? "Accessible Arena update complete!\n\n"
-                        : "Accessible Arena installation complete!\n\n";
+                    string completionMessage = InstallerLocale.Get(
+                        _updateOnly ? "Main_CompleteUpdate_Text" : "Main_CompleteInstall_Text");
 
                     if (!_updateOnly && !melonLoaderInstalled)
                     {
-                        completionMessage +=
-                            "IMPORTANT: The first time you launch MTGA after installing MelonLoader,\n" +
-                            "the game will take longer to start (1-2 minutes) while MelonLoader\n" +
-                            "generates necessary files. This is normal and only happens once.\n\n";
+                        completionMessage += InstallerLocale.Get("Main_CompleteFirstLaunch");
                     }
 
                     if (modInstalled)
                     {
-                        completionMessage += _updateOnly
-                            ? "The accessibility mod has been updated successfully."
-                            : "The accessibility mod has been installed successfully.";
+                        completionMessage += InstallerLocale.Get(
+                            _updateOnly ? "Main_CompleteModUpdated" : "Main_CompleteModInstalled");
                     }
                     else
                     {
-                        completionMessage +=
-                            $"Note: The mod DLL was not installed.\n" +
-                            $"Please download it manually from:\n{Config.ModRepositoryUrl}/releases";
+                        completionMessage += InstallerLocale.Format(
+                            "Main_CompleteModNotInstalled_Format", Config.ModRepositoryUrl);
                     }
 
                     MessageBox.Show(
                         completionMessage,
-                        _updateOnly ? "Update Complete" : "Installation Complete",
+                        InstallerLocale.Get(_updateOnly ? "Main_CompleteUpdate_Title" : "Main_CompleteInstall_Title"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
 
@@ -471,8 +447,9 @@ namespace AccessibleArenaInstaller
                     Logger.Error($"{(_updateOnly ? "Update" : "Installation")} failed", ex);
 
                     MessageBox.Show(
-                        $"{(_updateOnly ? "Update" : "Installation")} failed: {ex.Message}",
-                        _updateOnly ? "Update Error" : "Installation Error",
+                        InstallerLocale.Format(
+                            _updateOnly ? "Main_ErrorUpdate_Format" : "Main_ErrorInstall_Format", ex.Message),
+                        InstallerLocale.Get(_updateOnly ? "Main_ErrorUpdate_Title" : "Main_ErrorInstall_Title"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
 

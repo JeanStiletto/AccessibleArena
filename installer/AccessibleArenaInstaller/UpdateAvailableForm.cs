@@ -15,7 +15,7 @@ namespace AccessibleArenaInstaller
         private void InitializeComponents(string installedVersion, string latestVersion)
         {
             // Form settings
-            Text = "Update Available";
+            Text = InstallerLocale.Get("Update_Title");
             Size = new Size(450, 250);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -25,7 +25,7 @@ namespace AccessibleArenaInstaller
             // Title
             var titleLabel = new Label
             {
-                Text = "An update is available!",
+                Text = InstallerLocale.Get("Update_Heading"),
                 Font = new Font(Font.FontFamily, 14, FontStyle.Bold),
                 Location = new Point(20, 20),
                 Size = new Size(400, 30),
@@ -35,7 +35,7 @@ namespace AccessibleArenaInstaller
             // Version info
             var versionLabel = new Label
             {
-                Text = $"Installed version: {installedVersion}\nLatest version: {latestVersion}",
+                Text = InstallerLocale.Format("Update_VersionInfo_Format", installedVersion, latestVersion),
                 Location = new Point(20, 60),
                 Size = new Size(400, 50),
                 TextAlign = ContentAlignment.TopCenter
@@ -44,7 +44,7 @@ namespace AccessibleArenaInstaller
             // Update Mod button
             var updateButton = new Button
             {
-                Text = "Update Mod",
+                Text = InstallerLocale.Get("Update_UpdateButton"),
                 Location = new Point(40, 130),
                 Size = new Size(110, 35)
             };
@@ -57,7 +57,7 @@ namespace AccessibleArenaInstaller
             // Full Install button
             var fullInstallButton = new Button
             {
-                Text = "Full Install",
+                Text = InstallerLocale.Get("Update_FullInstallButton"),
                 Location = new Point(165, 130),
                 Size = new Size(110, 35)
             };
@@ -70,7 +70,7 @@ namespace AccessibleArenaInstaller
             // Close button
             var closeButton = new Button
             {
-                Text = "Close",
+                Text = InstallerLocale.Get("Update_CloseButton"),
                 Location = new Point(290, 130),
                 Size = new Size(110, 35)
             };

@@ -30,13 +30,16 @@ namespace AccessibleArenaInstaller
             Logger.Info($"Is Admin: {IsRunningAsAdmin()}");
             Logger.Info($"Arguments: {string.Join(" ", args)}");
 
+            // Initialize locale system before any UI
+            InstallerLocale.Initialize(LanguageDetector.DetectLanguage());
+
             // Pre-flight check: Admin rights
             if (!IsRunningAsAdmin())
             {
                 Logger.Error("Not running as administrator");
                 MessageBox.Show(
-                    "This installer requires administrator privileges.\n\nPlease right-click and select 'Run as administrator'.",
-                    "Administrator Required",
+                    InstallerLocale.Get("Program_AdminRequired_Text"),
+                    InstallerLocale.Get("Program_AdminRequired_Title"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return;
@@ -47,8 +50,8 @@ namespace AccessibleArenaInstaller
             {
                 Logger.Warning("MTGA is currently running");
                 MessageBox.Show(
-                    "Please close Magic: The Gathering Arena first.\n\nThe installer cannot modify files while the game is running.",
-                    "MTGA Running",
+                    InstallerLocale.Get("Program_MtgaRunning_Text"),
+                    InstallerLocale.Get("Program_MtgaRunning_Title"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 return;
@@ -90,8 +93,8 @@ namespace AccessibleArenaInstaller
                     if (!quietMode)
                     {
                         MessageBox.Show(
-                            "Could not determine MTGA installation path.\n\nPlease run the installer normally to reinstall.",
-                            "Uninstall Error",
+                            InstallerLocale.Get("Program_UninstallError_Text"),
+                            InstallerLocale.Get("Program_UninstallError_Title"),
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error);
                     }
@@ -199,9 +202,8 @@ namespace AccessibleArenaInstaller
                 {
                     // No mod installed or no update available - show default welcome dialog
                     var welcomeResult = MessageBox.Show(
-                        "Welcome to Accessible Arena!\n\n" +
-                        "This will install the accessibility mod for playing Magic: The Gathering Arena on your computer.",
-                        "Accessible Arena Installer",
+                        InstallerLocale.Get("Program_Welcome_Text"),
+                        InstallerLocale.Get("Program_Welcome_Title"),
                         MessageBoxButtons.OKCancel,
                         MessageBoxIcon.Information);
 

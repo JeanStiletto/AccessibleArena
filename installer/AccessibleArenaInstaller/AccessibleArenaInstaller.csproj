@@ -28,4 +28,9 @@
     <EmbeddedResource Include="Resources\nvdaControllerClient64.dll" />
   </ItemGroup>
 
+  <!-- Locale files embedded as resources for installer localization -->
+  <ItemGroup>
+    <EmbeddedResource Include="Locales\*.json" LogicalName="locale.%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>
