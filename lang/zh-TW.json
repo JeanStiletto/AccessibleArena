@@ -1,5 +1,5 @@
 {
-  "ModLoaded": "MTGA無障礙模組已載入",
+  "ModLoaded_Format": "Accessible Arena v{0} 已啟動",
   "Back": "返回",
   "NoSelection": "未選取",
   "NoAlternateAction": "沒有可用的替代操作",

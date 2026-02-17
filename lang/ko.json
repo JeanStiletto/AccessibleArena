@@ -1,5 +1,5 @@
 {
-  "ModLoaded": "MTGA 접근성 모드가 로드되었습니다",
+  "ModLoaded_Format": "Accessible Arena v{0} 시작되었습니다",
   "Back": "뒤로",
   "NoSelection": "선택 없음",
   "NoAlternateAction": "대체 동작을 사용할 수 없습니다",

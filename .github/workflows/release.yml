@@ -23,6 +23,10 @@ jobs:
         with:
           dotnet-version: '8.x'
 
+      - name: Update MelonInfo version from tag
+        shell: bash
+        run: sed -i 's/MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "[^"]*"/MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "${{ steps.version.outputs.VERSION }}"/' src/AccessibleArenaMod.cs
+
       - name: Build mod (Release)
         run: dotnet build src/AccessibleArena.csproj -c Release -p:Version=${{ steps.version.outputs.VERSION }}
 

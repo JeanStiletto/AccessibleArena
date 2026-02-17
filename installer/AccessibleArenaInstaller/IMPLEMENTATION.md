@@ -309,12 +309,15 @@ Not yet implemented:
 
 ## Version Matching (Important)
 
-The installer compares two version numbers to detect updates:
+There are **three** version numbers that must stay in sync for releases:
 
-- **GitHub tag** — the tag name from the latest release (e.g., `v0.6.5`). Fetched via GitHub API, `v` prefix stripped.
-- **Assembly version** — the version baked into the compiled DLL. Read from the installed file via `AssemblyName.GetAssemblyName()`.
+- **GitHub tag** — the tag name from the latest release (e.g., `v0.6.5`). Fetched via GitHub API, `v` prefix stripped. This is the **source of truth** for releases.
+- **Assembly version** — the version baked into the compiled DLL (`<Version>` in csproj). Read from the installed file via `AssemblyName.GetAssemblyName()`. Used by the installer for update detection.
+- **MelonInfo version** — the version string in the `[assembly: MelonInfo(...)]` attribute in `AccessibleArenaMod.cs`. Displayed to users at mod launch (e.g., "Accessible Arena v0.6.5 launched"). Accessed at runtime via `Info.Version`.
 
-These two are completely independent sources. If they get out of sync, update detection breaks silently. The GitHub Actions workflow below handles this automatically, but if you build manually or adapt this for your own project, read the pitfalls section.
+The GitHub Actions workflow handles all three automatically: it extracts the version from the git tag, patches the MelonInfo attribute via `sed`, and passes `-p:Version=` to the build. For local development builds, the MelonInfo version and csproj `<Version>` serve as fallbacks — keep them reasonably current but they don't need to be exact.
+
+These are completely independent sources. If they get out of sync, update detection breaks silently or users see wrong version numbers. The GitHub Actions workflow below handles this automatically, but if you build manually or adapt this for your own project, read the pitfalls section.
 
 ### Pitfalls We Hit (Don't Repeat These)
 
@@ -328,7 +331,12 @@ Even after adding `<Version>`, if you tag `v0.6.5` on GitHub but the csproj stil
 
 **Solution:** Use the GitHub Actions workflow below, which injects the version from the git tag at build time. This makes the csproj version a fallback for local dev builds only - release builds always get the correct version from the tag.
 
-**Pitfall 3: Redundant version checks after user confirmation**
+**Pitfall 3: Stale MelonInfo version**
+The `[assembly: MelonInfo(...)]` attribute in `AccessibleArenaMod.cs` contains a hardcoded version string that MelonLoader reads at runtime (available as `Info.Version`). This is shown to users at launch ("Accessible Arena v0.6.5 launched"). Unlike the assembly version, this cannot be overridden with a build flag — it must be patched in the source file. If you forget to update it, users see the wrong version after launch even though the installer and GitHub show the correct one.
+
+**Solution:** The GitHub Actions workflow patches the MelonInfo version via `sed` before building. For local development, keep it reasonably up to date manually.
+
+**Pitfall 4: Redundant version checks after user confirmation**
 If your installer shows an "Update Available" dialog and the user clicks "Update", don't re-check versions before downloading. A second version check can reach a different conclusion (network error, race condition, version format edge case) and silently skip the download the user just asked for. Once the user confirms, download unconditionally.
 
 ### Version Normalization
@@ -373,6 +381,10 @@ jobs:
         with:
           dotnet-version: '8.x'
 
+      - name: Update MelonInfo version from tag
+        shell: bash
+        run: sed -i 's/MelonInfo(typeof(YourNamespace.YourMod), "Your Mod", "[^"]*"/MelonInfo(typeof(YourNamespace.YourMod), "Your Mod", "${{ steps.version.outputs.VERSION }}"/' src/YourMod.cs
+
       - name: Build mod (Release)
         run: dotnet build src/YourMod.csproj -c Release -p:Version=${{ steps.version.outputs.VERSION }}
 
@@ -387,7 +399,9 @@ jobs:
             installer/bin/Release/net472/YourInstaller.exe
 ```
 
-The key line is `-p:Version=${{ steps.version.outputs.VERSION }}` on the mod build step. This strips the `v` prefix from the tag (e.g., `v0.6.5` becomes `0.6.5`) and passes it as the assembly version.
+Two key steps:
+1. The `sed` command patches the `MelonInfo` attribute in the source file so `Info.Version` returns the correct version at runtime.
+2. The `-p:Version=` flag on the build step sets the assembly/file version in the compiled DLL.
 
 **Release workflow:**
 1. Tag: `git tag v0.6.5`
@@ -420,6 +434,13 @@ en, de, fr, es, it, pt-BR, ru, pl, ja, ko, zh-CN, zh-TW
 4. Rebuild - the wildcard `<EmbeddedResource Include="Locales\*.json" />` picks it up automatically
 
 ## Changelog
+
+### Version 1.5
+- Launch announcement now shows mod name and version ("Accessible Arena v0.6.5 launched")
+- MelonInfo version updated from placeholder "0.1.0-beta" to current version
+- GitHub Actions workflow now patches MelonInfo version from git tag automatically
+  - Uses `sed` to update the `[assembly: MelonInfo(...)]` attribute before building
+  - Ensures `Info.Version` (runtime) matches the release tag alongside the assembly version
 
 ### Version 1.4
 - Full installer localization with 12 languages

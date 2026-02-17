@@ -1,5 +1,5 @@
 {
-  "ModLoaded": "MTGAアクセシビリティMODを読み込みました",
+  "ModLoaded_Format": "Accessible Arena v{0} 起動しました",
   "Back": "戻る",
   "NoSelection": "選択なし",
   "NoAlternateAction": "代替アクションがありません",

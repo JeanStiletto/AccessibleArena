@@ -7,7 +7,7 @@ using AccessibleArena.Core.Services;
 using AccessibleArena.Core.Services.PanelDetection;
 using AccessibleArena.Patches;
 
-[assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "0.1.0-beta", "Accessible Arena Team")]
+[assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "0.6.5", "Accessible Arena Team")]
 [assembly: MelonGame("Wizards Of The Coast", "MTGA")]
 
 namespace AccessibleArena
@@ -56,7 +56,7 @@ namespace AccessibleArena
             _initialized = true;
 
             LoggerInstance.Msg("Accessible Arena initialized");
-            _announcer.Announce(Strings.ModLoaded, AnnouncementPriority.High);
+            _announcer.Announce(Strings.ModLoaded(Info.Version), AnnouncementPriority.High);
         }
 
         private void InitializeHarmonyPatches()
