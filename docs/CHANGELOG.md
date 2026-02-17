@@ -2,6 +2,35 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6.6 - 2026-02-17
+
+### Mod Improvements
+- Launch announcement now shows "Accessible Arena v0.6.5 launched" instead of generic "MTGA Accessibility Mod loaded"
+- MelonInfo version updated from placeholder "0.1.0-beta" to actual release version
+
+### Installer: Full Localization (12 Languages)
+- All user-facing installer strings are now localized
+- InstallerLocale static class loads embedded JSON resources with fallback chain (active -> English -> key name)
+- Language auto-detected from OS, changeable live in welcome wizard
+- Supported: English, German, French, Spanish, Italian, Portuguese (BR), Russian, Polish, Japanese, Korean, Chinese Simplified, Chinese Traditional
+
+### Installer: Two-Page Welcome Wizard
+- Page 1: Welcome message, mod version to install, language selector, Next button
+- Page 2: MTGA download links (Direct Download + Download Page), Back and Install buttons
+
+### Installer: Version Detection Fixes
+- Installed version now read from registry first (stores GitHub release tag), falling back to DLL assembly version
+- Prevents perpetual "update available" when DLL has stale assembly version
+- New "Mod Up to Date" dialog when mod is current (shows version, offers Close or Full Reinstall)
+- Removed redundant version check in MainForm after user already confirmed action
+- Update mode now correctly fetches latest version from GitHub for registry storage
+
+### CI/CD
+- GitHub Actions workflow now patches MelonInfo version from git tag via `sed` before building
+- Ensures runtime `Info.Version` always matches the release tag alongside the assembly version
+
+---
+
 ## v0.6.5 - 2026-02-17
 
 ### New: Full Localization System
