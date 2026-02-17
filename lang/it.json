@@ -206,6 +206,7 @@
   "SettingLanguage": "Lingua",
   "SettingTutorialMessages": "Messaggi del tutorial",
   "SettingVerboseAnnouncements": "Annunci dettagliati",
+  "SettingBriefCastAnnouncements": "Annunci brevi dei propri incantesimi",
   "SettingOn": "Attivo",
   "SettingOff": "Disattivo",
   "SettingChanged_Format": "{0} impostato su {1}",

@@ -77,6 +77,12 @@ namespace AccessibleArena.Core.Services
                     Name = Strings.SettingVerboseAnnouncements,
                     GetValue = () => _settings.VerboseAnnouncements ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.VerboseAnnouncements = !_settings.VerboseAnnouncements
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingBriefCastAnnouncements,
+                    GetValue = () => _settings.BriefCastAnnouncements ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.BriefCastAnnouncements = !_settings.BriefCastAnnouncements
                 }
             };
         }

@@ -206,6 +206,7 @@
   "SettingLanguage": "언어",
   "SettingTutorialMessages": "튜토리얼 메시지",
   "SettingVerboseAnnouncements": "자세한 안내",
+  "SettingBriefCastAnnouncements": "내 주문 간략 알림",
   "SettingOn": "켜기",
   "SettingOff": "끄기",
   "SettingChanged_Format": "{0}을(를) {1}(으)로 설정했습니다",

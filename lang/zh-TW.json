@@ -206,6 +206,7 @@
   "SettingLanguage": "語言",
   "SettingTutorialMessages": "教學訊息",
   "SettingVerboseAnnouncements": "詳細播報",
+  "SettingBriefCastAnnouncements": "簡化自己的咒語播報",
   "SettingOn": "開",
   "SettingOff": "關",
   "SettingChanged_Format": "{0}已設定為{1}",

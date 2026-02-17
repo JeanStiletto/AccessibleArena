@@ -216,6 +216,7 @@
   "SettingLanguage": "Язык",
   "SettingTutorialMessages": "Обучающие сообщения",
   "SettingVerboseAnnouncements": "Подробные объявления",
+  "SettingBriefCastAnnouncements": "Краткие объявления своих заклинаний",
   "SettingOn": "Вкл",
   "SettingOff": "Выкл",
   "SettingChanged_Format": "{0} установлено на {1}",

@@ -207,6 +207,7 @@
   "SettingLanguage": "Language",
   "SettingTutorialMessages": "Tutorial messages",
   "SettingVerboseAnnouncements": "Verbose announcements",
+  "SettingBriefCastAnnouncements": "Brief own spell announcements",
   "SettingOn": "On",
   "SettingOff": "Off",
   "SettingChanged_Format": "{0} set to {1}",

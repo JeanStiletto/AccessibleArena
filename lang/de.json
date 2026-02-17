@@ -206,6 +206,7 @@
   "SettingLanguage": "Sprache",
   "SettingTutorialMessages": "Tutorial-Nachrichten",
   "SettingVerboseAnnouncements": "Ausführliche Ansagen",
+  "SettingBriefCastAnnouncements": "Kurze eigene Zauberansagen",
   "SettingOn": "An",
   "SettingOff": "Aus",
   "SettingChanged_Format": "{0} auf {1} gesetzt",

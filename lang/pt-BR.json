@@ -206,6 +206,7 @@
   "SettingLanguage": "Idioma",
   "SettingTutorialMessages": "Mensagens de tutorial",
   "SettingVerboseAnnouncements": "An\u00fancios detalhados",
+  "SettingBriefCastAnnouncements": "Anúncios breves de feitiços próprios",
   "SettingOn": "Ativado",
   "SettingOff": "Desativado",
   "SettingChanged_Format": "{0} definido para {1}",

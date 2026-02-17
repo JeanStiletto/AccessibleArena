@@ -206,6 +206,7 @@
   "SettingLanguage": "Langue",
   "SettingTutorialMessages": "Messages du tutoriel",
   "SettingVerboseAnnouncements": "Annonces détaillées",
+  "SettingBriefCastAnnouncements": "Annonces brèves de vos sorts",
   "SettingOn": "Activé",
   "SettingOff": "Désactivé",
   "SettingChanged_Format": "{0} réglé sur {1}",

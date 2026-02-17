@@ -23,6 +23,7 @@ namespace AccessibleArena.Core.Services
         public string Language { get; set; } = "en";
         public bool TutorialMessages { get; set; } = true;
         public bool VerboseAnnouncements { get; set; } = true;
+        public bool BriefCastAnnouncements { get; set; } = true;
 
         /// <summary>
         /// Load settings from disk. Returns defaults if file doesn't exist or is corrupt.
@@ -41,7 +42,7 @@ namespace AccessibleArena.Core.Services
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                MelonLogger.Msg($"[ModSettings] Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}");
+                MelonLogger.Msg($"[ModSettings] Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}");
             }
             catch (Exception ex)
             {
@@ -195,7 +196,8 @@ namespace AccessibleArena.Core.Services
             return "{\n" +
                    $"  \"Language\": \"{EscapeJson(Language)}\",\n" +
                    $"  \"TutorialMessages\": {(TutorialMessages ? "true" : "false")},\n" +
-                   $"  \"VerboseAnnouncements\": {(VerboseAnnouncements ? "true" : "false")}\n" +
+                   $"  \"VerboseAnnouncements\": {(VerboseAnnouncements ? "true" : "false")},\n" +
+                   $"  \"BriefCastAnnouncements\": {(BriefCastAnnouncements ? "true" : "false")}\n" +
                    "}";
         }
 
@@ -205,6 +207,7 @@ namespace AccessibleArena.Core.Services
             Language = ReadJsonString(json, "Language") ?? Language;
             TutorialMessages = ReadJsonBool(json, "TutorialMessages") ?? TutorialMessages;
             VerboseAnnouncements = ReadJsonBool(json, "VerboseAnnouncements") ?? VerboseAnnouncements;
+            BriefCastAnnouncements = ReadJsonBool(json, "BriefCastAnnouncements") ?? BriefCastAnnouncements;
         }
 
         private static string ReadJsonString(string json, string key)

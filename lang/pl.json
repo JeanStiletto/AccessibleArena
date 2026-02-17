@@ -216,6 +216,7 @@
   "SettingLanguage": "Język",
   "SettingTutorialMessages": "Komunikaty samouczka",
   "SettingVerboseAnnouncements": "Szczegółowe ogłoszenia",
+  "SettingBriefCastAnnouncements": "Krótkie ogłoszenia własnych zaklęć",
   "SettingOn": "Włączone",
   "SettingOff": "Wyłączone",
   "SettingChanged_Format": "{0} ustawiono na {1}",
