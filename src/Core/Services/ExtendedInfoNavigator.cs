@@ -134,6 +134,9 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex >= _items.Count - 1)
             {
+                // Single item: re-announce it before saying end of list
+                if (_items.Count == 1)
+                    AnnounceCurrentItem();
                 _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
@@ -146,6 +149,9 @@ namespace AccessibleArena.Core.Services
         {
             if (_currentIndex <= 0)
             {
+                // Single item: re-announce it before saying beginning of list
+                if (_items.Count == 1)
+                    AnnounceCurrentItem();
                 _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }

@@ -4,6 +4,11 @@ All notable changes to Accessible Arena.
 
 ## v0.6.6 - 2026-02-17
 
+### Bug Fix: Single-Item List Navigation
+- Fixed: Up/Down navigation on menus/screens with only one entry would say "Beginning/End of list" without reading the entry, or say nothing at all
+- Now re-announces the single entry before the boundary announcement
+- Affects all navigator types: grouped menus, extended card info (I), help (F1), settings (F2)
+
 ### New: Navigable Extended Card Info (I Key)
 - I key now opens a navigable modal menu instead of a one-shot announcement
 - Each keyword description is a separate navigable entry (e.g., "Flying: This creature can't be blocked...")

@@ -1243,6 +1243,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (_currentGroupIndex >= _groups.Count - 1)
             {
+                // Single group: re-announce it before saying end of list
+                if (_groups.Count == 1)
+                    AnnounceCurrentGroup();
                 _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return false;
             }
@@ -1256,6 +1259,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (_currentGroupIndex <= 0)
             {
+                // Single group: re-announce it before saying beginning of list
+                if (_groups.Count == 1)
+                    AnnounceCurrentGroup();
                 _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return false;
             }
@@ -1272,6 +1278,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             if (_currentElementIndex >= count - 1)
             {
+                // Single element: re-announce it before saying end of list
+                if (count == 1)
+                    AnnounceCurrentElement();
                 _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return false;
             }
@@ -1285,6 +1294,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (_currentElementIndex <= 0)
             {
+                // Single element: re-announce it before saying beginning of list
+                int count = GetCurrentElementCount();
+                if (count == 1)
+                    AnnounceCurrentElement();
                 _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return false;
             }
