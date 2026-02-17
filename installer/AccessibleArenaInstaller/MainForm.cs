@@ -307,52 +307,62 @@ namespace AccessibleArenaInstaller
                     UpdateProgress(75);
 
                     bool modInstalled = false;
-                    string installedVersion = installationManager.GetInstalledModVersion();
-                    string latestVersion = await githubClient.GetLatestModVersionAsync(Config.ModRepositoryUrl);
-
-                    Logger.Info($"Installed mod version: {installedVersion ?? "not installed"}");
-                    Logger.Info($"Latest mod version: {latestVersion ?? "unknown"}");
-
                     bool shouldInstallMod = true;
+                    string latestVersion = null;
 
-                    if (installedVersion != null && latestVersion != null)
+                    if (_updateOnly)
                     {
-                        // Mod is already installed - check if update needed
-                        if (IsVersionNewer(latestVersion, installedVersion))
-                        {
-                            var updateResult = MessageBox.Show(
-                                $"A newer version of the mod is available.\n\n" +
-                                $"Installed: v{installedVersion}\n" +
-                                $"Available: v{latestVersion}\n\n" +
-                                "Do you want to update?",
-                                "Update Available",
-                                MessageBoxButtons.YesNo,
-                                MessageBoxIcon.Question);
-
-                            shouldInstallMod = (updateResult == DialogResult.Yes);
-                        }
-                        else
-                        {
-                            Logger.Info("Mod is up to date");
-                            shouldInstallMod = false;
-                            modInstalled = true;
-                        }
+                        // User already confirmed update from the Update Available dialog.
+                        // Skip redundant version check and download directly.
+                        Logger.Info("Update mode - skipping version re-check, downloading latest");
                     }
-                    else if (latestVersion == null)
+                    else
                     {
-                        // Could not fetch version - ask user
-                        var downloadResult = MessageBox.Show(
-                            "Could not check for the latest mod version.\n\n" +
-                            "This may be because:\n" +
-                            "- No internet connection\n" +
-                            "- GitHub repository not found\n" +
-                            "- No releases published yet\n\n" +
-                            "Do you want to try downloading the mod anyway?",
-                            "Version Check Failed",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Warning);
+                        string installedVersion = installationManager.GetInstalledModVersion();
+                        latestVersion = await githubClient.GetLatestModVersionAsync(Config.ModRepositoryUrl);
 
-                        shouldInstallMod = (downloadResult == DialogResult.Yes);
+                        Logger.Info($"Installed mod version: {installedVersion ?? "not installed"}");
+                        Logger.Info($"Latest mod version: {latestVersion ?? "unknown"}");
+
+                        if (installedVersion != null && latestVersion != null)
+                        {
+                            // Mod is already installed - check if update needed
+                            if (IsVersionNewer(latestVersion, installedVersion))
+                            {
+                                var updateResult = MessageBox.Show(
+                                    $"A newer version of the mod is available.\n\n" +
+                                    $"Installed: v{installedVersion}\n" +
+                                    $"Available: v{latestVersion}\n\n" +
+                                    "Do you want to update?",
+                                    "Update Available",
+                                    MessageBoxButtons.YesNo,
+                                    MessageBoxIcon.Question);
+
+                                shouldInstallMod = (updateResult == DialogResult.Yes);
+                            }
+                            else
+                            {
+                                Logger.Info("Mod is up to date");
+                                shouldInstallMod = false;
+                                modInstalled = true;
+                            }
+                        }
+                        else if (latestVersion == null)
+                        {
+                            // Could not fetch version - ask user
+                            var downloadResult = MessageBox.Show(
+                                "Could not check for the latest mod version.\n\n" +
+                                "This may be because:\n" +
+                                "- No internet connection\n" +
+                                "- GitHub repository not found\n" +
+                                "- No releases published yet\n\n" +
+                                "Do you want to try downloading the mod anyway?",
+                                "Version Check Failed",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Warning);
+
+                            shouldInstallMod = (downloadResult == DialogResult.Yes);
+                        }
                     }
 
                     if (shouldInstallMod)

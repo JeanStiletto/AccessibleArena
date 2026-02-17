@@ -295,24 +295,41 @@ Not yet implemented:
 
 The installer compares two version numbers to detect updates:
 
-- **GitHub tag** — the tag name you type when creating a release (e.g., `v0.5`). Fetched via GitHub API.
+- **GitHub tag** — the tag name from the latest release (e.g., `v0.6.5`). Fetched via GitHub API, `v` prefix stripped.
 - **Assembly version** — the version baked into the compiled DLL. Read from the installed file via `AssemblyName.GetAssemblyName()`.
 
-These are completely independent. The GitHub tag is just a string, the assembly version comes from the `<Version>` property in your `.csproj` file. If you don't set `<Version>`, .NET defaults to `1.0.0.0`, which will always look "newer" than any `0.x` tag — so the installer will never detect updates.
+These two are completely independent sources. If they get out of sync, update detection breaks silently. The GitHub Actions workflow below handles this automatically, but if you build manually or adapt this for your own project, read the pitfalls section.
 
-**To avoid this:**
-- Always set `<Version>` in your mod's `.csproj`:
-  ```xml
-  <PropertyGroup>
-    <Version>0.5.0</Version>
-  </PropertyGroup>
-  ```
-- Keep it in sync with your GitHub release tags. When you tag `v0.5`, the csproj should say `0.5.0`.
-- The installer normalizes versions to 4 components (e.g., `0.5` becomes `0.5.0.0`), so `v0.5` and `0.5.0.0` compare as equal.
+### Pitfalls We Hit (Don't Repeat These)
+
+**Pitfall 1: Missing `<Version>` in csproj**
+If you don't set `<Version>` in your `.csproj`, .NET defaults the assembly version to `1.0.0.0`. If your GitHub tags are `v0.x`, the installer sees the installed DLL as version `1.0.0.0` which is numerically *higher* than any `0.x` release. Result: updates are never detected, even though the installed DLL is ancient.
+
+The installer now treats `1.0.0.0` as `0.0.0.0` as a safety net (see `NormalizeVersion`), but don't rely on this. Always set a real version.
+
+**Pitfall 2: Forgetting to bump the csproj version**
+Even after adding `<Version>`, if you tag `v0.6.5` on GitHub but the csproj still says `<Version>0.5.0</Version>`, every DLL you build will report `0.5.0.0` regardless of the release tag. The installer will perpetually show "update available" even when users already have the latest version, or worse, will skip updates when the stale version happens to match.
+
+**Solution:** Use the GitHub Actions workflow below, which injects the version from the git tag at build time. This makes the csproj version a fallback for local dev builds only - release builds always get the correct version from the tag.
+
+**Pitfall 3: Redundant version checks after user confirmation**
+If your installer shows an "Update Available" dialog and the user clicks "Update", don't re-check versions before downloading. A second version check can reach a different conclusion (network error, race condition, version format edge case) and silently skip the download the user just asked for. Once the user confirms, download unconditionally.
+
+### Version Normalization
+
+The installer normalizes versions to 4 components before comparing:
+- `v0.5` becomes `0.5.0.0`
+- `0.5.0.0` stays `0.5.0.0`
+- `1.0.0.0` (the .NET default) is treated as `0.0.0.0`
+- Pre-release suffixes stripped: `0.5.0-beta` becomes `0.5.0.0`
+
+This means `v0.5` and `0.5.0.0` compare as equal, which is the desired behavior.
 
 ## Automated Releases with GitHub Actions
 
-Instead of manually building and uploading release assets, you can use GitHub Actions to automate this. Create `.github/workflows/release.yml` in your repository:
+The release workflow extracts the version from the git tag and passes it to `dotnet build` via `-p:Version=...`. This overrides whatever `<Version>` is in the csproj, so the DLL assembly version always matches the tag automatically.
+
+Create `.github/workflows/release.yml` in your repository:
 
 ```yaml
 name: Release
@@ -330,13 +347,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.x'
 
       - name: Build mod (Release)
-        run: dotnet build src/YourMod.csproj -c Release
+        run: dotnet build src/YourMod.csproj -c Release -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Build installer (Release)
         run: dotnet build installer/YourInstaller.csproj -c Release
@@ -349,14 +371,27 @@ jobs:
             installer/bin/Release/net472/YourInstaller.exe
 ```
 
-**Release workflow becomes:**
-1. Bump `<Version>` in your `.csproj`, commit
-2. Tag: `git tag v0.5`
-3. Push: `git push origin v0.5`
+The key line is `-p:Version=${{ steps.version.outputs.VERSION }}` on the mod build step. This strips the `v` prefix from the tag (e.g., `v0.6.5` becomes `0.6.5`) and passes it as the assembly version.
 
-GitHub builds both projects and attaches the DLL and installer EXE to the release automatically. No more forgotten assets.
+**Release workflow:**
+1. Tag: `git tag v0.6.5`
+2. Push: `git push origin v0.6.5`
+3. GitHub Actions builds with the correct version baked in - no manual csproj edits needed
+
+You should still set a reasonable `<Version>` in the csproj for local development builds (it serves as a fallback when not building via CI), but the CI workflow is the source of truth for release versions.
 
 ## Changelog
+
+### Version 1.3
+- Fixed update detection failing for pre-v0.5 DLLs with legacy 1.0.0.0 assembly version
+  - NormalizeVersion now treats 1.0.0.0 (the .NET default) as 0.0.0.0 so any real release is newer
+- Fixed redundant version check in update mode blocking the download
+  - When user confirmed update via Update Available dialog, MainForm no longer re-checks versions
+- Fixed initial path detection using hardcoded default instead of DetectMtgaPath()
+  - Non-default MTGA installs now correctly detected for update checking
+- Fixed GitHub Actions workflow not setting DLL version from tag
+  - Workflow now extracts version from tag name and passes `-p:Version=` to dotnet build
+  - No longer depends on manually bumping `<Version>` in csproj before tagging
 
 ### Version 1.2
 - Fixed update check: version comparison now normalizes both sides to 4 components
