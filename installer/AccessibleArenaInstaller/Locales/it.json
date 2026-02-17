@@ -76,6 +76,9 @@
     "Main_ErrorInstall_Format": "Installazione fallita: {0}",
     "Main_ErrorUpdate_Format": "Aggiornamento fallito: {0}",
 
+    "Program_UpToDate_Title": "Mod aggiornata",
+    "Program_UpToDate_Format": "Accessible Arena v{0} \u00e8 gi\u00e0 installata e aggiornata.\n\nVuoi eseguire una reinstallazione completa?",
+
     "Update_Title": "Aggiornamento disponibile",
     "Update_Heading": "\u00c8 disponibile un aggiornamento!",
     "Update_VersionInfo_Format": "Versione installata: {0}\nUltima versione: {1}",

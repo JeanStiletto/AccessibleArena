@@ -76,6 +76,9 @@
     "Main_ErrorInstall_Format": "Instalacja nie powiod\u0142a si\u0119: {0}",
     "Main_ErrorUpdate_Format": "Aktualizacja nie powiod\u0142a si\u0119: {0}",
 
+    "Program_UpToDate_Title": "Mod jest aktualny",
+    "Program_UpToDate_Format": "Accessible Arena v{0} jest ju\u017c zainstalowany i aktualny.\n\nCzy chcesz wykona\u0107 pe\u0142n\u0105 reinstalacj\u0119?",
+
     "Update_Title": "Dost\u0119pna aktualizacja",
     "Update_Heading": "Dost\u0119pna jest aktualizacja!",
     "Update_VersionInfo_Format": "Zainstalowana wersja: {0}\nNajnowsza wersja: {1}",

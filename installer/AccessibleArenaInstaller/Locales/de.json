@@ -76,6 +76,9 @@
     "Main_ErrorInstall_Format": "Installation fehlgeschlagen: {0}",
     "Main_ErrorUpdate_Format": "Aktualisierung fehlgeschlagen: {0}",
 
+    "Program_UpToDate_Title": "Mod ist aktuell",
+    "Program_UpToDate_Format": "Accessible Arena v{0} ist bereits installiert und aktuell.\n\nM\u00f6chten Sie eine vollst\u00e4ndige Neuinstallation durchf\u00fchren?",
+
     "Update_Title": "Aktualisierung verf\u00fcgbar",
     "Update_Heading": "Eine Aktualisierung ist verf\u00fcgbar!",
     "Update_VersionInfo_Format": "Installierte Version: {0}\nNeueste Version: {1}",

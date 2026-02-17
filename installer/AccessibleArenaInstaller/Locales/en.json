@@ -76,6 +76,9 @@
     "Main_ErrorInstall_Format": "Installation failed: {0}",
     "Main_ErrorUpdate_Format": "Update failed: {0}",
 
+    "Program_UpToDate_Title": "Mod Up to Date",
+    "Program_UpToDate_Format": "Accessible Arena v{0} is already installed and up to date.\n\nWould you like to perform a full reinstall?",
+
     "Update_Title": "Update Available",
     "Update_Heading": "An update is available!",
     "Update_VersionInfo_Format": "Installed version: {0}\nLatest version: {1}",

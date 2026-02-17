@@ -76,6 +76,9 @@
     "Main_ErrorInstall_Format": "\u5b89\u88c5\u5931\u8d25\uff1a{0}",
     "Main_ErrorUpdate_Format": "\u66f4\u65b0\u5931\u8d25\uff1a{0}",
 
+    "Program_UpToDate_Title": "\u6a21\u7ec4\u5df2\u662f\u6700\u65b0\u7248\u672c",
+    "Program_UpToDate_Format": "Accessible Arena v{0} \u5df2\u5b89\u88c5\u4e14\u4e3a\u6700\u65b0\u7248\u672c\u3002\n\n\u662f\u5426\u8981\u6267\u884c\u5b8c\u6574\u91cd\u65b0\u5b89\u88c5\uff1f",
+
     "Update_Title": "\u6709\u53ef\u7528\u66f4\u65b0",
     "Update_Heading": "\u6709\u65b0\u7248\u672c\u53ef\u7528\uff01",
     "Update_VersionInfo_Format": "\u5df2\u5b89\u88c5\u7248\u672c\uff1a{0}\n\u6700\u65b0\u7248\u672c\uff1a{1}",

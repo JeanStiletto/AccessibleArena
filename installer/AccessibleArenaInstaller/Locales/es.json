@@ -76,6 +76,9 @@
     "Main_ErrorInstall_Format": "La instalaci\u00f3n fall\u00f3: {0}",
     "Main_ErrorUpdate_Format": "La actualizaci\u00f3n fall\u00f3: {0}",
 
+    "Program_UpToDate_Title": "Mod actualizado",
+    "Program_UpToDate_Format": "Accessible Arena v{0} ya est\u00e1 instalado y actualizado.\n\n\u00bfDesea realizar una reinstalaci\u00f3n completa?",
+
     "Update_Title": "Actualizaci\u00f3n disponible",
     "Update_Heading": "\u00a1Hay una actualizaci\u00f3n disponible!",
     "Update_VersionInfo_Format": "Versi\u00f3n instalada: {0}\n\u00daltima versi\u00f3n: {1}",

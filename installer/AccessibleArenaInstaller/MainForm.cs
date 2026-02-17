@@ -307,38 +307,33 @@ namespace AccessibleArenaInstaller
                     if (_updateOnly)
                     {
                         // User already confirmed update from the Update Available dialog.
-                        // Skip redundant version check and download directly.
+                        // Still fetch latest version tag for registry registration.
                         Logger.Info("Update mode - skipping version re-check, downloading latest");
+                        try
+                        {
+                            latestVersion = await githubClient.GetLatestModVersionAsync(Config.ModRepositoryUrl);
+                            Logger.Info($"Latest mod version for registry: {latestVersion ?? "unknown"}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Warning($"Could not fetch latest version: {ex.Message}");
+                        }
                     }
                     else
                     {
-                        string installedVersion = installationManager.GetInstalledModVersion();
-                        latestVersion = await githubClient.GetLatestModVersionAsync(Config.ModRepositoryUrl);
-
-                        Logger.Info($"Installed mod version: {installedVersion ?? "not installed"}");
-                        Logger.Info($"Latest mod version: {latestVersion ?? "unknown"}");
-
-                        if (installedVersion != null && latestVersion != null)
+                        // Full install/reinstall - user already confirmed in Program.cs.
+                        // Just fetch latest version for registry registration.
+                        try
                         {
-                            // Mod is already installed - check if update needed
-                            if (IsVersionNewer(latestVersion, installedVersion))
-                            {
-                                var updateResult = MessageBox.Show(
-                                    InstallerLocale.Format("Main_UpdateAvailable_Format", installedVersion, latestVersion),
-                                    InstallerLocale.Get("Main_UpdateAvailable_Title"),
-                                    MessageBoxButtons.YesNo,
-                                    MessageBoxIcon.Question);
-
-                                shouldInstallMod = (updateResult == DialogResult.Yes);
-                            }
-                            else
-                            {
-                                Logger.Info("Mod is up to date");
-                                shouldInstallMod = false;
-                                modInstalled = true;
-                            }
+                            latestVersion = await githubClient.GetLatestModVersionAsync(Config.ModRepositoryUrl);
+                            Logger.Info($"Latest mod version for registry: {latestVersion ?? "unknown"}");
                         }
-                        else if (latestVersion == null)
+                        catch (Exception ex)
+                        {
+                            Logger.Warning($"Could not fetch latest version: {ex.Message}");
+                        }
+
+                        if (latestVersion == null)
                         {
                             // Could not fetch version - ask user
                             var downloadResult = MessageBox.Show(
@@ -398,7 +393,7 @@ namespace AccessibleArenaInstaller
 
                     // Step 6: Register in Add/Remove Programs
                     UpdateStatus(InstallerLocale.Get("Main_StatusRegistering"));
-                    string installedModVersion = installationManager.GetInstalledModVersion() ?? latestVersion ?? "1.0.0";
+                    string installedModVersion = latestVersion ?? installationManager.GetInstalledModVersion() ?? "1.0.0";
                     RegistryManager.Register(_mtgaPath, installedModVersion);
 
                     UpdateProgress(100);

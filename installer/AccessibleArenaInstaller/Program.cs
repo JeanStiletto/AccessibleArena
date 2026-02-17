@@ -128,16 +128,24 @@ namespace AccessibleArenaInstaller
                 {
                     Logger.Info("Mod found in default location, checking for updates...");
 
-                    // Get installed version
-                    try
+                    // Get installed version - prefer registry (stores GitHub tag), fall back to DLL assembly version
+                    installedVersion = RegistryManager.GetRegisteredVersion();
+                    if (installedVersion != null)
                     {
-                        var assemblyName = AssemblyName.GetAssemblyName(modPath);
-                        installedVersion = assemblyName.Version.ToString();
-                        Logger.Info($"Installed version: {installedVersion}");
+                        Logger.Info($"Installed version (from registry): {installedVersion}");
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Logger.Warning($"Could not read installed mod version: {ex.Message}");
+                        try
+                        {
+                            var assemblyName = AssemblyName.GetAssemblyName(modPath);
+                            installedVersion = assemblyName.Version.ToString();
+                            Logger.Info($"Installed version (from DLL): {installedVersion}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Warning($"Could not read installed mod version: {ex.Message}");
+                        }
                     }
 
                     // Get latest version from GitHub
@@ -198,9 +206,41 @@ namespace AccessibleArenaInstaller
                             break;
                     }
                 }
+                else if (modExists)
+                {
+                    // Mod installed and up to date (or newer than release)
+                    Logger.Info($"Mod is up to date (installed: {installedVersion ?? "unknown"})");
+
+                    string displayVersion = installedVersion ?? "?";
+                    // Strip trailing .0 for display (e.g. "0.6.5.0" -> "0.6.5")
+                    while (displayVersion.EndsWith(".0") && displayVersion.IndexOf('.') != displayVersion.LastIndexOf('.'))
+                        displayVersion = displayVersion.Substring(0, displayVersion.Length - 2);
+
+                    var result = MessageBox.Show(
+                        InstallerLocale.Format("Program_UpToDate_Format", displayVersion),
+                        InstallerLocale.Get("Program_UpToDate_Title"),
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information);
+
+                    if (result != DialogResult.Yes)
+                    {
+                        Logger.Info("User closed - mod is up to date");
+                        return;
+                    }
+
+                    // User wants full reinstall
+                    Logger.Info("User chose full reinstall");
+                    var welcomeForm = new WelcomeForm();
+                    Application.Run(welcomeForm);
+                    if (welcomeForm.ProceedWithInstall)
+                    {
+                        mtgaPath = pathArg ?? DetectMtgaPath();
+                        Application.Run(new MainForm(mtgaPath, language: welcomeForm.SelectedLanguage));
+                    }
+                }
                 else
                 {
-                    // No mod installed or no update available - show default welcome dialog
+                    // No mod installed - show default welcome dialog
                     var welcomeResult = MessageBox.Show(
                         InstallerLocale.Get("Program_Welcome_Text"),
                         InstallerLocale.Get("Program_Welcome_Title"),
