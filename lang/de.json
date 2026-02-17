@@ -699,5 +699,13 @@
   "Duel_SelectForBottom_Format": "Wähle {0} Karten für unten. {1} Karten. Enter zum Umschalten, Leertaste wenn fertig",
   "Duel_SelectedForBottom_Format": "{0} von {1} für unten ausgewählt",
 
-  "Duel_OwnerPrefix_Opponent": "Gegners "
+  "Duel_OwnerPrefix_Opponent": "Gegners ",
+
+  "CardInfoKeywords": "Schlüsselwörter",
+  "NoExtendedCardInfo": "Keine zusätzlichen Informationen",
+  "LinkedFace_OtherFace": "Andere Seite",
+  "LinkedFace_OtherHalf": "Andere Hälfte",
+  "LinkedFace_Adventure": "Abenteuer",
+  "LinkedFace_OtherRoom": "Anderer Raum",
+  "HelpIExtendedInfo": "I: Erweiterte Karteninfo (Schlüsselwörter und andere Seiten)"
 }

@@ -679,5 +679,13 @@
   "Duel_SelectForBottom_One": "Selecciona 1 carta para poner abajo. {0} cartas. Enter para alternar, Espacio cuando termines",
   "Duel_SelectForBottom_Format": "Selecciona {0} cartas para poner abajo. {1} cartas. Enter para alternar, Espacio cuando termines",
   "Duel_SelectedForBottom_Format": "{0} de {1} seleccionadas para abajo",
-  "Duel_OwnerPrefix_Opponent": "Del oponente "
+  "Duel_OwnerPrefix_Opponent": "Del oponente ",
+
+  "CardInfoKeywords": "Palabras clave",
+  "NoExtendedCardInfo": "Sin información adicional",
+  "LinkedFace_OtherFace": "Otra cara",
+  "LinkedFace_OtherHalf": "Otra mitad",
+  "LinkedFace_Adventure": "Aventura",
+  "LinkedFace_OtherRoom": "Otra sala",
+  "HelpIExtendedInfo": "I: Info extendida (palabras clave y otras caras)"
 }

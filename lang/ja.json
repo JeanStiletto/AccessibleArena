@@ -678,5 +678,13 @@
   "Duel_SelectForBottom_One": "下に置くカードを1枚選択。{0}枚。Enterで切替、スペースで決定",
   "Duel_SelectForBottom_Format": "下に置くカードを{0}枚選択。{1}枚。Enterで切替、スペースで決定",
   "Duel_SelectedForBottom_Format": "{1}枚中{0}枚を下に選択済み",
-  "Duel_OwnerPrefix_Opponent": "対戦相手の"
+  "Duel_OwnerPrefix_Opponent": "対戦相手の",
+
+  "CardInfoKeywords": "キーワード",
+  "NoExtendedCardInfo": "追加情報なし",
+  "LinkedFace_OtherFace": "もう一方の面",
+  "LinkedFace_OtherHalf": "もう一方の半分",
+  "LinkedFace_Adventure": "出来事",
+  "LinkedFace_OtherRoom": "別の部屋",
+  "HelpIExtendedInfo": "I：拡張カード情報（キーワードと他の面）"
 }

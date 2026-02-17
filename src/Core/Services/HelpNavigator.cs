@@ -97,6 +97,7 @@ namespace AccessibleArena.Core.Services
                 // Card details
                 Strings.HelpCategoryCardDetails,
                 Strings.HelpUpDownDetails,
+                Strings.HelpIExtendedInfo,
 
                 // Combat
                 Strings.HelpCategoryCombat,

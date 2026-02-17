@@ -122,7 +122,7 @@ Row Switching: Shift+Up (Previous row), Shift+Down (Next row)
 Within Row: Left/Right (Navigate cards), Home/End (Jump to first/last)
 
 **Duel - Info:**
-T (Turn), L (Life), V (Player Info Zone)
+T (Turn), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descriptions + other faces)
 D (Your Library Count), Shift+D (Opponent Library Count), Shift+C (Opponent Hand Count)
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 

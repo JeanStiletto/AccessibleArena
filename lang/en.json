@@ -701,5 +701,13 @@
   "Duel_SelectForBottom_Format": "Select {0} cards to put on bottom. {1} cards. Enter to toggle, Space when done",
   "Duel_SelectedForBottom_Format": "{0} of {1} selected for bottom",
 
-  "Duel_OwnerPrefix_Opponent": "Opponent's "
+  "Duel_OwnerPrefix_Opponent": "Opponent's ",
+
+  "CardInfoKeywords": "Keywords",
+  "NoExtendedCardInfo": "No additional information",
+  "LinkedFace_OtherFace": "Other face",
+  "LinkedFace_OtherHalf": "Other half",
+  "LinkedFace_Adventure": "Adventure",
+  "LinkedFace_OtherRoom": "Other room",
+  "HelpIExtendedInfo": "I: Extended card info (keywords and other faces)"
 }

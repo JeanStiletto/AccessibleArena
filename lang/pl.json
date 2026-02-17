@@ -693,5 +693,13 @@
   "Duel_SelectForBottom_One": "Wybierz 1 kartę na dół. {0} kart. Enter aby przełączyć, Spacja gdy gotowe",
   "Duel_SelectForBottom_Format": "Wybierz {0} kart na dół. {1} kart. Enter aby przełączyć, Spacja gdy gotowe",
   "Duel_SelectedForBottom_Format": "{0} z {1} wybranych na dół",
-  "Duel_OwnerPrefix_Opponent": "Przeciwnika "
+  "Duel_OwnerPrefix_Opponent": "Przeciwnika ",
+
+  "CardInfoKeywords": "Słowa kluczowe",
+  "NoExtendedCardInfo": "Brak dodatkowych informacji",
+  "LinkedFace_OtherFace": "Druga strona",
+  "LinkedFace_OtherHalf": "Druga połowa",
+  "LinkedFace_Adventure": "Przygoda",
+  "LinkedFace_OtherRoom": "Inny pokój",
+  "HelpIExtendedInfo": "I: Rozszerzone info (słowa kluczowe i inne strony)"
 }

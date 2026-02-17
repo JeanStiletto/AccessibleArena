@@ -679,5 +679,13 @@
   "Duel_SelectForBottom_One": "Seleziona 1 carta da mettere in fondo. {0} carte. Invio per alternare, Spazio quando hai finito",
   "Duel_SelectForBottom_Format": "Seleziona {0} carte da mettere in fondo. {1} carte. Invio per alternare, Spazio quando hai finito",
   "Duel_SelectedForBottom_Format": "{0} di {1} selezionate per il fondo",
-  "Duel_OwnerPrefix_Opponent": "Dell'avversario "
+  "Duel_OwnerPrefix_Opponent": "Dell'avversario ",
+
+  "CardInfoKeywords": "Parole chiave",
+  "NoExtendedCardInfo": "Nessuna informazione aggiuntiva",
+  "LinkedFace_OtherFace": "Altra faccia",
+  "LinkedFace_OtherHalf": "Altra metà",
+  "LinkedFace_Adventure": "Avventura",
+  "LinkedFace_OtherRoom": "Altra stanza",
+  "HelpIExtendedInfo": "I: Info estesa (parole chiave e altre facce)"
 }

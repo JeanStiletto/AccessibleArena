@@ -679,5 +679,13 @@
   "Duel_SelectForBottom_One": "选择1张牌放到底部。{0}张牌。Enter切换，空格完成",
   "Duel_SelectForBottom_Format": "选择{0}张牌放到底部。{1}张牌。Enter切换，空格完成",
   "Duel_SelectedForBottom_Format": "{1}张中已选{0}张放底部",
-  "Duel_OwnerPrefix_Opponent": "对手的"
+  "Duel_OwnerPrefix_Opponent": "对手的",
+
+  "CardInfoKeywords": "关键词",
+  "NoExtendedCardInfo": "没有额外信息",
+  "LinkedFace_OtherFace": "另一面",
+  "LinkedFace_OtherHalf": "另一半",
+  "LinkedFace_Adventure": "历险",
+  "LinkedFace_OtherRoom": "其他房间",
+  "HelpIExtendedInfo": "I：扩展卡牌信息（关键词和其他面）"
 }

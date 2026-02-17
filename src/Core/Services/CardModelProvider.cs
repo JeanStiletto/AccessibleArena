@@ -82,6 +82,8 @@ namespace AccessibleArena.Core.Services
             _targetIdsFieldSearched = false;
             _targetedByIdsField = null;
             _targetedByIdsFieldSearched = false;
+            // Extended info cache (keywords + linked faces)
+            ClearExtendedInfoCache();
         }
 
         #region Component Access
@@ -3664,6 +3666,355 @@ namespace AccessibleArena.Core.Services
             }
 
             return info;
+        }
+
+        #endregion
+
+        #region Extended Card Info (Keywords + Linked Faces)
+
+        // Cache for keyword/linked face reflection
+        private static PropertyInfo _abilitiesTextIdProp;
+        private static bool _abilitiesTextIdPropSearched;
+        private static PropertyInfo _linkedFaceTypeProp;
+        private static bool _linkedFaceTypePropSearched;
+        private static PropertyInfo _linkedFaceGrpIdsProp;
+        private static bool _linkedFaceGrpIdsPropSearched;
+
+        // Cache for duel-scene CardDataProvider
+        private static object _duelCardDataProvider;
+        private static MethodInfo _duelGetCardPrintingMethod;
+        private static bool _duelCardDataProviderSearched;
+
+        /// <summary>
+        /// Clears extended info caches. Called from ClearCache().
+        /// </summary>
+        private static void ClearExtendedInfoCache()
+        {
+            _abilitiesTextIdProp = null;
+            _abilitiesTextIdPropSearched = false;
+            _linkedFaceTypeProp = null;
+            _linkedFaceTypePropSearched = false;
+            _linkedFaceGrpIdsProp = null;
+            _linkedFaceGrpIdsPropSearched = false;
+            _duelCardDataProvider = null;
+            _duelGetCardPrintingMethod = null;
+            _duelCardDataProviderSearched = false;
+        }
+
+        /// <summary>
+        /// Gets keyword ability descriptions for the focused card.
+        /// Uses Abilities[].TextId resolved via GreLocProvider to get descriptions like
+        /// "Flying: This creature can't be blocked except by creatures with flying or reach."
+        /// </summary>
+        public static List<string> GetKeywordDescriptions(GameObject card)
+        {
+            var result = new List<string>();
+            if (card == null) return result;
+
+            try
+            {
+                // Get model from card
+                object model = null;
+                var cdc = GetDuelSceneCDC(card);
+                if (cdc != null)
+                    model = GetCardModel(cdc);
+                if (model == null)
+                {
+                    var metaView = GetMetaCardView(card);
+                    if (metaView != null)
+                        model = GetMetaCardModel(metaView);
+                }
+                if (model == null) return result;
+
+                var objType = model.GetType();
+
+                // Get Abilities list
+                var abilities = GetModelPropertyValue(model, objType, "Abilities");
+                if (abilities == null || !(abilities is IEnumerable abilityEnum)) return result;
+
+                // Also get rules text for dedup
+                string rulesText = null;
+                var existingInfo = ExtractCardInfoFromObject(model);
+                rulesText = existingInfo.RulesText ?? "";
+
+                // Ensure flavor text provider is available (it resolves TextId the same way)
+                if (!_flavorTextProviderSearched)
+                {
+                    _flavorTextProviderSearched = true;
+                    FindFlavorTextProvider();
+                }
+
+                var seen = new HashSet<string>();
+
+                foreach (var ability in abilityEnum)
+                {
+                    if (ability == null) continue;
+                    var abilityType = ability.GetType();
+
+                    // Cache TextId property lookup
+                    if (!_abilitiesTextIdPropSearched)
+                    {
+                        _abilitiesTextIdPropSearched = true;
+                        _abilitiesTextIdProp = abilityType.GetProperty("TextId", BindingFlags.Public | BindingFlags.Instance);
+                    }
+
+                    if (_abilitiesTextIdProp == null) continue;
+
+                    var textIdVal = _abilitiesTextIdProp.GetValue(ability);
+                    if (textIdVal == null) continue;
+
+                    uint textId = 0;
+                    if (textIdVal is uint uid) textId = uid;
+                    else if (textIdVal is int iid && iid > 0) textId = (uint)iid;
+
+                    if (textId <= 1) continue; // 0 or 1 = no text
+
+                    // Resolve via same provider used for flavor text (GreLocProvider.GetLocalizedText)
+                    string desc = ResolveLocText(textId);
+                    if (string.IsNullOrEmpty(desc)) continue;
+
+                    // Parse mana symbols in the description
+                    desc = ParseManaSymbolsInText(desc);
+
+                    // Skip if it's the same as a rules text line (dedup)
+                    if (!string.IsNullOrEmpty(rulesText) && rulesText.Contains(desc))
+                        continue;
+
+                    // Deduplicate
+                    if (seen.Add(desc))
+                        result.Add(desc);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error getting keyword descriptions: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Resolves a localization text ID via the flavor text provider (GreLocProvider).
+        /// Returns null if not found or provider unavailable.
+        /// </summary>
+        private static string ResolveLocText(uint locId)
+        {
+            if (locId <= 1) return null;
+            if (_flavorTextProvider == null || _getFlavorTextMethod == null) return null;
+
+            try
+            {
+                var parameters = _getFlavorTextMethod.GetParameters();
+                object result;
+
+                if (parameters.Length == 3)
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId, null, false });
+                else if (parameters.Length == 1)
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId });
+                else
+                    return null;
+
+                var text = result as string;
+                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.Contains("Unknown"))
+                    return text;
+            }
+            catch { }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets linked face information for double-faced, split, adventure, and room cards.
+        /// Returns a label (e.g. "Other face") and full CardInfo for the linked face, or null if none.
+        /// </summary>
+        public static (string label, CardInfo faceInfo)? GetLinkedFaceInfo(GameObject card)
+        {
+            if (card == null) return null;
+
+            try
+            {
+                // Get model
+                object model = null;
+                var cdc = GetDuelSceneCDC(card);
+                if (cdc != null)
+                    model = GetCardModel(cdc);
+                if (model == null)
+                {
+                    var metaView = GetMetaCardView(card);
+                    if (metaView != null)
+                        model = GetMetaCardModel(metaView);
+                }
+                if (model == null) return null;
+
+                var objType = model.GetType();
+
+                // Get LinkedFaceType (enum stored as int)
+                if (!_linkedFaceTypePropSearched)
+                {
+                    _linkedFaceTypePropSearched = true;
+                    _linkedFaceTypeProp = objType.GetProperty("LinkedFaceType", BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (_linkedFaceTypeProp == null) return null;
+
+                var linkedFaceVal = _linkedFaceTypeProp.GetValue(model);
+                if (linkedFaceVal == null) return null;
+
+                int linkedFaceInt = (int)Convert.ChangeType(linkedFaceVal, typeof(int));
+                if (linkedFaceInt == 0) return null; // None
+
+                // Get LinkedFaceGrpIds
+                if (!_linkedFaceGrpIdsPropSearched)
+                {
+                    _linkedFaceGrpIdsPropSearched = true;
+                    _linkedFaceGrpIdsProp = objType.GetProperty("LinkedFaceGrpIds", BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (_linkedFaceGrpIdsProp == null) return null;
+
+                var grpIdsVal = _linkedFaceGrpIdsProp.GetValue(model);
+                if (grpIdsVal == null) return null;
+
+                // Extract first GrpId from the list
+                uint faceGrpId = 0;
+                if (grpIdsVal is IEnumerable grpIdsEnum)
+                {
+                    foreach (var item in grpIdsEnum)
+                    {
+                        if (item is uint uid && uid > 0) { faceGrpId = uid; break; }
+                        if (item is int iid && iid > 0) { faceGrpId = (uint)iid; break; }
+                    }
+                }
+
+                if (faceGrpId == 0) return null;
+
+                // Look up card data for the linked face GrpId
+                var faceData = GetCardDataFromGrpIdDuelScene(faceGrpId);
+                if (faceData == null) return null;
+
+                var faceInfo = ExtractCardInfoFromObject(faceData);
+                if (!faceInfo.IsValid) return null;
+
+                // Map linked face type to label
+                string label = GetLinkedFaceLabel(linkedFaceInt);
+
+                return (label, faceInfo);
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error getting linked face info: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Maps LinkedFace enum int to a user-facing label.
+        /// Values based on decompiled LinkedFace enum.
+        /// </summary>
+        private static string GetLinkedFaceLabel(int linkedFaceType)
+        {
+            switch (linkedFaceType)
+            {
+                case 1:  // DfcFront
+                case 2:  // DfcBack
+                    return Strings.LinkedFaceOtherFace;
+                case 5:  // SplitCard
+                case 6:  // SplitHalf
+                    return Strings.LinkedFaceOtherHalf;
+                case 7:  // AdventureParent
+                case 8:  // AdventureChild
+                    return Strings.LinkedFaceAdventure;
+                case 9:  // MdfcFront
+                case 10: // MdfcBack
+                    return Strings.LinkedFaceOtherFace;
+                case 15: // RoomCard
+                case 16: // RoomHalf
+                    return Strings.LinkedFaceOtherRoom;
+                default:
+                    return Strings.LinkedFaceOtherFace;
+            }
+        }
+
+        /// <summary>
+        /// Gets CardData from a GrpId using the duel-scene CardDatabase.
+        /// Separate from GetCardDataFromGrpId() which requires _cachedDeckHolder (menu-only).
+        /// </summary>
+        private static object GetCardDataFromGrpIdDuelScene(uint grpId)
+        {
+            if (grpId == 0) return null;
+
+            // First try the menu-scene path (works if _cachedDeckHolder is available)
+            if (_cachedDeckHolder != null)
+            {
+                var menuResult = GetCardDataFromGrpId(grpId);
+                if (menuResult != null) return menuResult;
+            }
+
+            // Try duel-scene path via GameManager.CardDatabase.CardDataProvider
+            if (!_duelCardDataProviderSearched)
+            {
+                _duelCardDataProviderSearched = true;
+                FindDuelCardDataProvider();
+            }
+
+            if (_duelCardDataProvider == null || _duelGetCardPrintingMethod == null)
+                return null;
+
+            try
+            {
+                var result = _duelGetCardPrintingMethod.Invoke(_duelCardDataProvider, new object[] { grpId, null });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error getting card data for GrpId {grpId} in duel scene: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds and caches the CardDataProvider from GameManager.CardDatabase for duel scene lookups.
+        /// </summary>
+        private static void FindDuelCardDataProvider()
+        {
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+                if (type.Name != "GameManager") continue;
+
+                var cardDbProp = type.GetProperty("CardDatabase");
+                if (cardDbProp == null) break;
+
+                var cardDb = cardDbProp.GetValue(mb);
+                if (cardDb == null) break;
+
+                var cardDbType = cardDb.GetType();
+                var cdpProp = cardDbType.GetProperty("CardDataProvider");
+                if (cdpProp == null) break;
+
+                var cdp = cdpProp.GetValue(cardDb);
+                if (cdp == null) break;
+
+                var cdpType = cdp.GetType();
+
+                // Try GetCardPrintingById(uint id, string skinCode)
+                var method = cdpType.GetMethod("GetCardPrintingById", new[] { typeof(uint), typeof(string) });
+                if (method == null)
+                    method = cdpType.GetMethod("GetCardRecordById", new[] { typeof(uint), typeof(string) });
+
+                if (method != null)
+                {
+                    _duelCardDataProvider = cdp;
+                    _duelGetCardPrintingMethod = method;
+                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                        $"Found duel CardDataProvider: {cdpType.Name}.{method.Name}");
+                }
+                break;
+            }
         }
 
         #endregion

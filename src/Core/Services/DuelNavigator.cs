@@ -400,6 +400,22 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // I key: Extended card info (keyword descriptions + linked face)
+            if (Input.GetKeyDown(KeyCode.I))
+            {
+                var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
+                if (cardNav != null && cardNav.IsActive)
+                {
+                    string extInfo = cardNav.GetExtendedCardInfo();
+                    _announcer.AnnounceInterrupt(extInfo ?? Strings.NoCardToInspect);
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
+                }
+                return true;
+            }
+
             // Battlefield navigation (A/R/B shortcuts and row-based navigation)
             if (_battlefieldNavigator.HandleInput())
                 return true;

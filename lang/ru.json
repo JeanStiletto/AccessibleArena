@@ -693,5 +693,13 @@
   "Duel_SelectForBottom_One": "Выберите 1 карту для низа. {0} карт. Enter для переключения, Пробел когда готово",
   "Duel_SelectForBottom_Format": "Выберите {0} карт для низа. {1} карт. Enter для переключения, Пробел когда готово",
   "Duel_SelectedForBottom_Format": "{0} из {1} выбрано для низа",
-  "Duel_OwnerPrefix_Opponent": "Оппонента "
+  "Duel_OwnerPrefix_Opponent": "Оппонента ",
+
+  "CardInfoKeywords": "Ключевые слова",
+  "NoExtendedCardInfo": "Нет дополнительной информации",
+  "LinkedFace_OtherFace": "Другая сторона",
+  "LinkedFace_OtherHalf": "Другая половина",
+  "LinkedFace_Adventure": "Приключение",
+  "LinkedFace_OtherRoom": "Другая комната",
+  "HelpIExtendedInfo": "I: Расширенная информация (ключевые слова и другие стороны)"
 }

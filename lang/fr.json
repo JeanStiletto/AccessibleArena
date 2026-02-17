@@ -699,5 +699,13 @@
   "Duel_SelectForBottom_Format": "Sélectionnez {0} cartes à mettre en dessous. {1} cartes. Entrée pour basculer, Espace quand terminé",
   "Duel_SelectedForBottom_Format": "{0} sur {1} sélectionnées pour le dessous",
 
-  "Duel_OwnerPrefix_Opponent": "De l'adversaire "
+  "Duel_OwnerPrefix_Opponent": "De l'adversaire ",
+
+  "CardInfoKeywords": "Mots-clés",
+  "NoExtendedCardInfo": "Aucune information supplémentaire",
+  "LinkedFace_OtherFace": "Autre face",
+  "LinkedFace_OtherHalf": "Autre moitié",
+  "LinkedFace_Adventure": "Aventure",
+  "LinkedFace_OtherRoom": "Autre salle",
+  "HelpIExtendedInfo": "I : Info étendue (mots-clés et autres faces)"
 }

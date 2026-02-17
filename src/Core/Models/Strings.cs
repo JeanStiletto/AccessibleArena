@@ -456,6 +456,15 @@ namespace AccessibleArena.Core.Models
         public static string EndOfCard => L.Get("EndOfCard");
         public static string BeginningOfCard => L.Get("BeginningOfCard");
 
+        // Extended card info (I key)
+        public static string CardInfoKeywords => L.Get("CardInfoKeywords");
+        public static string NoExtendedCardInfo => L.Get("NoExtendedCardInfo");
+        public static string LinkedFaceOtherFace => L.Get("LinkedFace_OtherFace");
+        public static string LinkedFaceOtherHalf => L.Get("LinkedFace_OtherHalf");
+        public static string LinkedFaceAdventure => L.Get("LinkedFace_Adventure");
+        public static string LinkedFaceOtherRoom => L.Get("LinkedFace_OtherRoom");
+        public static string HelpIExtendedInfo => L.Get("HelpIExtendedInfo");
+
         // Card info block labels
         public static string CardInfoName => L.Get("CardInfoName");
         public static string CardInfoQuantity => L.Get("CardInfoQuantity");

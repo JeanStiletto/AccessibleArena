@@ -678,5 +678,13 @@
   "Duel_SelectForBottom_One": "아래에 놓을 카드 1장 선택. {0}장. Enter로 전환, 스페이스로 완료",
   "Duel_SelectForBottom_Format": "아래에 놓을 카드 {0}장 선택. {1}장. Enter로 전환, 스페이스로 완료",
   "Duel_SelectedForBottom_Format": "{1}장 중 {0}장 아래로 선택됨",
-  "Duel_OwnerPrefix_Opponent": "상대의 "
+  "Duel_OwnerPrefix_Opponent": "상대의 ",
+
+  "CardInfoKeywords": "키워드",
+  "NoExtendedCardInfo": "추가 정보 없음",
+  "LinkedFace_OtherFace": "다른 면",
+  "LinkedFace_OtherHalf": "다른 절반",
+  "LinkedFace_Adventure": "모험",
+  "LinkedFace_OtherRoom": "다른 방",
+  "HelpIExtendedInfo": "I: 확장 카드 정보 (키워드 및 다른 면)"
 }
