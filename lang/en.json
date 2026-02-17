@@ -709,5 +709,9 @@
   "LinkedFace_OtherHalf": "Other half",
   "LinkedFace_Adventure": "Adventure",
   "LinkedFace_OtherRoom": "Other room",
-  "HelpIExtendedInfo": "I: Extended card info (keywords and other faces)"
+  "HelpIExtendedInfo": "I: Extended card info (keywords and other faces)",
+
+  "ExtendedInfoTitle": "Extended card info",
+  "ExtendedInfoClosed": "Extended info closed",
+  "ExtendedInfoInstructions": "Navigate with Up and Down. Close with I or Backspace."
 }

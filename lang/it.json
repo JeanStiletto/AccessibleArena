@@ -687,5 +687,9 @@
   "LinkedFace_OtherHalf": "Altra metà",
   "LinkedFace_Adventure": "Avventura",
   "LinkedFace_OtherRoom": "Altra stanza",
-  "HelpIExtendedInfo": "I: Info estesa (parole chiave e altre facce)"
+  "HelpIExtendedInfo": "I: Info estesa (parole chiave e altre facce)",
+
+  "ExtendedInfoTitle": "Info carta estesa",
+  "ExtendedInfoClosed": "Info estesa chiusa",
+  "ExtendedInfoInstructions": "Naviga con Su e Giù. Chiudi con I o Backspace."
 }

@@ -686,5 +686,9 @@
   "LinkedFace_OtherHalf": "もう一方の半分",
   "LinkedFace_Adventure": "出来事",
   "LinkedFace_OtherRoom": "別の部屋",
-  "HelpIExtendedInfo": "I：拡張カード情報（キーワードと他の面）"
+  "HelpIExtendedInfo": "I：拡張カード情報（キーワードと他の面）",
+
+  "ExtendedInfoTitle": "カード詳細情報",
+  "ExtendedInfoClosed": "詳細情報を閉じました",
+  "ExtendedInfoInstructions": "上下キーで移動。IまたはBackspaceで閉じます。"
 }

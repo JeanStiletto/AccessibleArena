@@ -114,55 +114,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets extended card information: keyword descriptions and linked face info.
-        /// Returns a formatted string for screen reader announcement, or null if not available.
-        /// </summary>
-        public string GetExtendedCardInfo()
-        {
-            if (!_isActive || _currentCard == null)
-                return null;
-
-            var parts = new List<string>();
-
-            // Keyword descriptions
-            var keywords = CardModelProvider.GetKeywordDescriptions(_currentCard);
-            if (keywords.Count > 0)
-            {
-                string keywordText = $"{Strings.CardInfoKeywords}: {string.Join(". ", keywords)}";
-                parts.Add(keywordText);
-            }
-
-            // Linked face info
-            var linkedFace = CardModelProvider.GetLinkedFaceInfo(_currentCard);
-            if (linkedFace.HasValue)
-            {
-                var (label, faceInfo) = linkedFace.Value;
-                var faceParts = new List<string>();
-                if (!string.IsNullOrEmpty(faceInfo.Name))
-                    faceParts.Add(faceInfo.Name);
-                if (!string.IsNullOrEmpty(faceInfo.ManaCost))
-                    faceParts.Add(faceInfo.ManaCost);
-                if (!string.IsNullOrEmpty(faceInfo.TypeLine))
-                    faceParts.Add(faceInfo.TypeLine);
-                if (!string.IsNullOrEmpty(faceInfo.PowerToughness))
-                    faceParts.Add(faceInfo.PowerToughness);
-                if (!string.IsNullOrEmpty(faceInfo.RulesText))
-                    faceParts.Add(faceInfo.RulesText);
-
-                if (faceParts.Count > 0)
-                {
-                    string faceText = $"{label}: {string.Join(", ", faceParts)}";
-                    parts.Add(faceText);
-                }
-            }
-
-            if (parts.Count == 0)
-                return Strings.NoExtendedCardInfo;
-
-            return string.Join(". ", parts);
-        }
-
-        /// <summary>
         /// Handles input when card info navigation is active.
         /// Only responds to plain Arrow Up/Down without modifiers.
         /// Alt+Arrow is reserved for battlefield row navigation.

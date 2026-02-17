@@ -4,6 +4,15 @@ All notable changes to Accessible Arena.
 
 ## v0.6.6 - 2026-02-17
 
+### New: Navigable Extended Card Info (I Key)
+- I key now opens a navigable modal menu instead of a one-shot announcement
+- Each keyword description is a separate navigable entry (e.g., "Flying: This creature can't be blocked...")
+- Linked face info split into individual entries (name, mana cost, type, P/T, rules text)
+- Navigate with Up/Down arrows, Home/End to jump, close with I/Backspace/Escape
+- Blocks all other input while open (same as F1 Help and F2 Settings)
+- "No additional information" announced without opening menu when card has no extended info
+- "No card selected to inspect" when no card is focused
+
 ### Mod Improvements
 - Launch announcement now shows "Accessible Arena v0.6.6 launched" instead of generic "MTGA Accessibility Mod loaded"
 - MelonInfo version updated from placeholder to actual release version

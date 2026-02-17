@@ -456,7 +456,9 @@ namespace AccessibleArena.Core.Models
         public static string EndOfCard => L.Get("EndOfCard");
         public static string BeginningOfCard => L.Get("BeginningOfCard");
 
-        // Extended card info (I key)
+        // Extended card info (I key - navigable menu)
+        public static string ExtendedInfoTitle => L.Get("ExtendedInfoTitle");
+        public static string ExtendedInfoClosed => L.Get("ExtendedInfoClosed");
         public static string CardInfoKeywords => L.Get("CardInfoKeywords");
         public static string NoExtendedCardInfo => L.Get("NoExtendedCardInfo");
         public static string LinkedFaceOtherFace => L.Get("LinkedFace_OtherFace");

@@ -701,5 +701,9 @@
   "LinkedFace_OtherHalf": "Другая половина",
   "LinkedFace_Adventure": "Приключение",
   "LinkedFace_OtherRoom": "Другая комната",
-  "HelpIExtendedInfo": "I: Расширенная информация (ключевые слова и другие стороны)"
+  "HelpIExtendedInfo": "I: Расширенная информация (ключевые слова и другие стороны)",
+
+  "ExtendedInfoTitle": "Расширенная информация о карте",
+  "ExtendedInfoClosed": "Расширенная информация закрыта",
+  "ExtendedInfoInstructions": "Навигация стрелками вверх и вниз. Закрыть: I или Backspace."
 }

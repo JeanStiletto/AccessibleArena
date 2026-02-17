@@ -543,6 +543,32 @@ AccessibleArenaMod.Instance.CardNavigator.PrepareForCard(element, ZoneType.Battl
 On battlefield, mana cost is less important (card already in play), so it's shown after rules text.
 In selection browsers, cards represent options with different effects, so rules text comes first. Left/Right navigation also announces rules text instead of card name.
 
+### ExtendedInfoNavigator
+Modal navigable menu for extended card info (I key). Follows the same pattern as HelpNavigator.
+
+**Opening:** Called from DuelNavigator when I key is pressed while a card is focused.
+Items are built dynamically from the focused card's keyword descriptions and linked face info.
+
+```csharp
+var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
+var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
+if (extInfoNav != null && cardNav != null && cardNav.IsActive && cardNav.CurrentCard != null)
+{
+    extInfoNav.Open(cardNav.CurrentCard);
+}
+```
+
+**Item structure:**
+- Each keyword = 1 entry (e.g., "Flying: This creature can't be blocked except by creatures with flying or reach.")
+- Linked face = multiple entries: "Other face: Card Name", "Mana cost: {2}{U}", "Type: Creature", "P/T: 2/3", "Rules text: ..."
+
+**Input handling:** Blocks all other input while open (ModMenuActive flag).
+- Up/Down/W/S: Navigate entries
+- Home/End: Jump to first/last
+- I/Backspace/Escape: Close menu
+
+**Priority:** Third in the modal menu chain (Help > Settings > ExtendedInfo).
+
 ## Duel Services
 
 These services are specific to the DuelScene and handle in-game events and navigation.

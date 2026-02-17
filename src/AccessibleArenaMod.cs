@@ -24,6 +24,7 @@ namespace AccessibleArena
         private NavigatorManager _navigatorManager;
         private HelpNavigator _helpNavigator;
         private ModSettingsNavigator _settingsNavigator;
+        private ExtendedInfoNavigator _extendedInfoNavigator;
         private ModSettings _settings;
         private PanelAnimationDiagnostic _panelDiagnostic;
         private PanelStateManager _panelStateManager;
@@ -33,6 +34,7 @@ namespace AccessibleArena
 
         public IAnnouncementService Announcer => _announcer;
         public CardInfoNavigator CardNavigator => _cardInfoNavigator;
+        public ExtendedInfoNavigator ExtendedInfoNavigator => _extendedInfoNavigator;
         public ModSettings Settings => _settings;
 
         public override void OnInitializeMelon()
@@ -89,6 +91,7 @@ namespace AccessibleArena
 
             _helpNavigator = new HelpNavigator(_announcer);
             _settingsNavigator = new ModSettingsNavigator(_announcer, _settings);
+            _extendedInfoNavigator = new ExtendedInfoNavigator(_announcer);
 
             // Rebuild help items when language changes
             _settings.OnLanguageChanged += () => _helpNavigator.RebuildItems();
@@ -278,7 +281,9 @@ namespace AccessibleArena
 
             // Tell KeyboardManagerPatch to block Escape from reaching the game
             // when a mod menu is open (persistent flag avoids timing issues with per-frame consume)
-            InputManager.ModMenuActive = (_helpNavigator?.IsActive == true) || (_settingsNavigator?.IsActive == true);
+            InputManager.ModMenuActive = (_helpNavigator?.IsActive == true)
+                || (_settingsNavigator?.IsActive == true)
+                || (_extendedInfoNavigator?.IsActive == true);
 
             // Help menu has highest priority - blocks all other input when active
             if (_helpNavigator != null && _helpNavigator.IsActive)
@@ -291,6 +296,13 @@ namespace AccessibleArena
             if (_settingsNavigator != null && _settingsNavigator.IsActive)
             {
                 _settingsNavigator.HandleInput();
+                return;
+            }
+
+            // Extended info menu - third highest priority
+            if (_extendedInfoNavigator != null && _extendedInfoNavigator.IsActive)
+            {
+                _extendedInfoNavigator.HandleInput();
                 return;
             }
 

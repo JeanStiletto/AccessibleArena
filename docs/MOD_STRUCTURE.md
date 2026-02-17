@@ -42,6 +42,7 @@ C:\Users\fabia\arena\
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
         HelpNavigator.cs         - F1 help menu with navigable keybind list
+        ExtendedInfoNavigator.cs - I key extended card info (navigable keyword/face menu)
 
         # Browser Navigation (library manipulation - scry, surveil, mulligan)
         BrowserDetector.cs       - Static browser detection and caching
@@ -127,6 +128,7 @@ C:\Users\fabia\arena\
 - [x] Scene detection (Bootstrap, AssetPrep, Login)
 - [x] UI Focus tracking via EventSystem polling
 - [x] F1 Help Menu - Navigable keybind list (Up/Down navigation, Backspace/F1 to close)
+- [x] I Key Extended Info Menu - Navigable keyword descriptions and linked face info (Up/Down, close with I/Backspace/Escape)
 
 ### Screen Navigators
 - [?] AssetPrepNavigator - Download screen on fresh install (UNTESTED, fail-safe design)

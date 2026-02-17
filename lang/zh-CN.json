@@ -687,5 +687,9 @@
   "LinkedFace_OtherHalf": "另一半",
   "LinkedFace_Adventure": "历险",
   "LinkedFace_OtherRoom": "其他房间",
-  "HelpIExtendedInfo": "I：扩展卡牌信息（关键词和其他面）"
+  "HelpIExtendedInfo": "I：扩展卡牌信息（关键词和其他面）",
+
+  "ExtendedInfoTitle": "扩展卡牌信息",
+  "ExtendedInfoClosed": "扩展信息已关闭",
+  "ExtendedInfoInstructions": "使用上下键浏览。按I或退格键关闭。"
 }

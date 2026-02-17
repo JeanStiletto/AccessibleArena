@@ -687,5 +687,9 @@
   "LinkedFace_OtherHalf": "Otra mitad",
   "LinkedFace_Adventure": "Aventura",
   "LinkedFace_OtherRoom": "Otra sala",
-  "HelpIExtendedInfo": "I: Info extendida (palabras clave y otras caras)"
+  "HelpIExtendedInfo": "I: Info extendida (palabras clave y otras caras)",
+
+  "ExtendedInfoTitle": "Información extendida de carta",
+  "ExtendedInfoClosed": "Información extendida cerrada",
+  "ExtendedInfoInstructions": "Navega con Arriba y Abajo. Cierra con I o Retroceso."
 }

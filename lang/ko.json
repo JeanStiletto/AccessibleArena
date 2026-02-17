@@ -686,5 +686,9 @@
   "LinkedFace_OtherHalf": "다른 절반",
   "LinkedFace_Adventure": "모험",
   "LinkedFace_OtherRoom": "다른 방",
-  "HelpIExtendedInfo": "I: 확장 카드 정보 (키워드 및 다른 면)"
+  "HelpIExtendedInfo": "I: 확장 카드 정보 (키워드 및 다른 면)",
+
+  "ExtendedInfoTitle": "확장 카드 정보",
+  "ExtendedInfoClosed": "확장 정보 닫힘",
+  "ExtendedInfoInstructions": "위아래 방향키로 탐색. I 또는 백스페이스로 닫기."
 }

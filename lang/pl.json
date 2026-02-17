@@ -701,5 +701,9 @@
   "LinkedFace_OtherHalf": "Druga połowa",
   "LinkedFace_Adventure": "Przygoda",
   "LinkedFace_OtherRoom": "Inny pokój",
-  "HelpIExtendedInfo": "I: Rozszerzone info (słowa kluczowe i inne strony)"
+  "HelpIExtendedInfo": "I: Rozszerzone info (słowa kluczowe i inne strony)",
+
+  "ExtendedInfoTitle": "Rozszerzone informacje o karcie",
+  "ExtendedInfoClosed": "Rozszerzone informacje zamknięte",
+  "ExtendedInfoInstructions": "Nawiguj strzałkami góra i dół. Zamknij klawiszem I lub Backspace."
 }

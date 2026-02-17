@@ -400,14 +400,14 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // I key: Extended card info (keyword descriptions + linked face)
+            // I key: Extended card info (navigable menu with keyword descriptions + linked face)
             if (Input.GetKeyDown(KeyCode.I))
             {
+                var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
-                if (cardNav != null && cardNav.IsActive)
+                if (extInfoNav != null && cardNav != null && cardNav.IsActive && cardNav.CurrentCard != null)
                 {
-                    string extInfo = cardNav.GetExtendedCardInfo();
-                    _announcer.AnnounceInterrupt(extInfo ?? Strings.NoCardToInspect);
+                    extInfoNav.Open(cardNav.CurrentCard);
                 }
                 else
                 {
