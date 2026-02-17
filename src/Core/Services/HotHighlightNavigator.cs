@@ -251,6 +251,9 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg("[HotHighlightNavigator] Discovering highlights...");
 
+            // Pre-check selection mode once (expensive call, don't repeat per-object)
+            bool selectionMode = IsSelectionModeActive();
+
             // DIAGNOSTIC: Count hand cards and their HotHighlight status
             int handCardsTotal = 0;
             int handCardsWithHighlight = 0;
@@ -293,7 +296,20 @@ namespace AccessibleArena.Core.Services
 
                 // Check for HotHighlight
                 string highlightType = CardDetector.GetHotHighlightType(go);
-                if (highlightType == null) continue;
+
+                // No HotHighlight - but in selection mode, include already-selected hand cards
+                // (game removes HotHighlight from selected cards, making them un-navigable)
+                if (highlightType == null)
+                {
+                    if (isInHand && selectionMode && CardDetector.IsCard(go) && IsCardSelected(go))
+                    {
+                        highlightType = "Selected";
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
 
                 // Only process actual cards (skip parent containers that also have the highlight)
                 if (!CardDetector.IsCard(go)) continue;
