@@ -3678,6 +3678,11 @@ namespace AccessibleArena.Core.Services
         private static PropertyInfo _linkedFaceGrpIdsProp;
         private static bool _linkedFaceGrpIdsPropSearched;
 
+        // Cache for ability hanger provider (keyword descriptions)
+        private static object _abilityHangerProvider;
+        private static MethodInfo _getHangerConfigsForCardMethod;
+        private static MethodInfo _hangerProviderCleanupMethod;
+
         // Cache for duel-scene CardDataProvider
         private static object _duelCardDataProvider;
         private static MethodInfo _duelGetCardPrintingMethod;
@@ -3692,6 +3697,9 @@ namespace AccessibleArena.Core.Services
             _linkedFaceTypePropSearched = false;
             _linkedFaceGrpIdsProp = null;
             _linkedFaceGrpIdsPropSearched = false;
+            _abilityHangerProvider = null;
+            _getHangerConfigsForCardMethod = null;
+            _hangerProviderCleanupMethod = null;
             _duelCardDataProvider = null;
             _duelGetCardPrintingMethod = null;
             _duelCardDataProviderSearched = false;
@@ -3699,9 +3707,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets keyword ability descriptions for the focused card.
-        /// Uses AbilityTextProvider with formatted=true to get descriptions including reminder text,
-        /// then compares with the unformatted text (already shown in rules) to extract only the extra info.
-        /// Also tries formatted=false text that isn't in the card's rules text (e.g. keyword names not shown).
+        /// Uses the game's AbilityHangerBaseConfigProvider (from AbilityHangerBase MonoBehaviour)
+        /// to get the same keyword tooltips shown when hovering cards in-game.
+        /// Returns Header + Details pairs like "Fliegend: Diese Kreatur kann nur..."
         /// </summary>
         public static List<string> GetKeywordDescriptions(GameObject card)
         {
@@ -3710,180 +3718,220 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Get model from card
-                object model = null;
+                // We need a CDC to call the hanger provider
                 var cdc = GetDuelSceneCDC(card);
-                if (cdc != null)
-                    model = GetCardModel(cdc);
-                if (model == null)
+                if (cdc == null) return result;
+
+                // Ensure hanger provider is cached (retry if not found previously)
+                if (_abilityHangerProvider == null)
                 {
-                    var metaView = GetMetaCardView(card);
-                    if (metaView != null)
-                        model = GetMetaCardModel(metaView);
+                    FindAbilityHangerProvider();
                 }
+
+                if (_abilityHangerProvider == null || _getHangerConfigsForCardMethod == null)
+                    return result;
+
+                var cdcType = cdc.GetType();
+
+                // Get Model (ICardDataAdapter) from CDC
+                var modelProp = cdcType.GetProperty("Model", BindingFlags.Public | BindingFlags.Instance);
+                if (modelProp == null)
+                {
+                    // Try base type
+                    modelProp = cdcType.BaseType?.GetProperty("Model", BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (modelProp == null) return result;
+                var model = modelProp.GetValue(cdc);
                 if (model == null) return result;
 
-                var objType = model.GetType();
+                // Get HolderType (CardHolderType enum) from CDC
+                var holderTypeProp = cdcType.GetProperty("HolderType", BindingFlags.Public | BindingFlags.Instance)
+                    ?? cdcType.BaseType?.GetProperty("HolderType", BindingFlags.Public | BindingFlags.Instance);
+                object holderType = null;
+                if (holderTypeProp != null)
+                    holderType = holderTypeProp.GetValue(cdc);
 
-                // Get card GrpId and TitleId for ability text provider
-                uint cardGrpId = 0;
-                uint cardTitleId = 0;
-                var grpIdProp = objType.GetProperty("GrpId", BindingFlags.Public | BindingFlags.Instance);
-                if (grpIdProp != null)
+                // Create CDCViewMetadata struct
+                object metadata = CreateCDCViewMetadata(cdc);
+
+                if (holderType == null || metadata == null)
                 {
-                    var v = grpIdProp.GetValue(model);
-                    if (v is uint g) cardGrpId = g;
-                }
-                var titleIdProp = objType.GetProperty("TitleId", BindingFlags.Public | BindingFlags.Instance);
-                if (titleIdProp != null)
-                {
-                    var v = titleIdProp.GetValue(model);
-                    if (v is uint t) cardTitleId = t;
+                    MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Missing holderType={holderType != null} metadata={metadata != null}");
+                    return result;
                 }
 
-                // Get Abilities list
-                var abilities = GetModelPropertyValue(model, objType, "Abilities");
-                if (abilities == null || !(abilities is IEnumerable abilityEnum)) return result;
+                // Call GetHangerConfigsForCard(model, holderType, metadata)
+                var configs = _getHangerConfigsForCardMethod.Invoke(
+                    _abilityHangerProvider, new object[] { model, holderType, metadata });
 
-                // Collect ability IDs and abilities
-                var abilityList = new List<(object ability, uint id)>();
-                foreach (var ability in abilityEnum)
+                if (configs is IEnumerable configEnum)
                 {
-                    if (ability == null) continue;
-                    var aType = ability.GetType();
-                    var idProp = aType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
-                    uint abilityId = 0;
-                    if (idProp != null)
+                    var seen = new HashSet<string>();
+                    foreach (var config in configEnum)
                     {
-                        var v = idProp.GetValue(ability);
-                        if (v is uint u) abilityId = u;
-                    }
-                    abilityList.Add((ability, abilityId));
-                }
+                        if (config == null) continue;
+                        var configType = config.GetType();
 
-                uint[] abilityIds = abilityList.Select(a => a.id).Where(id => id > 0).ToArray();
+                        // HangerConfig is a struct with public readonly fields
+                        var headerField = configType.GetField("Header");
+                        var detailsField = configType.GetField("Details");
 
-                // Get rules text for dedup
-                var existingInfo = ExtractCardInfoFromObject(model);
-                string rulesText = existingInfo.RulesText ?? "";
+                        string header = headerField?.GetValue(config)?.ToString() ?? "";
+                        string details = detailsField?.GetValue(config)?.ToString() ?? "";
 
-                var seen = new HashSet<string>();
+                        if (string.IsNullOrEmpty(header) && string.IsNullOrEmpty(details)) continue;
 
-                foreach (var (ability, abilityId) in abilityList)
-                {
-                    if (abilityId == 0) continue;
-
-                    // Get formatted text (may include reminder text in parentheses)
-                    string formattedText = GetAbilityTextForExtendedInfo(
-                        cardGrpId, abilityId, abilityIds, cardTitleId, true);
-
-                    // Get unformatted text (what's shown in rules text)
-                    string unformattedText = GetAbilityTextForExtendedInfo(
-                        cardGrpId, abilityId, abilityIds, cardTitleId, false);
-
-                    // Log for debugging
-                    MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Ability {abilityId}: " +
-                        $"unformatted='{unformattedText ?? "null"}', formatted='{formattedText ?? "null"}'");
-
-                    // Try formatted text first - if it has more content than unformatted, use it
-                    string textToUse = null;
-                    if (!string.IsNullOrEmpty(formattedText) && !string.IsNullOrEmpty(unformattedText))
-                    {
-                        if (formattedText.Length > unformattedText.Length)
-                        {
-                            // Formatted has extra info (reminder text) - use it
-                            textToUse = formattedText;
-                        }
+                        // Format: "Header: Details"
+                        string text;
+                        if (!string.IsNullOrEmpty(header) && !string.IsNullOrEmpty(details))
+                            text = $"{header}: {details}";
+                        else if (!string.IsNullOrEmpty(header))
+                            text = header;
                         else
-                        {
-                            // Same length - use unformatted (it's the ability text)
-                            textToUse = unformattedText;
-                        }
+                            text = details;
+
+                        // Parse mana symbols
+                        text = ParseManaSymbolsInText(text);
+
+                        MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Hanger: '{text}'");
+
+                        if (seen.Add(text))
+                            result.Add(text);
                     }
-                    else if (!string.IsNullOrEmpty(formattedText))
-                    {
-                        textToUse = formattedText;
-                    }
-                    else if (!string.IsNullOrEmpty(unformattedText))
-                    {
-                        textToUse = unformattedText;
-                    }
-
-                    if (string.IsNullOrEmpty(textToUse)) continue;
-
-                    // Parse mana symbols
-                    textToUse = ParseManaSymbolsInText(textToUse);
-
-                    // Skip if it's the same as rules text (already shown to user)
-                    if (!string.IsNullOrEmpty(rulesText) && rulesText.Contains(textToUse))
-                        continue;
-
-                    // Deduplicate
-                    if (seen.Add(textToUse))
-                        result.Add(textToUse);
                 }
+
+                // Cleanup provider internal state
+                _hangerProviderCleanupMethod?.Invoke(_abilityHangerProvider, null);
+
+                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] GetKeywordDescriptions: {result.Count} entries");
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
-                    $"Error getting keyword descriptions: {ex.Message}");
+                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Error getting keyword descriptions: {ex.Message}");
             }
 
             return result;
         }
 
         /// <summary>
-        /// Gets ability text via AbilityTextProvider for extended card info.
-        /// Similar to GetAbilityTextFromProvider but with configurable 'formatted' flag.
-        /// Filters out marker texts like #NoTranslationNeeded.
+        /// Finds and caches the AbilityHangerBaseConfigProvider from an AbilityHangerBase MonoBehaviour.
+        /// Uses Resources.FindObjectsOfTypeAll to include inactive GameObjects.
+        /// This provider generates the keyword tooltip data (Header + Details) shown when hovering cards.
         /// </summary>
-        private static string GetAbilityTextForExtendedInfo(
-            uint cardGrpId, uint abilityId, uint[] abilityIds, uint cardTitleId, bool formatted)
+        private static void FindAbilityHangerProvider()
         {
-            if (!_abilityTextProviderSearched || _getAbilityTextMethod == null)
+            // Find the AbilityHangerBase type in loaded assemblies
+            Type ahbType = null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
-                _abilityTextProviderSearched = true;
-                FindAbilityTextProvider();
+                try
+                {
+                    ahbType = asm.GetType("AbilityHangerBase");
+                    if (ahbType != null) break;
+                }
+                catch { }
             }
 
-            if (_getAbilityTextMethod == null || _abilityTextProvider == null)
-                return null;
+            UnityEngine.Object[] instances = null;
 
+            if (ahbType != null)
+            {
+                // FindObjectsOfTypeAll includes inactive GameObjects
+                instances = Resources.FindObjectsOfTypeAll(ahbType);
+                MelonLogger.Msg($"[CardModelProvider] Found {instances.Length} AbilityHangerBase instances (including inactive)");
+            }
+            else
+            {
+                MelonLogger.Msg($"[CardModelProvider] AbilityHangerBase type not found in assemblies, searching all MonoBehaviours...");
+                instances = Resources.FindObjectsOfTypeAll(typeof(MonoBehaviour));
+            }
+
+            foreach (var obj in instances)
+            {
+                if (obj == null) continue;
+                var type = obj.GetType();
+
+                // If we searched all MonoBehaviours, filter to hanger types
+                if (ahbType == null && !type.Name.Contains("AbilityHanger"))
+                    continue;
+
+                // Look for _abilityHangerProvider field (protected in AbilityHangerBase)
+                var field = type.GetField("_abilityHangerProvider",
+                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+                if (field == null) continue;
+
+                var provider = field.GetValue(obj);
+                if (provider == null)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] Found {type.Name} but _abilityHangerProvider is null (not yet initialized)");
+                    continue;
+                }
+
+                var providerType = provider.GetType();
+
+                // Find GetHangerConfigsForCard method
+                var getConfigsMethod = providerType.GetMethod("GetHangerConfigsForCard");
+                if (getConfigsMethod == null) continue;
+
+                // Find Cleanup method
+                var cleanupMethod = providerType.GetMethod("Cleanup");
+
+                _abilityHangerProvider = provider;
+                _getHangerConfigsForCardMethod = getConfigsMethod;
+                _hangerProviderCleanupMethod = cleanupMethod;
+
+                MelonLogger.Msg($"[CardModelProvider] Found AbilityHangerProvider: {providerType.Name} from {type.Name}");
+
+                // Log method signature for debugging
+                var ps = getConfigsMethod.GetParameters();
+                MelonLogger.Msg($"[CardModelProvider] GetHangerConfigsForCard({string.Join(", ", ps.Select(p => $"{p.ParameterType.Name} {p.Name}"))})");
+                return;
+            }
+
+            MelonLogger.Msg($"[CardModelProvider] AbilityHangerProvider not found (will retry on next I key press)");
+        }
+
+        /// <summary>
+        /// Creates a CDCViewMetadata struct via reflection.
+        /// Tries the BASE_CDC constructor first, falls back to the bool constructor.
+        /// </summary>
+        private static object CreateCDCViewMetadata(Component cdc)
+        {
             try
             {
-                var parameters = _getAbilityTextMethod.GetParameters();
-                object result = null;
+                // Find CDCViewMetadata type
+                Type metadataType = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    try
+                    {
+                        metadataType = asm.GetType("Wotc.Mtga.CardParts.CDCViewMetadata");
+                        if (metadataType != null) break;
+                    }
+                    catch { }
+                }
+                if (metadataType == null) return null;
 
-                if (parameters.Length == 6)
+                // Try constructor that takes BASE_CDC (or any base type of cdc)
+                var cdcType = cdc.GetType();
+                while (cdcType != null && cdcType != typeof(object))
                 {
-                    IEnumerable<uint> abilityIdsList = abilityIds ?? Array.Empty<uint>();
-                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] {
-                        cardGrpId, abilityId, abilityIdsList, cardTitleId,
-                        null,      // overrideLanguageCode
-                        formatted  // formatted flag
-                    });
-                }
-                else if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(uint))
-                {
-                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] { abilityId });
+                    var ctor = metadataType.GetConstructor(new[] { cdcType });
+                    if (ctor != null)
+                        return ctor.Invoke(new object[] { cdc });
+                    cdcType = cdcType.BaseType;
                 }
 
-                string text = result?.ToString();
-                if (!string.IsNullOrEmpty(text) &&
-                    !text.StartsWith("$") &&
-                    !text.StartsWith("#") &&
-                    !text.Contains("Unknown") &&
-                    !text.Contains("NoTranslationNeeded"))
-                {
-                    return text;
-                }
+                // Fallback: use bool constructor with safe defaults
+                var boolCtor = metadataType.GetConstructor(new[] {
+                    typeof(bool), typeof(bool), typeof(bool), typeof(bool), typeof(bool) });
+                if (boolCtor != null)
+                    return boolCtor.Invoke(new object[] { false, false, false, false, false });
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
-                    $"Error getting ability text for extended info (id={abilityId}): {ex.Message}");
+                MelonLogger.Msg($"[CardModelProvider] Error creating CDCViewMetadata: {ex.Message}");
             }
-
             return null;
         }
 

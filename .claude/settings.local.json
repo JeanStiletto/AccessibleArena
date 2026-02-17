@@ -22,8 +22,12 @@
       "Bash(git -C \"C:\\Users\\fabia\\arena\" branch:*)",
       "Bash(git -C \"C:\\Users\\fabia\\arena\" show:*)",
       "Bash(git log:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
       "Bash(gh release view:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(Out-String)",
+      "Bash(powershell -Command \"Copy-Item -Path 'C:\\Users\\fabia\\arena\\src\\bin:*)"
     ]
   },
   "hooks": {
