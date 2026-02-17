@@ -172,7 +172,7 @@ namespace AccessibleArenaInstaller
                     switch (updateForm.UserChoice)
                     {
                         case UpdateChoice.UpdateOnly:
-                            // Go directly to MainForm for update
+                            // Go directly to MainForm for update (no language change)
                             Logger.Info("User chose to update mod only");
                             Application.Run(new MainForm(mtgaPath, updateOnly: true));
                             break;
@@ -185,7 +185,7 @@ namespace AccessibleArenaInstaller
                             if (welcomeForm.ProceedWithInstall)
                             {
                                 mtgaPath = pathArg ?? DetectMtgaPath();
-                                Application.Run(new MainForm(mtgaPath));
+                                Application.Run(new MainForm(mtgaPath, language: welcomeForm.SelectedLanguage));
                             }
                             break;
 
@@ -225,7 +225,7 @@ namespace AccessibleArenaInstaller
                     mtgaPath = pathArg ?? DetectMtgaPath();
                     Logger.Info($"Detected MTGA path: {mtgaPath ?? "Not found"}");
 
-                    Application.Run(new MainForm(mtgaPath));
+                    Application.Run(new MainForm(mtgaPath, language: welcomeForm.SelectedLanguage));
                 }
             }
         }

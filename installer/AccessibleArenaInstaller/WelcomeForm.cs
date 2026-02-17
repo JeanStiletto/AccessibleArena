@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace AccessibleArenaInstaller
@@ -10,10 +11,18 @@ namespace AccessibleArenaInstaller
         private const string MtgaDownloadPageUrl = "https://magic.wizards.com/en/mtgarena";
         private const string MtgaDirectDownloadUrl = "https://mtgarena.downloads.wizards.com/Live/Windows64/MTGAInstaller.exe";
 
+        private ComboBox _languageComboBox;
+
         public bool ProceedWithInstall { get; private set; } = false;
+
+        /// <summary>
+        /// The language code selected by the user (e.g. "en", "de", "pt-BR").
+        /// </summary>
+        public string SelectedLanguage { get; private set; }
 
         public WelcomeForm()
         {
+            SelectedLanguage = LanguageDetector.DetectLanguage();
             InitializeComponents();
         }
 
@@ -21,7 +30,7 @@ namespace AccessibleArenaInstaller
         {
             // Form settings
             Text = Config.DisplayName;
-            Size = new Size(500, 300);
+            Size = new Size(500, 340);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -49,11 +58,48 @@ namespace AccessibleArenaInstaller
                 TextAlign = ContentAlignment.TopLeft
             };
 
+            // Language label
+            var languageLabel = new Label
+            {
+                Text = "Mod language:",
+                Location = new Point(20, 170),
+                Size = new Size(100, 20)
+            };
+
+            // Language dropdown
+            _languageComboBox = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(125, 167),
+                Size = new Size(345, 25)
+            };
+
+            // Populate with display names, select detected language
+            foreach (var code in LanguageDetector.SupportedLanguages)
+            {
+                string displayName = LanguageDetector.DisplayNames.TryGetValue(code, out string name)
+                    ? name : code;
+                _languageComboBox.Items.Add(displayName);
+            }
+
+            int defaultIndex = Array.IndexOf(LanguageDetector.SupportedLanguages, SelectedLanguage);
+            _languageComboBox.SelectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
+
+            _languageComboBox.SelectedIndexChanged += (s, e) =>
+            {
+                int idx = _languageComboBox.SelectedIndex;
+                if (idx >= 0 && idx < LanguageDetector.SupportedLanguages.Length)
+                {
+                    SelectedLanguage = LanguageDetector.SupportedLanguages[idx];
+                    Logger.Info($"User selected language: {SelectedLanguage}");
+                }
+            };
+
             // Direct Download button
             var directDownloadButton = new Button
             {
                 Text = "Direct Download",
-                Location = new Point(20, 180),
+                Location = new Point(20, 220),
                 Size = new Size(140, 35)
             };
             directDownloadButton.Click += (s, e) =>
@@ -66,7 +112,7 @@ namespace AccessibleArenaInstaller
             var downloadPageButton = new Button
             {
                 Text = "Download Page",
-                Location = new Point(175, 180),
+                Location = new Point(175, 220),
                 Size = new Size(140, 35)
             };
             downloadPageButton.Click += (s, e) =>
@@ -79,7 +125,7 @@ namespace AccessibleArenaInstaller
             var installButton = new Button
             {
                 Text = "Install Mod",
-                Location = new Point(330, 180),
+                Location = new Point(330, 220),
                 Size = new Size(140, 35)
             };
             installButton.Click += (s, e) =>
@@ -93,6 +139,8 @@ namespace AccessibleArenaInstaller
             {
                 titleLabel,
                 descriptionLabel,
+                languageLabel,
+                _languageComboBox,
                 directDownloadButton,
                 downloadPageButton,
                 installButton

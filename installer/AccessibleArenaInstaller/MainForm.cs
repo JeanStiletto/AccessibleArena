@@ -10,6 +10,7 @@ namespace AccessibleArenaInstaller
     {
         private string _mtgaPath;
         private bool _updateOnly;
+        private string _language;
         private Label _titleLabel;
         private Label _statusLabel;
         private Label _pathLabel;
@@ -20,12 +21,13 @@ namespace AccessibleArenaInstaller
         private ProgressBar _progressBar;
         private CheckBox _launchCheckBox;
 
-        public MainForm(string detectedMtgaPath, bool updateOnly = false)
+        public MainForm(string detectedMtgaPath, bool updateOnly = false, string language = null)
         {
             _mtgaPath = detectedMtgaPath;
             _updateOnly = updateOnly;
+            _language = language;
             InitializeComponents();
-            Logger.Info($"MainForm initialized (updateOnly: {updateOnly})");
+            Logger.Info($"MainForm initialized (updateOnly: {updateOnly}, language: {language ?? "none"})");
         }
 
         private void InitializeComponents()
@@ -405,7 +407,14 @@ namespace AccessibleArenaInstaller
                         }
                     }
 
-                    // Step 5: Register in Add/Remove Programs
+                    // Step 5: Write mod settings with selected language
+                    if (_language != null)
+                    {
+                        UpdateStatus("Configuring mod language...");
+                        installationManager.WriteModSettings(_language);
+                    }
+
+                    // Step 6: Register in Add/Remove Programs
                     UpdateStatus("Registering installation...");
                     string installedModVersion = installationManager.GetInstalledModVersion() ?? latestVersion ?? "1.0.0";
                     RegistryManager.Register(_mtgaPath, installedModVersion);

@@ -213,5 +213,61 @@ namespace AccessibleArenaInstaller
             File.Copy(sourcePath, targetPath, overwrite: true);
             Logger.Info("Mod DLL installed successfully");
         }
+
+        /// <summary>
+        /// Writes the mod settings file with the selected language.
+        /// Creates UserData/AccessibleArena.json in the MTGA folder.
+        /// If the file already exists, only updates the Language field.
+        /// </summary>
+        public void WriteModSettings(string language)
+        {
+            string userDataPath = Path.Combine(_mtgaPath, "UserData");
+            string settingsPath = Path.Combine(userDataPath, "AccessibleArena.json");
+
+            try
+            {
+                if (!Directory.Exists(userDataPath))
+                {
+                    Logger.Info($"Creating UserData folder: {userDataPath}");
+                    Directory.CreateDirectory(userDataPath);
+                }
+
+                if (File.Exists(settingsPath))
+                {
+                    // Settings file exists - update only the Language field, preserve other settings
+                    Logger.Info($"Updating language in existing settings to: {language}");
+                    string json = File.ReadAllText(settingsPath);
+
+                    // Replace the Language value in the JSON
+                    var match = System.Text.RegularExpressions.Regex.Match(
+                        json, @"""Language""\s*:\s*""[^""]*""");
+                    if (match.Success)
+                    {
+                        json = json.Substring(0, match.Index)
+                             + $"\"Language\": \"{language}\""
+                             + json.Substring(match.Index + match.Length);
+                    }
+
+                    File.WriteAllText(settingsPath, json);
+                }
+                else
+                {
+                    // Create new settings file with defaults
+                    Logger.Info($"Creating mod settings with language: {language}");
+                    string json = "{\n"
+                                + $"  \"Language\": \"{language}\",\n"
+                                + "  \"TutorialMessages\": true,\n"
+                                + "  \"VerboseAnnouncements\": true\n"
+                                + "}";
+                    File.WriteAllText(settingsPath, json);
+                }
+
+                Logger.Info("Mod settings written successfully");
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Could not write mod settings: {ex.Message}");
+            }
+        }
     }
 }
