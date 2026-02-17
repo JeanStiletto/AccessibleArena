@@ -12,7 +12,8 @@ Single-file C# WinForms installer that:
 
 - **Language:** C# (.NET Framework 4.7.2)
 - **UI Framework:** WinForms (native Windows dialogs - inherently accessible)
-- **File Embedding:** Standard EmbeddedResource (for Tolk DLLs)
+- **File Embedding:** Standard EmbeddedResource (for Tolk DLLs and locale files)
+- **Localization:** InstallerLocale static class with embedded JSON resources, 12 languages
 - **Admin rights:** Application manifest requesting `requireAdministrator`
 - **HTTP client:** System.Net.Http for GitHub API calls
 - **ZIP extraction:** System.IO.Compression for MelonLoader installation
@@ -36,7 +37,7 @@ installer/AccessibleArenaInstaller/
 ├── AccessibleArenaInstaller.csproj   # Project file
 ├── app.manifest                         # UAC admin elevation request
 ├── Program.cs                           # Entry point, CLI args, update check, uninstall logic
-├── WelcomeForm.cs                       # Welcome dialog with download options
+├── WelcomeForm.cs                       # Two-page welcome wizard (language + MTGA download)
 ├── UpdateAvailableForm.cs               # Update available dialog (update/full install/close)
 ├── MainForm.cs                          # Main installer/updater UI
 ├── UninstallForm.cs                     # Uninstall UI
@@ -44,8 +45,16 @@ installer/AccessibleArenaInstaller/
 ├── MelonLoaderInstaller.cs              # MelonLoader download/extraction
 ├── GitHubClient.cs                      # GitHub API for downloads
 ├── RegistryManager.cs                   # Add/Remove Programs registry
+├── InstallerLocale.cs                   # Localization system (loads embedded JSON)
+├── LanguageDetector.cs                  # OS language detection
 ├── Config.cs                            # Configuration constants
 ├── Logger.cs                            # Optional installation logging
+├── Locales/                             # Embedded locale JSON files
+│   ├── en.json                          # English (source of truth)
+│   ├── de.json, fr.json, es.json        # German, French, Spanish
+│   ├── it.json, pt-BR.json, ru.json     # Italian, Brazilian Portuguese, Russian
+│   ├── pl.json, ja.json, ko.json        # Polish, Japanese, Korean
+│   └── zh-CN.json, zh-TW.json          # Simplified/Traditional Chinese
 └── Resources/
     ├── Tolk.dll                         # Embedded
     └── nvdaControllerClient64.dll       # Embedded
@@ -57,48 +66,56 @@ installer/AccessibleArenaInstaller/
 1. Check if running as admin (via manifest, should always be true)
 2. Check if MTGA.exe is running → Block with message
 
-### Step 2: Update Check
-1. Check if mod DLL exists in default MTGA location
-2. If exists: Compare installed version with latest GitHub version
-3. If update available: Show **Update Available Dialog** with options:
-   - **Update Mod** - Quick update (skips MelonLoader/Tolk, only updates mod DLL)
-   - **Full Install** - Proceeds to full installation flow
-   - **Close** - Exit installer
-4. If no mod or no update: Show welcome confirmation dialog
+### Step 2: Version Check
+1. Fetch latest mod version from GitHub API (used for display and comparison)
+2. Check if mod DLL exists in default MTGA location
+3. If mod exists: Get installed version from **registry first** (stores GitHub tag from last install), falling back to DLL assembly version
+4. Compare installed vs latest to determine update status
 
-### Step 3: Welcome Confirmation
-- Shows "Welcome to Accessible Arena!" message
-- User confirms with OK to proceed, or Cancel to exit
+Three outcomes:
+- **Update available:** Show Update Available Dialog (Update Mod / Full Install / Close)
+- **Mod up to date:** Show "Mod Up to Date" dialog with version, offer Close or Full Reinstall
+- **No mod installed:** Proceed directly to Welcome Wizard
 
-### Step 4: Welcome Dialog
-- Shows mod description and MTGA download options
-- Three buttons:
-  - **Direct Download** - Downloads MTGAInstaller.exe directly
-  - **Download Page** - Opens MTGA website
-  - **Install Mod** - Proceeds to installation
+### Step 3: Welcome Wizard (two pages)
+**Page 1 - Welcome:**
+- Mod description and version to be installed (e.g. "Version to install: v0.6")
+- Language dropdown (auto-detected from OS, changes installer UI live)
+- Next button
 
-### Step 5: Path Detection
+**Page 2 - MTGA Download:**
+- Instructions to download MTGA if not yet installed
+- **Direct Download** button - Downloads MTGAInstaller.exe
+- **Download Page** button - Opens MTGA website
+- **Back** button - Return to page 1
+- **Install Mod** button - Proceeds to installation
+
+### Step 4: Path Detection
 - Check registry for previous install location
 - Check default: `C:\Program Files\Wizards of the Coast\MTGA`
 - Check x86 Program Files as fallback
 - If not found: User selects via FolderBrowserDialog
 
-### Step 6: Main Installation (MainForm.cs)
+### Step 5: Main Installation (MainForm.cs)
 **Full Install Mode:**
 1. **Copy Tolk DLLs** - Extract embedded resources to MTGA root
 2. **MelonLoader Check/Install:**
    - If not installed: Ask user, then download ZIP and extract
    - If already installed: Ask if user wants to reinstall or keep existing
 3. **Create Mods folder** if it doesn't exist
-4. **Download Mod DLL** from GitHub releases
-5. **Register in Add/Remove Programs** (registry)
+4. **Download Mod DLL** from GitHub releases (no redundant version check)
+5. **Configure mod language** if selected
+6. **Register in Add/Remove Programs** - stores GitHub release tag as version
 
 **Update Only Mode:**
 1. Skip Tolk DLLs and MelonLoader
-2. **Download Mod DLL** from GitHub releases
-3. **Update registry** with new version
+2. **Fetch latest version** from GitHub (for registry)
+3. **Download Mod DLL** from GitHub releases
+4. **Update registry** with GitHub release tag
 
-### Step 7: Completion
+**Version registration:** The registry always stores the GitHub release tag (e.g. "0.6"), not the DLL assembly version. This prevents stale assembly versions from causing perpetual "update available" cycles.
+
+### Step 6: Completion
 - Show success message (with first-launch warning if MelonLoader was installed)
 - Ask about log file only if there were errors/warnings
 - Optionally launch MTGA
@@ -255,7 +272,6 @@ Common errors handled:
 ## Future Enhancements
 
 Not yet implemented:
-- Language localization (currently English only)
 - In-mod update checker (notify user on game launch if update available)
 - Code signing (reduces Windows SmartScreen warnings)
 - Checksum verification of downloads
@@ -380,7 +396,49 @@ The key line is `-p:Version=${{ steps.version.outputs.VERSION }}` on the mod bui
 
 You should still set a reasonable `<Version>` in the csproj for local development builds (it serves as a fallback when not building via CI), but the CI workflow is the source of truth for release versions.
 
+## Localization
+
+### Architecture
+- **InstallerLocale** static class loads flat JSON files embedded as assembly resources
+- JSON parser copied from mod's `LocaleManager` (no external dependencies)
+- Fallback chain: active language → English → key name
+- `OnLanguageChanged` event allows live UI updates when language is switched
+
+### API
+- `InstallerLocale.Initialize(code)` - Load locale files, set initial language
+- `InstallerLocale.SetLanguage(code)` - Switch language (fires OnLanguageChanged)
+- `InstallerLocale.Get(key)` - Get localized string
+- `InstallerLocale.Format(key, args)` - Get localized string with format parameters
+
+### Supported Languages (12)
+en, de, fr, es, it, pt-BR, ru, pl, ja, ko, zh-CN, zh-TW
+
+### Adding a New Language
+1. Copy `Locales/en.json` to `Locales/{code}.json`
+2. Translate all values (keep keys, `{0}` placeholders, and technical terms unchanged)
+3. Add the language code to `LanguageDetector.SupportedLanguages` and `DisplayNames`
+4. Rebuild - the wildcard `<EmbeddedResource Include="Locales\*.json" />` picks it up automatically
+
 ## Changelog
+
+### Version 1.4
+- Full installer localization with 12 languages
+  - InstallerLocale static class with embedded JSON resources
+  - All user-facing strings replaced with localized calls
+  - Language auto-detected from OS, changeable in welcome wizard
+  - Live language switching updates all form controls
+- Two-page welcome wizard
+  - Page 1: Mod description, version to install, language selector, Next
+  - Page 2: MTGA download links, Back, Install
+- Fixed version detection using registry instead of DLL assembly version
+  - Registry stores GitHub release tag after install (source of truth)
+  - Falls back to DLL assembly version only if no registry entry
+  - Prevents perpetual "update available" when DLL has stale assembly version
+- Removed redundant version check in MainForm during full install/reinstall
+  - User already confirmed in Program.cs, no second prompt needed
+- Added "Mod Up to Date" dialog when mod is current
+  - Shows installed version, offers Close or Full Reinstall
+- GitHub version always fetched at startup (shown on welcome page)
 
 ### Version 1.3
 - Fixed update detection failing for pre-v0.5 DLLs with legacy 1.0.0.0 assembly version

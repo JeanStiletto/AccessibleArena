@@ -9,11 +9,17 @@
     "Program_Welcome_Text": "\u6b22\u8fce\u4f7f\u7528 Accessible Arena\uff01\n\n\u8fd9\u5c06\u5728\u60a8\u7684\u8ba1\u7b97\u673a\u4e0a\u5b89\u88c5 Magic: The Gathering Arena \u7684\u65e0\u969c\u788d\u6a21\u7ec4\u3002",
 
     "Welcome_Title": "\u6b22\u8fce\u4f7f\u7528 Accessible Arena",
-    "Welcome_Description": "\u8fd9\u5c06\u5b89\u88c5 Magic: The Gathering Arena \u7684\u65e0\u969c\u788d\u6a21\u7ec4\u3002\n\n\u8be5\u6a21\u7ec4\u8ba9\u89c6\u969c\u73a9\u5bb6\u80fd\u591f\u4f7f\u7528 NVDA \u5c4f\u5e55\u9605\u8bfb\u5668\u6765\u73a9 MTGA\u3002\n\n\u5982\u679c\u60a8\u8fd8\u672a\u5b89\u88c5 MTGA\uff0c\u8bf7\u5148\u4e0b\u8f7d\u5e76\u5b89\u88c5\u3002",
+    "Welcome_Description": "\u8fd9\u5c06\u5b89\u88c5 Magic: The Gathering Arena \u7684\u65e0\u969c\u788d\u6a21\u7ec4\u3002\n\n\u8be5\u6a21\u7ec4\u8ba9\u89c6\u969c\u73a9\u5bb6\u80fd\u591f\u4f7f\u7528 NVDA \u5c4f\u5e55\u9605\u8bfb\u5668\u6765\u73a9 MTGA\u3002",
+    "Welcome_VersionInfo_Format": "\u5c06\u5b89\u88c5\u7684\u7248\u672c\uff1av{0}",
+    "Welcome_VersionInfo_Unknown": "\u5c06\u5b89\u88c5\u7684\u7248\u672c\uff1a\u6700\u65b0",
     "Welcome_LanguageLabel": "\u6a21\u7ec4\u8bed\u8a00\uff1a",
+    "Welcome_NextButton": "\u4e0b\u4e00\u6b65",
+    "Welcome_DownloadTitle": "\u4e0b\u8f7d MTGA",
+    "Welcome_DownloadDescription": "\u5982\u679c\u60a8\u8fd8\u672a\u5b89\u88c5 Magic: The Gathering Arena\uff0c\u8bf7\u5148\u4e0b\u8f7d\u5e76\u5b89\u88c5\u3002\n\n\u5426\u5219\uff0c\u8bf7\u70b9\u51fb\u5b89\u88c5\u7ee7\u7eed\u3002",
     "Welcome_DirectDownload": "\u76f4\u63a5\u4e0b\u8f7d",
     "Welcome_DownloadPage": "\u4e0b\u8f7d\u9875\u9762",
     "Welcome_InstallMod": "\u5b89\u88c5\u6a21\u7ec4",
+    "Welcome_BackButton": "\u8fd4\u56de",
 
     "Main_TitleInstaller": "Accessible Arena \u5b89\u88c5\u7a0b\u5e8f",
     "Main_TitleUpdater": "Accessible Arena \u66f4\u65b0\u7a0b\u5e8f",

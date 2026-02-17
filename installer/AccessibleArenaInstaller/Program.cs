@@ -124,6 +124,20 @@ namespace AccessibleArenaInstaller
                 string installedVersion = null;
                 string latestVersion = null;
 
+                // Always fetch latest version from GitHub (shown on welcome form)
+                try
+                {
+                    using (var client = new GitHubClient())
+                    {
+                        latestVersion = client.GetLatestModVersionAsync(Config.ModRepositoryUrl).GetAwaiter().GetResult();
+                        Logger.Info($"Latest version: {latestVersion}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"Could not check for updates: {ex.Message}");
+                }
+
                 if (modExists)
                 {
                     Logger.Info("Mod found in default location, checking for updates...");
@@ -148,27 +162,10 @@ namespace AccessibleArenaInstaller
                         }
                     }
 
-                    // Get latest version from GitHub
-                    if (installedVersion != null)
+                    if (installedVersion != null && latestVersion != null)
                     {
-                        try
-                        {
-                            using (var client = new GitHubClient())
-                            {
-                                latestVersion = client.GetLatestModVersionAsync(Config.ModRepositoryUrl).GetAwaiter().GetResult();
-                                Logger.Info($"Latest version: {latestVersion}");
-
-                                if (latestVersion != null)
-                                {
-                                    updateAvailable = IsNewerVersion(latestVersion, installedVersion);
-                                    Logger.Info($"Update available: {updateAvailable}");
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Warning($"Could not check for updates: {ex.Message}");
-                        }
+                        updateAvailable = IsNewerVersion(latestVersion, installedVersion);
+                        Logger.Info($"Update available: {updateAvailable}");
                     }
                 }
 
@@ -191,7 +188,7 @@ namespace AccessibleArenaInstaller
                         case UpdateChoice.FullInstall:
                             // Continue with full install flow
                             Logger.Info("User chose full install");
-                            var welcomeForm = new WelcomeForm();
+                            var welcomeForm = new WelcomeForm { LatestModVersion = latestVersion };
                             Application.Run(welcomeForm);
                             if (welcomeForm.ProceedWithInstall)
                             {
@@ -230,7 +227,7 @@ namespace AccessibleArenaInstaller
 
                     // User wants full reinstall
                     Logger.Info("User chose full reinstall");
-                    var welcomeForm = new WelcomeForm();
+                    var welcomeForm = new WelcomeForm { LatestModVersion = latestVersion };
                     Application.Run(welcomeForm);
                     if (welcomeForm.ProceedWithInstall)
                     {
@@ -240,21 +237,8 @@ namespace AccessibleArenaInstaller
                 }
                 else
                 {
-                    // No mod installed - show default welcome dialog
-                    var welcomeResult = MessageBox.Show(
-                        InstallerLocale.Get("Program_Welcome_Text"),
-                        InstallerLocale.Get("Program_Welcome_Title"),
-                        MessageBoxButtons.OKCancel,
-                        MessageBoxIcon.Information);
-
-                    if (welcomeResult != DialogResult.OK)
-                    {
-                        Logger.Info("Installation cancelled from welcome message");
-                        return;
-                    }
-
-                    // Show main welcome form with options
-                    var welcomeForm = new WelcomeForm();
+                    // No mod installed - show welcome form
+                    var welcomeForm = new WelcomeForm { LatestModVersion = latestVersion };
                     Application.Run(welcomeForm);
 
                     if (!welcomeForm.ProceedWithInstall)

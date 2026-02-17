@@ -9,11 +9,17 @@
     "Program_Welcome_Text": "Bem-vindo ao Accessible Arena!\n\nIsso instalar\u00e1 o mod de acessibilidade para jogar Magic: The Gathering Arena no seu computador.",
 
     "Welcome_Title": "Bem-vindo ao Accessible Arena",
-    "Welcome_Description": "Isso instalar\u00e1 o mod de acessibilidade para Magic: The Gathering Arena.\n\nO mod permite que jogadores cegos e com defici\u00eancia visual joguem MTGA usando o leitor de tela NVDA.\n\nSe voc\u00ea ainda n\u00e3o tem o MTGA instalado, por favor baixe e instale-o primeiro.",
+    "Welcome_Description": "Isso instalar\u00e1 o mod de acessibilidade para Magic: The Gathering Arena.\n\nO mod permite que jogadores cegos e com defici\u00eancia visual joguem MTGA usando o leitor de tela NVDA.",
+    "Welcome_VersionInfo_Format": "Vers\u00e3o a instalar: v{0}",
+    "Welcome_VersionInfo_Unknown": "Vers\u00e3o a instalar: mais recente",
     "Welcome_LanguageLabel": "Idioma do mod:",
+    "Welcome_NextButton": "Avan\u00e7ar",
+    "Welcome_DownloadTitle": "Baixar MTGA",
+    "Welcome_DownloadDescription": "Se voc\u00ea ainda n\u00e3o tem o Magic: The Gathering Arena instalado, por favor baixe e instale-o primeiro.\n\nCaso contr\u00e1rio, clique em Instalar para continuar.",
     "Welcome_DirectDownload": "Download direto",
     "Welcome_DownloadPage": "P\u00e1gina de download",
     "Welcome_InstallMod": "Instalar mod",
+    "Welcome_BackButton": "Voltar",
 
     "Main_TitleInstaller": "Instalador do Accessible Arena",
     "Main_TitleUpdater": "Atualizador do Accessible Arena",
