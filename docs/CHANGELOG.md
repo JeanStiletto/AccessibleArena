@@ -2,22 +2,32 @@
 
 All notable changes to Accessible Arena.
 
-## v0.6.2 - 2026-02-17
+## v0.6.5 - 2026-02-17
 
-### Localize all duel announcements
-- Extracted ~135 hardcoded English strings from 8 source files into the localization system
-- All duel announcements now use `Strings.*` properties (phase names, turn changes, zone events, combat, damage, card movement, game end, scry/surveil hints)
-- Zone names, battlefield row names, browser type names, combat states, and card relationship strings all localized
-- Added `Strings.cs` centralized accessor with ~135 new properties and helper methods (`GetPhaseDescription`, `GetFriendlyBrowserName`, `GetZoneName`, `GetRowName`)
-- Translated all new keys into 11 languages (de, fr, es, it, pt-BR, ja, ko, zh-CN, zh-TW, ru, pl)
-- Files updated: DuelAnnouncer, DuelNavigator, CombatNavigator, CardModelProvider, BrowserDetector, BrowserZoneNavigator, BattlefieldNavigator, ZoneNavigator, HotHighlightNavigator
+### New: Full Localization System
+- Added JSON-based localization with 12 languages: English, German, French, Spanish, Italian, Portuguese (BR), Japanese, Korean, Russian, Polish, Chinese Simplified, Chinese Traditional
+- All ~630 user-facing strings are now localizable, including all duel announcements, zone names, combat states, card relationships, phase names, browser types, and UI messages
+- `Strings.cs` centralized accessor with properties and helper methods (`GetPhaseDescription`, `GetFriendlyBrowserName`, `GetZoneName`, `GetRowName`)
+- Locale JSON files embedded in DLL for self-contained deployment - extracted to `UserData/AccessibleArena/lang/` on startup
+- Fallback chain: active language -> English -> key name (never shows blank text)
+- Pluralization support: OneOther (Western), Slavic 3-form (Russian/Polish), NoPluralForm (CJK)
 
-## v0.6.1 - 2026-02-16
+### New: Mod Settings Menu (F2)
+- Persistent settings menu accessible in all scenes including duels
+- Language picker with dropdown-style cycling through all 12 languages
+- Tutorial Messages toggle (On/Off) - controls keyboard hints appended to activation announcements
+- Verbose Announcements toggle (On/Off) - controls extra detail like counts and positions
+- Settings persist to `UserData/AccessibleArena/settings.json`
+- Arrow Up/Down to navigate, Enter to change, Backspace or F2 to close
 
-### Fix: Escape key in mod menus
-- Escape now closes Help (F1) and Settings (F2) menus
-- Escape is blocked from reaching the game while mod menus are open, preventing unintended game actions
-- Uses persistent `ModMenuActive` flag on InputManager (same pattern as input field/dropdown escape blocking)
+### Bug Fixes
+- Escape now closes Help (F1) and Settings (F2) menus and is blocked from reaching the game while mod menus are open
+- Fix false "Rewards" screen name announced during scene transitions
+- Reduce NPEReward detection log spam to only log on state changes
+
+### Documentation
+- Added translation contribution guide with full string reference for all ~630 keys
+- Updated LOCALIZATION.md, MOD_STRUCTURE.md, and GAME_ARCHITECTURE.md with localization system details
 
 ## v0.6 - 2026-02-14
 
