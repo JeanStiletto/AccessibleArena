@@ -83,6 +83,18 @@ Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing wheth
 
 ---
 
+### Specific Events
+
+Individual event types (drafts, sealed, special events) are untested. Basic event navigation works but event-specific flows may have issues.
+
+---
+
+### Friends Adding and Direct Challenge
+
+Adding friends and the direct challenge feature are untested.
+
+---
+
 ### NPE Deck Reward Screen
 
 After completing all 5 NPE tutorial stages, the game shows a deck reward screen with deck boxes instead of individual cards. NPERewardNavigator was extended to detect deck prefabs (children with `Hitbox_LidOpen`) and navigate them. Needs testing:
