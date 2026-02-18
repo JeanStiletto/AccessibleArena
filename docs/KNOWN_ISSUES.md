@@ -69,6 +69,17 @@ Damage assignment browser (e.g., when distributing combat damage across multiple
 
 Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing whether card selection and bottom placement still works correctly at very low hand sizes.
 
+---
+
+### NPE Deck Reward Screen
+
+After completing all 5 NPE tutorial stages, the game shows a deck reward screen with deck boxes instead of individual cards. NPERewardNavigator was extended to detect deck prefabs (children with `Hitbox_LidOpen`) and navigate them. Needs testing:
+- Does "Decks Unlocked, N decks" announce correctly?
+- Can Left/Right navigate between deck boxes?
+- Does Enter open a deck box (clicks `Hitbox_LidOpen`)?
+- Does Backspace activate the Continue button (`NullClaimButton`)?
+- Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
+
 ## Technical Debt
 
 ### Code Archaeology

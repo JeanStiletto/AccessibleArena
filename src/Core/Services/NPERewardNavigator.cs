@@ -16,6 +16,7 @@ namespace AccessibleArena.Core.Services
     {
         private GameObject _rewardsContainer;
         private int _totalCards;
+        private bool _isDeckReward;
         private string _lastDetectState;
 
         public override string NavigatorId => "NPEReward";
@@ -28,6 +29,12 @@ namespace AccessibleArena.Core.Services
 
         private string GetScreenName()
         {
+            if (_isDeckReward)
+            {
+                if (_totalCards > 0)
+                    return Strings.ScreenDecksUnlockedCount(_totalCards);
+                return Strings.ScreenDecksUnlocked;
+            }
             if (_totalCards > 0)
                 return Strings.ScreenCardUnlockedCount(_totalCards);
             return Strings.ScreenCardUnlocked;
@@ -93,27 +100,33 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            // Verify we have actual card prefabs in the rewards container
+            // Verify we have actual card prefabs or deck prefabs in the rewards container
             int cardCount = 0;
+            int deckCount = 0;
             foreach (Transform child in rewardsContainer)
             {
                 if (child.name.Contains("NPERewardPrefab_IndividualCard"))
                     cardCount++;
+                else if (child.gameObject.activeInHierarchy && FindChildByName(child, "Hitbox_LidOpen") != null)
+                    deckCount++;
             }
 
-            if (cardCount == 0)
+            if (cardCount == 0 && deckCount == 0)
             {
-                LogStateChange("no_cards", "NO card prefabs found - screen not ready");
+                LogStateChange("no_cards", "NO card or deck prefabs found - screen not ready");
                 _rewardsContainer = null;
                 return false;
             }
 
+            _isDeckReward = cardCount == 0 && deckCount > 0;
+
             // Only log full details on state change to "success"
-            if (_lastDetectState != "success")
+            string successState = _isDeckReward ? "success_deck" : "success";
+            if (_lastDetectState != successState)
             {
-                Log($"=== NPE REWARD SCREEN DETECTION: SUCCESS ===");
+                Log($"=== NPE REWARD SCREEN DETECTION: SUCCESS ({(_isDeckReward ? "DECK" : "CARD")} mode) ===");
                 Log($"  Path: {GetPath(npeContainer.transform)}");
-                Log($"  Card prefabs found: {cardCount}");
+                Log($"  Card prefabs found: {cardCount}, Deck prefabs found: {deckCount}");
 
                 Log($"  RewardsCONTAINER children ({rewardsContainer.childCount}):");
                 foreach (Transform child in rewardsContainer)
@@ -139,7 +152,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            _lastDetectState = "success";
+            _lastDetectState = successState;
             _rewardsContainer = npeContainer;
             return true;
         }
@@ -154,12 +167,15 @@ namespace AccessibleArena.Core.Services
 
         protected override void DiscoverElements()
         {
-            Log($"=== DISCOVERING ELEMENTS ===");
+            Log($"=== DISCOVERING ELEMENTS ({(_isDeckReward ? "DECK" : "CARD")} mode) ===");
             _totalCards = 0;
             var addedObjects = new HashSet<GameObject>();
 
-            // Find card entries
-            FindCardEntries(addedObjects);
+            // Find card or deck entries
+            if (_isDeckReward)
+                FindDeckEntries(addedObjects);
+            else
+                FindCardEntries(addedObjects);
 
             // Find take reward button
             FindTakeRewardButton(addedObjects);
@@ -290,6 +306,102 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        private void FindDeckEntries(HashSet<GameObject> addedObjects)
+        {
+            if (_rewardsContainer == null)
+            {
+                Log($"FindDeckEntries: _rewardsContainer is NULL");
+                return;
+            }
+
+            var activeContainer = _rewardsContainer.transform.Find("ActiveContainer");
+            if (activeContainer == null)
+            {
+                Log($"FindDeckEntries: ActiveContainer not found");
+                return;
+            }
+
+            var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
+            if (rewardsContainer == null)
+            {
+                Log($"FindDeckEntries: RewardsCONTAINER not found");
+                return;
+            }
+
+            Log($"Scanning RewardsCONTAINER for deck prefabs...");
+
+            var deckEntries = new List<(GameObject hitbox, float sortOrder, string name)>();
+
+            foreach (Transform child in rewardsContainer)
+            {
+                Log($"  Checking: {child.name} (active={child.gameObject.activeInHierarchy})");
+
+                if (!child.gameObject.activeInHierarchy)
+                {
+                    Log($"    SKIPPED: not active");
+                    continue;
+                }
+
+                // Look for Hitbox_LidOpen descendant (deck box click target)
+                var hitboxObj = FindChildByName(child, "Hitbox_LidOpen");
+                if (hitboxObj == null)
+                {
+                    Log($"    SKIPPED: no Hitbox_LidOpen found");
+                    continue;
+                }
+
+                Log($"    MATCHED as deck prefab (Hitbox_LidOpen found)");
+
+                // Log hierarchy for debugging
+                Log($"    Children of deck prefab:");
+                foreach (Transform deckChild in child)
+                {
+                    Log($"      - {deckChild.name} (active={deckChild.gameObject.activeInHierarchy})");
+                }
+
+                if (addedObjects.Contains(hitboxObj))
+                {
+                    Log($"    SKIPPED: already added");
+                    continue;
+                }
+
+                // Try to extract deck name from the prefab
+                string deckName = UITextExtractor.GetText(child.gameObject);
+                if (string.IsNullOrEmpty(deckName))
+                {
+                    deckName = Strings.DeckNumber(deckEntries.Count + 1);
+                }
+
+                float sortOrder = child.position.x;
+                deckEntries.Add((hitboxObj, sortOrder, deckName));
+                addedObjects.Add(hitboxObj);
+
+                Log($"    ADDED: {deckName} at x={sortOrder:F2}");
+            }
+
+            // Sort decks by position (left to right)
+            deckEntries = deckEntries.OrderBy(x => x.sortOrder).ToList();
+
+            _totalCards = deckEntries.Count;
+            Log($"Total decks found: {_totalCards}");
+
+            // Add decks to navigation (re-number after sorting)
+            int deckNum = 1;
+            foreach (var (hitbox, sortX, name) in deckEntries)
+            {
+                // If the name was a fallback "Deck N", re-generate with sorted index
+                string label = name;
+                if (name == Strings.DeckNumber(deckNum) || name.StartsWith("Deck "))
+                {
+                    label = Strings.DeckNumber(deckNum);
+                }
+
+                Log($"Adding element: '{label}' -> {hitbox.name}");
+                AddElement(hitbox, label);
+                deckNum++;
+            }
+        }
+
         private void FindTakeRewardButton(HashSet<GameObject> addedObjects)
         {
             if (_rewardsContainer == null)
@@ -352,9 +464,10 @@ namespace AccessibleArena.Core.Services
 
             if (foundButton != null)
             {
-                AddElement(foundButton, "Take reward, button");
+                string buttonLabel = _isDeckReward ? "Continue, button" : "Take reward, button";
+                AddElement(foundButton, buttonLabel);
                 addedObjects.Add(foundButton);
-                Log($"Take reward button ADDED");
+                Log($"{buttonLabel} ADDED");
             }
             else
             {
@@ -400,6 +513,11 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
+            if (_isDeckReward)
+            {
+                string deckInfo = _totalCards > 0 ? $"{_totalCards} {(_totalCards == 1 ? "deck" : "decks")}. " : "";
+                return $"{ScreenName}. {deckInfo}Left and Right to navigate. Enter to open.";
+            }
             string cardInfo = _totalCards > 0 ? $"{_totalCards} {(_totalCards == 1 ? "card" : "cards")}. " : "";
             return $"{ScreenName}. {cardInfo}Left and Right to navigate, Up and Down for card details.";
         }
@@ -465,14 +583,14 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Backspace dismisses (activates take reward button)
+            // Backspace dismisses (activates take reward / continue button)
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                Log($"Input: Backspace - Finding Take reward button");
-                // Find and activate the take reward button
+                Log($"Input: Backspace - Finding dismiss button");
+                // Find and activate the take reward / continue button
                 foreach (var element in _elements)
                 {
-                    if (element.Label.Contains("Take reward"))
+                    if (element.Label.Contains("Take reward") || element.Label.Contains("Continue"))
                     {
                         Log($"  Activating: {element.Label} -> {element.GameObject?.name}");
                         var result = UIActivator.Activate(element.GameObject);
@@ -533,6 +651,7 @@ namespace AccessibleArena.Core.Services
                 Deactivate();
             }
             _rewardsContainer = null;
+            _isDeckReward = false;
             _lastDetectState = null;
         }
     }
