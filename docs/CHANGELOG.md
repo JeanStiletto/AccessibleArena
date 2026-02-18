@@ -38,6 +38,25 @@ All notable changes to Accessible Arena.
 - Works in all contexts: collection, deck builder, duel, store
 - Localized label for all 12 supported languages
 
+### New: Brief Cast Announcements Setting (untested)
+- New setting to shorten cast announcements for your own spells
+
+### New: NPE Deck Reward Screen Support (untested)
+- NPERewardNavigator now handles deck box rewards after completing all 5 NPE tutorial stages
+- Detects deck prefabs (children with `Hitbox_LidOpen`) when no card prefabs are found
+- Left/Right navigates between deck boxes, Enter opens them
+- Deck names extracted via UITextExtractor with fallback to "Deck 1", "Deck 2", etc.
+- Localized "Decks Unlocked" screen name for all 12 languages
+
+### Bug Fix: Selected Cards Disappearing in Selection Mode (untested)
+- Fixed selected cards disappearing from Tab navigation in selection mode
+
+### Bug Fix: German Translation Issues
+- Fixed incorrect German translation strings
+
+### Other
+- README, license, and project cleanup for public beta
+
 ## v0.6.6 - 2026-02-17
 
 ### Bug Fix: Single-Item List Navigation
