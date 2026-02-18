@@ -429,24 +429,8 @@ namespace AccessibleArena.Patches
                 MelonLogger.Warning("[PanelStatePatch] Could not find PlayBladeController.PlayBladeVisualState setter");
             }
 
-            // Also patch IsDeckSelected setter
-            var isDeckSelectedSetter = playBladeType.GetProperty("IsDeckSelected",
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetSetMethod(true);
-
-            if (isDeckSelectedSetter != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(PlayBladeIsDeckSelectedPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(isDeckSelectedSetter, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched PlayBladeController.IsDeckSelected setter");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch PlayBladeController.IsDeckSelected setter: {ex.Message}");
-                }
-            }
+            // IsDeckSelected is GET-ONLY (delegates to _activeBladeWidget.IsDeckSelected, no setter).
+            // No patch possible or needed - deck selection is handled via DeckView.OnDeckClick().
         }
 
         private static void PatchHomePageBladeStates(HarmonyLib.Harmony harmony)
@@ -1197,18 +1181,6 @@ namespace AccessibleArena.Patches
             }
         }
 
-        public static void PlayBladeIsDeckSelectedPostfix(object __instance, bool value)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"PlayBladeController.IsDeckSelected = {value}");
-                OnPanelStateChanged?.Invoke(__instance, value, "PlayBlade:DeckSelected");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in PlayBladeIsDeckSelectedPostfix: {ex.Message}");
-            }
-        }
 
         public static void IsEventBladeActivePostfix(object __instance, bool value)
         {

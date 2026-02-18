@@ -155,7 +155,7 @@ C:\Users\fabia\arena\
 - [x] DeckSelectBlade.Show/Hide - Patched (Show takes EventContext, DeckFormat, Action)
 - [x] DeckSelectBlade.IsShowing setter - Backup detection
 - [x] PlayBladeController.PlayBladeVisualState setter - Detects play blade state changes
-- [x] PlayBladeController.IsDeckSelected setter - Detects deck selection
+- [ ] ~~PlayBladeController.IsDeckSelected setter~~ - Removed (GET-ONLY property, no setter to patch)
 - [x] HomePageContentController.IsEventBladeActive setter - Detects event blade
 - [x] HomePageContentController.IsDirectChallengeBladeActive setter - Detects direct challenge
 - [x] BladeContentView.Show/Hide - Base class for all blade views
@@ -173,10 +173,7 @@ C:\Users\fabia\arena\
 - [x] Play button activation - Opens PlayBlade correctly
 - [x] Find Match button - Activates and shows tooltip
 - [x] Mode tabs (Play/Ranked/Brawl) - Produce activation sounds
-- [~] **Deck selection - PARTIALLY WORKING**
-  - EventSystem selects deck correctly
-  - Pointer events sent but `IsDeckSelected` not triggered
-  - May require starter deck cloning first (see BEST_PRACTICES.md)
+- [x] **Deck selection** - `DeckView.OnDeckClick()` via reflection, auto-plays after selection
 
 ### Friends Panel (Social UI)
 - [~] Friends panel accessibility - **PARTIALLY WORKING**

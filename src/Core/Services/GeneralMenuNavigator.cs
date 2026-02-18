@@ -2323,31 +2323,36 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void AutoPressPlayButtonInPlayBlade()
         {
-            // Find the PlayBlade Play button - it's named "MainButton" but does NOT have the MainButton component
-            // (The Home page Play button has the MainButton component, PlayBlade's doesn't)
-            foreach (var elem in _elements)
+            // Find the PlayBlade Play button by searching the scene directly.
+            // Cannot use _elements because MainButton is classified as Unknown and excluded.
+            // The PlayBlade Play button is named "MainButton" but does NOT have the MainButton component
+            // (the Home page Play button has the MainButton component, PlayBlade's doesn't).
+            foreach (var t in GameObject.FindObjectsOfType<Transform>())
             {
-                if (elem.GameObject != null && elem.GameObject.name == "MainButton")
-                {
-                    // Verify it's NOT the Home page MainButton (which has MainButton component)
-                    bool hasMainButtonComponent = false;
-                    var components = elem.GameObject.GetComponents<MonoBehaviour>();
-                    foreach (var comp in components)
-                    {
-                        if (comp != null && comp.GetType().Name == "MainButton")
-                        {
-                            hasMainButtonComponent = true;
-                            break;
-                        }
-                    }
+                if (t == null || t.name != "MainButton" || !t.gameObject.activeInHierarchy)
+                    continue;
 
-                    // PlayBlade's Play button doesn't have MainButton component
-                    if (!hasMainButtonComponent)
+                // Must be inside PlayBlade hierarchy
+                if (!IsInsidePlayBladeContainer(t.gameObject))
+                    continue;
+
+                // Verify it's NOT the Home page MainButton (which has MainButton component)
+                bool hasMainButtonComponent = false;
+                var components = t.gameObject.GetComponents<MonoBehaviour>();
+                foreach (var comp in components)
+                {
+                    if (comp != null && comp.GetType().Name == "MainButton")
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Auto-pressing Play button after deck selection");
-                        UIActivator.Activate(elem.GameObject);
-                        return;
+                        hasMainButtonComponent = true;
+                        break;
                     }
+                }
+
+                if (!hasMainButtonComponent)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Auto-pressing Play button after deck selection");
+                    UIActivator.Activate(t.gameObject);
+                    return;
                 }
             }
 

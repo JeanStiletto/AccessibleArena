@@ -2,6 +2,14 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6.9 - 2026-02-18
+
+### Bug Fix: PlayBlade Auto-Play After Deck Selection
+- Fixed auto-press Play button failing silently after deck selection
+- Root cause: MainButton was classified as Unknown and excluded from navigator elements
+- Fix: Search scene directly via FindObjectsOfType instead of iterating navigator elements
+- Removed dead IsDeckSelected setter patch (property is GET-ONLY, patch never applied)
+
 ## v0.6.8 - 2026-02-18
 
 ### New: PlayBlade Queue Type Tabs

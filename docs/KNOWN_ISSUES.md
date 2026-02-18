@@ -365,10 +365,10 @@ The PlayBlade "Find Match" was restructured into three queue type tabs (Ranked, 
 - The two-step activation (click FindMatch tab → click queue type tab) relies on timing and rescans
 - Edge case: switching between queue types rapidly may leave the game in an unexpected mode state
 
-**Deck selection flow:**
-- After entering a queue type, the user selects a deck folder and then a deck
-- Unclear if the full flow (queue type → deck selection → match start) works end-to-end in all queue types
-- Bot play through PlayBlade is not functional (see "Bot Match Not Accessible" above)
+**Deck selection flow - RESOLVED:**
+- Full flow works: queue type → deck folder → deck → auto-play starts matchmaking
+- Deck selection uses `DeckView.OnDeckClick()` via reflection
+- Auto-play button found via scene search (FindObjectsOfType) after deck selection
 
 **BO3 toggle:**
 - The "Best of 3" checkbox is now labeled correctly (was "POSITION" placeholder)
