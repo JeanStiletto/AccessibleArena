@@ -6,42 +6,45 @@ Active bugs and limitations in the MTGA Accessibility Mod.
 
 ### Bot Match Not Accessible
 
-Bot Match functionality is currently not accessible through the UI.
+Bot Match functionality is not accessible through the PlayBlade UI. The "Bot-Match" button in the Open Play tab is a format selector only - it does NOT start a bot match through the normal matchmaking queue.
 
-**Investigation Findings (February 2026):**
+**Symptoms:**
+- Pressing Enter on "Bot-Match" inside PlayBlade Open Play tab activates successfully (CustomButton path)
+- But selecting a deck and pressing Play queues for a **real match** against a human opponent
+- Deck list does not change after Bot-Match click (unlike Brawl which swaps to Brawl precons)
+- Some decks trigger "Ungültiges Deck. Deck konnte nicht bestätigt werden. (Deck Limit Reached)" error
+- Ranked and Brawl queue type tabs work correctly for their respective modes
 
-1. **No Bot Match button on HomePage:** The HomePage SafeZone only contains:
-   - `SafeZone/MainButton` - The "Spiele" (Play) button
-   - `SafeZone/Banners/Banner_Left` - Carousel banner
-   - `SafeZone/Banners/NavDots` - Carousel navigation dots
-   - `SafeZone/Banners/Banners_Right/HomeBanner_Right_Base` - Event feature banners (Starter Deck Duel, Ranked, etc.)
+**Root Cause: Bot-Match uses a different API than normal matchmaking**
 
-2. **Bot-Match in PlayBlade is NOT a bot match trigger:** The "Bot-Match" option visible in `Blade_ListItem` inside the FindMatch tab is just a format label/filter, NOT a trigger for actual bot games. Clicking it changes the tooltip/description but doesn't configure the queue for bot matches.
+The Bot-Match `Blade_ListItem` button in PlayBlade is just a format filter within the Open Play tab. Real bot matches use completely separate game APIs:
+- `HomePageContentController.Coroutine_PlayBotGame`
+- `IssueAiBotMatchReq` request class
+- `EAiBotMatchType` enum
 
-3. **Game code still has bot match support:**
-   - `HomePageContentController.Coroutine_PlayBotGame` exists
-   - `IssueAiBotMatchReq` request class exists
-   - `EAiBotMatchType` enum with bot match types exists
-   - But no visible UI element triggers these
+These are NOT triggered by the PlayBlade queue flow. The PlayBlade always uses normal matchmaking regardless of which mode button is selected under Open Play.
 
-4. **Documentation vs Reality:** Our docs (GAME_ARCHITECTURE.md, MENU_NAVIGATION.md) mention "Play, Bot Match" as separate buttons on HomePage, but current game version only shows ONE MainButton (Play).
+**Investigation history (February 2026):**
 
-**Likely Cause:** WotC appears to have removed the separate Bot Match button from the main HomePage UI. The `Coroutine_PlayBotGame` code still exists but may only be triggered through:
-- New Player Experience (NPE/Sparky) flow
-- Internal debug commands
-- Some hidden/conditional UI path
+1. Initial hypothesis: UIActivator was not clicking the Bot-Match button correctly because the child "Button" element lacked CustomButton (only had standard Unity Button), and the parent `Blade_ListItem` had the real CustomButton handler.
 
-**Workaround:** None currently available.
+2. Fix attempt 1: Added `SimulatePointerClick(element)` before `onClick.Invoke()` in standard Button path. Incorrect because `ExecuteEvents.Execute` doesn't bubble to parents, and would cause double-fire on standard buttons.
+
+3. Fix attempt 2 (commit `e1ab56c`, reverted in `24743a7`): Added `FindParentCustomButton()` helper to search up parent hierarchy for CustomButton and activate parent directly. Technically sound approach but based on wrong premise.
+
+4. Retesting revealed: The child "Button" element DOES have its own CustomButton component. UIActivator logs confirm `Invoking CustomButton.onClick via reflection on: Button` - the CustomButton path IS being used correctly. The `FindParentCustomButton` code was never reached.
+
+5. Conclusion: The button activation works correctly. The game simply does not support bot matches through the PlayBlade queue. Bot matches require calling `Coroutine_PlayBotGame` or `IssueAiBotMatchReq` directly.
+
+**Key lessons:**
+- Always verify assumptions against actual log output before writing fixes
+- `FindParentCustomButton` is a valid pattern for future use (committed then reverted for reference: `e1ab56c`)
+- Unity's `ExecuteEvents.Execute` does NOT bubble pointer events to parents
 
 **Potential Solutions:**
-1. Investigate if bot match is accessible through NPE/tutorial flow
-2. Call `Coroutine_PlayBotGame` directly via reflection (would need to find the HomePageContentController instance)
-3. Use `IssueAiBotMatchReq` to start a bot match programmatically
-
-**Files investigated:**
-- `GeneralMenuNavigator.cs` - UI element discovery
-- `analysis_core_menus.txt` - HomePageContentController classes
-- `analysis_models.txt` - AiBotMatch request/response classes
+1. Call `Coroutine_PlayBotGame` directly via reflection (needs HomePageContentController instance)
+2. Use `IssueAiBotMatchReq` to start a bot match programmatically
+3. Investigate if bot match is accessible through NPE/tutorial flow
 
 ---
 
