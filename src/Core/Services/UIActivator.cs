@@ -263,23 +263,10 @@ namespace AccessibleArena.Core.Services
                 return pointerResult2;
             }
 
-            // Try standard Unity Button (only if no CustomButton on this element)
+            // Try standard Unity Button (only if no CustomButton)
             var button = element.GetComponent<Button>();
             if (button != null)
             {
-                // Check if a parent has CustomButton (e.g. Blade_ListItem mode buttons:
-                // the navigable child "Button" has Unity Button, but the parent container
-                // has CustomButton with the real game handler). Pointer events don't bubble
-                // up from child to parent, so we must find and activate the parent directly.
-                var parentCustomButton = FindParentCustomButton(element);
-                if (parentCustomButton != null)
-                {
-                    Log($"Standard Button with parent CustomButton: {parentCustomButton.name}, activating parent");
-                    SimulatePointerClick(parentCustomButton);
-                    TryInvokeCustomButtonOnClick(parentCustomButton);
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
-                }
-
                 button.onClick.Invoke();
                 return new ActivationResult(true, "Activated", ActivationType.Button);
             }
@@ -866,29 +853,6 @@ namespace AccessibleArena.Core.Services
         /// This handles cases where the navigable element is a container (like HomeBanner)
         /// but the actual click handler is on a child.
         /// </summary>
-        /// <summary>
-        /// Searches UP the parent hierarchy for a GameObject with a CustomButton component.
-        /// Used when the navigable element (e.g. child "Button" inside Blade_ListItem) has only
-        /// a standard Unity Button, but the parent container has the CustomButton with the real handler.
-        /// Limited to 5 levels to avoid expensive traversals.
-        /// </summary>
-        private static GameObject FindParentCustomButton(GameObject element)
-        {
-            if (element == null) return null;
-
-            Transform current = element.transform.parent;
-            int depth = 0;
-            while (current != null && depth < 5)
-            {
-                if (HasCustomButtonComponent(current.gameObject))
-                    return current.gameObject;
-                current = current.parent;
-                depth++;
-            }
-
-            return null;
-        }
-
         private static GameObject FindClickableInHierarchy(GameObject root)
         {
             if (root == null) return null;
