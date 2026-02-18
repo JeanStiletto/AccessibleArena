@@ -105,6 +105,7 @@
   "CardInfoType": "Tipo",
   "CardInfoRules": "Regras",
   "CardInfoFlavor": "Texto de Ambientiza\u00e7\u00e3o",
+  "CardInfoRarity": "Raridade",
   "CardInfoArtist": "Artista",
   "CardQuantityMissing_Format": "{0}, missing",
   "CardOwned_Format": "Owned {0}",

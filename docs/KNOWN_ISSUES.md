@@ -621,7 +621,7 @@ Search field filtering and page navigation in deck builder now works correctly a
 Collection cards in deck builder are now fully accessible with complete card info extraction:
 - Navigation: Left/Right to browse cards, Up/Down to read card details
 - Page Navigation: Page Up/Page Down to change collection pages, announces "Page X of Y"
-- All card properties: Name, mana cost, type line, power/toughness, rules text, flavor text, artist
+- All card properties: Name, mana cost, type line, power/toughness, rules text, flavor text, rarity, artist
 
 **Technical notes:**
 - `CardPoolAccessor` accesses game's `CardPoolHolder` via reflection for direct page control

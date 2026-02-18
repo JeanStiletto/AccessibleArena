@@ -481,6 +481,7 @@ namespace AccessibleArena.Core.Models
         public static string CardInfoType => L.Get("CardInfoType");
         public static string CardInfoRules => L.Get("CardInfoRules");
         public static string CardInfoFlavor => L.Get("CardInfoFlavor");
+        public static string CardInfoRarity => L.Get("CardInfoRarity");
         public static string CardInfoArtist => L.Get("CardInfoArtist");
 
         // ===========================================

@@ -105,6 +105,7 @@
   "CardInfoType": "유형",
   "CardInfoRules": "규칙",
   "CardInfoFlavor": "배경",
+  "CardInfoRarity": "희귀도",
   "CardInfoArtist": "아티스트",
   "CardQuantityMissing_Format": "{0}, missing",
   "CardOwned_Format": "Owned {0}",

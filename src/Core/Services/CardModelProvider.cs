@@ -1727,6 +1727,15 @@ namespace AccessibleArena.Core.Services
         /// Extracts the actual value from a StringBackedInt object.
         /// StringBackedInt has: RawText (for "*" etc), Value (int), DefinedValue (nullable int)
         /// </summary>
+        private static string FormatRarityName(string rawRarity)
+        {
+            if (string.IsNullOrEmpty(rawRarity)) return null;
+            // CardRarity enum: None, Land, Common, Uncommon, Rare, MythicRare
+            if (rawRarity == "None" || rawRarity == "0") return null;
+            if (rawRarity == "MythicRare") return "Mythic Rare";
+            return rawRarity;
+        }
+
         private static string GetStringBackedIntValue(object stringBackedInt)
         {
             if (stringBackedInt == null) return null;
@@ -2106,8 +2115,27 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Artist - try Printing sub-object first, then direct properties
+                // Rarity & Artist - try Printing sub-object first, then direct properties
                 var printing = GetModelPropertyValue(dataObj, objType, "Printing");
+
+                // Rarity - try direct on dataObj first (CardData.Rarity), then Printing.Rarity
+                var rarityProp = objType.GetProperty("Rarity");
+                if (rarityProp != null)
+                {
+                    var rarityValue = rarityProp.GetValue(dataObj);
+                    if (rarityValue != null)
+                        info.Rarity = FormatRarityName(rarityValue.ToString());
+                }
+                if (string.IsNullOrEmpty(info.Rarity) && printing != null)
+                {
+                    rarityProp = printing.GetType().GetProperty("Rarity");
+                    if (rarityProp != null)
+                    {
+                        var rarityValue = rarityProp.GetValue(printing);
+                        if (rarityValue != null)
+                            info.Rarity = FormatRarityName(rarityValue.ToString());
+                    }
+                }
                 object artistSource = printing ?? dataObj;
                 var artistSourceType = artistSource.GetType();
 
@@ -3635,6 +3663,15 @@ namespace AccessibleArena.Core.Services
                     {
                         info.FlavorText = GetFlavorText(flavorId);
                     }
+                }
+
+                // Rarity - CardPrintingData should have rarity directly
+                var rarityProp = cardType.GetProperty("Rarity");
+                if (rarityProp != null)
+                {
+                    var rarityValue = rarityProp.GetValue(cardData);
+                    if (rarityValue != null)
+                        info.Rarity = FormatRarityName(rarityValue.ToString());
                 }
 
                 // Artist - CardPrintingData should have artist info directly

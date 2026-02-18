@@ -2,6 +2,15 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6.7 - 2026-02-18
+
+### New: Card Rarity Info Block
+- Cards now display rarity as a navigable info block (Arrow Up/Down)
+- Shown between Flavor Text and Artist in card details
+- Values: Common, Uncommon, Rare, Mythic Rare, Land
+- Works in all contexts: collection, deck builder, duel, store
+- Localized label for all 12 supported languages
+
 ## v0.6.6 - 2026-02-17
 
 ### Bug Fix: Single-Item List Navigation
@@ -505,7 +514,7 @@ All notable changes to Accessible Arena.
 - Collection cards now navigable with Left/Right arrows
 - Card info reading with Up/Down arrows in collection view
 - Page Up/Page Down for collection page navigation
-- Complete card info: name, mana cost, type, P/T, rules text, flavor text, artist
+- Complete card info: name, mana cost, type, P/T, rules text, flavor text, rarity, artist
 - Placeholder cards (GrpId = 0) filtered out from navigation
 - Group state preserved across page changes
 - Deck action navigation (Delete, Edit, Export) with arrow keys

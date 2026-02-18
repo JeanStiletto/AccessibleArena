@@ -9,7 +9,7 @@ namespace AccessibleArena.Core.Services
     /// <summary>
     /// Handles vertical navigation through card information blocks.
     /// When a card is focused, Arrow Up/Down navigates through:
-    /// Name, Mana Cost, Type, Power/Toughness, Rules Text, Flavor Text, Artist
+    /// Name, Mana Cost, Type, Power/Toughness, Rules Text, Flavor Text, Rarity, Artist
     ///
     /// Uses lazy loading: info blocks are only extracted when user presses arrow keys,
     /// not on focus change. This ensures fast navigation through many cards.

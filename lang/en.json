@@ -105,6 +105,7 @@
   "CardInfoType": "Type",
   "CardInfoRules": "Rules",
   "CardInfoFlavor": "Flavor",
+  "CardInfoRarity": "Rarity",
   "CardInfoArtist": "Artist",
 
   "CardQuantityMissing_Format": "{0}, missing",

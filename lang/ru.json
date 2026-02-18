@@ -109,6 +109,7 @@
   "CardInfoType": "Тип",
   "CardInfoRules": "Правила",
   "CardInfoFlavor": "Художественный текст",
+  "CardInfoRarity": "Редкость",
   "CardInfoArtist": "Художник",
   "CardQuantityMissing_Format": "{0}, missing",
   "CardOwned_Format": "Owned {0}",

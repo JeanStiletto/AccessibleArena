@@ -688,6 +688,9 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(info.FlavorText))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoFlavor, info.FlavorText));
 
+            if (!string.IsNullOrEmpty(info.Rarity))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRarity, info.Rarity));
+
             if (!string.IsNullOrEmpty(info.Artist))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoArtist, info.Artist));
 
@@ -718,6 +721,8 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
             if (!string.IsNullOrEmpty(info.FlavorText))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoFlavor, info.FlavorText));
+            if (!string.IsNullOrEmpty(info.Rarity))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRarity, info.Rarity));
             if (!string.IsNullOrEmpty(info.Artist))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoArtist, info.Artist));
 
@@ -837,6 +842,7 @@ namespace AccessibleArena.Core.Services
         public string PowerToughness;
         public string RulesText;
         public string FlavorText;
+        public string Rarity;
         public string Artist;
         /// <summary>
         /// Quantity of this card in a deck list. 0 means not applicable (not a deck list card).

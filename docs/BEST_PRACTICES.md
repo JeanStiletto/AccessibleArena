@@ -536,9 +536,9 @@ AccessibleArenaMod.Instance.CardNavigator.PrepareForCard(element, ZoneType.Battl
 ```
 
 **Info block order varies by zone:**
-- Hand/Stack/Other: Name, Mana Cost, Power/Toughness, Type, Rules, Flavor, Artist
-- Battlefield: Name, Power/Toughness, Type, Rules, Mana Cost, Flavor, Artist
-- Selection browsers (SelectCards/SelectCardsMultiZone): Name, Rules, Mana Cost, Power/Toughness, Type, Flavor, Artist
+- Hand/Stack/Other: Name, Mana Cost, Power/Toughness, Type, Rules, Flavor, Rarity, Artist
+- Battlefield: Name, Power/Toughness, Type, Rules, Mana Cost, Flavor, Rarity, Artist
+- Selection browsers (SelectCards/SelectCardsMultiZone): Name, Rules, Mana Cost, Power/Toughness, Type, Flavor, Rarity, Artist
 
 On battlefield, mana cost is less important (card already in play), so it's shown after rules text.
 In selection browsers, cards represent options with different effects, so rules text comes first. Left/Right navigation also announces rules text instead of card name.
