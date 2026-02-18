@@ -133,12 +133,12 @@ namespace AccessibleArena
             // Use safe name access - Unity destroyed objects are not null but throw on property access
             string oldName = GetSafeGameObjectName(oldElement);
             string newName = GetSafeGameObjectName(newElement);
-            LoggerInstance.Msg($"[FocusChanged] Old: {oldName}, New: {newName}");
+            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", $"Old: {oldName}, New: {newName}");
 
             // If focus moved away from current card, deactivate card navigation
             if (_cardInfoNavigator.IsActive && _cardInfoNavigator.CurrentCard != newElement)
             {
-                LoggerInstance.Msg("[FocusChanged] Deactivating card navigator");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", "Deactivating card navigator");
                 _cardInfoNavigator.Deactivate();
             }
 
@@ -312,7 +312,7 @@ namespace AccessibleArena
             {
                 if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)
                 {
-                    LoggerInstance.Msg($"[NavigatorChange] Deactivating card navigator (navigator changed: {_lastActiveNavigatorId} -> {currentNavId})");
+                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "NavigatorChange", $"Deactivating card navigator (navigator changed: {_lastActiveNavigatorId} -> {currentNavId})");
                     _cardInfoNavigator.Deactivate();
                 }
                 _lastActiveNavigatorId = currentNavId;
@@ -332,8 +332,8 @@ namespace AccessibleArena
                      (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.UpArrow) ||
                       UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.DownArrow)))
             {
-                // Debug: Log when Up/Down is pressed but CardInfoNavigator is not active
-                LoggerInstance.Msg($"[CardInfo] Up/Down pressed but CardInfoNavigator.IsActive={_cardInfoNavigator.IsActive}, CurrentCard={(_cardInfoNavigator.CurrentCard != null ? _cardInfoNavigator.CurrentCard.name : "null")}");
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "CardInfo",
+                    $"Up/Down pressed but CardInfoNavigator.IsActive={_cardInfoNavigator.IsActive}, CurrentCard={(_cardInfoNavigator.CurrentCard != null ? _cardInfoNavigator.CurrentCard.name : "null")}");
             }
 
             _inputHandler?.OnUpdate();

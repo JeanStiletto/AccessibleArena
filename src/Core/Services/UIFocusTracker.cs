@@ -485,8 +485,12 @@ namespace AccessibleArena.Core.Services
         private void AnnounceElement(GameObject element)
         {
             // When a navigator is active, it handles its own announcements.
-            // Exception: dropdown mode, where Unity's native navigation controls focus.
-            if (NavigatorHandlesAnnouncements && !DropdownStateManager.IsInDropdownMode)
+            // Exception: dropdown items, where Unity's native navigation controls focus.
+            // Only actual dropdown items (Item 0, Item 1, ...) should be announced;
+            // other elements that get focus during dropdown transitions (e.g., the next
+            // dropdown or Continue button from MTGA auto-advance) must be suppressed.
+            if (NavigatorHandlesAnnouncements &&
+                (!DropdownStateManager.IsInDropdownMode || !IsDropdownItem(element)))
             {
                 Log($"Skipping announcement (navigator active): {element.name}");
                 return;
@@ -506,7 +510,13 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrWhiteSpace(text))
             {
                 Log($"Announcing: {text}");
-                _announcer.Announce(text, Models.AnnouncementPriority.Normal);
+                // Use Immediate priority for dropdown items to interrupt any native NVDA
+                // speech from EventSystem focus events (prevents "focus changed" being
+                // spoken before the actual item text)
+                var priority = (DropdownStateManager.IsInDropdownMode && IsDropdownItem(element))
+                    ? Models.AnnouncementPriority.Immediate
+                    : Models.AnnouncementPriority.Normal;
+                _announcer.Announce(text, priority);
             }
             else
             {

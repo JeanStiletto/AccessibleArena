@@ -617,6 +617,14 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Enter: user is selecting a dropdown item. Let it pass through to Unity,
+            // but start blocking Submit events to prevent MTGA from auto-clicking
+            // the next focused element (e.g., Continue button after last dropdown).
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                DropdownStateManager.OnDropdownItemSelected();
+            }
+
             // All other keys pass through to Unity's dropdown handling
             // - Arrow keys navigate items (FocusTracker announces them)
             // - Enter selects item and closes dropdown (focus leaves items, we auto-exit edit mode)
@@ -1098,7 +1106,27 @@ namespace AccessibleArena.Core.Services
             // This handles game's auto-advance (Month -> Day -> Year)
             if (justExitedDropdown)
             {
+                // If a chained dropdown was auto-opened (e.g., Day after Month),
+                // close it so the user can open it intentionally
+                var chainedDropdown = DropdownStateManager.ChainedAutoOpenDropdown;
+                if (chainedDropdown != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Closing chained auto-opened dropdown: {chainedDropdown.name}");
+                    CloseDropdownOnElement(chainedDropdown);
+                }
+
+                // Sync index BEFORE clearing selection (reads EventSystem.currentSelectedGameObject)
                 SyncIndexToFocusedElement();
+
+                // Clear EventSystem selection to prevent MTGA from auto-activating
+                // the next element (e.g., Continue button via OnSelect handler).
+                // Our navigator re-establishes selection on next user navigation.
+                var eventSystem = EventSystem.current;
+                if (eventSystem != null)
+                {
+                    eventSystem.SetSelectedGameObject(null);
+                }
+
                 // Don't process any more input this frame to avoid double-activation
                 return;
             }

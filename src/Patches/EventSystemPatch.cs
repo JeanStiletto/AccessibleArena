@@ -32,6 +32,14 @@ namespace AccessibleArena.Patches
                 return false;
             }
 
+            // Block Submit for a few frames after dropdown item selection to prevent
+            // MTGA from auto-clicking Continue (or other auto-advanced elements)
+            if (DropdownStateManager.ShouldBlockSubmit())
+            {
+                MelonLogger.Msg("[EventSystemPatch] BLOCKED Submit - post-dropdown selection window");
+                return false;
+            }
+
             return true;
         }
 
