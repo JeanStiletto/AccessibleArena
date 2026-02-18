@@ -34,6 +34,18 @@ Cards on the battlefield sometimes split into two separate stacks/rows when they
 
 Store screen does not always close properly, which can leave navigation in an unexpected state.
 
+---
+
+### Tutorial Fights Closing After Pressing Play
+
+NPE tutorial fights sometimes close immediately after pressing Play, requiring the player to retry. Most likely a game bug rather than a mod issue until evidence suggests otherwise.
+
+---
+
+### Mailbox Misidentified as Event Panel
+
+Mailbox screen is sometimes incorrectly recognized as an event panel, causing wrong navigation behavior.
+
 ## Needs Testing
 
 ### PlayBlade Queue Type Selection
