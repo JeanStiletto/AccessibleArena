@@ -4084,6 +4084,14 @@ namespace AccessibleArena.Core.Services
             var playBladeResult = isRecentTabDeck
                 ? PlayBladeResult.NotHandled
                 : _playBladeHelper.HandleEnter(element, elementGroup);
+
+            // Track Bot-Match mode selection for JoinMatchMaking patch
+            if (elementGroup == ElementGroup.PlayBladeContent && !UIActivator.IsDeckEntry(element))
+            {
+                var text = UITextExtractor.GetText(element);
+                PlayBladeNavigationHelper.SetBotMatchMode(
+                    text != null && text.IndexOf("Bot", System.StringComparison.OrdinalIgnoreCase) >= 0);
+            }
             // Note: Settings submenu button handling removed - handled by SettingsMenuNavigator
 
             // For toggles: Re-sync EventSystem selection before activating.

@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using AccessibleArena.Core.Services;
+using AccessibleArena.Core.Services.ElementGrouping;
 
 namespace AccessibleArena.Patches
 {
@@ -56,6 +57,9 @@ namespace AccessibleArena.Patches
 
                 // Try to patch HomePageContentController blade states
                 PatchHomePageBladeStates(harmony);
+
+                // Try to patch JoinMatchMaking for bot match interception
+                PatchJoinMatchMaking(harmony);
 
                 // Try to patch BladeContentView base class (Events, FindMatch, LastPlayed blades)
                 PatchBladeContentView(harmony);
@@ -488,6 +492,52 @@ namespace AccessibleArena.Patches
             else
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.IsDirectChallengeBladeActive setter");
+            }
+        }
+
+        private static void PatchJoinMatchMaking(HarmonyLib.Harmony harmony)
+        {
+            var homePageType = FindType("HomePageContentController");
+            if (homePageType == null)
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController for JoinMatchMaking patch");
+                return;
+            }
+
+            var joinMethod = homePageType.GetMethod("JoinMatchMaking",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (joinMethod == null)
+            {
+                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.JoinMatchMaking method");
+                return;
+            }
+
+            try
+            {
+                var prefix = typeof(PanelStatePatch).GetMethod(nameof(JoinMatchMakingPrefix),
+                    BindingFlags.Static | BindingFlags.Public);
+                harmony.Patch(joinMethod, prefix: new HarmonyMethod(prefix));
+                MelonLogger.Msg("[PanelStatePatch] Patched HomePageContentController.JoinMatchMaking for bot match interception");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Failed to patch JoinMatchMaking: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Harmony prefix for HomePageContentController.JoinMatchMaking(string, Guid).
+        /// When Bot Match mode is active, replaces the event name with "AIBotMatch"
+        /// so the game routes to bot match instead of regular matchmaking.
+        /// </summary>
+        public static void JoinMatchMakingPrefix(ref string internalEventName)
+        {
+            if (PlayBladeNavigationHelper.IsBotMatchMode)
+            {
+                MelonLogger.Msg($"[PanelStatePatch] Bot Match mode active, replacing '{internalEventName}' with 'AIBotMatch'");
+                internalEventName = "AIBotMatch";
+                PlayBladeNavigationHelper.SetBotMatchMode(false);
             }
         }
 

@@ -2,6 +2,14 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.0 - 2026-02-18
+
+### New: Bot Match via PlayBlade
+- Bot Match now accessible: Open Play → Bot-Match → select deck → Play starts a bot match
+- Harmony prefix patch on `JoinMatchMaking` replaces event name with "AIBotMatch" when Bot-Match mode selected
+- Bot-Match mode detected by checking element text for "Bot" on PlayBladeContent activation
+- Flag auto-clears after match start and when PlayBlade closes
+
 ## v0.6.9 - 2026-02-18
 
 ### Bug Fix: PlayBlade Auto-Play After Deck Selection

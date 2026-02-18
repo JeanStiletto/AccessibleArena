@@ -33,9 +33,28 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         public bool IsActive => _groupedNavigator.IsPlayBladeContext;
 
+        /// <summary>
+        /// Whether the user selected Bot-Match mode in PlayBlade.
+        /// When true, JoinMatchMaking will be patched to use "AIBotMatch" event name.
+        /// Static so the Harmony patch can access it.
+        /// </summary>
+        public static bool IsBotMatchMode { get; private set; }
+
         public PlayBladeNavigationHelper(GroupedNavigator groupedNavigator)
         {
             _groupedNavigator = groupedNavigator;
+        }
+
+        /// <summary>
+        /// Set Bot-Match mode. Called when user activates a PlayBlade mode button.
+        /// </summary>
+        public static void SetBotMatchMode(bool value)
+        {
+            if (IsBotMatchMode != value)
+            {
+                IsBotMatchMode = value;
+                MelonLogger.Msg($"[PlayBladeHelper] Bot Match mode: {value}");
+            }
         }
 
         /// <summary>
@@ -222,6 +241,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void OnPlayBladeClosed()
         {
             _groupedNavigator.SetPlayBladeContext(false);
+            SetBotMatchMode(false);
             MelonLogger.Msg($"[PlayBladeHelper] Blade closed, cleared context");
         }
 
