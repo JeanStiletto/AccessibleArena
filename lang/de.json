@@ -257,7 +257,7 @@
   "HelpSStack": "S: Stapel",
   "HelpDLibrary": "D: Deine Bibliotheksanzahl, Umschalt plus D: Gegnerische Bibliotheksanzahl",
 
-  "HelpLLifeTotals": "L: Lebenspunkte",
+  "HelpLLifeTotals": "L: Leben",
   "HelpTTurnPhase": "T: Runde und Phase",
   "HelpVPlayerInfo": "V: Spielerinfo-Zone",
 
@@ -458,7 +458,7 @@
   "ScreenLearnToPlay": "Spielen lernen",
   "ScreenPackOpening": "Packung öffnen",
   "ScreenColorChallenge": "Farb-Herausforderung",
-  "ScreenDeckBuilder": "Deck-Baukasten",
+  "ScreenDeckBuilder": "Deckbau",
   "ScreenDeckSelection": "Deckauswahl",
   "ScreenEvent": "Event",
   "ScreenRewards": "Belohnungen",
@@ -624,13 +624,13 @@
 
   "Duel_TurnPhase_Format": "{0} {1}, Zug {2}",
   "Duel_TurnPhaseNoCount_Format": "{0} {1}",
-  "Duel_Your": "Deine",
+  "Duel_Your": "Dein",
   "Duel_Opponents": "Gegners",
   "Duel_You": "Du",
   "Duel_Opponent": "Gegner",
 
-  "Duel_LifeGained_Format": "{0} gewinnt {1} Lebenspunkte",
-  "Duel_LifeLost_Format": "{0} verliert {1} Lebenspunkte",
+  "Duel_LifeGained_Format": "{0}: plus {1} Leben",
+  "Duel_LifeLost_Format": "{0}: minus {1} Leben",
 
   "Duel_DamageDeals_Format": "{0} fügt {2} {1} Schaden zu",
   "Duel_DamageAmount_Format": "{0} Schaden an {1}",
@@ -660,7 +660,7 @@
   "Duel_Attackers_Format": "{0} Angreifer",
 
   "Duel_TokenCreated_Format": "{0}-Spielstein erzeugt",
-  "Duel_Played_Format": "{0} spielt {1}",
+  "Duel_Played_Format": "{0}: {1} gespielt",
   "Duel_Enchanted_Format": "{0} verzaubert {1}",
   "Duel_EntersBattlefield_Format": "{0} betritt das Schlachtfeld",
   "Duel_ReturnedFromGraveyard_Format": "{0} kehrt vom Friedhof zurück",
