@@ -23,6 +23,14 @@ working */
 # Outdated backlog
 arena accessibility backlog.txt
 
+# Temp research/decompilation files
+temp_*
+C*temp_*
+Usersfabiaarenatemp_*
+
+# Tools directory (local utilities, not part of the mod)
+tools/
+
 # Logs
 logs/
 
