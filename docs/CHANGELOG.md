@@ -2,23 +2,13 @@
 
 All notable changes to Accessible Arena.
 
-## v0.7.0 - 2026-02-18
+## v0.6.7 - 2026-02-18
 
 ### New: Bot Match via PlayBlade
 - Bot Match now accessible: Open Play → Bot-Match → select deck → Play starts a bot match
 - Harmony prefix patch on `JoinMatchMaking` replaces event name with "AIBotMatch" when Bot-Match mode selected
 - Bot-Match mode detected by checking element text for "Bot" on PlayBladeContent activation
 - Flag auto-clears after match start and when PlayBlade closes
-
-## v0.6.9 - 2026-02-18
-
-### Bug Fix: PlayBlade Auto-Play After Deck Selection
-- Fixed auto-press Play button failing silently after deck selection
-- Root cause: MainButton was classified as Unknown and excluded from navigator elements
-- Fix: Search scene directly via FindObjectsOfType instead of iterating navigator elements
-- Removed dead IsDeckSelected setter patch (property is GET-ONLY, patch never applied)
-
-## v0.6.8 - 2026-02-18
 
 ### New: PlayBlade Queue Type Tabs
 - Replaced "Find Match" tab with three queue type tabs: Ranked, Open Play, Brawl
@@ -28,8 +18,6 @@ All notable changes to Accessible Arena.
 - Backspace from content returns to tabs, landing on the queue type entry
 - BO3 toggle now labeled "Best of 3" (was showing "POSITION" placeholder)
 - FindMatch nav tab, Play button, and New Deck button excluded from blade navigation
-
-## v0.6.7 - 2026-02-18
 
 ### New: Card Rarity Info Block
 - Cards now display rarity as a navigable info block (Arrow Up/Down)
@@ -47,6 +35,11 @@ All notable changes to Accessible Arena.
 - Left/Right navigates between deck boxes, Enter opens them
 - Deck names extracted via UITextExtractor with fallback to "Deck 1", "Deck 2", etc.
 - Localized "Decks Unlocked" screen name for all 12 languages
+
+### Bug Fix: PlayBlade Auto-Play After Deck Selection
+- Fixed auto-press Play button failing silently after deck selection
+- Root cause: MainButton was classified as Unknown and excluded from navigator elements
+- Fix: Search scene directly via FindObjectsOfType instead of iterating navigator elements
 
 ### Bug Fix: Selected Cards Disappearing in Selection Mode (untested)
 - Fixed selected cards disappearing from Tab navigation in selection mode
