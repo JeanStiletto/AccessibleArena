@@ -713,5 +713,7 @@
 
   "ExtendedInfoTitle": "Erweiterte Karteninfo",
   "ExtendedInfoClosed": "Erweiterte Info geschlossen",
-  "ExtendedInfoInstructions": "Navigiere mit Hoch und Runter. Schließen mit I oder Rücktaste."
+  "ExtendedInfoInstructions": "Navigiere mit Hoch und Runter. Schließen mit I oder Rücktaste.",
+
+  "Bo3Toggle": "Best of 3"
 }

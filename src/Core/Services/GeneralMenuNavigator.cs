@@ -2964,6 +2964,14 @@ namespace AccessibleArena.Core.Services
                 var elementsForGrouping = _elements.Select(e => (e.GameObject, e.Label));
                 _groupedNavigator.OrganizeIntoGroups(elementsForGrouping);
 
+                // Queue type activation may have clicked a real tab — need another rescan
+                if (_groupedNavigator.NeedsFollowUpRescan)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Follow-up rescan needed after queue type activation");
+                    TriggerRescan();
+                    return;
+                }
+
                 // Update EventSystem selection to match the initial grouped element
                 UpdateEventSystemSelectionForGroupedElement();
             }
@@ -3889,6 +3897,21 @@ namespace AccessibleArena.Core.Services
                 // Inside a group - check for subgroup entry first
                 if (_groupedNavigator.IsCurrentElementSubgroupEntry())
                 {
+                    var currentElem = _groupedNavigator.CurrentElement;
+
+                    // PlayBlade queue type subgroup: content loaded dynamically via tab activation
+                    // Don't use EnterSubgroup() — handle via PlayBlade navigation instead
+                    if (currentElem.HasValue
+                        && currentElem.Value.SubgroupType == ElementGroup.PlayBladeContent
+                        && _groupedNavigator.CurrentGroup?.Group == ElementGroup.PlayBladeTabs)
+                    {
+                        var result = _playBladeHelper.HandleQueueTypeEntry(currentElem.Value);
+                        if (result == PlayBladeResult.RescanNeeded)
+                            TriggerRescan();
+                        return true;
+                    }
+
+                    // Standard subgroup (Objectives) - enter pre-stored elements
                     if (_groupedNavigator.EnterSubgroup())
                     {
                         _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());

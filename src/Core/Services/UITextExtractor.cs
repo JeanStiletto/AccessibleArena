@@ -1558,17 +1558,45 @@ namespace AccessibleArena.Core.Services
             var label = toggle.GetComponentInChildren<TMP_Text>();
             if (label != null && !string.IsNullOrWhiteSpace(label.text))
             {
-                return CleanText(label.text);
+                string text = CleanText(label.text);
+
+                // Fix BO3 toggle label: game uses "POSITION" placeholder in FindMatch context
+                if (text == "POSITION" && IsInFindMatchContext(toggle.gameObject))
+                    return Models.Strings.Bo3Toggle();
+
+                return text;
             }
 
             var legacyLabel = toggle.GetComponentInChildren<Text>();
             if (legacyLabel != null && !string.IsNullOrWhiteSpace(legacyLabel.text))
             {
-                return CleanText(legacyLabel.text);
+                string text = CleanText(legacyLabel.text);
+
+                // Fix BO3 toggle label for legacy text too
+                if (text == "POSITION" && IsInFindMatchContext(toggle.gameObject))
+                    return Models.Strings.Bo3Toggle();
+
+                return text;
             }
 
             // Return empty - UIElementClassifier will use object name as fallback
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Check if a GameObject is inside a FindMatch context (for BO3 toggle label fix).
+        /// </summary>
+        private static bool IsInFindMatchContext(GameObject gameObject)
+        {
+            Transform current = gameObject.transform;
+            while (current != null)
+            {
+                string name = current.name;
+                if (name.Contains("FindMatch") || name.Contains("bo3") || name.Contains("Bo3") || name.Contains("BO3"))
+                    return true;
+                current = current.parent;
+            }
+            return false;
         }
 
         private static string GetDropdownText(TMP_Dropdown dropdown)

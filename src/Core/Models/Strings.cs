@@ -983,5 +983,6 @@ namespace AccessibleArena.Core.Models
             L.Format("ScreenItemsSummary_Format", screenName, itemCount, firstElement);
         public static string ObjectivesEntry(string itemCount) =>
             L.Format("ObjectivesEntry_Format", itemCount);
+        public static string Bo3Toggle() => L.Get("Bo3Toggle");
     }
 }

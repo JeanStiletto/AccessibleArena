@@ -715,5 +715,7 @@
 
   "ExtendedInfoTitle": "Extended card info",
   "ExtendedInfoClosed": "Extended info closed",
-  "ExtendedInfoInstructions": "Navigate with Up and Down. Close with I or Backspace."
+  "ExtendedInfoInstructions": "Navigate with Up and Down. Close with I or Backspace.",
+
+  "Bo3Toggle": "Best of 3"
 }

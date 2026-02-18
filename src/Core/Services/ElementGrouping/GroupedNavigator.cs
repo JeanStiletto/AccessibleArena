@@ -123,6 +123,35 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private bool _isPlayBladeContext = false;
 
         /// <summary>
+        /// Reference to the FindMatch game tab for proxy clicking when not active.
+        /// Stored when building PlayBladeTabs so virtual queue type entries can activate it.
+        /// </summary>
+        private GameObject _findMatchTabObject = null;
+
+        /// <summary>
+        /// Pending queue type to activate after FindMatch becomes active.
+        /// Set when user enters a virtual queue type entry and FindMatch blade is not yet open.
+        /// </summary>
+        private string _pendingQueueTypeActivation = null;
+
+        /// <summary>
+        /// Whether post-organize processing requires a follow-up rescan.
+        /// Set when a pending queue type activation clicks a real tab that changes content.
+        /// </summary>
+        public bool NeedsFollowUpRescan { get; private set; }
+
+        /// <summary>
+        /// Last selected queue type tab index in PlayBladeTabs (for Backspace position restore).
+        /// </summary>
+        private int _lastQueueTypeTabIndex = -1;
+
+        /// <summary>
+        /// Initial element index to use when entering PlayBladeTabs (for position restore).
+        /// When >= 0, overrides the default 0 index on PlayBladeTabs auto-entry.
+        /// </summary>
+        private int _pendingPlayBladeTabsEntryIndex = -1;
+
+        /// <summary>
         /// Group type to restore after rescan. Set by SaveCurrentGroupForRestore(),
         /// cleared after OrganizeIntoGroups attempts restoration.
         /// </summary>
@@ -262,6 +291,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Request auto-entry into PlayBladeTabs group after next rescan.
         /// Call when PlayBlade opens.
         /// Does NOT override a pending content entry (tab was just clicked).
+        /// Optionally restores position to the last queue type tab index.
         /// </summary>
         public void RequestPlayBladeTabsEntry()
         {
@@ -272,7 +302,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 return;
             }
             _pendingPlayBladeTabsEntry = true;
-            MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeTabs auto-entry");
+            // Restore position to last queue type tab if available
+            _pendingPlayBladeTabsEntryIndex = _lastQueueTypeTabIndex >= 0 ? _lastQueueTypeTabIndex : -1;
+            MelonLogger.Msg($"[GroupedNavigator] Requested PlayBladeTabs auto-entry (index: {_pendingPlayBladeTabsEntryIndex})");
         }
 
         /// <summary>
@@ -323,6 +355,35 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
             MelonLogger.Msg($"[GroupedNavigator] Requested specific folder auto-entry: {folderName}");
+        }
+
+        /// <summary>
+        /// Set pending queue type activation after FindMatch tab is clicked.
+        /// The queue type tab will be clicked on the next rescan when it becomes available.
+        /// </summary>
+        public void SetPendingQueueTypeActivation(string queueType)
+        {
+            _pendingQueueTypeActivation = queueType;
+            MelonLogger.Msg($"[GroupedNavigator] Set pending queue type activation: {queueType}");
+        }
+
+        /// <summary>
+        /// Get the FindMatch tab GameObject for proxy clicking.
+        /// Returns the stored reference from the last PlayBladeTabs build.
+        /// </summary>
+        public GameObject GetFindMatchTabObject()
+        {
+            return _findMatchTabObject;
+        }
+
+        /// <summary>
+        /// Store the current element index as the last queue type tab position.
+        /// Used for Backspace position restore from PlayBladeContent back to tabs.
+        /// </summary>
+        public void StoreLastQueueTypeTabIndex()
+        {
+            _lastQueueTypeTabIndex = _currentElementIndex;
+            MelonLogger.Msg($"[GroupedNavigator] Stored last queue type tab index: {_lastQueueTypeTabIndex}");
         }
 
         /// <summary>
@@ -675,6 +736,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
             }
 
+            // Post-process PlayBladeTabs: inject queue type subgroup entries
+            NeedsFollowUpRescan = false;
+            PostProcessPlayBladeTabs();
+
             // Set initial position
             if (_groups.Count > 0)
             {
@@ -712,6 +777,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_pendingPlayBladeTabsEntry)
             {
                 _pendingPlayBladeTabsEntry = false;
+                int restoreIndex = _pendingPlayBladeTabsEntryIndex;
+                _pendingPlayBladeTabsEntryIndex = -1;
                 // Find PlayBladeTabs group and auto-enter it
                 for (int i = 0; i < _groups.Count; i++)
                 {
@@ -719,9 +786,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     {
                         _currentGroupIndex = i;
                         _navigationLevel = NavigationLevel.InsideGroup;
-                        _currentElementIndex = 0;
+                        // Use restore index if valid, otherwise start at 0
+                        int maxIdx = _groups[i].Count - 1;
+                        _currentElementIndex = (restoreIndex >= 0 && restoreIndex <= maxIdx) ? restoreIndex : 0;
                         playBladeAutoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeTabs with {_groups[i].Count} items");
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeTabs with {_groups[i].Count} items at index {_currentElementIndex}");
                         break;
                     }
                 }
@@ -743,6 +812,33 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items");
                         break;
                     }
+                }
+            }
+
+            // Check for pending queue type activation (set when user enters a virtual queue type entry)
+            if (_pendingQueueTypeActivation != null)
+            {
+                string queueType = _pendingQueueTypeActivation;
+                _pendingQueueTypeActivation = null;
+
+                // Find the real queue type tab in PlayBladeTabs
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group != ElementGroup.PlayBladeTabs) continue;
+                    for (int j = 0; j < _groups[i].Elements.Count; j++)
+                    {
+                        var elem = _groups[i].Elements[j];
+                        if (elem.FolderName == queueType && elem.GameObject != null)
+                        {
+                            UIActivator.Activate(elem.GameObject);
+                            _pendingPlayBladeContentEntry = true;
+                            _lastQueueTypeTabIndex = j;
+                            NeedsFollowUpRescan = true;
+                            MelonLogger.Msg($"[GroupedNavigator] Pending queue type '{queueType}' found at index {j}, clicked and requesting content entry");
+                            break;
+                        }
+                    }
+                    break;
                 }
             }
 
@@ -882,6 +978,190 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 string folderInfo = g.IsFolderGroup ? " (folder)" : "";
                 MelonLogger.Msg($"  - {g.DisplayName}: {g.Count} items{folderInfo}");
             }
+        }
+
+        /// <summary>
+        /// Post-process PlayBladeTabs group after initial build:
+        /// 1. Find and store the FindMatch nav tab reference (even though it's excluded from tabs)
+        /// 2. Mark real queue type tabs as subgroup entries (if FindMatch is active)
+        /// 3. Inject virtual subgroup entries for queue types (if FindMatch is not active)
+        /// </summary>
+        private void PostProcessPlayBladeTabs()
+        {
+            // Find the PlayBladeTabs group
+            int tabsGroupIdx = -1;
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (_groups[i].Group == ElementGroup.PlayBladeTabs)
+                {
+                    tabsGroupIdx = i;
+                    break;
+                }
+            }
+
+            if (tabsGroupIdx < 0)
+                return; // No PlayBladeTabs group - nothing to do
+
+            var tabsGroup = _groups[tabsGroupIdx];
+
+            // Try to find FindMatch tab object by scanning all discovered elements
+            // (it was excluded from PlayBladeTabs by IsPlayBladeTab, but we still need its GameObject)
+            if (_findMatchTabObject == null || !_findMatchTabObject.activeInHierarchy)
+            {
+                _findMatchTabObject = FindMatchTabInHierarchy();
+            }
+
+            // Check if real queue type tabs are present (FindMatch is active)
+            bool hasRealQueueTabs = false;
+            for (int j = 0; j < tabsGroup.Elements.Count; j++)
+            {
+                var elem = tabsGroup.Elements[j];
+                if (elem.GameObject != null &&
+                    (elem.GameObject.name.StartsWith("Blade_Tab_Ranked") ||
+                     elem.GameObject.name.StartsWith("Blade_Tab_Deluxe")))
+                {
+                    hasRealQueueTabs = true;
+                    break;
+                }
+            }
+
+            if (hasRealQueueTabs)
+            {
+                // Mark real queue type tabs with SubgroupType and FolderName
+                var updatedElements = new List<GroupedElement>(tabsGroup.Elements);
+                for (int j = 0; j < updatedElements.Count; j++)
+                {
+                    var elem = updatedElements[j];
+                    if (elem.GameObject == null) continue;
+
+                    string queueType = GetQueueTypeFromTabName(elem.GameObject.name);
+                    if (queueType != null)
+                    {
+                        elem.SubgroupType = ElementGroup.PlayBladeContent;
+                        elem.FolderName = queueType;
+                        updatedElements[j] = elem;
+                        MelonLogger.Msg($"[GroupedNavigator] Marked real queue tab '{elem.Label}' as subgroup entry (FolderName={queueType})");
+                    }
+                }
+
+                // Update the group with modified elements
+                tabsGroup.Elements = updatedElements;
+                _groups[tabsGroupIdx] = tabsGroup;
+            }
+            else
+            {
+                // No real queue tabs - inject virtual subgroup entries
+                // Find insertion point: after last nav tab (Events) and before Recent
+                var updatedElements = new List<GroupedElement>(tabsGroup.Elements);
+                int insertIdx = FindQueueTypeInsertionIndex(updatedElements);
+
+                var virtualEntries = new[]
+                {
+                    new GroupedElement
+                    {
+                        GameObject = null,
+                        Label = "Ranked",
+                        Group = ElementGroup.PlayBladeTabs,
+                        SubgroupType = ElementGroup.PlayBladeContent,
+                        FolderName = "Ranked"
+                    },
+                    new GroupedElement
+                    {
+                        GameObject = null,
+                        Label = "Open Play",
+                        Group = ElementGroup.PlayBladeTabs,
+                        SubgroupType = ElementGroup.PlayBladeContent,
+                        FolderName = "OpenPlay"
+                    },
+                    new GroupedElement
+                    {
+                        GameObject = null,
+                        Label = "Brawl",
+                        Group = ElementGroup.PlayBladeTabs,
+                        SubgroupType = ElementGroup.PlayBladeContent,
+                        FolderName = "Brawl"
+                    }
+                };
+
+                for (int k = 0; k < virtualEntries.Length; k++)
+                {
+                    updatedElements.Insert(insertIdx + k, virtualEntries[k]);
+                }
+
+                // Update the group
+                tabsGroup.Elements = updatedElements;
+                _groups[tabsGroupIdx] = tabsGroup;
+                MelonLogger.Msg($"[GroupedNavigator] Injected 3 virtual queue type entries at index {insertIdx}");
+            }
+        }
+
+        /// <summary>
+        /// Map a tab GameObject name to a queue type identifier.
+        /// Returns null if the tab is not a queue type tab.
+        /// </summary>
+        private static string GetQueueTypeFromTabName(string tabName)
+        {
+            if (tabName.StartsWith("Blade_Tab_Ranked"))
+                return "Ranked";
+            if (tabName.StartsWith("Blade_Tab_Deluxe"))
+            {
+                // "Blade_Tab_Deluxe (OpenPlay)" or "Blade_Tab_Deluxe (Brawl)"
+                int parenStart = tabName.IndexOf('(');
+                int parenEnd = tabName.IndexOf(')');
+                if (parenStart > 0 && parenEnd > parenStart)
+                {
+                    string mode = tabName.Substring(parenStart + 1, parenEnd - parenStart - 1);
+                    switch (mode.ToLowerInvariant())
+                    {
+                        case "openplay": return "OpenPlay";
+                        case "brawl": return "Brawl";
+                        default: return mode;
+                    }
+                }
+                return "OpenPlay"; // Default for unrecognized Deluxe tab
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Find the insertion index for virtual queue type entries in the tabs list.
+        /// Inserts after the first nav tab (Events) and before the last (Recent).
+        /// If only one nav tab exists, inserts after it.
+        /// </summary>
+        private static int FindQueueTypeInsertionIndex(List<GroupedElement> elements)
+        {
+            // Find the last element that looks like a "non-Recent" nav tab
+            // Recent is typically the last nav tab. Events is typically the first.
+            // Insert after Events (index 1) if we have at least one tab.
+            if (elements.Count == 0)
+                return 0;
+
+            // The first element should be Events. Insert after it.
+            // If there are 2+ elements, the last is typically Recent - insert before it.
+            if (elements.Count >= 2)
+                return elements.Count - 1; // Before last element (Recent)
+
+            return elements.Count; // After the only element
+        }
+
+        /// <summary>
+        /// Try to find the FindMatch tab by walking the Unity hierarchy.
+        /// Looks for inactive or excluded FindMatch nav tab GameObjects.
+        /// </summary>
+        private static GameObject FindMatchTabInHierarchy()
+        {
+            // Search for Blade_Tab_Nav objects that contain "FindMatch"
+            var allObjects = UnityEngine.Object.FindObjectsOfType<RectTransform>(true);
+            foreach (var rt in allObjects)
+            {
+                if (rt.gameObject.name.Contains("Blade_Tab_Nav") &&
+                    rt.gameObject.name.Contains("FindMatch"))
+                {
+                    MelonLogger.Msg($"[GroupedNavigator] Found FindMatch tab: {rt.gameObject.name}");
+                    return rt.gameObject;
+                }
+            }
+            return null;
         }
 
         /// <summary>

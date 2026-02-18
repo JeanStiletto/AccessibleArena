@@ -413,13 +413,23 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Check if element is a PlayBlade tab (Events, Find Match, Recent tabs at top).
+        /// Check if element is a PlayBlade tab (Events, Recent, and queue type tabs like Ranked/OpenPlay/Brawl).
+        /// FindMatch nav tab is excluded - replaced by queue type subgroup entries.
         /// </summary>
         private bool IsPlayBladeTab(string name, string parentPath)
         {
-            // Tabs have "Blade_Tab_Nav" in their name
-            if (name.Contains("Blade_Tab_Nav"))
+            // Queue type tabs (within FindMatch) are promoted to tab level
+            if (name.StartsWith("Blade_Tab_Ranked") || name.StartsWith("Blade_Tab_Deluxe"))
                 return true;
+
+            // Regular nav tabs (Events, Recent) - but NOT FindMatch
+            if (name.Contains("Blade_Tab_Nav"))
+            {
+                // Exclude FindMatch nav tab - replaced by queue type subgroup entries
+                if (name.Contains("FindMatch"))
+                    return false;
+                return true;
+            }
 
             // Also check parent path for tabs container
             if (parentPath.Contains("Blade_NavTabs") && parentPath.Contains("Tabs_CONTAINER"))

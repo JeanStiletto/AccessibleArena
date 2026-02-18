@@ -74,6 +74,44 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Handle Enter on a queue type subgroup entry (Ranked, Open Play, Brawl).
+        /// These entries may be virtual (FindMatch not active) or real (FindMatch active).
+        /// Virtual entries require a two-step activation: click FindMatch tab, then queue type tab.
+        /// </summary>
+        public PlayBladeResult HandleQueueTypeEntry(GroupedElement element)
+        {
+            string queueType = element.FolderName; // "Ranked", "OpenPlay", "Brawl"
+
+            // Store the tab index for Backspace position restore
+            _groupedNavigator.StoreLastQueueTypeTabIndex();
+
+            if (element.GameObject != null)
+            {
+                // Real tab (FindMatch is active) → direct click
+                UIActivator.Activate(element.GameObject);
+                _groupedNavigator.RequestPlayBladeContentEntry();
+                MelonLogger.Msg($"[PlayBladeHelper] Queue type '{queueType}' activated directly");
+                return PlayBladeResult.RescanNeeded;
+            }
+            else
+            {
+                // Virtual entry → two-step activation: click FindMatch tab first
+                _groupedNavigator.SetPendingQueueTypeActivation(queueType);
+                var findMatchTab = _groupedNavigator.GetFindMatchTabObject();
+                if (findMatchTab != null)
+                {
+                    UIActivator.Activate(findMatchTab);
+                    MelonLogger.Msg($"[PlayBladeHelper] Queue type '{queueType}' pending, clicking FindMatch tab");
+                }
+                else
+                {
+                    MelonLogger.Warning($"[PlayBladeHelper] Queue type '{queueType}' pending but FindMatch tab not found!");
+                }
+                return PlayBladeResult.Handled; // blade switch triggers automatic rescan
+            }
+        }
+
+        /// <summary>
         /// Handle Backspace key press.
         /// Called BEFORE generic grouped navigation handling.
         /// Navigation hierarchy: Tabs -> Content -> Folders -> Folder (decks)
