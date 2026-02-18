@@ -2,6 +2,17 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6.8 - 2026-02-18
+
+### New: PlayBlade Queue Type Tabs
+- Replaced "Find Match" tab with three queue type tabs: Ranked, Open Play, Brawl
+- Queue types appear at the same level as Events and Recent for flatter navigation
+- Virtual entries injected when FindMatch is not active, real tabs used when active
+- Two-step activation for virtual entries (clicks FindMatch tab, then queue type tab)
+- Backspace from content returns to tabs, landing on the queue type entry
+- BO3 toggle now labeled "Best of 3" (was showing "POSITION" placeholder)
+- FindMatch nav tab, Play button, and New Deck button excluded from blade navigation
+
 ## v0.6.7 - 2026-02-18
 
 ### New: Card Rarity Info Block

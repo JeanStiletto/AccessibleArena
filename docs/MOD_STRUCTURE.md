@@ -423,11 +423,45 @@ Hierarchical navigation for menu screens. Elements are organized into groups for
 PlayBladeNavigationHelper handles all PlayBlade-specific Enter/Backspace logic:
 - Derives state from `GroupedNavigator.CurrentGroup` (no separate state machine)
 - `HandleEnter(element, group)` → returns `PlayBladeResult` (NotHandled/Handled/RescanNeeded/CloseBlade)
+- `HandleQueueTypeEntry(element)` → handles queue type subgroup entry (virtual or real tab activation)
 - `HandleBackspace()` → returns `PlayBladeResult`
 
+**Queue Type Tab Structure (February 2026):**
+The original "Find Match" tab was replaced by three queue type tabs at the same level as Events and Recent:
+- **PlayBladeTabs:** [Events, Ranked, Open Play, Brawl, Recent]
+- FindMatch nav tab is excluded from navigation (hidden via `ElementGroupAssigner`)
+- Queue type tabs (`Blade_Tab_Ranked`, `Blade_Tab_Deluxe`) are promoted to PlayBladeTabs group
+
+**Why this restructure:**
+The original Find Match tab opened a mixed view containing queue type tabs, queue items, and a BO3 toggle. This was confusing for screen reader users who had to navigate through nested tabs. By promoting queue types to the top level, users get a flatter, more predictable navigation: pick a queue type → see its queue items → select and play.
+
+**Virtual vs Real Entries:**
+Queue type tabs only exist as GameObjects when the FindMatch blade view is active. When Events/Recent is showing, virtual subgroup entries (`GameObject = null`) are injected into PlayBladeTabs by `GroupedNavigator.PostProcessPlayBladeTabs()`. This uses the same subgroup pattern as Objectives within Progress.
+
+**Two-Step Activation:**
+When entering a virtual queue type entry (FindMatch not active):
+1. Helper stores pending queue type, clicks FindMatch game tab → blade switch → rescan
+2. Post-organize finds real queue type tab, clicks it → `NeedsFollowUpRescan` → rescan
+3. Auto-enters PlayBladeContent with queue items
+
+When entering a real queue type entry (FindMatch already active):
+1. Helper clicks tab directly → rescan → auto-enters PlayBladeContent
+
+**Position Restore:**
+`_lastQueueTypeTabIndex` preserves cursor position when navigating back from content to tabs via Backspace. User returns to the queue type entry they came from.
+
+**BO3 Toggle Fix:**
+Game uses placeholder text "POSITION" for the Best of 3 toggle label. Fixed at two levels: `UITextExtractor.GetToggleText()` replaces "POSITION" with localized "Best of 3", and `UIElementClassifier.TryClassifyAsToggle()` provides a safety net.
+
+**Element Exclusions:**
+- FindMatch nav tab → `ElementGroup.Unknown` (replaced by queue type entries)
+- MainButton (Play/Spielen) inside blade → `ElementGroup.Unknown` (global button, not blade content)
+- NewDeck/CreateDeck inside blade → `ElementGroup.Unknown` (not relevant in FindMatch context)
+- Elements with `ElementGroup.Unknown` are skipped entirely in `OrganizeIntoGroups()`
+
 Navigation flow:
-- Tabs → Play Options (tab selected) → Deck Folders (mode activated)
-- Backspace: Folders/Content → Tabs → Close blade
+- Tabs → Queue Type Entry → Content (queue items) → Deck Folders → Folder (decks)
+- Backspace: Folders/Content → Tabs (landing on last queue type) → Close blade
 
 **Integration:**
 - GeneralMenuNavigator creates GroupedNavigator and PlayBladeNavigationHelper

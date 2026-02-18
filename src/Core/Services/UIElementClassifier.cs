@@ -241,9 +241,15 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             string effectiveName = GetEffectiveToggleName(obj, objName);
+            string label = GetCleanLabel(text, effectiveName);
+
+            // Fix BO3 toggle: game uses "POSITION" placeholder
+            if (label != null && label.Contains("POSITION"))
+                label = Models.Strings.Bo3Toggle();
+
             return CreateResult(
                 ElementRole.Toggle,
-                GetCleanLabel(text, effectiveName),
+                label,
                 toggle.isOn ? "checkbox, checked" : "checkbox, unchecked",
                 true, true);
         }

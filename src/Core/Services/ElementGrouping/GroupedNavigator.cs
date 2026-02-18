@@ -488,6 +488,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
                 var group = _groupAssigner.DetermineGroup(obj);
 
+                // Skip elements that should be hidden from navigation
+                if (group == ElementGroup.Unknown)
+                    continue;
+
                 // Check if this is a folder toggle
                 if (ElementGroupAssigner.IsFolderToggle(obj))
                 {

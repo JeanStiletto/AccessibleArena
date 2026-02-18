@@ -126,6 +126,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     name.Contains("Button_Cardbacks"))
                     return ElementGroup.Content;
 
+                // Exclude FindMatch nav tab entirely - replaced by queue type subgroup entries
+                if (name.Contains("Blade_Tab_Nav") && name.Contains("FindMatch"))
+                    return ElementGroup.Unknown;
+
+                // Exclude Play button and New Deck button from PlayBlade content
+                // They're global UI elements that happen to be inside the blade hierarchy
+                if (name == "MainButton" || name == "MainButtonOutline")
+                    return ElementGroup.Unknown;
+                if (name.Contains("NewDeck") || name.Contains("New Deck") || name.Contains("CreateDeck"))
+                    return ElementGroup.Unknown;
+
                 // Tabs are the navigation buttons at top of PlayBlade
                 if (IsPlayBladeTab(name, parentPath))
                     return ElementGroup.PlayBladeTabs;

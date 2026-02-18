@@ -356,6 +356,28 @@ Deck folder navigation (Enter to expand, Backspace to collapse) may have buggy b
 
 ## Needs Testing
 
+### PlayBlade Queue Type Selection
+
+The PlayBlade "Find Match" was restructured into three queue type tabs (Ranked, Open Play, Brawl) at the top tab level. Several aspects need further testing:
+
+**Mode selection correctness:**
+- Unclear if selecting a queue type tab (e.g., "Ranked") always correctly sets the game's internal mode
+- The two-step activation (click FindMatch tab → click queue type tab) relies on timing and rescans
+- Edge case: switching between queue types rapidly may leave the game in an unexpected mode state
+
+**Deck selection flow:**
+- After entering a queue type, the user selects a deck folder and then a deck
+- Unclear if the full flow (queue type → deck selection → match start) works end-to-end in all queue types
+- Bot play through PlayBlade is not functional (see "Bot Match Not Accessible" above)
+
+**BO3 toggle:**
+- The "Best of 3" checkbox is now labeled correctly (was "POSITION" placeholder)
+- Needs testing whether toggling it actually changes the match format
+
+**Files:** `PlayBladeNavigationHelper.cs`, `GroupedNavigator.cs`, `ElementGroupAssigner.cs`, `GeneralMenuNavigator.cs`
+
+---
+
 ### NPE Rewards Button
 
 NullClaimButton ("Take reward") not being added to navigation. Fix attempted - searching entire hierarchy instead of specific path.
