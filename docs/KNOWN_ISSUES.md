@@ -36,12 +36,6 @@ Store screen does not always close properly, which can leave navigation in an un
 
 ---
 
-### Tutorial Fights Closing After Pressing Play
-
-NPE tutorial fights sometimes close immediately after pressing Play, requiring the player to retry. Most likely a game bug rather than a mod issue until evidence suggests otherwise.
-
----
-
 ### Tab From Open Dropdown Does Not Auto-Open Next Dropdown
 
 When tabbing out of an open dropdown (user was browsing items), the next dropdown element is announced but not auto-opened. The user must press Enter to open it. This is because the previous dropdown's `IsExpanded` property lingers for a frame after `Hide()`, making it impossible to reliably detect whether the new dropdown actually auto-opened. Tabbing between closed dropdown elements works correctly (auto-opens the target dropdown).
@@ -49,6 +43,22 @@ When tabbing out of an open dropdown (user was browsing items), the next dropdow
 ---
 
 ## Needs Testing
+
+### UIActivator Single-Activation Cleanup
+
+Removed redundant activation methods from `SimulatePointerClick` and `Activate` (Feb 2026). Previously, every button press fired 3-4 overlapping activation pathways (pointer events, submit handler, children clicks, direct IPointerClickHandler, reflection onClick). Now only the core pointer sequence fires (enter, down, up, click). This fixed NPE tutorial matches failing to start, but all button types across the game need monitoring:
+- Menu buttons (play, settings, store, etc.)
+- Duel prompt buttons (pass, attack, block)
+- Card activation and targeting
+- Deck builder buttons
+- Collection/store purchase buttons
+- Login and registration buttons
+
+**If a button stops working:** Re-add targeted handling for that specific button in `UIActivator.Activate()`, similar to existing special cases (Nav_Mail, NPE reward, SystemMessageButtonView).
+
+**Files:** `UIActivator.cs`
+
+---
 
 ### Dropdown Handling After Tab Navigation Changes
 
@@ -123,6 +133,26 @@ After completing all 5 NPE tutorial stages, the game shows a deck reward screen 
 - Does Enter open a deck box (clicks `Hitbox_LidOpen`)?
 - Does Backspace activate the Continue button (`NullClaimButton`)?
 - Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
+
+## Not Reproducible Yet
+
+### Game Assets Loading Problem
+
+Intermittent issue during game asset loading. Exact symptoms and reproduction steps unknown.
+
+---
+
+### NPE Screen Present During Tutorial Battles
+
+The NPE (tutorial) screen elements appear to remain present or interfere during tutorial duel scenes. Exact symptoms and reproduction steps unknown.
+
+---
+
+### Settings Menu While Declared Attackers
+
+Opening the settings menu (F2) during the declare attackers phase causes issues. Exact symptoms and reproduction steps unknown.
+
+---
 
 ## Technical Debt
 

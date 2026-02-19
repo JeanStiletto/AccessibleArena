@@ -229,14 +229,6 @@ namespace AccessibleArena.Core.Services
 
                 var pointerResult2 = SimulatePointerClick(element);
 
-                // Also try onClick reflection as additional handler
-                // BUT skip for deck list cards - they respond to pointer events already,
-                // and calling both causes double activation (removes 2 cards instead of 1)
-                if (!IsDeckListCard(element))
-                {
-                    TryInvokeCustomButtonOnClick(element);
-                }
-
                 // Special handling for deck builder MainButton - its onClick listener has NULL target
                 // We need to find the WrapperDeckBuilder component and invoke the method directly
                 if (element.name == "MainButton")
@@ -344,34 +336,11 @@ namespace AccessibleArena.Core.Services
                 Log($"Set EventSystem selected object to: {element.name}");
             }
 
-            // Full click sequence
+            // Full click sequence - mimics a real mouse click
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerEnterHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
-
-            // Also try Submit event - this is what Unity uses for Enter key activation
-            if (eventSystem != null)
-            {
-                var baseEventData = new BaseEventData(eventSystem);
-                ExecuteEvents.Execute(element, baseEventData, ExecuteEvents.submitHandler);
-            }
-
-            // Also try on immediate children
-            foreach (Transform child in element.transform)
-            {
-                ExecuteEvents.Execute(child.gameObject, pointer, ExecuteEvents.pointerClickHandler);
-            }
-
-            // Try IPointerClickHandler components directly
-            // NOTE: ExecuteEvents.Execute(pointerClickHandler) doesn't reliably reach Toggle
-            // So we need to invoke Toggle directly here
-            var clickHandlers = element.GetComponents<IPointerClickHandler>();
-            foreach (var handler in clickHandlers)
-            {
-                Log($"Invoking IPointerClickHandler: {handler.GetType().Name}");
-                handler.OnPointerClick(pointer);
-            }
 
             return new ActivationResult(true, "Activated", ActivationType.PointerClick);
         }
