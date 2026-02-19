@@ -2,6 +2,14 @@
 
 All notable changes to Accessible Arena.
 
+## v0.6.9 - 2026-02-19
+
+### Fixed: Zone Contents Not Updating During Duels
+- Zone card lists (hand, battlefield, graveyard, etc.) now refresh automatically when cards enter or leave
+- Uses event-driven dirty flag: DuelAnnouncer marks navigators dirty on zone count changes
+- Refresh is lazy (only on next user input), so no polling overhead
+- Card index clamped after refresh to keep user at a valid position
+
 ## v0.6.8 - 2026-02-19
 
 ### Fixed: Dropdown Navigation Overhaul

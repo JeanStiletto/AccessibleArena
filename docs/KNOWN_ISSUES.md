@@ -134,9 +134,11 @@ After completing all 5 NPE tutorial stages, the game shows a deck reward screen 
 - Does Backspace activate the Continue button (`NullClaimButton`)?
 - Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
 
-### Zones Not Updating When Cards Enter or Leave
+### ~~Zones Not Updating When Cards Enter or Leave~~ (Fixed v0.6.9)
 
 Zone card lists sometimes don't refresh when a card enters or leaves a zone (e.g., playing a card from hand, a creature dying to graveyard). The zone still shows the old card list until manually re-entered.
+
+**Fix:** Event-driven dirty flag. DuelAnnouncer marks ZoneNavigator and BattlefieldNavigator dirty on zone count changes. Next card navigation input refreshes the active zone before navigating.
 
 ---
 

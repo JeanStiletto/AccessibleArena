@@ -24,6 +24,7 @@ namespace AccessibleArena.Core.Services
         private BattlefieldRow _currentRow = BattlefieldRow.PlayerCreatures;
         private int _currentIndex = 0;
         private bool _isActive;
+        private bool _dirty;
 
         // Reference to CombatNavigator for attacker/blocker state announcements
         private CombatNavigator _combatNavigator;
@@ -63,6 +64,39 @@ namespace AccessibleArena.Core.Services
         public void SetCombatNavigator(CombatNavigator navigator)
         {
             _combatNavigator = navigator;
+        }
+
+        /// <summary>
+        /// Marks battlefield data as stale. Called by DuelAnnouncer when zone contents change.
+        /// The next card navigation input will refresh before navigating.
+        /// </summary>
+        public void MarkDirty()
+        {
+            _dirty = true;
+        }
+
+        /// <summary>
+        /// If dirty, refreshes battlefield cards and clamps the index.
+        /// </summary>
+        private void RefreshIfDirty()
+        {
+            if (!_dirty) return;
+            _dirty = false;
+
+            int oldCount = _rows[_currentRow].Count;
+            DiscoverAndCategorizeCards();
+            int newCount = _rows[_currentRow].Count;
+
+            if (oldCount != newCount)
+            {
+                MelonLogger.Msg($"[BattlefieldNavigator] Refreshed {_currentRow}: {oldCount} -> {newCount} cards");
+            }
+
+            // Clamp index to valid range
+            if (newCount == 0)
+                _currentIndex = 0;
+            else if (_currentIndex >= newCount)
+                _currentIndex = newCount - 1;
         }
 
         /// <summary>
@@ -161,6 +195,7 @@ namespace AccessibleArena.Core.Services
 
             if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow))
             {
+                RefreshIfDirty();
                 ClearEventSystemSelection();
                 PreviousCard();
                 return true;
@@ -168,6 +203,7 @@ namespace AccessibleArena.Core.Services
 
             if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.RightArrow))
             {
+                RefreshIfDirty();
                 ClearEventSystemSelection();
                 NextCard();
                 return true;
@@ -177,6 +213,7 @@ namespace AccessibleArena.Core.Services
             // This prevents fall-through to base menu navigation when in battlefield
             if (!shift && inBattlefield && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)))
             {
+                RefreshIfDirty();
                 var cards = _rows[_currentRow];
                 if (cards.Count == 0)
                 {
@@ -192,6 +229,7 @@ namespace AccessibleArena.Core.Services
             // Home/End for jumping to first/last card in row
             if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.Home))
             {
+                RefreshIfDirty();
                 ClearEventSystemSelection();
                 FirstCard();
                 return true;
@@ -199,6 +237,7 @@ namespace AccessibleArena.Core.Services
 
             if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.End))
             {
+                RefreshIfDirty();
                 ClearEventSystemSelection();
                 LastCard();
                 return true;
@@ -208,6 +247,7 @@ namespace AccessibleArena.Core.Services
             // Note: HotHighlightNavigator handles Enter for targets - this is for non-highlighted cards
             if (inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
+                RefreshIfDirty();
                 ActivateCurrentCard();
                 return true;
             }

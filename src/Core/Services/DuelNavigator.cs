@@ -74,8 +74,11 @@ namespace AccessibleArena.Core.Services
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
             _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
 
-            // Connect DuelAnnouncer to ZoneNavigator for stack checks
+            // Connect DuelAnnouncer to ZoneNavigator for stack checks and dirty marking
             _duelAnnouncer.SetZoneNavigator(_zoneNavigator);
+
+            // Connect DuelAnnouncer to BattlefieldNavigator for dirty marking on zone changes
+            _duelAnnouncer.SetBattlefieldNavigator(_battlefieldNavigator);
 
             // Connect ZoneNavigator to CombatNavigator for attacker state announcements
             _zoneNavigator.SetCombatNavigator(_combatNavigator);

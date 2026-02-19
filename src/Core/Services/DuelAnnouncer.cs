@@ -38,6 +38,7 @@ namespace AccessibleArena.Core.Services
         // Now HotHighlightNavigator handles targeting via game's HotHighlight system
         // private TargetNavigator _targetNavigator;
         private ZoneNavigator _zoneNavigator;
+        private BattlefieldNavigator _battlefieldNavigator;
         private DateTime _lastSpellResolvedTime = DateTime.MinValue;
 
         // Track user's turn count (game turn number counts each half-turn, we want full cycles)
@@ -99,6 +100,21 @@ namespace AccessibleArena.Core.Services
         public void SetZoneNavigator(ZoneNavigator navigator)
         {
             _zoneNavigator = navigator;
+        }
+
+        public void SetBattlefieldNavigator(BattlefieldNavigator navigator)
+        {
+            _battlefieldNavigator = navigator;
+        }
+
+        /// <summary>
+        /// Marks both zone and battlefield navigators as dirty so they refresh
+        /// on the next user navigation input.
+        /// </summary>
+        private void MarkNavigatorsDirty()
+        {
+            _zoneNavigator?.MarkDirty();
+            _battlefieldNavigator?.MarkDirty();
         }
 
         public DuelAnnouncer(IAnnouncementService announcer)
@@ -338,6 +354,9 @@ namespace AccessibleArena.Core.Services
                 _zoneCounts[zoneKey] = cardCount;
 
                 if (diff == 0) return null;
+
+                // Zone content changed - mark navigators dirty for lazy refresh
+                MarkNavigatorsDirty();
 
                 if (zoneName == "Hand")
                 {

@@ -45,6 +45,7 @@ namespace AccessibleArena.Core.Services
         private ZoneOwner _zoneOwner = ZoneOwner.None;
         private int _cardIndexInZone = 0;
         private bool _isActive;
+        private bool _dirty;
 
         // Known zone holder names from game code (discovered via log analysis)
         private static readonly Dictionary<string, ZoneType> ZoneHolderPatterns = new Dictionary<string, ZoneType>
@@ -227,6 +228,15 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Marks zone data as stale. Called by DuelAnnouncer when zone contents change.
+        /// The next card navigation input will refresh the active zone before navigating.
+        /// </summary>
+        public void MarkDirty()
+        {
+            _dirty = true;
+        }
+
+        /// <summary>
         /// Activates zone navigation and discovers all zones.
         /// </summary>
         public void Activate()
@@ -325,6 +335,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (Input.GetKeyDown(KeyCode.LeftArrow))
                 {
+                    RefreshIfDirty();
                     ClearEventSystemSelection();
                     if (HasCardsInCurrentZone())
                     {
@@ -340,6 +351,7 @@ namespace AccessibleArena.Core.Services
 
                 if (Input.GetKeyDown(KeyCode.RightArrow))
                 {
+                    RefreshIfDirty();
                     ClearEventSystemSelection();
                     if (HasCardsInCurrentZone())
                     {
@@ -360,6 +372,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
                 {
+                    RefreshIfDirty();
                     // For zones with cards, CardInfoNavigator handles Up/Down for card details
                     // For empty zones, just announce empty and consume the input
                     if (!HasCardsInCurrentZone())
@@ -378,6 +391,7 @@ namespace AccessibleArena.Core.Services
             // Home/End for jumping to first/last card in zone
             if (Input.GetKeyDown(KeyCode.Home))
             {
+                RefreshIfDirty();
                 ClearEventSystemSelection();
                 if (HasCardsInCurrentZone())
                 {
@@ -392,6 +406,7 @@ namespace AccessibleArena.Core.Services
 
             if (Input.GetKeyDown(KeyCode.End))
             {
+                RefreshIfDirty();
                 ClearEventSystemSelection();
                 if (HasCardsInCurrentZone())
                 {
@@ -407,6 +422,7 @@ namespace AccessibleArena.Core.Services
             // Enter key - play/activate current card
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                RefreshIfDirty();
                 if (HasCardsInCurrentZone())
                 {
                     ActivateCurrentCard();
@@ -484,6 +500,34 @@ namespace AccessibleArena.Core.Services
 
             // Sort cards by position (left to right)
             zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+        }
+
+        /// <summary>
+        /// If dirty, refreshes only the current zone's card list and clamps the index.
+        /// Called before card navigation to ensure the list is up-to-date.
+        /// </summary>
+        private void RefreshIfDirty()
+        {
+            if (!_dirty) return;
+            _dirty = false;
+
+            if (!_zones.TryGetValue(_currentZone, out var zoneInfo)) return;
+            if (zoneInfo.Holder == null) return;
+
+            int oldCount = zoneInfo.Cards.Count;
+            DiscoverCardsInZone(zoneInfo);
+            int newCount = zoneInfo.Cards.Count;
+
+            if (oldCount != newCount)
+            {
+                MelonLogger.Msg($"[ZoneNavigator] Refreshed {_currentZone}: {oldCount} -> {newCount} cards");
+            }
+
+            // Clamp index to valid range
+            if (newCount == 0)
+                _cardIndexInZone = 0;
+            else if (_cardIndexInZone >= newCount)
+                _cardIndexInZone = newCount - 1;
         }
 
         /// <summary>
