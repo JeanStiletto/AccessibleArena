@@ -48,6 +48,12 @@ All notable changes to Accessible Arena.
 - Tab to a card in a different zone triggers a proper zone change announcement
 - Tab within the same zone announces just the card and position
 
+### Improved: Dropdown Select and Close
+- Enter on a dropdown item now selects it and closes the dropdown in one action
+- Previously required Enter to select, then Escape/Backspace to close
+- Closed dropdown displays current selected value (e.g. "Monat der Geburt: Januar, dropdown")
+- Dynamic value re-read via GetDropdownDisplayValue handles TMP_Dropdown, Dropdown, and cTMP_Dropdown
+
 ### Other
 - Added Wizards account creation link to README quick start section
 - Added first letter navigation and rapid key-hold navigation to planned features

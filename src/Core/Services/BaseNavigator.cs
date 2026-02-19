@@ -240,6 +240,18 @@ namespace AccessibleArena.Core.Services
                         label += ", text field";
                     }
                 }
+
+                // Update content for dropdowns - re-read current selected value
+                if (label.EndsWith(", dropdown"))
+                {
+                    string currentValue = GetDropdownDisplayValue(navElement.GameObject);
+                    if (!string.IsNullOrEmpty(currentValue))
+                    {
+                        string baseLabel = label.Substring(0, label.Length - ", dropdown".Length);
+                        if (baseLabel != currentValue)
+                            label = $"{baseLabel}: {currentValue}, dropdown";
+                    }
+                }
             }
 
             return $"{index + 1} of {_elements.Count}: {label}";
@@ -641,16 +653,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Enter: select the currently focused dropdown item.
+            // Enter: select the currently focused dropdown item and close the dropdown.
             // We block SendSubmitEventToSelectedObject (via EventSystemPatch) so Unity's
             // normal Submit path never fires. This prevents the game's onValueChanged
             // callback from triggering chain auto-advance to the next dropdown.
-            // The dropdown stays open so the user can continue browsing or close with Escape.
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
                 SelectDropdownItem();
+                CloseActiveDropdown(silent: true);
+                return;
             }
 
             // Arrow keys pass through to Unity's dropdown handling
@@ -658,10 +671,9 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Manually select the currently focused dropdown item without closing the dropdown.
+        /// Manually select the currently focused dropdown item.
         /// Sets the value via reflection to bypass onValueChanged, preventing the game's
-        /// chain auto-advance mechanism. The dropdown stays open for further browsing;
-        /// the user closes it explicitly with Escape/Backspace.
+        /// chain auto-advance mechanism. The caller is responsible for closing the dropdown.
         /// </summary>
         private void SelectDropdownItem()
         {
@@ -696,11 +708,12 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Set value without triggering onValueChanged (dropdown stays open)
+            // Set value without triggering onValueChanged
+            // No announcement here - the exit transition in HandleInput will
+            // call AnnounceCurrentElement which re-reads the dropdown's current value.
             if (SetDropdownValueSilent(activeDropdown, itemIndex))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Selected dropdown item {itemIndex}");
-                _announcer.Announce(Strings.Selected, AnnouncementPriority.Normal);
             }
         }
 
@@ -759,6 +772,53 @@ namespace AccessibleArena.Core.Services
         }
 
 
+
+        /// <summary>
+        /// Get the currently displayed text value of a dropdown (works for TMP_Dropdown, Dropdown, and cTMP_Dropdown).
+        /// Reads the caption text child component which shows the localized display value.
+        /// </summary>
+        private static string GetDropdownDisplayValue(GameObject dropdownObj)
+        {
+            // Try standard TMP_Dropdown
+            var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
+            if (tmpDropdown != null && tmpDropdown.captionText != null)
+                return tmpDropdown.captionText.text;
+
+            // Try legacy Dropdown
+            var legacyDropdown = dropdownObj.GetComponent<Dropdown>();
+            if (legacyDropdown != null && legacyDropdown.captionText != null)
+                return legacyDropdown.captionText.text;
+
+            // Try cTMP_Dropdown via reflection
+            foreach (var component in dropdownObj.GetComponents<Component>())
+            {
+                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                {
+                    var type = component.GetType();
+                    // Read m_CaptionText field (TMP_Text reference)
+                    var captionField = type.GetField("m_CaptionText",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (captionField != null)
+                    {
+                        var captionText = captionField.GetValue(component) as TMPro.TMP_Text;
+                        if (captionText != null)
+                            return captionText.text;
+                    }
+                    // Fallback: try captionText property
+                    var captionProp = type.GetProperty("captionText",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    if (captionProp != null)
+                    {
+                        var captionText = captionProp.GetValue(component) as TMPro.TMP_Text;
+                        if (captionText != null)
+                            return captionText.text;
+                    }
+                    break;
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Close the currently active dropdown by finding its parent TMP_Dropdown and calling Hide().

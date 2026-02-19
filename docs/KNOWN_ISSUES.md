@@ -36,12 +36,6 @@ Store screen does not always close properly, which can leave navigation in an un
 
 ---
 
-### Tab From Open Dropdown Does Not Auto-Open Next Dropdown
-
-When tabbing out of an open dropdown (user was browsing items), the next dropdown element is announced but not auto-opened. The user must press Enter to open it. This is because the previous dropdown's `IsExpanded` property lingers for a frame after `Hide()`, making it impossible to reliably detect whether the new dropdown actually auto-opened. Tabbing between closed dropdown elements works correctly (auto-opens the target dropdown).
-
----
-
 ### Color Challenge Deck Name Not Refreshing
 
 When selecting a different color in Color Challenge, the announced deck name does not update to reflect the newly selected color's deck.
@@ -63,18 +57,6 @@ Removed redundant activation methods from `SimulatePointerClick` and `Activate` 
 **If a button stops working:** Re-add targeted handling for that specific button in `UIActivator.Activate()`, similar to existing special cases (Nav_Mail, NPE reward, SystemMessageButtonView).
 
 **Files:** `UIActivator.cs`
-
----
-
-### Dropdown Handling After Tab Navigation Changes
-
-All dropdown types in the game need retesting after the Tab navigation refactor (Feb 2026). Specifically:
-- Registration screen dropdowns (Month, Day, Year, Country, Experience)
-- Language selector dropdown
-- Any settings/options dropdowns
-- Dropdowns in deck builder or other screens
-
-Verify: Tab order correct, no double announcements, Enter opens/selects correctly, Escape closes correctly.
 
 ---
 
@@ -215,20 +197,6 @@ Zone change events can create redundant announcements when a creature dies and g
 **Priority:** Low - current behavior is functional, just slightly verbose
 
 ---
-
-### Dropdown Mechanics
-
-**Auto-Open Suppression:**
-MTGA auto-opens dropdowns when they receive EventSystem selection. When user navigates to a dropdown with arrow keys, we set EventSystem selection, game auto-opens it. Auto-opened dropdowns are immediately closed; user must press Enter to open. `SuppressReentry()` prevents re-entering dropdown mode while `IsExpanded` is still true after `Hide()` call.
-
-**Enter/Submit Blocking:**
-While a dropdown is open, Enter is fully blocked from the game via Harmony patches on both `KeyboardManager.PublishKeyDown` and `EventSystem.SendSubmitEventToSelectedObject`. The mod handles Enter itself: `SelectDropdownItem()` sets the value silently via reflection (bypassing `onValueChanged`) and the dropdown stays open. This prevents the chain auto-advance problem where selecting Month would auto-open Day, etc.
-
-**Announcement Ownership:**
-- `UIFocusTracker.NavigatorHandlesAnnouncements` - When a navigator is active, UIFocusTracker skips announcements (navigators handle their own). Set each frame from `NavigatorManager.HasActiveNavigator`.
-- Exception: When a dropdown is open (`DropdownStateManager.IsInDropdownMode`), UIFocusTracker still announces because Unity's native navigation controls dropdown item focus.
-
-**Files:** `UIFocusTracker.cs`, `DropdownStateManager.cs`, `BaseNavigator.cs`, `EventSystemPatch.cs`, `KeyboardManagerPatch.cs`
 
 ## Potential Issues (Monitor)
 

@@ -1,7 +1,7 @@
 # Dropdown Handling - Unified State Management
 
 **Created:** 2026-02-03
-**Updated:** 2026-02-19 (onValueChanged suppression to prevent form auto-advance)
+**Updated:** 2026-02-19 (Enter selects and closes dropdown, dynamic value display)
 
 ---
 
@@ -87,15 +87,26 @@ The mod fully handles Enter key presses in dropdown mode. The game never sees En
 2. **EventSystemPatch** - Blocks `SendSubmitEventToSelectedObject` when `ShouldBlockEnterFromGame` is true
 3. **Post-close blocking** - `ShouldBlockSubmit()` blocks Submit for 3 frames after dropdown close to prevent auto-clicking the next focused element
 
-### Silent Item Selection (BaseNavigator)
+### Item Selection and Close (BaseNavigator)
 
-When the user presses Enter on a dropdown item, the mod selects it without triggering `onValueChanged`:
+When the user presses Enter on a dropdown item, the mod selects it and closes the dropdown:
 
 - **`SelectDropdownItem()`** - Parses item index from the item name ("Item N: ..."), calls `SetDropdownValueSilent()`
 - **`SetDropdownValueSilent()`** - Sets the value via reflection:
   - `TMP_Dropdown` / `Dropdown`: Uses `SetValueWithoutNotify()`
   - `cTMP_Dropdown` (MTGA custom): Sets `m_Value` field directly + calls `RefreshShownValue()` (no `SetValueWithoutNotify` available)
-- The dropdown stays open after selection - the user must press Escape/Backspace to close
+- After selection, `CloseActiveDropdown(silent: true)` closes the dropdown
+- The exit transition then calls `AnnounceCurrentElement()`, which re-reads the dropdown's current value via `GetDropdownDisplayValue()` and announces e.g. "2 of 10: Monat der Geburt: Januar, dropdown"
+
+### Dynamic Dropdown Value Display (BaseNavigator)
+
+`GetElementAnnouncement()` dynamically re-reads dropdown values (same pattern as toggles and input fields):
+
+- **`GetDropdownDisplayValue()`** reads the caption text from the dropdown component:
+  - `TMP_Dropdown` / `Dropdown`: Reads `captionText.text` directly
+  - `cTMP_Dropdown`: Reads `m_CaptionText` field via reflection (cTMP_Dropdown extends `Selectable`, NOT `TMP_Dropdown`)
+- If the current value differs from the base label, formats as "baseLabel: value, dropdown"
+- If unchanged (value matches label), keeps the original label
 
 This prevents the chain auto-advance problem (Month -> Day -> Year) where `onValueChanged` would trigger the game to auto-open the next dropdown.
 
@@ -122,7 +133,7 @@ if (justExitedDropdown)
 
 **BaseNavigator.HandleDropdownNavigation():**
 - Tab/Shift+Tab: Calls `CloseActiveDropdown(silent: true)`, suppresses reentry, then navigates to next/previous element
-- Enter: Calls `SelectDropdownItem()` (select without closing, announces "Selected")
+- Enter: Calls `SelectDropdownItem()` then `CloseActiveDropdown(silent: true)` (selects, closes, exit transition announces element with value)
 - Escape/Backspace: Calls `CloseActiveDropdown()` (closes dropdown, announces "closed", syncs focus)
 - All Enter key codes consumed via `InputManager.ConsumeKey()`
 
@@ -169,11 +180,10 @@ if (justExitedDropdown)
     v
 [Dropdown Mode]
     | Arrow keys handled by Unity's dropdown
-    | Enter: SelectDropdownItem() sets value silently, announces "Selected"
-    |        Dropdown stays open for further browsing
-    v User presses Escape/Backspace
-[Explicit Close]
-    | CloseActiveDropdown() calls dropdown.Hide()
+    v User presses Enter on an item
+[Select and Close]
+    | SelectDropdownItem() sets value silently
+    | CloseActiveDropdown(silent: true)
     | DropdownStateManager.OnDropdownClosed()
     | onValueChanged restored
     | _blockEnterFromGame = false
@@ -182,6 +192,8 @@ if (justExitedDropdown)
 [Next Frame]
     | UpdateAndCheckExitTransition() returns true
     | SyncIndexToFocusedElement() called
+    | AnnounceCurrentElement() re-reads dropdown value via GetDropdownDisplayValue()
+    | Announces e.g. "2 of 10: Monat der Geburt: Januar, dropdown"
     v
 [Normal Navigation]
 ```
@@ -292,13 +304,6 @@ All three must be blocked while in dropdown mode. The `_blockEnterFromGame` flag
 
 MTGA's `cTMP_Dropdown` (custom dropdown class) has no `SetValueWithoutNotify()`. Its `value` setter always fires `onValueChanged`, which triggers the game's auto-advance chain (Month -> Day -> Year -> Country -> Experience). By setting `m_Value` directly via reflection and calling `RefreshShownValue()`, we update the visual state without triggering any callbacks.
 
-### Why Keep Dropdown Open After Selection?
-
-The user should control navigation flow. After selecting a dropdown item, they may want to:
-- Verify the selection
-- Change to a different item
-- Close the dropdown on their own terms with Escape/Backspace
-
 ### Why Suppress onValueChanged While Open?
 
 MTGA's `cTMP_Dropdown.value` setter always fires `m_OnValueChanged.Invoke()`. When a dropdown is open and the game internally changes the value (e.g., highlighting an item), `onValueChanged` fires. On multi-dropdown forms like registration, the game's form validation listens to these events. When the last required dropdown fires `onValueChanged`, the form detects all fields are filled and auto-advances to the next page - before the user has confirmed their selection.
@@ -320,14 +325,13 @@ Without suppression, this would cause the system to incorrectly enter dropdown m
 
 1. **Normal dropdown navigation**
    - Arrow keys navigate dropdown items
-   - Enter selects item (announced as "Selected"), dropdown stays open
-   - Escape/Backspace closes dropdown, announces "dropdown closed"
+   - Enter selects item and closes dropdown
+   - Exit transition announces element with selected value (e.g. "Monat der Geburt: Januar, dropdown")
    - No double announcements
 
-2. **Multiple selections**
-   - Open dropdown, select item with Enter, use arrows to browse more, select again
-   - Dropdown stays open throughout
-   - Each selection announced
+2. **Dropdown value display**
+   - After selecting, navigating back to the dropdown shows current value
+   - e.g. "Monat der Geburt: Januar, dropdown" instead of just "Monat der Geburt, dropdown"
 
 3. **Auto-opened dropdown suppression (arrow keys)**
    - Navigate to dropdown with arrow keys
@@ -378,7 +382,7 @@ Without suppression, this would cause the system to incorrectly enter dropdown m
 ## File References
 
 - `src/Core/Services/DropdownStateManager.cs` - Unified state manager
-- `src/Core/Services/BaseNavigator.cs` - HandleDropdownNavigation, SelectDropdownItem, SetDropdownValueSilent
+- `src/Core/Services/BaseNavigator.cs` - HandleDropdownNavigation, SelectDropdownItem, SetDropdownValueSilent, GetDropdownDisplayValue
 - `src/Patches/EventSystemPatch.cs` - Blocks SendSubmitEventToSelectedObject in dropdown mode
 - `src/Patches/KeyboardManagerPatch.cs` - Blocks Enter from game's KeyboardManager in dropdown mode
 - `src/Core/Services/UIFocusTracker.cs` - Delegates to DropdownStateManager, provides IsAnyDropdownExpanded()
