@@ -30,6 +30,7 @@
     "Main_BrowseDialogDescription": "Seleccione la carpeta de instalaci\u00f3n de MTGA (contiene MTGA.exe)",
     "Main_PathNotFound": "No se encontr\u00f3 MTGA.exe en la carpeta seleccionada.\nPor favor, seleccione la carpeta correcta de instalaci\u00f3n de MTGA.",
     "Main_LaunchCheckBox": "Iniciar MTGA despu\u00e9s de la instalaci\u00f3n",
+    "Main_ReadmeCheckBox": "Abrir la gu\u00eda de inicio en el navegador",
     "Main_InstallButton": "Instalar",
     "Main_UpdateButton": "Actualizar",
     "Main_CancelButton": "Cancelar",

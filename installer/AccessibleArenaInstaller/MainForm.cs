@@ -20,6 +20,7 @@ namespace AccessibleArenaInstaller
         private Button _cancelButton;
         private ProgressBar _progressBar;
         private CheckBox _launchCheckBox;
+        private CheckBox _readmeCheckBox;
 
         public MainForm(string detectedMtgaPath, bool updateOnly = false, string language = null)
         {
@@ -34,7 +35,7 @@ namespace AccessibleArenaInstaller
         {
             // Form settings
             Text = InstallerLocale.Get(_updateOnly ? "Main_TitleUpdater" : "Main_TitleInstaller");
-            Size = new Size(500, 320);
+            Size = new Size(500, 350);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -102,11 +103,20 @@ namespace AccessibleArenaInstaller
                 Checked = false
             };
 
+            // Readme checkbox
+            _readmeCheckBox = new CheckBox
+            {
+                Text = InstallerLocale.Get("Main_ReadmeCheckBox"),
+                Location = new Point(20, 245),
+                Size = new Size(350, 25),
+                Checked = true
+            };
+
             // Install button
             _installButton = new Button
             {
                 Text = InstallerLocale.Get(_updateOnly ? "Main_UpdateButton" : "Main_InstallButton"),
-                Location = new Point(280, 245),
+                Location = new Point(280, 275),
                 Size = new Size(90, 30)
             };
             _installButton.Click += InstallButton_Click;
@@ -115,7 +125,7 @@ namespace AccessibleArenaInstaller
             _cancelButton = new Button
             {
                 Text = InstallerLocale.Get("Main_CancelButton"),
-                Location = new Point(380, 245),
+                Location = new Point(380, 275),
                 Size = new Size(80, 30)
             };
             _cancelButton.Click += (s, e) => Close();
@@ -130,6 +140,7 @@ namespace AccessibleArenaInstaller
                 _browseButton,
                 _progressBar,
                 _launchCheckBox,
+                _readmeCheckBox,
                 _installButton,
                 _cancelButton
             });
@@ -430,6 +441,11 @@ namespace AccessibleArenaInstaller
                     // Ask about saving log file (only prompts if there were errors/warnings)
                     Logger.AskAndSave();
 
+                    if (_readmeCheckBox.Checked)
+                    {
+                        OpenReadme();
+                    }
+
                     if (_launchCheckBox.Checked)
                     {
                         LaunchMtga();
@@ -490,6 +506,26 @@ namespace AccessibleArenaInstaller
             _installButton.Enabled = enabled;
             _pathTextBox.Enabled = enabled;
             _launchCheckBox.Enabled = enabled;
+            _readmeCheckBox.Enabled = enabled;
+        }
+
+        private void OpenReadme()
+        {
+            try
+            {
+                string url;
+                if (_language == null || _language == "en")
+                    url = $"{Config.ModRepositoryUrl}/blob/main/README.md";
+                else
+                    url = $"{Config.ModRepositoryUrl}/blob/main/docs/README.{_language}.md";
+
+                Logger.Info($"Opening README: {url}");
+                System.Diagnostics.Process.Start(url);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to open README", ex);
+            }
         }
 
         private void LaunchMtga()

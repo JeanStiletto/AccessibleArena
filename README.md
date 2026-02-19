@@ -44,6 +44,8 @@ Accessibility mod for Magic: The Gathering Arena that enables blind and visually
 
 ## Quick start
 
+If you do not have a Wizards account yet, you can create one at https://myaccounts.wizards.com/ instead of using the in-game registration screen.
+
 After installation, launch MTG Arena. The mod announces the current screen through your screen reader.
 
 - Press **F1** at any time for a navigable help menu listing all keyboard shortcuts

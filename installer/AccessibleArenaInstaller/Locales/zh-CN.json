@@ -30,6 +30,7 @@
     "Main_BrowseDialogDescription": "\u9009\u62e9 MTGA \u5b89\u88c5\u6587\u4ef6\u5939\uff08\u5305\u542b MTGA.exe\uff09",
     "Main_PathNotFound": "\u5728\u6240\u9009\u6587\u4ef6\u5939\u4e2d\u672a\u627e\u5230 MTGA.exe\u3002\n\u8bf7\u9009\u62e9\u6b63\u786e\u7684 MTGA \u5b89\u88c5\u6587\u4ef6\u5939\u3002",
     "Main_LaunchCheckBox": "\u5b89\u88c5\u5b8c\u6210\u540e\u542f\u52a8 MTGA",
+    "Main_ReadmeCheckBox": "\u5728\u6d4f\u89c8\u5668\u4e2d\u6253\u5f00\u5165\u95e8\u6307\u5357",
     "Main_InstallButton": "\u5b89\u88c5",
     "Main_UpdateButton": "\u66f4\u65b0",
     "Main_CancelButton": "\u53d6\u6d88",

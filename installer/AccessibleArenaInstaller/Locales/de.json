@@ -30,6 +30,7 @@
     "Main_BrowseDialogDescription": "MTGA-Installationsordner ausw\u00e4hlen (enth\u00e4lt MTGA.exe)",
     "Main_PathNotFound": "MTGA.exe wurde im ausgew\u00e4hlten Ordner nicht gefunden.\nBitte w\u00e4hlen Sie den richtigen MTGA-Installationsordner.",
     "Main_LaunchCheckBox": "MTGA nach der Installation starten",
+    "Main_ReadmeCheckBox": "Erste-Schritte-Anleitung im Browser \u00f6ffnen",
     "Main_InstallButton": "Installieren",
     "Main_UpdateButton": "Aktualisieren",
     "Main_CancelButton": "Abbrechen",

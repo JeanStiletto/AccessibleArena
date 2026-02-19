@@ -30,6 +30,7 @@
     "Main_BrowseDialogDescription": "S\u00e9lectionnez le dossier d'installation de MTGA (contient MTGA.exe)",
     "Main_PathNotFound": "MTGA.exe introuvable dans le dossier s\u00e9lectionn\u00e9.\nVeuillez s\u00e9lectionner le bon dossier d'installation de MTGA.",
     "Main_LaunchCheckBox": "Lancer MTGA apr\u00e8s l'installation",
+    "Main_ReadmeCheckBox": "Ouvrir le guide de d\u00e9marrage dans le navigateur",
     "Main_InstallButton": "Installer",
     "Main_UpdateButton": "Mettre \u00e0 jour",
     "Main_CancelButton": "Annuler",

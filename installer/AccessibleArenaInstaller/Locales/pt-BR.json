@@ -30,6 +30,7 @@
     "Main_BrowseDialogDescription": "Selecione a pasta de instala\u00e7\u00e3o do MTGA (cont\u00e9m MTGA.exe)",
     "Main_PathNotFound": "MTGA.exe n\u00e3o encontrado na pasta selecionada.\nPor favor, selecione a pasta correta de instala\u00e7\u00e3o do MTGA.",
     "Main_LaunchCheckBox": "Iniciar MTGA ap\u00f3s a instala\u00e7\u00e3o",
+    "Main_ReadmeCheckBox": "Abrir o guia de in\u00edcio no navegador",
     "Main_InstallButton": "Instalar",
     "Main_UpdateButton": "Atualizar",
     "Main_CancelButton": "Cancelar",

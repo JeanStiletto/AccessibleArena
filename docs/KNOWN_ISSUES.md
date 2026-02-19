@@ -321,7 +321,9 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 
 ### Upcoming
 
-1. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
+1. First letter navigation - press a letter key to jump to the next element starting with that letter in menus and lists
+2. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
+3. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
 2. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
 3. Creature death/exile/graveyard announcements with card names
 4. Player username announcements
