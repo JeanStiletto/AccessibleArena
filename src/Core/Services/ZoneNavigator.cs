@@ -742,8 +742,8 @@ namespace AccessibleArena.Core.Services
             int position = _cardIndexInZone + 1;
             int total = zoneInfo.Cards.Count;
 
-            // Add selection state if in discard mode
-            string selectionState = "";
+            // Add selection state if in discard/selection mode
+            string selectionState = _hotHighlightNavigator?.GetSelectionStateText(card) ?? "";
 
             // Add combat state if in declare attackers/blockers phase (battlefield only)
             string combatState = "";

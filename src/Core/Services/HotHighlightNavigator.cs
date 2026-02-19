@@ -37,6 +37,7 @@ namespace AccessibleArena.Core.Services
         private int _currentIndex = -1;
         private int _opponentIndex = -1;
         private bool _isActive;
+        private bool _wasInSelectionMode;
 
         // Selection mode detection (discard, choose cards to exile, etc.)
         // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
@@ -88,6 +89,7 @@ namespace AccessibleArena.Core.Services
         public void Deactivate()
         {
             _isActive = false;
+            _wasInSelectionMode = false;
             _items.Clear();
             _currentIndex = -1;
             _opponentIndex = -1;
@@ -253,6 +255,7 @@ namespace AccessibleArena.Core.Services
 
             // Pre-check selection mode once (expensive call, don't repeat per-object)
             bool selectionMode = IsSelectionModeActive();
+            CheckSelectionModeTransition(selectionMode);
 
             // DIAGNOSTIC: Count hand cards and their HotHighlight status
             int handCardsTotal = 0;
@@ -678,6 +681,11 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // In selection mode, preserve position so next Tab advances to the next card
+            // Items will be refreshed via DiscoverAllHighlights() on next Tab press
+            if (selectionMode && item.Zone == "Hand")
+                return;
+
             // Clear state after activation - highlights will update
             _items.Clear();
             _currentIndex = -1;
@@ -996,6 +1004,43 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Detects transition into/out of selection mode and announces on entry.
+        /// Uses the submit button's full text (language-agnostic since it comes from the game).
+        /// </summary>
+        private void CheckSelectionModeTransition(bool isActive)
+        {
+            if (isActive && !_wasInSelectionMode)
+            {
+                _wasInSelectionMode = true;
+                var info = GetSubmitButtonInfo();
+                if (info != null)
+                {
+                    string buttonText = UITextExtractor.GetButtonText(info.Value.button);
+                    MelonLogger.Msg($"[HotHighlightNavigator] Selection mode entered, button: {buttonText}");
+                    _announcer.Announce(buttonText, AnnouncementPriority.High);
+                }
+            }
+            else if (!isActive && _wasInSelectionMode)
+            {
+                _wasInSelectionMode = false;
+                MelonLogger.Msg("[HotHighlightNavigator] Selection mode exited");
+            }
+        }
+
+        /// <summary>
+        /// Returns the selection state suffix for a card (e.g. ", selected" or "").
+        /// Used by ZoneNavigator to announce selection state during zone navigation.
+        /// Also checks for selection mode transition to announce on first detection.
+        /// </summary>
+        public string GetSelectionStateText(GameObject card)
+        {
+            bool active = IsSelectionModeActive();
+            CheckSelectionModeTransition(active);
+            if (!active) return "";
+            return IsCardSelected(card) ? $", {Strings.Selected}" : "";
         }
 
         /// <summary>
