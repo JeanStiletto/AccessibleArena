@@ -2,7 +2,28 @@
 
 All notable changes to Accessible Arena.
 
-## Unreleased
+## v0.6.8 - 2026-02-19
+
+### Fixed: Dropdown Navigation Overhaul
+- Enter now selects dropdown items without closing the dropdown, keeping user in control
+- Tab navigates between form elements in mod list order (matching arrow keys)
+- Tabbing to a closed dropdown auto-opens it (screen reader standard)
+- Tabbing from inside an open dropdown closes it silently and moves to next element
+- Fixed registration page auto-advancing when opening the last required dropdown (Experience)
+  - Game's cTMP_Dropdown fires onValueChanged on item focus, triggering premature form validation
+  - DropdownStateManager now suppresses onValueChanged while dropdown is open
+- Fixed dropdown-to-dropdown chain auto-advance on registration page
+  - Submit events blocked for a few frames after dropdown selection
+  - Auto-opened dropdowns detected and closed
+- Enter/Submit blocked from reaching the game while in dropdown mode
+- Selection sets value silently via reflection (bypasses onValueChanged)
+- German translations: changed "Aufklappmenü" to "Dropdown" for consistency
+
+### Fixed: UIActivator Double-Activation
+- SimulatePointerClick was firing 3-4 overlapping activation methods per button press
+- Now only the core pointer sequence fires
+- Removed redundant TryInvokeCustomButtonOnClick after SimulatePointerClick
+- Fixes NPE tutorial match failing to start on first press
 
 ### Fixed: Input Field Arrow Key Navigation
 - Up/Down arrows no longer exit input field edit mode on single-line fields (registration, login)
@@ -10,6 +31,9 @@ All notable changes to Accessible Arena.
 - IsEditingInputField() now uses explicit edit mode flag instead of checking isFocused
 - ReactivateInputField() restores field focus after Up/Down deactivation
 - EventSystemPatch blocks SendMoveEventToSelectedObject during edit mode as defense-in-depth
+
+### Other
+- Added untested items to known issues: events, friends/direct challenge
 
 ## v0.6.7 - 2026-02-18
 
