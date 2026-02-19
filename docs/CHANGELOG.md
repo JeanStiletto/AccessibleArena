@@ -2,6 +2,15 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+### Fixed: Input Field Arrow Key Navigation
+- Up/Down arrows no longer exit input field edit mode on single-line fields (registration, login)
+- Unity's TMP_InputField treats Up/Down as "finish editing" in single-line mode via OnUpdateSelected, which runs before our code
+- IsEditingInputField() now uses explicit edit mode flag instead of checking isFocused
+- ReactivateInputField() restores field focus after Up/Down deactivation
+- EventSystemPatch blocks SendMoveEventToSelectedObject during edit mode as defense-in-depth
+
 ## v0.6.7 - 2026-02-18
 
 ### New: Bot Match via PlayBlade

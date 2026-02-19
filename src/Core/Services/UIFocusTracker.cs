@@ -47,25 +47,24 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Returns true if user is actively editing an input field (pressed Enter to activate).
         /// When true, arrow keys control cursor. When false, arrows navigate between elements.
+        /// Note: Does NOT check isFocused because Unity's TMP_InputField deactivates the field
+        /// on Up/Down arrows in single-line mode (via OnUpdateSelected) BEFORE our code runs.
+        /// We rely on the explicit _inputFieldEditMode flag instead, and re-activate the field
+        /// when Up/Down is detected in HandleInputFieldNavigation.
         /// </summary>
         public static bool IsEditingInputField()
         {
-            // Only return true if user explicitly entered edit mode AND the field is still focused
             if (!_inputFieldEditMode || _activeInputFieldObject == null)
                 return false;
 
-            // Verify the input field is still actually focused
-            var tmpInput = _activeInputFieldObject.GetComponent<TMPro.TMP_InputField>();
-            if (tmpInput != null && tmpInput.isFocused)
-                return true;
+            // Verify the field's GameObject is still valid and active in the scene
+            if (!_activeInputFieldObject.activeInHierarchy)
+            {
+                ExitInputFieldEditMode();
+                return false;
+            }
 
-            var legacyInput = _activeInputFieldObject.GetComponent<UnityEngine.UI.InputField>();
-            if (legacyInput != null && legacyInput.isFocused)
-                return true;
-
-            // Field lost focus, exit edit mode
-            ExitInputFieldEditMode();
-            return false;
+            return true;
         }
 
         /// <summary>

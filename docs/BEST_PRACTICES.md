@@ -78,6 +78,22 @@ This ensures `IsAnyInputFieldFocused()` returns false after exit, allowing subse
 key presses (like Escape to close a popup) to work correctly. MTGA auto-selects input
 fields, so clearing selection is required even when the field wasn't actively focused.
 
+**Input Field Up/Down Re-activation (February 2026):**
+Unity's `TMP_InputField` treats Up/Down arrows as "finish editing" in single-line fields.
+This happens inside `OnUpdateSelected()` (called by `SendUpdateEventToSelectedObject()`),
+which runs BEFORE our `MonoBehaviour.Update()`. By the time our code runs, the field is
+already deactivated and EventSystem focus has moved to another selectable.
+
+Fix (3 parts):
+1. `IsEditingInputField()` checks only the explicit `_inputFieldEditMode` flag, NOT
+   `isFocused` (which is already false). The flag is set on Enter and cleared on Escape/Tab.
+2. `HandleInputFieldNavigation()` calls `ReactivateInputField()` after Up/Down, which
+   restores EventSystem selection and calls `ActivateInputField()`.
+3. `GetFocusedInputFieldInfo()` accepts the field even when not `isFocused` if we're in
+   explicit edit mode, so content can still be read for announcements.
+4. `EventSystemPatch` blocks `SendMoveEventToSelectedObject()` during edit mode as
+   defense-in-depth (prevents arrow navigation on key repeat after re-activation).
+
 **Duel Navigation:**
 - Tab/Shift+Tab: Cycle highlights (playable cards, targets)
 - Arrow keys: Zone/card/battlefield navigation
@@ -272,6 +288,10 @@ private struct InputFieldInfo
 }
 ```
 This helper is used by `AnnounceCharacterAtCursor()` and `AnnounceCurrentInputFieldContent()`.
+When in explicit edit mode (`_editingInputField != null`), `GetFocusedInputFieldInfo()` accepts
+the field even if `isFocused` is false (handles Up/Down deactivation in single-line fields).
+`ReactivateInputField()` restores the field after Up/Down by calling `SetSelectedGameObject()`
+and `ActivateInputField()`.
 
 ### EventSystem Limitations
 - `EventSystem.currentSelectedGameObject` is often null in MTGA

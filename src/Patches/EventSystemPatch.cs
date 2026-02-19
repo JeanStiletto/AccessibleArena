@@ -7,17 +7,38 @@ using AccessibleArena.Core.Services;
 namespace AccessibleArena.Patches
 {
     /// <summary>
-    /// Harmony patches for blocking Enter key when on toggles.
+    /// Harmony patches for blocking Enter key when on toggles and arrow keys when editing input fields.
     ///
     /// MTGA has multiple ways of detecting Enter:
     /// 1. Unity's EventSystem Submit - blocked by SendSubmitEventToSelectedObject patch
     /// 2. Direct Input.GetKeyDown calls - blocked by GetKeyDown patch
     ///
     /// Both patches check BlockSubmitForToggle flag set by navigators when on a toggle.
+    ///
+    /// Arrow key navigation is blocked by SendMoveEventToSelectedObject patch when
+    /// the user is editing an input field (prevents focus from leaving the field).
     /// </summary>
     [HarmonyPatch]
     public static class EventSystemPatch
     {
+        /// <summary>
+        /// Patch StandaloneInputModule.SendMoveEventToSelectedObject to block arrow key
+        /// navigation when the user is editing an input field. Without this, pressing
+        /// Up/Down in a single-line input field causes Unity to navigate to the next
+        /// selectable element, leaving the field unexpectedly.
+        /// </summary>
+        [HarmonyPatch(typeof(StandaloneInputModule), "SendMoveEventToSelectedObject")]
+        [HarmonyPrefix]
+        public static bool SendMoveEventToSelectedObject_Prefix()
+        {
+            if (UIFocusTracker.IsEditingInputField())
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Patch StandaloneInputModule.SendSubmitEventToSelectedObject to block Submit
         /// when our navigator is on a toggle element.

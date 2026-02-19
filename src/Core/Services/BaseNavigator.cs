@@ -588,9 +588,12 @@ namespace AccessibleArena.Core.Services
                 // Don't return - let key pass through to input field for actual deletion
             }
             // Up or Down arrow: announce the current input field content
+            // TMP_InputField deactivates on Up/Down in single-line mode (via OnUpdateSelected
+            // running before our code), so we must re-activate the field afterwards.
             else if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {
                 AnnounceCurrentInputFieldContent();
+                ReactivateInputField();
             }
             // Left/Right arrows: announce character at cursor position
             else if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
@@ -794,13 +797,18 @@ namespace AccessibleArena.Core.Services
 
             if (fieldObj == null) return result;
 
+            // When in explicit edit mode, accept the field even if not isFocused.
+            // TMP_InputField deactivates on Up/Down in single-line mode (via OnUpdateSelected)
+            // before our code runs, so isFocused may be false even though we're still editing.
+            bool inEditMode = _editingInputField != null && UIFocusTracker.IsEditingInputField();
+
             // Check TMP_InputField
             var tmpInput = fieldObj.GetComponent<TMPro.TMP_InputField>();
-            if (tmpInput != null && tmpInput.isFocused)
+            if (tmpInput != null && (tmpInput.isFocused || inEditMode))
             {
                 result.IsValid = true;
                 result.Text = tmpInput.text;
-                result.CaretPosition = tmpInput.stringPosition;
+                result.CaretPosition = tmpInput.isFocused ? tmpInput.stringPosition : (tmpInput.text?.Length ?? 0);
                 result.IsPassword = tmpInput.inputType == TMPro.TMP_InputField.InputType.Password;
                 result.GameObject = fieldObj;
                 return result;
@@ -808,11 +816,11 @@ namespace AccessibleArena.Core.Services
 
             // Check legacy InputField
             var legacyInput = fieldObj.GetComponent<UnityEngine.UI.InputField>();
-            if (legacyInput != null && legacyInput.isFocused)
+            if (legacyInput != null && (legacyInput.isFocused || inEditMode))
             {
                 result.IsValid = true;
                 result.Text = legacyInput.text;
-                result.CaretPosition = legacyInput.caretPosition;
+                result.CaretPosition = legacyInput.isFocused ? legacyInput.caretPosition : (legacyInput.text?.Length ?? 0);
                 result.IsPassword = legacyInput.inputType == UnityEngine.UI.InputField.InputType.Password;
                 result.GameObject = fieldObj;
                 return result;
@@ -936,6 +944,38 @@ namespace AccessibleArena.Core.Services
 
             // Couldn't determine - return placeholder
             return '?';
+        }
+
+        /// <summary>
+        /// Re-activate the input field after Unity deactivated it (e.g., Up/Down in single-line mode).
+        /// Restores EventSystem selection and re-activates the field so typing can continue.
+        /// </summary>
+        private void ReactivateInputField()
+        {
+            if (_editingInputField == null || !_editingInputField.activeInHierarchy) return;
+
+            var eventSystem = EventSystem.current;
+
+            var tmpInput = _editingInputField.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null && !tmpInput.isFocused)
+            {
+                if (eventSystem != null)
+                {
+                    eventSystem.SetSelectedGameObject(_editingInputField);
+                }
+                tmpInput.ActivateInputField();
+                return;
+            }
+
+            var legacyInput = _editingInputField.GetComponent<InputField>();
+            if (legacyInput != null && !legacyInput.isFocused)
+            {
+                if (eventSystem != null)
+                {
+                    eventSystem.SetSelectedGameObject(_editingInputField);
+                }
+                legacyInput.ActivateInputField();
+            }
         }
 
         /// <summary>
