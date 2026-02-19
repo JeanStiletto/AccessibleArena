@@ -518,7 +518,16 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - Read Ahead - Saga chapter selection
 - London Mulligan - Select cards to put on bottom after mulliganing
 - Opening Hand/Mulligan - View starting hand, keep or mulligan
+- ViewDismiss - Card preview popup (auto-dismissed, see below)
 - Generic browsers - YesNo, Dungeon, SelectCards, etc. (Tab + Enter)
+
+**ViewDismiss Auto-Dismiss:**
+- The game opens a `BrowserScaffold_ViewDismiss` popup when clicking on graveyard/exile cards
+- This popup traps Unity focus on `BrowserCardHolder_ViewDismiss`, blocking keyboard navigation
+- BrowserNavigator detects the ViewDismiss scaffold but does NOT enter browser mode
+- Instead, it immediately clicks the `DismissButton` via `UIActivator.Activate()` to close the popup
+- A `_viewDismissDismissed` flag prevents repeated clicks while the scaffold is still closing
+- The flag resets when no browser is detected (scaffold gone)
 
 **Zone Navigation:**
 - **C** - Enter top/keep zone (Scry: "Keep on top", London: "Keep pile")

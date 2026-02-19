@@ -56,11 +56,12 @@ namespace AccessibleArena.Core.Services
         public const string BrowserTypeOpeningHand = "OpeningHand";
         public const string BrowserTypeLondon = "London";
         public const string BrowserTypeWorkflow = "Workflow";
+        public const string BrowserTypeViewDismiss = "ViewDismiss";
 
         // Button name patterns for detection
         public static readonly string[] ButtonPatterns = { "Button", "Accept", "Confirm", "Cancel", "Done", "Keep", "Submit", "Yes", "No", "Mulligan" };
         public static readonly string[] ConfirmPatterns = { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary" };
-        public static readonly string[] CancelPatterns = { "Cancel", "No", "Back", "Close", "Secondary" };
+        public static readonly string[] CancelPatterns = { "Cancel", "No", "Back", "Close", "Dismiss", "Secondary" };
 
         // Friendly browser name mappings now handled by Strings.GetFriendlyBrowserName()
 
@@ -329,7 +330,7 @@ namespace AccessibleArena.Core.Services
 
             // Return results in priority order
 
-            // Priority 1: Scaffold (skip if mulligan scaffold without buttons)
+            // Priority 1: Scaffold (skip mulligan without buttons)
             if (scaffoldCandidate != null)
             {
                 bool isMulligan = IsMulliganBrowser(scaffoldType);

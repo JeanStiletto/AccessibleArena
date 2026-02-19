@@ -54,6 +54,13 @@ All notable changes to Accessible Arena.
 - Closed dropdown displays current selected value (e.g. "Monat der Geburt: Januar, dropdown")
 - Dynamic value re-read via GetDropdownDisplayValue handles TMP_Dropdown, Dropdown, and cTMP_Dropdown
 
+### Fixed: ViewDismiss Browser Trapping Focus
+- Pressing Enter on graveyard/exile cards opened a ViewDismiss card preview popup
+- The popup trapped keyboard focus, leaving the user stuck with no way to dismiss
+- Backspace/Space would accidentally click combat buttons (e.g. "No Attacks", "Cancel Blocks") instead of dismissing
+- Root cause: "Dismiss" was missing from BrowserDetector's CancelPatterns, and PromptButton fallback hit combat buttons
+- Fix: BrowserNavigator now auto-dismisses ViewDismiss popups immediately on detection via UIActivator.Activate()
+
 ### Other
 - Added Wizards account creation link to README quick start section
 - Added first letter navigation and rapid key-hold navigation to planned features

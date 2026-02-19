@@ -33,6 +33,9 @@ namespace AccessibleArena.Core.Services
         private int _currentCardIndex = -1;
         private int _currentButtonIndex = -1;
 
+        // ViewDismiss auto-dismiss tracking
+        private bool _viewDismissDismissed;
+
         // Zone name constant
         private const string ZoneLocalHand = "LocalHand";
 
@@ -69,6 +72,19 @@ namespace AccessibleArena.Core.Services
 
             if (browserInfo.IsActive)
             {
+                // Auto-dismiss ViewDismiss card preview popups immediately.
+                // These open when clicking graveyard/exile cards but serve no purpose
+                // for accessibility. Dismiss to prevent focus from getting trapped.
+                if (browserInfo.BrowserType == BrowserDetector.BrowserTypeViewDismiss)
+                {
+                    if (!_viewDismissDismissed)
+                    {
+                        _viewDismissDismissed = true;
+                        AutoDismissViewDismiss(browserInfo);
+                    }
+                    return; // Don't enter browser mode for ViewDismiss
+                }
+
                 if (!_isActive)
                 {
                     EnterBrowserMode(browserInfo);
@@ -81,9 +97,13 @@ namespace AccessibleArena.Core.Services
                     EnterBrowserMode(browserInfo);
                 }
             }
-            else if (_isActive)
+            else
             {
-                ExitBrowserMode();
+                _viewDismissDismissed = false; // Reset when no browser is active
+                if (_isActive)
+                {
+                    ExitBrowserMode();
+                }
             }
         }
 
@@ -138,6 +158,37 @@ namespace AccessibleArena.Core.Services
 
             // Notify DuelAnnouncer
             DuelAnnouncer.Instance?.OnLibraryBrowserClosed();
+        }
+
+        /// <summary>
+        /// Auto-dismisses a ViewDismiss card preview popup by clicking its dismiss button.
+        /// </summary>
+        private void AutoDismissViewDismiss(BrowserInfo browserInfo)
+        {
+            MelonLogger.Msg($"[BrowserNavigator] Auto-dismissing ViewDismiss card preview");
+
+            if (browserInfo.BrowserGameObject == null) return;
+
+            // Find and click the dismiss/done/close button within the scaffold.
+            // Must use UIActivator.Activate() (not SimulatePointerClick) because
+            // MTGA buttons use CustomButton which needs _onClick reflection invocation.
+            foreach (Transform child in browserInfo.BrowserGameObject.GetComponentsInChildren<Transform>(true))
+            {
+                if (!child.gameObject.activeInHierarchy) continue;
+                string name = child.name;
+                if (name.Contains("Dismiss") || name.Contains("Done") || name.Contains("Close"))
+                {
+                    if (BrowserDetector.HasClickableComponent(child.gameObject))
+                    {
+                        var result = UIActivator.Activate(child.gameObject);
+                        MelonLogger.Msg($"[BrowserNavigator] Activated dismiss button '{name}': {result.Success} ({result.Type})");
+                        BrowserDetector.InvalidateCache();
+                        return;
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[BrowserNavigator] No dismiss button found in ViewDismiss scaffold");
         }
 
         #endregion
