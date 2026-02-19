@@ -98,6 +98,18 @@ namespace AccessibleArena.Patches
                 }
             }
 
+            // Block Enter when in dropdown mode - prevents the game from interpreting
+            // Enter as form submission or other actions while the user selects dropdown items.
+            // Uses a persistent flag that survives the dropdown closing during EventSystem.Process()
+            // (which runs before our Update and may close the dropdown before PublishKeyDown is called).
+            if (DropdownStateManager.ShouldBlockEnterFromGame)
+            {
+                if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
+                {
+                    return true;
+                }
+            }
+
             // In DuelScene, block Enter entirely - our mod handles all Enter presses
             // This prevents "Pass until response" from triggering when we press Enter
             // for card playing, target selection, player info zone, etc.

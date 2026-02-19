@@ -620,18 +620,124 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Enter: user is selecting a dropdown item. Let it pass through to Unity,
-            // but start blocking Submit events to prevent MTGA from auto-clicking
-            // the next focused element (e.g., Continue button after last dropdown).
+            // Enter: select the currently focused dropdown item.
+            // We block SendSubmitEventToSelectedObject (via EventSystemPatch) so Unity's
+            // normal Submit path never fires. This prevents the game's onValueChanged
+            // callback from triggering chain auto-advance to the next dropdown.
+            // The dropdown stays open so the user can continue browsing or close with Escape.
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
-                DropdownStateManager.OnDropdownItemSelected();
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                SelectDropdownItem();
             }
 
-            // All other keys pass through to Unity's dropdown handling
-            // - Arrow keys navigate items (FocusTracker announces them)
-            // - Enter selects item and closes dropdown (focus leaves items, we auto-exit edit mode)
+            // Arrow keys pass through to Unity's dropdown handling
+            // (FocusTracker announces focused items as they change)
         }
+
+        /// <summary>
+        /// Manually select the currently focused dropdown item without closing the dropdown.
+        /// Sets the value via reflection to bypass onValueChanged, preventing the game's
+        /// chain auto-advance mechanism. The dropdown stays open for further browsing;
+        /// the user closes it explicitly with Escape/Backspace.
+        /// </summary>
+        private void SelectDropdownItem()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null) return;
+
+            var selectedItem = eventSystem.currentSelectedGameObject;
+            if (selectedItem == null) return;
+
+            // Parse item index from name (format: "Item N: ...")
+            int itemIndex = -1;
+            string itemName = selectedItem.name;
+            if (itemName.StartsWith("Item "))
+            {
+                string indexStr = itemName.Substring(5);
+                int colonPos = indexStr.IndexOf(':');
+                if (colonPos > 0)
+                    indexStr = indexStr.Substring(0, colonPos);
+                int.TryParse(indexStr.Trim(), out itemIndex);
+            }
+
+            if (itemIndex < 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Could not parse dropdown item index from: {itemName}");
+                return;
+            }
+
+            var activeDropdown = DropdownStateManager.ActiveDropdown;
+            if (activeDropdown == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] No active dropdown to select item on");
+                return;
+            }
+
+            // Set value without triggering onValueChanged (dropdown stays open)
+            if (SetDropdownValueSilent(activeDropdown, itemIndex))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Selected dropdown item {itemIndex}");
+                _announcer.Announce(Strings.Selected, AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Set a dropdown's value without triggering onValueChanged callback.
+        /// For TMP_Dropdown: uses SetValueWithoutNotify.
+        /// For cTMP_Dropdown: uses reflection to set m_Value + RefreshShownValue.
+        /// </summary>
+        private static bool SetDropdownValueSilent(GameObject dropdownObj, int itemIndex)
+        {
+            // Try standard TMP_Dropdown
+            var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
+            if (tmpDropdown != null)
+            {
+                tmpDropdown.SetValueWithoutNotify(itemIndex);
+                return true;
+            }
+
+            // Try legacy Dropdown
+            var legacyDropdown = dropdownObj.GetComponent<Dropdown>();
+            if (legacyDropdown != null)
+            {
+                legacyDropdown.SetValueWithoutNotify(itemIndex);
+                return true;
+            }
+
+            // Try cTMP_Dropdown via reflection (no SetValueWithoutNotify available)
+            foreach (var component in dropdownObj.GetComponents<Component>())
+            {
+                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                {
+                    var type = component.GetType();
+
+                    // Set m_Value field directly (bypasses onValueChanged)
+                    var valueField = type.GetField("m_Value",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (valueField != null)
+                    {
+                        valueField.SetValue(component, itemIndex);
+                    }
+
+                    // Update the displayed text
+                    var refreshMethod = type.GetMethod("RefreshShownValue",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+                    if (refreshMethod != null)
+                    {
+                        refreshMethod.Invoke(component, null);
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
 
         /// <summary>
         /// Close the currently active dropdown by finding its parent TMP_Dropdown and calling Hide().
@@ -1142,32 +1248,20 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // If we just exited dropdown mode, sync our index to where focus went
-            // This handles game's auto-advance (Month -> Day -> Year)
+            // If we just exited dropdown mode, sync focus and announce position
             if (justExitedDropdown)
             {
-                // If a chained dropdown was auto-opened (e.g., Day after Month),
-                // close it so the user can open it intentionally
-                var chainedDropdown = DropdownStateManager.ChainedAutoOpenDropdown;
-                if (chainedDropdown != null)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Closing chained auto-opened dropdown: {chainedDropdown.name}");
-                    CloseDropdownOnElement(chainedDropdown);
-                }
-
-                // Sync index BEFORE clearing selection (reads EventSystem.currentSelectedGameObject)
                 SyncIndexToFocusedElement();
 
                 // Clear EventSystem selection to prevent MTGA from auto-activating
                 // the next element (e.g., Continue button via OnSelect handler).
-                // Our navigator re-establishes selection on next user navigation.
                 var eventSystem = EventSystem.current;
                 if (eventSystem != null)
                 {
                     eventSystem.SetSelectedGameObject(null);
                 }
 
-                // Don't process any more input this frame to avoid double-activation
+                AnnounceCurrentElement();
                 return;
             }
 
@@ -1238,16 +1332,12 @@ namespace AccessibleArena.Core.Services
 
             if (enterPressed || spacePressed)
             {
-                // For toggles: MTGA may auto-select the submit button after we set selection.
-                // Unity's EventSystem already sent Submit to whatever MTGA selected BEFORE
-                // our Update runs. We can't block it, but we can detect if it went to the
-                // wrong target and handle accordingly.
-                // Consume Enter for toggles so the game's KeyboardManager doesn't add extra actions.
-                if (IsValidIndex)
+                // Consume Enter for toggles and dropdowns so the game's KeyboardManager
+                // doesn't add extra actions (form submission, etc.).
+                if (IsValidIndex && enterPressed)
                 {
                     var element = _elements[_currentIndex].GameObject;
-                    var toggle = element?.GetComponent<Toggle>();
-                    if (toggle != null && enterPressed)
+                    if (element != null && (element.GetComponent<Toggle>() != null || UIFocusTracker.IsDropdown(element)))
                     {
                         InputManager.ConsumeKey(KeyCode.Return);
                         InputManager.ConsumeKey(KeyCode.KeypadEnter);

@@ -5,13 +5,16 @@ namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Unified dropdown state management. Single source of truth for dropdown mode tracking.
-    /// Consolidates the previously separate flags from BaseNavigator and UIFocusTracker.
     ///
     /// The real dropdown state is determined by IsExpanded property on the dropdown component.
     /// This manager handles:
     /// - Tracking if we're in dropdown mode (for input handling)
     /// - Suppressing re-entry after closing auto-opened dropdowns
     /// - Detecting dropdown exit transitions (for index syncing)
+    /// - Blocking Enter/Submit from the game while in dropdown mode
+    ///
+    /// Item selection is handled by BaseNavigator.SelectDropdownItemAndClose() which
+    /// sets the value via reflection (bypassing onValueChanged) to prevent chain auto-advance.
     /// </summary>
     public static class DropdownStateManager
     {
@@ -19,12 +22,12 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// True if we were in dropdown mode last frame. Used to detect exit transitions
-        /// so the navigator can sync its index after dropdown closes (handles auto-advance).
+        /// so the navigator can sync its index after dropdown closes.
         /// </summary>
         private static bool _wasInDropdownMode;
 
         /// <summary>
-        /// Suppresses dropdown mode entry AND _wasInDropdownMode tracking.
+        /// Suppresses dropdown mode entry.
         /// Set after closing an auto-opened dropdown to prevent re-entry before
         /// the dropdown's IsExpanded property updates to false.
         /// </summary>
@@ -36,16 +39,19 @@ namespace AccessibleArena.Core.Services
         private static GameObject _activeDropdownObject;
 
         /// <summary>
-        /// When a dropdown-to-dropdown chain is detected (e.g., Month closes, Day auto-opens),
-        /// this stores the newly auto-opened dropdown so BaseNavigator can close it.
-        /// </summary>
-        private static GameObject _chainedAutoOpenDropdown;
-
-        /// <summary>
         /// Frame on which a dropdown item was selected via Enter. Submit events are blocked
         /// for a few frames after this to prevent MTGA from auto-clicking Continue.
         /// </summary>
         private static int _blockSubmitAfterFrame = -1;
+
+        /// <summary>
+        /// When true, Enter key is blocked from the game's KeyboardManager and
+        /// SendSubmitEventToSelectedObject is blocked from Unity's EventSystem.
+        /// Set when entering dropdown mode, cleared when dropdown mode exits.
+        /// This persistent flag survives the dropdown closing during EventSystem.Process()
+        /// (which runs before our Update).
+        /// </summary>
+        private static bool _blockEnterFromGame;
 
         #endregion
 
@@ -65,7 +71,6 @@ namespace AccessibleArena.Core.Services
         {
             get
             {
-                // Check actual dropdown state
                 bool anyExpanded = IsDropdownExpanded;
 
                 // If suppressing and dropdown is still showing as expanded,
@@ -80,15 +85,15 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns true if Enter/Submit should be blocked from the game.
+        /// Stays true from when a dropdown opens until our Update processes the exit.
+        /// </summary>
+        public static bool ShouldBlockEnterFromGame => _blockEnterFromGame;
+
+        /// <summary>
         /// The currently active dropdown object, if any.
         /// </summary>
         public static GameObject ActiveDropdown => _activeDropdownObject;
-
-        /// <summary>
-        /// The auto-opened dropdown from a chain transition (e.g., Month -> Day).
-        /// BaseNavigator reads and closes this, then calls SuppressReentry.
-        /// </summary>
-        public static GameObject ChainedAutoOpenDropdown => _chainedAutoOpenDropdown;
 
         #endregion
 
@@ -103,33 +108,13 @@ namespace AccessibleArena.Core.Services
             bool currentlyInDropdownMode = IsInDropdownMode;
             bool justExited = false;
 
-            // Clear chained dropdown from previous frame
-            _chainedAutoOpenDropdown = null;
-
             // Detect exit transition (was in dropdown mode, now not)
             if (_wasInDropdownMode && !currentlyInDropdownMode)
             {
                 justExited = true;
+                _blockEnterFromGame = false;
                 DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                     "Dropdown mode exit transition detected");
-            }
-            // Detect dropdown-to-dropdown chain: still in dropdown mode but the expanded
-            // dropdown is a DIFFERENT object (e.g., Month closed, Day auto-opened)
-            else if (_wasInDropdownMode && currentlyInDropdownMode && _activeDropdownObject != null)
-            {
-                var currentDropdown = UIFocusTracker.GetExpandedDropdown();
-                if (currentDropdown != null && currentDropdown != _activeDropdownObject)
-                {
-                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
-                        $"Dropdown chain detected: {_activeDropdownObject.name} -> {currentDropdown.name}");
-                    justExited = true;
-                    _chainedAutoOpenDropdown = currentDropdown;
-                    // Suppress reentry so IsInDropdownMode returns false this frame.
-                    // Without this, HandleDropdownNavigation() runs instead of the
-                    // justExited handler, and the chained dropdown never gets closed.
-                    _suppressReentry = true;
-                    _wasInDropdownMode = false;
-                }
             }
 
             // Clear suppression once dropdown is actually closed
@@ -163,7 +148,6 @@ namespace AccessibleArena.Core.Services
         /// Returns true if Submit events should be blocked.
         /// After a dropdown item is selected, we block Submit for a few frames to prevent
         /// MTGA from auto-clicking Continue (or other buttons that receive focus after dropdown closes).
-        /// Uses strict greater-than so the frame the item was selected still processes normally.
         /// </summary>
         public static bool ShouldBlockSubmit()
         {
@@ -191,6 +175,7 @@ namespace AccessibleArena.Core.Services
         {
             _activeDropdownObject = dropdown;
             _wasInDropdownMode = true;
+            _blockEnterFromGame = true;
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                 $"User opened dropdown: {dropdown?.name}");
         }
@@ -201,9 +186,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static string OnDropdownClosed()
         {
+            _blockEnterFromGame = false;
+            // Block Submit for a few frames to prevent MTGA from auto-clicking
+            // the element that receives focus after dropdown closes
+            _blockSubmitAfterFrame = UnityEngine.Time.frameCount;
             string newFocusName = null;
 
-            // Get the element that now has focus
             var eventSystem = EventSystem.current;
             if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
             {
@@ -213,7 +201,6 @@ namespace AccessibleArena.Core.Services
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                 $"User closed dropdown, new focus: {newFocusName ?? "null"}");
 
-            // Don't clear _wasInDropdownMode here - UpdateAndCheckExitTransition handles the transition
             _activeDropdownObject = null;
 
             return newFocusName;
@@ -229,24 +216,9 @@ namespace AccessibleArena.Core.Services
             _suppressReentry = true;
             _wasInDropdownMode = false;
             _activeDropdownObject = null;
+            _blockEnterFromGame = false;
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                 "Suppressing dropdown re-entry (auto-opened dropdown closed)");
-        }
-
-        /// <summary>
-        /// Check if dropdown mode entry should be suppressed.
-        /// Used by UIFocusTracker to decide whether to enter dropdown mode.
-        /// </summary>
-        public static bool ShouldSuppressEntry()
-        {
-            if (_suppressReentry)
-            {
-                // Clear the flag once checked (it's consumed by this call)
-                // Note: _suppressReentry is also cleared when dropdown actually closes,
-                // so this is just an additional consumption point for UIFocusTracker
-                return true;
-            }
-            return false;
         }
 
         /// <summary>
@@ -257,8 +229,8 @@ namespace AccessibleArena.Core.Services
             _wasInDropdownMode = false;
             _suppressReentry = false;
             _activeDropdownObject = null;
-            _chainedAutoOpenDropdown = null;
             _blockSubmitAfterFrame = -1;
+            _blockEnterFromGame = false;
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState", "State reset");
         }
 

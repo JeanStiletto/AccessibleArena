@@ -41,7 +41,7 @@ namespace AccessibleArena.Patches
 
         /// <summary>
         /// Patch StandaloneInputModule.SendSubmitEventToSelectedObject to block Submit
-        /// when our navigator is on a toggle element.
+        /// when our navigator is on a toggle element or when in dropdown mode.
         /// </summary>
         [HarmonyPatch(typeof(StandaloneInputModule), "SendSubmitEventToSelectedObject")]
         [HarmonyPrefix]
@@ -49,6 +49,13 @@ namespace AccessibleArena.Patches
         {
             // Block Submit when we're on a toggle - our mod handles toggle activation directly
             if (InputManager.BlockSubmitForToggle)
+            {
+                return false;
+            }
+
+            // Block Submit when in dropdown mode - we handle item selection ourselves
+            // to prevent the game's chain auto-advance (onValueChanged triggers next dropdown)
+            if (DropdownStateManager.ShouldBlockEnterFromGame)
             {
                 return false;
             }
