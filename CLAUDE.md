@@ -144,6 +144,12 @@ C (Keep pile), D (Bottom pile)
 Left/Right (Navigate), Home/End (Jump to first/last)
 Enter (Toggle card), Space (Submit)
 
+**Duel - Mana Color Picker (any-color mana sources):**
+Tab/Right (Next color), Shift+Tab/Left (Previous color)
+Home/End (Jump to first/last)
+Enter (Select color), 1-6 (Direct select by number)
+Backspace (Cancel)
+
 **Global:**
 F1 (Help Menu - navigable with Up/Down, close with Escape, Backspace, or F1)
 F2 (Settings Menu - navigable with Up/Down, Enter to change, close with Escape, Backspace, or F2)

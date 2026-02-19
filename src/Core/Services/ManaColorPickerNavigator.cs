@@ -48,7 +48,8 @@ namespace AccessibleArena.Core.Services
         private UnityEngine.Object _selectorInstance;
         private object _selectionProvider;
         private List<(int index, int manaColorValue, string displayName)> _availableColors;
-        private int _currentSelection;
+        private int _cursorIndex;       // Tab navigation cursor position
+        private int _currentSelection;  // Which pick we're on (for multi-pick)
         private int _maxSelections;
 
         // Polling interval (same as BrowserDetector)
@@ -115,6 +116,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handles keyboard input when active. Returns true if key was consumed.
+        /// Tab/Right = next, Shift+Tab/Left = previous, Home/End = jump,
+        /// Enter = select focused color, number keys 1-6 = direct select,
+        /// Backspace = cancel.
         /// </summary>
         public bool HandleInput()
         {
@@ -128,7 +132,51 @@ namespace AccessibleArena.Core.Services
                 _hasAnnounced = true;
             }
 
-            // Number keys 1-6 for color selection
+            if (_availableColors.Count == 0)
+                return false;
+
+            // Tab / Right = next option
+            bool isTab = Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift);
+            if (isTab || Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                _cursorIndex = (_cursorIndex + 1) % _availableColors.Count;
+                AnnounceCurrent();
+                return true;
+            }
+
+            // Shift+Tab / Left = previous option
+            bool isShiftTab = Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
+            if (isShiftTab || Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                _cursorIndex = (_cursorIndex - 1 + _availableColors.Count) % _availableColors.Count;
+                AnnounceCurrent();
+                return true;
+            }
+
+            // Home = first option
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                _cursorIndex = 0;
+                AnnounceCurrent();
+                return true;
+            }
+
+            // End = last option
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                _cursorIndex = _availableColors.Count - 1;
+                AnnounceCurrent();
+                return true;
+            }
+
+            // Enter = select focused color
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                SelectColor(_cursorIndex);
+                return true;
+            }
+
+            // Number keys 1-6 for direct color selection
             for (int i = 0; i < 6; i++)
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + i))
@@ -192,6 +240,7 @@ namespace AccessibleArena.Core.Services
             _selectorInstance = null;
             _selectionProvider = null;
             _availableColors.Clear();
+            _cursorIndex = 0;
             _currentSelection = 0;
             _maxSelections = 0;
         }
@@ -283,6 +332,16 @@ namespace AccessibleArena.Core.Services
             _announcer.AnnounceInterrupt(announcement);
         }
 
+        private void AnnounceCurrent()
+        {
+            if (_cursorIndex < 0 || _cursorIndex >= _availableColors.Count)
+                return;
+
+            var color = _availableColors[_cursorIndex];
+            string announcement = Strings.ManaColorPickerOptionFormat((_cursorIndex + 1).ToString(), color.displayName);
+            _announcer.AnnounceInterrupt(announcement);
+        }
+
         private void SelectColor(int listIndex)
         {
             var (providerIndex, manaColorValue, displayName) = _availableColors[listIndex];
@@ -306,6 +365,7 @@ namespace AccessibleArena.Core.Services
                     // Re-read state for next pick
                     ReadSelectionState();
                     ReadAvailableColors();
+                    _cursorIndex = 0;
                     string selectedMsg = Strings.ManaColorPickerSelectedFormat(
                         displayName,
                         (_currentSelection + 1).ToString(),

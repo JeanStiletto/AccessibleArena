@@ -49,6 +49,8 @@ C:\Users\fabia\arena\
         BrowserNavigator.cs      - Browser orchestration and generic navigation
         BrowserZoneNavigator.cs  - Two-zone navigation (Scry/London mulligan)
 
+        ManaColorPickerNavigator.cs - Mana color selection popup (any-color mana sources)
+
         old/                     - Deprecated navigators (kept for reference/revert)
           TargetNavigator.cs     - OLD: Separate target selection (replaced by HotHighlightNavigator)
           HighlightNavigator.cs  - OLD: Separate playable card cycling (replaced by HotHighlightNavigator)
@@ -390,6 +392,28 @@ Cards announce targeting relationships using model data:
 - `src/Core/Services/PlayerPortraitNavigator.cs` - Main navigator with focus management
 - `src/Core/Services/InputManager.cs` - Key consumption infrastructure
 - `src/Patches/KeyboardManagerPatch.cs` - Harmony patch for game's KeyboardManager
+
+### Mana Color Picker Navigator (Complete)
+- [x] ManaColorPickerNavigator service - Detects ManaColorSelector popup via reflection
+- [x] Integration with DuelNavigator - Highest priority (before BrowserNavigator)
+- [x] Tab/Shift+Tab and Left/Right navigation through available colors
+- [x] Enter selects focused color, number keys 1-6 for direct selection
+- [x] Multi-pick support - Sequential picks with re-announcement after each
+- [x] Backspace cancels via TryCloseSelector
+- [x] Localized in all 12 languages
+
+**Detection:**
+- Polls for `ManaColorSelector` instances via `FindObjectsOfType` (100ms interval)
+- Checks `IsOpen` property on found instances
+- Reads `_selectionProvider` (protected field) for available colors and selection state
+
+**Reflection Access:**
+- `ManaColorSelector.IsOpen` (public property) - detection
+- `ManaColorSelector._selectionProvider` (protected field) - color data
+- `ManaColorSelector.SelectColor(ManaColor)` (protected method) - selection
+- `ManaColorSelector.TryCloseSelector()` (public method) - cancel
+- `IManaSelectorProvider.ValidSelectionCount`, `GetElementAt`, `MaxSelections`, `AllSelectionsComplete`, `CurrentSelection`
+- `ManaProducedData.PrimaryColor` (field or property) - color enum value
 
 ### Element Grouping System (Menu Navigation)
 

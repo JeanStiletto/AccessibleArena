@@ -42,6 +42,12 @@ When tabbing out of an open dropdown (user was browsing items), the next dropdow
 
 ---
 
+### Color Challenge Deck Name Not Refreshing
+
+When selecting a different color in Color Challenge, the announced deck name does not update to reflect the newly selected color's deck.
+
+---
+
 ## Needs Testing
 
 ### UIActivator Single-Activation Cleanup
@@ -159,6 +165,12 @@ The NPE (tutorial) screen elements appear to remain present or interfere during 
 ### Settings Menu While Declared Attackers
 
 Opening the settings menu (F2) during the declare attackers phase causes issues. Exact symptoms and reproduction steps unknown.
+
+---
+
+### Objectives Menu Cannot Be Closed With Backspace
+
+The objectives menu does not respond to Backspace to close. Exact reproduction steps unknown.
 
 ---
 
@@ -344,6 +356,7 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 19. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
 20. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
 21. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
+22. Mana color picker confirmation step - add an artificial confirmation step (Tab to navigate, Enter to stage, Space to confirm) for consistency with browser/selection patterns. Currently each Enter immediately submits the color choice.
 
 ### Low Priority / v1.1
 

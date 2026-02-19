@@ -4,6 +4,16 @@ All notable changes to Accessible Arena.
 
 ## v0.6.9 - 2026-02-19
 
+### New: Mana Color Picker Navigator
+- Detects `ManaColorSelector` popup when activating any-color mana sources (e.g. Ilysian Caryatid, Chromatic Lantern)
+- Announces available colors on open: "Choose mana color: 1 White, 2 Blue, 3 Black, 4 Red, 5 Green"
+- Tab/Right and Shift+Tab/Left to navigate colors, Enter to select
+- Number keys 1-6 for direct selection
+- Backspace to cancel
+- Multi-pick support for sources that produce multiple mana (sequential picks with re-announcement)
+- Highest priority in DuelNavigator (before browser detection)
+- Localized in all 12 languages
+
 ### Fixed: Duel Navigator Not Reactivating After Settings Menu
 - Opening the game settings during a duel and closing it left the user with no active navigator
 - Cause: `HasPreGameCancelButton()` matched the in-duel Cancel button, blocking duel re-detection

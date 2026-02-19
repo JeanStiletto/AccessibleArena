@@ -583,8 +583,16 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 - Enter opens emote wheel (your portrait only) via PortraitButton click on DuelScene_AvatarView
 - Emotes discovered from EmoteView children in EmoteOptionsPanel, navigated with Up/Down, sent with Enter
 
+**ManaColorPickerNavigator**
+- Detects ManaColorSelector popup (any-color mana sources like Ilysian Caryatid)
+- Tab/Right = next color, Shift+Tab/Left = previous, Home/End = jump
+- Enter selects focused color, number keys 1-6 for direct selection
+- Backspace cancels
+- Multi-pick: re-announces after each selection
+- Detects via `ManaColorSelector.IsOpen` property (reflection, 100ms poll)
+
 **Priority Order:**
-BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator > BattlefieldNavigator > ZoneNavigator
+ManaColorPickerNavigator > BrowserNavigator > CombatNavigator > HotHighlightNavigator > PortraitNavigator > BattlefieldNavigator > ZoneNavigator
 
 ## Mailbox Screen
 
