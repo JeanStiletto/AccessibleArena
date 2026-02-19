@@ -23,7 +23,7 @@ Accessibility mod for Magic: The Gathering Arena that enables blind and visually
 - Windows 10 or later
 - Magic: The Gathering Arena (installed via the official installer or Epic Games Store)
 - A screen reader (NVDA recommended: https://www.nvaccess.org/download/)
-- MelonLoader 0.6.x (the installer handles this automatically)
+- MelonLoader (the installer handles this automatically)
 
 ## Installation
 
@@ -36,7 +36,7 @@ Accessibility mod for Magic: The Gathering Arena that enables blind and visually
 
 ### Manual installation
 
-1. Install MelonLoader 0.6.x into your MTGA folder (https://github.com/LavaGang/MelonLoader)
+1. Install MelonLoader into your MTGA folder (https://github.com/LavaGang/MelonLoader)
 2. Download `AccessibleArena.dll` from the latest release
 3. Copy the DLL to: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
 4. Ensure `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder
@@ -144,7 +144,7 @@ For the full list, see docs/KNOWN_ISSUES.md.
 - Check the MelonLoader log at `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log` for errors
 
 **Game crashes on startup or mod not loading**
-- Make sure MelonLoader 0.6.x is installed. Other versions may not be compatible.
+- Make sure MelonLoader is installed.
 - If the game updated recently, MelonLoader or the mod may need to be reinstalled. Run the installer again.
 - Check that `AccessibleArena.dll` is in `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
 

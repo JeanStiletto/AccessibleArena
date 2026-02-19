@@ -134,6 +134,12 @@ After completing all 5 NPE tutorial stages, the game shows a deck reward screen 
 - Does Backspace activate the Continue button (`NullClaimButton`)?
 - Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
 
+### Zones Not Updating When Cards Enter or Leave
+
+Zone card lists sometimes don't refresh when a card enters or leaves a zone (e.g., playing a card from hand, a creature dying to graveyard). The zone still shows the old card list until manually re-entered.
+
+---
+
 ## Not Reproducible Yet
 
 ### Game Assets Loading Problem
@@ -313,25 +319,31 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 
 ### Upcoming
 
-1. Creature death/exile/graveyard announcements with card names
-2. Player username announcements
-3. Game wins display (WinPips)
-4. Brawl accessibility - Brawl game mode navigation and format-specific handling
-5. Token state on cards - announce token/copy status when reading card info
-6. Smart mana announcement - announce available mana with color breakdown from game state
-7. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
-8. Browser announcements - shorter, less verbose; only announce when it is the player's browser (not opponent's)
-9. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
-10. Better group announcements - improve how element groups are announced when entering/switching groups
-11. Loading screen announcement cleanup - reduce repetitive announcements during loading screens
-12. Loading screen announcements - less repetition, cleaner output during screen transitions
-13. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
-14. K hotkey for mark/counter information on cards - announce +1/+1 counters, damage marks, and other markers
-15. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
-16. Card crafting - wildcard crafting workflow accessibility
-17. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
-18. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
-19. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
+1. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
+2. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
+3. Creature death/exile/graveyard announcements with card names
+4. Player username announcements
+5. Game wins display (WinPips)
+6. Brawl accessibility - Brawl game mode navigation and format-specific handling
+7. Token state on cards - announce token/copy status when reading card info
+8. Smart mana announcement - announce available mana with color breakdown from game state
+9. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
+10. Browser announcements - shorter, less verbose; only announce when it is the player's browser (not opponent's)
+11. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
+12. Better group announcements - improve how element groups are announced when entering/switching groups
+13. Loading screen announcement cleanup - reduce repetitive announcements during loading screens
+14. Loading screen announcements - less repetition, cleaner output during screen transitions
+15. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
+16. K hotkey for mark/counter information on cards - announce +1/+1 counters, damage marks, and other markers
+17. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
+18. Card crafting - wildcard crafting workflow accessibility
+19. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
+20. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
+21. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
+
+### Low Priority / v1.1
+
+1. Auto version checking and auto update - check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
 
 ### Future
 
