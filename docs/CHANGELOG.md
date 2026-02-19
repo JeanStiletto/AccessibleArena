@@ -4,18 +4,39 @@ All notable changes to Accessible Arena.
 
 ## v0.6.9 - 2026-02-19
 
+### Fixed: Duel Navigator Not Reactivating After Settings Menu
+- Opening the game settings during a duel and closing it left the user with no active navigator
+- Cause: `HasPreGameCancelButton()` matched the in-duel Cancel button, blocking duel re-detection
+- Removed the redundant check; `HasDuelElements()` alone correctly distinguishes pre-game from duel
+
+### Improved: Selection Mode (Discard, Exile Choices)
+- Zone navigation (C + Left/Right + Enter) now toggles card selection instead of trying to play
+- Selected state shown when navigating hand via zone shortcuts, not just Tab
+- Game's prompt instruction announced on selection mode entry (e.g. "Discard a card")
+- Tab index preserved after toggling so next Tab advances to next card
+- Space submits selection even when hand cards are highlighted
+
 ### Fixed: Zone Contents Not Updating During Duels
 - Zone card lists (hand, battlefield, graveyard, etc.) now refresh automatically when cards enter or leave
 - Uses event-driven dirty flag: DuelAnnouncer marks navigators dirty on zone count changes
 - Refresh is lazy (only on next user input), so no polling overhead
 - Card index clamped after refresh to keep user at a valid position
 
-## v0.6.8 - 2026-02-19
+### Installer: Open Getting Started Guide After Install
+- New checkbox on the installer completion screen: "Open getting started guide in browser" (checked by default)
+- Opens the README on GitHub in the user's language automatically
+- English users get README.md, other languages get docs/README.{lang}.md
 
-### Fixed: Duel Navigator Not Reactivating After Settings Menu
-- Opening the game settings during a duel and closing it left the user with no active navigator
-- Cause: `HasPreGameCancelButton()` matched the in-duel Cancel button, blocking duel re-detection
-- Removed the redundant check; `HasDuelElements()` alone correctly distinguishes pre-game from duel
+### Translated README Files
+- Added translated README for all 11 non-English languages in docs/
+- German, French, Spanish, Italian, Portuguese (BR), Japanese, Korean, Russian, Polish, Chinese Simplified, Chinese Traditional
+- Full translation of installation guide, keyboard shortcuts, troubleshooting, and build instructions
+
+### Other
+- Added Wizards account creation link to README quick start section
+- Added first letter navigation and rapid key-hold navigation to planned features
+
+## v0.6.8 - 2026-02-19
 
 ### Fixed: Dropdown Navigation Overhaul
 - Enter now selects dropdown items without closing the dropdown, keeping user in control
@@ -31,13 +52,6 @@ All notable changes to Accessible Arena.
 - Enter/Submit blocked from reaching the game while in dropdown mode
 - Selection sets value silently via reflection (bypasses onValueChanged)
 - German translations: changed "Aufklappmenü" to "Dropdown" for consistency
-
-### Improved: Selection Mode (Discard, Exile Choices)
-- Zone navigation (C + Left/Right + Enter) now toggles card selection instead of trying to play
-- Selected state shown when navigating hand via zone shortcuts, not just Tab
-- Game's prompt instruction announced on selection mode entry (e.g. "Discard a card")
-- Tab index preserved after toggling so next Tab advances to next card
-- Space submits selection even when hand cards are highlighted
 
 ### Fixed: UIActivator Double-Activation
 - SimulatePointerClick was firing 3-4 overlapping activation methods per button press
