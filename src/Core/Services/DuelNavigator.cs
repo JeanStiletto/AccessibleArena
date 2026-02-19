@@ -89,6 +89,9 @@ namespace AccessibleArena.Core.Services
             // Connect ZoneNavigator to HotHighlightNavigator for clearing state on zone navigation
             _zoneNavigator.SetHotHighlightNavigator(_hotHighlightNavigator);
 
+            // Connect HotHighlightNavigator to BattlefieldNavigator for syncing position on Tab
+            _hotHighlightNavigator.SetBattlefieldNavigator(_battlefieldNavigator);
+
             // DEPRECATED connections (were for old TargetNavigator):
             // _duelAnnouncer.SetTargetNavigator() - Was used to auto-enter targeting mode on spell cast
             // _zoneNavigator.SetTargetNavigator() - Was used to enter targeting after card plays

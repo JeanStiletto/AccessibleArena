@@ -376,8 +376,42 @@ namespace AccessibleArena.Core.Services
             _currentRow = row;
             _currentIndex = 0;
 
-            _announcer.Announce(Strings.RowWithCount(GetRowName(row), cards.Count), AnnouncementPriority.High);
-            AnnounceCurrentCard();
+            AnnounceCurrentCard(includeRowName: true);
+        }
+
+        /// <summary>
+        /// Navigates to a specific card on the battlefield.
+        /// Finds the card's row and index, syncs state, and announces.
+        /// Used by HotHighlightNavigator to sync battlefield position on Tab.
+        /// </summary>
+        /// <param name="card">The card GameObject to navigate to</param>
+        /// <param name="announceRowChange">If true, includes row name in announcement (zone change)</param>
+        /// <returns>True if the card was found and navigated to</returns>
+        public bool NavigateToSpecificCard(GameObject card, bool announceRowChange)
+        {
+            if (card == null) return false;
+
+            DiscoverAndCategorizeCards();
+
+            // Find which row contains this card
+            foreach (var kvp in _rows)
+            {
+                int index = kvp.Value.IndexOf(card);
+                if (index >= 0)
+                {
+                    bool rowChanged = _currentRow != kvp.Key;
+                    _currentRow = kvp.Key;
+                    _currentIndex = index;
+
+                    _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
+                    // Use High priority to bypass duplicate check - user explicitly pressed Tab
+                    AnnounceCurrentCard(includeRowName: announceRowChange || rowChanged, priority: AnnouncementPriority.High);
+                    return true;
+                }
+            }
+
+            MelonLogger.Warning($"[BattlefieldNavigator] NavigateToSpecificCard: card not found in any row");
+            return false;
         }
 
         /// <summary>
@@ -397,8 +431,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _currentRow = RowOrder[i];
                     _currentIndex = 0;
-                    _announcer.Announce(Strings.RowWithCount(GetRowName(_currentRow), _rows[_currentRow].Count), AnnouncementPriority.High);
-                    AnnounceCurrentCard();
+                    AnnounceCurrentCard(includeRowName: true);
                     return;
                 }
             }
@@ -423,8 +456,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _currentRow = RowOrder[i];
                     _currentIndex = 0;
-                    _announcer.Announce(Strings.RowWithCount(GetRowName(_currentRow), _rows[_currentRow].Count), AnnouncementPriority.High);
-                    AnnounceCurrentCard();
+                    AnnounceCurrentCard(includeRowName: true);
                     return;
                 }
             }
@@ -571,7 +603,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Announces the current card with position, combat state, and attachments.
         /// </summary>
-        private void AnnounceCurrentCard()
+        private void AnnounceCurrentCard(bool includeRowName = false, AnnouncementPriority priority = AnnouncementPriority.Normal)
         {
             var cards = _rows[_currentRow];
             if (_currentIndex >= cards.Count) return;
@@ -590,7 +622,8 @@ namespace AccessibleArena.Core.Services
             // Add targeting info (what this card targets / what targets it)
             string targetingText = CardModelProvider.GetTargetingText(card);
 
-            _announcer.Announce($"{cardName}{combatState}{attachmentText}{targetingText}, {position} of {total}", AnnouncementPriority.Normal);
+            string prefix = includeRowName ? $"{GetRowName(_currentRow)}, " : "";
+            _announcer.Announce($"{prefix}{cardName}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

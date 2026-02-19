@@ -555,9 +555,40 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                _announcer.Announce(Strings.ZoneWithCount(GetZoneName(zone), cardCount), AnnouncementPriority.High);
-                AnnounceCurrentCard();
+                AnnounceCurrentCard(includeZoneName: true);
             }
+        }
+
+        /// <summary>
+        /// Navigates to a specific card in a zone.
+        /// Finds the card in the zone's card list, syncs index, and announces.
+        /// Used by HotHighlightNavigator to sync zone position on Tab.
+        /// </summary>
+        /// <param name="zone">The zone the card is in</param>
+        /// <param name="card">The card GameObject to navigate to</param>
+        /// <param name="announceZoneChange">If true, includes zone name in announcement</param>
+        /// <returns>True if the card was found and navigated to</returns>
+        public bool NavigateToSpecificCard(ZoneType zone, GameObject card, bool announceZoneChange)
+        {
+            if (card == null) return false;
+
+            DiscoverZones();
+
+            if (!_zones.ContainsKey(zone))
+                return false;
+
+            var zoneInfo = _zones[zone];
+            int index = zoneInfo.Cards.IndexOf(card);
+            if (index < 0)
+                return false;
+
+            bool zoneChanged = _currentZone != zone;
+            SetCurrentZone(zone, "HotHighlightNavigator");
+            _cardIndexInZone = index;
+
+            // Use High priority to bypass duplicate check - user explicitly pressed Tab
+            AnnounceCurrentCard(includeZoneName: announceZoneChange || zoneChanged, priority: AnnouncementPriority.High);
+            return true;
         }
 
         /// <summary>
@@ -730,7 +761,7 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private void AnnounceCurrentCard()
+        private void AnnounceCurrentCard(bool includeZoneName = false, AnnouncementPriority priority = AnnouncementPriority.Normal)
         {
             if (!_zones.ContainsKey(_currentZone)) return;
 
@@ -761,7 +792,8 @@ namespace AccessibleArena.Core.Services
                 targetingText = CardModelProvider.GetTargetingText(card);
             }
 
-            _announcer.Announce($"{cardName}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", AnnouncementPriority.Normal);
+            string prefix = includeZoneName ? $"{GetZoneName(_currentZone)}, " : "";
+            _announcer.Announce($"{prefix}{cardName}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

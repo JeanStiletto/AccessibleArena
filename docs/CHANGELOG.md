@@ -32,6 +32,12 @@ All notable changes to Accessible Arena.
 - German, French, Spanish, Italian, Portuguese (BR), Japanese, Korean, Russian, Polish, Chinese Simplified, Chinese Traditional
 - Full translation of installation guide, keyboard shortcuts, troubleshooting, and build instructions
 
+### Improved: Unified Zone Announcements
+- Zone/row entry now uses single announcement: "Hand, Lightning Bolt, 1 of 3" instead of separate "Hand, 3 cards" + "Lightning Bolt, 1 of 3"
+- Tab navigation syncs with zone and battlefield navigators so Left/Right works correctly after Tab
+- Tab to a card in a different zone triggers a proper zone change announcement
+- Tab within the same zone announces just the card and position
+
 ### Other
 - Added Wizards account creation link to README quick start section
 - Added first letter navigation and rapid key-hold navigation to planned features

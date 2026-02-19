@@ -32,12 +32,16 @@ namespace AccessibleArena.Core.Services
     {
         private readonly IAnnouncementService _announcer;
         private readonly ZoneNavigator _zoneNavigator;
+        private BattlefieldNavigator _battlefieldNavigator;
 
         private List<HighlightedItem> _items = new List<HighlightedItem>();
         private int _currentIndex = -1;
         private int _opponentIndex = -1;
         private bool _isActive;
         private bool _wasInSelectionMode;
+
+        // Track last zone/row to detect zone changes on Tab
+        private string _lastItemZone;
 
         // Selection mode detection (discard, choose cards to exile, etc.)
         // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
@@ -80,6 +84,11 @@ namespace AccessibleArena.Core.Services
             _zoneNavigator = zoneNavigator;
         }
 
+        public void SetBattlefieldNavigator(BattlefieldNavigator battlefieldNavigator)
+        {
+            _battlefieldNavigator = battlefieldNavigator;
+        }
+
         public void Activate()
         {
             _isActive = true;
@@ -93,6 +102,7 @@ namespace AccessibleArena.Core.Services
             _items.Clear();
             _currentIndex = -1;
             _opponentIndex = -1;
+            _lastItemZone = null;
             MelonLogger.Msg("[HotHighlightNavigator] Deactivated");
         }
 
@@ -108,6 +118,7 @@ namespace AccessibleArena.Core.Services
                 _items.Clear();
                 _currentIndex = -1;
                 _opponentIndex = -1;
+                _lastItemZone = null;
             }
         }
 
@@ -509,92 +520,67 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Announces the current highlighted item based on its zone.
+        /// Announces the current highlighted item by syncing with zone/battlefield navigators.
+        /// For card items, delegates to the appropriate navigator so Left/Right works afterwards.
+        /// For player targets and prompt buttons, announces directly.
         /// </summary>
         private void AnnounceCurrentItem()
         {
             if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
             var item = _items[_currentIndex];
-            int position = _currentIndex + 1;
-            int total = _items.Count;
 
-            string announcement = BuildAnnouncement(item, position, total);
-
-            // Use High priority to bypass duplicate check - user explicitly pressed Tab
-            _announcer.Announce(announcement, AnnouncementPriority.High);
-
-            // Set EventSystem focus
-            if (item.GameObject != null)
-            {
-                ZoneNavigator.SetFocusedGameObject(item.GameObject, "HotHighlightNavigator");
-            }
-
-            // Update zone context and prepare CardInfo for arrow navigation
-            if (!item.IsPlayer)
-            {
-                var zoneType = StringToZoneType(item.Zone);
-                _zoneNavigator.SetCurrentZone(zoneType, "HotHighlightNavigator");
-
-                var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
-                if (cardNavigator != null)
-                {
-                    cardNavigator.PrepareForCard(item.GameObject, zoneType);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Builds announcement string based on item zone.
-        /// </summary>
-        private string BuildAnnouncement(HighlightedItem item, int position, int total)
-        {
-            // Prompt button choice
+            // Prompt buttons and player targets - announce directly (not in any zone)
             if (item.IsPromptButton)
             {
-                if (total > 1)
-                    return $"{item.Name}, {position} of {total}";
-                return item.Name;
+                int position = _currentIndex + 1;
+                int total = _items.Count;
+                string announcement = total > 1 ? $"{item.Name}, {position} of {total}" : item.Name;
+                _announcer.Announce(announcement, AnnouncementPriority.High);
+                _lastItemZone = "Button";
+                return;
             }
 
-            // Player target
             if (item.IsPlayer)
             {
+                int position = _currentIndex + 1;
+                int total = _items.Count;
                 string name = item.IsOpponent ? Strings.Opponent : Strings.You;
-                return $"{name}, player, {position} of {total}";
+                _announcer.Announce($"{name}, player, {position} of {total}", AnnouncementPriority.High);
+                _lastItemZone = "Player";
+                return;
             }
 
-            // Hand card - include selection state if in selection mode
-            if (item.Zone == "Hand")
+            // Card items - delegate to zone/battlefield navigators for proper sync
+            bool zoneChanged = _lastItemZone != item.Zone;
+
+            if (item.Zone == "Battlefield" && _battlefieldNavigator != null)
             {
-                bool selectionMode = IsSelectionModeActive();
-                if (selectionMode && IsCardSelected(item.GameObject))
+                // Delegate to BattlefieldNavigator - it finds the row, syncs index, announces
+                if (_battlefieldNavigator.NavigateToSpecificCard(item.GameObject, zoneChanged))
                 {
-                    return $"{item.Name}, {Strings.Selected}, {Strings.InHand}, {position} of {total}";
+                    _lastItemZone = item.Zone;
+                    return;
                 }
-                return $"{item.Name}, {Strings.InHand}, {position} of {total}";
             }
 
-            // Stack card
-            if (item.Zone == "Stack")
+            // Non-battlefield zones (Hand, Stack, Graveyard, Exile) or battlefield fallback
+            var zoneType = StringToZoneType(item.Zone);
+            if (_zoneNavigator.NavigateToSpecificCard(zoneType, item.GameObject, zoneChanged))
             {
-                return $"{item.Name}, {Strings.OnStack}, {position} of {total}";
+                _lastItemZone = item.Zone;
+                return;
             }
 
-            // Battlefield target - rich format with P/T and owner
-            var parts = new List<string> { item.Name };
+            // Fallback: card not found in navigator lists (shouldn't happen normally)
+            MelonLogger.Warning($"[HotHighlightNavigator] Card {item.Name} not found in zone navigators, using direct announcement");
+            _announcer.Announce($"{item.Name}", AnnouncementPriority.High);
 
-            if (!string.IsNullOrEmpty(item.PowerToughness))
-                parts.Add(item.PowerToughness);
+            if (item.GameObject != null)
+                ZoneNavigator.SetFocusedGameObject(item.GameObject, "HotHighlightNavigator");
 
-            string ownerType = item.IsOpponent
-                ? $"opponent's {item.CardType ?? "permanent"}"
-                : (item.CardType ?? "permanent");
-            parts.Add(ownerType);
-
-            parts.Add($"{position} of {total}");
-
-            return string.Join(", ", parts);
+            _zoneNavigator.SetCurrentZone(zoneType, "HotHighlightNavigator");
+            _lastItemZone = item.Zone;
         }
 
         /// <summary>

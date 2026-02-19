@@ -550,7 +550,8 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 **HotHighlightNavigator** (Unified Tab Navigation)
 - Handles Tab cycling through ALL highlighted cards (playable cards AND targets)
 - Trusts game's HotHighlight system - no separate mode tracking needed
-- Zone-based announcements: "in hand", "opponent's Creature", "on stack"
+- Tab syncs with zone/battlefield navigators so Left/Right works correctly after Tab
+- Zone change on Tab announces: "Hand, Lightning Bolt, 1 of 3" (same format as zone shortcuts)
 - Zone-based activation: hand cards use two-click, others use single-click
 - Tab/Shift+Tab cycles all targets, Ctrl+Tab/Ctrl+Shift+Tab cycles opponent targets only
 - Enter activates, Backspace cancels

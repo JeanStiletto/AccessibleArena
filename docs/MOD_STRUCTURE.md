@@ -249,10 +249,8 @@ have HotHighlight. We trust the game and scan ALL zones, letting the zone determ
 - [x] HotHighlightNavigator service - Unified Tab navigation for playable cards AND targets
 - [x] **Trusts game's highlight system** - No separate mode tracking needed
 - [x] Scans ALL zones - Hand, Battlefield, Stack, Player portraits
-- [x] Zone-based announcements:
-  - Hand: "Shock, in hand, 1 of 2"
-  - Battlefield: "Goblin, 2/2, opponent's Creature, 1 of 3"
-  - Stack: "Lightning Bolt, on stack, 1 of 2"
+- [x] Syncs with zone/battlefield navigators so Left/Right works after Tab
+- [x] Zone change announcements on Tab: "Hand, Shock, 1 of 2" (same format as zone shortcuts)
   - Player: "Opponent, player, 3 of 3"
 - [x] Zone-based activation:
   - Hand cards: Two-click to play
