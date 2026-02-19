@@ -12,6 +12,11 @@ All notable changes to Accessible Arena.
 
 ## v0.6.8 - 2026-02-19
 
+### Fixed: Duel Navigator Not Reactivating After Settings Menu
+- Opening the game settings during a duel and closing it left the user with no active navigator
+- Cause: `HasPreGameCancelButton()` matched the in-duel Cancel button, blocking duel re-detection
+- Removed the redundant check; `HasDuelElements()` alone correctly distinguishes pre-game from duel
+
 ### Fixed: Dropdown Navigation Overhaul
 - Enter now selects dropdown items without closing the dropdown, keeping user in control
 - Tab navigates between form elements in mod list order (matching arrow keys)

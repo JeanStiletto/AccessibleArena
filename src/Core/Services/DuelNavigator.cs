@@ -153,7 +153,10 @@ namespace AccessibleArena.Core.Services
         protected override bool DetectScreen()
         {
             if (!_isWatching) return false;
-            if (HasPreGameCancelButton()) return false;
+            // HasDuelElements checks for Stop EventTriggers and duel-phase button text,
+            // which only exist during actual gameplay (not during pre-game matchmaking).
+            // Do NOT check HasPreGameCancelButton here - the in-duel Cancel button
+            // also matches that check, which prevents re-activation after preemption.
             return HasDuelElements();
         }
 
