@@ -33,9 +33,21 @@ jobs:
       - name: Build installer (Release)
         run: dotnet build installer/AccessibleArenaInstaller/AccessibleArenaInstaller.csproj -c Release
 
+      - name: Extract release notes from changelog
+        id: notes
+        shell: bash
+        run: |
+          # Extract the section for this version from CHANGELOG.md
+          # Matches from "## v0.6.8" until the next "## v" or "---" separator
+          VERSION="${GITHUB_REF_NAME}"
+          NOTES=$(sed -n "/^## ${VERSION}/,/^## v\|^---/{/^## v/!{/^---/!p}}" docs/CHANGELOG.md)
+          # Write to file to preserve multiline content
+          echo "$NOTES" > release_notes.txt
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release_notes.txt
           files: |
             src/bin/Release/net472/AccessibleArena.dll
             installer/AccessibleArenaInstaller/bin/Release/net472/AccessibleArenaInstaller.exe
