@@ -1,7 +1,7 @@
 # Dropdown Handling - Unified State Management
 
 **Created:** 2026-02-03
-**Updated:** 2026-02-19 (Tab navigation, Enter blocking, silent selection)
+**Updated:** 2026-02-19 (onValueChanged suppression to prevent form auto-advance)
 
 ---
 
@@ -16,6 +16,7 @@ MTGA uses dropdowns for date selection (birthday, month/day/year pickers) and ot
 5. Block Enter/Submit from the game while in dropdown mode
 6. Select items without triggering onValueChanged (prevents chain auto-advance)
 7. Handle Tab navigation: close current dropdown and move to next element
+8. Suppress onValueChanged while dropdown is open (prevents form auto-advance)
 
 ---
 
@@ -31,6 +32,9 @@ All dropdown state is managed by `DropdownStateManager` (`src/Core/Services/Drop
 - `_activeDropdownObject` - Reference to currently active dropdown
 - `_blockEnterFromGame` - Persistent flag blocking Enter from game's KeyboardManager and Unity's EventSystem Submit
 - `_blockSubmitAfterFrame` - Frame-based Submit blocking window after dropdown item selection or close
+- `_savedOnValueChanged` - Saved `m_OnValueChanged` event, replaced with empty event while dropdown is open
+- `_suppressedDropdownComponent` - The component whose onValueChanged was suppressed
+- `_cachedOnValueChangedField` - Cached FieldInfo for cTMP_Dropdown.m_OnValueChanged
 
 **Public API:**
 ```csharp
@@ -60,6 +64,20 @@ bool ShouldBlockSubmit()             // True for 3 frames after item selection
 // Utility
 void Reset()                         // Clear all state
 ```
+
+### onValueChanged Suppression
+
+When a dropdown is opened by the mod, `DropdownStateManager` temporarily replaces the dropdown's `m_OnValueChanged` event with an empty event. This prevents the game's form validation from detecting value changes while the user is browsing items.
+
+**Problem:** On forms with multiple required dropdowns (e.g., registration page with Month/Day/Year/Country/Experience), the game monitors `onValueChanged` to detect when all fields are filled and auto-advances to the next page. When the last dropdown is opened and an item receives focus, `cTMP_Dropdown` internally sets its value and fires `onValueChanged`, causing the form to auto-submit before the user confirms their selection.
+
+**Solution:** `SuppressOnValueChanged()` saves the original event and replaces it with an empty one on open. `RestoreOnValueChanged()` restores it on close. Restore is called from all close paths:
+- `OnDropdownClosed()` - explicit user close
+- `UpdateAndCheckExitTransition()` - dropdown closed unexpectedly by the game
+- `SuppressReentry()` - auto-opened dropdown closed
+- `Reset()` - navigator deactivates or scene changes
+
+Supports all dropdown types: `cTMP_Dropdown` (via reflection on `m_OnValueChanged` field), `TMP_Dropdown`, and legacy `Dropdown` (via `onValueChanged` property).
 
 ### Enter/Submit Blocking
 
@@ -147,6 +165,7 @@ if (justExitedDropdown)
     | IsDropdownExpanded = true
     | DropdownStateManager.IsInDropdownMode = true
     | _blockEnterFromGame = true (Enter blocked from game)
+    | onValueChanged suppressed (replaced with empty event)
     v
 [Dropdown Mode]
     | Arrow keys handled by Unity's dropdown
@@ -156,6 +175,7 @@ if (justExitedDropdown)
 [Explicit Close]
     | CloseActiveDropdown() calls dropdown.Hide()
     | DropdownStateManager.OnDropdownClosed()
+    | onValueChanged restored
     | _blockEnterFromGame = false
     | Submit blocked for 3 frames
     v
@@ -279,6 +299,12 @@ The user should control navigation flow. After selecting a dropdown item, they m
 - Change to a different item
 - Close the dropdown on their own terms with Escape/Backspace
 
+### Why Suppress onValueChanged While Open?
+
+MTGA's `cTMP_Dropdown.value` setter always fires `m_OnValueChanged.Invoke()`. When a dropdown is open and the game internally changes the value (e.g., highlighting an item), `onValueChanged` fires. On multi-dropdown forms like registration, the game's form validation listens to these events. When the last required dropdown fires `onValueChanged`, the form detects all fields are filled and auto-advances to the next page - before the user has confirmed their selection.
+
+Simply blocking `SetDropdownValueSilent()` (our own selection) is not enough because the game's own dropdown internals also set the value. By replacing `m_OnValueChanged` with an empty event for the duration the dropdown is open, no value change notifications escape to form validation. The original event is restored when the dropdown closes.
+
 ### Why a Separate Manager Class?
 
 Before the unified manager, dropdown state was tracked in two places (BaseNavigator and UIFocusTracker). This caused dual state tracking, two parallel suppression mechanisms, and complex coordination. The unified `DropdownStateManager` provides a single source of truth.
@@ -338,6 +364,14 @@ Without suppression, this would cause the system to incorrectly enter dropdown m
    - User must manually navigate to Day and press Enter
    - Tab from Month to Day auto-opens Day (if Month was closed)
    - Tab from inside Month dropdown to Day does NOT auto-open Day
+
+10. **Form auto-advance prevention (registration page)**
+    - Fill all dropdowns except the last one (Experience)
+    - Open Experience dropdown with Enter
+    - Navigate items with arrow keys
+    - Page should NOT auto-advance to the Register page
+    - Select item with Enter, close with Escape/Tab
+    - Page only advances when user presses "Weiter" (Continue) button
 
 ---
 

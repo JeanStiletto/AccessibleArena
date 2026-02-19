@@ -1,3 +1,5 @@
+using System.Reflection;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -12,6 +14,7 @@ namespace AccessibleArena.Core.Services
     /// - Suppressing re-entry after closing auto-opened dropdowns
     /// - Detecting dropdown exit transitions (for index syncing)
     /// - Blocking Enter/Submit from the game while in dropdown mode
+    /// - Suppressing onValueChanged while dropdown is open (prevents form auto-advance)
     ///
     /// Item selection is handled by BaseNavigator.SelectDropdownItemAndClose() which
     /// sets the value via reflection (bypassing onValueChanged) to prevent chain auto-advance.
@@ -52,6 +55,23 @@ namespace AccessibleArena.Core.Services
         /// (which runs before our Update).
         /// </summary>
         private static bool _blockEnterFromGame;
+
+        /// <summary>
+        /// Saved m_OnValueChanged event from the dropdown component.
+        /// Replaced with an empty event while dropdown is open to prevent the game's
+        /// form validation from detecting value changes and auto-advancing pages.
+        /// </summary>
+        private static object _savedOnValueChanged;
+
+        /// <summary>
+        /// The dropdown component whose onValueChanged was suppressed.
+        /// </summary>
+        private static Component _suppressedDropdownComponent;
+
+        /// <summary>
+        /// Cached FieldInfo for cTMP_Dropdown.m_OnValueChanged.
+        /// </summary>
+        private static FieldInfo _cachedOnValueChangedField;
 
         #endregion
 
@@ -120,6 +140,9 @@ namespace AccessibleArena.Core.Services
             {
                 justExited = true;
                 _blockEnterFromGame = false;
+                // Restore onValueChanged in case dropdown was closed by the game
+                // (not by our explicit OnDropdownClosed call)
+                RestoreOnValueChanged();
                 DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                     "Dropdown mode exit transition detected");
             }
@@ -184,6 +207,10 @@ namespace AccessibleArena.Core.Services
             _wasInDropdownMode = true;
             _blockEnterFromGame = true;
             _suppressReentry = false; // Clear suppression from previous dropdown close
+
+            // Suppress onValueChanged to prevent form auto-advance while browsing items
+            SuppressOnValueChanged(dropdown);
+
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                 $"User opened dropdown: {dropdown?.name}");
         }
@@ -199,6 +226,9 @@ namespace AccessibleArena.Core.Services
             // the element that receives focus after dropdown closes
             _blockSubmitAfterFrame = UnityEngine.Time.frameCount;
             string newFocusName = null;
+
+            // Restore onValueChanged before clearing active dropdown
+            RestoreOnValueChanged();
 
             var eventSystem = EventSystem.current;
             if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
@@ -225,6 +255,7 @@ namespace AccessibleArena.Core.Services
             _wasInDropdownMode = false;
             _activeDropdownObject = null;
             _blockEnterFromGame = false;
+            RestoreOnValueChanged();
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                 "Suppressing dropdown re-entry (auto-opened dropdown closed)");
         }
@@ -239,7 +270,131 @@ namespace AccessibleArena.Core.Services
             _activeDropdownObject = null;
             _blockSubmitAfterFrame = -1;
             _blockEnterFromGame = false;
+            RestoreOnValueChanged();
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState", "State reset");
+        }
+
+        #endregion
+
+        #region onValueChanged Suppression
+
+        /// <summary>
+        /// Temporarily replace a dropdown's m_OnValueChanged with an empty event.
+        /// This prevents the game's form validation from detecting value changes
+        /// while the user is browsing dropdown items, which would cause auto-advance
+        /// to the next page before the user has made their selection.
+        /// </summary>
+        private static void SuppressOnValueChanged(GameObject dropdownObj)
+        {
+            if (dropdownObj == null) return;
+
+            // Restore any previously suppressed callback first
+            RestoreOnValueChanged();
+
+            // Try cTMP_Dropdown (MTGA's custom dropdown - most common)
+            foreach (var component in dropdownObj.GetComponents<Component>())
+            {
+                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                {
+                    var type = component.GetType();
+                    var field = GetOnValueChangedField(type);
+                    if (field != null)
+                    {
+                        _savedOnValueChanged = field.GetValue(component);
+                        _suppressedDropdownComponent = component;
+                        // Replace with empty event of the same type
+                        var emptyEvent = System.Activator.CreateInstance(field.FieldType);
+                        field.SetValue(component, emptyEvent);
+                        MelonLogger.Msg("[DropdownState] Suppressed onValueChanged on cTMP_Dropdown");
+                    }
+                    return;
+                }
+            }
+
+            // Try standard TMP_Dropdown
+            var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
+            if (tmpDropdown != null)
+            {
+                _savedOnValueChanged = tmpDropdown.onValueChanged;
+                _suppressedDropdownComponent = tmpDropdown;
+                tmpDropdown.onValueChanged = new TMPro.TMP_Dropdown.DropdownEvent();
+                MelonLogger.Msg("[DropdownState] Suppressed onValueChanged on TMP_Dropdown");
+                return;
+            }
+
+            // Try legacy Dropdown
+            var legacyDropdown = dropdownObj.GetComponent<UnityEngine.UI.Dropdown>();
+            if (legacyDropdown != null)
+            {
+                _savedOnValueChanged = legacyDropdown.onValueChanged;
+                _suppressedDropdownComponent = legacyDropdown;
+                legacyDropdown.onValueChanged = new UnityEngine.UI.Dropdown.DropdownEvent();
+                MelonLogger.Msg("[DropdownState] Suppressed onValueChanged on legacy Dropdown");
+            }
+        }
+
+        /// <summary>
+        /// Restore the dropdown's original m_OnValueChanged event.
+        /// Called when the dropdown closes (user close, auto-close, or reset).
+        /// </summary>
+        private static void RestoreOnValueChanged()
+        {
+            if (_savedOnValueChanged == null || _suppressedDropdownComponent == null)
+                return;
+
+            try
+            {
+                // Check if the component is still alive (scene may have changed)
+                if (_suppressedDropdownComponent == null || _suppressedDropdownComponent.gameObject == null)
+                {
+                    MelonLogger.Msg("[DropdownState] Suppressed dropdown was destroyed, skipping restore");
+                    _savedOnValueChanged = null;
+                    _suppressedDropdownComponent = null;
+                    return;
+                }
+
+                var typeName = _suppressedDropdownComponent.GetType().Name;
+
+                if (typeName == "cTMP_Dropdown")
+                {
+                    var field = GetOnValueChangedField(_suppressedDropdownComponent.GetType());
+                    if (field != null)
+                    {
+                        field.SetValue(_suppressedDropdownComponent, _savedOnValueChanged);
+                        MelonLogger.Msg("[DropdownState] Restored onValueChanged on cTMP_Dropdown");
+                    }
+                }
+                else if (_suppressedDropdownComponent is TMPro.TMP_Dropdown tmpDropdown)
+                {
+                    tmpDropdown.onValueChanged = (TMPro.TMP_Dropdown.DropdownEvent)_savedOnValueChanged;
+                    MelonLogger.Msg("[DropdownState] Restored onValueChanged on TMP_Dropdown");
+                }
+                else if (_suppressedDropdownComponent is UnityEngine.UI.Dropdown legacyDropdown)
+                {
+                    legacyDropdown.onValueChanged = (UnityEngine.UI.Dropdown.DropdownEvent)_savedOnValueChanged;
+                    MelonLogger.Msg("[DropdownState] Restored onValueChanged on legacy Dropdown");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Warning($"[DropdownState] Error restoring onValueChanged: {ex.Message}");
+            }
+
+            _savedOnValueChanged = null;
+            _suppressedDropdownComponent = null;
+        }
+
+        /// <summary>
+        /// Get the m_OnValueChanged FieldInfo for a cTMP_Dropdown type, with caching.
+        /// </summary>
+        private static FieldInfo GetOnValueChangedField(System.Type type)
+        {
+            if (_cachedOnValueChangedField != null && _cachedOnValueChangedField.DeclaringType == type)
+                return _cachedOnValueChangedField;
+
+            _cachedOnValueChangedField = type.GetField("m_OnValueChanged",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            return _cachedOnValueChangedField;
         }
 
         #endregion
