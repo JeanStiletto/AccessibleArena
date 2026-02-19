@@ -220,12 +220,11 @@ namespace AccessibleArena.Core.Services
                 return false; // Let other handlers deal with Enter
             }
 
-            // Space - click primary button when no highlights are available
-            // The game's native Space handler doesn't work reliably when our mod has navigated
-            // to a card (even after clearing focus). So we click the button directly.
+            // Space - click primary button when no highlights are available,
+            // or when in selection mode (to submit the selection/discard)
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                if (_items.Count == 0)
+                if (_items.Count == 0 || IsSelectionModeActive())
                 {
                     var primaryButton = FindPrimaryButton();
                     if (primaryButton != null)
@@ -1015,12 +1014,25 @@ namespace AccessibleArena.Core.Services
             if (isActive && !_wasInSelectionMode)
             {
                 _wasInSelectionMode = true;
-                var info = GetSubmitButtonInfo();
-                if (info != null)
+
+                // Find the prompt instruction text (e.g. "Discard a card" / "Wirf eine Karte ab")
+                // Lives in PromptText_Desktop_16x9(Clone) - the game's localized instruction for the player
+                string promptText = GetPromptInstructionText();
+                if (!string.IsNullOrEmpty(promptText))
                 {
-                    string buttonText = UITextExtractor.GetButtonText(info.Value.button);
-                    MelonLogger.Msg($"[HotHighlightNavigator] Selection mode entered, button: {buttonText}");
-                    _announcer.Announce(buttonText, AnnouncementPriority.High);
+                    MelonLogger.Msg($"[HotHighlightNavigator] Selection mode entered, prompt: {promptText}");
+                    _announcer.Announce(promptText, AnnouncementPriority.High);
+                }
+                else
+                {
+                    // Fallback to submit button text if no prompt found
+                    var info = GetSubmitButtonInfo();
+                    if (info != null)
+                    {
+                        string buttonText = UITextExtractor.GetButtonText(info.Value.button);
+                        MelonLogger.Msg($"[HotHighlightNavigator] Selection mode entered, button fallback: {buttonText}");
+                        _announcer.Announce(buttonText, AnnouncementPriority.High);
+                    }
                 }
             }
             else if (!isActive && _wasInSelectionMode)
@@ -1028,6 +1040,28 @@ namespace AccessibleArena.Core.Services
                 _wasInSelectionMode = false;
                 MelonLogger.Msg("[HotHighlightNavigator] Selection mode exited");
             }
+        }
+
+        /// <summary>
+        /// Finds the game's prompt instruction text (e.g. "Discard a card" / "Wirf eine Karte ab").
+        /// The game displays this in a PromptText element that is language-agnostic.
+        /// </summary>
+        private string GetPromptInstructionText()
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (!go.name.Contains("PromptText_")) continue;
+
+                var tmp = go.GetComponentInChildren<TMP_Text>();
+                if (tmp != null)
+                {
+                    string text = tmp.text?.Trim();
+                    if (!string.IsNullOrEmpty(text))
+                        return text;
+                }
+            }
+            return null;
         }
 
         /// <summary>

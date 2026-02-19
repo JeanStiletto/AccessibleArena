@@ -27,6 +27,13 @@ All notable changes to Accessible Arena.
 - Selection sets value silently via reflection (bypasses onValueChanged)
 - German translations: changed "Aufklappmenü" to "Dropdown" for consistency
 
+### Improved: Selection Mode (Discard, Exile Choices)
+- Zone navigation (C + Left/Right + Enter) now toggles card selection instead of trying to play
+- Selected state shown when navigating hand via zone shortcuts, not just Tab
+- Game's prompt instruction announced on selection mode entry (e.g. "Discard a card")
+- Tab index preserved after toggling so next Tab advances to next card
+- Space submits selection even when hand cards are highlighted
+
 ### Fixed: UIActivator Double-Activation
 - SimulatePointerClick was firing 3-4 overlapping activation methods per button press
 - Now only the core pointer sequence fires

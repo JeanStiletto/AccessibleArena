@@ -556,9 +556,14 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 - Enter activates, Backspace cancels
 
 **Selection Mode (in HotHighlightNavigator)**
-- Detects Submit button with count AND no battlefield targets
+- Detects Submit button with count
 - Hand cards use single-click to toggle selection instead of two-click to play
+- Works with both Tab navigation and zone shortcuts (C + Left/Right + Enter)
+- Announces game's prompt instruction on entry (e.g. "Discard a card") via PromptText element
+- Shows selected state when navigating hand via zone shortcuts
 - Announces X cards selected after toggling
+- Space submits selection (clicks primary button) even with items highlighted
+- Tab index preserved after toggle so next Tab advances instead of resetting
 
 **CombatNavigator**
 - Handles declare attackers/blockers phases
