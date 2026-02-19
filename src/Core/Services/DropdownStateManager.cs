@@ -95,6 +95,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static GameObject ActiveDropdown => _activeDropdownObject;
 
+        /// <summary>
+        /// True when reentry is being suppressed (a dropdown was just closed and may still
+        /// report IsExpanded for a frame). Used by UpdateEventSystemSelection to avoid
+        /// entering dropdown mode for a new dropdown when the old one is still closing.
+        /// </summary>
+        public static bool IsSuppressed => _suppressReentry;
+
         #endregion
 
         #region Public API
@@ -176,6 +183,7 @@ namespace AccessibleArena.Core.Services
             _activeDropdownObject = dropdown;
             _wasInDropdownMode = true;
             _blockEnterFromGame = true;
+            _suppressReentry = false; // Clear suppression from previous dropdown close
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                 $"User opened dropdown: {dropdown?.name}");
         }

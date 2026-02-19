@@ -606,11 +606,32 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Handle navigation while a dropdown is open.
         /// Arrow keys and Enter are handled by Unity's dropdown.
+        /// Tab/Shift+Tab closes the dropdown and navigates to the next/previous element.
         /// Escape and Backspace close the dropdown without triggering back navigation.
         /// Edit mode exits automatically when focus leaves dropdown items (detected by UIFocusTracker).
         /// </summary>
         protected virtual void HandleDropdownNavigation()
         {
+            // Tab/Shift+Tab: Close current dropdown and navigate to next/previous element.
+            // Uses our element list order rather than Unity's spatial navigation order.
+            // If the next element is also a dropdown, it auto-opens (standard screen reader behavior).
+            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
+            {
+                // Close silently - the next element's announcement is sufficient feedback
+                CloseActiveDropdown(silent: true);
+                // Suppress reentry so the old closing dropdown doesn't keep us in dropdown mode.
+                // If the next element is a dropdown, OnDropdownOpened will clear the suppression.
+                DropdownStateManager.SuppressReentry();
+
+                _lastNavigationWasTab = true;
+                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                if (shiftTab)
+                    MovePrevious();
+                else
+                    MoveNext();
+                return;
+            }
+
             // Escape or Backspace: Close the dropdown explicitly
             // We must intercept these because the game handles Escape as "back" which
             // navigates to the previous screen instead of just closing the dropdown
@@ -742,7 +763,8 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Close the currently active dropdown by finding its parent TMP_Dropdown and calling Hide().
         /// </summary>
-        private void CloseActiveDropdown()
+        /// <param name="silent">If true, skip "dropdown closed" announcement (used when Tab navigates away)</param>
+        private void CloseActiveDropdown(bool silent = false)
         {
             var eventSystem = EventSystem.current;
             if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
@@ -764,7 +786,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown via ActiveDropdown reference");
                     tmpDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
+                    if (!silent) _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
 
@@ -774,7 +796,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown via ActiveDropdown reference");
                     legacyDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
+                    if (!silent) _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
             }
@@ -790,7 +812,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing TMP_Dropdown via Escape/Backspace");
                     tmpDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
+                    if (!silent) _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
 
@@ -801,7 +823,7 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[{NavigatorId}] Closing legacy Dropdown via Escape/Backspace");
                     legacyDropdown.Hide();
                     DropdownStateManager.OnDropdownClosed();
-                    _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
+                    if (!silent) _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
 
@@ -818,7 +840,7 @@ namespace AccessibleArena.Core.Services
                             MelonLogger.Msg($"[{NavigatorId}] Closing cTMP_Dropdown via Escape/Backspace");
                             hideMethod.Invoke(component, null);
                             DropdownStateManager.OnDropdownClosed();
-                            _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
+                            if (!silent) _announcer.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                             return;
                         }
                     }
@@ -1638,13 +1660,24 @@ namespace AccessibleArena.Core.Services
                     }
                 }
                 // DROPDOWN HANDLING:
-                // Set selection, then close if auto-opened.
+                // Set selection, then either keep open (Tab) or close (arrow keys).
                 else if (UIFocusTracker.IsDropdown(element))
                 {
                     eventSystem.SetSelectedGameObject(element);
                     if (UIFocusTracker.IsAnyDropdownExpanded())
                     {
-                        CloseDropdownOnElement(element);
+                        if (_lastNavigationWasTab && !DropdownStateManager.IsSuppressed)
+                        {
+                            // Tab from outside dropdown mode: keep dropdown open
+                            // (standard screen reader behavior)
+                            DropdownStateManager.OnDropdownOpened(element);
+                        }
+                        else
+                        {
+                            // Arrow navigation, or Tab from inside an open dropdown:
+                            // close auto-opened dropdown (old dropdown may still be closing)
+                            CloseDropdownOnElement(element);
+                        }
                     }
                 }
                 // NORMAL ELEMENTS:

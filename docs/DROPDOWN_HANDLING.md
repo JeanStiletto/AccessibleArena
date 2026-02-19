@@ -1,7 +1,7 @@
 # Dropdown Handling - Unified State Management
 
 **Created:** 2026-02-03
-**Updated:** 2026-02-19 (Enter blocking and silent selection)
+**Updated:** 2026-02-19 (Tab navigation, Enter blocking, silent selection)
 
 ---
 
@@ -10,11 +10,12 @@
 MTGA uses dropdowns for date selection (birthday, month/day/year pickers) and other settings. The accessibility mod needs to:
 
 1. Detect when a dropdown is open (to hand off arrow key handling to Unity)
-2. Handle explicit close (Escape/Backspace)
+2. Handle explicit close (Escape/Backspace) and Tab-away
 3. Sync navigator index after dropdown closes
 4. Prevent re-entry when closing auto-opened dropdowns
 5. Block Enter/Submit from the game while in dropdown mode
 6. Select items without triggering onValueChanged (prevents chain auto-advance)
+7. Handle Tab navigation: close current dropdown and move to next element
 
 ---
 
@@ -37,6 +38,7 @@ All dropdown state is managed by `DropdownStateManager` (`src/Core/Services/Drop
 bool IsDropdownExpanded     // Real state from dropdown's IsExpanded property
 bool IsInDropdownMode       // Takes suppression into account
 bool ShouldBlockEnterFromGame // True while dropdown is open (persistent across frames)
+bool IsSuppressed           // True when reentry is suppressed (old dropdown still closing)
 GameObject ActiveDropdown   // Currently active dropdown
 
 // Called by BaseNavigator each frame
@@ -101,18 +103,27 @@ if (justExitedDropdown)
 ```
 
 **BaseNavigator.HandleDropdownNavigation():**
+- Tab/Shift+Tab: Calls `CloseActiveDropdown(silent: true)`, suppresses reentry, then navigates to next/previous element
 - Enter: Calls `SelectDropdownItem()` (select without closing, announces "Selected")
-- Escape/Backspace: Calls `CloseActiveDropdown()` (closes dropdown, syncs focus)
+- Escape/Backspace: Calls `CloseActiveDropdown()` (closes dropdown, announces "closed", syncs focus)
 - All Enter key codes consumed via `InputManager.ConsumeKey()`
 
-**BaseNavigator.CloseActiveDropdown():**
+**BaseNavigator.CloseActiveDropdown(bool silent = false):**
 - Calls `DropdownStateManager.OnDropdownClosed()` after closing dropdown
+- When `silent` is true, skips "dropdown closed" announcement (used by Tab handler)
 
 **BaseNavigator.CloseDropdownOnElement():**
 - Calls `DropdownStateManager.SuppressReentry()` after closing auto-opened dropdown
 
+**BaseNavigator.UpdateEventSystemSelection() - Dropdown branch:**
+- Sets EventSystem selection on dropdown element
+- If dropdown auto-opens (`IsAnyDropdownExpanded()`):
+  - If `_lastNavigationWasTab` AND suppression is NOT active: Calls `OnDropdownOpened()` to keep the dropdown open (Tab auto-open behavior)
+  - Otherwise (arrow navigation, or Tab from inside an open dropdown): Calls `CloseDropdownOnElement()` to suppress
+
 **EventSystemPatch:**
 - `SendSubmitEventToSelectedObject_Prefix` returns false when `ShouldBlockEnterFromGame`
+- `SendMoveEventToSelectedObject_Prefix` returns false when Tab key is pressed (blocks Unity's Tab navigation)
 
 **KeyboardManagerPatch:**
 - `ShouldBlockKey()` returns true for Enter when `ShouldBlockEnterFromGame`
@@ -186,6 +197,64 @@ if (justExitedDropdown)
 [Normal Navigation]
 ```
 
+### Scenario 3: Tab Between Closed Dropdowns (Auto-Open)
+
+```
+[Normal Navigation]
+    |
+    v User presses Tab (not in dropdown mode)
+[Tab Handler in HandleInput]
+    | _lastNavigationWasTab = true
+    | MoveNext() calls UpdateEventSystemSelection()
+    v
+[UpdateEventSystemSelection - Dropdown Element]
+    | eventSystem.SetSelectedGameObject(dropdown)
+    | MTGA auto-opens the dropdown (side effect)
+    | IsAnyDropdownExpanded() = true
+    | _lastNavigationWasTab = true AND !IsSuppressed
+    v
+[OnDropdownOpened()]
+    | _blockEnterFromGame = true
+    | _suppressReentry = false (cleared)
+    | Dropdown stays open - user is now in dropdown mode
+    v
+[Dropdown Mode]
+    | Arrow keys navigate items, Enter selects, Escape closes
+```
+
+### Scenario 4: Tab From Inside Open Dropdown
+
+```
+[Dropdown Mode]
+    |
+    v User presses Tab
+[HandleDropdownNavigation - Tab]
+    | CloseActiveDropdown(silent: true) - no "closed" announcement
+    | DropdownStateManager.SuppressReentry() - suppression active
+    | _lastNavigationWasTab = true
+    | MoveNext() calls UpdateEventSystemSelection()
+    v
+[UpdateEventSystemSelection - Next Dropdown Element]
+    | eventSystem.SetSelectedGameObject(nextDropdown)
+    | MTGA auto-opens the dropdown (side effect)
+    | IsAnyDropdownExpanded() = true
+    | BUT: IsSuppressed = true (old dropdown still closing)
+    v
+[CloseDropdownOnElement()]
+    | New auto-opened dropdown is closed
+    | SuppressReentry() called again
+    | Next dropdown is announced but NOT opened
+    v
+[Eventually]
+    | Old dropdown's IsExpanded = false
+    | _suppressReentry cleared
+    v
+[Normal Navigation]
+    | User presses Enter to manually open the dropdown
+```
+
+**Known limitation:** Tab from inside an open dropdown does not auto-open the next dropdown. The old dropdown's `IsExpanded` lingers for a frame after `Hide()`, making it impossible to distinguish whether the new dropdown actually auto-opened or the old dropdown is still reporting expanded.
+
 ---
 
 ## Key Design Decisions
@@ -226,7 +295,7 @@ Without suppression, this would cause the system to incorrectly enter dropdown m
 1. **Normal dropdown navigation**
    - Arrow keys navigate dropdown items
    - Enter selects item (announced as "Selected"), dropdown stays open
-   - Escape/Backspace closes dropdown
+   - Escape/Backspace closes dropdown, announces "dropdown closed"
    - No double announcements
 
 2. **Multiple selections**
@@ -234,19 +303,41 @@ Without suppression, this would cause the system to incorrectly enter dropdown m
    - Dropdown stays open throughout
    - Each selection announced
 
-3. **Auto-opened dropdown suppression**
+3. **Auto-opened dropdown suppression (arrow keys)**
    - Navigate to dropdown with arrow keys
    - Dropdown should NOT auto-open
    - Enter key should open dropdown
 
-4. **Post-close navigation**
-   - After closing dropdown, Tab/arrow navigation works correctly
+4. **Tab between closed dropdowns (auto-open)**
+   - Tab from a non-dropdown element to a dropdown
+   - Dropdown auto-opens, user is in dropdown mode
+   - No "dropdown closed" announcement
+   - Only the dropdown name is announced
+
+5. **Tab from inside open dropdown**
+   - Open a dropdown, browse items with arrows
+   - Press Tab: current dropdown closes silently (no "closed" announcement)
+   - Next element is announced with correct name
+   - If next element is a dropdown, it is NOT auto-opened (known limitation)
+   - No double announcements
+
+6. **Shift+Tab from inside open dropdown**
+   - Same as Tab but navigates to previous element
+
+7. **Tab order matches arrow order**
+   - Tab and arrow keys navigate elements in the same order
+   - Tab uses the mod's element list, not Unity's spatial navigation
+
+8. **Post-close navigation**
+   - After closing dropdown (Escape/Backspace), Tab/arrow navigation works correctly
    - Navigator index syncs to the element that has focus
    - No Submit auto-click on next focused element
 
-5. **Registration date pickers**
+9. **Registration date pickers**
    - Selecting Month value does NOT auto-open Day dropdown
    - User must manually navigate to Day and press Enter
+   - Tab from Month to Day auto-opens Day (if Month was closed)
+   - Tab from inside Month dropdown to Day does NOT auto-open Day
 
 ---
 

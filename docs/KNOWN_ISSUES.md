@@ -42,7 +42,25 @@ NPE tutorial fights sometimes close immediately after pressing Play, requiring t
 
 ---
 
+### Tab From Open Dropdown Does Not Auto-Open Next Dropdown
+
+When tabbing out of an open dropdown (user was browsing items), the next dropdown element is announced but not auto-opened. The user must press Enter to open it. This is because the previous dropdown's `IsExpanded` property lingers for a frame after `Hide()`, making it impossible to reliably detect whether the new dropdown actually auto-opened. Tabbing between closed dropdown elements works correctly (auto-opens the target dropdown).
+
+---
+
 ## Needs Testing
+
+### Dropdown Handling After Tab Navigation Changes
+
+All dropdown types in the game need retesting after the Tab navigation refactor (Feb 2026). Specifically:
+- Registration screen dropdowns (Month, Day, Year, Country, Experience)
+- Language selector dropdown
+- Any settings/options dropdowns
+- Dropdowns in deck builder or other screens
+
+Verify: Tab order correct, no double announcements, Enter opens/selects correctly, Escape closes correctly.
+
+---
 
 ### Other Windows Versions and Screen Readers
 

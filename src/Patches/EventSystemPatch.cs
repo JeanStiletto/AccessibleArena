@@ -26,12 +26,26 @@ namespace AccessibleArena.Patches
         /// navigation when the user is editing an input field. Without this, pressing
         /// Up/Down in a single-line input field causes Unity to navigate to the next
         /// selectable element, leaving the field unexpectedly.
+        ///
+        /// Also blocks Tab navigation from Unity's EventSystem entirely. Unity processes
+        /// Tab in EventSystem.Update() BEFORE our MelonLoader Update(), so without this
+        /// block, Unity's Tab cycling auto-opens dropdowns and moves focus to elements
+        /// in Unity's spatial navigation order (which differs from our element list order).
+        /// Our mod handles all Tab navigation via BaseNavigator.HandleInput().
         /// </summary>
         [HarmonyPatch(typeof(StandaloneInputModule), "SendMoveEventToSelectedObject")]
         [HarmonyPrefix]
         public static bool SendMoveEventToSelectedObject_Prefix()
         {
             if (UIFocusTracker.IsEditingInputField())
+            {
+                return false;
+            }
+
+            // Block Tab from Unity's EventSystem navigation.
+            // Our mod handles Tab exclusively - without this, Unity processes Tab first
+            // and auto-opens dropdowns or cycles through selectables in the wrong order.
+            if (Input.GetKey(KeyCode.Tab))
             {
                 return false;
             }
