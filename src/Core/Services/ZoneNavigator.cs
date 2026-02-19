@@ -679,6 +679,13 @@ namespace AccessibleArena.Core.Services
             // For hand cards, use the two-click approach (like sighted players)
             if (_currentZone == ZoneType.Hand)
             {
+                // Check if selection mode is active (discard, exile choices, etc.)
+                if (_hotHighlightNavigator != null && _hotHighlightNavigator.TryToggleSelection(card))
+                {
+                    MelonLogger.Msg($"[ZoneNavigator] Selection toggled for {cardName}");
+                    return;
+                }
+
                 MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from hand via two-click");
 
                 // Two-click is async, result comes via callback

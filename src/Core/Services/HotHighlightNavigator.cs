@@ -998,6 +998,28 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
+        /// <summary>
+        /// Attempts to toggle selection on a card if selection mode (discard, exile, etc.) is active.
+        /// Called by ZoneNavigator when the user presses Enter on a hand card navigated via zone shortcuts.
+        /// Returns true if selection was handled, false if not in selection mode.
+        /// </summary>
+        public bool TryToggleSelection(GameObject card)
+        {
+            if (!IsSelectionModeActive()) return false;
+
+            string cardName = CardDetector.GetCardName(card) ?? card.name;
+            bool wasSelected = IsCardSelected(card);
+            MelonLogger.Msg($"[HotHighlightNavigator] Zone nav toggling selection: {cardName} (was selected: {wasSelected})");
+
+            var result = UIActivator.SimulatePointerClick(card);
+            if (result.Success)
+                MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected));
+            else
+                _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
+
+            return true;
+        }
+
         #endregion
     }
 
