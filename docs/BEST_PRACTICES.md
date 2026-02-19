@@ -131,43 +131,50 @@ if (toggle == null)
 MTGA uses `TMP_Dropdown` and `cTMP_Dropdown` for dropdown menus. The mod tracks dropdown state centrally via `DropdownStateManager` (`src/Core/Services/DropdownStateManager.cs`).
 
 **Key Concepts:**
-- **Dropdown Edit Mode**: When a dropdown is expanded, the mod defers to Unity's built-in navigation
-- **Detection**: Checks if EventSystem focus is on a dropdown item (name starts with "Item")
+- **Dropdown Edit Mode**: When a dropdown is expanded, the mod defers arrow key navigation to Unity
+- **Enter Blocking**: Enter/Submit is fully blocked from the game while in dropdown mode (via Harmony patches on KeyboardManager and EventSystem)
+- **Silent Selection**: Items are selected via reflection to avoid triggering `onValueChanged` callbacks (prevents chain auto-advance)
+- **Dropdown Stays Open**: After selecting an item with Enter, the dropdown stays open; user closes with Escape/Backspace
 - **Exit Handling**: Tracks transitions out of dropdown mode for navigator index sync
 
 **DropdownStateManager API:**
 ```csharp
 // Check if currently in dropdown
-if (DropdownStateManager.Instance.IsInDropdownMode)
-    return; // Let Unity handle navigation
+if (DropdownStateManager.IsInDropdownMode)
+    return; // Let Unity handle arrow navigation, mod handles Enter/Escape
 
 // Update state and check for exit transition (call in Update loop)
-if (DropdownStateManager.Instance.UpdateAndCheckExitTransition())
+if (DropdownStateManager.UpdateAndCheckExitTransition())
 {
-    // Just exited dropdown mode - suppress announcement this frame
+    SyncIndexToFocusedElement(); // Re-sync after dropdown closes
 }
 
-// Notify when closing dropdown programmatically
-DropdownStateManager.Instance.OnDropdownClosed();
+// Notify when opening/closing dropdown
+DropdownStateManager.OnDropdownOpened(dropdownObject); // Sets _blockEnterFromGame
+DropdownStateManager.OnDropdownClosed();               // Clears blocking, starts Submit block window
 
-// Prevent re-entry for brief period (e.g., after closing)
-DropdownStateManager.Instance.SuppressReentry();
+// Prevent re-entry for brief period (e.g., after auto-close)
+DropdownStateManager.SuppressReentry();
+
+// Check if Enter should be blocked from game
+if (DropdownStateManager.ShouldBlockEnterFromGame) // Used by Harmony patches
 ```
 
 **User Flow:**
 1. Navigate to dropdown with arrow keys
-2. Press Enter to open dropdown (or it auto-opens in registration flow)
+2. Press Enter to open dropdown
 3. Use Up/Down to navigate items (Unity handles this)
-4. Press Enter to select item (closes dropdown)
-5. Press Escape/Backspace to cancel (closes without selecting)
+4. Press Enter to select item (value set silently, dropdown stays open)
+5. Browse more or select again as needed
+6. Press Escape/Backspace to close dropdown
 
 **Integration Points:**
 - `BaseNavigator.HandleInput()` - Checks dropdown mode before custom navigation
+- `BaseNavigator.SelectDropdownItem()` - Silent value set via reflection
+- `EventSystemPatch` - Blocks SendSubmitEventToSelectedObject when `ShouldBlockEnterFromGame`
+- `KeyboardManagerPatch` - Blocks Enter from game's KeyboardManager when `ShouldBlockEnterFromGame`
 - `UIFocusTracker` - Delegates dropdown state to DropdownStateManager
 - `GeneralMenuNavigator` - Uses DropdownStateManager for overlay filtering
-
-**Auto-Advance Dropdowns (Registration):**
-Registration screen has dropdowns that auto-advance: selecting Month opens Day, selecting Day opens Year, etc. DropdownStateManager handles this by detecting the transition between dropdowns.
 
 **See Also:** [DROPDOWN_HANDLING.md](DROPDOWN_HANDLING.md) for detailed architecture and state machine documentation.
 
@@ -1169,17 +1176,20 @@ toggle.isOn = !toggle.isOn;  // BAD - filter logic won't trigger
 **DropdownStateManager** - Dropdown mode tracking:
 ```csharp
 // Call each frame to update dropdown state
-DropdownStateManager.UpdateAndCheckExitTransition();
+bool justExited = DropdownStateManager.UpdateAndCheckExitTransition();
 
 // Check if dropdown is open (blocks navigation)
 if (DropdownStateManager.IsInDropdownMode)
 {
-    // Only handle close keys, let Unity handle dropdown navigation
-    if (Input.GetKeyDown(KeyCode.Backspace))
-    {
-        CloseDropdown();
-    }
+    // Enter: select item silently (dropdown stays open)
+    // Escape/Backspace: close dropdown
+    HandleDropdownNavigation();
     return; // Block all other navigation
+}
+
+if (justExited)
+{
+    SyncIndexToFocusedElement(); // Re-sync after dropdown closes
 }
 
 // Notify when opening a dropdown
@@ -1229,13 +1239,13 @@ if (info.IsValid)
 protected override void HandleInput()
 {
     // 1. Update dropdown state each frame
-    DropdownStateManager.UpdateAndCheckExitTransition();
+    bool justExitedDropdown = DropdownStateManager.UpdateAndCheckExitTransition();
 
     // 2. Block navigation while dropdown is open
+    //    Enter selects silently, Escape/Backspace closes (handled by HandleDropdownNavigation)
     if (DropdownStateManager.IsInDropdownMode)
     {
-        if (Input.GetKeyDown(KeyCode.Backspace))
-            CloseActiveDropdown();
+        HandleDropdownNavigation();
         return;
     }
 

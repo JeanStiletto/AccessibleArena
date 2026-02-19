@@ -33,7 +33,7 @@ C:\Users\fabia\arena\
         InputManager.cs          - Custom shortcut handling
         ShortcutRegistry.cs      - Keybind registration
         DebugConfig.cs           - Centralized debug logging flags (NEW Phase 2)
-        DropdownStateManager.cs  - Unified dropdown state tracking (NEW Phase 4)
+        DropdownStateManager.cs  - Dropdown state tracking, Enter blocking, suppression
         CardInfoNavigator.cs     - Card detail navigation (arrow up/down)
         ZoneNavigator.cs         - Zone navigation in duel (C/B/G/X/S + arrows)
         BattlefieldNavigator.cs  - Battlefield row navigation (B/A/R keys)
@@ -607,8 +607,8 @@ Dedicated navigator for the Advanced Filters popup in Collection/Deck Builder sc
 **Key Implementation Details:**
 - Stores Toggle component references during discovery for consistent state reading
 - Uses `DropdownStateManager` for dropdown mode detection and blocking navigation while dropdown is open
+- Enter blocked from game in dropdown mode; items selected silently via reflection (dropdown stays open)
 - Calls `DropdownStateManager.UpdateAndCheckExitTransition()` each frame to track dropdown state
-- Calls `DropdownStateManager.OnDropdownOpened()` when activating a dropdown
 - Uses `UIActivator.Activate()` for proper game event triggering (not direct toggle.isOn manipulation)
 - Consumes Enter/Space/Backspace keys to prevent GeneralMenuNavigator from processing them after popup closes
 - Tries to click background blocker on Backspace to dismiss without applying filters

@@ -654,16 +654,17 @@ All notable changes to Accessible Arena.
 - `UIFocusTracker.IsAnyDropdownExpanded()` queries actual `IsExpanded` property via reflection
 - `UIFocusTracker.GetExpandedDropdown()` returns currently expanded dropdown for closing
 - `BaseNavigator.CloseDropdownOnElement()` closes auto-opened dropdowns and sets suppression flags
-- `BaseNavigator._skipDropdownModeTracking` prevents `_wasInDropdownMode` re-entry after auto-close
 - `UIFocusTracker.NavigatorHandlesAnnouncements` prevents duplicate announcements (set from NavigatorManager.HasActiveNavigator)
 - `DropdownStateManager.SuppressReentry()` prevents dropdown mode re-entry after auto-close
-- `BaseNavigator.HandleDropdownNavigation()` now intercepts Escape/Backspace and calls `CloseActiveDropdown()`
+- `BaseNavigator.HandleDropdownNavigation()` intercepts Enter (silent select) and Escape/Backspace (close)
+- `BaseNavigator.SelectDropdownItem()` sets value via reflection without triggering `onValueChanged`
 - `CloseActiveDropdown()` finds parent TMP_Dropdown/Dropdown/cTMP_Dropdown and calls `Hide()`
+- Enter/Submit blocked from game in dropdown mode via `EventSystemPatch` and `KeyboardManagerPatch`
 - `GetElementAnnouncement()` now handles legacy InputField and tries textComponent fallback
 - Tab handling uses `InputManager.GetKeyDownAndConsume(KeyCode.Tab)` to block game processing
 - `GeneralMenuNavigator.DiscoverElements()` disables grouped navigation when `_currentScene == "Login"`
 
-**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`, `GeneralMenuNavigator.cs`, `UITextExtractor.cs`, `SCREENS.md`
+**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`, `DropdownStateManager.cs`, `EventSystemPatch.cs`, `KeyboardManagerPatch.cs`, `GeneralMenuNavigator.cs`, `UITextExtractor.cs`, `SCREENS.md`
 
 ## v0.2.6 - 2026-01-27
 

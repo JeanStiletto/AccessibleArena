@@ -42,11 +42,13 @@ NPE tutorial fights sometimes close immediately after pressing Play, requiring t
 
 ---
 
-### Mailbox Misidentified as Event Panel
-
-Mailbox screen is sometimes incorrectly recognized as an event panel, causing wrong navigation behavior.
-
 ## Needs Testing
+
+### Other Windows Versions and Screen Readers
+
+Only tested on Windows 11 with NVDA. Other Windows versions (Windows 10) and other screen readers (JAWS, Narrator, etc.) may work via Tolk but are untested.
+
+---
 
 ### PlayBlade Queue Type Selection
 
@@ -146,20 +148,19 @@ Zone change events can create redundant announcements when a creature dies and g
 
 ---
 
-### Dropdown Auto-Open Suppression Mechanics
+### Dropdown Mechanics
 
-MTGA auto-opens dropdowns when they receive EventSystem selection. When user navigates to a dropdown with arrow keys, we set EventSystem selection, game auto-opens it. Auto-opened dropdowns are immediately closed; user must press Enter to open.
+**Auto-Open Suppression:**
+MTGA auto-opens dropdowns when they receive EventSystem selection. When user navigates to a dropdown with arrow keys, we set EventSystem selection, game auto-opens it. Auto-opened dropdowns are immediately closed; user must press Enter to open. `SuppressReentry()` prevents re-entering dropdown mode while `IsExpanded` is still true after `Hide()` call.
+
+**Enter/Submit Blocking:**
+While a dropdown is open, Enter is fully blocked from the game via Harmony patches on both `KeyboardManager.PublishKeyDown` and `EventSystem.SendSubmitEventToSelectedObject`. The mod handles Enter itself: `SelectDropdownItem()` sets the value silently via reflection (bypassing `onValueChanged`) and the dropdown stays open. This prevents the chain auto-advance problem where selecting Month would auto-open Day, etc.
 
 **Announcement Ownership:**
 - `UIFocusTracker.NavigatorHandlesAnnouncements` - When a navigator is active, UIFocusTracker skips announcements (navigators handle their own). Set each frame from `NavigatorManager.HasActiveNavigator`.
 - Exception: When a dropdown is open (`DropdownStateManager.IsInDropdownMode`), UIFocusTracker still announces because Unity's native navigation controls dropdown item focus.
 
-**Dropdown State (DropdownStateManager):**
-- `IsInDropdownMode` - Queries actual `IsExpanded` property, accounts for suppression after auto-close
-- `SuppressReentry()` - Prevents re-entering dropdown mode while `IsExpanded` is still true after `Hide()` call
-- `UpdateAndCheckExitTransition()` - Detects dropdown close for navigator index sync (handles game auto-advance like Month->Day->Year)
-
-**Files:** `UIFocusTracker.cs`, `DropdownStateManager.cs`, `AccessibleArenaMod.cs`
+**Files:** `UIFocusTracker.cs`, `DropdownStateManager.cs`, `BaseNavigator.cs`, `EventSystemPatch.cs`, `KeyboardManagerPatch.cs`
 
 ## Potential Issues (Monitor)
 
@@ -233,9 +234,9 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 **Problem areas requiring special handling:**
 - **Input fields:** MTGA auto-focuses them asynchronously, so we deactivate or clear EventSystem selection for arrow navigation
 - **Toggles:** Unity/MTGA re-toggles when EventSystem selection is set, so we clear selection for arrow navigation
-- **Dropdowns:** We let Unity handle internal arrow navigation, then re-sync our index
+- **Dropdowns:** Unity handles internal arrow navigation; Enter is blocked from game and handled by mod (silent selection via reflection, dropdown stays open); index re-synced on close
 
-**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`, `KeyboardManagerPatch.cs`
+**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`, `KeyboardManagerPatch.cs`, `EventSystemPatch.cs`, `DropdownStateManager.cs`
 
 ## Planned Features
 

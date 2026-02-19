@@ -1,13 +1,15 @@
 # Accessible Arena
 
-Accessibility mod for Magic: The Gathering Arena that enables blind and visually impaired players to play using the NVDA screen reader. Full keyboard navigation, screen reader announcements for all game states, and 12-language localization.
+Accessibility mod for Magic: The Gathering Arena that enables blind and visually impaired players to play using a screen reader. Full keyboard navigation, screen reader announcements for all game states, and 12-language localization.
 
 **Status:** Public beta. Core gameplay is functional. Some edge cases and minor bugs remain. See Known Issues below.
+
+**Note:** Currently keyboard-only. There is no mouse or touch support. Only tested on Windows 11 with NVDA. Other Windows versions and screen readers (JAWS, Narrator, etc.) may work but are untested.
 
 ## Features
 
 - Full keyboard navigation for all screens (home, store, mastery, deck builder, duels)
-- NVDA screen reader integration via Tolk library
+- Screen reader integration via Tolk library
 - Card information reading with arrow keys (name, mana cost, type, power/toughness, rules text, flavor text, rarity, artist)
 - Complete duel support: zone navigation, combat, targeting, stack, browsers (scry, surveil, mulligan)
 - Attachment and combat relationship announcements (enchanted by, blocking, targeted by)
@@ -20,17 +22,17 @@ Accessibility mod for Magic: The Gathering Arena that enables blind and visually
 
 - Windows 10 or later
 - Magic: The Gathering Arena (installed via the official installer or Epic Games Store)
-- NVDA screen reader (https://www.nvaccess.org/download/)
+- A screen reader (NVDA recommended: https://www.nvaccess.org/download/)
 - MelonLoader 0.6.x (the installer handles this automatically)
 
 ## Installation
 
 ### Using the installer (recommended)
 
-1. Download `AccessibleArenaInstaller.exe` from the latest release on GitHub: https://github.com/JeanStiletto/AccessibleArena/releases
+1. Download `AccessibleArenaInstaller.exe` from the latest release on GitHub: https://github.com/JeanStiletto/AccessibleArena/releases/latest/download/AccessibleArenaInstaller.exe
 2. Close MTG Arena if it is running
 3. Run the installer. It will detect your MTGA installation, install MelonLoader if needed, and deploy the mod
-4. Launch MTG Arena. You should hear "Accessible Arena v... launched" through NVDA
+4. Launch MTG Arena. You should hear "Accessible Arena v... launched" through your screen reader
 
 ### Manual installation
 
@@ -42,7 +44,7 @@ Accessibility mod for Magic: The Gathering Arena that enables blind and visually
 
 ## Quick start
 
-After installation, launch MTG Arena. The mod announces the current screen through NVDA.
+After installation, launch MTG Arena. The mod announces the current screen through your screen reader.
 
 - Press **F1** at any time for a navigable help menu listing all keyboard shortcuts
 - Press **F2** for the settings menu (language, verbosity, tutorial messages)
@@ -123,7 +125,7 @@ Include the following information:
 - What you were doing when the bug occurred
 - What you expected to happen
 - What actually happened
-- Your NVDA version
+- Your screen reader and version
 - Attach the MelonLoader log file from: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
 
 ## Known issues
@@ -137,7 +139,7 @@ For the full list, see docs/KNOWN_ISSUES.md.
 ## Troubleshooting
 
 **No speech output after launching the game**
-- Make sure NVDA is running before launching MTG Arena
+- Make sure your screen reader is running before launching MTG Arena
 - Check that `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder (the installer places them automatically)
 - Check the MelonLoader log at `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log` for errors
 
@@ -187,6 +189,6 @@ This project is licensed under the GNU General Public License v3.0. See the LICE
 ## Links
 
 - GitHub: https://github.com/JeanStiletto/AccessibleArena
-- NVDA screen reader: https://www.nvaccess.org/download/
+- NVDA screen reader (recommended): https://www.nvaccess.org/download/
 - MelonLoader: https://github.com/LavaGang/MelonLoader
 - MTG Arena: https://magic.wizards.com/mtgarena
