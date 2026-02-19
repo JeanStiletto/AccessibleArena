@@ -200,6 +200,13 @@
   "ManaEnergy": "에너지",
   "ManaPhyrexian_Format": "피렉시아 {0}",
   "ManaHybrid_Format": "{0} 또는 {1}",
+  "ManaColorPicker_Format": "마나 색상 선택: {0}",
+  "ManaColorPicker_Option_Format": "{0} {1}",
+  "ManaColorPicker_Selected_Format": "{0} 선택됨. {2}개 중 {1}번째",
+  "ManaColorPicker_SelectionProgress_Format": "{1}개 중 {0}번째",
+  "ManaColorPicker_Done_Format": "{0} 선택됨",
+  "ManaColorPicker_Cancelled": "마나 색상 선택 취소됨",
+  "ManaColorPicker_InvalidKey": "잘못된 선택",
 
   "SettingsMenuTitle": "모드 설정",
   "SettingsMenuInstructions": "위아래 방향키로 이동, Enter로 변경, Backspace 또는 F2로 닫기",

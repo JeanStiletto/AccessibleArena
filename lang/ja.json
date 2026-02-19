@@ -200,6 +200,13 @@
   "ManaEnergy": "エネルギー",
   "ManaPhyrexian_Format": "ファイレクシアン{0}",
   "ManaHybrid_Format": "{0}または{1}",
+  "ManaColorPicker_Format": "マナの色を選択: {0}",
+  "ManaColorPicker_Option_Format": "{0} {1}",
+  "ManaColorPicker_Selected_Format": "{0}を選択。{2}中{1}番目",
+  "ManaColorPicker_SelectionProgress_Format": "{1}中{0}番目",
+  "ManaColorPicker_Done_Format": "{0}を選択",
+  "ManaColorPicker_Cancelled": "マナの色選択をキャンセル",
+  "ManaColorPicker_InvalidKey": "無効な選択",
 
   "SettingsMenuTitle": "MOD設定",
   "SettingsMenuInstructions": "上下矢印キーで移動、Enterで変更、BackspaceまたはF2で閉じる",

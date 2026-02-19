@@ -32,6 +32,7 @@ namespace AccessibleArena.Core.Services
         private CombatNavigator _combatNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
         private BrowserNavigator _browserNavigator;
+        private ManaColorPickerNavigator _manaColorPicker;
         private PlayerPortraitNavigator _portraitNavigator;
         private DuelAnnouncer _duelAnnouncer;
 
@@ -69,6 +70,7 @@ namespace AccessibleArena.Core.Services
             _hotHighlightNavigator = new HotHighlightNavigator(announcer, _zoneNavigator);
 
             _browserNavigator = new BrowserNavigator(announcer);
+            _manaColorPicker = new ManaColorPickerNavigator(announcer);
             _portraitNavigator = new PlayerPortraitNavigator(announcer);
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
@@ -373,8 +375,13 @@ namespace AccessibleArena.Core.Services
             // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
 
-            // First, check for browser UI (scry, mulligan, damage assignment, etc.)
-            // Browsers take highest priority as they represent modal interactions
+            // Mana color picker (any-color mana sources) - highest priority modal
+            _manaColorPicker.Update();
+            if (_manaColorPicker.HandleInput())
+                return true;
+
+            // Next, check for browser UI (scry, mulligan, damage assignment, etc.)
+            // Browsers take high priority as they represent modal interactions
             _browserNavigator.Update();
             if (_browserNavigator.HandleInput())
                 return true;

@@ -651,6 +651,17 @@ namespace AccessibleArena.Core.Models
         public static string ManaHybrid(string color1, string color2) => L.Format("ManaHybrid_Format", color1, color2);
 
         // ===========================================
+        // MANA COLOR PICKER (any-color mana source popup)
+        // ===========================================
+        public static string ManaColorPickerFormat(string colorList) => L.Format("ManaColorPicker_Format", colorList);
+        public static string ManaColorPickerOptionFormat(string number, string colorName) => L.Format("ManaColorPicker_Option_Format", number, colorName);
+        public static string ManaColorPickerSelectedFormat(string colorName, string current, string total) => L.Format("ManaColorPicker_Selected_Format", colorName, current, total);
+        public static string ManaColorPickerSelectionProgress(int current, int total) => L.Format("ManaColorPicker_SelectionProgress_Format", current, total);
+        public static string ManaColorPickerDoneFormat(string colorName) => L.Format("ManaColorPicker_Done_Format", colorName);
+        public static string ManaColorPickerCancelled => L.Get("ManaColorPicker_Cancelled");
+        public static string ManaColorPickerInvalidKey => L.Get("ManaColorPicker_InvalidKey");
+
+        // ===========================================
         // SETTINGS MENU
         // ===========================================
         public static string SettingsMenuTitle => L.Get("SettingsMenuTitle");

@@ -210,6 +210,13 @@
   "ManaEnergy": "Энергия",
   "ManaPhyrexian_Format": "Фирексийская {0}",
   "ManaHybrid_Format": "{0} или {1}",
+  "ManaColorPicker_Format": "Выберите цвет маны: {0}",
+  "ManaColorPicker_Option_Format": "{0} {1}",
+  "ManaColorPicker_Selected_Format": "Выбрано: {0}. Выбор {1} из {2}",
+  "ManaColorPicker_SelectionProgress_Format": "Выбор {0} из {1}",
+  "ManaColorPicker_Done_Format": "Выбрано: {0}",
+  "ManaColorPicker_Cancelled": "Выбор цвета маны отменён",
+  "ManaColorPicker_InvalidKey": "Неверный выбор",
 
   "SettingsMenuTitle": "Настройки мода",
   "SettingsMenuInstructions": "Стрелки вверх и вниз для навигации, Enter для изменения, Backspace или F2 для закрытия",

@@ -200,6 +200,13 @@
   "ManaEnergy": "能量",
   "ManaPhyrexian_Format": "非瑞克西亞{0}",
   "ManaHybrid_Format": "{0}或{1}",
+  "ManaColorPicker_Format": "選擇法術力顏色：{0}",
+  "ManaColorPicker_Option_Format": "{0} {1}",
+  "ManaColorPicker_Selected_Format": "已選擇{0}。第{1}次，共{2}次",
+  "ManaColorPicker_SelectionProgress_Format": "第{0}次，共{1}次",
+  "ManaColorPicker_Done_Format": "已選擇{0}",
+  "ManaColorPicker_Cancelled": "法術力顏色選擇已取消",
+  "ManaColorPicker_InvalidKey": "無效選項",
 
   "SettingsMenuTitle": "模組設定",
   "SettingsMenuInstructions": "上下方向鍵導覽，Enter變更，Backspace或F2關閉",

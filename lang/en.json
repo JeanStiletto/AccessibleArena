@@ -202,6 +202,14 @@
   "ManaPhyrexian_Format": "Phyrexian {0}",
   "ManaHybrid_Format": "{0} or {1}",
 
+  "ManaColorPicker_Format": "Choose mana color: {0}",
+  "ManaColorPicker_Option_Format": "{0} {1}",
+  "ManaColorPicker_Selected_Format": "Selected {0}. Selection {1} of {2}",
+  "ManaColorPicker_SelectionProgress_Format": "Selection {0} of {1}",
+  "ManaColorPicker_Done_Format": "Selected {0}",
+  "ManaColorPicker_Cancelled": "Mana color selection cancelled",
+  "ManaColorPicker_InvalidKey": "Invalid option",
+
   "SettingsMenuTitle": "Mod Settings",
   "SettingsMenuInstructions": "Arrow Up and Down to navigate, Enter to change, Backspace or F2 to close",
   "SettingsMenuClosed": "Mod settings closed",

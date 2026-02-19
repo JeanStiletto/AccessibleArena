@@ -200,6 +200,13 @@
   "ManaEnergy": "Energía",
   "ManaPhyrexian_Format": "Phyrexiano {0}",
   "ManaHybrid_Format": "{0} o {1}",
+  "ManaColorPicker_Format": "Elegir color de maná: {0}",
+  "ManaColorPicker_Option_Format": "{0} {1}",
+  "ManaColorPicker_Selected_Format": "{0} seleccionado. Selección {1} de {2}",
+  "ManaColorPicker_SelectionProgress_Format": "Selección {0} de {1}",
+  "ManaColorPicker_Done_Format": "{0} seleccionado",
+  "ManaColorPicker_Cancelled": "Selección de color de maná cancelada",
+  "ManaColorPicker_InvalidKey": "Opción no válida",
 
   "SettingsMenuTitle": "Ajustes del mod",
   "SettingsMenuInstructions": "Flecha arriba y abajo para navegar, Enter para cambiar, Retroceso o F2 para cerrar",

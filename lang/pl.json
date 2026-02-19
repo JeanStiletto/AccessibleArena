@@ -210,6 +210,13 @@
   "ManaEnergy": "Energia",
   "ManaPhyrexian_Format": "Phyrexiańska {0}",
   "ManaHybrid_Format": "{0} lub {1}",
+  "ManaColorPicker_Format": "Wybierz kolor many: {0}",
+  "ManaColorPicker_Option_Format": "{0} {1}",
+  "ManaColorPicker_Selected_Format": "Wybrano {0}. Wybór {1} z {2}",
+  "ManaColorPicker_SelectionProgress_Format": "Wybór {0} z {1}",
+  "ManaColorPicker_Done_Format": "Wybrano {0}",
+  "ManaColorPicker_Cancelled": "Wybór koloru many anulowany",
+  "ManaColorPicker_InvalidKey": "Nieprawidłowa opcja",
 
   "SettingsMenuTitle": "Ustawienia moda",
   "SettingsMenuInstructions": "Strzałka w górę i w dół do nawigacji, Enter do zmiany, Backspace lub F2 do zamknięcia",
