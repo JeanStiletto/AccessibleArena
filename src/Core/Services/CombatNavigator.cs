@@ -306,27 +306,11 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Announce newly assigned blockers with attacker names
+                // Newly assigned blockers - just log and clear selected tracking
+                // (state change watcher on the attacker announces "blocked by X" which is more informative)
                 if (newlyAssigned.Count > 0)
                 {
-                    var parts = new List<string>();
-                    foreach (var blocker in newlyAssigned)
-                    {
-                        var info = CardDetector.ExtractCardInfo(blocker);
-                        string blockerName = info.Name ?? "creature";
-
-                        // Try to resolve what this blocker is blocking
-                        string blockingTarget = GetBlockingText(blocker);
-                        if (!string.IsNullOrEmpty(blockingTarget))
-                            parts.Add($"{blockerName} {blockingTarget}");
-                        else
-                            parts.Add($"{blockerName} {Models.Strings.Combat_Assigned}");
-                    }
-                    string announcement = string.Join(", ", parts);
-                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count} - {announcement}");
-                    _announcer.Announce(announcement, AnnouncementPriority.High);
-
-                    // Clear selected tracking since these blockers are now assigned
+                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count}");
                     _previousSelectedBlockerIds.Clear();
                     _previousSelectedBlockerObjects.Clear();
                 }

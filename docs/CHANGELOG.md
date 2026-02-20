@@ -2,6 +2,24 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.0 - 2026-02-21
+
+### New: Card State Change Announcements
+- Pressing Enter on a battlefield card now announces the resulting state change (e.g. "greift an", "kann angreifen", "selected")
+- Per-frame watcher detects combat and selection state changes reliably, replacing the old delayed check
+- Announces only the state (no card name, since the user already knows which card they clicked)
+- Works for attack selection/deselection, block selection, and non-combat selection (sacrifice, exile)
+- 3-second timeout if no state change is detected
+
+### Improved: Combat Announcements
+- Attacker selection now detected via SelectedHighlightBattlefield during declare attackers phase
+- Blocker assignment no longer announces redundant "assigned" text; the attacker's "blocked by X and Y" state change is more informative
+- Blocker deselection and unassignment now announced with card name and "can block" state
+- Blocker P/T announcement no longer includes redundant "blocking" word (just "0/4" instead of "0/4 blocking")
+
+### Fixed
+- German "milled" translation corrected from "wird gemahlen" to "wird gemillt"
+
 ## v0.6.9 - 2026-02-19
 
 ### New: Mana Color Picker Navigator
