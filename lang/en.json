@@ -577,7 +577,7 @@
   "Combat_SelectedToBlock": "selected to block",
   "Combat_CanBlock": "can block",
   "Combat_Tapped": "tapped",
-  "Combat_PTBlocking_Format": "{0}/{1} blocking",
+  "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "assigned",
 
   "Target_Targeted_Format": "Targeted {0}",

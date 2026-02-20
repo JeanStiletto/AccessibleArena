@@ -569,7 +569,7 @@
   "Combat_SelectedToBlock": "ブロックに選択済み",
   "Combat_CanBlock": "ブロック可能",
   "Combat_Tapped": "タップ状態",
-  "Combat_PTBlocking_Format": "{0}/{1} ブロック中",
+  "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "割り当て済み",
 
   "Target_Targeted_Format": "{0}を対象にした",

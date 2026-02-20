@@ -36,6 +36,18 @@ Store screen does not always close properly, which can leave navigation in an un
 
 ---
 
+### Bot Match Not Working From Recent Played
+
+Starting a bot match from the "Recent Played" section does not work properly.
+
+---
+
+### Hand Zone Index Announced During Discard For Cards Playable From Other Zones
+
+When discarding, cards in hand that are also playable from other zones (e.g., graveyard, exile) have their index announced instead of being silent.
+
+---
+
 ### Color Challenge Deck Name Not Refreshing
 
 When selecting a different color in Color Challenge, the announced deck name does not update to reflect the newly selected color's deck.

@@ -26,12 +26,16 @@ namespace AccessibleArena.Core.Services
 
         // Track selected blockers by instance ID for change detection
         private HashSet<int> _previousSelectedBlockerIds = new HashSet<int>();
+        private Dictionary<int, GameObject> _previousSelectedBlockerObjects = new Dictionary<int, GameObject>();
 
         // Track assigned blockers (IsBlocking) by instance ID for change detection
         private HashSet<int> _previousAssignedBlockerIds = new HashSet<int>();
+        private Dictionary<int, GameObject> _previousAssignedBlockerObjects = new Dictionary<int, GameObject>();
 
         // Track if we were in blockers phase last frame (to reset on phase change)
         private bool _wasInBlockersPhase = false;
+
+        public bool IsInCombatPhase => _duelAnnouncer.IsInDeclareAttackersPhase || _duelAnnouncer.IsInDeclareBlockersPhase;
 
         public CombatNavigator(IAnnouncementService announcer, DuelAnnouncer duelAnnouncer)
         {
@@ -270,7 +274,9 @@ namespace AccessibleArena.Core.Services
             if (isInBlockersPhase && !_wasInBlockersPhase)
             {
                 _previousSelectedBlockerIds.Clear();
+                _previousSelectedBlockerObjects.Clear();
                 _previousAssignedBlockerIds.Clear();
+                _previousAssignedBlockerObjects.Clear();
                 MelonLogger.Msg("[CombatNavigator] Entering blockers phase, tracking reset");
             }
             _wasInBlockersPhase = isInBlockersPhase;
@@ -287,7 +293,7 @@ namespace AccessibleArena.Core.Services
                 currentAssignedIds.Add(blocker.GetInstanceID());
             }
 
-            // Check if assigned blockers changed (blocker was assigned to an attacker)
+            // Check if assigned blockers changed
             if (!currentAssignedIds.SetEquals(_previousAssignedBlockerIds))
             {
                 // Find newly assigned blockers
@@ -322,10 +328,26 @@ namespace AccessibleArena.Core.Services
 
                     // Clear selected tracking since these blockers are now assigned
                     _previousSelectedBlockerIds.Clear();
+                    _previousSelectedBlockerObjects.Clear();
+                }
+
+                // Find removed assigned blockers and announce
+                foreach (var prevId in _previousAssignedBlockerIds)
+                {
+                    if (!currentAssignedIds.Contains(prevId) && _previousAssignedBlockerObjects.TryGetValue(prevId, out var removedBlocker) && removedBlocker != null)
+                    {
+                        var info = CardDetector.ExtractCardInfo(removedBlocker);
+                        string blockerName = info.Name ?? "creature";
+                        MelonLogger.Msg($"[CombatNavigator] Blocker unassigned: {blockerName}");
+                        _announcer.Announce($"{blockerName}, {Models.Strings.Combat_CanBlock}", AnnouncementPriority.High);
+                    }
                 }
 
                 // Update assigned tracking
                 _previousAssignedBlockerIds = currentAssignedIds;
+                _previousAssignedBlockerObjects.Clear();
+                foreach (var blocker in currentAssigned)
+                    _previousAssignedBlockerObjects[blocker.GetInstanceID()] = blocker;
             }
 
             // Get current selected blockers (not yet assigned)
@@ -363,11 +385,27 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (_previousSelectedBlockerIds.Count > 0)
                 {
-                    MelonLogger.Msg("[CombatNavigator] Blocker selection cleared");
+                    // Announce deselected blockers by name
+                    foreach (var prevId in _previousSelectedBlockerIds)
+                    {
+                        if (_previousSelectedBlockerObjects.TryGetValue(prevId, out var deselected) && deselected != null)
+                        {
+                            var info = CardDetector.ExtractCardInfo(deselected);
+                            string blockerName = info.Name ?? "creature";
+                            MelonLogger.Msg($"[CombatNavigator] Blocker deselected: {blockerName}");
+                            _announcer.Announce($"{blockerName}, {Models.Strings.Combat_CanBlock}", AnnouncementPriority.High);
+                        }
+                    }
                 }
 
                 // Update tracking
                 _previousSelectedBlockerIds = currentSelectedIds;
+                _previousSelectedBlockerObjects.Clear();
+                foreach (var blocker in currentSelected)
+                {
+                    if (!currentAssignedIds.Contains(blocker.GetInstanceID()))
+                        _previousSelectedBlockerObjects[blocker.GetInstanceID()] = blocker;
+                }
             }
         }
 
@@ -410,7 +448,7 @@ namespace AccessibleArena.Core.Services
                     isSelected = true;
             }
 
-            // Attacking states (priority: is attacking > can attack)
+            // Attacking states (priority: is attacking > selected to attack > can attack)
             if (isAttacking)
             {
                 // Try to resolve who is blocking this attacker
@@ -420,6 +458,8 @@ namespace AccessibleArena.Core.Services
                 else
                     states.Add(Models.Strings.Combat_Attacking);
             }
+            else if (hasAttackerFrame && isSelected && _duelAnnouncer.IsInDeclareAttackersPhase)
+                states.Add(Models.Strings.Combat_Attacking);
             else if (hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase)
                 states.Add(Models.Strings.Combat_CanAttack);
 
@@ -516,7 +556,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public bool HandleInput()
         {
-            // Track blocker selection changes and announce combined P/T
+            // Track blocker selection changes per frame
             UpdateBlockerSelection();
 
             // Handle Declare Attackers phase

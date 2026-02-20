@@ -584,7 +584,7 @@
   "Combat_SelectedToBlock": "выбрано для блока",
   "Combat_CanBlock": "может блокировать",
   "Combat_Tapped": "повёрнуто",
-  "Combat_PTBlocking_Format": "{0}/{1} блокирует",
+  "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "назначен",
 
   "Target_Targeted_Format": "{0} взят на прицел",

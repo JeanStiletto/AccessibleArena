@@ -570,7 +570,7 @@
   "Combat_SelectedToBlock": "seleccionado para bloquear",
   "Combat_CanBlock": "puede bloquear",
   "Combat_Tapped": "girada",
-  "Combat_PTBlocking_Format": "{0}/{1} bloqueando",
+  "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "asignado",
 
   "Target_Targeted_Format": "{0} seleccionado como objetivo",

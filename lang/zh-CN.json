@@ -570,7 +570,7 @@
   "Combat_SelectedToBlock": "已选择阻挡",
   "Combat_CanBlock": "可以阻挡",
   "Combat_Tapped": "已横置",
-  "Combat_PTBlocking_Format": "{0}/{1}正在阻挡",
+  "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "已分配",
 
   "Target_Targeted_Format": "已指定{0}为目标",

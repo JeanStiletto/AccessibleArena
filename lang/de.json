@@ -575,7 +575,7 @@
   "Combat_SelectedToBlock": "zum Blocken ausgewählt",
   "Combat_CanBlock": "kann blocken",
   "Combat_Tapped": "getappt",
-  "Combat_PTBlocking_Format": "{0}/{1} blockt",
+  "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "zugewiesen",
 
   "Target_Targeted_Format": "{0} anvisiert",
@@ -687,7 +687,7 @@
   "Duel_Sacrificed_Format": "{0}{1} wird geopfert",
   "Duel_Countered_Format": "{0}{1} wird neutralisiert",
   "Duel_Discarded_Format": "{0}{1} wird abgeworfen",
-  "Duel_Milled_Format": "{0}{1} wird gemahlen",
+  "Duel_Milled_Format": "{0}{1} wird gemillt",
   "Duel_WentToGraveyard_Format": "{0}{1} auf den Friedhof gelegt",
 
   "Duel_Exiled_Format": "{0}{1} wird ins Exil geschickt",
