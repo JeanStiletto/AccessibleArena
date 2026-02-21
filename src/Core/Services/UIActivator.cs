@@ -1521,18 +1521,20 @@ namespace AccessibleArena.Core.Services
         private static Vector2 GetScreenPosition(GameObject obj)
         {
             var rectTransform = obj.GetComponent<RectTransform>();
-            if (rectTransform == null)
-                return new Vector2(Screen.width / 2, Screen.height / 2);
+            if (rectTransform != null)
+            {
+                Vector3[] corners = new Vector3[4];
+                rectTransform.GetWorldCorners(corners);
+                Vector3 center = (corners[0] + corners[2]) / 2f;
 
-            Vector3[] corners = new Vector3[4];
-            rectTransform.GetWorldCorners(corners);
-            Vector3 center = (corners[0] + corners[2]) / 2f;
+                var canvas = obj.GetComponentInParent<Canvas>();
+                if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera && canvas.worldCamera != null)
+                    return canvas.worldCamera.WorldToScreenPoint(center);
 
-            var canvas = obj.GetComponentInParent<Canvas>();
-            if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera && canvas.worldCamera != null)
-                return canvas.worldCamera.WorldToScreenPoint(center);
+                return center;
+            }
 
-            return center;
+            return new Vector2(Screen.width / 2, Screen.height / 2);
         }
 
         private static void Log(string message)

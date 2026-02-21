@@ -446,6 +446,11 @@ namespace AccessibleArena.Core.Services
                 states.Add(Models.Strings.Combat_Attacking);
             else if (hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase)
                 states.Add(Models.Strings.Combat_CanAttack);
+            // Model-based fallback: CombatIcon_AttackerFrame can be delayed on newly created tokens.
+            // Check model data directly - creature can attack if no summoning sickness and not tapped.
+            else if (!hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase
+                     && !isTapped && !CardModelProvider.GetHasSummoningSicknessFromCard(card))
+                states.Add(Models.Strings.Combat_CanAttack);
 
             // Blocking states (priority: is blocking > selected to block > can block)
             if (isBlocking)

@@ -24,6 +24,32 @@ Some cards have ability IDs greater than ~100000 that cannot be resolved correct
 
 ---
 
+### Battlefield Click Hitting Wrong Card (Overlapping Tokens)
+
+When clicking a card on the battlefield via Enter, `UIActivator.SimulatePointerClick` sends pointer events to the correct GameObject but also sets `position` to the card's screen-space center via `GetScreenPosition()`. The game's internal click handler uses the pointer position (raycast) rather than the target GameObject, so when tokens are stacked close together, the click hits the wrong card's collider. Only affects tokens (same-name cards stacked closely); unique cards are spaced apart enough to work correctly.
+
+**Root cause:** `CreatePointerEventData` sets `position = GetScreenPosition(element)`. For 3D battlefield cards (no RectTransform), this falls back to screen center. The game raycasts from that position and hits whichever token collider is at screen center, not the intended card.
+
+**Impact:** Critical during combat - can select wrong attackers/blockers with tokens.
+
+**Failed fix 1:** Setting `pointerCurrentRaycast` and `pointerPressRaycast` in CreatePointerEventData to target the element directly. Result: broke ALL card plays (no clicks registered). The RaycastResult struct was incomplete (missing module, worldPosition, depth fields) causing the game to reject events.
+
+**Failed fix 2:** Adding `Camera.main.WorldToScreenPoint(obj.transform.position)` for 3D objects in `GetScreenPosition`. Result: broke hand card playing (some hand cards couldn't be played). Hand cards are also 3D objects; computing their actual position caused position mismatches that the game rejected.
+
+**Next approach:** Pass actual card screen position from `BattlefieldNavigator.ActivateCurrentCard()` only for battlefield clicks, keeping screen center for all other clicks (hand, menu, etc.).
+
+**Files:** `UIActivator.cs` (CreatePointerEventData, GetScreenPosition), `BattlefieldNavigator.cs` (ActivateCurrentCard)
+
+---
+
+### ~~Delayed "kann angreifen" State on Newly Created Tokens~~ (Fixed)
+
+Fixed by adding model-based fallback in `CombatNavigator.GetCombatStateText()`. When `CombatIcon_AttackerFrame` hasn't appeared yet, checks `HasSummoningSickness` field on the model directly. Creature shows "kann angreifen" if no summoning sickness and not tapped, regardless of UI frame state.
+
+**Files:** `CombatNavigator.cs`, `CardModelProvider.cs` (GetHasSummoningSicknessFromCard)
+
+---
+
 ### Battlefield Cards Splitting Into Two Stacks
 
 Cards on the battlefield sometimes split into two separate stacks/rows when they should be grouped together.
@@ -193,6 +219,9 @@ Accumulated defensive fallback code needs review:
 
 - Multiple `FindObjectsOfType` calls in `DiscoverElements`
 - Repeated `GameObject.Find` calls in back navigation
+- **HotHighlightNavigator.DiscoverAllHighlights()**: 3+ full scene scans per Tab press (FindObjectsOfType for selection mode check, main GO scan with 2 parent-chain walks per object, DiscoverPlayerTargets scan). Also contains diagnostic DIAG logging that should be removed for production.
+- **ZoneNavigator/BattlefieldNavigator/CombatNavigator**: Each does independent FindObjectsOfType scene scans on zone/row switch. Could share a cached holder lookup similar to DuelAnnouncer's holder cache.
+- **Uncompiled Regex** in DuelAnnouncer zone parsing (lines ~425-426, ~2586): `Regex.Match()` called per zone event without `RegexOptions.Compiled` or static pre-compiled patterns.
 
 ---
 

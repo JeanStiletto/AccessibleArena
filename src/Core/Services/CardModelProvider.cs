@@ -76,6 +76,8 @@ namespace AccessibleArena.Core.Services
             _isBlockingPropSearched = false;
             _isTappedField = null;
             _isTappedFieldSearched = false;
+            _hasSummoningSicknessField = null;
+            _hasSummoningSicknessFieldSearched = false;
             _blockingIdsField = null;
             _blockingIdsFieldSearched = false;
             _blockedByIdsField = null;
@@ -2445,6 +2447,8 @@ namespace AccessibleArena.Core.Services
         private static bool _isBlockingPropSearched;
         private static FieldInfo _isTappedField;
         private static bool _isTappedFieldSearched;
+        private static FieldInfo _hasSummoningSicknessField;
+        private static bool _hasSummoningSicknessFieldSearched;
         private static FieldInfo _blockingIdsField;
         private static bool _blockingIdsFieldSearched;
         private static FieldInfo _blockedByIdsField;
@@ -2652,6 +2656,45 @@ namespace AccessibleArena.Core.Services
             if (cdc == null) return false;
             var model = GetCardModel(cdc);
             return GetIsTapped(model);
+        }
+
+        /// <summary>
+        /// Returns true if the card model's Instance.HasSummoningSickness field is true.
+        /// Note: HasSummoningSickness is a public FIELD on MtgCardInstance, not a property.
+        /// </summary>
+        public static bool GetHasSummoningSickness(object model)
+        {
+            var instance = GetModelInstance(model);
+            if (instance == null) return false;
+            try
+            {
+                if (!_hasSummoningSicknessFieldSearched)
+                {
+                    _hasSummoningSicknessFieldSearched = true;
+                    _hasSummoningSicknessField = instance.GetType().GetField("HasSummoningSickness",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (_hasSummoningSicknessField != null)
+                {
+                    var val = _hasSummoningSicknessField.GetValue(instance);
+                    if (val is bool b) return b;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a card GameObject has summoning sickness, using model data.
+        /// Chains: GetDuelSceneCDC → GetCardModel → GetHasSummoningSickness.
+        /// </summary>
+        public static bool GetHasSummoningSicknessFromCard(GameObject card)
+        {
+            if (card == null) return false;
+            var cdc = GetDuelSceneCDC(card);
+            if (cdc == null) return false;
+            var model = GetCardModel(cdc);
+            return GetHasSummoningSickness(model);
         }
 
         /// <summary>
