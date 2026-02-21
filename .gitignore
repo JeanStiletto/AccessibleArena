@@ -23,8 +23,12 @@ working */
 # Outdated backlog
 arena accessibility backlog.txt
 
+# Claude Code local settings (per-user permissions and hooks)
+.claude/settings.local.json
+
 # Temp research/decompilation files
 temp_*
+tmp_*
 C*temp_*
 Usersfabiaarenatemp_*
 

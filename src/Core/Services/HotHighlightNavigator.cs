@@ -47,6 +47,10 @@ namespace AccessibleArena.Core.Services
         // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
         private static readonly Regex ButtonNumberPattern = new Regex(@"(\d+)", RegexOptions.IgnoreCase);
 
+        // Previous DIAG counts - only log when changed
+        private int _lastDiagHandHighlighted = -1;
+        private int _lastDiagBattlefieldHighlighted = -1;
+
         // Avatar targeting reflection cache
         private static readonly BindingFlags PrivateInstance =
             BindingFlags.NonPublic | BindingFlags.Instance;
@@ -58,6 +62,9 @@ namespace AccessibleArena.Core.Services
         private static PropertyInfo _isLocalPlayerProp;    // DuelScene_AvatarView.IsLocalPlayer
         private static FieldInfo _portraitButtonField;     // DuelScene_AvatarView.PortraitButton
         private static bool _avatarReflectionInitialized;
+
+        // Cached avatar view references (only 2 per duel: local + opponent)
+        private readonly List<MonoBehaviour> _cachedAvatarViews = new List<MonoBehaviour>();
 
         public bool IsActive => _isActive;
         public int ItemCount => _items.Count;
@@ -103,6 +110,7 @@ namespace AccessibleArena.Core.Services
             _currentIndex = -1;
             _opponentIndex = -1;
             _lastItemZone = null;
+            _cachedAvatarViews.Clear();
             MelonLogger.Msg("[HotHighlightNavigator] Deactivated");
         }
 
@@ -255,109 +263,99 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Discovers ALL items with HotHighlight across all zones.
         /// No zone filtering - we trust the game to highlight only what's relevant.
+        ///
+        /// Optimization: Instead of scanning every GameObject and checking children for HotHighlight,
+        /// we scan all Transforms once and look for objects NAMED "HotHighlight" — then grab their
+        /// parent (the card). This avoids child traversals on every object in the scene.
+        /// Player targets (DuelScene_AvatarView) are found in the same single pass.
         /// </summary>
         private void DiscoverAllHighlights()
         {
             _items.Clear();
             var addedIds = new HashSet<int>();
 
-            MelonLogger.Msg("[HotHighlightNavigator] Discovering highlights...");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", "Discovering highlights...");
 
             // Pre-check selection mode once (expensive call, don't repeat per-object)
             bool selectionMode = IsSelectionModeActive();
             CheckSelectionModeTransition(selectionMode);
 
-            // DIAGNOSTIC: Count hand cards and their HotHighlight status
-            int handCardsTotal = 0;
-            int handCardsWithHighlight = 0;
-            int battlefieldCardsWithHighlight = 0;
+            // Diagnostic counters - always tracked (cheap), only logged on change
+            int handHighlights = 0;
+            int battlefieldHighlights = 0;
 
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            // Cache avatar views once, then reuse (only 2 per duel)
+            if (_cachedAvatarViews.Count == 0 || _cachedAvatarViews.Any(v => v == null))
             {
-                if (go == null || !go.activeInHierarchy) continue;
+                FindAndCacheAvatarViews();
+                if (!_avatarReflectionInitialized && _avatarViewType != null)
+                    InitializeAvatarReflection(_avatarViewType);
+            }
 
-                // DIAGNOSTIC: Check if this is a hand card
-                bool isInHand = false;
-                Transform current = go.transform;
-                while (current != null)
+            // Single scene scan: find HotHighlight objects by name, then walk up to the card
+            // Much faster than old approach of checking every GameObject's children for HotHighlight
+            foreach (var t in GameObject.FindObjectsOfType<Transform>())
+            {
+                if (t == null) continue;
+                if (!t.gameObject.name.Contains("HotHighlight")) continue;
+
+                string highlightName = t.gameObject.name;
+
+                // Walk up the hierarchy to find the card that owns this HotHighlight
+                Transform ancestor = t.parent;
+                GameObject cardGo = null;
+                while (ancestor != null)
                 {
-                    if (current.name.Contains("LocalHand"))
+                    if (CardDetector.IsCard(ancestor.gameObject))
                     {
-                        isInHand = true;
+                        cardGo = ancestor.gameObject;
                         break;
                     }
-                    current = current.parent;
+                    ancestor = ancestor.parent;
                 }
+                if (cardGo == null) continue;
 
-                // Count all hand cards for diagnostic
-                if (isInHand && CardDetector.IsCard(go))
-                {
-                    handCardsTotal++;
-                    // Check HotHighlight status specifically for hand cards - including inactive ones
-                    var (hasActive, hasInactive, highlightName) = CardDetector.GetHotHighlightDiagnostic(go);
-                    if (hasActive)
-                    {
-                        handCardsWithHighlight++;
-                        MelonLogger.Msg($"[HotHighlightNavigator] DIAG: Hand card WITH ACTIVE highlight: {go.name}, type={highlightName}");
-                    }
-                    else if (hasInactive)
-                    {
-                        // This is the key diagnostic - HotHighlight exists but is INACTIVE
-                        MelonLogger.Warning($"[HotHighlightNavigator] DIAG: Hand card has INACTIVE highlight: {go.name}, type={highlightName}");
-                    }
-                }
-
-                // Check for HotHighlight
-                string highlightType = CardDetector.GetHotHighlightType(go);
-
-                // No HotHighlight - but in selection mode, include already-selected hand cards
-                // (game removes HotHighlight from selected cards, making them un-navigable)
-                if (highlightType == null)
-                {
-                    if (isInHand && selectionMode && CardDetector.IsCard(go) && IsCardSelected(go))
-                    {
-                        highlightType = "Selected";
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-
-                // Only process actual cards (skip parent containers that also have the highlight)
-                if (!CardDetector.IsCard(go)) continue;
-
-                // DIAGNOSTIC: Track battlefield cards
-                bool isOnBattlefield = false;
-                current = go.transform;
-                while (current != null)
-                {
-                    if (current.name.Contains("BattlefieldCardHolder"))
-                    {
-                        isOnBattlefield = true;
-                        break;
-                    }
-                    current = current.parent;
-                }
-                if (isOnBattlefield) battlefieldCardsWithHighlight++;
-
-                // Avoid duplicates
-                int id = go.GetInstanceID();
+                int id = cardGo.GetInstanceID();
                 if (addedIds.Contains(id)) continue;
 
-                var item = CreateHighlightedItem(go, highlightType);
+                var item = CreateHighlightedItem(cardGo, highlightName);
                 if (item != null)
                 {
                     _items.Add(item);
                     addedIds.Add(id);
+
+                    // Diagnostic tracking (uses zone from CreateHighlightedItem's DetectZone)
+                    if (item.Zone == "Hand") handHighlights++;
+                    else if (item.Zone == "Battlefield") battlefieldHighlights++;
                 }
             }
 
-            // DIAGNOSTIC: Log summary
-            MelonLogger.Msg($"[HotHighlightNavigator] DIAG: Hand cards total={handCardsTotal}, withHighlight={handCardsWithHighlight}, battlefield withHighlight={battlefieldCardsWithHighlight}");
+            // Check cached player avatars for highlight state (2 objects, no scene scan needed)
+            if (_avatarReflectionInitialized)
+            {
+                foreach (var avatar in _cachedAvatarViews)
+                {
+                    if (avatar != null && avatar.gameObject.activeInHierarchy)
+                        TryAddPlayerTarget(avatar, addedIds);
+                }
+            }
 
-            // Also check for player targets
-            DiscoverPlayerTargets(addedIds);
+            // Selection mode fallback: find cards that lost HotHighlight after being selected
+            // (game removes HotHighlight from selected cards, making them un-navigable)
+            // Not limited to hand — sacrifice/exile effects can select battlefield cards too
+            if (selectionMode)
+            {
+                DiscoverSelectedCards(addedIds);
+            }
+
+            // Only log diagnostic summary when counts change
+            if (handHighlights != _lastDiagHandHighlighted ||
+                battlefieldHighlights != _lastDiagBattlefieldHighlighted)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Highlight state: hand={handHighlights}, battlefield={battlefieldHighlights}");
+                _lastDiagHandHighlighted = handHighlights;
+                _lastDiagBattlefieldHighlighted = battlefieldHighlights;
+            }
 
             // When no card/player highlights, check for prompt button choices
             if (_items.Count == 0)
@@ -373,12 +371,100 @@ namespace AccessibleArena.Core.Services
                 .ThenBy(i => i.GameObject?.transform.position.x ?? 0)
                 .ToList();
 
-            MelonLogger.Msg($"[HotHighlightNavigator] Found {_items.Count} highlighted items");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Found {_items.Count} highlighted items");
 
             // Reset indices if out of range
             if (_currentIndex >= _items.Count)
                 _currentIndex = _items.Count > 0 ? 0 : -1;
             // _opponentIndex is validated at use site against filtered list
+        }
+
+        /// <summary>
+        /// Selection mode fallback: finds cards that are selected but lost their HotHighlight.
+        /// The game removes HotHighlight from selected cards, making them un-navigable via the
+        /// main scan. This re-adds them so the user can deselect.
+        /// Scans all GameObjects (not just hand) to cover sacrifice/exile selection on battlefield.
+        /// </summary>
+        private void DiscoverSelectedCards(HashSet<int> addedIds)
+        {
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+                if (!CardDetector.IsCard(go)) continue;
+
+                int id = go.GetInstanceID();
+                if (addedIds.Contains(id)) continue;
+
+                // Only check cards we haven't already found via HotHighlight
+                if (!IsCardSelected(go)) continue;
+
+                var item = CreateHighlightedItem(go, "Selected");
+                if (item != null)
+                {
+                    _items.Add(item);
+                    addedIds.Add(id);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finds and caches DuelScene_AvatarView instances from the scene.
+        /// Only 2 exist per duel (local + opponent). Caches both the type and references.
+        /// </summary>
+        private void FindAndCacheAvatarViews()
+        {
+            _cachedAvatarViews.Clear();
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "DuelScene_AvatarView")
+                {
+                    if (_avatarViewType == null)
+                        _avatarViewType = mb.GetType();
+                    _cachedAvatarViews.Add(mb);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Attempts to add a player avatar as a target if it has a valid highlight.
+        /// </summary>
+        private void TryAddPlayerTarget(MonoBehaviour avatarView, HashSet<int> addedIds)
+        {
+            var highlightSystem = _highlightSystemField?.GetValue(avatarView);
+            if (highlightSystem == null) return;
+
+            int highlightValue = (int)_currentHighlightField.GetValue(highlightSystem);
+
+            // Accept Hot(3), Tepid(2), Cold(1) — skip None(0), Selected(5), others
+            if (highlightValue != 1 && highlightValue != 2 && highlightValue != 3)
+                return;
+
+            bool isLocal = (bool)_isLocalPlayerProp.GetValue(avatarView);
+
+            var portraitButton = _portraitButtonField?.GetValue(avatarView) as MonoBehaviour;
+            if (portraitButton == null)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"AvatarView has highlight={highlightValue} but no PortraitButton");
+                return;
+            }
+
+            GameObject clickable = portraitButton.gameObject;
+            int id = clickable.GetInstanceID();
+            if (addedIds.Contains(id)) return;
+
+            string name = isLocal ? Strings.You : Strings.Opponent;
+            _items.Add(new HighlightedItem
+            {
+                GameObject = clickable,
+                Name = name,
+                Zone = "Player",
+                HighlightType = $"AvatarHighlight({highlightValue})",
+                IsOpponent = !isLocal,
+                IsPlayer = true,
+                CardType = "Player"
+            });
+            addedIds.Add(id);
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Added {(isLocal ? "local" : "opponent")} player as target (highlight={highlightValue})");
         }
 
         /// <summary>
@@ -413,65 +499,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Discovers player portraits as targets using DuelScene_AvatarView reflection.
-        /// The game highlights player avatars via HighlightSystem._currentHighlightType,
-        /// NOT via HotHighlight child GameObjects.
-        /// </summary>
-        private void DiscoverPlayerTargets(HashSet<int> addedIds)
-        {
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name != "DuelScene_AvatarView") continue;
-
-                // Initialize reflection cache on first encounter
-                if (!_avatarReflectionInitialized)
-                {
-                    InitializeAvatarReflection(mb.GetType());
-                    if (!_avatarReflectionInitialized) return;
-                }
-
-                // Read highlight state: _highlightSystem → _currentHighlightType
-                var highlightSystem = _highlightSystemField?.GetValue(mb);
-                if (highlightSystem == null) continue;
-
-                int highlightValue = (int)_currentHighlightField.GetValue(highlightSystem);
-
-                // Accept Hot(3), Tepid(2), Cold(1) — skip None(0), Selected(5), others
-                if (highlightValue != 1 && highlightValue != 2 && highlightValue != 3)
-                    continue;
-
-                // Determine if local or opponent
-                bool isLocal = (bool)_isLocalPlayerProp.GetValue(mb);
-
-                // Get clickable element: PortraitButton.gameObject
-                var portraitButton = _portraitButtonField?.GetValue(mb) as MonoBehaviour;
-                if (portraitButton == null)
-                {
-                    MelonLogger.Warning($"[HotHighlightNavigator] AvatarView has highlight={highlightValue} but no PortraitButton");
-                    continue;
-                }
-
-                GameObject clickable = portraitButton.gameObject;
-                int id = clickable.GetInstanceID();
-                if (addedIds.Contains(id)) continue;
-
-                string name = isLocal ? Strings.You : Strings.Opponent;
-                _items.Add(new HighlightedItem
-                {
-                    GameObject = clickable,
-                    Name = name,
-                    Zone = "Player",
-                    HighlightType = $"AvatarHighlight({highlightValue})",
-                    IsOpponent = !isLocal,
-                    IsPlayer = true,
-                    CardType = "Player"
-                });
-                addedIds.Add(id);
-                MelonLogger.Msg($"[HotHighlightNavigator] Added {(isLocal ? "local" : "opponent")} player as target (highlight={highlightValue})");
-            }
-        }
-
         /// <summary>
         /// Initializes reflection cache for DuelScene_AvatarView fields.
         /// </summary>

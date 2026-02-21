@@ -70,6 +70,16 @@ Cards are children of zone holders. Detection patterns:
 - Name contains: `CardAnchor`
 - Component types: `CDCMetaCardView`, `CardView`, `DuelCardView`, `Meta_CDC`
 
+### HotHighlight (Card Targeting/Playability Indicator)
+
+The game marks playable and targetable cards by adding a child GameObject with "HotHighlight" in its name. This is NOT a direct child of the card CDC — it is nested deeper in the card's hierarchy (e.g., `CDC #123 > SubContainer > HotHighlightBattlefield(Clone)`).
+
+- Name pattern: `HotHighlight*` (e.g., `HotHighlightBattlefield(Clone)`, `HotHighlightHand(Clone)`)
+- The HotHighlight object may exist but be **inactive** — existence (not active state) indicates the card is playable/targetable
+- To find highlighted cards: scan for GameObjects named "HotHighlight", then walk up the parent chain to find the owning card (use `CardDetector.IsCard()`)
+- The game adds/removes these dynamically as game state changes (priority, mana, targets)
+- Player avatars do NOT use HotHighlight — they use `HighlightSystem` sprite swapping instead (see DuelScene_AvatarView section)
+
 ## Key Game Classes
 
 From decompiled Core.dll:

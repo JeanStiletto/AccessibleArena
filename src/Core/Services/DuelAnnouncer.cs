@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace AccessibleArena.Core.Services
@@ -57,6 +58,11 @@ namespace AccessibleArena.Core.Services
 
         // Cached holder container references - persistent for entire duel, only children change
         private readonly Dictionary<string, GameObject> _holderCache = new Dictionary<string, GameObject>();
+
+        // Pre-compiled regex patterns for zone event parsing
+        private static readonly Regex ZoneNamePattern = new Regex(@"^(\w+)\s*\(", RegexOptions.Compiled);
+        private static readonly Regex ZoneCountPattern = new Regex(@"(\d+)\s*cards?\)", RegexOptions.Compiled);
+        private static readonly Regex LocalPlayerPattern = new Regex(@"Player[^:]*:\s*(\d+)\s*\(LocalPlayer\)", RegexOptions.Compiled);
 
         // Phase announcement debounce (100ms) to avoid spam during auto-skip
         private string _pendingPhaseAnnouncement;
@@ -474,8 +480,8 @@ namespace AccessibleArena.Core.Services
             bool isLocal = zoneStr.Contains("LocalPlayer") || (!zoneStr.Contains("Opponent") && zoneStr.Contains("Player,"));
             bool isOpponent = zoneStr.Contains("Opponent");
 
-            var zoneMatch = System.Text.RegularExpressions.Regex.Match(zoneStr, @"^(\w+)\s*\(");
-            var countMatch = System.Text.RegularExpressions.Regex.Match(zoneStr, @"(\d+)\s*cards?\)");
+            var zoneMatch = ZoneNamePattern.Match(zoneStr);
+            var countMatch = ZoneCountPattern.Match(zoneStr);
 
             if (!zoneMatch.Success) return null;
 
@@ -2533,7 +2539,7 @@ namespace AccessibleArena.Core.Services
                 return;
 
             // Extract player number from pattern like "Player: 2 (LocalPlayer)" or "PlayerPlayer: 2 (LocalPlayer)"
-            var match = System.Text.RegularExpressions.Regex.Match(zoneStr, @"Player[^:]*:\s*(\d+)\s*\(LocalPlayer\)");
+            var match = LocalPlayerPattern.Match(zoneStr);
             if (match.Success && uint.TryParse(match.Groups[1].Value, out uint detectedId))
             {
                 if (detectedId != _localPlayerId && detectedId > 0)
