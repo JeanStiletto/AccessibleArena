@@ -216,16 +216,6 @@ Accumulated defensive fallback code needs review:
 
 ---
 
-### Performance
-
-- Multiple `FindObjectsOfType` calls in `DiscoverElements`
-- Repeated `GameObject.Find` calls in back navigation
-- ~~**HotHighlightNavigator.DiscoverAllHighlights()**: 3+ full scene scans per Tab press (FindObjectsOfType for selection mode check, main GO scan with 2 parent-chain walks per object, DiscoverPlayerTargets scan).~~ Fixed Feb 2026: Flipped search direction — scans Transforms for "HotHighlight" by name and walks up to card, instead of checking every object's children. Player avatars cached (2 per duel). Selection mode fallback (full scan) only runs when active. DIAG logging uses DebugConfig.LogNavigation and only logs on change.
-- ~~**ZoneNavigator/BattlefieldNavigator**: Each did independent FindObjectsOfType scene scans on zone/row switch.~~ Fixed Feb 2026: Shared `DuelHolderCache` static utility provides cached holder lookups. ZoneNavigator.DiscoverZones() does at most 11 cache lookups instead of iterating every GameObject. BattlefieldNavigator.DiscoverAndCategorizeCards() uses a single cache lookup. CombatNavigator unchanged (scans for card states, not holders).
-- ~~**Uncompiled Regex** in DuelAnnouncer zone parsing: `Regex.Match()` called per zone event without `RegexOptions.Compiled` or static pre-compiled patterns.~~ Fixed Feb 2026: 3 patterns (`ZoneNamePattern`, `ZoneCountPattern`, `LocalPlayerPattern`) now static compiled Regex fields.
-
----
-
 ### Announcement Compaction for Zone Transitions
 
 Zone change events can create redundant announcements when a creature dies and goes to graveyard:
