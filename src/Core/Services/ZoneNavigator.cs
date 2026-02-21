@@ -75,34 +75,22 @@ namespace AccessibleArena.Core.Services
         public int StackCardCount => _zones.ContainsKey(ZoneType.Stack) ? _zones[ZoneType.Stack].Cards.Count : 0;
 
         /// <summary>
-        /// Gets a fresh count of cards on the stack by directly scanning the scene.
+        /// Gets a fresh count of cards on the stack by scanning the cached stack holder.
         /// Use this for timing-sensitive checks where the cached StackCardCount may be stale.
         /// This is lightweight - only counts cards, doesn't discover full zone info.
         /// </summary>
         public int GetFreshStackCount()
         {
+            var holder = DuelHolderCache.GetHolder("StackCardHolder");
+            if (holder == null) return 0;
+
             int count = 0;
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
             {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                // Check if this is the stack holder
-                if (!go.name.Contains("StackCardHolder"))
-                    continue;
-
-                // Count CDC (card) children
-                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                if (child != null && child.gameObject.activeInHierarchy && child.name.Contains("CDC #"))
                 {
-                    if (child == null || !child.gameObject.activeInHierarchy)
-                        continue;
-
-                    if (child.name.Contains("CDC #"))
-                    {
-                        count++;
-                    }
+                    count++;
                 }
-                break; // Only one stack holder
             }
             return count;
         }
@@ -445,41 +433,30 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Discovers all zone holders and their cards.
+        /// Uses DuelHolderCache for cached holder lookups instead of full scene scans.
         /// </summary>
         public void DiscoverZones()
         {
             _zones.Clear();
             MelonLogger.Msg("[ZoneNavigator] Discovering zones...");
 
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            foreach (var pattern in ZoneHolderPatterns)
             {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
+                var go = DuelHolderCache.GetHolder(pattern.Key);
+                if (go == null) continue;
 
-                string name = go.name;
-
-                foreach (var pattern in ZoneHolderPatterns)
+                var zoneType = pattern.Value;
+                var zoneInfo = new ZoneInfo
                 {
-                    if (name.Contains(pattern.Key))
-                    {
-                        var zoneType = pattern.Value;
-                        if (!_zones.ContainsKey(zoneType))
-                        {
-                            var zoneInfo = new ZoneInfo
-                            {
-                                Type = zoneType,
-                                Holder = go,
-                                ZoneId = ParseZoneId(name),
-                                OwnerId = ParseOwnerId(name)
-                            };
+                    Type = zoneType,
+                    Holder = go,
+                    ZoneId = ParseZoneId(go.name),
+                    OwnerId = ParseOwnerId(go.name)
+                };
 
-                            DiscoverCardsInZone(zoneInfo);
-                            _zones[zoneType] = zoneInfo;
-                            MelonLogger.Msg($"[ZoneNavigator] Zone: {zoneType} - {name} - {zoneInfo.Cards.Count} cards");
-                        }
-                        break;
-                    }
-                }
+                DiscoverCardsInZone(zoneInfo);
+                _zones[zoneType] = zoneInfo;
+                MelonLogger.Msg($"[ZoneNavigator] Zone: {zoneType} - {go.name} - {zoneInfo.Cards.Count} cards");
             }
 
             // MTGA places commanders visually in the hand holder, not CommandCardHolder.

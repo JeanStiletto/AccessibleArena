@@ -266,6 +266,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Discovers all battlefield cards and categorizes them into rows.
+        /// Uses DuelHolderCache for cached holder lookup instead of full scene scan.
         /// </summary>
         public void DiscoverAndCategorizeCards()
         {
@@ -275,19 +276,8 @@ namespace AccessibleArena.Core.Services
                 row.Clear();
             }
 
-            // Find battlefield zone holder
-            GameObject battlefieldHolder = null;
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                if (go.name.Contains("BattlefieldCardHolder"))
-                {
-                    battlefieldHolder = go;
-                    break;
-                }
-            }
+            // Find battlefield zone holder via shared cache
+            var battlefieldHolder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
 
             if (battlefieldHolder == null)
             {

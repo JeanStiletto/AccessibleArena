@@ -56,9 +56,6 @@ namespace AccessibleArena.Core.Services
         // Track commander GrpIds for command zone access (Brawl/Commander)
         private readonly HashSet<uint> _commandZoneGrpIds = new HashSet<uint>();
 
-        // Cached holder container references - persistent for entire duel, only children change
-        private readonly Dictionary<string, GameObject> _holderCache = new Dictionary<string, GameObject>();
-
         // Pre-compiled regex patterns for zone event parsing
         private static readonly Regex ZoneNamePattern = new Regex(@"^(\w+)\s*\(", RegexOptions.Compiled);
         private static readonly Regex ZoneCountPattern = new Regex(@"(\d+)\s*cards?\)", RegexOptions.Compiled);
@@ -153,31 +150,8 @@ namespace AccessibleArena.Core.Services
             _currentStep = null;
             _isUserTurn = true;
             _pendingPhaseAnnouncement = null;
-            _holderCache.Clear();
+            DuelHolderCache.Clear();
             _instanceIdToName.Clear();
-        }
-
-        /// <summary>
-        /// Gets a cached card holder container by name pattern.
-        /// On first call (or if Unity destroyed the object), finds via scene scan and caches.
-        /// Holders persist for the entire duel; only their children change.
-        /// </summary>
-        private GameObject GetHolder(string nameContains)
-        {
-            if (_holderCache.TryGetValue(nameContains, out var cached) && cached != null)
-                return cached;
-
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go != null && go.activeInHierarchy && go.name.Contains(nameContains))
-                {
-                    _holderCache[nameContains] = go;
-                    return go;
-                }
-            }
-
-            _holderCache.Remove(nameContains);
-            return null;
         }
 
         /// <summary>
@@ -186,7 +160,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private IEnumerable<GameObject> EnumerateCDCsInHolder(string nameContains)
         {
-            var holder = GetHolder(nameContains);
+            var holder = DuelHolderCache.GetHolder(nameContains);
             if (holder == null) yield break;
 
             foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
@@ -1573,7 +1547,7 @@ namespace AccessibleArena.Core.Services
 
                 DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card has AttachedToId={attachedToId}, scanning battlefield for parent");
 
-                var holder = GetHolder("BattlefieldCardHolder");
+                var holder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
                 if (holder == null) return null;
 
                 foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
@@ -2477,7 +2451,7 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                var holder = GetHolder("StackCardHolder");
+                var holder = DuelHolderCache.GetHolder("StackCardHolder");
                 if (holder == null) return null;
 
                 foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
