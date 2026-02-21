@@ -106,7 +106,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
                 ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),
-                _ => true
+                _ => overlay.Value.IsFriendPanelGroup() ? IsInsideSocialPanel(obj) : true
             };
         }
 

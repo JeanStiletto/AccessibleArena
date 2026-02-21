@@ -431,6 +431,12 @@
   "GroupMailList": "邮件列表",
   "GroupMail": "邮件",
   "GroupRewards": "奖励",
+  "GroupFriendsPanelChallenge": "挑战",
+  "GroupFriendsPanelAddFriend": "添加好友",
+  "GroupFriendSectionFriends": "好友",
+  "GroupFriendSectionIncoming": "收到的请求",
+  "GroupFriendSectionOutgoing": "已发送请求",
+  "GroupFriendSectionBlocked": "已屏蔽",
   "GroupOther": "其他",
 
   "NoItemsFound": "未找到项目。",
@@ -706,5 +712,14 @@
 
   "ExtendedInfoTitle": "扩展卡牌信息",
   "ExtendedInfoClosed": "扩展信息已关闭",
-  "ExtendedInfoInstructions": "使用上下键浏览。按I或退格键关闭。"
+  "ExtendedInfoInstructions": "使用上下键浏览。按I或退格键关闭。",
+
+  "FriendActionChat": "聊天",
+  "FriendActionChallenge": "挑战",
+  "FriendActionUnfriend": "删除好友",
+  "FriendActionBlock": "屏蔽",
+  "FriendActionAccept": "接受",
+  "FriendActionDecline": "拒绝",
+  "FriendActionRevoke": "撤回",
+  "FriendActionUnblock": "取消屏蔽"
 }

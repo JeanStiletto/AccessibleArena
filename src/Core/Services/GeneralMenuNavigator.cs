@@ -172,6 +172,11 @@ namespace AccessibleArena.Core.Services
         private List<(string label, List<string> entries)> _deckInfoRows;
         private int _deckInfoEntryIndex;
 
+        // Friend section sub-navigation state
+        // Left/Right cycles available actions for the current friend entry
+        private List<(string label, string actionId)> _friendActions;
+        private int _friendActionIndex;
+
         #endregion
 
         #region Helper Methods
@@ -1111,6 +1116,13 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
 
+                // Friend section sub-navigation: Left/Right cycles available actions
+                if (IsFriendSectionActive() && _friendActions != null && _friendActions.Count > 0)
+                {
+                    HandleFriendActionNavigation(isRight);
+                    return true;
+                }
+
                 // Booster carousel navigation (packs screen)
                 if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
                 {
@@ -1390,10 +1402,19 @@ namespace AccessibleArena.Core.Services
 
             if (activeOverlay != null)
             {
+                // Friend panel sub-groups: handle backspace at group level as close panel
+                if (activeOverlay.Value == ElementGroup.FriendsPanel || activeOverlay.Value.IsFriendPanelGroup())
+                {
+                    // If inside a group, let HandleGroupedBackspace exit to group level first
+                    if (_groupedNavigator.Level == NavigationLevel.InsideGroup)
+                        return HandleGroupedBackspace();
+                    // At group level, close the panel
+                    return CloseSocialPanel();
+                }
+
                 return activeOverlay switch
                 {
                     ElementGroup.Popup => DismissPopup(),
-                    ElementGroup.FriendsPanel => CloseSocialPanel(),
                     ElementGroup.MailboxContent => CloseMailDetailView(), // Close mail, return to list
                     ElementGroup.MailboxList => CloseMailbox(), // Close mailbox entirely
                     // RewardsPopup handled by RewardPopupNavigator
@@ -3567,6 +3588,19 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
+                // Friend section navigation: Up/Down navigates between friends
+                // Skip when Tab is pressed - let Tab handle group cycling
+                if (IsFriendSectionActive() && !Input.GetKey(KeyCode.Tab))
+                {
+                    bool moved = _groupedNavigator.MoveNext();
+                    if (moved)
+                    {
+                        RefreshFriendActions();
+                        AnnounceFriendEntry();
+                    }
+                    return;
+                }
+
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
                 bool isTabPressed = Input.GetKey(KeyCode.Tab);
@@ -3628,6 +3662,18 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
+                // Friend section navigation: Up/Down navigates between friends
+                if (IsFriendSectionActive() && !Input.GetKey(KeyCode.Tab))
+                {
+                    bool moved = _groupedNavigator.MovePrevious();
+                    if (moved)
+                    {
+                        RefreshFriendActions();
+                        AnnounceFriendEntry();
+                    }
+                    return;
+                }
+
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
                 bool isTabPressed = Input.GetKey(KeyCode.Tab);
@@ -3681,7 +3727,15 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
                 _groupedNavigator.MoveFirst();
-                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                if (IsFriendSectionActive())
+                {
+                    RefreshFriendActions();
+                    AnnounceFriendEntry();
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                }
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
@@ -3799,7 +3853,15 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
                 _groupedNavigator.MoveLast();
-                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                if (IsFriendSectionActive())
+                {
+                    RefreshFriendActions();
+                    AnnounceFriendEntry();
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                }
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
@@ -3889,6 +3951,12 @@ namespace AccessibleArena.Core.Services
                         InitializeDeckInfoSubNav();
                         AnnounceDeckInfoEntry(includeRowName: true);
                     }
+                    else if (enteredGroup.HasValue && enteredGroup.Value.Group.IsFriendSectionGroup())
+                    {
+                        // Friend section: initialize actions and announce first friend
+                        RefreshFriendActions();
+                        AnnounceFriendEntry();
+                    }
                     else
                     {
                         _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
@@ -3920,6 +3988,23 @@ namespace AccessibleArena.Core.Services
                     if (_groupedNavigator.EnterSubgroup())
                     {
                         _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        return true;
+                    }
+                }
+
+                // Friend section: Enter activates the currently selected action
+                if (IsFriendSectionActive() && _friendActions != null && _friendActions.Count > 0
+                    && _friendActionIndex >= 0 && _friendActionIndex < _friendActions.Count)
+                {
+                    var friendElem = _groupedNavigator.CurrentElement;
+                    if (friendElem.HasValue && friendElem.Value.GameObject != null)
+                    {
+                        var (actionLabel, actionId) = _friendActions[_friendActionIndex];
+                        if (FriendInfoProvider.ActivateFriendAction(friendElem.Value.GameObject, actionId))
+                        {
+                            _announcer.Announce(Strings.Activated(actionLabel), AnnouncementPriority.High);
+                            TriggerRescan();
+                        }
                         return true;
                     }
                 }
@@ -4023,6 +4108,9 @@ namespace AccessibleArena.Core.Services
                 {
                     // Clear 2D sub-nav state when exiting DeckBuilderInfo
                     _deckInfoRows = null;
+                    // Clear friend action state when exiting friend section
+                    _friendActions = null;
+                    _friendActionIndex = 0;
 
                     if (wasFolderGroup)
                     {
@@ -4382,6 +4470,93 @@ namespace AccessibleArena.Core.Services
             // Also refresh the element labels for the group
             RefreshDeckInfoLabels();
         }
+
+        #region Friend Section Sub-Navigation
+
+        /// <summary>
+        /// Check if we're currently inside a FriendSection group (actual friends, incoming, outgoing, blocked).
+        /// </summary>
+        private bool IsFriendSectionActive()
+        {
+            return _groupedNavigationEnabled && _groupedNavigator.IsActive
+                && _groupedNavigator.Level == NavigationLevel.InsideGroup
+                && _groupedNavigator.CurrentGroup.HasValue
+                && _groupedNavigator.CurrentGroup.Value.Group.IsFriendSectionGroup();
+        }
+
+        /// <summary>
+        /// Initialize friend actions for the current friend entry.
+        /// Called when entering a friend section or moving to a new friend.
+        /// </summary>
+        private void RefreshFriendActions()
+        {
+            _friendActions = null;
+            _friendActionIndex = 0;
+
+            var element = _groupedNavigator.CurrentElement;
+            if (!element.HasValue || element.Value.GameObject == null) return;
+
+            _friendActions = FriendInfoProvider.GetFriendActions(element.Value.GameObject);
+            LogDebug($"[{NavigatorId}] Friend actions: {_friendActions?.Count ?? 0} for {element.Value.Label}");
+        }
+
+        /// <summary>
+        /// Handle Left/Right navigation through friend actions.
+        /// </summary>
+        private void HandleFriendActionNavigation(bool isRight)
+        {
+            if (_friendActions == null || _friendActions.Count == 0)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (isRight)
+            {
+                if (_friendActionIndex >= _friendActions.Count - 1)
+                {
+                    _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _friendActionIndex++;
+            }
+            else
+            {
+                if (_friendActionIndex <= 0)
+                {
+                    _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _friendActionIndex--;
+            }
+
+            var (label, _) = _friendActions[_friendActionIndex];
+            _announcer.AnnounceInterrupt(label);
+        }
+
+        /// <summary>
+        /// Announce the current friend entry with name and status.
+        /// </summary>
+        private void AnnounceFriendEntry()
+        {
+            var element = _groupedNavigator.CurrentElement;
+            if (!element.HasValue || element.Value.GameObject == null) return;
+
+            string friendLabel = FriendInfoProvider.GetFriendLabel(element.Value.GameObject);
+            if (!string.IsNullOrEmpty(friendLabel))
+            {
+                int count = _groupedNavigator.CurrentGroup?.Count ?? 0;
+                int idx = _groupedNavigator.CurrentElementIndex + 1;
+                _announcer.AnnounceInterrupt(Strings.ItemPositionOf(idx, count, friendLabel));
+            }
+            else
+            {
+                // Fallback to standard announcement
+                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+            }
+        }
+
+        #endregion
 
         // Note: IsSettingsSubmenuButton() removed - handled by SettingsMenuNavigator
 

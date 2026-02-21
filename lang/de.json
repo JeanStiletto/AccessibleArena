@@ -432,6 +432,12 @@
   "GroupMailList": "Postfach",
   "GroupMail": "Nachricht",
   "GroupRewards": "Belohnungen",
+  "GroupFriendsPanelChallenge": "Herausfordern",
+  "GroupFriendsPanelAddFriend": "Freund hinzufügen",
+  "GroupFriendSectionFriends": "Freunde",
+  "GroupFriendSectionIncoming": "Eingehende Anfragen",
+  "GroupFriendSectionOutgoing": "Anfragen gesendet",
+  "GroupFriendSectionBlocked": "Blockiert",
   "GroupOther": "Sonstiges",
 
   "NoItemsFound": "Keine Elemente gefunden.",
@@ -729,5 +735,14 @@
   "ExtendedInfoClosed": "Erweiterte Info geschlossen",
   "ExtendedInfoInstructions": "Navigiere mit Hoch und Runter. Schließen mit I oder Rücktaste.",
 
-  "Bo3Toggle": "Best of 3"
+  "Bo3Toggle": "Best of 3",
+
+  "FriendActionChat": "Chat",
+  "FriendActionChallenge": "Herausfordern",
+  "FriendActionUnfriend": "Entfreunden",
+  "FriendActionBlock": "Blockieren",
+  "FriendActionAccept": "Annehmen",
+  "FriendActionDecline": "Ablehnen",
+  "FriendActionRevoke": "Widerrufen",
+  "FriendActionUnblock": "Entblocken"
 }

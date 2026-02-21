@@ -431,6 +431,12 @@
   "GroupMailList": "메일 목록",
   "GroupMail": "메일",
   "GroupRewards": "보상",
+  "GroupFriendsPanelChallenge": "도전",
+  "GroupFriendsPanelAddFriend": "친구 추가",
+  "GroupFriendSectionFriends": "친구",
+  "GroupFriendSectionIncoming": "받은 요청",
+  "GroupFriendSectionOutgoing": "보낸 요청",
+  "GroupFriendSectionBlocked": "차단됨",
   "GroupOther": "기타",
 
   "NoItemsFound": "항목을 찾을 수 없습니다.",
@@ -705,5 +711,14 @@
 
   "ExtendedInfoTitle": "확장 카드 정보",
   "ExtendedInfoClosed": "확장 정보 닫힘",
-  "ExtendedInfoInstructions": "위아래 방향키로 탐색. I 또는 백스페이스로 닫기."
+  "ExtendedInfoInstructions": "위아래 방향키로 탐색. I 또는 백스페이스로 닫기.",
+
+  "FriendActionChat": "채팅",
+  "FriendActionChallenge": "도전",
+  "FriendActionUnfriend": "친구 삭제",
+  "FriendActionBlock": "차단",
+  "FriendActionAccept": "수락",
+  "FriendActionDecline": "거절",
+  "FriendActionRevoke": "취소",
+  "FriendActionUnblock": "차단 해제"
 }

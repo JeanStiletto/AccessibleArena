@@ -983,6 +983,12 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.MailboxList: return L.Get("GroupMailList");
                 case Services.ElementGrouping.ElementGroup.MailboxContent: return L.Get("GroupMail");
                 case Services.ElementGrouping.ElementGroup.RewardsPopup: return L.Get("GroupRewards");
+                case Services.ElementGrouping.ElementGroup.FriendsPanelChallenge: return L.Get("GroupFriendsPanelChallenge");
+                case Services.ElementGrouping.ElementGroup.FriendsPanelAddFriend: return L.Get("GroupFriendsPanelAddFriend");
+                case Services.ElementGrouping.ElementGroup.FriendSectionFriends: return L.Get("GroupFriendSectionFriends");
+                case Services.ElementGrouping.ElementGroup.FriendSectionIncoming: return L.Get("GroupFriendSectionIncoming");
+                case Services.ElementGrouping.ElementGroup.FriendSectionOutgoing: return L.Get("GroupFriendSectionOutgoing");
+                case Services.ElementGrouping.ElementGroup.FriendSectionBlocked: return L.Get("GroupFriendSectionBlocked");
                 default: return L.Get("GroupOther");
             }
         }
@@ -1003,5 +1009,17 @@ namespace AccessibleArena.Core.Models
         public static string ObjectivesEntry(string itemCount) =>
             L.Format("ObjectivesEntry_Format", itemCount);
         public static string Bo3Toggle() => L.Get("Bo3Toggle");
+
+        // ===========================================
+        // FRIEND ACTIONS
+        // ===========================================
+        public static string FriendActionChat => L.Get("FriendActionChat");
+        public static string FriendActionChallenge => L.Get("FriendActionChallenge");
+        public static string FriendActionUnfriend => L.Get("FriendActionUnfriend");
+        public static string FriendActionBlock => L.Get("FriendActionBlock");
+        public static string FriendActionAccept => L.Get("FriendActionAccept");
+        public static string FriendActionDecline => L.Get("FriendActionDecline");
+        public static string FriendActionRevoke => L.Get("FriendActionRevoke");
+        public static string FriendActionUnblock => L.Get("FriendActionUnblock");
     }
 }

@@ -431,6 +431,12 @@
   "GroupMailList": "Liste des messages",
   "GroupMail": "Message",
   "GroupRewards": "Récompenses",
+  "GroupFriendsPanelChallenge": "Défier",
+  "GroupFriendsPanelAddFriend": "Ajouter un ami",
+  "GroupFriendSectionFriends": "Amis",
+  "GroupFriendSectionIncoming": "Demandes reçues",
+  "GroupFriendSectionOutgoing": "Demandes envoyées",
+  "GroupFriendSectionBlocked": "Bloqués",
   "GroupOther": "Autre",
 
   "NoItemsFound": "Aucun élément trouvé.",
@@ -726,5 +732,14 @@
 
   "ExtendedInfoTitle": "Info carte étendue",
   "ExtendedInfoClosed": "Info étendue fermée",
-  "ExtendedInfoInstructions": "Naviguer avec Haut et Bas. Fermer avec I ou Retour arrière."
+  "ExtendedInfoInstructions": "Naviguer avec Haut et Bas. Fermer avec I ou Retour arrière.",
+
+  "FriendActionChat": "Discussion",
+  "FriendActionChallenge": "Défier",
+  "FriendActionUnfriend": "Retirer",
+  "FriendActionBlock": "Bloquer",
+  "FriendActionAccept": "Accepter",
+  "FriendActionDecline": "Refuser",
+  "FriendActionRevoke": "Révoquer",
+  "FriendActionUnblock": "Débloquer"
 }

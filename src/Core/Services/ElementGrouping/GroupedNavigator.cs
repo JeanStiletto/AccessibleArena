@@ -564,6 +564,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.Secondary,
                 ElementGroup.Popup,
                 ElementGroup.FriendsPanel,
+                ElementGroup.FriendsPanelChallenge,
+                ElementGroup.FriendsPanelAddFriend,
+                ElementGroup.FriendSectionFriends,
+                ElementGroup.FriendSectionIncoming,
+                ElementGroup.FriendSectionOutgoing,
+                ElementGroup.FriendSectionBlocked,
                 ElementGroup.MailboxList,
                 ElementGroup.MailboxContent,
                 ElementGroup.PlayBladeTabs,
@@ -603,9 +609,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                             });
                         }
                     }
-                    else if (elementList.Count == 1)
+                    else if (elementList.Count == 1 && !groupType.IsFriendSectionGroup())
                     {
                         // Single element - show standalone instead of creating a group
+                        // Exception: Friend section groups always show as proper groups
+                        // (section name provides context, left/right sub-navigation for actions)
                         _groups.Add(new ElementGroupInfo
                         {
                             Group = groupType,

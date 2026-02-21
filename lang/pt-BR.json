@@ -431,6 +431,12 @@
   "GroupMailList": "Lista de mensagens",
   "GroupMail": "Mensagem",
   "GroupRewards": "Recompensas",
+  "GroupFriendsPanelChallenge": "Desafiar",
+  "GroupFriendsPanelAddFriend": "Adicionar amigo",
+  "GroupFriendSectionFriends": "Amigos",
+  "GroupFriendSectionIncoming": "Solicitações recebidas",
+  "GroupFriendSectionOutgoing": "Solicitações enviadas",
+  "GroupFriendSectionBlocked": "Bloqueados",
   "GroupOther": "Outro",
 
   "NoItemsFound": "Nenhum item encontrado.",
@@ -706,5 +712,14 @@
 
   "ExtendedInfoTitle": "Informações estendidas do card",
   "ExtendedInfoClosed": "Informações estendidas fechadas",
-  "ExtendedInfoInstructions": "Navegue com Cima e Baixo. Feche com I ou Backspace."
+  "ExtendedInfoInstructions": "Navegue com Cima e Baixo. Feche com I ou Backspace.",
+
+  "FriendActionChat": "Chat",
+  "FriendActionChallenge": "Desafiar",
+  "FriendActionUnfriend": "Desfazer amizade",
+  "FriendActionBlock": "Bloquear",
+  "FriendActionAccept": "Aceitar",
+  "FriendActionDecline": "Recusar",
+  "FriendActionRevoke": "Revogar",
+  "FriendActionUnblock": "Desbloquear"
 }

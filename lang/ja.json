@@ -431,6 +431,12 @@
   "GroupMailList": "メール一覧",
   "GroupMail": "メール",
   "GroupRewards": "報酬",
+  "GroupFriendsPanelChallenge": "チャレンジ",
+  "GroupFriendsPanelAddFriend": "フレンド追加",
+  "GroupFriendSectionFriends": "フレンド",
+  "GroupFriendSectionIncoming": "受信リクエスト",
+  "GroupFriendSectionOutgoing": "送信リクエスト",
+  "GroupFriendSectionBlocked": "ブロック済み",
   "GroupOther": "その他",
 
   "NoItemsFound": "項目が見つかりません。",
@@ -705,5 +711,14 @@
 
   "ExtendedInfoTitle": "カード詳細情報",
   "ExtendedInfoClosed": "詳細情報を閉じました",
-  "ExtendedInfoInstructions": "上下キーで移動。IまたはBackspaceで閉じます。"
+  "ExtendedInfoInstructions": "上下キーで移動。IまたはBackspaceで閉じます。",
+
+  "FriendActionChat": "チャット",
+  "FriendActionChallenge": "チャレンジ",
+  "FriendActionUnfriend": "フレンド解除",
+  "FriendActionBlock": "ブロック",
+  "FriendActionAccept": "承認",
+  "FriendActionDecline": "拒否",
+  "FriendActionRevoke": "取消",
+  "FriendActionUnblock": "ブロック解除"
 }

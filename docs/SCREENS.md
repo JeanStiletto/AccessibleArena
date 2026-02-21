@@ -633,6 +633,52 @@ Fields without content are skipped. Pressing Down past the last field transition
 - Harmony patch on `ContentControllerPlayerInbox.OnLetterSelected()` detects mail selection
 - Buttons without actual text content (only object name) are filtered out
 
+## Friends Panel (Social System)
+
+**Navigator:** `GeneralMenuNavigator` (overlay mode via element grouping)
+**Trigger:** F4 key (toggle) or NavBar social button
+**Close:** Backspace
+
+The Friends Panel is an overlay that shows friends, sent/incoming requests, and blocked users. Uses hierarchical group navigation with per-friend action sub-navigation.
+
+**Groups (overlay, suppresses all other elements):**
+- Challenge - Standalone button
+- Add Friend - Standalone button
+- Friends - Accepted friends section (navigable)
+- Sent Requests - Outgoing invite section (navigable)
+- Incoming Requests - Incoming invite section (navigable)
+- Blocked - Blocked users section (navigable)
+
+**Navigation - Group Level:**
+- Up/Down arrows: Navigate between groups
+- Enter: Enter a friend section or activate standalone button
+- Backspace: Close friends panel
+
+**Navigation - Inside Friend Section:**
+- Up/Down arrows: Navigate between friend entries
+- Left/Right arrows: Cycle available actions (Chat, Challenge, Unfriend, Block, etc.)
+- Enter: Activate the currently selected action
+- Backspace: Exit section, return to group level
+
+**Announcements:**
+- Entering section: "1 of 3. wuternst, Online"
+- Action cycling: "Chat, 1 of 4"
+- Friend label: "name, status" (e.g., "wuternst, Online") or "name, date" for sent requests
+
+**Available Actions by Tile Type:**
+- FriendTile: Chat (if online/has history), Challenge (if enabled), Unfriend, Block
+- InviteOutgoingTile: Revoke
+- InviteIncomingTile: Accept, Decline, Block
+- BlockedTile: Unblock
+
+**Technical Notes:**
+- Social tile types live in Core.dll (no namespace), NOT Assembly-CSharp.dll
+- `FriendInfoProvider` handles all tile data reading and action invocation via reflection
+- Overlay detection via `MenuScreenDetector.IsSocialPanelOpen()` checking `SocialUI_V2_Desktop_16x9(Clone)`
+- Element assignment via parentPath bucket detection (`Bucket_Friends_CONTAINER`, `Bucket_SentRequests_CONTAINER`, etc.)
+- `SocialEntittiesListItem` has double-t typo in game code (matched with both spellings)
+- See `docs/SOCIAL_SYSTEM.md` for full implementation details
+
 ## Rewards Popup
 
 **Controller:** `ContentControllerRewards`

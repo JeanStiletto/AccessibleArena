@@ -135,7 +135,41 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Rewards popup overlay. Shown after claiming rewards from mail or other sources.
         /// Contains reward items (cards, sleeves, etc.) and a click-to-progress background.
         /// </summary>
-        RewardsPopup
+        RewardsPopup,
+
+        // --- Friends Panel Sub-Groups ---
+        // These replace the single FriendsPanel group with per-section groups.
+
+        /// <summary>
+        /// Friends panel: Challenge action button. Single-element standalone group.
+        /// </summary>
+        FriendsPanelChallenge,
+
+        /// <summary>
+        /// Friends panel: Add Friend action button. Single-element standalone group.
+        /// </summary>
+        FriendsPanelAddFriend,
+
+        /// <summary>
+        /// Friends panel: Actual friends list section.
+        /// Navigate with Up/Down, Left/Right for actions on each friend.
+        /// </summary>
+        FriendSectionFriends,
+
+        /// <summary>
+        /// Friends panel: Incoming friend requests section.
+        /// </summary>
+        FriendSectionIncoming,
+
+        /// <summary>
+        /// Friends panel: Outgoing/sent friend requests section.
+        /// </summary>
+        FriendSectionOutgoing,
+
+        /// <summary>
+        /// Friends panel: Blocked users section.
+        /// </summary>
+        FriendSectionBlocked
     }
 
     /// <summary>
@@ -150,6 +184,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             return group == ElementGroup.Popup
                 || group == ElementGroup.FriendsPanel
+                || group == ElementGroup.FriendsPanelChallenge
+                || group == ElementGroup.FriendsPanelAddFriend
+                || group == ElementGroup.FriendSectionFriends
+                || group == ElementGroup.FriendSectionIncoming
+                || group == ElementGroup.FriendSectionOutgoing
+                || group == ElementGroup.FriendSectionBlocked
                 || group == ElementGroup.PlayBladeTabs
                 || group == ElementGroup.PlayBladeContent
                 || group == ElementGroup.PlayBladeFolders
@@ -161,6 +201,32 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.MailboxList
                 || group == ElementGroup.MailboxContent
                 || group == ElementGroup.RewardsPopup;
+        }
+
+        /// <summary>
+        /// Returns true if this group is one of the friend panel sub-groups
+        /// (challenge, add friend, or any friend section).
+        /// </summary>
+        public static bool IsFriendPanelGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.FriendsPanelChallenge
+                || group == ElementGroup.FriendsPanelAddFriend
+                || group == ElementGroup.FriendSectionFriends
+                || group == ElementGroup.FriendSectionIncoming
+                || group == ElementGroup.FriendSectionOutgoing
+                || group == ElementGroup.FriendSectionBlocked;
+        }
+
+        /// <summary>
+        /// Returns true if this group is a friend section (not action buttons).
+        /// These sections support left/right action sub-navigation.
+        /// </summary>
+        public static bool IsFriendSectionGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.FriendSectionFriends
+                || group == ElementGroup.FriendSectionIncoming
+                || group == ElementGroup.FriendSectionOutgoing
+                || group == ElementGroup.FriendSectionBlocked;
         }
 
         /// <summary>

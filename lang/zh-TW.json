@@ -431,6 +431,12 @@
   "GroupMailList": "郵件列表",
   "GroupMail": "郵件",
   "GroupRewards": "獎勵",
+  "GroupFriendsPanelChallenge": "挑戰",
+  "GroupFriendsPanelAddFriend": "新增好友",
+  "GroupFriendSectionFriends": "好友",
+  "GroupFriendSectionIncoming": "收到的請求",
+  "GroupFriendSectionOutgoing": "已發送請求",
+  "GroupFriendSectionBlocked": "已封鎖",
   "GroupOther": "其他",
 
   "NoItemsFound": "未找到項目。",
@@ -706,5 +712,14 @@
 
   "ExtendedInfoTitle": "擴展卡牌資訊",
   "ExtendedInfoClosed": "擴展資訊已關閉",
-  "ExtendedInfoInstructions": "使用上下鍵瀏覽。按I或退格鍵關閉。"
+  "ExtendedInfoInstructions": "使用上下鍵瀏覽。按I或退格鍵關閉。",
+
+  "FriendActionChat": "聊天",
+  "FriendActionChallenge": "挑戰",
+  "FriendActionUnfriend": "刪除好友",
+  "FriendActionBlock": "封鎖",
+  "FriendActionAccept": "接受",
+  "FriendActionDecline": "拒絕",
+  "FriendActionRevoke": "撤回",
+  "FriendActionUnblock": "取消封鎖"
 }

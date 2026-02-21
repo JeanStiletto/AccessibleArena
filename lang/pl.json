@@ -444,6 +444,12 @@
   "GroupMailList": "Lista wiadomości",
   "GroupMail": "Wiadomość",
   "GroupRewards": "Nagrody",
+  "GroupFriendsPanelChallenge": "Wyzwij",
+  "GroupFriendsPanelAddFriend": "Dodaj znajomego",
+  "GroupFriendSectionFriends": "Znajomi",
+  "GroupFriendSectionIncoming": "Otrzymane zaproszenia",
+  "GroupFriendSectionOutgoing": "Wysłane zaproszenia",
+  "GroupFriendSectionBlocked": "Zablokowani",
   "GroupOther": "Inne",
 
   "NoItemsFound": "Nie znaleziono elementów.",
@@ -720,5 +726,14 @@
 
   "ExtendedInfoTitle": "Rozszerzone informacje o karcie",
   "ExtendedInfoClosed": "Rozszerzone informacje zamknięte",
-  "ExtendedInfoInstructions": "Nawiguj strzałkami góra i dół. Zamknij klawiszem I lub Backspace."
+  "ExtendedInfoInstructions": "Nawiguj strzałkami góra i dół. Zamknij klawiszem I lub Backspace.",
+
+  "FriendActionChat": "Czat",
+  "FriendActionChallenge": "Wyzwij",
+  "FriendActionUnfriend": "Usuń znajomego",
+  "FriendActionBlock": "Zablokuj",
+  "FriendActionAccept": "Akceptuj",
+  "FriendActionDecline": "Odrzuć",
+  "FriendActionRevoke": "Cofnij",
+  "FriendActionUnblock": "Odblokuj"
 }

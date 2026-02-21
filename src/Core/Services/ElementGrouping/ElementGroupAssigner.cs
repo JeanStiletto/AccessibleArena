@@ -1,4 +1,5 @@
 using UnityEngine;
+using MelonLoader;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
 {
@@ -34,6 +35,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var overlayGroup = DetermineOverlayGroup(element, name, parentPath);
             if (overlayGroup != ElementGroup.Unknown)
                 return overlayGroup;
+
+            // Guard: Elements inside social panel that weren't assigned a friend sub-group
+            // should be hidden (section headers, background elements, etc.)
+            if (parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
+                parentPath.Contains("SocialPanel"))
+                return ElementGroup.Unknown;
 
             // 2. Check for Play-related elements (Play button, events, direct challenge, rankings)
             if (IsPlayElement(element, name, parentPath))
@@ -103,10 +110,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 (parentPath.Contains("Popup") && !parentPath.Contains("Screenspace Popups")))
                 return ElementGroup.Popup;
 
-            // Friends panel overlay
+            // Friends panel overlay - split into sub-groups
             if (parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
                 parentPath.Contains("SocialPanel"))
-                return ElementGroup.FriendsPanel;
+            {
+                var friendGroup = DetermineFriendPanelGroup(element, name, parentPath);
+                if (friendGroup != ElementGroup.Unknown)
+                    return friendGroup;
+                // Filter out elements that don't belong to any friend sub-group
+                // (section headers, background elements, etc.)
+                return ElementGroup.Unknown;
+            }
 
             // Mailbox panel - mail items shown directly as Content (overlay filtering handles the rest)
             // No separate Mailbox group needed since it's already an overlay
@@ -421,6 +435,40 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 return true;
 
             return false;
+        }
+
+        /// <summary>
+        /// Determine which friend panel sub-group an element belongs to.
+        /// Maps challenge/add-friend buttons to action groups and friend tiles to section groups.
+        /// </summary>
+        private ElementGroup DetermineFriendPanelGroup(GameObject element, string name, string parentPath)
+        {
+            // Challenge button (Backer_Hitbox inside Button_AddChallenge)
+            if (parentPath.Contains("Button_AddChallenge") || parentPath.Contains("Button_Challenge") ||
+                name.Contains("Button_AddChallenge") || name.Contains("Button_Challenge"))
+                return ElementGroup.FriendsPanelChallenge;
+
+            // Add Friend button (Backer_Hitbox inside Button_AddFriend)
+            if (parentPath.Contains("Button_AddFriend") || name.Contains("Button_AddFriend"))
+                return ElementGroup.FriendsPanelAddFriend;
+
+            // Friend entries: Backer_Hitbox inside SocialEntittiesListItem_* within Bucket_*_CONTAINER
+            // Use bucket container names for section detection - more reliable than component type matching
+            // since different tile types exist (FriendTile, InviteOutgoingTile, InviteIncomingTile, etc.)
+            if (parentPath.Contains("SocialEntittiesListItem") || parentPath.Contains("SocialEntitiesListItem"))
+            {
+                if (parentPath.Contains("Bucket_Friends"))
+                    return ElementGroup.FriendSectionFriends;
+                if (parentPath.Contains("Bucket_SentRequests") || parentPath.Contains("Bucket_Outgoing"))
+                    return ElementGroup.FriendSectionOutgoing;
+                if (parentPath.Contains("Bucket_IncomingRequests") || parentPath.Contains("Bucket_Incoming"))
+                    return ElementGroup.FriendSectionIncoming;
+                if (parentPath.Contains("Bucket_Blocked"))
+                    return ElementGroup.FriendSectionBlocked;
+            }
+
+            // Not a recognized friend panel element (headers, dismiss buttons, tab bar, etc.)
+            return ElementGroup.Unknown;
         }
 
         /// <summary>

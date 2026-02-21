@@ -444,6 +444,12 @@
   "GroupMailList": "Список писем",
   "GroupMail": "Письмо",
   "GroupRewards": "Награды",
+  "GroupFriendsPanelChallenge": "Вызов",
+  "GroupFriendsPanelAddFriend": "Добавить друга",
+  "GroupFriendSectionFriends": "Друзья",
+  "GroupFriendSectionIncoming": "Входящие запросы",
+  "GroupFriendSectionOutgoing": "Отправленные запросы",
+  "GroupFriendSectionBlocked": "Заблокированные",
   "GroupOther": "Прочее",
 
   "NoItemsFound": "Элементы не найдены.",
@@ -720,5 +726,14 @@
 
   "ExtendedInfoTitle": "Расширенная информация о карте",
   "ExtendedInfoClosed": "Расширенная информация закрыта",
-  "ExtendedInfoInstructions": "Навигация стрелками вверх и вниз. Закрыть: I или Backspace."
+  "ExtendedInfoInstructions": "Навигация стрелками вверх и вниз. Закрыть: I или Backspace.",
+
+  "FriendActionChat": "Чат",
+  "FriendActionChallenge": "Вызов",
+  "FriendActionUnfriend": "Удалить из друзей",
+  "FriendActionBlock": "Заблокировать",
+  "FriendActionAccept": "Принять",
+  "FriendActionDecline": "Отклонить",
+  "FriendActionRevoke": "Отозвать",
+  "FriendActionUnblock": "Разблокировать"
 }
