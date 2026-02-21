@@ -152,6 +152,7 @@
   "InputFieldContent_Format": "{0}: {1}",
   "InputFieldEmptyWithLabel_Format": "{0}, vuoto",
   "InputFieldPasswordWithCount_Format": "{0}, {1} caratteri",
+  "InputFieldHint": "Premi Invio per modificare",
 
   "CharSpace": "spazio",
   "CharDot": "punto",

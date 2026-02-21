@@ -162,6 +162,7 @@
   "InputFieldContent_Format": "{0}: {1}",
   "InputFieldEmptyWithLabel_Format": "{0}, puste",
   "InputFieldPasswordWithCount_Format": "{0}, {1} znaków",
+  "InputFieldHint": "Naciśnij Enter, aby edytować",
 
   "CharSpace": "spacja",
   "CharDot": "kropka",

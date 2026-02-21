@@ -1501,25 +1501,26 @@ namespace AccessibleArena.Core.Services
                     string placeholder = CleanText(placeholderText.text);
                     if (!string.IsNullOrWhiteSpace(placeholder))
                     {
+                        string empty = Models.Strings.InputFieldEmpty;
                         if (!string.IsNullOrEmpty(fieldLabel))
-                            return $"{fieldLabel}, empty";
-                        return $"{placeholder}, empty";
+                            return $"{fieldLabel}, {empty}";
+                        return $"{placeholder}, {empty}";
                     }
                 }
             }
 
             // Use derived label if we have one
             if (!string.IsNullOrEmpty(fieldLabel))
-                return $"{fieldLabel}, empty";
+                return $"{fieldLabel}, {Models.Strings.InputFieldEmpty}";
 
             // Fall back to field name
             string fieldName = CleanObjectName(inputField.gameObject.name);
             if (!string.IsNullOrWhiteSpace(fieldName))
             {
-                return $"{fieldName}, empty";
+                return $"{fieldName}, {Models.Strings.InputFieldEmpty}";
             }
 
-            return "empty";
+            return Models.Strings.InputFieldEmpty;
         }
 
         private static string GetInputFieldText(InputField inputField)
@@ -1536,7 +1537,7 @@ namespace AccessibleArena.Core.Services
                 if (inputField.inputType == InputField.InputType.Password)
                     return "password field, contains text";
 
-                return $"{CleanText(text)}, text field";
+                return $"{CleanText(text)}, {Models.Strings.TextField}";
             }
 
             if (inputField.placeholder != null)
@@ -1544,11 +1545,11 @@ namespace AccessibleArena.Core.Services
                 var placeholderText = inputField.placeholder.GetComponent<Text>();
                 if (placeholderText != null && !string.IsNullOrWhiteSpace(placeholderText.text))
                 {
-                    return $"{CleanText(placeholderText.text)}, text field, empty";
+                    return $"{CleanText(placeholderText.text)}, {Models.Strings.TextField}, {Models.Strings.InputFieldEmpty}";
                 }
             }
 
-            return "text field, empty";
+            return $"{Models.Strings.TextField}, {Models.Strings.InputFieldEmpty}";
         }
 
         private static string GetToggleText(Toggle toggle)

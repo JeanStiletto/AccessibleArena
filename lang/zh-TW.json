@@ -152,6 +152,7 @@
   "InputFieldContent_Format": "{0}：{1}",
   "InputFieldEmptyWithLabel_Format": "{0}，空",
   "InputFieldPasswordWithCount_Format": "{0}，{1}個字元",
+  "InputFieldHint": "按Enter鍵編輯",
 
   "CharSpace": "空格",
   "CharDot": "句號",

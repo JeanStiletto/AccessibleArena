@@ -1515,9 +1515,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 // Single group - auto-entered, announce first element
                 var group = _groups[0];
-                var firstElement = group.Elements.Count > 0 ? group.Elements[0].Label : "";
+                var firstElem = group.Elements.Count > 0 ? group.Elements[0] : (GroupedElement?)null;
+                string firstLabel = firstElem.HasValue
+                    ? BaseNavigator.RefreshElementLabel(firstElem.Value.GameObject, firstElem.Value.Label)
+                    : "";
                 return Strings.ScreenItemsSummary(screenName, Strings.ItemCount(group.Count),
-                    Strings.ItemPositionOf(1, group.Count, firstElement));
+                    Strings.ItemPositionOf(1, group.Count, firstLabel));
             }
 
             return Strings.ScreenGroupsSummary(screenName, Strings.GroupCount(_groups.Count), GetCurrentAnnouncement());
@@ -1611,7 +1614,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (!element.HasValue) return "";
 
             int count = GetCurrentElementCount();
-            return Strings.ItemPositionOf(_currentElementIndex + 1, count, element.Value.Label);
+            string label = BaseNavigator.RefreshElementLabel(element.Value.GameObject, element.Value.Label);
+            return Strings.ItemPositionOf(_currentElementIndex + 1, count, label);
         }
 
         private void AnnounceCurrentGroup()

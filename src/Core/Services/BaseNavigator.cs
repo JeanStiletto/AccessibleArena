@@ -162,99 +162,96 @@ namespace AccessibleArena.Core.Services
             if (index < 0 || index >= _elements.Count) return "";
 
             var navElement = _elements[index];
-            string label = navElement.Label;
+            string label = RefreshElementLabel(navElement.GameObject, navElement.Label);
+
+            return $"{index + 1} of {_elements.Count}: {label}";
+        }
+
+        /// <summary>
+        /// Refresh a cached element label with live state (toggle checked, input field content, dropdown value).
+        /// Shared by BaseNavigator and GroupedNavigator to avoid duplicated logic.
+        /// </summary>
+        public static string RefreshElementLabel(GameObject obj, string label)
+        {
+            if (obj == null) return label;
 
             // Update state for toggles - replace cached state with current state
-            // Label already contains "checkbox, checked/unchecked" from classifier
-            if (navElement.GameObject != null)
+            var toggle = obj.GetComponent<Toggle>();
+            if (toggle != null && label.Contains("checkbox"))
             {
-                var toggle = navElement.GameObject.GetComponent<Toggle>();
-                if (toggle != null && label.Contains("checkbox"))
+                string currentState = toggle.isOn ? "checked" : "unchecked";
+                label = System.Text.RegularExpressions.Regex.Replace(
+                    label,
+                    @"checkbox, (checked|unchecked)",
+                    $"checkbox, {currentState}");
+            }
+
+            // Update content for input fields - re-read current text with password masking
+            var tmpInput = obj.GetComponent<TMPro.TMP_InputField>();
+            if (tmpInput != null)
+            {
+                string fieldLabel = UITextExtractor.GetInputFieldLabel(obj);
+                string empty = Strings.InputFieldEmpty;
+
+                string content = tmpInput.text;
+                if (string.IsNullOrEmpty(content) && tmpInput.textComponent != null)
+                    content = tmpInput.textComponent.text;
+
+                if (tmpInput.inputType == TMPro.TMP_InputField.InputType.Password)
                 {
-                    // Replace the cached state with current state
-                    string currentState = toggle.isOn ? "checked" : "unchecked";
-                    label = System.Text.RegularExpressions.Regex.Replace(
-                        label,
-                        @"checkbox, (checked|unchecked)",
-                        $"checkbox, {currentState}");
+                    label = string.IsNullOrEmpty(content)
+                        ? $"{fieldLabel}, {empty}"
+                        : $"{fieldLabel}, has {content.Length} characters";
                 }
-
-                // Update content for input fields - re-read current text with password masking
-                var tmpInput = navElement.GameObject.GetComponent<TMPro.TMP_InputField>();
-                if (tmpInput != null)
+                else
                 {
-                    string fieldLabel = UITextExtractor.GetInputFieldLabel(navElement.GameObject);
+                    label = string.IsNullOrEmpty(content)
+                        ? $"{fieldLabel}, {empty}"
+                        : $"{fieldLabel}: {content}";
+                }
+                label = Strings.WithHint($"{label}, {Strings.TextField}", "InputFieldHint");
+            }
+            else
+            {
+                var legacyInput = obj.GetComponent<InputField>();
+                if (legacyInput != null)
+                {
+                    string fieldLabel = UITextExtractor.GetInputFieldLabel(obj);
+                    string empty = Strings.InputFieldEmpty;
 
-                    // Try .text first, then fall back to textComponent.text (displayed text)
-                    string content = tmpInput.text;
-                    if (string.IsNullOrEmpty(content) && tmpInput.textComponent != null)
-                    {
-                        content = tmpInput.textComponent.text;
-                    }
+                    string content = legacyInput.text;
+                    if (string.IsNullOrEmpty(content) && legacyInput.textComponent != null)
+                        content = legacyInput.textComponent.text;
 
-                    // Handle password fields - show character count instead of content
-                    if (tmpInput.inputType == TMPro.TMP_InputField.InputType.Password)
+                    if (legacyInput.inputType == InputField.InputType.Password)
                     {
                         label = string.IsNullOrEmpty(content)
-                            ? $"{fieldLabel}, empty"
+                            ? $"{fieldLabel}, {empty}"
                             : $"{fieldLabel}, has {content.Length} characters";
                     }
                     else
                     {
-                        // Regular field - show content or empty state
                         label = string.IsNullOrEmpty(content)
-                            ? $"{fieldLabel}, empty"
+                            ? $"{fieldLabel}, {empty}"
                             : $"{fieldLabel}: {content}";
                     }
-                    label += ", text field";
-                }
-                else
-                {
-                    // Also handle legacy InputField
-                    var legacyInput = navElement.GameObject.GetComponent<InputField>();
-                    if (legacyInput != null)
-                    {
-                        string fieldLabel = UITextExtractor.GetInputFieldLabel(navElement.GameObject);
-
-                        // Try .text first, then fall back to textComponent.text (displayed text)
-                        string content = legacyInput.text;
-                        if (string.IsNullOrEmpty(content) && legacyInput.textComponent != null)
-                        {
-                            content = legacyInput.textComponent.text;
-                        }
-
-                        // Handle password fields - show character count instead of content
-                        if (legacyInput.inputType == InputField.InputType.Password)
-                        {
-                            label = string.IsNullOrEmpty(content)
-                                ? $"{fieldLabel}, empty"
-                                : $"{fieldLabel}, has {content.Length} characters";
-                        }
-                        else
-                        {
-                            // Regular field - show content or empty state
-                            label = string.IsNullOrEmpty(content)
-                                ? $"{fieldLabel}, empty"
-                                : $"{fieldLabel}: {content}";
-                        }
-                        label += ", text field";
-                    }
-                }
-
-                // Update content for dropdowns - re-read current selected value
-                if (label.EndsWith(", dropdown"))
-                {
-                    string currentValue = GetDropdownDisplayValue(navElement.GameObject);
-                    if (!string.IsNullOrEmpty(currentValue))
-                    {
-                        string baseLabel = label.Substring(0, label.Length - ", dropdown".Length);
-                        if (baseLabel != currentValue)
-                            label = $"{baseLabel}: {currentValue}, dropdown";
-                    }
+                    label = Strings.WithHint($"{label}, {Strings.TextField}", "InputFieldHint");
                 }
             }
 
-            return $"{index + 1} of {_elements.Count}: {label}";
+            // Update content for dropdowns - re-read current selected value
+            if (label.EndsWith(", dropdown"))
+            {
+                string currentValue = GetDropdownDisplayValue(obj);
+                if (!string.IsNullOrEmpty(currentValue))
+                {
+                    string baseLabel = label.Substring(0, label.Length - ", dropdown".Length);
+                    if (baseLabel != currentValue)
+                        label = $"{baseLabel}: {currentValue}, dropdown";
+                }
+            }
+
+            return label;
         }
 
         /// <summary>Whether to integrate with CardInfoNavigator</summary>

@@ -152,6 +152,7 @@
   "InputFieldContent_Format": "{0}: {1}",
   "InputFieldEmptyWithLabel_Format": "{0}, leer",
   "InputFieldPasswordWithCount_Format": "{0}, {1} Zeichen",
+  "InputFieldHint": "Enter drücken zum Bearbeiten",
 
   "CharSpace": "Leerzeichen",
   "CharDot": "Punkt",

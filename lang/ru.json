@@ -162,6 +162,7 @@
   "InputFieldContent_Format": "{0}: {1}",
   "InputFieldEmptyWithLabel_Format": "{0}, пусто",
   "InputFieldPasswordWithCount_Format": "{0}, {1} символов",
+  "InputFieldHint": "Нажмите Enter для редактирования",
 
   "CharSpace": "пробел",
   "CharDot": "точка",

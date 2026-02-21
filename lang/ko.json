@@ -152,6 +152,7 @@
   "InputFieldContent_Format": "{0}: {1}",
   "InputFieldEmptyWithLabel_Format": "{0}, 비어 있음",
   "InputFieldPasswordWithCount_Format": "{0}, {1}글자",
+  "InputFieldHint": "Enter 키를 눌러 편집",
 
   "CharSpace": "공백",
   "CharDot": "마침표",

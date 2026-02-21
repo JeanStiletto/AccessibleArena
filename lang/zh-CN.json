@@ -152,6 +152,7 @@
   "InputFieldContent_Format": "{0}：{1}",
   "InputFieldEmptyWithLabel_Format": "{0}，空",
   "InputFieldPasswordWithCount_Format": "{0}，{1}个字符",
+  "InputFieldHint": "按回车键编辑",
 
   "CharSpace": "空格",
   "CharDot": "句号",

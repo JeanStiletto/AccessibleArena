@@ -152,6 +152,7 @@
   "InputFieldContent_Format": "{0}: {1}",
   "InputFieldEmptyWithLabel_Format": "{0}、空",
   "InputFieldPasswordWithCount_Format": "{0}、{1}文字",
+  "InputFieldHint": "Enterキーで編集",
 
   "CharSpace": "スペース",
   "CharDot": "ピリオド",

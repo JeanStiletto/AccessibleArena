@@ -305,7 +305,7 @@ namespace AccessibleArena.Core.Services
             if (obj.GetComponent<TMP_InputField>() == null && obj.GetComponent<InputField>() == null)
                 return null;
 
-            return CreateResult(ElementRole.TextField, text, "text field", true, true);
+            return CreateResult(ElementRole.TextField, text, Models.Strings.TextField, true, true);
         }
 
         private static ClassificationResult TryClassifyAsScrollbar(GameObject obj, string text)
