@@ -110,8 +110,8 @@ Arrow Left/Right (while editing): Read character at cursor
 Arrow Up/Down (while editing): Read full content
 
 **Duel - Zone Navigation:**
-Your Zones: C (Hand/Cards), G (Graveyard), X (Exile), S (Stack)
-Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
+Your Zones: C (Hand/Cards), G (Graveyard), X (Exile), S (Stack), W (Command Zone)
+Opponent Zones: Shift+G (Graveyard), Shift+X (Exile), Shift+W (Command Zone)
 Within Zone: Left/Right (Navigate cards), Home/End (Jump to first/last)
 Card Details: Arrow Up/Down when focused on a card
 

@@ -51,6 +51,9 @@ namespace AccessibleArena.Core.Services
         private string _currentPhase;
         private string _currentStep;
 
+        // Track commander GrpIds for command zone access (Brawl/Commander)
+        private readonly HashSet<uint> _commandZoneGrpIds = new HashSet<uint>();
+
         // Phase announcement debounce (100ms) to avoid spam during auto-skip
         private string _pendingPhaseAnnouncement;
         private float _phaseDebounceTimer;
@@ -129,6 +132,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _localPlayerId = localPlayerId;
             _zoneCounts.Clear();
+            _commandZoneGrpIds.Clear();
             _userTurnCount = 0;
         }
 
@@ -185,6 +189,66 @@ namespace AccessibleArena.Core.Services
         public int GetOpponentLibraryCount()
         {
             return _zoneCounts.TryGetValue("Opp_Library", out int count) ? count : -1;
+        }
+
+        /// <summary>
+        /// Gets the opponent's commander card name for Brawl/Commander games.
+        /// Determines ownership by checking which command zone GrpId matches
+        /// a card in the local hand with model ZoneType=="Command" (our commander).
+        /// The remaining GrpId is the opponent's commander.
+        /// </summary>
+        public string GetOpponentCommanderName()
+        {
+            if (_commandZoneGrpIds.Count == 0) return null;
+
+            // Find our commander GrpId by scanning local hand for a card with model ZoneType=="Command"
+            uint ourCommanderGrpId = 0;
+            if (_zoneNavigator != null)
+            {
+                // Discover zones to get current hand cards
+                _zoneNavigator.DiscoverZones();
+                var handCards = _zoneNavigator.GetCardsInZone(ZoneType.Hand);
+                if (handCards != null)
+                {
+                    foreach (var card in handCards)
+                    {
+                        string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+                        if (modelZone == "Command")
+                        {
+                            // This is our commander - get its GrpId
+                            var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                            if (cdc != null)
+                            {
+                                var model = CardModelProvider.GetCardModel(cdc);
+                                if (model != null)
+                                {
+                                    var grpIdProp = model.GetType().GetProperty("GrpId", BindingFlags.Public | BindingFlags.Instance);
+                                    if (grpIdProp != null)
+                                    {
+                                        var val = grpIdProp.GetValue(model);
+                                        if (val is uint gid) ourCommanderGrpId = gid;
+                                        else if (val is int gidi) ourCommanderGrpId = (uint)gidi;
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Find the opponent's commander: any command zone GrpId that isn't ours
+            foreach (var grpId in _commandZoneGrpIds)
+            {
+                if (grpId != ourCommanderGrpId)
+                {
+                    string name = CardModelProvider.GetNameFromGrpId(grpId);
+                    if (!string.IsNullOrEmpty(name)) return name;
+                }
+            }
+
+            // Fallback: if we only have one commander tracked and it's ours, opponent's isn't known yet
+            return null;
         }
 
         #endregion
@@ -1352,6 +1416,13 @@ namespace AccessibleArena.Core.Services
 
                 string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
                 string announcement = null;
+
+                // Track cards entering Command zone (for opponent commander detection)
+                if (toZoneTypeStr == "Command" && grpId != 0)
+                {
+                    _commandZoneGrpIds.Add(grpId);
+                    MelonLogger.Msg($"[DuelAnnouncer] Tracking command zone card: GrpId={grpId} ({cardName})");
+                }
 
                 // Determine announcement based on zone transfer type
                 switch (toZoneTypeStr)

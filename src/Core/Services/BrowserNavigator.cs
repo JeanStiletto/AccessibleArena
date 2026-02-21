@@ -579,6 +579,15 @@ namespace AccessibleArena.Core.Services
                 var cardInfo = CardDetector.ExtractCardInfo(card);
                 if (string.IsNullOrEmpty(cardInfo.Name)) continue;
 
+                // Filter out cards from other zones (e.g., commander from Command zone)
+                // that the game places visually in the hand holder
+                string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+                if (!string.IsNullOrEmpty(modelZone) && modelZone != "Hand")
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Skipping {cardInfo.Name} - actual zone: {modelZone}");
+                    continue;
+                }
+
                 if (!BrowserDetector.IsDuplicateCard(card, foundCards))
                 {
                     foundCards.Add(card);

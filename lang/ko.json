@@ -523,6 +523,7 @@
   "Zone_OpponentGraveyard": "상대의 무덤",
   "Zone_OpponentLibrary": "상대의 서고",
   "Zone_OpponentExile": "상대의 추방 영역",
+  "Zone_OpponentCommand": "상대의 커맨드 영역",
   "Row_PlayerCreatures": "당신의 생물",
   "Row_PlayerNonCreatures": "당신의 비생물",
   "Row_PlayerLands": "당신의 대지",

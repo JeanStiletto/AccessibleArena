@@ -524,6 +524,7 @@
   "Zone_OpponentGraveyard": "對手的墳墓場",
   "Zone_OpponentLibrary": "對手的牌庫",
   "Zone_OpponentExile": "對手的放逐區",
+  "Zone_OpponentCommand": "對手的統帥區",
   "Row_PlayerCreatures": "你的生物",
   "Row_PlayerNonCreatures": "你的非生物",
   "Row_PlayerLands": "你的地",

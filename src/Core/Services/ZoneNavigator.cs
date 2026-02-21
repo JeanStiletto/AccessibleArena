@@ -313,6 +313,16 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            if (Input.GetKeyDown(KeyCode.W))
+            {
+                _hotHighlightNavigator?.ClearState();
+                if (shift)
+                    AnnounceOpponentCommander();
+                else
+                    NavigateToZone(ZoneType.Command);
+                return true;
+            }
+
             // D key for library counts (hidden zone info)
             if (Input.GetKeyDown(KeyCode.D))
             {
@@ -469,6 +479,34 @@ namespace AccessibleArena.Core.Services
                         }
                         break;
                     }
+                }
+            }
+
+            // MTGA places commanders visually in the hand holder, not CommandCardHolder.
+            // Populate the Command zone from hand cards whose model ZoneType is "Command".
+            PopulateCommandZoneFromHand();
+        }
+
+        /// <summary>
+        /// Finds commander cards in the hand holder (model ZoneType=="Command")
+        /// and adds them to the Command zone. MTGA always places castable commanders
+        /// in the hand holder visually, leaving CommandCardHolder empty.
+        /// </summary>
+        private void PopulateCommandZoneFromHand()
+        {
+            if (!_zones.TryGetValue(ZoneType.Command, out var commandZone)) return;
+            if (commandZone.Cards.Count > 0) return; // Already has cards, don't override
+
+            if (!_zones.TryGetValue(ZoneType.Hand, out var handZone)) return;
+
+            foreach (var card in handZone.Cards)
+            {
+                string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+                if (modelZone == "Command")
+                {
+                    commandZone.Cards.Add(card);
+                    string cardName = CardDetector.GetCardName(card);
+                    MelonLogger.Msg($"[ZoneNavigator] Added commander {cardName} to Command zone from hand");
                 }
             }
         }
@@ -677,6 +715,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets all cards in the specified zone. Returns null if zone not discovered.
+        /// </summary>
+        public List<GameObject> GetCardsInZone(ZoneType zone)
+        {
+            if (_zones.TryGetValue(zone, out var zoneInfo))
+                return zoneInfo.Cards;
+            return null;
+        }
+
+        /// <summary>
         /// Gets the current card in the current zone.
         /// </summary>
         public GameObject GetCurrentCard()
@@ -707,17 +755,18 @@ namespace AccessibleArena.Core.Services
             string cardName = CardDetector.GetCardName(card);
             MelonLogger.Msg($"[ZoneNavigator] Activating card: {cardName} ({card.name}) in zone {_currentZone}");
 
-            // For hand cards, use the two-click approach (like sighted players)
-            if (_currentZone == ZoneType.Hand)
+            // For hand and command zone cards, use the two-click approach (like sighted players)
+            // Command zone cards (commander/companion) are castable just like hand cards
+            if (_currentZone == ZoneType.Hand || _currentZone == ZoneType.Command)
             {
                 // Check if selection mode is active (discard, exile choices, etc.)
-                if (_hotHighlightNavigator != null && _hotHighlightNavigator.TryToggleSelection(card))
+                if (_currentZone == ZoneType.Hand && _hotHighlightNavigator != null && _hotHighlightNavigator.TryToggleSelection(card))
                 {
                     MelonLogger.Msg($"[ZoneNavigator] Selection toggled for {cardName}");
                     return;
                 }
 
-                MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from hand via two-click");
+                MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from {_currentZone} via two-click");
 
                 // Two-click is async, result comes via callback
                 // DEPRECATED: TargetNavigator was passed to enter targeting after card play
@@ -966,6 +1015,29 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Announces the opponent's commander card name (Brawl/Commander).
+        /// </summary>
+        private void AnnounceOpponentCommander()
+        {
+            var duelAnnouncer = DuelAnnouncer.Instance;
+            if (duelAnnouncer == null)
+            {
+                _announcer.Announce(Strings.ZoneNotFound(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
+                return;
+            }
+
+            string commanderName = duelAnnouncer.GetOpponentCommanderName();
+            if (!string.IsNullOrEmpty(commanderName))
+            {
+                _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {commanderName}", AnnouncementPriority.High);
+            }
+            else
+            {
+                _announcer.Announce(Strings.ZoneEmpty(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
+            }
+        }
+
         #endregion
 
         private string GetZoneName(ZoneType zone)
@@ -1002,6 +1074,7 @@ namespace AccessibleArena.Core.Services
         OpponentGraveyard,
         OpponentLibrary,
         OpponentExile,
+        OpponentCommand,
         Browser
     }
 

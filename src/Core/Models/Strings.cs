@@ -140,6 +140,7 @@ namespace AccessibleArena.Core.Models
         public static string Zone_OpponentGraveyard => L.Get("Zone_OpponentGraveyard");
         public static string Zone_OpponentLibrary => L.Get("Zone_OpponentLibrary");
         public static string Zone_OpponentExile => L.Get("Zone_OpponentExile");
+        public static string Zone_OpponentCommand => L.Get("Zone_OpponentCommand");
 
         public static string GetZoneName(Services.ZoneType zone)
         {
@@ -156,6 +157,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ZoneType.OpponentGraveyard: return Zone_OpponentGraveyard;
                 case Services.ZoneType.OpponentLibrary: return Zone_OpponentLibrary;
                 case Services.ZoneType.OpponentExile: return Zone_OpponentExile;
+                case Services.ZoneType.OpponentCommand: return Zone_OpponentCommand;
                 default: return zone.ToString();
             }
         }

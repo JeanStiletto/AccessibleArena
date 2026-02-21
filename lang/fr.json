@@ -524,6 +524,7 @@
   "Zone_OpponentGraveyard": "Cimetière de l'adversaire",
   "Zone_OpponentLibrary": "Bibliothèque de l'adversaire",
   "Zone_OpponentExile": "Exil de l'adversaire",
+  "Zone_OpponentCommand": "Zone de commandement de l'adversaire",
 
   "Row_PlayerCreatures": "Vos créatures",
   "Row_PlayerNonCreatures": "Vos non-créatures",

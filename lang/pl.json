@@ -538,6 +538,7 @@
   "Zone_OpponentGraveyard": "Cmentarz przeciwnika",
   "Zone_OpponentLibrary": "Biblioteka przeciwnika",
   "Zone_OpponentExile": "Wygnanie przeciwnika",
+  "Zone_OpponentCommand": "Strefa dowodzenia przeciwnika",
   "Row_PlayerCreatures": "Twoje stworzenia",
   "Row_PlayerNonCreatures": "Twoje nie-stworzenia",
   "Row_PlayerLands": "Twoje lądy",

@@ -538,6 +538,7 @@
   "Zone_OpponentGraveyard": "Кладбище оппонента",
   "Zone_OpponentLibrary": "Библиотека оппонента",
   "Zone_OpponentExile": "Изгнание оппонента",
+  "Zone_OpponentCommand": "Командная зона оппонента",
   "Row_PlayerCreatures": "Ваши существа",
   "Row_PlayerNonCreatures": "Ваши не-существа",
   "Row_PlayerLands": "Ваши земли",

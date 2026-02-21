@@ -523,6 +523,7 @@
   "Zone_OpponentGraveyard": "対戦相手の墓地",
   "Zone_OpponentLibrary": "対戦相手のライブラリー",
   "Zone_OpponentExile": "対戦相手の追放領域",
+  "Zone_OpponentCommand": "対戦相手の統率領域",
   "Row_PlayerCreatures": "あなたのクリーチャー",
   "Row_PlayerNonCreatures": "あなたの非クリーチャー",
   "Row_PlayerLands": "あなたの土地",
