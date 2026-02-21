@@ -3,6 +3,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -841,24 +842,11 @@ namespace AccessibleArena.Core.Services
                         var model = CardModelProvider.GetCardModel(cdcComponent);
                         if (model != null)
                         {
-                            var modelType = model.GetType();
-                            var instanceIdProp = modelType.GetProperty("InstanceId");
-                            if (instanceIdProp != null)
+                            var cid = GetFieldValue<uint>(model, "InstanceId");
+                            if (cid == instanceId)
                             {
-                                var cardInstanceId = instanceIdProp.GetValue(model);
-                                if (cardInstanceId is uint cid && cid == instanceId)
-                                {
-                                    // Found matching card, get its name
-                                    var grpIdProp = modelType.GetProperty("GrpId");
-                                    if (grpIdProp != null)
-                                    {
-                                        var grpId = grpIdProp.GetValue(model);
-                                        if (grpId is uint gid)
-                                        {
-                                            return CardModelProvider.GetNameFromGrpId(gid);
-                                        }
-                                    }
-                                }
+                                var gid = GetFieldValue<uint>(model, "GrpId");
+                                if (gid != 0) return CardModelProvider.GetNameFromGrpId(gid);
                             }
                         }
                     }
@@ -1138,40 +1126,16 @@ namespace AccessibleArena.Core.Services
                     var model = CardModelProvider.GetCardModel(cdcComponent);
                     if (model == null) continue;
 
-                    var modelType = model.GetType();
-                    var instanceIdProp = modelType.GetProperty("InstanceId");
-                    if (instanceIdProp == null) continue;
-
-                    var cardInstanceId = instanceIdProp.GetValue(model);
-                    if (!(cardInstanceId is uint cid) || cid != instanceId) continue;
+                    var cid = GetFieldValue<uint>(model, "InstanceId");
+                    if (cid != instanceId) continue;
 
                     // Found the card, get P/T
-                    int power = -1;
-                    int toughness = -1;
-                    bool isOpponent = false;
-
-                    var powerProp = modelType.GetProperty("Power");
-                    var toughnessProp = modelType.GetProperty("Toughness");
-
-                    if (powerProp != null && toughnessProp != null)
-                    {
-                        var powerVal = powerProp.GetValue(model);
-                        var toughnessVal = toughnessProp.GetValue(model);
-
-                        if (powerVal is int p && toughnessVal is int t)
-                        {
-                            power = p;
-                            toughness = t;
-                        }
-                    }
+                    int power = GetFieldValue<int>(model, "Power");
+                    int toughness = GetFieldValue<int>(model, "Toughness");
 
                     // Check ownership from ControllerNum property
-                    var controllerProp = modelType.GetProperty("ControllerNum");
-                    if (controllerProp != null)
-                    {
-                        var controller = controllerProp.GetValue(model);
-                        isOpponent = controller?.ToString() == "Opponent";
-                    }
+                    var controller = GetFieldValue<object>(model, "ControllerNum");
+                    bool isOpponent = controller?.ToString() == "Opponent";
 
                     return (power, toughness, isOpponent);
                 }
@@ -1594,25 +1558,18 @@ namespace AccessibleArena.Core.Services
                         var model = CardModelProvider.GetCardModel(cdc);
                         if (model == null) continue;
 
-                        var instanceIdProp = model.GetType().GetProperty("InstanceId");
-                        if (instanceIdProp == null) continue;
-
-                        var idVal = instanceIdProp.GetValue(model);
-                        if (!(idVal is uint instanceId) || instanceId != attachedToId) continue;
+                        var instanceId = GetFieldValue<uint>(model, "InstanceId");
+                        if (instanceId != attachedToId) continue;
 
                         // Found matching card - get its name
-                        var grpIdProp = model.GetType().GetProperty("GrpId");
-                        if (grpIdProp != null)
+                        var grpId = GetFieldValue<uint>(model, "GrpId");
+                        if (grpId > 0)
                         {
-                            var gidVal = grpIdProp.GetValue(model);
-                            if (gidVal is uint grpId && grpId > 0)
+                            string parentName = CardModelProvider.GetNameFromGrpId(grpId);
+                            if (!string.IsNullOrEmpty(parentName))
                             {
-                                string parentName = CardModelProvider.GetNameFromGrpId(grpId);
-                                if (!string.IsNullOrEmpty(parentName))
-                                {
-                                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (InstanceId={attachedToId})");
-                                    return parentName;
-                                }
+                                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (InstanceId={attachedToId})");
+                                return parentName;
                             }
                         }
                     }
@@ -1775,24 +1732,7 @@ namespace AccessibleArena.Core.Services
             string cardName = CardModelProvider.GetNameFromGrpId(grpId);
             if (!string.IsNullOrEmpty(cardName))
             {
-                // Common basic land names in various languages
-                var basicLandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    // English
-                    "Plains", "Island", "Swamp", "Mountain", "Forest",
-                    // German
-                    "Ebene", "Insel", "Sumpf", "Gebirge", "Wald",
-                    // French
-                    "Plaine", "Île", "Marais", "Montagne", "Forêt",
-                    // Spanish
-                    "Llanura", "Isla", "Pantano", "Montaña", "Bosque",
-                    // Italian
-                    "Pianura", "Isola", "Palude", "Montagna", "Foresta",
-                    // Portuguese
-                    "Planície", "Ilha", "Pântano", "Montanha", "Floresta"
-                };
-
-                if (basicLandNames.Contains(cardName))
+                if (BasicLandNames.Contains(cardName))
                 {
                     return true;
                 }
@@ -2136,12 +2076,11 @@ namespace AccessibleArena.Core.Services
             if (obj == null) return default(T);
             try
             {
-                var prop = obj.GetType().GetProperty(propertyName);
-                if (prop != null)
-                {
-                    var value = prop.GetValue(obj);
-                    if (value is T typedValue) return typedValue;
-                }
+                var member = LookupMember(obj.GetType(), propertyName);
+                if (member == null) return default(T);
+
+                object value = member is FieldInfo fi ? fi.GetValue(obj) : ((PropertyInfo)member).GetValue(obj);
+                return value is T typedValue ? typedValue : default(T);
             }
             catch { }
             return default(T);
@@ -2172,26 +2111,17 @@ namespace AccessibleArena.Core.Services
                         var model = CardModelProvider.GetCardModel(cdcComponent);
                         if (model != null)
                         {
-                            var modelType = model.GetType();
-                            var instIdProp = modelType.GetProperty("InstanceId");
-                            if (instIdProp != null)
+                            var cid = GetFieldValue<uint>(model, "InstanceId");
+                            if (cid == instanceId)
                             {
-                                var cardInstId = instIdProp.GetValue(model);
-                                if (cardInstId is uint cid && cid == instanceId)
+                                var gid = GetFieldValue<uint>(model, "GrpId");
+                                if (gid != 0)
                                 {
-                                    var grpIdProp = modelType.GetProperty("GrpId");
-                                    if (grpIdProp != null)
+                                    string name = CardModelProvider.GetNameFromGrpId(gid);
+                                    if (!string.IsNullOrEmpty(name))
                                     {
-                                        var grpId = grpIdProp.GetValue(model);
-                                        if (grpId is uint gid)
-                                        {
-                                            string name = CardModelProvider.GetNameFromGrpId(gid);
-                                            if (!string.IsNullOrEmpty(name))
-                                            {
-                                                _instanceIdToName[instanceId] = name;
-                                                return name;
-                                            }
-                                        }
+                                        _instanceIdToName[instanceId] = name;
+                                        return name;
                                     }
                                 }
                             }
@@ -2232,15 +2162,10 @@ namespace AccessibleArena.Core.Services
                 var instigator = GetFieldValue<object>(uxEvent, "Instigator");
                 if (instigator != null)
                 {
-                    var instigatorType = instigator.GetType();
-                    var grpIdProp = instigatorType.GetProperty("GrpId");
-                    if (grpIdProp != null)
+                    var gid = GetFieldValue<uint>(instigator, "GrpId");
+                    if (gid != 0)
                     {
-                        var grpId = grpIdProp.GetValue(instigator);
-                        if (grpId is uint gid && gid != 0)
-                        {
-                            cardName = CardModelProvider.GetNameFromGrpId(gid);
-                        }
+                        cardName = CardModelProvider.GetNameFromGrpId(gid);
                     }
                 }
 
@@ -2550,26 +2475,42 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        // Reflection cache: maps (Type, memberName) -> MemberInfo (FieldInfo or PropertyInfo).
+        // Static because types don't change at runtime. ConcurrentDictionary for thread safety.
+        // A null value means "we looked and neither field nor property exists" (negative cache).
+        private static readonly ConcurrentDictionary<(Type, string), MemberInfo> _reflectionCache
+            = new ConcurrentDictionary<(Type, string), MemberInfo>();
+
+        private const BindingFlags AllInstanceFlags =
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+        // Basic land names in all supported languages (static to avoid per-call allocation)
+        private static readonly HashSet<string> BasicLandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Plains", "Island", "Swamp", "Mountain", "Forest",           // English
+            "Ebene", "Insel", "Sumpf", "Gebirge", "Wald",               // German
+            "Plaine", "Île", "Marais", "Montagne", "Forêt",             // French
+            "Llanura", "Isla", "Pantano", "Montaña", "Bosque",          // Spanish
+            "Pianura", "Isola", "Palude", "Montagna", "Foresta",        // Italian
+            "Planície", "Ilha", "Pântano", "Montanha", "Floresta"       // Portuguese
+        };
+
+        private static MemberInfo LookupMember(Type type, string name)
+        {
+            return _reflectionCache.GetOrAdd((type, name), key =>
+                key.Item1.GetField(key.Item2, AllInstanceFlags) as MemberInfo
+                ?? key.Item1.GetProperty(key.Item2, AllInstanceFlags) as MemberInfo);
+        }
+
         private T GetFieldValue<T>(object obj, string fieldName)
         {
             if (obj == null) return default;
 
-            var type = obj.GetType();
-            var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null)
-            {
-                var value = field.GetValue(obj);
-                if (value is T typed) return typed;
-            }
+            var member = LookupMember(obj.GetType(), fieldName);
+            if (member == null) return default;
 
-            var prop = type.GetProperty(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (prop != null)
-            {
-                var value = prop.GetValue(obj);
-                if (value is T typed) return typed;
-            }
-
-            return default;
+            object value = member is FieldInfo fi ? fi.GetValue(obj) : ((PropertyInfo)member).GetValue(obj);
+            return value is T typed ? typed : default;
         }
 
         /// <summary>

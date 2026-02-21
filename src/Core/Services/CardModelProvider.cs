@@ -64,6 +64,9 @@ namespace AccessibleArena.Core.Services
             _artistProvider = null;
             _getArtistMethod = null;
             _artistProviderSearched = false;
+            // CDC Model property cache
+            _cdcModelProp = null;
+            _cdcModelPropType = null;
             // Combat state cache
             _instancePropCached = null;
             _instancePropSearched = false;
@@ -164,6 +167,10 @@ namespace AccessibleArena.Core.Services
         /// The Model contains card data like Name, Power, Toughness, CardTypes, etc.
         /// Returns null if not available.
         /// </summary>
+        // Cache for CDC "Model" property - same type throughout entire duel
+        private static PropertyInfo _cdcModelProp = null;
+        private static Type _cdcModelPropType = null;
+
         public static object GetCardModel(Component cdcComponent)
         {
             if (cdcComponent == null) return null;
@@ -171,8 +178,12 @@ namespace AccessibleArena.Core.Services
             try
             {
                 var cdcType = cdcComponent.GetType();
-                var modelProp = cdcType.GetProperty("Model");
-                return modelProp?.GetValue(cdcComponent);
+                if (cdcType != _cdcModelPropType)
+                {
+                    _cdcModelProp = cdcType.GetProperty("Model");
+                    _cdcModelPropType = cdcType;
+                }
+                return _cdcModelProp?.GetValue(cdcComponent);
             }
             catch (Exception ex)
             {
