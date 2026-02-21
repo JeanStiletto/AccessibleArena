@@ -62,6 +62,28 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Prepares card info navigation from pre-built info blocks (no GameObject needed).
+        /// Used for cards that exist only as GrpId data (e.g., opponent's commander).
+        /// </summary>
+        public void PrepareForCardInfo(List<CardInfoBlock> blocks, string cardName)
+        {
+            if (blocks == null || blocks.Count == 0)
+            {
+                Deactivate();
+                return;
+            }
+
+            _currentCard = null; // No GameObject for this card
+            _currentZone = ZoneType.OpponentCommand;
+            _isActive = true;
+            _blocks = blocks;
+            _blocksLoaded = true;
+            _currentBlockIndex = 0;
+
+            MelonLogger.Msg($"[CardInfo] Prepared for '{cardName}' from GrpId lookup with {blocks.Count} blocks");
+        }
+
+        /// <summary>
         /// Activates card info navigation for the given card GameObject.
         /// Returns true if the card has navigable info blocks.
         /// Uses the zone set by PrepareForCard, or defaults to Hand.
@@ -129,10 +151,10 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg($"[CardInfo] HandleInput: Not active, ignoring arrow key");
                 return false;
             }
-            if (_currentCard == null)
+            if (_currentCard == null && !_blocksLoaded)
             {
                 if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
-                    MelonLogger.Msg($"[CardInfo] HandleInput: CurrentCard is null, ignoring arrow key");
+                    MelonLogger.Msg($"[CardInfo] HandleInput: CurrentCard is null and no blocks loaded, ignoring arrow key");
                 return false;
             }
 

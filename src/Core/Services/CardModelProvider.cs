@@ -3498,6 +3498,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets full CardInfo from a GrpId by looking up CardPrintingData from the CardDatabase.
+        /// Works in both menu scenes (via deck holder) and duel scenes (via GameManager.CardDatabase).
         /// Returns null if the card cannot be found.
         /// </summary>
         public static CardInfo? GetCardInfoFromGrpId(uint grpId)
@@ -3506,7 +3507,8 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var cardData = GetCardDataFromGrpId(grpId);
+                // Try menu-scene path first, then fall back to duel-scene path
+                var cardData = GetCardDataFromGrpId(grpId) ?? GetCardDataFromGrpIdDuelScene(grpId);
                 if (cardData == null) return null;
 
                 var info = ExtractCardInfoFromCardData(cardData, grpId);
@@ -3699,7 +3701,8 @@ namespace AccessibleArena.Core.Services
 
                         if (rulesTexts.Count > 0)
                         {
-                            info.RulesText = string.Join(" ", rulesTexts);
+                            string rawRulesText = string.Join(" ", rulesTexts);
+                            info.RulesText = ParseManaSymbolsInText(rawRulesText);
                         }
                     }
                 }

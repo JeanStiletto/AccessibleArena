@@ -320,7 +320,7 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 3. Creature death/exile/graveyard announcements with card names
 4. Player username announcements
 5. Game wins display (WinPips)
-6. Brawl accessibility - Brawl game mode navigation and format-specific handling
+6. Brawl accessibility - commander death zone selection (command zone vs graveyard), deck editor commander support (identify/announce commander card)
 7. Token state on cards - announce token/copy status when reading card info
 8. Smart mana announcement - announce available mana with color breakdown from game state
 9. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states

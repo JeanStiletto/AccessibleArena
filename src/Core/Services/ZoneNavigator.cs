@@ -1027,15 +1027,33 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            string commanderName = duelAnnouncer.GetOpponentCommanderName();
-            if (!string.IsNullOrEmpty(commanderName))
+            // Try cached card info from zone transfer first, fall back to database lookup
+            var cardInfo = duelAnnouncer.GetOpponentCommanderInfo();
+            if (cardInfo == null)
             {
-                _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {commanderName}", AnnouncementPriority.High);
+                uint grpId = duelAnnouncer.GetOpponentCommanderGrpId();
+                if (grpId == 0)
+                {
+                    _announcer.Announce(Strings.ZoneEmpty(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
+                    return;
+                }
+                // Fallback: just announce the name
+                string name = CardModelProvider.GetNameFromGrpId(grpId);
+                _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {name ?? "Unknown"}", AnnouncementPriority.High);
+                return;
             }
-            else
-            {
-                _announcer.Announce(Strings.ZoneEmpty(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
-            }
+
+            string commanderName = cardInfo.Value.Name ?? "Unknown";
+
+            // Set zone so Left/Right don't navigate the previous zone
+            SetCurrentZone(ZoneType.OpponentCommand, "NavigateToZone");
+
+            _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {commanderName}", AnnouncementPriority.High);
+
+            // Prepare CardInfoNavigator for Up/Down card detail navigation
+            var blocks = CardDetector.BuildInfoBlocks(cardInfo.Value);
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+            cardNavigator?.PrepareForCardInfo(blocks, commanderName);
         }
 
         #endregion

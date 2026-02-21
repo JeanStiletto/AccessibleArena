@@ -192,63 +192,82 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets the opponent's commander card name for Brawl/Commander games.
+        /// Gets the opponent's commander GrpId for Brawl/Commander games.
         /// Determines ownership by checking which command zone GrpId matches
         /// a card in the local hand with model ZoneType=="Command" (our commander).
         /// The remaining GrpId is the opponent's commander.
         /// </summary>
-        public string GetOpponentCommanderName()
+        public uint GetOpponentCommanderGrpId()
         {
-            if (_commandZoneGrpIds.Count == 0) return null;
+            if (_commandZoneGrpIds.Count == 0) return 0;
 
             // Find our commander GrpId by scanning local hand for a card with model ZoneType=="Command"
-            uint ourCommanderGrpId = 0;
-            if (_zoneNavigator != null)
-            {
-                // Discover zones to get current hand cards
-                _zoneNavigator.DiscoverZones();
-                var handCards = _zoneNavigator.GetCardsInZone(ZoneType.Hand);
-                if (handCards != null)
-                {
-                    foreach (var card in handCards)
-                    {
-                        string modelZone = CardModelProvider.GetCardZoneTypeName(card);
-                        if (modelZone == "Command")
-                        {
-                            // This is our commander - get its GrpId
-                            var cdc = CardModelProvider.GetDuelSceneCDC(card);
-                            if (cdc != null)
-                            {
-                                var model = CardModelProvider.GetCardModel(cdc);
-                                if (model != null)
-                                {
-                                    var grpIdProp = model.GetType().GetProperty("GrpId", BindingFlags.Public | BindingFlags.Instance);
-                                    if (grpIdProp != null)
-                                    {
-                                        var val = grpIdProp.GetValue(model);
-                                        if (val is uint gid) ourCommanderGrpId = gid;
-                                        else if (val is int gidi) ourCommanderGrpId = (uint)gidi;
-                                    }
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
+            uint ourCommanderGrpId = FindOurCommanderGrpId();
 
             // Find the opponent's commander: any command zone GrpId that isn't ours
             foreach (var grpId in _commandZoneGrpIds)
             {
                 if (grpId != ourCommanderGrpId)
+                    return grpId;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Gets the full CardInfo for the opponent's commander from the card database.
+        /// Returns null if not available.
+        /// </summary>
+        public CardInfo? GetOpponentCommanderInfo()
+        {
+            uint grpId = GetOpponentCommanderGrpId();
+            if (grpId == 0) return null;
+            return CardModelProvider.GetCardInfoFromGrpId(grpId);
+        }
+
+        /// <summary>
+        /// Gets the opponent's commander card name. Convenience wrapper around GetOpponentCommanderGrpId.
+        /// </summary>
+        public string GetOpponentCommanderName()
+        {
+            uint grpId = GetOpponentCommanderGrpId();
+            if (grpId == 0) return null;
+            return CardModelProvider.GetNameFromGrpId(grpId);
+        }
+
+        /// <summary>
+        /// Finds our own commander's GrpId by scanning the local hand for a card
+        /// with model ZoneType=="Command".
+        /// </summary>
+        private uint FindOurCommanderGrpId()
+        {
+            if (_zoneNavigator == null) return 0;
+
+            _zoneNavigator.DiscoverZones();
+            var handCards = _zoneNavigator.GetCardsInZone(ZoneType.Hand);
+            if (handCards == null) return 0;
+
+            foreach (var card in handCards)
+            {
+                string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+                if (modelZone == "Command")
                 {
-                    string name = CardModelProvider.GetNameFromGrpId(grpId);
-                    if (!string.IsNullOrEmpty(name)) return name;
+                    var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                    if (cdc == null) continue;
+                    var model = CardModelProvider.GetCardModel(cdc);
+                    if (model == null) continue;
+
+                    var grpIdProp = model.GetType().GetProperty("GrpId", BindingFlags.Public | BindingFlags.Instance);
+                    if (grpIdProp != null)
+                    {
+                        var val = grpIdProp.GetValue(model);
+                        if (val is uint gid) return gid;
+                        if (val is int gidi) return (uint)gidi;
+                    }
                 }
             }
 
-            // Fallback: if we only have one commander tracked and it's ours, opponent's isn't known yet
-            return null;
+            return 0;
         }
 
         #endregion
