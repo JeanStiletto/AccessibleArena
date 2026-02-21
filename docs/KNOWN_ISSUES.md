@@ -24,21 +24,22 @@ Some cards have ability IDs greater than ~100000 that cannot be resolved correct
 
 ---
 
-### Battlefield Click Hitting Wrong Card (Overlapping Tokens)
+### Token Attack Selection Uses Game's Internal Order (Not a Mod Bug)
 
-When clicking a card on the battlefield via Enter, `UIActivator.SimulatePointerClick` sends pointer events to the correct GameObject but also sets `position` to the card's screen-space center via `GetScreenPosition()`. The game's internal click handler uses the pointer position (raycast) rather than the target GameObject, so when tokens are stacked close together, the click hits the wrong card's collider. Only affects tokens (same-name cards stacked closely); unique cards are spaced apart enough to work correctly.
+When clicking a non-attacking token during declare attackers, the game always selects the first available token in its internal order, regardless of which specific token CDC was clicked. This is game behavior for identical tokens (e.g., Goblin tokens). Clicking an already-attacking token correctly deselects that specific one.
 
-**Root cause:** `CreatePointerEventData` sets `position = GetScreenPosition(element)`. For 3D battlefield cards (no RectTransform), this falls back to screen center. The game raycasts from that position and hits whichever token collider is at screen center, not the intended card.
+**Confirmed not a position issue:** BattlefieldNavigator now sends each card's actual screen position via `Camera.main.WorldToScreenPoint`, and tokens at different positions (e.g., 127px apart) still exhibit this behavior. The game intentionally ignores which token object receives the click event.
 
-**Impact:** Critical during combat - can select wrong attackers/blockers with tokens.
+**For sighted users:** Tokens are visually stacked; clicking the stack selects them in order. This is by design.
 
-**Failed fix 1:** Setting `pointerCurrentRaycast` and `pointerPressRaycast` in CreatePointerEventData to target the element directly. Result: broke ALL card plays (no clicks registered). The RaycastResult struct was incomplete (missing module, worldPosition, depth fields) causing the game to reject events.
+**Workaround:** Use Space ("All Attack") then deselect specific tokens, or accept that tokens are selected in the game's internal order.
 
-**Failed fix 2:** Adding `Camera.main.WorldToScreenPoint(obj.transform.position)` for 3D objects in `GetScreenPosition`. Result: broke hand card playing (some hand cards couldn't be played). Hand cards are also 3D objects; computing their actual position caused position mismatches that the game rejected.
+**Investigation history:**
+- Failed fix 1: Setting `pointerCurrentRaycast`/`pointerPressRaycast` in CreatePointerEventData - broke all card plays (incomplete RaycastResult struct)
+- Failed fix 2: `Camera.main.WorldToScreenPoint` in generic `GetScreenPosition` - broke hand card playing (hand cards are also 3D objects)
+- Fix 3 (kept): Battlefield-specific position override in `BattlefieldNavigator.ActivateCurrentCard()` - correct positions but game ignores them for tokens. Kept for potential benefit with non-token overlapping cards.
 
-**Next approach:** Pass actual card screen position from `BattlefieldNavigator.ActivateCurrentCard()` only for battlefield clicks, keeping screen center for all other clicks (hand, menu, etc.).
-
-**Files:** `UIActivator.cs` (CreatePointerEventData, GetScreenPosition), `BattlefieldNavigator.cs` (ActivateCurrentCard)
+**Files:** `UIActivator.cs` (SimulatePointerClick overload), `BattlefieldNavigator.cs` (ActivateCurrentCard)
 
 ---
 

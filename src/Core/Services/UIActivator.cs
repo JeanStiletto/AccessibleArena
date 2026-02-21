@@ -346,6 +346,35 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Simulates a pointer click on an element using a specific screen position.
+        /// Used for battlefield cards where the default screen-center position can hit
+        /// the wrong overlapping token's collider.
+        /// </summary>
+        public static ActivationResult SimulatePointerClick(GameObject element, Vector2 screenPosition)
+        {
+            if (element == null)
+                return new ActivationResult(false, "Element is null");
+
+            var pointer = CreatePointerEventData(element, screenPosition);
+
+            Log($"Simulating pointer events on: {element.name} at position ({screenPosition.x:F0}, {screenPosition.y:F0})");
+
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(element);
+                Log($"Set EventSystem selected object to: {element.name}");
+            }
+
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerEnterHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
+
+            return new ActivationResult(true, "Activated", ActivationType.PointerClick);
+        }
+
+        /// <summary>
         /// Simulates a pointer exit event on an element.
         /// Used to tell the game that the mouse has left an element (e.g., to stop music/effects).
         /// </summary>
@@ -1512,6 +1541,22 @@ namespace AccessibleArena.Core.Services
                 pointerEnter = element,
                 position = screenPos,
                 pressPosition = screenPos
+            };
+        }
+
+        /// <summary>
+        /// Creates a PointerEventData with a specific screen position override.
+        /// Used for battlefield cards to ensure the position matches the card's actual location.
+        /// </summary>
+        private static PointerEventData CreatePointerEventData(GameObject element, Vector2 screenPosition)
+        {
+            return new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left,
+                pointerPress = element,
+                pointerEnter = element,
+                position = screenPosition,
+                pressPosition = screenPosition
             };
         }
 

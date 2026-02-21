@@ -593,7 +593,16 @@ namespace AccessibleArena.Core.Services
             string stateBefore = GetCardStateSnapshot(card);
             MelonLogger.Msg($"[BattlefieldNavigator] Clicking card: {cardName} (state: {stateBefore})");
 
-            UIActivator.SimulatePointerClick(card);
+            // Use the card's actual screen position to avoid hitting wrong overlapping token
+            if (Camera.main != null)
+            {
+                Vector2 cardScreenPos = Camera.main.WorldToScreenPoint(card.transform.position);
+                UIActivator.SimulatePointerClick(card, cardScreenPos);
+            }
+            else
+            {
+                UIActivator.SimulatePointerClick(card);
+            }
 
             // Start watching this card for state change (checked per-frame in HandleInput)
             _watchedCard = card;
