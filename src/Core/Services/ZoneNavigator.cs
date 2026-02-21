@@ -776,6 +776,46 @@ namespace AccessibleArena.Core.Services
             // Add selection state if in discard/selection mode
             string selectionState = _hotHighlightNavigator?.GetSelectionStateText(card) ?? "";
 
+            // Check if the card's actual game zone differs from the UI holder zone
+            // (e.g., commander in Command zone shown in hand, flashback card in Graveyard shown in hand)
+            string originZoneText = "";
+            if (_currentZone == ZoneType.Hand)
+            {
+                originZoneText = GetOriginZoneText(card);
+            }
+
+            // In selection mode (discard), adjust position/total to only count selectable cards
+            // so non-discardable cards (e.g., commander from command zone) don't inflate the count
+            bool inSelectionMode = _hotHighlightNavigator?.IsInSelectionMode() ?? false;
+            if (inSelectionMode && _currentZone == ZoneType.Hand)
+            {
+                bool currentIsSelectable = CardDetector.HasHotHighlight(card)
+                    || (_hotHighlightNavigator?.IsCardCurrentlySelected(card) ?? false);
+
+                if (currentIsSelectable)
+                {
+                    int selectablePosition = 0;
+                    int selectableTotal = 0;
+                    for (int i = 0; i < zoneInfo.Cards.Count; i++)
+                    {
+                        var c = zoneInfo.Cards[i];
+                        if (CardDetector.HasHotHighlight(c) || (_hotHighlightNavigator?.IsCardCurrentlySelected(c) ?? false))
+                        {
+                            selectableTotal++;
+                            if (i < _cardIndexInZone)
+                                selectablePosition++;
+                            else if (i == _cardIndexInZone)
+                                selectablePosition = selectableTotal;
+                        }
+                    }
+                    if (selectableTotal > 0)
+                    {
+                        position = selectablePosition;
+                        total = selectableTotal;
+                    }
+                }
+            }
+
             // Add combat state if in declare attackers/blockers phase (battlefield only)
             string combatState = "";
             string attachmentText = "";
@@ -793,7 +833,7 @@ namespace AccessibleArena.Core.Services
             }
 
             string prefix = includeZoneName ? $"{GetZoneName(_currentZone)}, " : "";
-            _announcer.Announce($"{prefix}{cardName}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
+            _announcer.Announce($"{prefix}{cardName}{originZoneText}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
@@ -808,6 +848,42 @@ namespace AccessibleArena.Core.Services
             {
                 cardNavigator.PrepareForCard(card, _currentZone);
             }
+        }
+
+        /// <summary>
+        /// Maps game ZoneType enum names to mod ZoneType for origin zone detection.
+        /// Returns null if the zone matches the current UI zone (no annotation needed).
+        /// </summary>
+        private static readonly Dictionary<string, ZoneType> GameZoneToModZone = new Dictionary<string, ZoneType>
+        {
+            { "Hand", ZoneType.Hand },
+            { "Battlefield", ZoneType.Battlefield },
+            { "Graveyard", ZoneType.Graveyard },
+            { "Exile", ZoneType.Exile },
+            { "Stack", ZoneType.Stack },
+            { "Library", ZoneType.Library },
+            { "Command", ZoneType.Command }
+        };
+
+        /// <summary>
+        /// Gets origin zone annotation for cards whose game zone differs from UI zone.
+        /// E.g., commander in Command zone shown in hand returns ", Kommandozone".
+        /// Returns empty string if no annotation needed.
+        /// </summary>
+        private string GetOriginZoneText(GameObject card)
+        {
+            string modelZoneName = CardModelProvider.GetCardZoneTypeName(card);
+            if (string.IsNullOrEmpty(modelZoneName)) return "";
+
+            if (GameZoneToModZone.TryGetValue(modelZoneName, out var modelZoneType))
+            {
+                if (modelZoneType != _currentZone)
+                {
+                    return $", {Strings.GetZoneName(modelZoneType)}";
+                }
+            }
+
+            return "";
         }
 
         private bool HasCardsInCurrentZone()

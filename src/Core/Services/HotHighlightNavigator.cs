@@ -1064,6 +1064,18 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns true if selection mode (discard, exile choice, etc.) is currently active.
+        /// Used by ZoneNavigator to adjust card indexing.
+        /// </summary>
+        public bool IsInSelectionMode() => IsSelectionModeActive();
+
+        /// <summary>
+        /// Returns true if the given card is currently selected (has visual selection indicator).
+        /// Used by ZoneNavigator to determine selectable card count during discard.
+        /// </summary>
+        public bool IsCardCurrentlySelected(GameObject card) => IsCardSelected(card);
+
+        /// <summary>
         /// Attempts to toggle selection on a card if selection mode (discard, exile, etc.) is active.
         /// Called by ZoneNavigator when the user presses Enter on a hand card navigated via zone shortcuts.
         /// Returns true if selection was handled, false if not in selection mode.

@@ -82,6 +82,9 @@ namespace AccessibleArena.Core.Services
             _targetIdsFieldSearched = false;
             _targetedByIdsField = null;
             _targetedByIdsFieldSearched = false;
+            // Zone type cache
+            _zoneTypePropCached = null;
+            _zoneTypePropSearched = false;
             // Extended info cache (keywords + linked faces)
             ClearExtendedInfoCache();
         }
@@ -2664,6 +2667,53 @@ namespace AccessibleArena.Core.Services
             if (cdc == null) return false;
             var model = GetCardModel(cdc);
             return GetIsBlocking(model);
+        }
+
+        /// <summary>
+        /// Gets the ZoneType string from a card's model (e.g., "Hand", "Command", "Graveyard").
+        /// This is the game's internal zone, which may differ from the UI holder zone
+        /// (e.g., commander cards are in Command zone but visually placed in the hand holder).
+        /// </summary>
+        private static PropertyInfo _zoneTypePropCached;
+        private static bool _zoneTypePropSearched;
+
+        public static string GetModelZoneTypeName(object model)
+        {
+            if (model == null) return null;
+            try
+            {
+                if (!_zoneTypePropSearched)
+                {
+                    _zoneTypePropSearched = true;
+                    _zoneTypePropCached = model.GetType().GetProperty("ZoneType",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+
+                PropertyInfo prop = _zoneTypePropCached;
+                if (prop != null && !prop.DeclaringType.IsAssignableFrom(model.GetType()))
+                    prop = model.GetType().GetProperty("ZoneType", BindingFlags.Public | BindingFlags.Instance);
+
+                if (prop != null)
+                {
+                    var val = prop.GetValue(model);
+                    return val?.ToString();
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the ZoneType name from a card GameObject.
+        /// Chains: GetDuelSceneCDC -> GetCardModel -> GetModelZoneTypeName.
+        /// </summary>
+        public static string GetCardZoneTypeName(GameObject card)
+        {
+            if (card == null) return null;
+            var cdc = GetDuelSceneCDC(card);
+            if (cdc == null) return null;
+            var model = GetCardModel(cdc);
+            return GetModelZoneTypeName(model);
         }
 
         #endregion

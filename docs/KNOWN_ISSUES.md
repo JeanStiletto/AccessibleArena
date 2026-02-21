@@ -42,9 +42,9 @@ Starting a bot match from the "Recent Played" section does not work properly.
 
 ---
 
-### Hand Zone Index Announced During Discard For Cards Playable From Other Zones
+### Haide Land Browser Broken (Leicht Gepanzert Deck)
 
-When discarding, cards in hand that are also playable from other zones (e.g., graveyard, exile) have their index announced instead of being silent.
+The Haide land (from the "Leicht Gepanzert" Brawl deck) opens a color picker browser to choose a mana color except white. This browser is not handled correctly and breaks navigation.
 
 ---
 
