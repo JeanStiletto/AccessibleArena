@@ -1664,7 +1664,9 @@ namespace AccessibleArena.Core.Services
                 catch { }
             }
 
-            _announcer.AnnounceInterrupt("No back button found");
+            // No in-screen back button found — navigate home as final fallback
+            if (!NavigateToHome())
+                _announcer.AnnounceInterrupt("No back button found");
         }
 
         private void HandlePrizeWallInput()

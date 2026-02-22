@@ -2271,45 +2271,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Find and activate the Home button to return to the main menu.
-        /// </summary>
-        private bool NavigateToHome()
-        {
-            var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)");
-            if (navBar == null)
-            {
-                navBar = GameObject.Find("NavBar");
-            }
-
-            if (navBar == null)
-            {
-                LogDebug($"[{NavigatorId}] NavBar not found for Home navigation");
-                _announcer.Announce(Models.Strings.CannotNavigateHome, Models.AnnouncementPriority.High);
-                return true;
-            }
-
-            var homeButtonTransform = navBar.transform.Find("Base/Nav_Home");
-            GameObject homeButton = homeButtonTransform?.gameObject;
-            if (homeButton == null)
-            {
-                homeButton = FindChildByName(navBar.transform, "Nav_Home");
-            }
-
-            if (homeButton == null || !homeButton.activeInHierarchy)
-            {
-                LogDebug($"[{NavigatorId}] Home button not found or inactive");
-                _announcer.Announce(Models.Strings.HomeNotAvailable, Models.AnnouncementPriority.High);
-                return true;
-            }
-
-            LogDebug($"[{NavigatorId}] Navigating to Home via Backspace");
-            _announcer.Announce(Models.Strings.ReturningHome, Models.AnnouncementPriority.High);
-            UIActivator.Activate(homeButton);
-
-            return true;
-        }
-
-        /// <summary>
         /// Check if element should be shown based on current foreground layer.
         /// Uses OverlayDetector for overlay detection, falls back to content panel filtering.
         /// </summary>

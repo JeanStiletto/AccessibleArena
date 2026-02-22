@@ -2593,16 +2593,9 @@ namespace AccessibleArena.Core.Services
 
         private void HandleBackFromStore()
         {
-            // At tab level, Backspace navigates home (standard back)
             MelonLogger.Msg("[Store] Back from store - navigating home");
-
-            // Find and click the NavBar Home button via standard back mechanism
-            // The game handles Escape as back navigation, but we use a softer approach:
-            // Just deactivate ourselves and let GeneralMenuNavigator handle the back action
+            NavigateToHome();
             Deactivate();
-
-            // Simulate Escape which the game interprets as "back"
-            // (The game's InputManager will process this next frame)
         }
 
         #endregion

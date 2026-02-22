@@ -2192,6 +2192,40 @@ namespace AccessibleArena.Core.Services
             return current.gameObject;
         }
 
+        /// <summary>
+        /// Find and activate the NavBar Home button to return to the main menu.
+        /// </summary>
+        protected bool NavigateToHome()
+        {
+            var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)");
+            if (navBar == null)
+                navBar = GameObject.Find("NavBar");
+
+            if (navBar == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] NavBar not found for Home navigation");
+                _announcer.Announce(Models.Strings.CannotNavigateHome, Models.AnnouncementPriority.High);
+                return false;
+            }
+
+            var homeButtonTransform = navBar.transform.Find("Base/Nav_Home");
+            GameObject homeButton = homeButtonTransform?.gameObject;
+            if (homeButton == null)
+                homeButton = FindChildByName(navBar.transform, "Nav_Home");
+
+            if (homeButton == null || !homeButton.activeInHierarchy)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Home button not found or inactive");
+                _announcer.Announce(Models.Strings.HomeNotAvailable, Models.AnnouncementPriority.High);
+                return false;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Navigating to Home");
+            _announcer.Announce(Models.Strings.ReturningHome, Models.AnnouncementPriority.High);
+            UIActivator.Activate(homeButton);
+            return true;
+        }
+
         /// <summary>Get cleaned button text (delegates to UITextExtractor)</summary>
         protected string GetButtonText(GameObject buttonObj, string fallback = null)
         {
