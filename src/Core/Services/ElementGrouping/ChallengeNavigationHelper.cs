@@ -21,7 +21,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private static Type _playBladeControllerType;
         private static MethodInfo _hideDeckSelectorMethod;
         private static FieldInfo _deckSelectorField;
-        private static PropertyInfo _deckSelectorIsShowingProp;
+
         private static FieldInfo _localPlayerField;
         private static FieldInfo _enemyPlayerField;
         private static FieldInfo _playerNameField;
@@ -156,12 +156,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
         /// <summary>
         /// Called when a deck is selected in the challenge deck picker.
-        /// Auto-returns to ChallengeMain.
+        /// Reactivates the challenge display (hidden by game's DeckSelectBlade.Hide())
+        /// and auto-returns to ChallengeMain.
         /// </summary>
         public void HandleDeckSelected()
         {
+            // The game calls DeckSelectBlade.Hide() directly (not HideDeckSelector()),
+            // which closes the blade but leaves _unifiedChallengeDisplay deactivated.
+            // We must call HideDeckSelector() to reactivate it so Leave/Invite buttons appear.
+            CloseDeckSelectBlade();
             _groupedNavigator.RequestChallengeMainEntry();
-            MelonLogger.Msg("[ChallengeHelper] Deck selected, requesting ChallengeMain entry");
+            MelonLogger.Msg("[ChallengeHelper] Deck selected, closing blade and requesting ChallengeMain entry");
         }
 
         /// <summary>
@@ -254,7 +259,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     var mb = controller as MonoBehaviour;
                     if (mb == null || !mb.gameObject.activeInHierarchy) continue;
 
-                    // Check if DeckSelector is showing before calling HideDeckSelector
+                    // Resolve DeckSelector field (needed to verify controller has one)
                     if (_deckSelectorField == null)
                         _deckSelectorField = _playBladeControllerType.GetField("DeckSelector",
                             BindingFlags.Public | BindingFlags.Instance);
@@ -263,15 +268,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     var deckSelector = _deckSelectorField.GetValue(controller);
                     if (deckSelector == null) continue;
 
-                    if (_deckSelectorIsShowingProp == null)
-                        _deckSelectorIsShowingProp = deckSelector.GetType().GetProperty("IsShowing",
-                            BindingFlags.Public | BindingFlags.Instance);
-                    if (_deckSelectorIsShowingProp == null) continue;
-
-                    bool isShowing = (bool)_deckSelectorIsShowingProp.GetValue(deckSelector);
-                    if (!isShowing) continue;
-
-                    // Call HideDeckSelector() - this closes the blade AND reactivates challenge display
+                    // Call HideDeckSelector() unconditionally - it closes the blade AND reactivates
+                    // the challenge display. Safe to call even when blade is already hidden:
+                    // - DeckSelector.Hide() is a no-op when already hidden
+                    // - _unifiedChallengeDisplay.SetActive(true) restores Leave/Invite buttons
+                    // This is needed because the game sometimes calls DeckSelectBlade.Hide() directly
+                    // (e.g., after deck selection), which hides the blade but leaves the display inactive.
                     if (_hideDeckSelectorMethod == null)
                     {
                         _hideDeckSelectorMethod = _playBladeControllerType.GetMethod("HideDeckSelector",

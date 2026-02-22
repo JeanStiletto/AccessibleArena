@@ -233,8 +233,10 @@ Handled by existing Popup overlay detection (PopupBase). Contains text input, dr
 
 ### Deck Selection Flow
 - Enter on Select Deck -> DeckSelectBlade opens -> folders/decks appear
-- Enter on deck -> deck selected -> auto-return to ChallengeMain
+- Enter on deck -> deck selected -> `CloseDeckSelectBlade()` reactivates display -> auto-return to ChallengeMain
 - Backspace from folders -> `CloseDeckSelectBlade()` + return to ChallengeMain
+
+**Important:** When the game processes deck selection, it calls `DeckSelectBlade.Hide()` directly (not `HideDeckSelector()`). This closes the blade but leaves `_unifiedChallengeDisplay` deactivated. `HandleDeckSelected()` must call `CloseDeckSelectBlade()` to reactivate it, otherwise Leave and Invite buttons remain invisible.
 
 ### Player Status Announcement
 - On entering challenge: "Direkte Herausforderung. Du: PlayerName, Status. Gegner: Not invited/PlayerName"
@@ -273,9 +275,12 @@ Our mod was calling `DeckSelectBlade.Hide()` directly, which only does the first
 ### Fix (Implemented)
 `ChallengeNavigationHelper.CloseDeckSelectBlade()` calls `PlayBladeController.HideDeckSelector()` instead of `DeckSelectBlade.Hide()` directly. This ensures both the blade closure and the challenge display reactivation happen together.
 
-Called in two places:
+Called in three places:
 1. **Spinner changes** - `RescanAfterSpinnerChange()` in GeneralMenuNavigator calls `CloseDeckSelectBlade()` before inline rescan
 2. **Backspace from folders** - `HandleBackspace()` in ChallengeNavigationHelper calls `CloseDeckSelectBlade()` when returning from deck selection to ChallengeMain
+3. **Deck selection** - `HandleDeckSelected()` in ChallengeNavigationHelper calls `CloseDeckSelectBlade()` to reactivate the display after the game's `DeckSelectBlade.Hide()` left it inactive
+
+Note: `CloseDeckSelectBlade()` calls `HideDeckSelector()` unconditionally (no `IsShowing` guard). This is safe because `Hide()` is a no-op when the blade is already hidden, and the critical part is reactivating `_unifiedChallengeDisplay`.
 
 ---
 
