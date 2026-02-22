@@ -2596,13 +2596,64 @@ namespace AccessibleArena.Core.Services
             // At tab level, Backspace navigates home (standard back)
             MelonLogger.Msg("[Store] Back from store - navigating home");
 
-            // Find and click the NavBar Home button via standard back mechanism
-            // The game handles Escape as back navigation, but we use a softer approach:
-            // Just deactivate ourselves and let GeneralMenuNavigator handle the back action
-            Deactivate();
+            if (!TryNavigateToHome())
+            {
+                MelonLogger.Warning("[Store] Failed to navigate home from Store");
+                return;
+            }
 
-            // Simulate Escape which the game interprets as "back"
-            // (The game's InputManager will process this next frame)
+            // Disable store input immediately after triggering Home navigation.
+            Deactivate();
+        }
+
+        /// <summary>
+        /// Find and activate the Home button to return to the main menu.
+        /// Mirrors the GeneralMenuNavigator Home navigation behavior.
+        /// </summary>
+        private bool TryNavigateToHome()
+        {
+            var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)") ?? GameObject.Find("NavBar");
+            if (navBar == null)
+            {
+                MelonLogger.Warning("[Store] NavBar not found for Home navigation");
+                _announcer.Announce(Strings.CannotNavigateHome, AnnouncementPriority.High);
+                return false;
+            }
+
+            var homeButton = navBar.transform.Find("Base/Nav_Home")?.gameObject
+                          ?? FindChildByName(navBar.transform, "Nav_Home");
+
+            if (homeButton == null || !homeButton.activeInHierarchy)
+            {
+                MelonLogger.Warning("[Store] Home button not found or inactive");
+                _announcer.Announce(Strings.HomeNotAvailable, AnnouncementPriority.High);
+                return false;
+            }
+
+            _announcer.Announce(Strings.ReturningHome, AnnouncementPriority.High);
+            UIActivator.Activate(homeButton);
+            return true;
+        }
+
+        /// <summary>
+        /// Recursively find a child transform by exact name.
+        /// </summary>
+        private static GameObject FindChildByName(Transform parent, string childName)
+        {
+            if (parent == null || string.IsNullOrEmpty(childName))
+                return null;
+
+            foreach (Transform child in parent)
+            {
+                if (child.name == childName)
+                    return child.gameObject;
+
+                var nested = FindChildByName(child, childName);
+                if (nested != null)
+                    return nested;
+            }
+
+            return null;
         }
 
         #endregion
