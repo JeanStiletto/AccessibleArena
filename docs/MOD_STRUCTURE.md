@@ -3,7 +3,7 @@
 ## Project Layout
 
 ```
-C:\Users\fabia\arena\
+<repo-root>\
   src\
     AccessibleArena.csproj
     AccessibleArenaMod.cs      - MelonLoader entry point, holds central services
