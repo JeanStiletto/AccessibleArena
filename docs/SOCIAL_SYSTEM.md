@@ -191,7 +191,7 @@ Detection: `GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)")` + active `Friend
 Accessible navigation for MTGA's challenge screen. Provides flat navigation of spinners, buttons, and player status.
 
 **Trigger:** Challenge action on a friend tile, or "Challenge" button in social panel
-**Close:** Backspace from main level, or Leave button
+**Close:** Backspace from main level
 
 ---
 
@@ -204,10 +204,11 @@ Two-level navigation using the element grouping system:
 All spinners + buttons on the main challenge screen:
 - **Mode spinner** (always present) - e.g. "Pioneer-Turnier-Match"
 - **Additional spinners** (mode-dependent) - Deck Type, Format, Coin Flip (appear for some modes like "Herausforderungs-Match")
-- **Select Deck** button
-- **Leave** button (`MainButton_Leave`)
+- **Select Deck / Deck display** - `NoDeck` when no deck selected, or the deck name (e.g. "mono blau") when one is selected. Enter on either opens the deck selector.
 - **Invite** button (in enemy player card, when no opponent invited)
 - **Status** button (`UnifiedChallenge_MainButton`) - shows ready/waiting/invalid deck status, prefixed with local player name
+
+**Hidden:** `MainButton_Leave` is filtered from navigation in `ShouldShowElement` - Backspace handles leaving via `GameObject.Find`.
 
 ### Level 2: Deck Selection (folder-based)
 
@@ -232,11 +233,13 @@ Handled by existing Popup overlay detection (PopupBase). Contains text input, dr
 - Mod preserves position via `RequestChallengeMainEntryAtIndex()`
 
 ### Deck Selection Flow
-- Enter on Select Deck -> DeckSelectBlade opens -> folders/decks appear
-- Enter on deck -> deck selected -> `CloseDeckSelectBlade()` reactivates display -> auto-return to ChallengeMain
+- Enter on Select Deck or deck display -> DeckSelectBlade opens -> folders/decks appear
+- Enter on deck in selector -> deck selected -> `CloseDeckSelectBlade()` reactivates display -> auto-return to ChallengeMain
 - Backspace from folders -> `CloseDeckSelectBlade()` + return to ChallengeMain
 
-**Important:** When the game processes deck selection, it calls `DeckSelectBlade.Hide()` directly (not `HideDeckSelector()`). This closes the blade but leaves `_unifiedChallengeDisplay` deactivated. `HandleDeckSelected()` must call `CloseDeckSelectBlade()` to reactivate it, otherwise Leave and Invite buttons remain invisible.
+**Deck display vs deck entry:** The deck display in `ContextDisplay` (`NoDeck` or `DeckView_Base`) opens the deck selector when activated. Actual deck entries in the `DeckSelectBlade` select a deck and return to ChallengeMain. `IsDeckSelectionButton()` detects the display (including `DeckView_Base` inside `ContextDisplay`), and `HandleEnter` routes it to `RequestFoldersEntry()`. The post-activation `HandleDeckSelected` check is guarded by `challengeResult == NotHandled` to avoid closing the deck selector that was just opened.
+
+**Important:** When the game processes deck selection, it calls `DeckSelectBlade.Hide()` directly (not `HideDeckSelector()`). This closes the blade but leaves `_unifiedChallengeDisplay` deactivated. `HandleDeckSelected()` must call `CloseDeckSelectBlade()` to reactivate it, otherwise Invite button remains invisible.
 
 ### Player Status Announcement
 - On entering challenge: "Direkte Herausforderung. Du: PlayerName, Status. Gegner: Not invited/PlayerName"
@@ -262,7 +265,7 @@ HideDeckSelector() {
     _unifiedChallengeDisplay.gameObject.SetActive(true)  // restores challenge display
 }
 ```
-The `_unifiedChallengeDisplay` GameObject is the parent of `MainButton_Leave` and `Invite Button`. When it's deactivated, all children become `!activeInHierarchy` and invisible to `FindObjectsOfType`.
+The `_unifiedChallengeDisplay` GameObject is the parent of `Invite Button` (and `MainButton_Leave`, which is hidden from navigation). When it's deactivated, all children become `!activeInHierarchy` and invisible to `FindObjectsOfType`.
 
 Our mod was calling `DeckSelectBlade.Hide()` directly, which only does the first half. The `_unifiedChallengeDisplay` was never reactivated, so Leave and Invite stayed invisible.
 
@@ -298,12 +301,12 @@ ContentController - Popout_Play_Desktop_16x9(Clone)
                 Popout_ModeMasterParameter     <- Spinner (mode)
                 [additional spinners per mode]
         ContextDisplay
-          NoDeck                               <- Select Deck button
-          DeckDisplay                          <- shows selected deck
+          NoDeck                               <- Select Deck (no deck chosen)
+          DeckBoxParent/DeckView_Base(Clone)/UI <- Deck display (deck chosen, Enter reopens selector)
         UnifiedChallengesCONTAINER
           Menu
             MainButtons
-              MainButton_Leave                 <- Leave button
+              MainButton_Leave                 <- Leave button (hidden from nav, used by Backspace)
           EnemyCard_Challenges
             No Player
               Invite Button                    <- Invite button
@@ -350,8 +353,8 @@ ContentController - Popout_Play_Desktop_16x9(Clone)
 ## Implementation Files
 
 - **`ChallengeNavigationHelper.cs`** - Central helper: HandleEnter, HandleBackspace, OnChallengeOpened/Closed, HandleDeckSelected, player status, CloseDeckSelectBlade
-- **`ElementGroupAssigner.cs`** - `IsChallengeContainer()` routes elements to ChallengeMain; NewDeck/EditDeck to PlayBladeFolders; InviteFriendPopup to Popup
+- **`ElementGroupAssigner.cs`** - `IsChallengeContainer()` routes elements to ChallengeMain; NewDeck/EditDeck to PlayBladeFolders; InviteFriendPopup to Popup. Note: `MainButton_Leave` cannot be filtered here (returning Unknown from `DetermineOverlayGroup` means "not an overlay", not "hide") - filtered in `ShouldShowElement` instead
 - **`GroupedNavigator.cs`** - `_isChallengeContext`, `RequestChallengeMainEntry()`, folder extra elements support
 - **`OverlayDetector.cs`** - Returns ChallengeMain overlay when PlayBladeState >= 2; `IsInsideChallengeScreen()` checks
-- **`GeneralMenuNavigator.cs`** - Challenge helper integration, spinner rescan, label enhancement, player status in announcements
+- **`GeneralMenuNavigator.cs`** - Challenge helper integration, spinner rescan, label enhancement, player status in announcements, `ShouldShowElement` filters `MainButton_Leave`
 - **`Strings.cs`** + `lang/*.json` - ChallengeYou, ChallengeOpponent, ChallengeNotInvited, ChallengeInvited, GroupChallengeMain
