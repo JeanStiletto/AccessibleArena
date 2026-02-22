@@ -312,32 +312,42 @@ Not yet implemented:
 
 There are **three** version numbers that must stay in sync for releases:
 
-- **GitHub tag** — the tag name from the latest release (e.g., `v0.6.5`). Fetched via GitHub API, `v` prefix stripped. This is the **source of truth** for releases.
-- **Assembly version** — the version baked into the compiled DLL (`<Version>` in csproj). Read from the installed file via `AssemblyName.GetAssemblyName()`. Used by the installer for update detection.
-- **MelonInfo version** — the version string in the `[assembly: MelonInfo(...)]` attribute in `AccessibleArenaMod.cs`. Displayed to users at mod launch (e.g., "Accessible Arena v0.6.5 launched"). Accessed at runtime via `Info.Version`.
+- **GitHub tag** — the tag name from the latest release (e.g., `v0.6.9`). Fetched via GitHub API, `v` prefix stripped. This is the **source of truth** for releases.
+- **Assembly version** — the version baked into the compiled DLL. Read from the installed file via `AssemblyName.GetAssemblyName()`. Used by the installer for update detection.
+- **MelonInfo version** — the version string in the `[assembly: MelonInfo(...)]` attribute. Displayed to users at mod launch (e.g., "Accessible Arena v0.6.9 launched"). Accessed at runtime via `Info.Version`.
 
-The GitHub Actions workflow handles all three automatically: it extracts the version from the git tag, patches the MelonInfo attribute via `sed`, and passes `-p:Version=` to the build. For local development builds, the MelonInfo version and csproj `<Version>` serve as fallbacks — keep them reasonably current but they don't need to be exact.
+### Single Source of Truth: `Directory.Build.props`
 
-These are completely independent sources. If they get out of sync, update detection breaks silently or users see wrong version numbers. The GitHub Actions workflow below handles this automatically, but if you build manually or adapt this for your own project, read the pitfalls section.
+All three are derived from a single place. `src/Directory.Build.props` defines `<ModVersion>`:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <ModVersion>0.6.9</ModVersion>
+    <Version>$(ModVersion)</Version>
+  </PropertyGroup>
+</Project>
+```
+
+This feeds both version numbers automatically:
+- **Assembly version** — `<Version>` inherits from `<ModVersion>`, so the compiled DLL gets the right version.
+- **MelonInfo version** — A build target in the csproj generates `VersionInfo.g.cs` (into `obj/`) containing `internal const string Value = "0.6.9"`. The `[assembly: MelonInfo(...)]` attribute references `VersionInfo.Value` instead of a hardcoded string.
+
+For **CI release builds**, the GitHub Actions workflow passes `-p:ModVersion=` from the git tag, overriding the value in `Directory.Build.props`. This flows to both the assembly version and the generated MelonInfo constant automatically — no `sed` patching needed.
+
+For **local dev builds**, just edit the one line in `Directory.Build.props`. After a release, bump it to the next version with a `-dev` suffix (e.g., `0.7.0-dev`).
 
 ### Pitfalls We Hit (Don't Repeat These)
 
 **Pitfall 1: Missing `<Version>` in csproj**
-If you don't set `<Version>` in your `.csproj`, .NET defaults the assembly version to `1.0.0.0`. If your GitHub tags are `v0.x`, the installer sees the installed DLL as version `1.0.0.0` which is numerically *higher* than any `0.x` release. Result: updates are never detected, even though the installed DLL is ancient.
+If you don't set `<Version>`, .NET defaults the assembly version to `1.0.0.0`. If your GitHub tags are `v0.x`, the installer sees the installed DLL as version `1.0.0.0` which is numerically *higher* than any `0.x` release. Result: updates are never detected, even though the installed DLL is ancient.
 
-The installer now treats `1.0.0.0` as `0.0.0.0` as a safety net (see `NormalizeVersion`), but don't rely on this. Always set a real version.
+The installer now treats `1.0.0.0` as `0.0.0.0` as a safety net (see `NormalizeVersion`), but don't rely on this. `Directory.Build.props` ensures a real version is always set.
 
-**Pitfall 2: Forgetting to bump the csproj version**
-Even after adding `<Version>`, if you tag `v0.6.5` on GitHub but the csproj still says `<Version>0.5.0</Version>`, every DLL you build will report `0.5.0.0` regardless of the release tag. The installer will perpetually show "update available" even when users already have the latest version, or worse, will skip updates when the stale version happens to match.
+**Pitfall 2: Version sources out of sync**
+Before `Directory.Build.props`, the csproj `<Version>` and MelonInfo string were independent and frequently drifted apart (e.g., csproj at 0.6.7, MelonInfo at 0.6.6, changelog at 0.6.9). CI masked this for releases but local builds showed wrong versions. Now both derive from `<ModVersion>` so they can't drift.
 
-**Solution:** Use the GitHub Actions workflow below, which injects the version from the git tag at build time. This makes the csproj version a fallback for local dev builds only - release builds always get the correct version from the tag.
-
-**Pitfall 3: Stale MelonInfo version**
-The `[assembly: MelonInfo(...)]` attribute in `AccessibleArenaMod.cs` contains a hardcoded version string that MelonLoader reads at runtime (available as `Info.Version`). This is shown to users at launch ("Accessible Arena v0.6.5 launched"). Unlike the assembly version, this cannot be overridden with a build flag — it must be patched in the source file. If you forget to update it, users see the wrong version after launch even though the installer and GitHub show the correct one.
-
-**Solution:** The GitHub Actions workflow patches the MelonInfo version via `sed` before building. For local development, keep it reasonably up to date manually.
-
-**Pitfall 4: Redundant version checks after user confirmation**
+**Pitfall 3: Redundant version checks after user confirmation**
 If your installer shows an "Update Available" dialog and the user clicks "Update", don't re-check versions before downloading. A second version check can reach a different conclusion (network error, race condition, version format edge case) and silently skip the download the user just asked for. Once the user confirms, download unconditionally.
 
 ### Version Normalization
@@ -352,64 +362,23 @@ This means `v0.5` and `0.5.0.0` compare as equal, which is the desired behavior.
 
 ## Automated Releases with GitHub Actions
 
-The release workflow extracts the version from the git tag and passes it to `dotnet build` via `-p:Version=...`. This overrides whatever `<Version>` is in the csproj, so the DLL assembly version always matches the tag automatically.
+The release workflow extracts the version from the git tag and passes it to `dotnet build` via `-p:ModVersion=...`. This overrides the `<ModVersion>` in `Directory.Build.props`, which flows to both the assembly version and the generated `VersionInfo.Value` constant used by MelonInfo.
 
-Create `.github/workflows/release.yml` in your repository:
+See `.github/workflows/release.yml` in the repository. The key build step:
 
 ```yaml
-name: Release
-
-on:
-  push:
-    tags: ['v*']
-
-jobs:
-  build-and-release:
-    runs-on: windows-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Extract version from tag
-        id: version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
-
-      - name: Update MelonInfo version from tag
-        shell: bash
-        run: sed -i 's/MelonInfo(typeof(YourNamespace.YourMod), "Your Mod", "[^"]*"/MelonInfo(typeof(YourNamespace.YourMod), "Your Mod", "${{ steps.version.outputs.VERSION }}"/' src/YourMod.cs
-
       - name: Build mod (Release)
-        run: dotnet build src/YourMod.csproj -c Release -p:Version=${{ steps.version.outputs.VERSION }}
-
-      - name: Build installer (Release)
-        run: dotnet build installer/YourInstaller.csproj -c Release
-
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            src/bin/Release/net472/YourMod.dll
-            installer/bin/Release/net472/YourInstaller.exe
+        run: dotnet build src/AccessibleArena.csproj -c Release -p:ModVersion=${{ steps.version.outputs.VERSION }}
 ```
 
-Two key steps:
-1. The `sed` command patches the `MelonInfo` attribute in the source file so `Info.Version` returns the correct version at runtime.
-2. The `-p:Version=` flag on the build step sets the assembly/file version in the compiled DLL.
+A single `-p:ModVersion=` flag sets everything — no `sed` patching, no separate `-p:Version=` needed.
 
 **Release workflow:**
-1. Tag: `git tag v0.6.5`
-2. Push: `git push origin v0.6.5`
-3. GitHub Actions builds with the correct version baked in - no manual csproj edits needed
+1. Tag: `git tag v0.6.9`
+2. Push: `git push origin v0.6.9`
+3. GitHub Actions builds with the correct version baked into both the DLL and MelonInfo automatically
 
-You should still set a reasonable `<Version>` in the csproj for local development builds (it serves as a fallback when not building via CI), but the CI workflow is the source of truth for release versions.
+Keep `Directory.Build.props` reasonably current for local dev builds (e.g., bump to `0.7.0-dev` after releasing `0.6.9`).
 
 ## Localization
 
@@ -444,10 +413,10 @@ en, de, fr, es, it, pt-BR, ru, pl, ja, ko, zh-CN, zh-TW
   - Runs for both fresh installs and updates
 
 ### Version 1.5
-- Launch announcement now shows mod name and version ("Accessible Arena v0.6.5 launched")
+- Launch announcement now shows mod name and version ("Accessible Arena v0.6.9 launched")
 - MelonInfo version updated from placeholder "0.1.0-beta" to current version
-- GitHub Actions workflow now patches MelonInfo version from git tag automatically
-  - Uses `sed` to update the `[assembly: MelonInfo(...)]` attribute before building
+- MelonInfo now reads from auto-generated `VersionInfo.Value` constant (derived from `Directory.Build.props`)
+  - CI passes `-p:ModVersion=` to override at build time — no `sed` patching needed
   - Ensures `Info.Version` (runtime) matches the release tag alongside the assembly version
 
 ### Version 1.4
