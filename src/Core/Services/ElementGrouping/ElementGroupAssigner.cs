@@ -467,6 +467,37 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     return ElementGroup.FriendSectionBlocked;
             }
 
+            // Fallback: detect section by tile component type when path patterns don't match.
+            // Some sections (e.g., Blocked) may use different list item naming or hierarchy.
+            var tile = FriendInfoProvider.FindFriendTile(element);
+            if (tile != null)
+            {
+                string tileName = tile.GetType().Name;
+
+                // First try bucket name from the tile's own parent path (tile may be higher in hierarchy)
+                string tilePath = GetParentPath(tile.gameObject);
+                if (tilePath.Contains("Bucket_Blocked"))
+                    return ElementGroup.FriendSectionBlocked;
+                if (tilePath.Contains("Bucket_Friends"))
+                    return ElementGroup.FriendSectionFriends;
+                if (tilePath.Contains("Bucket_SentRequests") || tilePath.Contains("Bucket_Outgoing"))
+                    return ElementGroup.FriendSectionOutgoing;
+                if (tilePath.Contains("Bucket_IncomingRequests") || tilePath.Contains("Bucket_Incoming"))
+                    return ElementGroup.FriendSectionIncoming;
+
+                // Last resort: map by tile type name
+                if (tileName == "BlockTile")
+                    return ElementGroup.FriendSectionBlocked;
+                if (tileName == "FriendTile")
+                    return ElementGroup.FriendSectionFriends;
+                if (tileName == "InviteOutgoingTile")
+                    return ElementGroup.FriendSectionOutgoing;
+                if (tileName == "InviteIncomingTile")
+                    return ElementGroup.FriendSectionIncoming;
+
+                MelonLogger.Msg($"[ElementGroupAssigner] Social tile fallback matched {tileName} but no section determined, path={tilePath}");
+            }
+
             // Not a recognized friend panel element (headers, dismiss buttons, tab bar, etc.)
             return ElementGroup.Unknown;
         }

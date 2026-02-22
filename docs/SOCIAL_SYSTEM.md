@@ -53,7 +53,7 @@ Only sections with entries appear. Empty sections are absent.
 - **Decline** - Declines friend request
 - **Block** - Blocks the requesting user
 
-### BlockedTile / BlockedFriendTile
+### BlockTile (blocked users)
 - **Unblock** - Removes the block
 
 ---
@@ -146,6 +146,29 @@ Social tile types live in **Core.dll** (no namespace), NOT Assembly-CSharp.dll.
 - `_buttonCancel` (Button) - revoke/cancel action
 - `Callback_Reject` (Action\<Invite\>) - reject callback, needs Invite as parameter
 - `Invite` (Invite property) - the invite entity
+
+**InviteIncomingTile fields:**
+- `_labelName` (TMP_Text) - requester display name
+- `_contextClickButton` (CustomButton) - the main clickable element
+- `_buttonAccept` (Button) - accept friend request
+- `_buttonReject` (Button) - decline friend request
+- `_buttonBlock` (Button) - block the requester
+- `Callback_Accept`, `Callback_Reject`, `Callback_Block` (Action\<Invite\>)
+- `Invite` (Invite property) - the invite entity
+
+**BlockTile fields:**
+- `_labelName` (TMP_Text) - blocked user display name
+- `_buttonRemoveBlock` (Button) - unblock action
+- `Callback_RemoveBlock` (Action\<Block\>) - unblock callback
+- `Block` (Block property) - the block entity with `BlockedPlayer.DisplayName`
+
+### Virtualized Scroll View
+
+The `FriendsWidget` uses a **virtualized scroll view** for performance:
+- Tiles are only instantiated for entries within the visible viewport
+- `SectionBlocks.IsOpen = false` by default (collapsed)
+- The mod force-creates BlockTile instances via reflection on FriendsWidget
+- BlockTile has NO CustomButton/Backer_Hitbox - discovered via fallback tile scan
 
 ### Panel Toggle
 

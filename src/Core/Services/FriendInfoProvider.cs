@@ -37,8 +37,7 @@ namespace AccessibleArena.Core.Services
             "FriendTile",
             "InviteOutgoingTile",
             "InviteIncomingTile",
-            "BlockedTile",
-            "BlockedFriendTile"
+            "BlockTile"
         };
 
         // Cached reflection per tile type (keyed by type to handle multiple tile types)
@@ -46,17 +45,23 @@ namespace AccessibleArena.Core.Services
 
         private class TileReflectionCache
         {
-            public FieldInfo LabelName;         // TMP_Text
+            public FieldInfo LabelName;         // TMP_Text (all tile types)
             public FieldInfo LabelStatus;       // FriendTile: _labelStatus (Localize component, not TMP_Text)
             public FieldInfo LabelDateSent;     // InviteOutgoingTile: _labelDateSent (Localize component)
             public FieldInfo ChallengeEnabled;  // FriendTile: _challengeEnabled (bool)
-            public FieldInfo ButtonRemoveFriend; // Button
-            public FieldInfo ButtonBlockFriend;  // Button
-            public FieldInfo ButtonChallengeFriend; // Button
+            public FieldInfo ButtonRemoveFriend; // FriendTile: _buttonRemoveFriend (Button)
+            public FieldInfo ButtonBlockFriend;  // FriendTile: _buttonBlockFriend (Button)
+            public FieldInfo ButtonChallengeFriend; // FriendTile: _buttonChallengeFriend (Button)
             public FieldInfo ButtonCancel;       // InviteOutgoingTile: _buttonCancel (Button)
+            public FieldInfo ButtonAccept;       // InviteIncomingTile: _buttonAccept (Button)
+            public FieldInfo ButtonReject;       // InviteIncomingTile: _buttonReject (Button)
+            public FieldInfo ButtonBlock;        // InviteIncomingTile: _buttonBlock (Button)
+            public FieldInfo ButtonRemoveBlock;  // BlockTile: _buttonRemoveBlock (Button)
             public FieldInfo CallbackOpenChat;   // Action<SocialEntity>
+            public FieldInfo CallbackRemoveBlock; // BlockTile: Callback_RemoveBlock (Action<Block>)
             public PropertyInfo FriendProp;      // FriendTile: Friend (SocialEntity)
-            public PropertyInfo InviteProp;      // InviteOutgoingTile: Invite
+            public PropertyInfo InviteProp;      // InviteOutgoingTile/InviteIncomingTile: Invite
+            public PropertyInfo BlockProp;       // BlockTile: Block
         }
 
         /// <summary>
@@ -147,7 +152,7 @@ namespace AccessibleArena.Core.Services
                 actions.Add((Strings.FriendActionDecline, ActionDecline));
                 actions.Add((Strings.FriendActionBlock, ActionBlock));
             }
-            else if (typeName.Contains("Blocked"))
+            else if (typeName == "BlockTile")
             {
                 actions.Add((Strings.FriendActionUnblock, ActionUnblock));
             }
@@ -183,16 +188,27 @@ namespace AccessibleArena.Core.Services
                         return ClickButton(tile, cache.ButtonRemoveFriend);
 
                     case ActionBlock:
-                        return ClickButton(tile, cache.ButtonBlockFriend);
+                        // FriendTile uses _buttonBlockFriend, InviteIncomingTile uses _buttonBlock
+                        if (cache.ButtonBlockFriend != null)
+                            return ClickButton(tile, cache.ButtonBlockFriend);
+                        return ClickButton(tile, cache.ButtonBlock);
 
                     case ActionRevoke:
                         return ClickButton(tile, cache.ButtonCancel);
 
                     case ActionAccept:
+                        if (cache.ButtonAccept != null)
+                            return ClickButton(tile, cache.ButtonAccept);
+                        return TryInvokeMethod(tile, actionId);
+
                     case ActionDecline:
+                        if (cache.ButtonReject != null)
+                            return ClickButton(tile, cache.ButtonReject);
+                        return TryInvokeMethod(tile, actionId);
+
                     case ActionUnblock:
-                        // For tile types we haven't fully mapped yet,
-                        // try finding a method by convention
+                        if (cache.ButtonRemoveBlock != null)
+                            return ClickButton(tile, cache.ButtonRemoveBlock);
                         return TryInvokeMethod(tile, actionId);
 
                     default:
@@ -249,9 +265,15 @@ namespace AccessibleArena.Core.Services
                 ButtonBlockFriend = type.GetField("_buttonBlockFriend", flags),
                 ButtonChallengeFriend = type.GetField("_buttonChallengeFriend", flags),
                 ButtonCancel = type.GetField("_buttonCancel", flags),
+                ButtonAccept = type.GetField("_buttonAccept", flags),
+                ButtonReject = type.GetField("_buttonReject", flags),
+                ButtonBlock = type.GetField("_buttonBlock", flags),
+                ButtonRemoveBlock = type.GetField("_buttonRemoveBlock", flags),
                 CallbackOpenChat = type.GetField("Callback_OpenChat", flags),
+                CallbackRemoveBlock = type.GetField("Callback_RemoveBlock", flags),
                 FriendProp = type.GetProperty("Friend", flags),
-                InviteProp = type.GetProperty("Invite", flags)
+                InviteProp = type.GetProperty("Invite", flags),
+                BlockProp = type.GetProperty("Block", flags)
             };
 
             _caches[type] = cache;

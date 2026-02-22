@@ -2083,6 +2083,265 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Discover social tile entries that were missed by the standard CustomButton scan.
+        /// Handles two cases:
+        /// 1. Tiles with non-CustomButton clickable components
+        /// 2. Tiles in collapsed/inactive sections (Blocked section is collapsed by default)
+        /// For collapsed sections, expands them first so entries become active and interactable.
+        /// </summary>
+        private void DiscoverSocialTileEntries(
+            HashSet<GameObject> addedObjects,
+            List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)> discoveredElements,
+            System.Func<GameObject, string> getParentPath)
+        {
+            // Find the social panel root
+            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+            if (socialPanel == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Social tile scan: social panel not found");
+                return;
+            }
+
+            // Step 1: Ensure tiles exist for all sections (especially Blocked which is collapsed by default).
+            // The game uses a virtualized scroll view - tiles only exist for viewport-visible entries.
+            // For blocked users, we need to force-create tiles via the FriendsWidget.
+            EnsureAllSocialTilesExist(socialPanel);
+
+            // Step 2: Scan for tile components (now including newly created ones)
+            string[] tileTypeNames = { "FriendTile", "InviteOutgoingTile", "InviteIncomingTile", "BlockTile" };
+            int scanned = 0;
+            int added = 0;
+
+            foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null) continue;
+
+                string typeName = mb.GetType().Name;
+                bool isTile = false;
+                foreach (var tileName in tileTypeNames)
+                {
+                    if (typeName == tileName) { isTile = true; break; }
+                }
+                if (!isTile) continue;
+                scanned++;
+
+                var tileObj = mb.gameObject;
+                if (!tileObj.activeInHierarchy)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Social tile scan: {typeName} '{tileObj.name}' is INACTIVE");
+                    continue;
+                }
+
+                // Try to find the clickable child element (Backer_Hitbox is the standard pattern)
+                GameObject clickable = null;
+                var hitbox = tileObj.transform.Find("Backer_Hitbox");
+                if (hitbox != null && hitbox.gameObject.activeInHierarchy)
+                    clickable = hitbox.gameObject;
+
+                // Fallback: search immediate children for any Button or CustomButton component
+                if (clickable == null)
+                {
+                    foreach (Transform child in tileObj.transform)
+                    {
+                        if (!child.gameObject.activeInHierarchy) continue;
+                        foreach (var comp in child.GetComponents<MonoBehaviour>())
+                        {
+                            if (comp != null && (IsCustomButtonType(comp.GetType().Name) || comp is Button))
+                            {
+                                clickable = child.gameObject;
+                                break;
+                            }
+                        }
+                        if (clickable != null) break;
+                    }
+                }
+
+                // Last resort: use the tile's own GameObject
+                if (clickable == null)
+                    clickable = tileObj;
+
+                // Skip if this element was already discovered by the standard scan
+                if (addedObjects.Contains(clickable)) continue;
+
+                // Get label from FriendInfoProvider for proper "name, status" format
+                string label = FriendInfoProvider.GetFriendLabel(clickable);
+                if (string.IsNullOrEmpty(label))
+                    label = FriendInfoProvider.GetFriendLabel(tileObj);
+                if (string.IsNullOrEmpty(label))
+                    label = UITextExtractor.GetText(tileObj) ?? tileObj.name;
+
+                var pos = clickable.transform.position;
+                float sortOrder = -pos.y * 1000 + pos.x;
+
+                discoveredElements.Add((clickable, new UIElementClassifier.ClassificationResult
+                {
+                    Role = UIElementClassifier.ElementRole.Button,
+                    Label = label,
+                    RoleLabel = "button",
+                    IsNavigable = true,
+                    ShouldAnnounce = true
+                }, sortOrder));
+                addedObjects.Add(clickable);
+                added++;
+
+                string parentPath = getParentPath(clickable);
+                MelonLogger.Msg($"[{NavigatorId}] Social tile fallback: {typeName} -> {clickable.name}, label='{label}', path={parentPath}");
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Social tile scan: {scanned} tiles found, {added} new entries added");
+        }
+
+        /// <summary>
+        /// Ensure all social tile entries exist, especially for the Blocked section.
+        /// The game uses a virtualized scroll view and the Blocked section is collapsed by default,
+        /// so tiles may not exist. We force-create them via the FriendsWidget using reflection.
+        /// </summary>
+        private void EnsureAllSocialTilesExist(GameObject socialPanel)
+        {
+            // Find FriendsWidget component
+            Component widget = null;
+            foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "FriendsWidget")
+                {
+                    widget = mb;
+                    break;
+                }
+            }
+
+            if (widget == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] FriendsWidget not found in social panel");
+                return;
+            }
+
+            var widgetType = widget.GetType();
+            var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+            // Open all collapsed sections by setting _isOpen directly (avoids triggering sound effects)
+            foreach (var sectionName in new[] { "SectionBlocks", "SectionIncomingInvites", "SectionOutgoingInvites", "SectionFriends" })
+            {
+                var sectionField = widgetType.GetField(sectionName, flags);
+                if (sectionField == null) continue;
+
+                var header = sectionField.GetValue(widget) as Component;
+                if (header == null) continue;
+
+                var isOpenField = header.GetType().GetField("_isOpen", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (isOpenField != null)
+                {
+                    bool isOpen = (bool)isOpenField.GetValue(header);
+                    if (!isOpen)
+                    {
+                        isOpenField.SetValue(header, true);
+                        MelonLogger.Msg($"[{NavigatorId}] Opened social section: {sectionName}");
+                    }
+                }
+            }
+
+            // Force-create blocked user tiles.
+            // The game's virtualized list only creates tiles within the viewport.
+            // Blocked section is at the bottom and collapsed, so tiles never get created.
+            EnsureBlockedTilesExist(widget, widgetType, flags);
+        }
+
+        /// <summary>
+        /// Ensure BlockTile instances exist for all blocked users.
+        /// Creates tiles from the prefab and initializes them with Block data,
+        /// mirroring what FriendsWidget.CreateWidget_Block + UpdateBlocksList do.
+        /// </summary>
+        private void EnsureBlockedTilesExist(Component widget, Type widgetType, BindingFlags flags)
+        {
+            try
+            {
+                // Access _socialManager from FriendsWidget
+                var smField = widgetType.GetField("_socialManager", flags);
+                var socialManager = smField?.GetValue(widget);
+                if (socialManager == null) return;
+
+                // Get blocked users list: _socialManager.Blocks
+                var blocksProp = socialManager.GetType().GetProperty("Blocks");
+                var blocks = blocksProp?.GetValue(socialManager) as System.Collections.IList;
+                if (blocks == null || blocks.Count == 0) return;
+
+                // Get the section header
+                var sectionField = widgetType.GetField("SectionBlocks", flags);
+                var section = sectionField?.GetValue(widget) as Component;
+                if (section == null) return;
+
+                // Ensure section header is visible (SetCount activates the header if count > 0)
+                var setCount = section.GetType().GetMethod("SetCount");
+                setCount?.Invoke(section, new object[] { blocks.Count });
+
+                // Get the active block tiles pool
+                var tilesField = widgetType.GetField("_activeBlockTiles", flags);
+                var activeTiles = tilesField?.GetValue(widget) as System.Collections.IList;
+                if (activeTiles == null) return;
+
+                // Get the prefab for BlockTile
+                var prefabField = widgetType.GetField("_prefabBlockTile", flags);
+                var prefab = prefabField?.GetValue(widget) as Component;
+                if (prefab == null) return;
+
+                // Get RemoveBlock method from social manager for callback
+                var removeBlockMethod = socialManager.GetType().GetMethod("RemoveBlock");
+
+                // Get WidgetSize for tile positioning
+                var widgetSizeField = widgetType.GetField("WidgetSize", flags);
+                float widgetSize = widgetSizeField != null ? (float)widgetSizeField.GetValue(widget) : 60f;
+
+                // Create tiles until we have enough for all blocked users
+                int created = 0;
+                for (int i = activeTiles.Count; i < blocks.Count; i++)
+                {
+                    var tile = UnityEngine.Object.Instantiate(prefab, section.transform);
+                    activeTiles.Add(tile);
+                    created++;
+
+                    // Set Callback_RemoveBlock = _socialManager.RemoveBlock
+                    if (removeBlockMethod != null)
+                    {
+                        var callbackField = tile.GetType().GetField("Callback_RemoveBlock", flags);
+                        if (callbackField != null)
+                        {
+                            try
+                            {
+                                var callback = Delegate.CreateDelegate(callbackField.FieldType, socialManager, removeBlockMethod);
+                                callbackField.SetValue(tile, callback);
+                            }
+                            catch (Exception ex)
+                            {
+                                MelonLogger.Warning($"[{NavigatorId}] Failed to set RemoveBlock callback: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+
+                // Initialize all tiles with their block data and position them
+                var initMethod = prefab.GetType().GetMethod("Init", flags);
+                for (int i = 0; i < blocks.Count && i < activeTiles.Count; i++)
+                {
+                    var tile = activeTiles[i] as Component;
+                    if (tile == null) continue;
+
+                    initMethod?.Invoke(tile, new[] { blocks[i] });
+
+                    // Position tile for proper sort order within the group
+                    var rt = tile.transform as RectTransform;
+                    if (rt != null)
+                        rt.anchoredPosition = new Vector2(0f, -i * widgetSize);
+                }
+
+                if (created > 0 || blocks.Count > 0)
+                    MelonLogger.Msg($"[{NavigatorId}] Blocked tiles: {blocks.Count} blocked users, {created} new tiles created, {activeTiles.Count} total");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[{NavigatorId}] Error ensuring blocked tiles: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Check if element is inside the current content panel.
         /// Special handling for CampaignGraph which allows blade elements.
         /// </summary>
@@ -2798,6 +3057,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Note: Settings custom controls (dropdowns, steppers) now handled by SettingsMenuNavigator
+
+            // Social panel: discover tile entries that may not have CustomButton components.
+            // BlockTile has no CustomButton (only a Button), so it needs fallback discovery.
+            // Also forces creation of blocked tiles (section is collapsed by default).
+            if (_overlayDetector.GetActiveOverlay() == ElementGroup.FriendsPanel)
+            {
+                DiscoverSocialTileEntries(addedObjects, discoveredElements, GetParentPath);
+            }
 
             // Find deck toolbar buttons for attached actions (Delete, Edit, Export)
             // These are in DeckManager_Desktop_16x9(Clone)/SafeArea/MainButtons/
@@ -3597,6 +3864,7 @@ namespace AccessibleArena.Core.Services
                     {
                         RefreshFriendActions();
                         AnnounceFriendEntry();
+                        AnnounceFirstFriendAction();
                     }
                     return;
                 }
@@ -3670,6 +3938,7 @@ namespace AccessibleArena.Core.Services
                     {
                         RefreshFriendActions();
                         AnnounceFriendEntry();
+                        AnnounceFirstFriendAction();
                     }
                     return;
                 }
@@ -3731,6 +4000,7 @@ namespace AccessibleArena.Core.Services
                 {
                     RefreshFriendActions();
                     AnnounceFriendEntry();
+                    AnnounceFirstFriendAction();
                 }
                 else
                 {
@@ -3857,6 +4127,7 @@ namespace AccessibleArena.Core.Services
                 {
                     RefreshFriendActions();
                     AnnounceFriendEntry();
+                    AnnounceFirstFriendAction();
                 }
                 else
                 {
@@ -3953,9 +4224,10 @@ namespace AccessibleArena.Core.Services
                     }
                     else if (enteredGroup.HasValue && enteredGroup.Value.Group.IsFriendSectionGroup())
                     {
-                        // Friend section: initialize actions and announce first friend
+                        // Friend section: initialize actions and announce first friend + default action
                         RefreshFriendActions();
                         AnnounceFriendEntry();
+                        AnnounceFirstFriendAction();
                     }
                     else
                     {
@@ -4515,6 +4787,8 @@ namespace AccessibleArena.Core.Services
             {
                 if (_friendActionIndex >= _friendActions.Count - 1)
                 {
+                    // Re-announce current action at boundary (like GroupedNavigator does for elements)
+                    AnnounceFriendActionPosition();
                     _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                     return;
                 }
@@ -4524,14 +4798,42 @@ namespace AccessibleArena.Core.Services
             {
                 if (_friendActionIndex <= 0)
                 {
+                    // Re-announce current action at boundary
+                    AnnounceFriendActionPosition();
                     _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                     return;
                 }
                 _friendActionIndex--;
             }
 
+            AnnounceFriendActionPosition();
+        }
+
+        /// <summary>
+        /// Announce the current friend action with its position (e.g., "Revoke, 1 of 1").
+        /// </summary>
+        private void AnnounceFriendActionPosition()
+        {
+            if (_friendActions == null || _friendActions.Count == 0) return;
+            if (_friendActionIndex < 0 || _friendActionIndex >= _friendActions.Count) return;
+
             var (label, _) = _friendActions[_friendActionIndex];
-            _announcer.AnnounceInterrupt(label);
+            _announcer.AnnounceInterrupt(
+                Strings.ItemPositionOf(_friendActionIndex + 1, _friendActions.Count, label));
+        }
+
+        /// <summary>
+        /// Announce the first/default friend action after entering a section or moving to a new friend.
+        /// Tells the user what pressing Enter will do.
+        /// </summary>
+        private void AnnounceFirstFriendAction()
+        {
+            if (_friendActions == null || _friendActions.Count == 0) return;
+
+            var (label, _) = _friendActions[0];
+            _announcer.Announce(
+                Strings.ItemPositionOf(1, _friendActions.Count, label),
+                AnnouncementPriority.Normal);
         }
 
         /// <summary>
