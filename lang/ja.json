@@ -437,6 +437,7 @@
   "GroupFriendSectionIncoming": "受信リクエスト",
   "GroupFriendSectionOutgoing": "送信リクエスト",
   "GroupFriendSectionBlocked": "ブロック済み",
+  "GroupChallengeMain": "Challenge Settings",
   "GroupOther": "その他",
 
   "NoItemsFound": "項目が見つかりません。",

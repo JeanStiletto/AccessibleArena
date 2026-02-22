@@ -101,6 +101,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     return ElementGroup.DeckBuilderDeckList;
             }
 
+            // Challenge screen containers -> ChallengeMain group
+            // Must be checked BEFORE PlayBlade and Popup, since challenge containers
+            // were previously routed through IsInsidePlayBlade.
+            // Exception: InviteFriendPopup elements go to Popup (popup overlay takes over)
+            if (IsChallengeContainer(parentPath, name))
+            {
+                // InviteFriendPopup inside challenge -> Popup overlay
+                if (parentPath.Contains("InviteFriendPopup"))
+                    return ElementGroup.Popup;
+                return ElementGroup.ChallengeMain;
+            }
+
             // Popup/Dialog - be specific to avoid matching "Screenspace Popups" canvas
             // Look for actual popup panel patterns, not just "Popup" substring
             // Skip Popup classification for elements inside PlayBlade (InviteFriendPopup is
@@ -551,21 +563,34 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 parentPath.Contains("BladeContent") || parentPath.Contains("BladeContainer"))
                 return true;
 
-            // Challenge screen containers (inside FriendsWidget, not PlayBlade hierarchy)
-            if (parentPath.Contains("ChallengeOptions") || parentPath.Contains("ChallengeWidget") ||
-                parentPath.Contains("InviteFriendPopup") || parentPath.Contains("UnifiedChallenges"))
-                return true;
-
-            // Challenge play button and deck selection area (inside PlaybladeParent)
-            if (parentPath.Contains("Popout_Play") || parentPath.Contains("FriendChallengeBladeWidget"))
-                return true;
-
             // FindMatch blade
             if (parentPath.Contains("FindMatch"))
                 return true;
 
             // Filter list items in blade context
             if (name.Contains("FilterListItem") && parentPath.Contains("Blade"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside a challenge screen container.
+        /// Challenge containers are separate from PlayBlade - they get their own ChallengeMain group.
+        /// </summary>
+        private static bool IsChallengeContainer(string parentPath, string name)
+        {
+            // Challenge options spinners and settings
+            if (parentPath.Contains("ChallengeOptions") || parentPath.Contains("ChallengeWidget") ||
+                parentPath.Contains("UnifiedChallenges"))
+                return true;
+
+            // Challenge play button and deck selection area
+            if (parentPath.Contains("Popout_Play") || parentPath.Contains("FriendChallengeBladeWidget"))
+                return true;
+
+            // InviteFriendPopup (challenge invite dialog)
+            if (parentPath.Contains("InviteFriendPopup"))
                 return true;
 
             return false;

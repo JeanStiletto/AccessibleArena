@@ -1616,9 +1616,6 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive || !IsValidIndex) return;
 
-            // Debug: Check if challenge buttons are active or inactive
-            DebugCheckChallengeButtons();
-
             // Remember what we're focused on
             var currentObj = _elements[_currentIndex].GameObject;
             int oldCount = _elements.Count;
@@ -1652,39 +1649,6 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Spinner rescan: {oldCount} -> {_elements.Count} elements");
                 string posAnnouncement = Strings.ItemPositionOf(_currentIndex + 1, _elements.Count, _elements[_currentIndex].Label);
                 _announcer.Announce(posAnnouncement, AnnouncementPriority.Normal);
-            }
-        }
-
-        /// <summary>
-        /// Debug: Check if known challenge buttons exist and whether they're active or inactive.
-        /// Helps diagnose why Leave/Invite buttons disappear after DeckSelectBlade opens.
-        /// </summary>
-        protected void DebugCheckChallengeButtons()
-        {
-            string[] challengeButtonNames = { "MainButton_Leave", "Invite Button", "UnifiedChallenge_MainButton", "NoDeck" };
-            foreach (string btnName in challengeButtonNames)
-            {
-                var active = GameObject.Find(btnName);
-                if (active != null)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Challenge btn '{btnName}': ACTIVE");
-                }
-                else
-                {
-                    // Not found via Find (only finds active) - check if it exists but is inactive
-                    bool foundInactive = false;
-                    foreach (var t in Resources.FindObjectsOfTypeAll<Transform>())
-                    {
-                        if (t != null && t.name == btnName && !t.gameObject.activeInHierarchy)
-                        {
-                            MelonLogger.Msg($"[{NavigatorId}] Challenge btn '{btnName}': INACTIVE (exists but hidden)");
-                            foundInactive = true;
-                            break;
-                        }
-                    }
-                    if (!foundInactive)
-                        MelonLogger.Msg($"[{NavigatorId}] Challenge btn '{btnName}': NOT FOUND");
-                }
             }
         }
 

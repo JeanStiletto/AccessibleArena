@@ -93,6 +93,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         PlayBladeFolders,
 
         /// <summary>
+        /// Challenge screen main settings. Flat list of spinners, buttons, and status elements.
+        /// Used for Direct Challenge and Friend Challenge screens.
+        /// </summary>
+        ChallengeMain,
+
+        /// <summary>
         /// Settings menu elements. Suppresses all other groups when active.
         /// </summary>
         SettingsMenu,
@@ -200,7 +206,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.DeckBuilderInfo
                 || group == ElementGroup.MailboxList
                 || group == ElementGroup.MailboxContent
-                || group == ElementGroup.RewardsPopup;
+                || group == ElementGroup.RewardsPopup
+                || group == ElementGroup.ChallengeMain;
         }
 
         /// <summary>
@@ -227,6 +234,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.FriendSectionIncoming
                 || group == ElementGroup.FriendSectionOutgoing
                 || group == ElementGroup.FriendSectionBlocked;
+        }
+
+        /// <summary>
+        /// Returns true if this group is the challenge main group.
+        /// </summary>
+        public static bool IsChallengeGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.ChallengeMain;
         }
 
         /// <summary>

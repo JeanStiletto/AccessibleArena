@@ -440,6 +440,7 @@
   "GroupFriendSectionIncoming": "Incoming Requests",
   "GroupFriendSectionOutgoing": "Sent Requests",
   "GroupFriendSectionBlocked": "Blocked",
+  "GroupChallengeMain": "Challenge Settings",
   "GroupOther": "Other",
 
   "NoItemsFound": "No items found.",

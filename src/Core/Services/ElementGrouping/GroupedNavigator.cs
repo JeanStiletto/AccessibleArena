@@ -124,6 +124,25 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private bool _isPlayBladeContext = false;
 
         /// <summary>
+        /// Whether we're currently in a Challenge context (Direct/Friend Challenge screen).
+        /// Set by ChallengeNavigationHelper when challenge opens/closes.
+        /// Used to determine whether to create PlayBladeFolders wrapper group for deck selection.
+        /// </summary>
+        private bool _isChallengeContext = false;
+
+        /// <summary>
+        /// When true, auto-enter ChallengeMain group after next OrganizeIntoGroups.
+        /// Set when challenge opens or when returning from deck selection.
+        /// </summary>
+        private bool _pendingChallengeMainEntry = false;
+
+        /// <summary>
+        /// Specific element index to restore when entering ChallengeMain.
+        /// Used by spinner rescan to preserve position.
+        /// </summary>
+        private int _pendingChallengeMainEntryIndex = -1;
+
+        /// <summary>
         /// Reference to the FindMatch game tab for proxy clicking when not active.
         /// Stored when building PlayBladeTabs so virtual queue type entries can activate it.
         /// </summary>
@@ -431,6 +450,62 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public bool IsPlayBladeContext => _isPlayBladeContext;
 
         /// <summary>
+        /// Whether we're currently in a Challenge context.
+        /// </summary>
+        public bool IsChallengeContext => _isChallengeContext;
+
+        /// <summary>
+        /// Set whether we're in a Challenge context.
+        /// Call when challenge screen opens (true) or closes (false).
+        /// </summary>
+        public void SetChallengeContext(bool isActive)
+        {
+            _isChallengeContext = isActive;
+
+            if (!isActive)
+            {
+                _pendingChallengeMainEntry = false;
+                _pendingChallengeMainEntryIndex = -1;
+                _pendingGroupRestore = null;
+                _pendingLevelRestore = NavigationLevel.GroupList;
+                _pendingElementIndexRestore = -1;
+                MelonLogger.Msg($"[GroupedNavigator] Challenge context set to: {isActive} - cleared pending state");
+            }
+            else
+            {
+                MelonLogger.Msg($"[GroupedNavigator] Challenge context set to: {isActive}");
+            }
+        }
+
+        /// <summary>
+        /// Request auto-entry into ChallengeMain group after next rescan.
+        /// Call when challenge opens or when returning from deck selection.
+        /// </summary>
+        public void RequestChallengeMainEntry()
+        {
+            _pendingChallengeMainEntry = true;
+            _pendingChallengeMainEntryIndex = -1;
+            _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeContentEntry = false;
+            _pendingFoldersEntry = false;
+            MelonLogger.Msg("[GroupedNavigator] Requested ChallengeMain auto-entry");
+        }
+
+        /// <summary>
+        /// Request auto-entry into ChallengeMain group at a specific element index.
+        /// Used by spinner rescan to restore the user's position on their stepper.
+        /// </summary>
+        public void RequestChallengeMainEntryAtIndex(int elementIndex)
+        {
+            _pendingChallengeMainEntry = true;
+            _pendingChallengeMainEntryIndex = elementIndex;
+            _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeContentEntry = false;
+            _pendingFoldersEntry = false;
+            MelonLogger.Msg($"[GroupedNavigator] Requested ChallengeMain auto-entry at index {elementIndex}");
+        }
+
+        /// <summary>
         /// Save the current group state for restoration after rescan.
         /// Call this before triggering a rescan to preserve the user's position.
         /// </summary>
@@ -588,6 +663,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.MailboxContent,
                 ElementGroup.PlayBladeTabs,
                 ElementGroup.PlayBladeContent,
+                ElementGroup.ChallengeMain,
                 ElementGroup.SettingsMenu,
                 ElementGroup.NPE,
                 ElementGroup.DeckBuilderCollection,
@@ -682,7 +758,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Add folder groups
             // In PlayBlade context: Create a single PlayBladeFolders group containing folder selectors
             // Outside PlayBlade: Each folder becomes its own group (current behavior for Decks screen)
-            if (_isPlayBladeContext && folderToggles.Count > 0)
+            if ((_isPlayBladeContext || _isChallengeContext) && folderToggles.Count > 0)
             {
                 // Create folder selector elements for the PlayBladeFolders group
                 var folderSelectors = new List<GroupedElement>();
@@ -845,6 +921,29 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
             }
 
+            // Check for pending ChallengeMain entry (set when challenge opens or returning from deck selection)
+            bool challengeAutoEntryPerformed = false;
+            if (_pendingChallengeMainEntry)
+            {
+                _pendingChallengeMainEntry = false;
+                int requestedIndex = _pendingChallengeMainEntryIndex;
+                _pendingChallengeMainEntryIndex = -1;
+                // Find ChallengeMain group and auto-enter it
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group == ElementGroup.ChallengeMain && _groups[i].Count > 0)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        int maxIdx = _groups[i].Count - 1;
+                        _currentElementIndex = (requestedIndex >= 0 && requestedIndex <= maxIdx) ? requestedIndex : 0;
+                        challengeAutoEntryPerformed = true;
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered ChallengeMain with {_groups[i].Count} items at index {_currentElementIndex}");
+                        break;
+                    }
+                }
+            }
+
             // Check for pending queue type activation (set when user enters a virtual queue type entry)
             if (_pendingQueueTypeActivation != null)
             {
@@ -945,10 +1044,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Restoring old state would interfere with the intended navigation flow
             if (_pendingGroupRestore.HasValue)
             {
-                if (_isPlayBladeContext || enteredPendingFolder || playBladeAutoEntryPerformed)
+                if (_isPlayBladeContext || _isChallengeContext || enteredPendingFolder || playBladeAutoEntryPerformed || challengeAutoEntryPerformed)
                 {
                     // Clear stale restore state - auto-entries take precedence
-                    string reason = playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : "PlayBlade context");
+                    string reason = challengeAutoEntryPerformed ? "Challenge auto-entry" : (playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : (_isChallengeContext ? "Challenge context" : "PlayBlade context")));
                     MelonLogger.Msg($"[GroupedNavigator] Skipping group restore due to {reason} (was: {_pendingGroupRestore.Value})");
                     _pendingGroupRestore = null;
                     _pendingLevelRestore = NavigationLevel.GroupList;

@@ -127,6 +127,7 @@ namespace AccessibleArena.Core.Services
         private readonly ElementGroupAssigner _groupAssigner;
         private readonly GroupedNavigator _groupedNavigator;
         private readonly PlayBladeNavigationHelper _playBladeHelper;
+        private readonly ChallengeNavigationHelper _challengeHelper;
 
         /// <summary>
         /// Whether grouped (hierarchical) navigation is enabled.
@@ -305,6 +306,7 @@ namespace AccessibleArena.Core.Services
             _groupAssigner = new ElementGroupAssigner(_overlayDetector);
             _groupedNavigator = new GroupedNavigator(announcer, _groupAssigner);
             _playBladeHelper = new PlayBladeNavigationHelper(_groupedNavigator);
+            _challengeHelper = new ChallengeNavigationHelper(_groupedNavigator);
 
             // Subscribe to PanelStateManager for rescan triggers
             if (PanelStateManager.Instance != null)
@@ -327,6 +329,7 @@ namespace AccessibleArena.Core.Services
             // ALWAYS check PlayBlade state first, before any early returns
             // PlayBlade state can change even when panel source is SocialUI
             CheckAndInitPlayBladeHelper("ActiveChanged");
+            CheckAndInitChallengeHelper("ActiveChanged");
 
             // Ignore SocialUI as SOURCE of change - it's just the corner icon, causes spurious rescans
             // But DO rescan when something closes and falls back to SocialUI (e.g., popup closes)
@@ -366,6 +369,19 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void CheckAndInitPlayBladeHelper(string source)
         {
+            // Challenge screen uses PlayBladeState >= 2; skip normal PlayBlade init for those
+            int bladeState = PanelStateManager.Instance?.PlayBladeState ?? 0;
+            if (bladeState >= 2)
+            {
+                // If PlayBlade helper was active for regular blade, close it
+                if (_playBladeHelper.IsActive)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] CheckPlayBlade({source}): Challenge state {bladeState} - closing PlayBlade helper");
+                    _playBladeHelper.OnPlayBladeClosed();
+                }
+                return; // Challenge handled by CheckAndInitChallengeHelper
+            }
+
             bool isPlayBladeNowActive = PanelStateManager.Instance?.IsPlayBladeActive == true;
             bool helperIsActive = _playBladeHelper.IsActive;
 
@@ -384,6 +400,28 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Detect challenge screen state changes and initialize/close ChallengeNavigationHelper.
+        /// PlayBladeState 2 = DirectChallenge, 3 = FriendChallenge.
+        /// </summary>
+        private void CheckAndInitChallengeHelper(string source)
+        {
+            int bladeState = PanelStateManager.Instance?.PlayBladeState ?? 0;
+            bool isChallengeNow = bladeState >= 2;
+            bool helperIsActive = _challengeHelper.IsActive;
+
+            if (isChallengeNow && !helperIsActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Challenge screen became active (state={bladeState}) - initializing helper ({source})");
+                _challengeHelper.OnChallengeOpened();
+            }
+            else if (!isChallengeNow && helperIsActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Challenge screen became inactive - closing helper ({source})");
+                _challengeHelper.OnChallengeClosed();
+            }
+        }
+
+        /// <summary>
         /// Handler for PanelStateManager.OnAnyPanelOpened - fires when ANY panel opens.
         /// Used for triggering rescans on screens that don't filter (e.g., HomePage).
         /// Also handles special behaviors like Color Challenge blade auto-expand.
@@ -394,6 +432,7 @@ namespace AccessibleArena.Core.Services
 
             // ALWAYS check PlayBlade state first, before any early returns
             CheckAndInitPlayBladeHelper("AnyOpened");
+            CheckAndInitChallengeHelper("AnyOpened");
 
             // SocialUI events: only rescan if the Friends panel is actually open
             // The corner social button triggers SocialUI events but shouldn't cause rescans
@@ -1090,7 +1129,23 @@ namespace AccessibleArena.Core.Services
                     return false; // Let it pass through to the input field
                 }
 
-                // PlayBlade gets priority - helper handles all PlayBlade navigation
+                // Challenge helper gets priority over PlayBlade
+                if (_challengeHelper.IsActive)
+                {
+                    var challengeResult = _challengeHelper.HandleBackspace();
+                    switch (challengeResult)
+                    {
+                        case PlayBladeResult.CloseBlade:
+                            return ClosePlayBlade();
+                        case PlayBladeResult.RescanNeeded:
+                            TriggerRescan();
+                            return true;
+                        case PlayBladeResult.Handled:
+                            return true;
+                    }
+                }
+
+                // PlayBlade navigation
                 var playBladeResult = _playBladeHelper.HandleBackspace();
                 switch (playBladeResult)
                 {
@@ -1103,7 +1158,7 @@ namespace AccessibleArena.Core.Services
                         return true;
                 }
 
-                // Not PlayBlade - use grouped navigation if inside a group
+                // Not PlayBlade/Challenge - use grouped navigation if inside a group
                 if (HandleGroupedBackspace())
                     return true;
 
@@ -1891,6 +1946,20 @@ namespace AccessibleArena.Core.Services
         {
             LogDebug($"[{NavigatorId}] Attempting to close PlayBlade");
 
+            // Challenge screen: try the Leave button first
+            if (_challengeHelper.IsActive)
+            {
+                var leaveButton = GameObject.Find("MainButton_Leave");
+                if (leaveButton != null && leaveButton.activeInHierarchy)
+                {
+                    LogDebug($"[{NavigatorId}] Found MainButton_Leave, activating");
+                    _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(leaveButton);
+                    ClearBladeStateAndRescan();
+                    return true;
+                }
+            }
+
             var bladeIsOpenButton = GameObject.Find("Btn_BladeIsOpen");
             if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
             {
@@ -1922,6 +1991,8 @@ namespace AccessibleArena.Core.Services
         {
             LogDebug($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
             _playBladeHelper.OnPlayBladeClosed();
+            if (_challengeHelper.IsActive)
+                _challengeHelper.OnChallengeClosed();
             ReportPanelClosedByName("PlayBlade");
             PanelStateManager.Instance?.SetPlayBladeState(0);
             TriggerRescan();
@@ -2518,13 +2589,6 @@ namespace AccessibleArena.Core.Services
                 // PlayBlade specific containers
                 if (name.Contains("PlayBlade") || name.Contains("Play_Blade"))
                     return true;
-                // Challenge screen containers (inside FriendsWidget, not PlayBlade hierarchy)
-                if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
-                    name.Contains("InviteFriendPopup") || name.Contains("UnifiedChallenges"))
-                    return true;
-                // Challenge play button and deck selection area (inside PlaybladeParent)
-                if (name.Contains("Popout_Play") || name.Contains("FriendChallengeBladeWidget"))
-                    return true;
                 // Exclude other panels that use Blade naming
                 if (name.Contains("Mailbox") || name.Contains("PlayerInbox") ||
                     name.Contains("Settings") || name.Contains("Social"))
@@ -2717,16 +2781,23 @@ namespace AccessibleArena.Core.Services
         {
             if (!IsActive || !IsValidIndex) return;
 
-            DebugCheckChallengeButtons();
-
             // Save state for grouped navigation restoration
             bool usePlayBladeContentRestore = false;
+            bool useChallengeMainRestore = false;
             int groupedElementIndex = -1;
 
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 var currentGroup = _groupedNavigator.CurrentGroup;
-                if (_groupedNavigator.IsPlayBladeContext &&
+                if (_groupedNavigator.IsChallengeContext &&
+                    currentGroup.HasValue &&
+                    currentGroup.Value.Group == ElementGroup.ChallengeMain)
+                {
+                    // Challenge context: use explicit ChallengeMain entry with element index.
+                    groupedElementIndex = _groupedNavigator.CurrentElementIndex;
+                    useChallengeMainRestore = true;
+                }
+                else if (_groupedNavigator.IsPlayBladeContext &&
                     currentGroup.HasValue &&
                     currentGroup.Value.Group == ElementGroup.PlayBladeContent)
                 {
@@ -2744,8 +2815,12 @@ namespace AccessibleArena.Core.Services
             var currentObj = _elements[_currentIndex].GameObject;
             int oldCount = _elements.Count;
 
-            // Request PlayBlade content auto-entry BEFORE rescan so OrganizeIntoGroups processes it
-            if (usePlayBladeContentRestore)
+            // Request auto-entry BEFORE rescan so OrganizeIntoGroups processes it
+            if (useChallengeMainRestore)
+            {
+                _groupedNavigator.RequestChallengeMainEntryAtIndex(groupedElementIndex);
+            }
+            else if (usePlayBladeContentRestore)
             {
                 _groupedNavigator.RequestPlayBladeContentEntryAtIndex(groupedElementIndex);
             }
@@ -4494,8 +4569,14 @@ namespace AccessibleArena.Core.Services
 
                     if (wasFolderGroup)
                     {
+                        // In challenge context, go back to ChallengeMain after exiting a folder
+                        if (_challengeHelper.IsActive)
+                        {
+                            _groupedNavigator.RequestChallengeMainEntry();
+                            LogDebug($"[{NavigatorId}] Challenge folder exit - requesting ChallengeMain entry");
+                        }
                         // In PlayBlade context, go back to folders list after exiting a folder
-                        if (wasPlayBladeContext)
+                        else if (wasPlayBladeContext)
                         {
                             _groupedNavigator.RequestFoldersEntry();
                             LogDebug($"[{NavigatorId}] PlayBlade folder exit - requesting folders list entry");
@@ -4541,15 +4622,20 @@ namespace AccessibleArena.Core.Services
             // Check if this is a popup/dialog button (SystemMessageButton) - popup will close with animation
             bool isPopupButton = element.name.Contains("SystemMessageButton");
 
-            // Handle PlayBlade activations BEFORE UIActivator.Activate
+            // Handle Challenge/PlayBlade activations BEFORE UIActivator.Activate
             // Helper sets up pending entry flags before blade Hide/Show events can interfere
             var elementGroup = _groupAssigner.DetermineGroup(element);
+
+            // Challenge helper handles ChallengeMain elements (Select Deck button)
+            var challengeResult = _challengeHelper.IsActive
+                ? _challengeHelper.HandleEnter(element, elementGroup)
+                : PlayBladeResult.NotHandled;
 
             // Recent tab decks: skip PlayBlade helper (it would request folders entry, but
             // Recent tab has no folders — we handle auto-play directly below)
             bool isRecentTabDeck = elementGroup == ElementGroup.PlayBladeContent
                 && RecentPlayAccessor.IsActive && UIActivator.IsDeckEntry(element);
-            var playBladeResult = isRecentTabDeck
+            var playBladeResult = (isRecentTabDeck || _challengeHelper.IsActive)
                 ? PlayBladeResult.NotHandled
                 : _playBladeHelper.HandleEnter(element, elementGroup);
 
@@ -4578,8 +4664,17 @@ namespace AccessibleArena.Core.Services
             // Note: Mailbox mail item selection is detected via Harmony patch on OnLetterSelected
             // which announces the mail content directly with actual letter data
 
+            // Challenge deck selection: activate deck, return to ChallengeMain (no auto-play)
+            if (_challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Challenge deck selected - returning to ChallengeMain");
+                _challengeHelper.HandleDeckSelected();
+                TriggerRescan();
+                return true;
+            }
+
             // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
-            if (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            if (_playBladeHelper.IsActive && !_challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
             {
                 // Recent tab: press the tile's own play button instead of the generic PlayBlade one
                 if (isRecentTabDeck)
@@ -4615,8 +4710,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // PlayBlade mode activation needs rescan (mode selection doesn't trigger panel changes)
-            if (playBladeResult == PlayBladeResult.RescanNeeded)
+            // Challenge or PlayBlade activation needs rescan
+            if (challengeResult == PlayBladeResult.RescanNeeded || playBladeResult == PlayBladeResult.RescanNeeded)
             {
                 TriggerRescan();
                 return true;

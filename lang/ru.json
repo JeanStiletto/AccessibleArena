@@ -450,6 +450,7 @@
   "GroupFriendSectionIncoming": "Входящие запросы",
   "GroupFriendSectionOutgoing": "Отправленные запросы",
   "GroupFriendSectionBlocked": "Заблокированные",
+  "GroupChallengeMain": "Challenge Settings",
   "GroupOther": "Прочее",
 
   "NoItemsFound": "Элементы не найдены.",

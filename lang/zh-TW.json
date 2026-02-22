@@ -437,6 +437,7 @@
   "GroupFriendSectionIncoming": "收到的請求",
   "GroupFriendSectionOutgoing": "已發送請求",
   "GroupFriendSectionBlocked": "已封鎖",
+  "GroupChallengeMain": "Challenge Settings",
   "GroupOther": "其他",
 
   "NoItemsFound": "未找到項目。",
