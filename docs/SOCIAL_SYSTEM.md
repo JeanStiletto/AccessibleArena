@@ -183,3 +183,171 @@ Detection: `GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)")` + active `Friend
 - For Chat, the callback must be invoked directly with the `Friend` entity as parameter (not wired to a button)
 - `_challengeEnabled` controls challenge availability; `Friend.IsOnline` / `Friend.HasChatHistory` controls chat availability
 - The `Localize` component type is from `Wotc.Mtga.Loc` namespace
+
+---
+
+# Challenge Screen (Direct Challenge / Friend Challenge)
+
+Accessible navigation for MTGA's challenge screen. Provides flat navigation of spinners, buttons, and player status.
+
+**Trigger:** Challenge action on a friend tile, or "Challenge" button in social panel
+**Close:** Backspace from main level, or Leave button
+
+---
+
+## Navigation Structure
+
+Two-level navigation using the element grouping system:
+
+### Level 1: ChallengeMain (flat list)
+
+All spinners + buttons on the main challenge screen:
+- **Mode spinner** (always present) - e.g. "Pioneer-Turnier-Match"
+- **Additional spinners** (mode-dependent) - Deck Type, Format, Coin Flip (appear for some modes like "Herausforderungs-Match")
+- **Select Deck** button
+- **Leave** button (`MainButton_Leave`)
+- **Invite** button (in enemy player card, when no opponent invited)
+- **Status** button (`UnifiedChallenge_MainButton`) - shows ready/waiting/invalid deck status, prefixed with local player name
+
+### Level 2: Deck Selection (folder-based)
+
+Reuses PlayBladeFolders infrastructure:
+- Folder toggles (Meine Decks, Starterdecks, Brawl-Beispieldecks)
+- Deck entries within folders
+- NewDeck and EditDeck buttons (added as extra elements in folder group)
+
+### Invite Popup
+
+Handled by existing Popup overlay detection (PopupBase). Contains text input, dropdown, friend checkboxes.
+
+---
+
+## Key Behaviors
+
+### Spinner Changes
+- Left/Right arrows invoke OnNextValue/OnPreviousValue on spinner
+- Game auto-opens DeckSelectBlade on spinner change (game behavior, not mod)
+- Mod closes DeckSelectBlade via `Hide()` reflection call after spinner change
+- Mod preserves position via `RequestChallengeMainEntryAtIndex()`
+
+### Deck Selection Flow
+- Enter on Select Deck -> DeckSelectBlade opens -> folders/decks appear
+- Enter on deck -> deck selected -> auto-return to ChallengeMain
+- Backspace from folders -> return to ChallengeMain
+
+### Player Status Announcement
+- On entering challenge: "Direkte Herausforderung. Du: PlayerName, Status. Gegner: Not invited/PlayerName"
+- Local player name extracted from `UnifiedChallengeDisplay._localPlayerDisplay._playerName` (TMP_Text, stripped of rich text tags)
+- Main button label enhanced with player name prefix (e.g. "jean stiletto: Ungültiges Deck")
+
+---
+
+## Known Issue: Button Deactivation on DeckSelectBlade
+
+### Problem
+When DeckSelectBlade opens (either via Select Deck or auto-opened by spinner change), the game deactivates `MainButton_Leave` and `Invite Button` by setting their parent containers inactive. `FindObjectsOfType<CustomButton>()` only finds active objects, so these buttons disappear from our element list.
+
+### Root Cause (Confirmed via Decompilation)
+`PlayBladeController` has two methods that work as a pair:
+```
+ShowDeckSelector() {
+    DeckSelector.Show(...)                              // opens blade
+    _unifiedChallengeDisplay.gameObject.SetActive(false) // hides ENTIRE challenge display
+}
+HideDeckSelector() {
+    DeckSelector.Hide()                                  // closes blade
+    _unifiedChallengeDisplay.gameObject.SetActive(true)  // restores challenge display
+}
+```
+The `_unifiedChallengeDisplay` GameObject is the parent of `MainButton_Leave` and `Invite Button`. When it's deactivated, all children become `!activeInHierarchy` and invisible to `FindObjectsOfType`.
+
+Our mod was calling `DeckSelectBlade.Hide()` directly, which only does the first half. The `_unifiedChallengeDisplay` was never reactivated, so Leave and Invite stayed invisible.
+
+**Spinner change flow in game code:**
+1. `OnChallengeTypeChanged` / `OnDeckTypeChanged` calls `RefreshDeckSelector(allowRefresh: true)`
+2. `RefreshDeckSelector` calls `_playBlade.ShowDeckSelector(...)` which opens blade AND hides challenge display
+3. Sighted users see the deck selector overlay (challenge display hidden behind it)
+4. When done, `HideDeckSelector()` is called, which closes blade AND restores challenge display
+
+### Fix
+Call `PlayBladeController.HideDeckSelector()` instead of `DeckSelectBlade.Hide()` directly. This ensures both the blade closure and the challenge display reactivation happen together.
+
+### Evidence from Logs
+- Initial scan: 30 CustomButtons -> 5 ChallengeMain elements (including Leave + Invite)
+- After DeckSelectBlade opens: 149 CustomButtons -> Leave and Invite not found (parent deactivated)
+- After our `DeckSelectBlade.Hide()`: 29 CustomButtons -> Leave and Invite still missing (parent still inactive)
+- Using `HideDeckSelector()` would find 30+ CustomButtons again with Leave and Invite restored
+
+---
+
+## Unity Hierarchy (Runtime)
+
+```
+ContentController - Popout_Play_Desktop_16x9(Clone)
+  Popout
+    BladeView_CONTAINER
+      FriendChallengeBladeWidget
+        VerticalLayoutGroup
+          ChallengeOptions
+            Backer
+              Content
+                Popout_ModeMasterParameter     <- Spinner (mode)
+                [additional spinners per mode]
+        ContextDisplay
+          NoDeck                               <- Select Deck button
+          DeckDisplay                          <- shows selected deck
+        UnifiedChallengesCONTAINER
+          Menu
+            MainButtons
+              MainButton_Leave                 <- Leave button
+          EnemyCard_Challenges
+            No Player
+              Invite Button                    <- Invite button
+          UnifiedChallenge_MainButton          <- Status/Ready button
+```
+
+---
+
+## Reflection Details
+
+### UnifiedChallengeDisplay (no namespace)
+- `_localPlayerDisplay` (ChallengePlayerDisplay) - local player info
+- `_enemyPlayerDisplay` (ChallengePlayerDisplay) - opponent info
+
+### Wizards.Mtga.PrivateGame.ChallengePlayerDisplay
+- `_playerName` (TMP_Text) - player display name (with rich text color tags)
+- `_playerStatus` (Localize) - status text component
+- `_noPlayer` (GameObject) - shown when no opponent
+- `_playerInvited` (GameObject) - shown when opponent invited but not joined
+- `PlayerId` (string property) - player identifier
+
+### DeckSelectBlade
+- `Show(EventContext, DeckFormat, Action, Boolean)` - opens deck selection, stores onHide callback
+- `Hide()` - closes blade, calls `SetDeckBoxSelected(false)`, invokes `_onHideCallback`
+- `IsShowing` (property) - blade visibility state
+- WARNING: Call `PlayBladeController.HideDeckSelector()` instead of `DeckSelectBlade.Hide()` directly - see Button Deactivation section
+
+### PlayBladeController
+- `ShowDeckSelector(EventContext, DeckFormat, Action, bool)` - opens blade + deactivates `_unifiedChallengeDisplay`
+- `HideDeckSelector()` - closes blade + reactivates `_unifiedChallengeDisplay`
+- `OnSelectDeckClicked(EventContext, DeckFormat, Action)` - toggles deck selector (show/hide)
+- `DeckSelector` (public field) - reference to `DeckSelectBlade`
+- `PlayBladeVisualState` - Hidden, Events, or Challenge
+- `_unifiedChallengeDisplay` (private field) - the `UnifiedChallengeDisplay` component
+
+### UnifiedChallengeBladeWidget (extends PlayBladeWidget)
+- Manages spinners: `_challengeTypeSpinner`, `_deckTypeSpinner`, `_bestOfSpinner`, `_startingPlayerSpinner`
+- `OnChallengeTypeChanged` / `OnDeckTypeChanged` -> `RefreshDeckSelector(true)` -> opens DeckSelectBlade
+- `_settingsAnimator` controls UI layout (Expand, Tournament, Locked states)
+- `UpdateButton()` changes main/secondary button text based on `DeckSelector.IsShowing` and challenge state
+
+---
+
+## Implementation Files
+
+- **`ChallengeNavigationHelper.cs`** - Central helper: HandleEnter, HandleBackspace, OnChallengeOpened/Closed, HandleDeckSelected, player status, CloseDeckSelectBlade
+- **`ElementGroupAssigner.cs`** - `IsChallengeContainer()` routes elements to ChallengeMain; NewDeck/EditDeck to PlayBladeFolders; InviteFriendPopup to Popup
+- **`GroupedNavigator.cs`** - `_isChallengeContext`, `RequestChallengeMainEntry()`, folder extra elements support
+- **`OverlayDetector.cs`** - Returns ChallengeMain overlay when PlayBladeState >= 2; `IsInsideChallengeScreen()` checks
+- **`GeneralMenuNavigator.cs`** - Challenge helper integration, spinner rescan, label enhancement, player status in announcements
+- **`Strings.cs`** + `lang/*.json` - ChallengeYou, ChallengeOpponent, ChallengeNotInvited, ChallengeInvited, GroupChallengeMain

@@ -18,8 +18,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         // Cached reflection info for player status extraction
         private static Type _challengeDisplayType;
         private static Type _playerDisplayType;
-        private static Type _deckSelectBladeType;
-        private static MethodInfo _deckSelectHideMethod;
+        private static Type _playBladeControllerType;
+        private static MethodInfo _hideDeckSelectorMethod;
+        private static FieldInfo _deckSelectorField;
+        private static PropertyInfo _deckSelectorIsShowingProp;
         private static FieldInfo _localPlayerField;
         private static FieldInfo _enemyPlayerField;
         private static FieldInfo _playerNameField;
@@ -221,42 +223,62 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Close the DeckSelectBlade if it's currently showing.
-        /// Called after spinner changes in challenge context to prevent the blade from
-        /// auto-opening and causing inconsistent element counts.
+        /// Close the DeckSelectBlade via PlayBladeController.HideDeckSelector().
+        /// This is the game's proper close flow: it closes the blade AND reactivates
+        /// the UnifiedChallengeDisplay (which contains Leave and Invite buttons).
+        /// Calling DeckSelectBlade.Hide() directly would leave the challenge display
+        /// deactivated, making Leave and Invite buttons permanently invisible.
         /// </summary>
         public static void CloseDeckSelectBlade()
         {
             try
             {
-                if (_deckSelectBladeType == null)
+                if (_playBladeControllerType == null)
                 {
                     foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
                     {
-                        _deckSelectBladeType = asm.GetType("DeckSelectBlade");
-                        if (_deckSelectBladeType != null) break;
+                        _playBladeControllerType = asm.GetType("PlayBladeController");
+                        if (_playBladeControllerType != null) break;
                     }
-                    if (_deckSelectBladeType == null) return;
+                    if (_playBladeControllerType == null) return;
                 }
 
-                var blades = UnityEngine.Object.FindObjectsOfType(_deckSelectBladeType);
-                foreach (var blade in blades)
+                // Find the active PlayBladeController
+                var controllers = UnityEngine.Object.FindObjectsOfType(_playBladeControllerType);
+                foreach (var controller in controllers)
                 {
-                    var mb = blade as MonoBehaviour;
-                    if (mb != null && mb.gameObject.activeInHierarchy)
+                    var mb = controller as MonoBehaviour;
+                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+
+                    // Check if DeckSelector is showing before calling HideDeckSelector
+                    if (_deckSelectorField == null)
+                        _deckSelectorField = _playBladeControllerType.GetField("DeckSelector",
+                            BindingFlags.Public | BindingFlags.Instance);
+                    if (_deckSelectorField == null) continue;
+
+                    var deckSelector = _deckSelectorField.GetValue(controller);
+                    if (deckSelector == null) continue;
+
+                    if (_deckSelectorIsShowingProp == null)
+                        _deckSelectorIsShowingProp = deckSelector.GetType().GetProperty("IsShowing",
+                            BindingFlags.Public | BindingFlags.Instance);
+                    if (_deckSelectorIsShowingProp == null) continue;
+
+                    bool isShowing = (bool)_deckSelectorIsShowingProp.GetValue(deckSelector);
+                    if (!isShowing) continue;
+
+                    // Call HideDeckSelector() - this closes the blade AND reactivates challenge display
+                    if (_hideDeckSelectorMethod == null)
                     {
-                        if (_deckSelectHideMethod == null)
-                        {
-                            _deckSelectHideMethod = _deckSelectBladeType.GetMethod("Hide",
-                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        }
-                        if (_deckSelectHideMethod != null)
-                        {
-                            _deckSelectHideMethod.Invoke(blade, null);
-                            MelonLogger.Msg("[ChallengeHelper] Closed DeckSelectBlade after spinner change");
-                        }
-                        break;
+                        _hideDeckSelectorMethod = _playBladeControllerType.GetMethod("HideDeckSelector",
+                            BindingFlags.Public | BindingFlags.Instance);
                     }
+                    if (_hideDeckSelectorMethod != null)
+                    {
+                        _hideDeckSelectorMethod.Invoke(controller, null);
+                        MelonLogger.Msg("[ChallengeHelper] Closed DeckSelectBlade via PlayBladeController.HideDeckSelector");
+                    }
+                    break;
                 }
             }
             catch (Exception ex)
