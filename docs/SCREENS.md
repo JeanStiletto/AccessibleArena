@@ -669,7 +669,7 @@ The Friends Panel is an overlay that shows friends, sent/incoming requests, and 
 - FriendTile: Chat (if online/has history), Challenge (if enabled), Unfriend, Block
 - InviteOutgoingTile: Revoke
 - InviteIncomingTile: Accept, Decline, Block
-- BlockedTile: Unblock
+- BlockTile: Unblock
 
 **Technical Notes:**
 - Social tile types live in Core.dll (no namespace), NOT Assembly-CSharp.dll
@@ -678,6 +678,48 @@ The Friends Panel is an overlay that shows friends, sent/incoming requests, and 
 - Element assignment via parentPath bucket detection (`Bucket_Friends_CONTAINER`, `Bucket_SentRequests_CONTAINER`, etc.)
 - `SocialEntittiesListItem` has double-t typo in game code (matched with both spellings)
 - See `docs/SOCIAL_SYSTEM.md` for full implementation details
+
+## Challenge Screen (Direct Challenge / Friend Challenge)
+
+**Navigator:** `GeneralMenuNavigator` (overlay mode via element grouping + `ChallengeNavigationHelper`)
+**Trigger:** Challenge action on a friend tile, or "Challenge" button in social panel
+**Close:** Backspace from main level, or Leave button
+
+The Challenge Screen provides two-level navigation: a flat main settings list and folder-based deck selection.
+
+**Level 1 - ChallengeMain (flat list):**
+- Mode spinner (always present)
+- Additional spinners (mode-dependent: Deck Type, Format, Coin Flip)
+- Select Deck button
+- Leave button (`MainButton_Leave`)
+- Invite button (when no opponent invited)
+- Status button (`UnifiedChallenge_MainButton`) - prefixed with local player name
+
+**Level 2 - Deck Selection (folder-based):**
+- Reuses PlayBladeFolders infrastructure (folder toggles, deck entries)
+
+**Navigation - ChallengeMain:**
+- Up/Down arrows: Navigate between spinners and buttons
+- Left/Right arrows: Change spinner value (OnNextValue/OnPreviousValue)
+- Enter: Activate button (Select Deck opens deck selection, Invite opens popup)
+- Backspace: Close challenge blade (leave challenge)
+
+**Navigation - Deck Selection:**
+- Same as PlayBlade folder navigation
+- Enter on deck: select deck, auto-return to ChallengeMain
+- Backspace: return to ChallengeMain
+
+**Announcements:**
+- On entry: "Challenge Settings. You: PlayerName, Status. Opponent: Not invited/OpponentName"
+- Status button: "PlayerName: Invalid Deck" / "PlayerName: Ready"
+
+**Technical Notes:**
+- `ChallengeNavigationHelper` handles Enter/Backspace, challenge open/close, player status, deck blade closure
+- `CloseDeckSelectBlade()` calls `PlayBladeController.HideDeckSelector()` (not `DeckSelectBlade.Hide()` directly) to properly reactivate Leave/Invite buttons
+- Overlay detection via `PlayBladeVisualState >= 2` (Challenge state)
+- Element assignment via `IsChallengeContainer()` in `ElementGroupAssigner`
+- Invite popup handled by existing Popup overlay detection (PopupBase)
+- See `docs/SOCIAL_SYSTEM.md` for full implementation details and game class decompilation
 
 ## Rewards Popup
 

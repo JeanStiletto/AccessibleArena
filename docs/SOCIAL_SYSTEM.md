@@ -227,13 +227,14 @@ Handled by existing Popup overlay detection (PopupBase). Contains text input, dr
 ### Spinner Changes
 - Left/Right arrows invoke OnNextValue/OnPreviousValue on spinner
 - Game auto-opens DeckSelectBlade on spinner change (game behavior, not mod)
-- Mod closes DeckSelectBlade via `Hide()` reflection call after spinner change
+- Mod closes DeckSelectBlade via `PlayBladeController.HideDeckSelector()` after spinner change
+- This properly closes the blade AND reactivates the challenge display (Leave + Invite buttons)
 - Mod preserves position via `RequestChallengeMainEntryAtIndex()`
 
 ### Deck Selection Flow
 - Enter on Select Deck -> DeckSelectBlade opens -> folders/decks appear
 - Enter on deck -> deck selected -> auto-return to ChallengeMain
-- Backspace from folders -> return to ChallengeMain
+- Backspace from folders -> `CloseDeckSelectBlade()` + return to ChallengeMain
 
 ### Player Status Announcement
 - On entering challenge: "Direkte Herausforderung. Du: PlayerName, Status. Gegner: Not invited/PlayerName"
@@ -242,9 +243,9 @@ Handled by existing Popup overlay detection (PopupBase). Contains text input, dr
 
 ---
 
-## Known Issue: Button Deactivation on DeckSelectBlade
+## Resolved Issue: Button Deactivation on DeckSelectBlade
 
-### Problem
+### Problem (Fixed)
 When DeckSelectBlade opens (either via Select Deck or auto-opened by spinner change), the game deactivates `MainButton_Leave` and `Invite Button` by setting their parent containers inactive. `FindObjectsOfType<CustomButton>()` only finds active objects, so these buttons disappear from our element list.
 
 ### Root Cause (Confirmed via Decompilation)
@@ -269,14 +270,12 @@ Our mod was calling `DeckSelectBlade.Hide()` directly, which only does the first
 3. Sighted users see the deck selector overlay (challenge display hidden behind it)
 4. When done, `HideDeckSelector()` is called, which closes blade AND restores challenge display
 
-### Fix
-Call `PlayBladeController.HideDeckSelector()` instead of `DeckSelectBlade.Hide()` directly. This ensures both the blade closure and the challenge display reactivation happen together.
+### Fix (Implemented)
+`ChallengeNavigationHelper.CloseDeckSelectBlade()` calls `PlayBladeController.HideDeckSelector()` instead of `DeckSelectBlade.Hide()` directly. This ensures both the blade closure and the challenge display reactivation happen together.
 
-### Evidence from Logs
-- Initial scan: 30 CustomButtons -> 5 ChallengeMain elements (including Leave + Invite)
-- After DeckSelectBlade opens: 149 CustomButtons -> Leave and Invite not found (parent deactivated)
-- After our `DeckSelectBlade.Hide()`: 29 CustomButtons -> Leave and Invite still missing (parent still inactive)
-- Using `HideDeckSelector()` would find 30+ CustomButtons again with Leave and Invite restored
+Called in two places:
+1. **Spinner changes** - `RescanAfterSpinnerChange()` in GeneralMenuNavigator calls `CloseDeckSelectBlade()` before inline rescan
+2. **Backspace from folders** - `HandleBackspace()` in ChallengeNavigationHelper calls `CloseDeckSelectBlade()` when returning from deck selection to ChallengeMain
 
 ---
 
