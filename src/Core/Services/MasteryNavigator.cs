@@ -1606,11 +1606,11 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Backspace: Go back
+            // Backspace: Leave mastery screen and return home
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
-                ActivateBackButton();
+                NavigateToHome();
                 return;
             }
         }
@@ -1730,7 +1730,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Backspace: Go back (returns to mastery levels)
+            // Backspace: Go back (returns to mastery levels, or home if no back button)
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
@@ -1741,7 +1741,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.AnnounceInterrupt("No back button found");
+                    NavigateToHome();
                 }
                 return;
             }
