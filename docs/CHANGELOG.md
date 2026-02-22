@@ -2,6 +2,18 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+### Fixed: Store Backspace Not Returning Home
+- Store tab-level Backspace now explicitly navigates Home by activating `Nav_Home`
+- Root cause: StoreNavigator consumed Backspace and deactivated itself without triggering a back/home action
+- Added fallback announcements when NavBar/Home button cannot be found
+- Manually verified flows:
+  - Store tabs -> Backspace returns Home
+  - Store items -> Backspace returns tabs
+  - Store details/popup -> Backspace behavior remains correct
+- File: `src/Core/Services/StoreNavigator.cs`
+
 ## v0.6.9 - 2026-02-19
 
 ### New: Mana Color Picker Navigator

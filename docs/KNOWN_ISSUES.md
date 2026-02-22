@@ -30,12 +30,6 @@ Cards on the battlefield sometimes split into two separate stacks/rows when they
 
 ---
 
-### Store Not Closing Correctly
-
-Store screen does not always close properly, which can leave navigation in an unexpected state.
-
----
-
 ### Color Challenge Deck Name Not Refreshing
 
 When selecting a different color in Color Challenge, the announced deck name does not update to reflect the newly selected color's deck.
@@ -121,6 +115,21 @@ After completing all 5 NPE tutorial stages, the game shows a deck reward screen 
 - Does Enter open a deck box (clicks `Hitbox_LidOpen`)?
 - Does Backspace activate the Continue button (`NullClaimButton`)?
 - Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
+
+### ~~Store Not Closing Correctly~~ (Fixed - Unreleased)
+
+Backspace at Store tab level now reliably returns to Home by explicitly activating `Nav_Home`.
+
+**Fix:** `StoreNavigator.HandleBackFromStore()` now performs explicit Home navigation (`TryNavigateToHome`) before deactivating. Added fallback announcements if NavBar/Home button is unavailable.
+
+**Verified manually:**
+- Store tab level: Backspace returns to Home
+- Store item level: Backspace returns to tabs
+- Store details/popup: Backspace behavior remains correct
+
+**Files:** `StoreNavigator.cs`
+
+---
 
 ### ~~Zones Not Updating When Cards Enter or Leave~~ (Fixed v0.6.9)
 
