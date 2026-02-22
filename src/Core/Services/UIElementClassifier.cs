@@ -146,6 +146,12 @@ namespace AccessibleArena.Core.Services
             /// Reference to slider component for direct value adjustment via arrow keys
             /// </summary>
             public Slider SliderComponent { get; set; }
+
+            /// <summary>
+            /// If true, arrow nav controls should be activated via hover (pointer enter/exit)
+            /// instead of full click. Used for Popout hover buttons.
+            /// </summary>
+            public bool UseHoverActivation { get; set; }
         }
 
         /// <summary>
@@ -264,7 +270,8 @@ namespace AccessibleArena.Core.Services
                 ShouldAnnounce = true,
                 HasArrowNavigation = true,
                 PreviousControl = leftControl,
-                NextControl = obj // RightHover itself cycles forward
+                NextControl = obj, // RightHover itself cycles forward
+                UseHoverActivation = true
             };
         }
 

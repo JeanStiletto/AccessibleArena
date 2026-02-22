@@ -379,7 +379,8 @@ namespace AccessibleArena.Core.Services
                         HasArrowNavigation = true,
                         PreviousControl = classification.PreviousControl,
                         NextControl = classification.NextControl,
-                        SliderComponent = classification.SliderComponent
+                        SliderComponent = classification.SliderComponent,
+                        UseHoverActivation = classification.UseHoverActivation
                     }
                     : default;
 

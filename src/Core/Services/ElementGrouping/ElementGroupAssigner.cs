@@ -548,7 +548,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Challenge screen containers (inside FriendsWidget, not PlayBlade hierarchy)
             if (parentPath.Contains("ChallengeOptions") || parentPath.Contains("ChallengeWidget") ||
-                parentPath.Contains("InviteFriendPopup"))
+                parentPath.Contains("InviteFriendPopup") || parentPath.Contains("UnifiedChallenges"))
                 return true;
 
             // FindMatch blade

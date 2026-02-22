@@ -388,6 +388,47 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Activates a Popout stepper by invoking OnNextValue/OnPreviousValue on the
+        /// parent's Spinner_OptionSelector component via reflection.
+        /// Avoids full pointer simulation which would open a submenu (DeckSelectBlade).
+        /// </summary>
+        public static void SimulateHover(GameObject hoverControl, bool isNext = true)
+        {
+            if (hoverControl == null) return;
+
+            // Go to Popout_* parent to find the Spinner_OptionSelector
+            Transform popoutParent = hoverControl.transform.parent;
+            if (popoutParent == null)
+            {
+                Log($"No parent found for {hoverControl.name}");
+                return;
+            }
+
+            var spinner = popoutParent.GetComponents<MonoBehaviour>()
+                .FirstOrDefault(c => c != null && c.GetType().Name == "Spinner_OptionSelector");
+
+            if (spinner == null)
+            {
+                Log($"No Spinner_OptionSelector found on {popoutParent.name}");
+                return;
+            }
+
+            string methodName = isNext ? "OnNextValue" : "OnPreviousValue";
+            var method = spinner.GetType().GetMethod(methodName,
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            if (method != null)
+            {
+                method.Invoke(spinner, null);
+                Log($"Invoked {methodName} on {popoutParent.name}");
+            }
+            else
+            {
+                Log($"Method {methodName} not found on Spinner_OptionSelector");
+            }
+        }
+
+        /// <summary>
         /// Simulates a click at a specific screen position using raycast.
         /// If no target is found via raycast, still sends the pointer events
         /// as the game may process position-based clicks (e.g., dropping held cards).

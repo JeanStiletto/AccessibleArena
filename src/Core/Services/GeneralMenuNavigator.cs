@@ -2501,7 +2501,7 @@ namespace AccessibleArena.Core.Services
                     return true;
                 // Challenge screen containers (inside FriendsWidget, not PlayBlade hierarchy)
                 if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
-                    name.Contains("InviteFriendPopup"))
+                    name.Contains("InviteFriendPopup") || name.Contains("UnifiedChallenges"))
                     return true;
                 // Exclude other panels that use Blade naming
                 if (name.Contains("Mailbox") || name.Contains("PlayerInbox") ||
@@ -3197,7 +3197,8 @@ namespace AccessibleArena.Core.Services
                         HasArrowNavigation = true,
                         PreviousControl = classification.PreviousControl,
                         NextControl = classification.NextControl,
-                        SliderComponent = classification.SliderComponent
+                        SliderComponent = classification.SliderComponent,
+                        UseHoverActivation = classification.UseHoverActivation
                     }
                     : default;
 

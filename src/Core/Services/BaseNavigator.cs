@@ -88,6 +88,11 @@ namespace AccessibleArena.Core.Services
             /// For sliders: direct reference to modify value via arrow keys
             /// </summary>
             public Slider SliderComponent { get; set; }
+            /// <summary>
+            /// If true, activate controls via hover (pointer enter/exit) instead of full click.
+            /// Used for Popout hover buttons that open submenus on click.
+            /// </summary>
+            public bool UseHoverActivation { get; set; }
         }
 
         /// <summary>
@@ -1492,7 +1497,10 @@ namespace AccessibleArena.Core.Services
 
             // Activate the nav control (carousel nav button or stepper increment/decrement)
             MelonLogger.Msg($"[{NavigatorId}] Arrow nav {(isNext ? "next/increment" : "previous/decrement")}: {control.name}");
-            UIActivator.Activate(control);
+            if (info.UseHoverActivation)
+                UIActivator.SimulateHover(control, isNext);
+            else
+                UIActivator.Activate(control);
 
             // Schedule delayed announcement - game needs a frame to update the value
             _stepperAnnounceDelay = StepperAnnounceDelaySeconds;

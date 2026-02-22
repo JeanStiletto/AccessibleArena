@@ -249,7 +249,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
                 // Challenge screen containers (inside FriendsWidget, not PlayBlade hierarchy)
                 if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
-                    name.Contains("InviteFriendPopup"))
+                    name.Contains("InviteFriendPopup") || name.Contains("UnifiedChallenges"))
                     return true;
 
                 // Event page main button (Play button on Color Challenge, etc.)
