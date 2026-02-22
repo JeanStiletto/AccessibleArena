@@ -394,6 +394,7 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 20. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
 21. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
 22. Mana color picker confirmation step - add an artificial confirmation step (Tab to navigate, Enter to stage, Space to confirm) for consistency with browser/selection patterns. Currently each Enter immediately submits the color choice.
+23. Play from library browser - support cards that let you play cards from your library (e.g., Collected Company, Vizier of the Menagerie, Future Sight). These open a browser showing library cards to choose from, similar to Scry/Surveil but with a play/cast action instead of reorder.
 
 ### Low Priority / v1.1
 
