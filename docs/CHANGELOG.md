@@ -17,6 +17,12 @@ All notable changes to Accessible Arena.
 - Blocker deselection and unassignment now announced with card name and "can block" state
 - Blocker P/T announcement no longer includes redundant "blocking" word (just "0/4" instead of "0/4 blocking")
 
+### Fixed: Store and Mastery Backspace Not Returning Home
+- Store tab-level Backspace now navigates home instead of silently deactivating
+- Mastery screen Backspace falls back to home navigation when no in-screen back button is found
+- Moved `NavigateToHome()` to BaseNavigator as shared utility for all navigators
+- Bug originally reported and fix approach contributed by **@blindndangerous** (PR #1)
+
 ### Fixed
 - German "milled" translation corrected from "wird gemahlen" to "wird gemillt"
 
