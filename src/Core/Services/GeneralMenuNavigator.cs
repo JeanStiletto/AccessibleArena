@@ -2503,6 +2503,9 @@ namespace AccessibleArena.Core.Services
                 if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
                     name.Contains("InviteFriendPopup") || name.Contains("UnifiedChallenges"))
                     return true;
+                // Challenge play button and deck selection area (inside PlaybladeParent)
+                if (name.Contains("Popout_Play") || name.Contains("FriendChallengeBladeWidget"))
+                    return true;
                 // Exclude other panels that use Blade naming
                 if (name.Contains("Mailbox") || name.Contains("PlayerInbox") ||
                     name.Contains("Settings") || name.Contains("Social"))

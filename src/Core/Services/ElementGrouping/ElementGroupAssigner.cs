@@ -551,6 +551,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 parentPath.Contains("InviteFriendPopup") || parentPath.Contains("UnifiedChallenges"))
                 return true;
 
+            // Challenge play button and deck selection area (inside PlaybladeParent)
+            if (parentPath.Contains("Popout_Play") || parentPath.Contains("FriendChallengeBladeWidget"))
+                return true;
+
             // FindMatch blade
             if (parentPath.Contains("FindMatch"))
                 return true;

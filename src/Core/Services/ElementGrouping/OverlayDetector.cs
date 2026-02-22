@@ -252,6 +252,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     name.Contains("InviteFriendPopup") || name.Contains("UnifiedChallenges"))
                     return true;
 
+                // Challenge play button and deck selection area (inside PlaybladeParent)
+                if (name.Contains("Popout_Play") || name.Contains("FriendChallengeBladeWidget"))
+                    return true;
+
                 // Event page main button (Play button on Color Challenge, etc.)
                 // These coexist with the blade and should be navigable
                 if (name.Contains("CampaignGraphMainButtonModule"))

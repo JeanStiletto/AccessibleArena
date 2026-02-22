@@ -38,6 +38,10 @@ namespace AccessibleArena.Core.Services
         private float _stepperAnnounceDelay;
         private const float StepperAnnounceDelaySeconds = 0.1f;
 
+        // Delayed re-scan after spinner value change (game needs time to update UI visibility)
+        private float _spinnerRescanDelay;
+        private const float SpinnerRescanDelaySeconds = 0.5f;
+
         // Cached input field being edited (set when entering edit mode)
         private GameObject _editingInputField;
 
@@ -404,6 +408,16 @@ namespace AccessibleArena.Core.Services
                 if (_stepperAnnounceDelay <= 0)
                 {
                     AnnounceStepperValue();
+                }
+            }
+
+            // Handle delayed re-scan after spinner value change
+            if (_spinnerRescanDelay > 0)
+            {
+                _spinnerRescanDelay -= Time.deltaTime;
+                if (_spinnerRescanDelay <= 0)
+                {
+                    RescanAfterSpinnerChange();
                 }
             }
 
@@ -1498,9 +1512,15 @@ namespace AccessibleArena.Core.Services
             // Activate the nav control (carousel nav button or stepper increment/decrement)
             MelonLogger.Msg($"[{NavigatorId}] Arrow nav {(isNext ? "next/increment" : "previous/decrement")}: {control.name}");
             if (info.UseHoverActivation)
+            {
                 UIActivator.SimulateHover(control, isNext);
+                // Schedule delayed re-scan - spinner value change may show/hide UI elements
+                _spinnerRescanDelay = SpinnerRescanDelaySeconds;
+            }
             else
+            {
                 UIActivator.Activate(control);
+            }
 
             // Schedule delayed announcement - game needs a frame to update the value
             _stepperAnnounceDelay = StepperAnnounceDelaySeconds;
@@ -1585,6 +1605,87 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Action cycle: index {_currentActionIndex}, announcing: {announcement}");
             _announcer.AnnounceInterrupt(announcement);
             return true;
+        }
+
+        /// <summary>
+        /// Quiet re-scan after a spinner value change. The game may show/hide UI elements
+        /// depending on the selected option (e.g. tournament vs challenge match types).
+        /// Preserves focus on the current stepper element if it still exists.
+        /// </summary>
+        private void RescanAfterSpinnerChange()
+        {
+            if (!_isActive || !IsValidIndex) return;
+
+            // Debug: Check if challenge buttons are active or inactive
+            DebugCheckChallengeButtons();
+
+            // Remember what we're focused on
+            var currentObj = _elements[_currentIndex].GameObject;
+            int oldCount = _elements.Count;
+
+            // Re-discover elements
+            _elements.Clear();
+            _currentIndex = -1;
+            DiscoverElements();
+
+            if (_elements.Count == 0) return;
+
+            // Try to restore focus to the same element
+            if (currentObj != null)
+            {
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == currentObj)
+                    {
+                        _currentIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (_currentIndex < 0)
+                _currentIndex = 0;
+
+            // Only announce if element count changed
+            if (_elements.Count != oldCount)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Spinner rescan: {oldCount} -> {_elements.Count} elements");
+                string posAnnouncement = Strings.ItemPositionOf(_currentIndex + 1, _elements.Count, _elements[_currentIndex].Label);
+                _announcer.Announce(posAnnouncement, AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Debug: Check if known challenge buttons exist and whether they're active or inactive.
+        /// Helps diagnose why Leave/Invite buttons disappear after DeckSelectBlade opens.
+        /// </summary>
+        private void DebugCheckChallengeButtons()
+        {
+            string[] challengeButtonNames = { "MainButton_Leave", "Invite Button", "UnifiedChallenge_MainButton", "NoDeck" };
+            foreach (string btnName in challengeButtonNames)
+            {
+                var active = GameObject.Find(btnName);
+                if (active != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Challenge btn '{btnName}': ACTIVE");
+                }
+                else
+                {
+                    // Not found via Find (only finds active) - check if it exists but is inactive
+                    bool foundInactive = false;
+                    foreach (var t in Resources.FindObjectsOfTypeAll<Transform>())
+                    {
+                        if (t != null && t.name == btnName && !t.gameObject.activeInHierarchy)
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Challenge btn '{btnName}': INACTIVE (exists but hidden)");
+                            foundInactive = true;
+                            break;
+                        }
+                    }
+                    if (!foundInactive)
+                        MelonLogger.Msg($"[{NavigatorId}] Challenge btn '{btnName}': NOT FOUND");
+                }
+            }
         }
 
         /// <summary>
