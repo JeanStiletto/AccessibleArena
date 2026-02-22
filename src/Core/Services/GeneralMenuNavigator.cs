@@ -676,32 +676,51 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Override carousel arrow handling to support booster carousel navigation.
+        /// Override carousel arrow handling to support grouped navigation and booster carousel.
+        /// In grouped navigation mode, _currentIndex may be out of sync with GroupedNavigator's
+        /// current element. We sync it here before delegating to base for carousel/stepper handling.
         /// </summary>
         protected override bool HandleCarouselArrow(bool isNext)
         {
-            // Check if current element is in the booster carousel
-            if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
+            // When grouped navigation is active, sync _currentIndex with GroupedNavigator
+            // so base.HandleCarouselArrow reads the correct element's carousel info
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
-                // Get current element from grouped navigator or base elements
-                GameObject currentObj = null;
-                if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                var currentElement = _groupedNavigator.CurrentElement;
+                if (currentElement == null) return false;
+
+                GameObject currentObj = currentElement.Value.GameObject;
+                if (currentObj == null) return false;
+
+                // Booster carousel special handling
+                if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0 &&
+                    _boosterPackHitboxes.Contains(currentObj))
                 {
-                    var currentElement = _groupedNavigator.CurrentElement;
-                    currentObj = currentElement?.GameObject;
-                }
-                else if (IsValidIndex)
-                {
-                    currentObj = _elements[_currentIndex].GameObject;
+                    return HandleBoosterCarouselNavigation(isNext);
                 }
 
-                if (currentObj != null && _boosterPackHitboxes.Contains(currentObj))
+                // Find the matching element in _elements and sync _currentIndex
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == currentObj)
+                    {
+                        _currentIndex = i;
+                        return base.HandleCarouselArrow(isNext);
+                    }
+                }
+
+                return false; // Element not found in flat list
+            }
+
+            // Flat navigation: booster check then base
+            if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0 && IsValidIndex)
+            {
+                if (_boosterPackHitboxes.Contains(_elements[_currentIndex].GameObject))
                 {
                     return HandleBoosterCarouselNavigation(isNext);
                 }
             }
 
-            // Fall back to base implementation for other carousels
             return base.HandleCarouselArrow(isNext);
         }
 
@@ -2689,6 +2708,87 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Override spinner rescan to handle grouped navigation state.
+        /// In PlayBlade context (challenge mode), SaveCurrentGroupForRestore is skipped
+        /// by GroupedNavigator (by design). Instead we use RequestPlayBladeContentEntryAtIndex
+        /// to auto-enter the PlayBladeContent group at the user's current stepper position.
+        /// </summary>
+        protected override void RescanAfterSpinnerChange()
+        {
+            if (!IsActive || !IsValidIndex) return;
+
+            DebugCheckChallengeButtons();
+
+            // Save state for grouped navigation restoration
+            bool usePlayBladeContentRestore = false;
+            int groupedElementIndex = -1;
+
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                var currentGroup = _groupedNavigator.CurrentGroup;
+                if (_groupedNavigator.IsPlayBladeContext &&
+                    currentGroup.HasValue &&
+                    currentGroup.Value.Group == ElementGroup.PlayBladeContent)
+                {
+                    // PlayBlade context: SaveCurrentGroupForRestore is skipped (by design).
+                    // Use explicit content entry with element index instead.
+                    groupedElementIndex = _groupedNavigator.CurrentElementIndex;
+                    usePlayBladeContentRestore = true;
+                }
+                else if (!_groupedNavigator.HasPendingRestore)
+                {
+                    _groupedNavigator.SaveCurrentGroupForRestore();
+                }
+            }
+
+            var currentObj = _elements[_currentIndex].GameObject;
+            int oldCount = _elements.Count;
+
+            // Request PlayBlade content auto-entry BEFORE rescan so OrganizeIntoGroups processes it
+            if (usePlayBladeContentRestore)
+            {
+                _groupedNavigator.RequestPlayBladeContentEntryAtIndex(groupedElementIndex);
+            }
+
+            // Re-discover elements (rebuilds groups via OrganizeIntoGroups)
+            _elements.Clear();
+            _currentIndex = -1;
+            DiscoverElements();
+
+            if (_elements.Count == 0) return;
+
+            // Try to restore focus to the same element in flat list
+            if (currentObj != null)
+            {
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == currentObj)
+                    {
+                        _currentIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (_currentIndex < 0)
+                _currentIndex = 0;
+
+            // Announce count changes - but only in flat navigation mode
+            // In grouped mode, the stepper value was already announced and
+            // the group state is restored by auto-entry or SaveCurrentGroupForRestore
+            if (_elements.Count != oldCount)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Spinner rescan: {oldCount} -> {_elements.Count} elements");
+                if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                {
+                    string posAnnouncement = Models.Strings.ItemPositionOf(
+                        _currentIndex + 1, _elements.Count, _elements[_currentIndex].Label);
+                    _announcer.Announce(posAnnouncement, Models.AnnouncementPriority.Normal);
+                }
+            }
+        }
+
+        /// <summary>
         /// Schedule a rescan after a short delay to let UI settle.
         /// </summary>
         private void TriggerRescan()
@@ -2975,15 +3075,6 @@ namespace AccessibleArena.Core.Services
                 var classification = UIElementClassifier.Classify(obj);
                 if (classification.IsNavigable && classification.ShouldAnnounce)
                 {
-                    // In challenge mode, filter out individual deck entries from DeckSelectBlade.
-                    // Show only folder headers, steppers, and action buttons (like regular PlayBlade folders).
-                    if (PanelStateManager.Instance?.IsPlayBladeActive == true &&
-                        PanelStateManager.Instance.PlayBladeState == 2 &&
-                        FindDeckViewParent(obj.transform) != null)
-                    {
-                        return;
-                    }
-
                     var pos = obj.transform.position;
                     float sortOrder = -pos.y * 1000 + pos.x;
                     discoveredElements.Add((obj, classification, sortOrder));

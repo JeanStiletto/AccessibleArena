@@ -103,16 +103,21 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Popup/Dialog - be specific to avoid matching "Screenspace Popups" canvas
             // Look for actual popup panel patterns, not just "Popup" substring
-            if (parentPath.Contains("SystemMessageView") ||
-                parentPath.Contains("ConfirmationDialog") ||
-                parentPath.Contains("InviteFriendPopup") ||
-                parentPath.Contains("PopupDialog") ||
-                (parentPath.Contains("Popup") && !parentPath.Contains("Screenspace Popups")))
+            // Skip Popup classification for elements inside PlayBlade (InviteFriendPopup is
+            // also a challenge container, and "Popup" substring would match it)
+            if (!IsInsidePlayBlade(parentPath, name) &&
+                (parentPath.Contains("SystemMessageView") ||
+                 parentPath.Contains("ConfirmationDialog") ||
+                 parentPath.Contains("InviteFriendPopup") ||
+                 parentPath.Contains("PopupDialog") ||
+                 (parentPath.Contains("Popup") && !parentPath.Contains("Screenspace Popups"))))
                 return ElementGroup.Popup;
 
             // Friends panel overlay - split into sub-groups
-            if (parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
-                parentPath.Contains("SocialPanel"))
+            // Skip for elements inside challenge/blade containers - they belong to PlayBlade, not the friend panel
+            if ((parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
+                 parentPath.Contains("SocialPanel")) &&
+                !IsInsidePlayBlade(parentPath, name))
             {
                 var friendGroup = DetermineFriendPanelGroup(element, name, parentPath);
                 if (friendGroup != ElementGroup.Unknown)

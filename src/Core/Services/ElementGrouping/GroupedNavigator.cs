@@ -96,6 +96,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Set when a PlayBlade tab is activated.
         /// </summary>
         private bool _pendingPlayBladeContentEntry = false;
+        private int _pendingPlayBladeContentEntryIndex = -1;
 
         /// <summary>
         /// When true, auto-enter first folder group after next OrganizeIntoGroups.
@@ -314,8 +315,21 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void RequestPlayBladeContentEntry()
         {
             _pendingPlayBladeContentEntry = true;
+            _pendingPlayBladeContentEntryIndex = -1; // Start at 0
             _pendingPlayBladeTabsEntry = false; // Clear tabs flag
             MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeContent auto-entry");
+        }
+
+        /// <summary>
+        /// Request auto-entry into PlayBladeContent group at a specific element index.
+        /// Used by spinner rescan to restore the user's position on their stepper.
+        /// </summary>
+        public void RequestPlayBladeContentEntryAtIndex(int elementIndex)
+        {
+            _pendingPlayBladeContentEntry = true;
+            _pendingPlayBladeContentEntryIndex = elementIndex;
+            _pendingPlayBladeTabsEntry = false;
+            MelonLogger.Msg($"[GroupedNavigator] Requested PlayBladeContent auto-entry at index {elementIndex}");
         }
 
         /// <summary>
@@ -808,10 +822,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
             }
 
-            // Check for pending PlayBlade content entry (set when a tab is activated)
+            // Check for pending PlayBlade content entry (set when a tab is activated or spinner rescan)
             if (_pendingPlayBladeContentEntry)
             {
                 _pendingPlayBladeContentEntry = false;
+                int requestedIndex = _pendingPlayBladeContentEntryIndex;
+                _pendingPlayBladeContentEntryIndex = -1;
                 // Find PlayBladeContent group and auto-enter it
                 for (int i = 0; i < _groups.Count; i++)
                 {
@@ -819,9 +835,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     {
                         _currentGroupIndex = i;
                         _navigationLevel = NavigationLevel.InsideGroup;
-                        _currentElementIndex = 0;
+                        // Use requested index if valid, otherwise start at 0
+                        int maxIdx = _groups[i].Count - 1;
+                        _currentElementIndex = (requestedIndex >= 0 && requestedIndex <= maxIdx) ? requestedIndex : 0;
                         playBladeAutoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items");
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items at index {_currentElementIndex}");
                         break;
                     }
                 }

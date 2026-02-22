@@ -1612,7 +1612,7 @@ namespace AccessibleArena.Core.Services
         /// depending on the selected option (e.g. tournament vs challenge match types).
         /// Preserves focus on the current stepper element if it still exists.
         /// </summary>
-        private void RescanAfterSpinnerChange()
+        protected virtual void RescanAfterSpinnerChange()
         {
             if (!_isActive || !IsValidIndex) return;
 
@@ -1659,7 +1659,7 @@ namespace AccessibleArena.Core.Services
         /// Debug: Check if known challenge buttons exist and whether they're active or inactive.
         /// Helps diagnose why Leave/Invite buttons disappear after DeckSelectBlade opens.
         /// </summary>
-        private void DebugCheckChallengeButtons()
+        protected void DebugCheckChallengeButtons()
         {
             string[] challengeButtonNames = { "MainButton_Leave", "Invite Button", "UnifiedChallenge_MainButton", "NoDeck" };
             foreach (string btnName in challengeButtonNames)
