@@ -116,21 +116,6 @@ After completing all 5 NPE tutorial stages, the game shows a deck reward screen 
 - Does Backspace activate the Continue button (`NullClaimButton`)?
 - Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
 
-### ~~Store Not Closing Correctly~~ (Fixed - Unreleased)
-
-Backspace at Store tab level now reliably returns to Home by explicitly activating `Nav_Home`.
-
-**Fix:** `StoreNavigator.HandleBackFromStore()` now performs explicit Home navigation (`TryNavigateToHome`) before deactivating. Added fallback announcements if NavBar/Home button is unavailable.
-
-**Verified manually:**
-- Store tab level: Backspace returns to Home
-- Store item level: Backspace returns to tabs
-- Store details/popup: Backspace behavior remains correct
-
-**Files:** `StoreNavigator.cs`
-
----
-
 ### ~~Zones Not Updating When Cards Enter or Leave~~ (Fixed v0.6.9)
 
 Zone card lists sometimes don't refresh when a card enters or leaves a zone (e.g., playing a card from hand, a creature dying to graveyard). The zone still shows the old card list until manually re-entered.
