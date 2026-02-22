@@ -4838,7 +4838,10 @@ namespace AccessibleArena.Core.Services
             // which announces the mail content directly with actual letter data
 
             // Challenge deck selection: activate deck, return to ChallengeMain (no auto-play)
-            if (_challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            // Skip if HandleEnter already handled this (e.g., deck display in ContextDisplay
+            // which opens the deck selector rather than selecting a deck)
+            if (challengeResult == PlayBladeResult.NotHandled &&
+                _challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Challenge deck selected - returning to ChallengeMain");
                 _challengeHelper.HandleDeckSelected();

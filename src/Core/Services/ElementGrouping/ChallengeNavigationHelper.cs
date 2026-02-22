@@ -170,16 +170,41 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Check if an element is the "Select Deck" or "NoDeck" button in the challenge screen.
+        /// Check if an element is the "Select Deck" or "NoDeck" button in the challenge screen,
+        /// or the already-selected deck display in ContextDisplay (clicking it re-opens the deck selector).
         /// </summary>
         private static bool IsDeckSelectionButton(GameObject element)
         {
             if (element == null) return false;
             string name = element.name;
             // "NoDeck" is shown when no deck is selected, and the deck display button when one is
-            return name.Contains("NoDeck") || name.Contains("DeckDisplay") ||
-                   name.Contains("SelectDeck") || name.Contains("Select Deck") ||
-                   name.Contains("DeckSelectButton");
+            if (name.Contains("NoDeck") || name.Contains("DeckDisplay") ||
+                name.Contains("SelectDeck") || name.Contains("Select Deck") ||
+                name.Contains("DeckSelectButton"))
+                return true;
+
+            // DeckView_Base inside ContextDisplay = the already-selected deck (e.g., "mono blau").
+            // Clicking it should open the deck selector to change decks (same as NoDeck).
+            return IsContextDisplayDeck(element);
+        }
+
+        /// <summary>
+        /// Check if an element is the deck display inside ContextDisplay (not a deck entry in the selector list).
+        /// </summary>
+        private static bool IsContextDisplayDeck(GameObject element)
+        {
+            Transform current = element.transform;
+            bool hasDeckView = false;
+            bool hasContextDisplay = false;
+            int depth = 0;
+            while (current != null && depth < 8)
+            {
+                if (current.name.Contains("DeckView_Base")) hasDeckView = true;
+                if (current.name == "ContextDisplay") hasContextDisplay = true;
+                current = current.parent;
+                depth++;
+            }
+            return hasDeckView && hasContextDisplay;
         }
 
         /// <summary>
