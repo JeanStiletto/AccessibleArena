@@ -8,6 +8,9 @@ obj/
 *.user
 *.suo
 
+# Local agent/tool settings
+.claude/settings.local.json
+
 # Rider
 .idea/
 

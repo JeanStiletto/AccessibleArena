@@ -166,7 +166,7 @@ Both files check for CustomButton, TooltipTrigger, etc. Extract to shared helper
 ## Verification
 
 After each change:
-1. Build: `dotnet build "C:\Users\fabia\arena\src\MTGAAccessibility.csproj"`
+1. Build: `dotnet build src/MTGAAccessibility.csproj`
 2. Deploy and test in game:
    - Menu navigation (GeneralMenuNavigator uses UIElementClassifier)
    - Settings screen (stepper controls, dropdowns)
@@ -177,10 +177,10 @@ After each change:
 
 ## Files to Modify
 
-- `C:\Users\fabia\arena\src\Core\Services\UIElementClassifier.cs`
-- `C:\Users\fabia\arena\src\Core\Services\UIActivator.cs`
-- `C:\Users\fabia\arena\docs\KNOWN_ISSUES.md` (add note about WinAPI fallback code)
-- Possibly create: `C:\Users\fabia\arena\src\Core\Services\UIConstants.cs` (if shared constants needed)
+- `src/Core/Services/UIElementClassifier.cs`
+- `src/Core/Services/UIActivator.cs`
+- `docs/KNOWN_ISSUES.md` (add note about WinAPI fallback code)
+- Possibly create: `src/Core/Services/UIConstants.cs` (if shared constants needed)
 
 ---
 

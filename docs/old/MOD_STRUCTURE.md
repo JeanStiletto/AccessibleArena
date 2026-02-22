@@ -3,7 +3,7 @@
 ## Project Layout
 
 ```
-C:\Users\fabia\arena\
+<repo-root>\
   src\
     MTGAAccessibility.csproj
     MTGAAccessibilityMod.cs      - MelonLoader entry point, holds central services
