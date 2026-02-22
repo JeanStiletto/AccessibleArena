@@ -2635,27 +2635,6 @@ namespace AccessibleArena.Core.Services
             return true;
         }
 
-        /// <summary>
-        /// Recursively find a child transform by exact name.
-        /// </summary>
-        private static GameObject FindChildByName(Transform parent, string childName)
-        {
-            if (parent == null || string.IsNullOrEmpty(childName))
-                return null;
-
-            foreach (Transform child in parent)
-            {
-                if (child.name == childName)
-                    return child.gameObject;
-
-                var nested = FindChildByName(child, childName);
-                if (nested != null)
-                    return nested;
-            }
-
-            return null;
-        }
-
         #endregion
     }
 }
