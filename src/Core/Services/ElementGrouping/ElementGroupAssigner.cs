@@ -111,8 +111,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (parentPath.Contains("InviteFriendPopup"))
                     return ElementGroup.Popup;
 
-                // "New Deck" and "Edit/Change Deck" stay in ChallengeMain (always visible)
-                // Can't use PlayBladeFolders because folder group only shows Folder_Toggle elements
+                // "New Deck" and "Edit/Change Deck" go to PlayBladeFolders (deck selection group)
+                // GroupedNavigator includes these as extra items alongside folder toggles
+                if (name.Contains("NewDeck") || name.Contains("New Deck") || name.Contains("CreateDeck"))
+                    return ElementGroup.PlayBladeFolders;
+                if (name.Contains("EditDeck") || name.Contains("Edit_Deck"))
+                    return ElementGroup.PlayBladeFolders;
 
                 return ElementGroup.ChallengeMain;
             }

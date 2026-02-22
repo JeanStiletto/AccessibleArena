@@ -565,6 +565,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // First pass: identify folder toggles and their names
             var folderToggles = new Dictionary<string, GameObject>(); // folderName -> toggle GameObject
             var folderDecks = new Dictionary<string, List<GroupedElement>>(); // folderName -> decks in that folder
+            var folderExtraElements = new List<GroupedElement>(); // non-folder, non-deck elements assigned to PlayBladeFolders (e.g. NewDeck, EditDeck)
             var nonFolderElements = new Dictionary<ElementGroup, List<GroupedElement>>(); // standard groups
 
             foreach (var (obj, label) in elements)
@@ -613,6 +614,19 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         });
                         continue; // Don't add to standard Content group
                     }
+                }
+
+                // PlayBladeFolders extra elements (NewDeck, EditDeck) - collect separately
+                // These are added to the folder group alongside folder toggles
+                if (group == ElementGroup.PlayBladeFolders)
+                {
+                    folderExtraElements.Add(new GroupedElement
+                    {
+                        GameObject = obj,
+                        Label = label,
+                        Group = group
+                    });
+                    continue;
                 }
 
                 // Standard element - add to its group
@@ -776,6 +790,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         FolderName = folderName
                     });
                 }
+
+                // Append extra elements (NewDeck, EditDeck) after folder toggles
+                if (folderExtraElements.Count > 0)
+                    folderSelectors.AddRange(folderExtraElements);
 
                 if (folderSelectors.Count > 0)
                 {
