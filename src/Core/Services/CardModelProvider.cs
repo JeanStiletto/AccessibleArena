@@ -961,10 +961,14 @@ namespace AccessibleArena.Core.Services
                         false   // formatted
                     });
                 }
-                else if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(uint))
+                else if (parameters.Length >= 1)
                 {
                     // Fallback for simpler method signatures
-                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] { abilityId });
+                    var idArgument = ConvertUIntForParameterType(abilityId, parameters[0].ParameterType);
+                    if (idArgument != null)
+                    {
+                        result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] { idArgument });
+                    }
                 }
 
                 string text = result?.ToString();
@@ -1466,6 +1470,114 @@ namespace AccessibleArena.Core.Services
         {
             var value = GetModelPropertyValue(model, modelType, propertyNames);
             return value?.ToString();
+        }
+
+        /// <summary>
+        /// Converts common numeric ID representations to uint.
+        /// Handles reflection values that may come back as int/long/string/etc.
+        /// </summary>
+        private static bool TryConvertToUInt(object value, out uint result)
+        {
+            result = 0;
+            if (value == null) return false;
+
+            switch (value)
+            {
+                case uint u:
+                    result = u;
+                    return true;
+                case int i when i >= 0:
+                    result = (uint)i;
+                    return true;
+                case long l when l >= 0 && l <= uint.MaxValue:
+                    result = (uint)l;
+                    return true;
+                case ulong ul when ul <= uint.MaxValue:
+                    result = (uint)ul;
+                    return true;
+                case short s when s >= 0:
+                    result = (uint)s;
+                    return true;
+                case ushort us:
+                    result = us;
+                    return true;
+                case byte b:
+                    result = b;
+                    return true;
+                case sbyte sb when sb >= 0:
+                    result = (uint)sb;
+                    return true;
+                case string str when uint.TryParse(str, out uint parsed):
+                    result = parsed;
+                    return true;
+            }
+
+            if (value is IConvertible convertible)
+            {
+                try
+                {
+                    ulong converted = convertible.ToUInt64(System.Globalization.CultureInfo.InvariantCulture);
+                    if (converted <= uint.MaxValue)
+                    {
+                        result = (uint)converted;
+                        return true;
+                    }
+                }
+                catch { }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Converts an AbilityIds container to uint[].
+        /// Supports arrays/lists of mixed numeric types from reflection.
+        /// </summary>
+        private static uint[] ExtractUIntArray(object value)
+        {
+            if (value == null) return null;
+            if (value is uint[] uintArray) return uintArray;
+
+            if (value is IEnumerable enumerable)
+            {
+                var parsed = new List<uint>();
+                foreach (var item in enumerable)
+                {
+                    if (TryConvertToUInt(item, out uint id))
+                        parsed.Add(id);
+                }
+                return parsed.Count > 0 ? parsed.ToArray() : null;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Converts a uint to the target parameter type when invoking reflected methods.
+        /// </summary>
+        private static object ConvertUIntForParameterType(uint value, Type parameterType)
+        {
+            if (parameterType == typeof(uint)) return value;
+            if (parameterType == typeof(int))
+                return value <= int.MaxValue ? (object)(int)value : null;
+            if (parameterType == typeof(long)) return (long)value;
+            if (parameterType == typeof(ulong)) return (ulong)value;
+            if (parameterType == typeof(ushort))
+                return value <= ushort.MaxValue ? (object)(ushort)value : null;
+            if (parameterType == typeof(short))
+                return value <= short.MaxValue ? (object)(short)value : null;
+            if (parameterType == typeof(byte))
+                return value <= byte.MaxValue ? (object)(byte)value : null;
+            if (parameterType == typeof(sbyte))
+                return value <= (uint)sbyte.MaxValue ? (object)(sbyte)value : null;
+
+            if (parameterType.IsEnum)
+            {
+                try { return Enum.ToObject(parameterType, value); }
+                catch { return null; }
+            }
+
+            return null;
         }
 
         #endregion
@@ -2056,14 +2168,11 @@ namespace AccessibleArena.Core.Services
                 // Rules Text - parse from Abilities array
                 uint cardTitleId = 0;
                 var titleIdVal = GetModelPropertyValue(dataObj, objType, "TitleId");
-                if (titleIdVal is uint tid) cardTitleId = tid;
+                if (TryConvertToUInt(titleIdVal, out uint titleId))
+                    cardTitleId = titleId;
 
                 var abilityIdsVal = GetModelPropertyValue(dataObj, objType, "AbilityIds");
-                uint[] abilityIds = null;
-                if (abilityIdsVal is IEnumerable<uint> aidEnum)
-                    abilityIds = aidEnum.ToArray();
-                else if (abilityIdsVal is uint[] aidArray)
-                    abilityIds = aidArray;
+                uint[] abilityIds = ExtractUIntArray(abilityIdsVal);
 
                 var abilities = GetModelPropertyValue(dataObj, objType, "Abilities");
                 if (abilities is IEnumerable abilityEnum)
@@ -2082,7 +2191,7 @@ namespace AccessibleArena.Core.Services
                         if (abilityIdProp != null)
                         {
                             var idVal = abilityIdProp.GetValue(ability);
-                            if (idVal is uint aid) abilityId = aid;
+                            TryConvertToUInt(idVal, out abilityId);
                         }
 
                         var textValue = GetAbilityText(ability, abilityType, cardGrpId, abilityId, abilityIds, cardTitleId);
@@ -3638,11 +3747,14 @@ namespace AccessibleArena.Core.Services
                             var idProp = abilityType.GetProperty("Id");
                             if (idProp != null)
                             {
-                                var abilityId = (uint)idProp.GetValue(ability);
-                                var abilityText = GetAbilityTextFromProvider(grpId, abilityId, null, 0);
-                                if (!string.IsNullOrEmpty(abilityText))
+                                var abilityIdValue = idProp.GetValue(ability);
+                                if (TryConvertToUInt(abilityIdValue, out uint abilityId))
                                 {
-                                    rulesTexts.Add(abilityText);
+                                    var abilityText = GetAbilityTextFromProvider(grpId, abilityId, null, 0);
+                                    if (!string.IsNullOrEmpty(abilityText))
+                                    {
+                                        rulesTexts.Add(abilityText);
+                                    }
                                 }
                             }
                         }
