@@ -87,7 +87,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (obj == null) return false;
             string name = obj.name;
-            return name.Contains("Popup") || name.Contains("SystemMessageView");
+            return name.Contains("Popup") || name.Contains("SystemMessageView") || name.Contains("ChallengeInviteWindow");
         }
 
         /// <summary>
@@ -274,6 +274,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             while (current != null)
             {
                 string name = current.name;
+
+                // Exclude invite popup — handled as Popup overlay
+                if (name.Contains("ChallengeInviteWindow"))
+                    return false;
+
                 if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
                     name.Contains("UnifiedChallenges") || name.Contains("InviteFriendPopup") ||
                     name.Contains("Popout_Play") || name.Contains("FriendChallengeBladeWidget"))

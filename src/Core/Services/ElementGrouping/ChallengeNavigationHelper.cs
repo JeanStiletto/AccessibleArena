@@ -99,6 +99,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (groupType == ElementGroup.PlayBladeFolders)
                 {
                     // Was inside folders list -> go back to ChallengeMain
+                    // Close the DeckSelectBlade properly so the challenge display reactivates
+                    CloseDeckSelectBlade();
                     _groupedNavigator.RequestChallengeMainEntry();
                     MelonLogger.Msg("[ChallengeHelper] Backspace: exited folders, going to ChallengeMain");
                     return PlayBladeResult.RescanNeeded;
@@ -116,6 +118,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (isFolderGroup)
                 {
                     // At folder group level -> go to ChallengeMain
+                    // Close the DeckSelectBlade properly so the challenge display reactivates
+                    CloseDeckSelectBlade();
                     _groupedNavigator.RequestChallengeMainEntry();
                     MelonLogger.Msg("[ChallengeHelper] Backspace: at folder level, going to ChallengeMain");
                     return PlayBladeResult.RescanNeeded;

@@ -1062,7 +1062,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Restoring old state would interfere with the intended navigation flow
             if (_pendingGroupRestore.HasValue)
             {
-                if (_isPlayBladeContext || _isChallengeContext || enteredPendingFolder || playBladeAutoEntryPerformed || challengeAutoEntryPerformed)
+                bool isPopupRestore = _pendingGroupRestore.Value == ElementGroup.Popup;
+                if (!isPopupRestore && (_isPlayBladeContext || _isChallengeContext || enteredPendingFolder || playBladeAutoEntryPerformed || challengeAutoEntryPerformed))
                 {
                     // Clear stale restore state - auto-entries take precedence
                     string reason = challengeAutoEntryPerformed ? "Challenge auto-entry" : (playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : (_isChallengeContext ? "Challenge context" : "PlayBlade context")));

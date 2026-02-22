@@ -107,8 +107,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Exception: InviteFriendPopup elements go to Popup (popup overlay takes over)
             if (IsChallengeContainer(parentPath, name))
             {
-                // InviteFriendPopup inside challenge -> Popup overlay
-                if (parentPath.Contains("InviteFriendPopup"))
+                // InviteFriendPopup or ChallengeInviteWindow inside challenge -> Popup overlay
+                if (parentPath.Contains("InviteFriendPopup") || parentPath.Contains("ChallengeInviteWindow"))
                     return ElementGroup.Popup;
 
                 // "New Deck" and "Edit/Change Deck" go to PlayBladeFolders (deck selection group)

@@ -178,6 +178,10 @@ namespace AccessibleArena.Core.Services
         private List<(string label, string actionId)> _friendActions;
         private int _friendActionIndex;
 
+        // Popup overlay tracking (follows SettingsMenuNavigator pattern)
+        private GameObject _activePopup;
+        private bool _isPopupActive;
+
         #endregion
 
         #region Helper Methods
@@ -346,6 +350,25 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Detect popup transitions
+            if (newPanel != null && IsPopupPanelInfo(newPanel))
+            {
+                if (!_isPopupActive)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
+                    _activePopup = newPanel.GameObject;
+                    _isPopupActive = true;
+
+                    if (newPanel.GameObject != null)
+                        AnnouncePopupBodyText(newPanel.GameObject);
+                }
+            }
+            else if (_isPopupActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup closed, was: {_activePopup?.name}");
+                ClearPopupState();
+            }
+
             // Reset mail detail view state when mailbox closes
             if (oldPanel?.Name?.Contains("Mailbox") == true && newPanel?.Name?.Contains("Mailbox") != true)
             {
@@ -464,7 +487,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Announce popup body text when a popup/dialog opens
-            if (panel?.GameObject != null && IsPopupOverlay(panel.GameObject))
+            if (panel?.GameObject != null && (IsPopupOverlay(panel.GameObject) ||
+                panel.GameObject.name.Contains("ChallengeInviteWindow")))
             {
                 AnnouncePopupBodyText(panel.GameObject);
             }
@@ -868,6 +892,9 @@ namespace AccessibleArena.Core.Services
         {
             base.OnDeactivating();
 
+            _activePopup = null;
+            _isPopupActive = false;
+
             _screenDetector.Reset();
 
             // Soft reset PanelStateManager (preserve tracking, clear announced state)
@@ -1121,6 +1148,18 @@ namespace AccessibleArena.Core.Services
                 {
                     LogDebug($"[{NavigatorId}] Backspace pressed but already consumed - skipping");
                     return true; // Key was handled elsewhere
+                }
+
+                // Popup takes priority — dismiss unless user is actively editing an input field
+                if (_isPopupActive && _activePopup != null)
+                {
+                    if (UIFocusTracker.IsEditingInputField())
+                    {
+                        LogDebug($"[{NavigatorId}] Backspace in popup but editing input field - passing through");
+                        return false;
+                    }
+                    LogDebug($"[{NavigatorId}] Dismissing popup via backspace");
+                    return DismissPopup();
                 }
 
                 if (UIFocusTracker.IsAnyInputFieldFocused())
@@ -1654,23 +1693,187 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Dismiss the current popup/dialog.
+        /// Uses a fallback chain: cancel button → OnBack() → SetActive(false).
         /// </summary>
         private bool DismissPopup()
         {
-            LogDebug($"[{NavigatorId}] Dismissing popup");
-            if (_foregroundPanel != null)
+            LogDebug($"[{NavigatorId}] Dismissing popup: {_activePopup?.name}");
+            var popup = _activePopup ?? _foregroundPanel;
+            if (popup == null) return TryGenericBackButton();
+
+            // 1. Find cancel/close button (SystemMessageButtonView, CustomButton, Button)
+            var cancelButton = FindPopupCancelButton(popup);
+            if (cancelButton != null)
             {
-                var closeButton = FindCloseButtonInPanel(_foregroundPanel);
-                if (closeButton != null)
+                _announcer.Announce(Models.Strings.Cancelled, Models.AnnouncementPriority.High);
+                UIActivator.Activate(cancelButton);
+                ClearPopupState();
+                TriggerRescan();
+                return true;
+            }
+
+            // 2. Try OnBack() for proper game state handling
+            var systemMessageView = FindSystemMessageViewInPopup(popup);
+            if (systemMessageView != null && TryInvokeOnBack(systemMessageView))
+            {
+                _announcer.Announce(Models.Strings.Cancelled, Models.AnnouncementPriority.High);
+                ClearPopupState();
+                TriggerRescan();
+                return true;
+            }
+
+            // 3. Last resort: SetActive(false)
+            MelonLogger.Warning($"[{NavigatorId}] No dismiss method found, using SetActive(false) fallback");
+            popup.SetActive(false);
+            ClearPopupState();
+            TriggerRescan();
+            return true;
+        }
+
+        /// <summary>
+        /// Clear popup tracking state.
+        /// </summary>
+        private void ClearPopupState()
+        {
+            _isPopupActive = false;
+            _activePopup = null;
+        }
+
+        /// <summary>
+        /// Find the cancel/close/no button in a popup.
+        /// Searches SystemMessageButtonView, CustomButton, and Button components.
+        /// </summary>
+        private GameObject FindPopupCancelButton(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            string[] cancelPatterns = { "cancel", "close", "no", "abbrechen", "nein", "zurück" };
+
+            // First check SystemMessageButtonView components
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == "SystemMessageButtonView")
                 {
-                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
-                    UIActivator.Activate(closeButton);
-                    TriggerRescan();
-                    return true;
+                    string buttonText = UITextExtractor.GetText(mb.gameObject)?.ToLower() ?? "";
+                    string buttonName = mb.gameObject.name.ToLower();
+                    foreach (var pattern in cancelPatterns)
+                    {
+                        if (buttonText.Contains(pattern) || buttonName.Contains(pattern))
+                            return mb.gameObject;
+                    }
                 }
             }
 
-            return TryGenericBackButton();
+            // Check CustomButtons
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                {
+                    string buttonText = UITextExtractor.GetText(mb.gameObject)?.ToLower() ?? "";
+                    string buttonName = mb.gameObject.name.ToLower();
+                    foreach (var pattern in cancelPatterns)
+                    {
+                        if (buttonText.Contains(pattern) || buttonName.Contains(pattern))
+                            return mb.gameObject;
+                    }
+                }
+            }
+
+            // Check standard Buttons
+            foreach (var button in popup.GetComponentsInChildren<Button>(true))
+            {
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
+                string buttonText = UITextExtractor.GetText(button.gameObject)?.ToLower() ?? "";
+                string buttonName = button.gameObject.name.ToLower();
+                foreach (var pattern in cancelPatterns)
+                {
+                    if (buttonText.Contains(pattern) || buttonName.Contains(pattern))
+                        return button.gameObject;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Find SystemMessageView component within a popup hierarchy.
+        /// </summary>
+        private MonoBehaviour FindSystemMessageViewInPopup(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            // Search in the popup and all children
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView")
+                    return mb;
+            }
+
+            // Search up the hierarchy
+            var current = popup.transform.parent;
+            while (current != null)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "SystemMessageView")
+                        return mb;
+                }
+                current = current.parent;
+            }
+
+            // Find any active SystemMessageView in scene
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView" && mb.gameObject.activeInHierarchy)
+                    return mb;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Try to invoke OnBack(ActionContext) on a component.
+        /// </summary>
+        private bool TryInvokeOnBack(MonoBehaviour component)
+        {
+            if (component == null) return false;
+
+            var type = component.GetType();
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                if (method.Name == "OnBack" && method.GetParameters().Length == 1)
+                {
+                    try
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Invoking {type.Name}.OnBack(null)");
+                        method.Invoke(component, new object[] { null });
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[{NavigatorId}] Error invoking OnBack: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if a PanelInfo represents a popup panel (for local state tracking).
+        /// Uses PanelInfo.Type for classified panels, plus name-based fallbacks.
+        /// Safe for local tracking — NOT used in OverlayDetector filtering.
+        /// </summary>
+        private static bool IsPopupPanelInfo(PanelInfo panel)
+        {
+            if (panel == null) return false;
+            if (panel.Type == PanelType.Popup) return true;
+            string name = panel.Name ?? "";
+            return name.Contains("SystemMessageView") || name.Contains("Popup") ||
+                   name.Contains("Dialog") || name.Contains("ChallengeInviteWindow");
         }
 
         /// <summary>
@@ -2505,7 +2708,7 @@ namespace AccessibleArena.Core.Services
         {
             if (obj == null) return false;
             string name = obj.name;
-            return name.Contains("Popup") || name.Contains("SystemMessageView");
+            return name.Contains("Popup") || name.Contains("SystemMessageView") || name.Contains("ChallengeInviteWindow");
         }
 
         /// <summary>
