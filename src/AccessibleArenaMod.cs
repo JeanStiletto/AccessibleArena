@@ -7,7 +7,7 @@ using AccessibleArena.Core.Services;
 using AccessibleArena.Core.Services.PanelDetection;
 using AccessibleArena.Patches;
 
-[assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "0.6.6", "Accessible Arena Team")]
+[assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "0.6.9", "Accessible Arena Team")]
 [assembly: MelonGame("Wizards Of The Coast", "MTGA")]
 
 namespace AccessibleArena
