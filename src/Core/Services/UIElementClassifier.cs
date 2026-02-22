@@ -163,6 +163,7 @@ namespace AccessibleArena.Core.Services
             // Try each classification in priority order
             return TryClassifyAsInternal(obj, objName, text)
                 ?? TryClassifyAsCard(obj)
+                ?? TryClassifyAsPopoutControl(obj, objName)
                 ?? TryClassifyAsStepperControl(obj, objName)
                 ?? TryClassifyAsStepperNavControl(obj, objName)
                 ?? TryClassifyAsSettingsDropdown(obj, objName)
@@ -220,6 +221,51 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             return CreateResult(ElementRole.Internal, null, "", false, false);
+        }
+
+        /// <summary>
+        /// Classify Popout_* controls (challenge screen steppers).
+        /// LeftHover = internal (hidden), RightHover = stepper with arrow navigation.
+        /// </summary>
+        private static ClassificationResult TryClassifyAsPopoutControl(GameObject obj, string objName)
+        {
+            if (obj == null) return null;
+
+            // Must be LeftHover or RightHover
+            bool isLeft = EqualsIgnoreCase(objName, "LeftHover");
+            bool isRight = EqualsIgnoreCase(objName, "RightHover");
+            if (!isLeft && !isRight) return null;
+
+            // Must be direct child of a Popout_* parent
+            Transform parent = obj.transform.parent;
+            if (parent == null || !parent.name.StartsWith("Popout_", System.StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            // LeftHover: hide from navigation (the RightHover stepper handles both directions)
+            if (isLeft)
+                return CreateResult(ElementRole.Internal, null, "", false, false);
+
+            // RightHover: classify as stepper
+            // Find sibling LeftHover for the previous-control
+            Transform leftHover = parent.Find("LeftHover");
+            GameObject leftControl = leftHover != null ? leftHover.gameObject : null;
+
+            // Read label from the Popout parent's text content
+            string label = UITextExtractor.GetText(parent.gameObject);
+            if (string.IsNullOrEmpty(label))
+                label = parent.name;
+
+            return new ClassificationResult
+            {
+                Role = ElementRole.Button,
+                Label = label,
+                RoleLabel = "stepper, use left and right arrows",
+                IsNavigable = true,
+                ShouldAnnounce = true,
+                HasArrowNavigation = true,
+                PreviousControl = leftControl,
+                NextControl = obj // RightHover itself cycles forward
+            };
         }
 
         private static ClassificationResult TryClassifyAsSettingsDropdown(GameObject obj, string objName)

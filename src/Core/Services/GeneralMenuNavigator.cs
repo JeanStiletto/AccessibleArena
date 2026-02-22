@@ -2499,6 +2499,10 @@ namespace AccessibleArena.Core.Services
                 // PlayBlade specific containers
                 if (name.Contains("PlayBlade") || name.Contains("Play_Blade"))
                     return true;
+                // Challenge screen containers (inside FriendsWidget, not PlayBlade hierarchy)
+                if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
+                    name.Contains("InviteFriendPopup"))
+                    return true;
                 // Exclude other panels that use Blade naming
                 if (name.Contains("Mailbox") || name.Contains("PlayerInbox") ||
                     name.Contains("Settings") || name.Contains("Social"))

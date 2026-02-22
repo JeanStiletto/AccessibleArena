@@ -247,6 +247,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     current.parent.name.Contains("Blade"))
                     return true;
 
+                // Challenge screen containers (inside FriendsWidget, not PlayBlade hierarchy)
+                if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
+                    name.Contains("InviteFriendPopup"))
+                    return true;
+
                 // Event page main button (Play button on Color Challenge, etc.)
                 // These coexist with the blade and should be navigable
                 if (name.Contains("CampaignGraphMainButtonModule"))
