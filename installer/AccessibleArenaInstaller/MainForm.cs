@@ -402,7 +402,10 @@ namespace AccessibleArenaInstaller
                         installationManager.WriteModSettings(_language);
                     }
 
-                    // Step 6: Register in Add/Remove Programs
+                    // Step 6: Hide MelonLoader console window
+                    installationManager.ConfigureMelonLoaderConsole();
+
+                    // Step 7: Register in Add/Remove Programs
                     UpdateStatus(InstallerLocale.Get("Main_StatusRegistering"));
                     string installedModVersion = latestVersion ?? installationManager.GetInstalledModVersion() ?? "1.0.0";
                     RegistryManager.Register(_mtgaPath, installedModVersion);

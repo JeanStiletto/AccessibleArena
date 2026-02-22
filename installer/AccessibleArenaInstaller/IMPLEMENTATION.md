@@ -105,7 +105,8 @@ Three outcomes:
 3. **Create Mods folder** if it doesn't exist
 4. **Download Mod DLL** from GitHub releases (no redundant version check)
 5. **Configure mod language** if selected
-6. **Register in Add/Remove Programs** - stores GitHub release tag as version
+6. **Hide MelonLoader console** - sets `hide_console = true` in `UserData/Loader.cfg`
+7. **Register in Add/Remove Programs** - stores GitHub release tag as version
 
 **Update Only Mode:**
 1. Skip Tolk DLLs and MelonLoader
@@ -434,6 +435,13 @@ en, de, fr, es, it, pt-BR, ru, pl, ja, ko, zh-CN, zh-TW
 4. Rebuild - the wildcard `<EmbeddedResource Include="Locales\*.json" />` picks it up automatically
 
 ## Changelog
+
+### Version 1.6
+- Hide MelonLoader console window by default
+  - New `ConfigureMelonLoaderConsole()` method in InstallationManager
+  - Sets `hide_console = true` in `UserData/Loader.cfg` during installation
+  - Handles all cases: existing config, missing entry, or no config file yet
+  - Runs for both fresh installs and updates
 
 ### Version 1.5
 - Launch announcement now shows mod name and version ("Accessible Arena v0.6.5 launched")
