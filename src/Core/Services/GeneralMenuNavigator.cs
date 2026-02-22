@@ -2975,6 +2975,15 @@ namespace AccessibleArena.Core.Services
                 var classification = UIElementClassifier.Classify(obj);
                 if (classification.IsNavigable && classification.ShouldAnnounce)
                 {
+                    // In challenge mode, filter out individual deck entries from DeckSelectBlade.
+                    // Show only folder headers, steppers, and action buttons (like regular PlayBlade folders).
+                    if (PanelStateManager.Instance?.IsPlayBladeActive == true &&
+                        PanelStateManager.Instance.PlayBladeState == 2 &&
+                        FindDeckViewParent(obj.transform) != null)
+                    {
+                        return;
+                    }
+
                     var pos = obj.transform.position;
                     float sortOrder = -pos.y * 1000 + pos.x;
                     discoveredElements.Add((obj, classification, sortOrder));
