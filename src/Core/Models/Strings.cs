@@ -931,6 +931,10 @@ namespace AccessibleArena.Core.Models
         public static string ScreenPlayModeSelection => L.Get("ScreenPlayModeSelection");
         public static string ScreenDirectChallenge => L.Get("ScreenDirectChallenge");
         public static string ScreenFriendChallenge => L.Get("ScreenFriendChallenge");
+        public static string ChallengeYou => L.Get("ChallengeYou");
+        public static string ChallengeOpponent => L.Get("ChallengeOpponent");
+        public static string ChallengeNotInvited => L.Get("ChallengeNotInvited");
+        public static string ChallengeInvited => L.Get("ChallengeInvited");
         public static string ScreenConfirmation => L.Get("ScreenConfirmation");
         public static string ScreenInviteFriend => L.Get("ScreenInviteFriend");
         public static string ScreenSocial => L.Get("ScreenSocial");

@@ -451,6 +451,10 @@
   "GroupFriendSectionOutgoing": "Отправленные запросы",
   "GroupFriendSectionBlocked": "Заблокированные",
   "GroupChallengeMain": "Challenge Settings",
+  "ChallengeYou": "Вы",
+  "ChallengeOpponent": "Противник",
+  "ChallengeNotInvited": "Не приглашён",
+  "ChallengeInvited": "Приглашён",
   "GroupOther": "Прочее",
 
   "NoItemsFound": "Элементы не найдены.",

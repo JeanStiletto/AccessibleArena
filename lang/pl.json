@@ -451,6 +451,10 @@
   "GroupFriendSectionOutgoing": "Wysłane zaproszenia",
   "GroupFriendSectionBlocked": "Zablokowani",
   "GroupChallengeMain": "Challenge Settings",
+  "ChallengeYou": "Ty",
+  "ChallengeOpponent": "Przeciwnik",
+  "ChallengeNotInvited": "Nie zaproszony",
+  "ChallengeInvited": "Zaproszony",
   "GroupOther": "Inne",
 
   "NoItemsFound": "Nie znaleziono elementów.",

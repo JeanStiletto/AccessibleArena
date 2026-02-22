@@ -438,6 +438,10 @@
   "GroupFriendSectionOutgoing": "已發送請求",
   "GroupFriendSectionBlocked": "已封鎖",
   "GroupChallengeMain": "Challenge Settings",
+  "ChallengeYou": "你",
+  "ChallengeOpponent": "對手",
+  "ChallengeNotInvited": "未邀請",
+  "ChallengeInvited": "已邀請",
   "GroupOther": "其他",
 
   "NoItemsFound": "未找到項目。",

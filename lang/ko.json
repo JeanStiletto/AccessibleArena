@@ -438,6 +438,10 @@
   "GroupFriendSectionOutgoing": "보낸 요청",
   "GroupFriendSectionBlocked": "차단됨",
   "GroupChallengeMain": "Challenge Settings",
+  "ChallengeYou": "나",
+  "ChallengeOpponent": "상대",
+  "ChallengeNotInvited": "초대 안 됨",
+  "ChallengeInvited": "초대됨",
   "GroupOther": "기타",
 
   "NoItemsFound": "항목을 찾을 수 없습니다.",

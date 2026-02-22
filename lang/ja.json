@@ -438,6 +438,10 @@
   "GroupFriendSectionOutgoing": "送信リクエスト",
   "GroupFriendSectionBlocked": "ブロック済み",
   "GroupChallengeMain": "Challenge Settings",
+  "ChallengeYou": "あなた",
+  "ChallengeOpponent": "対戦相手",
+  "ChallengeNotInvited": "未招待",
+  "ChallengeInvited": "招待済み",
   "GroupOther": "その他",
 
   "NoItemsFound": "項目が見つかりません。",

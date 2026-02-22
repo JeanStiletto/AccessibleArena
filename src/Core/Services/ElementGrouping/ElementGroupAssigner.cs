@@ -110,6 +110,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 // InviteFriendPopup inside challenge -> Popup overlay
                 if (parentPath.Contains("InviteFriendPopup"))
                     return ElementGroup.Popup;
+
+                // "New Deck" and "Edit/Change Deck" stay in ChallengeMain (always visible)
+                // Can't use PlayBladeFolders because folder group only shows Folder_Toggle elements
+
                 return ElementGroup.ChallengeMain;
             }
 

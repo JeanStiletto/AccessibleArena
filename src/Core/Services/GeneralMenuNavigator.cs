@@ -2825,6 +2825,11 @@ namespace AccessibleArena.Core.Services
                 _groupedNavigator.RequestPlayBladeContentEntryAtIndex(groupedElementIndex);
             }
 
+            // Challenge context: close DeckSelectBlade that auto-opens on spinner change
+            // This prevents inconsistent element counts (8 -> 3 -> 6 fluctuation)
+            if (_challengeHelper.IsActive)
+                ChallengeNavigationHelper.CloseDeckSelectBlade();
+
             // Re-discover elements (rebuilds groups via OrganizeIntoGroups)
             _elements.Clear();
             _currentIndex = -1;
@@ -3363,6 +3368,10 @@ namespace AccessibleArena.Core.Services
                     continue;
 
                 string announcement = BuildAnnouncement(classification);
+
+                // Challenge context: prefix player name on challenge status buttons
+                if (_challengeHelper.IsActive)
+                    announcement = _challengeHelper.EnhanceButtonLabel(obj, announcement);
 
                 // Recent tab: enrich deck labels with event/mode name
                 if (recentDeckEventTitles.TryGetValue(obj, out var eventTitle))
@@ -5124,13 +5133,24 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             // PlayBlade states: 0=Hidden, 1=Events, 2=DirectChallenge, 3=FriendChallenge
-            return PanelStateManager.Instance.PlayBladeState switch
+            var state = PanelStateManager.Instance.PlayBladeState;
+            string baseName = state switch
             {
                 1 => Strings.ScreenPlayModeSelection,
                 2 => Strings.ScreenDirectChallenge,
                 3 => Strings.ScreenFriendChallenge,
                 _ => null
             };
+
+            // Append player status summary for challenge screens
+            if (baseName != null && state >= 2 && _challengeHelper != null)
+            {
+                var playerStatus = _challengeHelper.GetPlayerStatusSummary();
+                if (!string.IsNullOrEmpty(playerStatus))
+                    baseName = $"{baseName}. {playerStatus}";
+            }
+
+            return baseName;
         }
 
         /// <summary>

@@ -439,6 +439,10 @@
   "GroupFriendSectionOutgoing": "Anfragen gesendet",
   "GroupFriendSectionBlocked": "Blockiert",
   "GroupChallengeMain": "Challenge Settings",
+  "ChallengeYou": "Du",
+  "ChallengeOpponent": "Gegner",
+  "ChallengeNotInvited": "Nicht eingeladen",
+  "ChallengeInvited": "Eingeladen",
   "GroupOther": "Sonstiges",
 
   "NoItemsFound": "Keine Elemente gefunden.",

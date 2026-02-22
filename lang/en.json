@@ -441,6 +441,10 @@
   "GroupFriendSectionOutgoing": "Sent Requests",
   "GroupFriendSectionBlocked": "Blocked",
   "GroupChallengeMain": "Challenge Settings",
+  "ChallengeYou": "You",
+  "ChallengeOpponent": "Opponent",
+  "ChallengeNotInvited": "Not invited",
+  "ChallengeInvited": "Invited",
   "GroupOther": "Other",
 
   "NoItemsFound": "No items found.",
