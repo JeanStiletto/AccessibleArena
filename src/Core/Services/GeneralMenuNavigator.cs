@@ -2280,6 +2280,10 @@ namespace AccessibleArena.Core.Services
             if (obj.name == "Options_Button")
                 return false;
 
+            // Exclude Leave button in challenge screen - Backspace shortcut handles this
+            if (obj.name == "MainButton_Leave")
+                return false;
+
             // In mail content view, filter out buttons that have no actual text content
             // (e.g., "SecondaryButton_v2" which only shows its object name)
             if (_isInMailDetailView && _overlayDetector.GetActiveOverlay() == ElementGroup.MailboxContent)
