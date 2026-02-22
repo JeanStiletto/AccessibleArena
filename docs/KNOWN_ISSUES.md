@@ -69,6 +69,12 @@ Starting a bot match from the "Recent Played" section does not work properly.
 
 ---
 
+### Add Friend Popup Only Closes on Escape, Not Backspace
+
+The "Add Friend" popup (InviteFriendPopup) from the Friends panel does not close with Backspace. Only Escape works. The per-navigator popup tracking detects it correctly (`Popup detected: InviteFriendPopup`), and the dismiss chain finds and invokes `SystemMessageView.OnBack(null)`, but the popup does not actually close. Needs investigation into why OnBack succeeds but doesn't dismiss the popup, or whether a different dismiss mechanism is needed.
+
+---
+
 ### Haide Land Browser Broken (Leicht Gepanzert Deck)
 
 The Haide land (from the "Leicht Gepanzert" Brawl deck) opens a color picker browser to choose a mana color except white. This browser is not handled correctly and breaks navigation.
@@ -119,6 +125,12 @@ The PlayBlade "Find Match" was restructured into three queue type tabs (Ranked, 
 - Needs testing whether toggling it actually changes the match format
 
 **Files:** `PlayBladeNavigationHelper.cs`, `GroupedNavigator.cs`, `ElementGroupAssigner.cs`, `GeneralMenuNavigator.cs`
+
+---
+
+### Targeting Spells With Non-Battlefield Objects in Highlight List
+
+Monitor whether clicking activates the wrong target during duels, especially when targeting spells while non-battlefield objects (e.g., UI buttons, zone elements) are present in the highlight list.
 
 ---
 
@@ -355,7 +367,10 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 
 ### Upcoming
 
-1. First letter navigation - press a letter key to jump to the next element starting with that letter in menus and lists
+1. Manual trigger ordering - allow players to manually choose the order of their triggered abilities when multiple triggers happen simultaneously
+2. Phase stop markers - allow setting stop markers for specific phases so the game pauses at those points for the player to act
+3. Auto-skip tracking and hotkeys - correct tracking and switching of auto-skip state, including a new hotkey for toggling auto-skip and full auto-skip modes
+4. First letter navigation - press a letter key to jump to the next element starting with that letter in menus and lists
 2. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
 3. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
 2. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
