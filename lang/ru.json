@@ -286,6 +286,13 @@
 
   "HelpUpDownDetails": "Стрелка вверх или вниз: Навигация по деталям карты",
 
+  "HelpCategoryDuelGeneral": "Общие команды дуэли",
+  "HelpSpaceAdvance": "Пробел: Подтвердить или перейти к следующей фазе",
+  "HelpBackspaceCancel": "Backspace: Отмена",
+  "HelpEnterSelect": "Enter: Выбрать",
+  "HelpYUndo": "Y: Отменить действие",
+  "HelpQQFloatMana": "Двойное нажатие Q: Повернуть все земли для маны",
+
   "HelpSpaceCombat": "Пробел: Подтвердить атакующих или блокирующих",
   "HelpBackspaceCombat": "Backspace: Не атаковать или отменить блок",
 

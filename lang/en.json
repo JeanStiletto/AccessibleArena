@@ -278,6 +278,13 @@
 
   "HelpUpDownDetails": "Up or Down arrow: Navigate card details",
 
+  "HelpCategoryDuelGeneral": "General duel commands",
+  "HelpSpaceAdvance": "Space: Confirm or advance phase",
+  "HelpBackspaceCancel": "Backspace: Cancel",
+  "HelpEnterSelect": "Enter: Select",
+  "HelpYUndo": "Y: Undo",
+  "HelpQQFloatMana": "Double press Q: Tap all lands for mana",
+
   "HelpSpaceCombat": "Space: Confirm attackers or blockers",
   "HelpBackspaceCombat": "Backspace: No attacks or cancel blocks",
 

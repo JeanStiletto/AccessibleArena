@@ -286,6 +286,13 @@
 
   "HelpUpDownDetails": "Strzałka w górę lub w dół: Nawigacja po szczegółach karty",
 
+  "HelpCategoryDuelGeneral": "Ogólne komendy pojedynku",
+  "HelpSpaceAdvance": "Spacja: Potwierdź lub przejdź do następnej fazy",
+  "HelpBackspaceCancel": "Backspace: Anuluj",
+  "HelpEnterSelect": "Enter: Wybierz",
+  "HelpYUndo": "Y: Cofnij",
+  "HelpQQFloatMana": "Podwójne naciśnięcie Q: Tap wszystkie lądy na manę",
+
   "HelpSpaceCombat": "Spacja: Potwierdź atakujących lub blokujących",
   "HelpBackspaceCombat": "Backspace: Bez ataków lub anuluj bloki",
 

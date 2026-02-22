@@ -746,6 +746,14 @@ namespace AccessibleArena.Core.Models
         // Card details
         public static string HelpUpDownDetails => L.Get("HelpUpDownDetails");
 
+        // General duel commands
+        public static string HelpCategoryDuelGeneral => L.Get("HelpCategoryDuelGeneral");
+        public static string HelpSpaceAdvance => L.Get("HelpSpaceAdvance");
+        public static string HelpBackspaceCancel => L.Get("HelpBackspaceCancel");
+        public static string HelpEnterSelect => L.Get("HelpEnterSelect");
+        public static string HelpYUndo => L.Get("HelpYUndo");
+        public static string HelpQQFloatMana => L.Get("HelpQQFloatMana");
+
         // Combat
         public static string HelpSpaceCombat => L.Get("HelpSpaceCombat");
         public static string HelpBackspaceCombat => L.Get("HelpBackspaceCombat");

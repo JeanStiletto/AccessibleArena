@@ -99,6 +99,14 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpUpDownDetails,
                 Strings.HelpIExtendedInfo,
 
+                // General duel commands
+                Strings.HelpCategoryDuelGeneral,
+                Strings.HelpSpaceAdvance,
+                Strings.HelpBackspaceCancel,
+                Strings.HelpEnterSelect,
+                Strings.HelpYUndo,
+                Strings.HelpQQFloatMana,
+
                 // Combat
                 Strings.HelpCategoryCombat,
                 Strings.HelpSpaceCombat,

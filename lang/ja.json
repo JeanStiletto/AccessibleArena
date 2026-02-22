@@ -276,6 +276,13 @@
 
   "HelpUpDownDetails": "上下矢印キー: カード詳細を移動",
 
+  "HelpCategoryDuelGeneral": "デュエル一般コマンド",
+  "HelpSpaceAdvance": "Space: 確認またはフェイズ進行",
+  "HelpBackspaceCancel": "Backspace: キャンセル",
+  "HelpEnterSelect": "Enter: 選択",
+  "HelpYUndo": "Y: 元に戻す",
+  "HelpQQFloatMana": "Qを2回押す: すべての土地をタップしてマナを出す",
+
   "HelpSpaceCombat": "Space: 攻撃またはブロックを確定",
   "HelpBackspaceCombat": "Backspace: 攻撃なしまたはブロックをキャンセル",
 

@@ -276,6 +276,13 @@
 
   "HelpUpDownDetails": "上下方向键：浏览卡牌详情",
 
+  "HelpCategoryDuelGeneral": "决斗常用命令",
+  "HelpSpaceAdvance": "Space：确认或推进阶段",
+  "HelpBackspaceCancel": "Backspace：取消",
+  "HelpEnterSelect": "Enter：选择",
+  "HelpYUndo": "Y：撤销",
+  "HelpQQFloatMana": "双击Q：横置所有地牌产生法力",
+
   "HelpSpaceCombat": "Space：确认攻击者或阻挡者",
   "HelpBackspaceCombat": "Backspace：不攻击或取消阻挡",
 

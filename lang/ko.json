@@ -276,6 +276,13 @@
 
   "HelpUpDownDetails": "위아래 방향키: 카드 상세 탐색",
 
+  "HelpCategoryDuelGeneral": "일반 대전 명령",
+  "HelpSpaceAdvance": "Space: 확인 또는 단계 진행",
+  "HelpBackspaceCancel": "Backspace: 취소",
+  "HelpEnterSelect": "Enter: 선택",
+  "HelpYUndo": "Y: 실행 취소",
+  "HelpQQFloatMana": "Q 두 번 누르기: 모든 대지를 탭하여 마나 생성",
+
   "HelpSpaceCombat": "Space: 공격자 또는 방어자 확정",
   "HelpBackspaceCombat": "Backspace: 공격 없음 또는 방어 취소",
 

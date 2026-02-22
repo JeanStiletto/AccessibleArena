@@ -276,6 +276,13 @@
 
   "HelpUpDownDetails": "Seta para cima ou para baixo: Navegar detalhes da carta",
 
+  "HelpCategoryDuelGeneral": "Comandos gerais de duelo",
+  "HelpSpaceAdvance": "Espa\u00e7o: Confirmar ou avan\u00e7ar fase",
+  "HelpBackspaceCancel": "Backspace: Cancelar",
+  "HelpEnterSelect": "Enter: Selecionar",
+  "HelpYUndo": "Y: Desfazer",
+  "HelpQQFloatMana": "Duplo toque Q: Virar todos os terrenos por mana",
+
   "HelpSpaceCombat": "Espa\u00e7o: Confirmar atacantes ou bloqueadores",
   "HelpBackspaceCombat": "Backspace: Sem ataques ou cancelar bloqueios",
 

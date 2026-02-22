@@ -276,6 +276,13 @@
 
   "HelpUpDownDetails": "Freccia su o giù: Naviga dettagli della carta",
 
+  "HelpCategoryDuelGeneral": "Comandi generali di duello",
+  "HelpSpaceAdvance": "Spazio: Conferma o avanza fase",
+  "HelpBackspaceCancel": "Backspace: Annulla",
+  "HelpEnterSelect": "Invio: Seleziona",
+  "HelpYUndo": "Y: Annulla azione",
+  "HelpQQFloatMana": "Doppia pressione Q: Tappa tutte le terre per mana",
+
   "HelpSpaceCombat": "Spazio: Conferma attaccanti o bloccanti",
   "HelpBackspaceCombat": "Backspace: Nessun attacco o annulla blocchi",
 

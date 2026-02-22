@@ -276,6 +276,13 @@
 
   "HelpUpDownDetails": "Flèche haut ou bas : Naviguer dans les détails de la carte",
 
+  "HelpCategoryDuelGeneral": "Commandes générales de duel",
+  "HelpSpaceAdvance": "Espace : Confirmer ou avancer la phase",
+  "HelpBackspaceCancel": "Retour arrière : Annuler",
+  "HelpEnterSelect": "Entrée : Sélectionner",
+  "HelpYUndo": "Y : Annuler l'action",
+  "HelpQQFloatMana": "Double appui Q : Engager tous les terrains pour du mana",
+
   "HelpSpaceCombat": "Espace : Confirmer les attaquants ou les bloqueurs",
   "HelpBackspaceCombat": "Retour arrière : Pas d'attaque ou annuler les bloqueurs",
 

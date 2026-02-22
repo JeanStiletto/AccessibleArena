@@ -277,6 +277,13 @@
 
   "HelpUpDownDetails": "Pfeil hoch oder runter: Kartendetails navigieren",
 
+  "HelpCategoryDuelGeneral": "Allgemeine Duellbefehle",
+  "HelpSpaceAdvance": "Leertaste: Bestätigen oder Phase fortsetzen",
+  "HelpBackspaceCancel": "Rücktaste: Abbrechen",
+  "HelpEnterSelect": "Eingabetaste: Auswählen",
+  "HelpYUndo": "Y: Rückgängig",
+  "HelpQQFloatMana": "Q doppelt drücken: Alle Länder für Mana tappen",
+
   "HelpSpaceCombat": "Leertaste: Angreifer oder Blocker bestätigen",
   "HelpBackspaceCombat": "Rücktaste: Keine Angriffe oder Blocker abbrechen",
 
