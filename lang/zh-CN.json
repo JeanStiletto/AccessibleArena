@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} 已启动",
   "Back": "返回",
   "NoSelection": "未选择",
@@ -444,6 +444,7 @@
   "GroupFriendSectionIncoming": "收到的请求",
   "GroupFriendSectionOutgoing": "已发送请求",
   "GroupFriendSectionBlocked": "已屏蔽",
+  "GroupFriendsPanelProfile": "õ¢áþÜäÞÁäµûÖ",
   "GroupChallengeMain": "Challenge Settings",
   "ChallengeYou": "你",
   "ChallengeOpponent": "对手",

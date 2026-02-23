@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} 시작되었습니다",
   "Back": "뒤로",
   "NoSelection": "선택 없음",
@@ -444,6 +444,7 @@
   "GroupFriendSectionIncoming": "받은 요청",
   "GroupFriendSectionOutgoing": "보낸 요청",
   "GroupFriendSectionBlocked": "차단됨",
+  "GroupFriendsPanelProfile": "Ùé┤ ÝöäÙí£Ýòä",
   "GroupChallengeMain": "Challenge Settings",
   "ChallengeYou": "나",
   "ChallengeOpponent": "상대",

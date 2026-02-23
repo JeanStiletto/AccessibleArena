@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} запущен",
   "Back": "Назад",
   "NoSelection": "Ничего не выбрано",
@@ -457,6 +457,7 @@
   "GroupFriendSectionIncoming": "Входящие запросы",
   "GroupFriendSectionOutgoing": "Отправленные запросы",
   "GroupFriendSectionBlocked": "Заблокированные",
+  "GroupFriendsPanelProfile": "Ваш Профиль",
   "GroupChallengeMain": "Challenge Settings",
   "ChallengeYou": "Вы",
   "ChallengeOpponent": "Противник",

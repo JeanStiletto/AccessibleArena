@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} lancé",
   "Back": "Retour",
   "NoSelection": "Aucune sélection",
@@ -444,6 +444,7 @@
   "GroupFriendSectionIncoming": "Demandes reçues",
   "GroupFriendSectionOutgoing": "Demandes envoyées",
   "GroupFriendSectionBlocked": "Bloqués",
+  "GroupFriendsPanelProfile": "Ton Profil",
   "GroupChallengeMain": "Challenge Settings",
   "ChallengeYou": "Vous",
   "ChallengeOpponent": "Adversaire",

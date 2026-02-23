@@ -224,6 +224,92 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Read the local player's full name (with #number) and status from the FriendsWidget.
+        /// Returns (fullName, statusText) or (null, null) if not available.
+        /// </summary>
+        public static (string fullName, string statusText) GetLocalPlayerInfo(GameObject socialPanel)
+        {
+            if (socialPanel == null) return (null, null);
+
+            try
+            {
+                // Find FriendsWidget component
+                Component widget = null;
+                foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "FriendsWidget")
+                    {
+                        widget = mb;
+                        break;
+                    }
+                }
+                if (widget == null) return (null, null);
+
+                var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                var widgetType = widget.GetType();
+
+                // Read _socialManager.LocalPlayer.FullName
+                string fullName = null;
+                var smField = widgetType.GetField("_socialManager", flags);
+                var socialManager = smField?.GetValue(widget);
+                if (socialManager != null)
+                {
+                    var localPlayerProp = socialManager.GetType().GetProperty("LocalPlayer");
+                    var localPlayer = localPlayerProp?.GetValue(socialManager);
+                    if (localPlayer != null)
+                    {
+                        var fullNameProp = localPlayer.GetType().GetProperty("FullName");
+                        fullName = fullNameProp?.GetValue(localPlayer) as string;
+                    }
+                }
+
+                // Read StatusText.text for localized status
+                string statusText = null;
+                var statusTextField = widgetType.GetField("StatusText", flags);
+                var statusTmp = statusTextField?.GetValue(widget) as TMP_Text;
+                if (statusTmp != null)
+                    statusText = statusTmp.text?.Trim();
+
+                return (fullName, statusText);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[FriendInfoProvider] Error reading local player info: {ex.Message}");
+                return (null, null);
+            }
+        }
+
+        /// <summary>
+        /// Get the StatusButton GameObject from the FriendsWidget.
+        /// Returns null if not found.
+        /// </summary>
+        public static GameObject GetStatusButton(GameObject socialPanel)
+        {
+            if (socialPanel == null) return null;
+
+            try
+            {
+                foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "FriendsWidget")
+                    {
+                        var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                        var statusField = mb.GetType().GetField("StatusButton", flags);
+                        var statusButton = statusField?.GetValue(mb);
+                        if (statusButton is Component comp)
+                            return comp.gameObject;
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[FriendInfoProvider] Error getting StatusButton: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Find a social tile component (FriendTile, InviteOutgoingTile, etc.) on or above the given element.
         /// </summary>
         public static Component FindFriendTile(GameObject element)

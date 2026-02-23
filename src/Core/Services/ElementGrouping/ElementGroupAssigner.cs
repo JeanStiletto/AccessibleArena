@@ -10,11 +10,19 @@ namespace AccessibleArena.Core.Services.ElementGrouping
     public class ElementGroupAssigner
     {
         private readonly OverlayDetector _overlayDetector;
+        private int _profileButtonInstanceId;
 
         public ElementGroupAssigner(OverlayDetector overlayDetector)
         {
             _overlayDetector = overlayDetector;
         }
+
+        /// <summary>
+        /// Register the local player's StatusButton instance ID so it can be
+        /// recognized and assigned to FriendsPanelProfile during group assignment.
+        /// </summary>
+        public void SetProfileButtonId(int instanceId) => _profileButtonInstanceId = instanceId;
+        public void ClearProfileButtonId() => _profileButtonInstanceId = 0;
 
         /// <summary>
         /// Determine which group an element belongs to.
@@ -492,6 +500,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     return ElementGroup.FriendSectionBlocked;
             }
 
+            // Local player profile button (StatusButton in FriendsWidget)
+            if (_profileButtonInstanceId != 0 && element.GetInstanceID() == _profileButtonInstanceId)
+                return ElementGroup.FriendsPanelProfile;
+
             // Fallback: detect section by tile component type when path patterns don't match.
             // Some sections (e.g., Blocked) may use different list item naming or hierarchy.
             var tile = FriendInfoProvider.FindFriendTile(element);
@@ -589,8 +601,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private static bool IsChallengeContainer(string parentPath, string name)
         {
             // Challenge options spinners and settings
-            if (parentPath.Contains("ChallengeOptions") || parentPath.Contains("ChallengeWidget") ||
-                parentPath.Contains("UnifiedChallenges"))
+            // Note: Do NOT match "ChallengeWidget" - it matches ChallengeWidget_Base in the friends panel
+            if (parentPath.Contains("ChallengeOptions") || parentPath.Contains("UnifiedChallenges"))
                 return true;
 
             // Challenge play button and deck selection area

@@ -175,7 +175,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// <summary>
         /// Friends panel: Blocked users section.
         /// </summary>
-        FriendSectionBlocked
+        FriendSectionBlocked,
+
+        /// <summary>
+        /// Friends panel: Local player profile (username#number + status).
+        /// Single-element standalone group for sharing your username.
+        /// </summary>
+        FriendsPanelProfile
     }
 
     /// <summary>
@@ -196,6 +202,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.FriendSectionIncoming
                 || group == ElementGroup.FriendSectionOutgoing
                 || group == ElementGroup.FriendSectionBlocked
+                || group == ElementGroup.FriendsPanelProfile
                 || group == ElementGroup.PlayBladeTabs
                 || group == ElementGroup.PlayBladeContent
                 || group == ElementGroup.PlayBladeFolders
@@ -218,6 +225,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             return group == ElementGroup.FriendsPanelChallenge
                 || group == ElementGroup.FriendsPanelAddFriend
+                || group == ElementGroup.FriendsPanelProfile
                 || group == ElementGroup.FriendSectionFriends
                 || group == ElementGroup.FriendSectionIncoming
                 || group == ElementGroup.FriendSectionOutgoing

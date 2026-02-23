@@ -1001,6 +1001,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.FriendSectionIncoming: return L.Get("GroupFriendSectionIncoming");
                 case Services.ElementGrouping.ElementGroup.FriendSectionOutgoing: return L.Get("GroupFriendSectionOutgoing");
                 case Services.ElementGrouping.ElementGroup.FriendSectionBlocked: return L.Get("GroupFriendSectionBlocked");
+                case Services.ElementGrouping.ElementGroup.FriendsPanelProfile: return L.Get("GroupFriendsPanelProfile");
                 case Services.ElementGrouping.ElementGroup.ChallengeMain: return L.Get("GroupChallengeMain");
                 default: return L.Get("GroupOther");
             }

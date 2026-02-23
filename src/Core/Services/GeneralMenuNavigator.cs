@@ -148,6 +148,10 @@ namespace AccessibleArena.Core.Services
         // Mail content field navigation
         private UITextExtractor.MailContentParts _mailContentParts;
 
+        // Friends panel: cached profile button info for label override
+        private GameObject _profileButtonGO;
+        private string _profileLabel;
+
         // Element tracking
         private float _bladeAutoExpandDelay;
 
@@ -2447,6 +2451,27 @@ namespace AccessibleArena.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] Social tile scan: {scanned} tiles found, {added} new entries added");
+
+            // Step 3: Find the StatusButton (local player profile) and register it
+            // The StatusButton is a CustomButton showing the player's display name.
+            // We register its instance ID so the group assigner routes it to FriendsPanelProfile,
+            // and cache the full username (with #number) for label override in the final addition loop.
+            _profileButtonGO = null;
+            _profileLabel = null;
+            var statusButtonGO = FriendInfoProvider.GetStatusButton(socialPanel);
+            if (statusButtonGO != null)
+            {
+                var (fullName, statusText) = FriendInfoProvider.GetLocalPlayerInfo(socialPanel);
+                if (!string.IsNullOrEmpty(fullName))
+                {
+                    _profileButtonGO = statusButtonGO;
+                    _profileLabel = !string.IsNullOrEmpty(statusText)
+                        ? $"{fullName}, {statusText}"
+                        : fullName;
+                    _groupAssigner.SetProfileButtonId(statusButtonGO.GetInstanceID());
+                    MelonLogger.Msg($"[{NavigatorId}] Profile button registered: {statusButtonGO.name} (ID:{statusButtonGO.GetInstanceID()}), label='{_profileLabel}'");
+                }
+            }
         }
 
         /// <summary>
@@ -3536,6 +3561,10 @@ namespace AccessibleArena.Core.Services
                     continue;
 
                 string announcement = BuildAnnouncement(classification);
+
+                // Friends panel: override profile button label with full username#number
+                if (_profileButtonGO != null && obj == _profileButtonGO && _profileLabel != null)
+                    announcement = _profileLabel;
 
                 // Challenge context: prefix player name on challenge status buttons
                 if (_challengeHelper.IsActive)

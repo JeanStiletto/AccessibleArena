@@ -673,6 +673,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.FriendSectionIncoming,
                 ElementGroup.FriendSectionOutgoing,
                 ElementGroup.FriendSectionBlocked,
+                ElementGroup.FriendsPanelProfile,
                 ElementGroup.MailboxList,
                 ElementGroup.MailboxContent,
                 ElementGroup.PlayBladeTabs,

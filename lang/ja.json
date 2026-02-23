@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} 起動しました",
   "Back": "戻る",
   "NoSelection": "選択なし",
@@ -444,6 +444,7 @@
   "GroupFriendSectionIncoming": "受信リクエスト",
   "GroupFriendSectionOutgoing": "送信リクエスト",
   "GroupFriendSectionBlocked": "ブロック済み",
+  "GroupFriendsPanelProfile": "ÒâùÒâ¡ÒâòÒéúÒâ╝Òâ½",
   "GroupChallengeMain": "Challenge Settings",
   "ChallengeYou": "あなた",
   "ChallengeOpponent": "対戦相手",

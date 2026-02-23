@@ -19,6 +19,7 @@ The friends panel uses the element grouping system with overlay filtering. When 
 - **Sent Requests** - List of outgoing friend invites (navigable section)
 - **Incoming Requests** - List of incoming friend invites (navigable section)
 - **Blocked** - List of blocked users (navigable section)
+- **Your Profile** - Standalone element showing your full username#number and status
 
 Only sections with entries appear. Empty sections are absent.
 
@@ -76,10 +77,12 @@ SocialUI_V2_Desktop_16x9(Clone)
   MobileSafeArea
     FriendsWidget_*
       Button_TopBarDismiss
-      Button_AddChallenge
-        Backer_Hitbox          ← navigable element (Challenge group)
+      ChallengeWidget_Base
+        Button_AddChallenge
+          Backer_Hitbox        ← navigable element (Challenge group)
       Button_AddFriend
         Backer_Hitbox          ← navigable element (Add Friend group)
+      StatusButton             ← navigable element (Your Profile group, label: "name#number, status")
       Bucket_Friends_CONTAINER
         SocialEntittiesListItem_0    ← note: double-t typo in game code
           [FriendTile component]
@@ -104,14 +107,14 @@ Navigable elements are `Backer_Hitbox` (CustomButton) children. The tile compone
 
 ### Files
 
-- **`ElementGroup.cs`** - 6 enum values: `FriendsPanelChallenge`, `FriendsPanelAddFriend`, `FriendSectionFriends`, `FriendSectionIncoming`, `FriendSectionOutgoing`, `FriendSectionBlocked`
-- **`ElementGroupAssigner.cs`** - `DetermineFriendPanelGroup()` maps elements to groups via parentPath bucket detection
+- **`ElementGroup.cs`** - 7 enum values: `FriendsPanelChallenge`, `FriendsPanelAddFriend`, `FriendsPanelProfile`, `FriendSectionFriends`, `FriendSectionIncoming`, `FriendSectionOutgoing`, `FriendSectionBlocked`
+- **`ElementGroupAssigner.cs`** - `DetermineFriendPanelGroup()` maps elements to groups via parentPath bucket detection + profile button instance ID matching
 - **`GroupedNavigator.cs`** - Friend section groups exempt from single-element standalone rule
 - **`OverlayDetector.cs`** - `FriendsPanel` overlay when social panel is open
-- **`FriendInfoProvider.cs`** - Reads tile data and actions via reflection on Core.dll types
-- **`GeneralMenuNavigator.cs`** - Friend sub-navigation (Left/Right actions, F4 toggle, panel open/close)
+- **`FriendInfoProvider.cs`** - Reads tile data and actions via reflection on Core.dll types; also reads local player profile (StatusButton, FullName, StatusText) from FriendsWidget
+- **`GeneralMenuNavigator.cs`** - Friend sub-navigation (Left/Right actions, F4 toggle, panel open/close); discovers StatusButton and overrides label with full username#number
 - **`MenuScreenDetector.cs`** - `IsSocialPanelOpen()` detects active friends widget
-- **`Strings.cs`** - Localized group names and action labels (14 keys total)
+- **`Strings.cs`** - Localized group names and action labels (15 keys total)
 
 ### Element Group Assignment
 
@@ -119,12 +122,15 @@ Elements inside the social panel are assigned groups based on parentPath pattern
 
 - `Button_AddChallenge` in path → `FriendsPanelChallenge`
 - `Button_AddFriend` in path → `FriendsPanelAddFriend`
+- StatusButton instance ID match → `FriendsPanelProfile`
 - `SocialEntittiesListItem` + `Bucket_Friends` → `FriendSectionFriends`
 - `SocialEntittiesListItem` + `Bucket_SentRequests` → `FriendSectionOutgoing`
 - `SocialEntittiesListItem` + `Bucket_IncomingRequests` → `FriendSectionIncoming`
 - `SocialEntittiesListItem` + `Bucket_Blocked` → `FriendSectionBlocked`
 
 Unmatched social panel elements return `Unknown` (hidden via fallthrough guard).
+
+**Important:** `ChallengeWidget_Base` in the friends panel contains the challenge button hierarchy. `IsChallengeContainer()` must NOT match `ChallengeWidget` — that pattern would hijack friends panel elements into the `ChallengeMain` group. The actual challenge screen uses `ChallengeOptions`, `FriendChallengeBladeWidget`, `Popout_Play`, and `UnifiedChallenges`.
 
 ### Reflection Details
 
@@ -161,6 +167,18 @@ Social tile types live in **Core.dll** (no namespace), NOT Assembly-CSharp.dll.
 - `_buttonRemoveBlock` (Button) - unblock action
 - `Callback_RemoveBlock` (Action\<Block\>) - unblock callback
 - `Block` (Block property) - the block entity with `BlockedPlayer.DisplayName`
+
+**FriendsWidget fields (for local player profile):**
+- `StatusButton` (CustomButton) - toggles presence status dropdown; identified by instance ID for `FriendsPanelProfile` group
+- `UsernameText` (TMP_Text) - shows `_socialManager.LocalPlayer.DisplayName` (name without #number)
+- `StatusText` (TMP_Text) - localized status text (Online/Busy/Offline)
+- `_socialManager` (ISocialManager, private) - access to `LocalPlayer` (SocialEntity)
+
+**SocialEntity (MTGA.Social) key properties:**
+- `FullName` (string) - complete name with discriminator (e.g. "jean stiletto#89866")
+- `DisplayName` (string) - name without #number
+- `NameHash` (string) - the "#number" suffix
+- `Status` (PresenceStatus) - Online/Busy/Offline/Away
 
 ### Virtualized Scroll View
 
