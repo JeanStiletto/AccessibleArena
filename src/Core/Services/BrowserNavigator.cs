@@ -42,6 +42,8 @@ namespace AccessibleArena.Core.Services
         private System.Collections.IDictionary _spinnerMap; // InstanceId → SpinnerAnimated
         private uint _totalDamage;
         private bool _totalDamageCached;
+        private int _assignerIndex;   // 1-based index of current assigner
+        private int _assignerTotal;   // total number of damage assigners in this combat
         private static readonly BindingFlags ReflFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
 
         // Zone name constant
@@ -174,6 +176,8 @@ namespace AccessibleArena.Core.Services
             _spinnerMap = null;
             _totalDamage = 0;
             _totalDamageCached = false;
+            _assignerIndex = 0;
+            _assignerTotal = 0;
 
             // Invalidate detector cache
             BrowserDetector.InvalidateCache();
@@ -1569,6 +1573,22 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: TotalDamage field not found");
                 }
+
+                // Read assigner queue counts: _handledAssigners (List) + _unhandledAssigners (Queue)
+                // Current = handledCount + 1, Total = handledCount + unhandledCount + 1
+                var iType = interaction.GetType();
+                var handledField = iType.GetField("_handledAssigners", ReflFlags);
+                var unhandledField = iType.GetField("_unhandledAssigners", ReflFlags);
+                if (handledField != null && unhandledField != null)
+                {
+                    var handled = handledField.GetValue(interaction) as ICollection;
+                    var unhandled = unhandledField.GetValue(interaction) as ICollection;
+                    int handledCount = handled?.Count ?? 0;
+                    int unhandledCount = unhandled?.Count ?? 0;
+                    _assignerIndex = handledCount + 1;
+                    _assignerTotal = handledCount + unhandledCount + 1;
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Assigner {_assignerIndex} of {_assignerTotal}");
+                }
             }
             catch (Exception ex)
             {
@@ -1902,7 +1922,12 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                return Strings.DamageAssignEntry(attackerName, power, cardCount);
+                string entry = Strings.DamageAssignEntry(attackerName, power, cardCount);
+                if (_assignerTotal > 1)
+                {
+                    entry += $". {_assignerIndex} of {_assignerTotal}";
+                }
+                return entry;
             }
             catch (Exception ex)
             {

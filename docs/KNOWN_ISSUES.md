@@ -142,6 +142,19 @@ Sometimes secondary or irrelevant buttons appear in the Tab navigation order dur
 
 ---
 
+### Damage Assignment Browser Opens Twice
+
+The damage assignment browser sometimes opens twice in sequence for the same attacker (same blockers, same TotalDamage). This causes the game to request two separate damage assignments. Observed with a 5/4 creature blocked by 4 creatures — no first strike on any attacker or blocker. A creature with first strike (Halana und Alena) was on the battlefield but not in combat. Unclear whether this is caused by:
+- A first strike damage step being created by a non-combat creature with first strike
+- A game-internal behavior we don't understand yet
+- Something else on the battlefield granting first strike
+
+Currently mitigated with "1 of N" announcement so the user knows multiple rounds are expected.
+
+**Files:** `BrowserNavigator.cs` (GetAssignDamageEntryAnnouncement, EnsureTotalDamageCached)
+
+---
+
 ### Damage Assignment Submit via SimulatePointerClick
 
 The damage assignment browser submit currently uses direct DoneAction invocation via reflection. Before our AssignDamage accessibility changes, the generic SimulatePointerClick on SubmitButton worked for confirmation. It's unclear whether SimulatePointerClick still works or if our input routing changes broke it. If DoneAction ever fails, test whether reverting to SimulatePointerClick on the SubmitButton is a viable alternative.
