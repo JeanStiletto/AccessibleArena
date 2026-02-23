@@ -90,6 +90,7 @@
   "DiscardCount_Format": "카드 {0}장 버리기",
   "CardsSelected_One": "카드 1장 선택됨",
   "CardsSelected_Format": "카드 {0}장 선택됨",
+  "SelectionProgress_Format": "{1}장 중 {0}장 선택됨",
   "NeedHaveSelected_Format": "{0}장 필요, {1}장 선택됨",
   "SubmittingDiscard_Format": "버리기로 {0}장 제출 중",
   "CouldNotSelect_Format": "{0}을(를) 선택할 수 없습니다",

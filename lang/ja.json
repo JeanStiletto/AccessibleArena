@@ -90,6 +90,7 @@
   "DiscardCount_Format": "カード{0}枚を捨てる",
   "CardsSelected_One": "カード1枚選択済み",
   "CardsSelected_Format": "カード{0}枚選択済み",
+  "SelectionProgress_Format": "{1}枚中{0}枚選択済み",
   "NeedHaveSelected_Format": "{0}枚必要、{1}枚選択済み",
   "SubmittingDiscard_Format": "ディスカードとして{0}枚を送信中",
   "CouldNotSelect_Format": "{0}を選択できませんでした",

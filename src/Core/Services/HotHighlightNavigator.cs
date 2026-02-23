@@ -977,19 +977,19 @@ namespace AccessibleArena.Core.Services
         {
             yield return new WaitForSeconds(0.2f);
 
-            // Announce toggle action (opposite of what it was)
-            string action = wasSelected ? Strings.Deselected : Strings.Selected;
-            string toggleAnnouncement = $"{cardName} {action}";
-
             var info = GetSubmitButtonInfo();
             if (info != null)
             {
-                // Announce both the toggle and the count
-                _announcer.Announce($"{toggleAnnouncement}, {Strings.CardsSelected(info.Value.count)}", AnnouncementPriority.Normal);
+                // Get required count from game's prompt text (e.g. "Discard 2 cards")
+                // All MTGA languages use Arabic numerals (0-9); default to 1 for prompts like "Discard a card"
+                int required = GetRequiredCountFromPrompt();
+                // Announce: "CardName, 1 of 2 selected"
+                _announcer.Announce($"{cardName}, {Strings.SelectionProgress(info.Value.count, required)}", AnnouncementPriority.Normal);
             }
             else
             {
-                _announcer.Announce(toggleAnnouncement, AnnouncementPriority.Normal);
+                string action = wasSelected ? Strings.Deselected : Strings.Selected;
+                _announcer.Announce($"{cardName} {action}", AnnouncementPriority.Normal);
             }
         }
 
@@ -1075,6 +1075,23 @@ namespace AccessibleArena.Core.Services
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Extracts the required selection count from the game's prompt text.
+        /// All MTGA languages use Arabic numerals, so a simple \d+ match works.
+        /// Returns 1 if no number found (prompts like "Discard a card" mean 1).
+        /// </summary>
+        private int GetRequiredCountFromPrompt()
+        {
+            string promptText = GetPromptInstructionText();
+            if (!string.IsNullOrEmpty(promptText))
+            {
+                var match = Regex.Match(promptText, @"\d+");
+                if (match.Success)
+                    return int.Parse(match.Value);
+            }
+            return 1;
         }
 
         /// <summary>

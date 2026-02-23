@@ -94,6 +94,7 @@
   "CardsSelected_One": "1 карта выбрана",
   "CardsSelected_Few": "{0} карты выбрано",
   "CardsSelected_Format": "{0} карт выбрано",
+  "SelectionProgress_Format": "{0} из {1} выбрано",
   "NeedHaveSelected_Format": "Нужно {0}, выбрано {1}",
   "SubmittingDiscard_Format": "Отправка {0} карт на сброс",
   "CouldNotSelect_Format": "Не удалось выбрать {0}",

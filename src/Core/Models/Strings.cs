@@ -447,6 +447,8 @@ namespace AccessibleArena.Core.Models
             count == 1 ? L.Get("DiscardCount_One") : L.Format("DiscardCount_Format", count);
         public static string CardsSelected(int count) =>
             count == 1 ? L.Get("CardsSelected_One") : L.Format("CardsSelected_Format", count);
+        public static string SelectionProgress(int selected, int total) =>
+            L.Format("SelectionProgress_Format", selected, total);
         public static string NeedHaveSelected(int required, int selected) =>
             L.Format("NeedHaveSelected_Format", required, selected);
         public static string SubmittingDiscard(int count) => L.Format("SubmittingDiscard_Format", count);

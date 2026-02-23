@@ -90,6 +90,7 @@
   "DiscardCount_Format": "{0} Karten abwerfen",
   "CardsSelected_One": "1 Karte ausgewählt",
   "CardsSelected_Format": "{0} Karten ausgewählt",
+  "SelectionProgress_Format": "{0} von {1} ausgewählt",
   "NeedHaveSelected_Format": "{0} benötigt, {1} ausgewählt",
   "SubmittingDiscard_Format": "{0} Karten zum Abwerfen eingereicht",
   "CouldNotSelect_Format": "{0} konnte nicht ausgewählt werden",

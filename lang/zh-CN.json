@@ -90,6 +90,7 @@
   "DiscardCount_Format": "弃{0}张牌",
   "CardsSelected_One": "已选择1张卡牌",
   "CardsSelected_Format": "已选择{0}张卡牌",
+  "SelectionProgress_Format": "已选择{0}/{1}",
   "NeedHaveSelected_Format": "需要{0}张，已选择{1}张",
   "SubmittingDiscard_Format": "正在提交{0}张弃牌",
   "CouldNotSelect_Format": "无法选择{0}",

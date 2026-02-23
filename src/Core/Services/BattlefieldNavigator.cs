@@ -625,6 +625,13 @@ namespace AccessibleArena.Core.Services
                 {
                     // Announce just the state (trim leading ", ")
                     string announcement = stateAfter.StartsWith(", ") ? stateAfter.Substring(2) : stateAfter;
+                    string before = _watchedStateBefore.StartsWith(", ") ? _watchedStateBefore.Substring(2) : _watchedStateBefore;
+
+                    // If the new state extends the old state, only announce the new part
+                    // e.g. "attacking" -> "attacking, blocked by Angel" announces just "blocked by Angel"
+                    if (!string.IsNullOrEmpty(before) && announcement.StartsWith(before + ", "))
+                        announcement = announcement.Substring(before.Length + 2);
+
                     _announcer.Announce(announcement, AnnouncementPriority.High);
                 }
                 _watchedCard = null;

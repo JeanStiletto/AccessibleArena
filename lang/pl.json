@@ -94,6 +94,7 @@
   "CardsSelected_One": "Wybrano 1 kartę",
   "CardsSelected_Few": "Wybrano {0} karty",
   "CardsSelected_Format": "Wybrano {0} kart",
+  "SelectionProgress_Format": "Wybrano {0} z {1}",
   "NeedHaveSelected_Format": "Potrzeba {0}, wybrano {1}",
   "SubmittingDiscard_Format": "Zatwierdzanie {0} kart do odrzucenia",
   "CouldNotSelect_Format": "Nie udało się wybrać {0}",

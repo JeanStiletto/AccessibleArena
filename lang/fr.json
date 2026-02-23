@@ -90,6 +90,7 @@
   "DiscardCount_Format": "Défausser {0} cartes",
   "CardsSelected_One": "1 carte sélectionnée",
   "CardsSelected_Format": "{0} cartes sélectionnées",
+  "SelectionProgress_Format": "{0} sur {1} sélectionnées",
   "NeedHaveSelected_Format": "{0} requises, {1} sélectionnées",
   "SubmittingDiscard_Format": "Envoi de {0} cartes à la défausse",
   "CouldNotSelect_Format": "Impossible de sélectionner {0}",

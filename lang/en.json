@@ -90,6 +90,7 @@
   "DiscardCount_Format": "Discard {0} cards",
   "CardsSelected_One": "1 card selected",
   "CardsSelected_Format": "{0} cards selected",
+  "SelectionProgress_Format": "{0} of {1} selected",
   "NeedHaveSelected_Format": "Need {0}, have {1} selected",
   "SubmittingDiscard_Format": "Submitting {0} cards for discard",
   "CouldNotSelect_Format": "Could not select {0}",

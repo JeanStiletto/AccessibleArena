@@ -90,6 +90,7 @@
   "DiscardCount_Format": "Descartar {0} cartas",
   "CardsSelected_One": "1 carta seleccionada",
   "CardsSelected_Format": "{0} cartas seleccionadas",
+  "SelectionProgress_Format": "{0} de {1} seleccionadas",
   "NeedHaveSelected_Format": "Se necesitan {0}, {1} seleccionadas",
   "SubmittingDiscard_Format": "Enviando {0} cartas para descarte",
   "CouldNotSelect_Format": "No se pudo seleccionar {0}",
