@@ -2,20 +2,56 @@
 
 All notable changes to Accessible Arena.
 
-## v0.7.0 - 2026-02-21
+## v0.7.0 - 2026-02-23
 
-### New: Card State Change Announcements
-- Pressing Enter on a battlefield card now announces the resulting state change (e.g. "greift an", "kann angreifen", "selected")
-- Per-frame watcher detects combat and selection state changes reliably, replacing the old delayed check
-- Announces only the state (no card name, since the user already knows which card they clicked)
-- Works for attack selection/deselection, block selection, and non-combat selection (sacrifice, exile)
-- 3-second timeout if no state change is detected
+### New: Friends Panel Navigation
+- Full keyboard navigation for the friends/social panel
+- Hierarchical groups: Friends, Incoming Requests, Sent Requests, Blocked
+- Per-friend actions: Challenge, Chat, Unfriend, Block, Accept, Decline, Revoke, Unblock
+- Your Profile section with full username display
+- Blocked users section forced open for accessibility
+
+### New: Challenge Screen
+- Dedicated ChallengeMain navigator for direct challenge setup
+- Popout stepper navigation for format/scene/timer options (Left/Right to cycle)
+- Deck selection via PlayBlade-style grouped navigation with folder support
+- Player status announcements (invited, waiting, deck selected)
+- Invite and Leave buttons with proper state tracking across spinner changes
+
+### New: Command Zone Shortcuts
+- W key to navigate your command zone (commander/companion)
+- Shift+W for opponent's command zone
+- Full card details for opponent's commander
+- Commander filtered from mulligan hand display
+
+### New: Origin Zone Display
+- Cards playable from non-hand zones now show their origin (e.g. "Lightning Bolt, from graveyard")
+- Works for flashback, escape, commander, and similar mechanics
+
+### Improved: Card State Change Announcements
+- Pressing Enter on a battlefield card announces the resulting state change (e.g. "attacking", "selected")
+- Per-frame watcher detects combat and selection state changes reliably
+- Blocker assignment on an attacker now announces just "blocked by Angel" instead of redundant "attacking, blocked by Angel"
+- Works for attack/block selection, and non-combat selection (sacrifice, exile)
+
+### Improved: Selection Mode Announcements (Discard, Exile, etc.)
+- Toggle announcement now shows progress: "CardName, 1 of 2 selected"
+- Deselecting a card says: "CardName deselected, 0 of 2 selected"
+- Required count read from game's prompt text (e.g. "Discard 2 cards")
+- Number word parsing for languages that spell out numbers (e.g. "zwei" in German)
+- NumberWords mappings in language files - contributors can fix their language without code changes
 
 ### Improved: Combat Announcements
-- Attacker selection now detected via SelectedHighlightBattlefield during declare attackers phase
-- Blocker assignment no longer announces redundant "assigned" text; the attacker's "blocked by X and Y" state change is more informative
-- Blocker deselection and unassignment now announced with card name and "can block" state
-- Blocker P/T announcement no longer includes redundant "blocking" word (just "0/4" instead of "0/4 blocking")
+- Attacker selection detected via SelectedHighlightBattlefield during declare attackers phase
+- Delayed attack eligibility now uses model-based fallback for newly created tokens
+- Blocker deselection and unassignment announced with card name and "can block" state
+- Blocker P/T announcement no longer includes redundant "blocking" word
+
+### Improved: Duel Performance
+- Cached reflection lookups for card model access (fields, properties, methods)
+- Shared DuelHolderCache for zone and battlefield holder lookups, replacing per-frame FindObjectsOfType scans
+- Compiled regex patterns for highlight discovery
+- Precise battlefield click positions using card screen coordinates to avoid hitting wrong overlapping tokens
 
 ### Fixed: Store and Mastery Backspace Not Returning Home
 - Store tab-level Backspace now navigates home instead of silently deactivating
@@ -25,6 +61,14 @@ All notable changes to Accessible Arena.
 
 ### Fixed
 - German "milled" translation corrected from "wird gemahlen" to "wird gemillt"
+- Deck builder popups now auto-enter Dialog group when opened
+- Challenge invite popup navigation with per-navigator popup tracking
+- Input field tutorial hint added and text field labels localized
+- General duel commands section added to help menu (F1)
+
+### Installer
+- MelonLoader console window hidden by default during installation
+- Unified version management via Directory.Build.props
 
 ## v0.6.9 - 2026-02-19
 

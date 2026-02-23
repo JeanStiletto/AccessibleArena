@@ -112,6 +112,8 @@ Detailed technical docs are in `docs/`:
 
 ## Reporting bugs
 
+Before reporting, please check `docs/KNOWN_ISSUES.md` - your issue may already be tracked there.
+
 See the bug report template on GitHub Issues. The most helpful thing you can include is the MelonLoader log file.
 
 ## Adding translations
