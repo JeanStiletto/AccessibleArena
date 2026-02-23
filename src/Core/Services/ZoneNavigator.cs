@@ -511,11 +511,13 @@ namespace AccessibleArena.Core.Services
             // Sort cards by position (left to right)
             zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
-            // Library is a hidden zone - ONLY include cards visible to sighted players
-            // (highlighted by the game via HotHighlight). Showing hidden cards would be cheating.
+            // Library is a hidden zone - ONLY include cards visible to sighted players.
+            // HotHighlight = playable from library (creature with Vizier, any with Future Sight)
+            // RevealOverride = revealed face-up but not necessarily playable (top card with Vizier)
+            // Showing hidden cards would be cheating.
             if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
             {
-                zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c));
+                zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.HasRevealOverride(c));
             }
         }
 

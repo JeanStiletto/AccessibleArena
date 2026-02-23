@@ -207,6 +207,37 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Checks if a card CDC has a RevealOverride set, meaning the card is displayed
+        /// face-up (revealed by a game effect like Vizier of the Menagerie, Future Sight, etc.).
+        /// This is different from HotHighlight: revealed cards are visible but may not be playable.
+        /// </summary>
+        private static System.Reflection.PropertyInfo _revealOverrideProp;
+        private static Type _revealOverridePropType;
+
+        public static bool HasRevealOverride(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            var cdc = CardModelProvider.GetDuelSceneCDC(obj);
+            if (cdc == null) return false;
+
+            try
+            {
+                var cdcType = cdc.GetType();
+                if (cdcType != _revealOverridePropType)
+                {
+                    _revealOverrideProp = cdcType.GetProperty("RevealOverride");
+                    _revealOverridePropType = cdcType;
+                }
+                return _revealOverrideProp?.GetValue(cdc) != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// DIAGNOSTIC: Logs ALL GameObjects with HotHighlight across ALL zones.
         /// Use this to verify if game correctly updates highlights when mode changes.
         /// Call on Tab press to see what's highlighted in current game state.
