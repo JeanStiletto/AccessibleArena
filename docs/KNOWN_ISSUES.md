@@ -57,12 +57,6 @@ Cards on the battlefield sometimes split into two separate stacks/rows when they
 
 ---
 
-### Store Not Closing Correctly
-
-Store screen does not always close properly, which can leave navigation in an unexpected state.
-
----
-
 ### Bot Match Not Working From Recent Played
 
 Starting a bot match from the "Recent Played" section does not work properly.
@@ -72,6 +66,20 @@ Starting a bot match from the "Recent Played" section does not work properly.
 ### Add Friend Popup Only Closes on Escape, Not Backspace
 
 The "Add Friend" popup (InviteFriendPopup) from the Friends panel does not close with Backspace. Only Escape works. The per-navigator popup tracking detects it correctly (`Popup detected: InviteFriendPopup`), and the dismiss chain finds and invokes `SystemMessageView.OnBack(null)`, but the popup does not actually close. Needs investigation into why OnBack succeeds but doesn't dismiss the popup, or whether a different dismiss mechanism is needed.
+
+---
+
+### Deck Settings Dialog Requires Double Backspace to Exit
+
+When inside the deck settings dialog (DeckDetailsPopup, opened via "Format auswählen" in deck builder), the first Backspace press does not exit the dialog group. A second Backspace is needed. This is likely related to nested dialog/popup handling — the popup sits on top of the deck builder, and the first Backspace may be consumed by the popup dismiss rather than the group navigation. May need proper nested dialog and holder recognition for a smoother deck building experience. Functional for now.
+
+---
+
+### Friends Panel "add friend" / "add challenge" Buttons Show English Labels
+
+The "add friend" and "add challenge" buttons in the FriendsWidget show English GameObject names instead of localized text. Our text extraction falls back to the GameObject name (`Button_AddFriend`, `Button_AddChallenge`) when it can't find the localized TextMeshProUGUI label. The actual localized text likely lives on a child object or uses a different text component that we miss.
+
+**Path:** `FriendsWidget_Desktop_16x9(Clone)/FriendWidget_Base/Button_AddFriend/Backer_Hitbox`
 
 ---
 
@@ -128,21 +136,9 @@ The PlayBlade "Find Match" was restructured into three queue type tabs (Ranked, 
 
 ---
 
-### Targeting Spells With Non-Battlefield Objects in Highlight List
-
-Monitor whether clicking activates the wrong target during duels, especially when targeting spells while non-battlefield objects (e.g., UI buttons, zone elements) are present in the highlight list.
-
----
-
 ### Unwanted Secondary Buttons in Tab Order
 
 Sometimes secondary or irrelevant buttons appear in the Tab navigation order during duels. These buttons should be filtered out but occasionally slip through.
-
----
-
-### Damage Assignment Browser
-
-Damage assignment browser (e.g., when distributing combat damage across multiple blockers) needs testing for correct navigation and value assignment.
 
 ---
 
@@ -175,14 +171,6 @@ Known issues still to address:
 - **Leave/Invite buttons**: MainButton_Leave and Invite Button become INACTIVE when DeckSelectBlade opens (game hides UnifiedChallengesCONTAINER). Alternative: UnifiedChallenge_MainButton ("Warten") and NoDeck ("Select Deck") stay active in Popout_Play/FriendChallengeBladeWidget
 
 **Files:** `HarmonyPanelDetector.cs`, `OverlayDetector.cs`, `ElementGroupAssigner.cs`, `GroupedNavigator.cs`, `GeneralMenuNavigator.cs`, `BaseNavigator.cs`, `UIElementClassifier.cs`, `UIActivator.cs`
-
----
-
-### Friends Panel "add friend" / "add challenge" Buttons Show English Labels
-
-The "add friend" and "add challenge" buttons in the FriendsWidget show English GameObject names instead of localized text. Our text extraction falls back to the GameObject name (`Button_AddFriend`, `Button_AddChallenge`) when it can't find the localized TextMeshProUGUI label. The actual localized text likely lives on a child object or uses a different text component that we miss.
-
-**Path:** `FriendsWidget_Desktop_16x9(Clone)/FriendWidget_Base/Button_AddFriend/Backer_Hitbox`
 
 ---
 
@@ -223,12 +211,6 @@ Opening the settings menu (F2) during the declare attackers phase causes issues.
 
 ---
 
-### Objectives Menu Cannot Be Closed With Backspace
-
-The objectives menu does not respond to Backspace to close. Exact reproduction steps unknown.
-
----
-
 ## Technical Debt
 
 ### Code Archaeology
@@ -239,14 +221,6 @@ Accumulated defensive fallback code needs review:
 - Extensive logging throughout - review what's still needed
 
 **Priority:** Low
-
----
-
-### WinAPI Fallback (UIActivator.cs)
-
-~47 lines of commented WinAPI code. Test if still needed, remove if stable without it.
-
-**Location:** `UIActivator.cs` lines 13-59
 
 ---
 
@@ -297,6 +271,12 @@ Reported once: Up/Down arrows stopped reading card details during a duel. Could 
 Elements with "Container" in name + 0x0 sizeDelta are skipped. Some legitimate containers might be incorrectly filtered.
 
 **If a button stops working:** Check `UIElementClassifier.ShouldBeFiltered()`.
+
+---
+
+### Targeting Spells With Non-Battlefield Objects in Highlight List
+
+Monitor whether clicking activates the wrong target during duels, especially when targeting spells while non-battlefield objects (e.g., UI buttons, zone elements) are present in the highlight list.
 
 ## Design Decisions
 
@@ -371,13 +351,14 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 2. Phase stop markers - allow setting stop markers for specific phases so the game pauses at those points for the player to act
 3. Auto-skip tracking and hotkeys - correct tracking and switching of auto-skip state, including a new hotkey for toggling auto-skip and full auto-skip modes
 4. First letter navigation - press a letter key to jump to the next element starting with that letter in menus and lists
-2. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
-3. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
-2. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
-3. Creature death/exile/graveyard announcements with card names
-4. Player username announcements
-5. Game wins display (WinPips)
-6. Brawl accessibility - commander death zone selection (command zone vs graveyard), deck editor commander support (see below)
+5. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
+6. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
+7. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
+8. Creature death/exile/graveyard announcements with card names
+9. Player username announcements
+10. Game wins display (WinPips)
+11. Brawl accessibility - commander death zone selection (command zone vs graveyard), deck editor commander support (see below)
+12. Damage assignment browser - navigation and value assignment for distributing combat damage across multiple blockers
 
 ### Brawl Deck Builder Support
 
@@ -395,21 +376,20 @@ The Brawl deck builder uses a multi-step UI flow that differs from the standard 
 - Provide proper navigation for commander picker (announce commander choices with card info)
 - Handle transition from commander selection to full deck editor
 - Support Commander_MetaCardHolder if the game uses a separate holder for the commander slot
-7. Token state on cards - announce token/copy status when reading card info
-8. Smart mana announcement - announce available mana with color breakdown from game state
-9. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
-10. Browser announcements - shorter, less verbose; only announce when it is the player's browser (not opponent's)
-11. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
-12. Better group announcements - improve how element groups are announced when entering/switching groups
-13. Loading screen announcement cleanup - reduce repetitive announcements during loading screens
-14. Loading screen announcements - less repetition, cleaner output during screen transitions
-15. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
-16. K hotkey for mark/counter information on cards - announce +1/+1 counters, damage marks, and other markers
-17. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
-18. Card crafting - wildcard crafting workflow accessibility
-19. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
-20. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
-21. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
+13. Token state on cards - announce token/copy status when reading card info
+14. Smart mana announcement - announce available mana with color breakdown from game state
+15. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
+16. Browser announcements - shorter, less verbose; only announce when it is the player's browser (not opponent's)
+17. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
+18. Better group announcements - improve how element groups are announced when entering/switching groups
+19. Loading screen announcement cleanup - reduce repetitive announcements during loading screens
+20. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
+21. K hotkey for mark/counter information on cards - announce +1/+1 counters, damage marks, and other markers
+22. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
+23. Card crafting - wildcard crafting workflow accessibility
+24. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
+25. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
+26. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
 22. Mana color picker confirmation step - add an artificial confirmation step (Tab to navigate, Enter to stage, Space to confirm) for consistency with browser/selection patterns. Currently each Enter immediately submits the color choice.
 23. Play from library browser - support cards that let you play cards from your library (e.g., Collected Company, Vizier of the Menagerie, Future Sight). These open a browser showing library cards to choose from, similar to Scry/Surveil but with a play/cast action instead of reorder.
 

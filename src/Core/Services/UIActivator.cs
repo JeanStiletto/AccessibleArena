@@ -6,59 +6,8 @@ using MelonLoader;
 using System.Collections;
 using System.Linq;
 using System.Text.RegularExpressions;
-// NOTE: System.Runtime.InteropServices kept for potential WinAPI reactivation
-// using System.Runtime.InteropServices;
-
 namespace AccessibleArena.Core.Services
 {
-    /*
-    // =============================================================================
-    // WINDOWS API APPROACH - KEPT FOR FUTURE USE (January 2026)
-    // =============================================================================
-    // DO NOT DELETE OR REFACTOR THIS CODE - it is a proven working fallback!
-    //
-    // History:
-    // - Unity events approach stopped working at some point (unknown cause)
-    // - WinAPI approach was implemented and worked reliably
-    // - After PC restart, Unity events approach works again
-    // - Root cause was likely external factors (mouse position, overlays, etc.)
-    //
-    // Keep this code available because:
-    // - Overlapping overlays may interfere with Unity raycasts in the future
-    // - Mouse positioning issues may recur
-    // - WinAPI bypasses Unity event system entirely and controls real cursor
-    //
-    // If Unity events approach fails again, reactivate this WinAPI code.
-    // =============================================================================
-
-    /// <summary>
-    /// Windows API imports for real mouse control.
-    /// Required because the game checks Input.mousePosition (actual cursor)
-    /// rather than event position data.
-    /// </summary>
-    internal static class WinAPI
-    {
-        [DllImport("user32.dll")]
-        public static extern bool SetCursorPos(int X, int Y);
-
-        [DllImport("user32.dll")]
-        public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, int dwExtraInfo);
-
-        public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
-        public const uint MOUSEEVENTF_LEFTUP = 0x0004;
-
-        [DllImport("user32.dll")]
-        public static extern bool GetCursorPos(out POINT lpPoint);
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct POINT
-        {
-            public int X;
-            public int Y;
-        }
-    }
-    */
-
     /// <summary>
     /// Centralized UI activation utilities.
     /// Handles clicking buttons, toggling checkboxes, focusing input fields,
@@ -600,30 +549,10 @@ namespace AccessibleArena.Core.Services
             yield return new WaitForSeconds(CardPickupDelay);
 
             // Step 3: Click screen center via Unity events (confirm play)
-            // Unity events approach works after PC restart (Jan 2026).
-            // If this stops working, check for overlapping overlays or mouse positioning
-            // issues, and consider reactivating the WinAPI fallback below.
             Log("Step 3: Click screen center via Unity events (confirm play)");
 
             Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
             SimulateClickAtPosition(center);
-
-            /*
-            // WINAPI APPROACH - DO NOT DELETE, proven fallback if Unity events fail
-            // See WinAPI class comment at top of file for history.
-            // Move cursor to screen center
-            int centerX = Screen.width / 2;
-            int centerY = Screen.height / 2;
-            WinAPI.SetCursorPos(centerX, centerY);
-
-            // Small delay for cursor to register
-            yield return new WaitForSeconds(0.05f);
-
-            // Perform real mouse click
-            WinAPI.mouse_event(WinAPI.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-            yield return new WaitForSeconds(0.05f);
-            WinAPI.mouse_event(WinAPI.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-            */
 
             // Step 4: Wait for game to process the play and UI to update
             // Need enough time for targeting UI (Cancel/Submit buttons) to appear
