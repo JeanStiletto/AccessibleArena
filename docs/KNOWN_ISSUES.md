@@ -142,6 +142,14 @@ Sometimes secondary or irrelevant buttons appear in the Tab navigation order dur
 
 ---
 
+### Damage Assignment Submit via SimulatePointerClick
+
+The damage assignment browser submit currently uses direct DoneAction invocation via reflection. Before our AssignDamage accessibility changes, the generic SimulatePointerClick on SubmitButton worked for confirmation. It's unclear whether SimulatePointerClick still works or if our input routing changes broke it. If DoneAction ever fails, test whether reverting to SimulatePointerClick on the SubmitButton is a viable alternative.
+
+**Files:** `BrowserNavigator.cs` (SubmitAssignDamage method)
+
+---
+
 ### London Mulligan With Very Low Card Counts
 
 Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing whether card selection and bottom placement still works correctly at very low hand sizes.
@@ -358,7 +366,7 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 9. Player username announcements
 10. Game wins display (WinPips)
 11. Brawl accessibility - commander death zone selection (command zone vs graveyard), deck editor commander support (see below)
-12. Damage assignment browser - navigation and value assignment for distributing combat damage across multiple blockers
+12. ~~Damage assignment browser~~ - implemented in v0.7.2
 
 ### Brawl Deck Builder Support
 

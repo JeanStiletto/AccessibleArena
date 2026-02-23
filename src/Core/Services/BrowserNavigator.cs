@@ -41,6 +41,7 @@ namespace AccessibleArena.Core.Services
         private object _assignDamageBrowserRef;       // AssignDamageBrowser instance
         private System.Collections.IDictionary _spinnerMap; // InstanceId → SpinnerAnimated
         private uint _totalDamage;
+        private bool _totalDamageCached;
         private static readonly BindingFlags ReflFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
 
         // Zone name constant
@@ -172,6 +173,7 @@ namespace AccessibleArena.Core.Services
             _assignDamageBrowserRef = null;
             _spinnerMap = null;
             _totalDamage = 0;
+            _totalDamageCached = false;
 
             // Invalidate detector cache
             BrowserDetector.InvalidateCache();
@@ -1432,35 +1434,8 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg("[BrowserNavigator] AssignDamage: _idToSpinnerMap field not found");
                 }
 
-                // Cache TotalDamage: GameManager → WorkflowController → CurrentInteraction → _damageAssigner → TotalDamage
-                var wcProp = gameManager.GetType().GetProperty("WorkflowController", ReflFlags);
-                var workflowController = wcProp?.GetValue(gameManager);
-                if (workflowController != null)
-                {
-                    var ciProp = workflowController.GetType().GetProperty("CurrentInteraction", ReflFlags);
-                    var interaction = ciProp?.GetValue(workflowController);
-                    if (interaction != null && interaction.GetType().Name.Contains("AssignDamage"))
-                    {
-                        var daField = interaction.GetType().GetField("_damageAssigner", ReflFlags);
-                        var damageAssigner = daField?.GetValue(interaction);
-                        if (damageAssigner != null)
-                        {
-                            var tdProp = damageAssigner.GetType().GetProperty("TotalDamage", ReflFlags);
-                            if (tdProp != null)
-                            {
-                                _totalDamage = (uint)tdProp.GetValue(damageAssigner);
-                            }
-                            else
-                            {
-                                // Try field
-                                var tdField = damageAssigner.GetType().GetField("TotalDamage", ReflFlags);
-                                if (tdField != null)
-                                    _totalDamage = (uint)tdField.GetValue(damageAssigner);
-                            }
-                            MelonLogger.Msg($"[BrowserNavigator] AssignDamage: TotalDamage = {_totalDamage}");
-                        }
-                    }
-                }
+                // TotalDamage is cached lazily via EnsureTotalDamageCached()
+                // because CurrentInteraction may not be set yet at browser open time
             }
             catch (Exception ex)
             {
@@ -1475,6 +1450,7 @@ namespace AccessibleArena.Core.Services
         private bool HandleAssignDamageInput()
         {
             // Up arrow: increase damage on current blocker
+            // Always consume to prevent EventSystem focus leak
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
                 AdjustDamageSpinner(true);
@@ -1482,9 +1458,30 @@ namespace AccessibleArena.Core.Services
             }
 
             // Down arrow: decrease damage on current blocker
+            // Always consume to prevent EventSystem focus leak
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
                 AdjustDamageSpinner(false);
+                return true;
+            }
+
+            // Enter: consume without action (cards aren't toggleable in damage assignment)
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                return true;
+            }
+
+            // Space: submit via DoneAction on browser
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                SubmitAssignDamage();
+                return true;
+            }
+
+            // Backspace: undo via UndoAction on browser
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                UndoAssignDamage();
                 return true;
             }
 
@@ -1494,6 +1491,175 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Gets the SpinnerAnimated for the currently focused card by InstanceId.
         /// </summary>
+        /// <summary>
+        /// Lazily caches TotalDamage from the workflow's MtgDamageAssigner.
+        /// Called on first use because CurrentInteraction is null at browser open time.
+        /// </summary>
+        private void EnsureTotalDamageCached()
+        {
+            if (_totalDamageCached) return;
+
+            try
+            {
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+                if (gameManager == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: GameManager not found");
+                    return;
+                }
+
+                var wcProp = gameManager.GetType().GetProperty("WorkflowController", ReflFlags);
+                var workflowController = wcProp?.GetValue(gameManager);
+                if (workflowController == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: WorkflowController null (prop found: {wcProp != null})");
+                    return;
+                }
+
+                var cwProp = workflowController.GetType().GetProperty("CurrentWorkflow", ReflFlags);
+                var interaction = cwProp?.GetValue(workflowController);
+                if (interaction == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: CurrentWorkflow null (prop found: {cwProp != null}), WC type: {workflowController.GetType().Name}");
+                    return;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: Interaction type: {interaction.GetType().Name}");
+
+                // Walk type hierarchy to find _damageAssigner (declared on AssignDamageWorkflow, not base)
+                FieldInfo daField = null;
+                var searchType = interaction.GetType();
+                while (searchType != null && daField == null)
+                {
+                    daField = searchType.GetField("_damageAssigner", ReflFlags);
+                    searchType = searchType.BaseType;
+                }
+                if (daField == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: _damageAssigner field not found");
+                    return;
+                }
+
+                var damageAssigner = daField.GetValue(interaction);
+                if (damageAssigner == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: _damageAssigner value is null");
+                    return;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: damageAssigner type: {damageAssigner.GetType().Name}");
+
+                // TotalDamage is a public readonly field on the MtgDamageAssigner struct
+                var tdField = damageAssigner.GetType().GetField("TotalDamage", BindingFlags.Public | BindingFlags.Instance);
+                if (tdField != null)
+                {
+                    _totalDamage = (uint)tdField.GetValue(damageAssigner);
+                    _totalDamageCached = true;
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: TotalDamage = {_totalDamage}");
+                }
+                else
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: TotalDamage field not found");
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] EnsureTotalDamageCached error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Submits the damage assignment by invoking DoneAction on the browser.
+        /// Note: The generic SimulatePointerClick path on the SubmitButton may also work
+        /// (it did before our AssignDamage changes), but DoneAction is the direct event
+        /// the game wires to OnButtonCallback("DoneButton"), so we invoke it explicitly.
+        /// If this ever breaks, try reverting to SimulatePointerClick on SubmitButton.
+        /// </summary>
+        private void SubmitAssignDamage()
+        {
+            if (_assignDamageBrowserRef == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No browser ref for submit");
+                return;
+            }
+
+            try
+            {
+                var browserType = _assignDamageBrowserRef.GetType();
+                var doneField = browserType.GetField("DoneAction", ReflFlags);
+                if (doneField != null)
+                {
+                    var doneAction = doneField.GetValue(_assignDamageBrowserRef) as Action;
+                    if (doneAction != null)
+                    {
+                        doneAction.Invoke();
+                        _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                        MelonLogger.Msg("[BrowserNavigator] AssignDamage: Invoked DoneAction");
+                        return;
+                    }
+                }
+
+                // Fallback: try invoking OnButtonCallback("DoneButton") directly
+                var callbackMethod = browserType.GetMethod("OnButtonCallback", ReflFlags);
+                if (callbackMethod != null)
+                {
+                    callbackMethod.Invoke(_assignDamageBrowserRef, new object[] { "DoneButton" });
+                    _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: Called OnButtonCallback(DoneButton)");
+                    return;
+                }
+
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: Could not find DoneAction or OnButtonCallback");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] SubmitAssignDamage error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Undoes the last damage assignment action via UndoAction on the browser.
+        /// </summary>
+        private void UndoAssignDamage()
+        {
+            if (_assignDamageBrowserRef == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No browser ref for undo");
+                return;
+            }
+
+            try
+            {
+                var browserType = _assignDamageBrowserRef.GetType();
+                var undoField = browserType.GetField("UndoAction", ReflFlags);
+                if (undoField != null)
+                {
+                    var undoAction = undoField.GetValue(_assignDamageBrowserRef) as Action;
+                    if (undoAction != null)
+                    {
+                        undoAction.Invoke();
+                        _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
+                        MelonLogger.Msg("[BrowserNavigator] AssignDamage: Invoked UndoAction");
+                        return;
+                    }
+                }
+
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: UndoAction not available");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] UndoAssignDamage error: {ex.Message}");
+            }
+        }
+
         private object GetSpinnerForCurrentCard()
         {
             if (_spinnerMap == null || _currentCardIndex < 0 || _currentCardIndex >= _browserCards.Count)
@@ -1562,10 +1728,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void AdjustDamageSpinner(bool increase)
         {
+            EnsureTotalDamageCached();
+
             var spinner = GetSpinnerForCurrentCard();
             if (spinner == null)
             {
-                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No spinner for current card");
+                // No spinner = attacker card, not a blocker
                 return;
             }
 
@@ -1685,6 +1853,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string GetAssignDamageEntryAnnouncement(int cardCount, string fallbackName)
         {
+            EnsureTotalDamageCached();
+
             if (_assignDamageBrowserRef == null)
                 return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
 
