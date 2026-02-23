@@ -734,5 +734,7 @@
   "FriendActionAccept": "수락",
   "FriendActionDecline": "거절",
   "FriendActionRevoke": "취소",
-  "FriendActionUnblock": "차단 해제"
+  "FriendActionUnblock": "차단 해제",
+
+  "NumberWords": ""
 }

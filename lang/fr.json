@@ -755,5 +755,7 @@
   "FriendActionAccept": "Accepter",
   "FriendActionDecline": "Refuser",
   "FriendActionRevoke": "Révoquer",
-  "FriendActionUnblock": "Débloquer"
+  "FriendActionUnblock": "Débloquer",
+
+  "NumberWords": "un=1,une=1,deux=2,trois=3,quatre=4,cinq=5,six=6,sept=7,huit=8,neuf=9,dix=10"
 }

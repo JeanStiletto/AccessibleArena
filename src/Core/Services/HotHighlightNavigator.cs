@@ -981,10 +981,14 @@ namespace AccessibleArena.Core.Services
             if (info != null)
             {
                 // Get required count from game's prompt text (e.g. "Discard 2 cards")
-                // All MTGA languages use Arabic numerals (0-9); default to 1 for prompts like "Discard a card"
                 int required = GetRequiredCountFromPrompt();
-                // Announce: "CardName, 1 of 2 selected"
-                _announcer.Announce($"{cardName}, {Strings.SelectionProgress(info.Value.count, required)}", AnnouncementPriority.Normal);
+                string progress = Strings.SelectionProgress(info.Value.count, required);
+                // Select: "CardName, 1 of 2 selected" (action implied by progress)
+                // Deselect: "CardName deselected, 1 of 2 selected" (need explicit action)
+                if (wasSelected)
+                    _announcer.Announce($"{cardName} {Strings.Deselected}, {progress}", AnnouncementPriority.Normal);
+                else
+                    _announcer.Announce($"{cardName}, {progress}", AnnouncementPriority.Normal);
             }
             else
             {
@@ -1079,17 +1083,24 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Extracts the required selection count from the game's prompt text.
-        /// All MTGA languages use Arabic numerals, so a simple \d+ match works.
-        /// Returns 1 if no number found (prompts like "Discard a card" mean 1).
+        /// First tries digit match (\d+), then falls back to number words from
+        /// the "NumberWords" key in the language file (e.g. "zwei"=2 in German).
+        /// Returns 1 if nothing found (prompts like "Discard a card" mean 1).
         /// </summary>
         private int GetRequiredCountFromPrompt()
         {
             string promptText = GetPromptInstructionText();
             if (!string.IsNullOrEmpty(promptText))
             {
+                // Try digits first
                 var match = Regex.Match(promptText, @"\d+");
                 if (match.Success)
                     return int.Parse(match.Value);
+
+                // Fall back to number words from language file
+                int wordNum = LocaleManager.Instance.TryParseNumberWord(promptText);
+                if (wordNum > 0)
+                    return wordNum;
             }
             return 1;
         }

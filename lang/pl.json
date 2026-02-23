@@ -749,5 +749,7 @@
   "FriendActionAccept": "Akceptuj",
   "FriendActionDecline": "Odrzuć",
   "FriendActionRevoke": "Cofnij",
-  "FriendActionUnblock": "Odblokuj"
+  "FriendActionUnblock": "Odblokuj",
+
+  "NumberWords": "jedną=1,jeden=1,jedno=1,dwie=2,dwa=2,trzy=3,cztery=4,pięć=5,sześć=6,siedem=7,osiem=8,dziewięć=9,dziesięć=10"
 }

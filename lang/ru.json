@@ -749,5 +749,7 @@
   "FriendActionAccept": "Принять",
   "FriendActionDecline": "Отклонить",
   "FriendActionRevoke": "Отозвать",
-  "FriendActionUnblock": "Разблокировать"
+  "FriendActionUnblock": "Разблокировать",
+
+  "NumberWords": "одну=1,одно=1,одна=1,один=1,две=2,два=2,три=3,четыре=4,пять=5,шесть=6,семь=7,восемь=8,девять=9,десять=10"
 }

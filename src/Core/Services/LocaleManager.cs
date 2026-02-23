@@ -140,6 +140,60 @@ namespace AccessibleArena.Core.Services
             return _activeStrings.ContainsKey(key) || _fallbackStrings.ContainsKey(key);
         }
 
+        /// <summary>
+        /// Tries to find a number word in the given text and returns its numeric value.
+        /// Uses the "NumberWords" key from the active language file (format: "one=1,two=2,...").
+        /// Matches are case-insensitive and must be whole words.
+        /// Returns -1 if no number word is found.
+        /// </summary>
+        public int TryParseNumberWord(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return -1;
+
+            // Build map on first use or when language changes (cached via _numberWords)
+            if (_numberWords == null)
+                _numberWords = BuildNumberWordMap();
+
+            string lowerText = text.ToLowerInvariant();
+            foreach (var kvp in _numberWords)
+            {
+                // Whole-word match: check that characters before/after are not letters
+                int idx = lowerText.IndexOf(kvp.Key);
+                while (idx >= 0)
+                {
+                    bool startOk = idx == 0 || !char.IsLetter(lowerText[idx - 1]);
+                    bool endOk = idx + kvp.Key.Length >= lowerText.Length
+                                 || !char.IsLetter(lowerText[idx + kvp.Key.Length]);
+                    if (startOk && endOk)
+                        return kvp.Value;
+                    idx = lowerText.IndexOf(kvp.Key, idx + 1);
+                }
+            }
+            return -1;
+        }
+
+        private Dictionary<string, int> _numberWords;
+
+        private Dictionary<string, int> BuildNumberWordMap()
+        {
+            var map = new Dictionary<string, int>();
+            string raw = Get("NumberWords");
+            if (string.IsNullOrEmpty(raw) || raw == "NumberWords") return map;
+
+            foreach (string entry in raw.Split(','))
+            {
+                string trimmed = entry.Trim();
+                int eq = trimmed.IndexOf('=');
+                if (eq <= 0 || eq >= trimmed.Length - 1) continue;
+
+                string word = trimmed.Substring(0, eq).Trim().ToLowerInvariant();
+                string numStr = trimmed.Substring(eq + 1).Trim();
+                if (int.TryParse(numStr, out int num))
+                    map[word] = num;
+            }
+            return map;
+        }
+
         private void LoadLanguage(string code)
         {
             _activeLanguage = code;
@@ -156,6 +210,7 @@ namespace AccessibleArena.Core.Services
                 _activeStrings = LoadJsonFile(Path.Combine(LangDir, $"{code}.json"));
             }
 
+            _numberWords = null; // Rebuild on next use
             MelonLogger.Msg($"[LocaleManager] Loaded language: {code} ({_activeStrings.Count} active, {_fallbackStrings.Count} fallback strings)");
         }
 

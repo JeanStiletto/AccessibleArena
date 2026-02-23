@@ -734,5 +734,7 @@
   "FriendActionAccept": "承認",
   "FriendActionDecline": "拒否",
   "FriendActionRevoke": "取消",
-  "FriendActionUnblock": "ブロック解除"
+  "FriendActionUnblock": "ブロック解除",
+
+  "NumberWords": ""
 }
