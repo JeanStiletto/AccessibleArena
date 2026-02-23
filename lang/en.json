@@ -266,7 +266,7 @@
   "HelpGGraveyard": "G: Your graveyard, Shift plus G: Opponent graveyard",
   "HelpXExile": "X: Your exile, Shift plus X: Opponent exile",
   "HelpSStack": "S: Stack",
-  "HelpDLibrary": "D: Your library count, Shift plus D: Opponent library count",
+  "HelpDLibrary": "D: Your library, Shift plus D: Opponent library",
 
   "HelpLLifeTotals": "L: Life totals",
   "HelpTTurnPhase": "T: Turn and phase",

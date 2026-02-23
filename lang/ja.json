@@ -264,7 +264,7 @@
   "HelpGGraveyard": "G: あなたの墓地、Shift+G: 対戦相手の墓地",
   "HelpXExile": "X: あなたの追放領域、Shift+X: 対戦相手の追放領域",
   "HelpSStack": "S: スタック",
-  "HelpDLibrary": "D: あなたのライブラリー枚数、Shift+D: 対戦相手のライブラリー枚数",
+  "HelpDLibrary": "D: あなたのライブラリー、Shift+D: 対戦相手のライブラリー",
 
   "HelpLLifeTotals": "L: ライフ合計",
   "HelpTTurnPhase": "T: ターンとフェイズ",

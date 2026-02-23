@@ -264,7 +264,7 @@
   "HelpGGraveyard": "G : Votre cimetière, Maj plus G : Cimetière adverse",
   "HelpXExile": "X : Votre exil, Maj plus X : Exil adverse",
   "HelpSStack": "S : Pile",
-  "HelpDLibrary": "D : Nombre de cartes de votre bibliothèque, Maj plus D : Nombre de cartes de la bibliothèque adverse",
+  "HelpDLibrary": "D : Votre bibliothèque, Maj plus D : Bibliothèque adverse",
 
   "HelpLLifeTotals": "L : Points de vie",
   "HelpTTurnPhase": "T : Tour et phase",

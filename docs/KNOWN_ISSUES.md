@@ -299,6 +299,12 @@ Elements with "Container" in name + 0x0 sizeDelta are skipped. Some legitimate c
 
 Monitor whether clicking activates the wrong target during duels, especially when targeting spells while non-battlefield objects (e.g., UI buttons, zone elements) are present in the highlight list.
 
+### Library Zone Navigation (Anti-Cheat Filter)
+
+Library zone navigation (D / Shift+D) only shows cards with HotHighlight — cards revealed by game effects (e.g., Future Sight, Vizier of the Menagerie, Courser of Kruphix). Without such effects, D only announces the library count without entering navigation. This is by design: the library is a hidden zone and exposing face-down cards would be cheating.
+
+---
+
 ## Design Decisions
 
 ### Panel Detection Architecture
@@ -412,7 +418,6 @@ The Brawl deck builder uses a multi-step UI flow that differs from the standard 
 25. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
 26. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
 22. Mana color picker confirmation step - add an artificial confirmation step (Tab to navigate, Enter to stage, Space to confirm) for consistency with browser/selection patterns. Currently each Enter immediately submits the color choice.
-23. Play from library browser - support cards that let you play cards from your library (e.g., Collected Company, Vizier of the Menagerie, Future Sight). These open a browser showing library cards to choose from, similar to Scry/Surveil but with a play/cast action instead of reorder.
 
 ### Low Priority / v1.1
 

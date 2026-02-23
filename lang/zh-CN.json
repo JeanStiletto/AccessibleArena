@@ -264,7 +264,7 @@
   "HelpGGraveyard": "G：你的坟场，Shift+G：对手坟场",
   "HelpXExile": "X：你的放逐区，Shift+X：对手放逐区",
   "HelpSStack": "S：堆叠",
-  "HelpDLibrary": "D：你的牌库数，Shift+D：对手牌库数",
+  "HelpDLibrary": "D：你的牌库，Shift+D：对手牌库",
 
   "HelpLLifeTotals": "L：生命值总计",
   "HelpTTurnPhase": "T：回合和阶段",

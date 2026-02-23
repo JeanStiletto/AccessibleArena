@@ -311,19 +311,14 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // D key for library counts (hidden zone info)
+            // D key for library navigation (with revealed cards) or count-only
             if (Input.GetKeyDown(KeyCode.D))
             {
+                _hotHighlightNavigator?.ClearState();
                 if (shift)
-                {
-                    // Shift+D: Opponent's library count
-                    AnnounceOpponentLibraryCount();
-                }
+                    NavigateToLibraryZone(ZoneType.OpponentLibrary);
                 else
-                {
-                    // D: Your library count
-                    AnnounceLocalLibraryCount();
-                }
+                    NavigateToLibraryZone(ZoneType.Library);
                 return true;
             }
 
@@ -515,6 +510,13 @@ namespace AccessibleArena.Core.Services
 
             // Sort cards by position (left to right)
             zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+
+            // Library is a hidden zone - ONLY include cards visible to sighted players
+            // (highlighted by the game via HotHighlight). Showing hidden cards would be cheating.
+            if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
+            {
+                zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c));
+            }
         }
 
         /// <summary>
@@ -732,9 +734,10 @@ namespace AccessibleArena.Core.Services
             string cardName = CardDetector.GetCardName(card);
             MelonLogger.Msg($"[ZoneNavigator] Activating card: {cardName} ({card.name}) in zone {_currentZone}");
 
-            // For hand and command zone cards, use the two-click approach (like sighted players)
+            // For hand, command, and library zone cards, use the two-click approach (like sighted players)
             // Command zone cards (commander/companion) are castable just like hand cards
-            if (_currentZone == ZoneType.Hand || _currentZone == ZoneType.Command)
+            // Library cards (revealed via effects like Future Sight) are playable from library
+            if (_currentZone == ZoneType.Hand || _currentZone == ZoneType.Command || _currentZone == ZoneType.Library)
             {
                 // Check if selection mode is active (discard, exile choices, etc.)
                 if (_currentZone == ZoneType.Hand && _hotHighlightNavigator != null && _hotHighlightNavigator.TryToggleSelection(card))
@@ -927,6 +930,68 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Navigates to a library zone. Announces total count (from DuelAnnouncer's event-driven tracking).
+        /// If revealed/playable cards exist (HotHighlight), enters zone navigation.
+        /// If none, just announces count without entering zone navigation.
+        /// </summary>
+        private void NavigateToLibraryZone(ZoneType libraryZone)
+        {
+            DiscoverZones();
+
+            // Get total count from DuelAnnouncer's event-driven zone tracking (accurate, not affected by HotHighlight filter)
+            int totalCount = GetLibraryTotalCount(libraryZone);
+
+            string countText;
+            if (libraryZone == ZoneType.Library)
+                countText = totalCount >= 0 ? Strings.LibraryCount(totalCount) : Strings.LibraryCountNotAvailable;
+            else
+                countText = totalCount >= 0 ? Strings.OpponentLibraryCount(totalCount) : Strings.OpponentLibraryCountNotAvailable;
+
+            // Check if any revealed/playable cards exist (filtered by HasHotHighlight in DiscoverCardsInZone)
+            if (!_zones.ContainsKey(libraryZone) || _zones[libraryZone].Cards.Count == 0)
+            {
+                // No revealed cards — just announce count, don't enter zone navigation
+                _announcer.Announce(countText, AnnouncementPriority.High);
+                return;
+            }
+
+            // Revealed cards exist — navigate to zone
+            SetCurrentZone(libraryZone, "NavigateToLibrary");
+            _cardIndexInZone = 0;
+
+            var zoneInfo = _zones[libraryZone];
+            var card = zoneInfo.Cards[0];
+            string cardName = CardDetector.GetCardName(card);
+            _announcer.Announce($"{countText}. {cardName}, 1 of {zoneInfo.Cards.Count}", AnnouncementPriority.High);
+
+            SetFocusedGameObject(card, "ZoneNavigator");
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+            if (cardNavigator != null && CardDetector.IsCard(card))
+                cardNavigator.PrepareForCard(card, libraryZone);
+        }
+
+        /// <summary>
+        /// Gets the total library card count by scanning the holder directly (unfiltered).
+        /// This bypasses the HotHighlight filter to get the real total count.
+        /// </summary>
+        private int GetLibraryTotalCount(ZoneType libraryZone)
+        {
+            string holderKey = libraryZone == ZoneType.Library ? "LocalLibrary" : "OpponentLibrary";
+            var holder = DuelHolderCache.GetHolder(holderKey);
+            if (holder == null) return -1;
+
+            int count = 0;
+            foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+                if (child.gameObject == holder) continue;
+                if (CardDetector.IsCard(child.gameObject))
+                    count++;
+            }
+            return count;
+        }
+
         #region Hidden Zone Count Announcements
 
         /// <summary>
@@ -942,38 +1007,6 @@ namespace AccessibleArena.Core.Services
                 return zoneInfo.Cards.Count;
             }
             return -1;
-        }
-
-        /// <summary>
-        /// Announces the local player's library card count.
-        /// </summary>
-        private void AnnounceLocalLibraryCount()
-        {
-            int count = GetZoneCardCount(ZoneType.Library);
-            if (count >= 0)
-            {
-                _announcer.Announce(Strings.LibraryCount(count), AnnouncementPriority.Normal);
-            }
-            else
-            {
-                _announcer.Announce(Strings.LibraryCountNotAvailable, AnnouncementPriority.Normal);
-            }
-        }
-
-        /// <summary>
-        /// Announces the opponent's library card count.
-        /// </summary>
-        private void AnnounceOpponentLibraryCount()
-        {
-            int count = GetZoneCardCount(ZoneType.OpponentLibrary);
-            if (count >= 0)
-            {
-                _announcer.Announce(Strings.OpponentLibraryCount(count), AnnouncementPriority.Normal);
-            }
-            else
-            {
-                _announcer.Announce(Strings.OpponentLibraryCountNotAvailable, AnnouncementPriority.Normal);
-            }
         }
 
         /// <summary>

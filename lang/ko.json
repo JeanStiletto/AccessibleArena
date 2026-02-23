@@ -264,7 +264,7 @@
   "HelpGGraveyard": "G: 내 무덤, Shift+G: 상대방 무덤",
   "HelpXExile": "X: 내 추방 영역, Shift+X: 상대방 추방 영역",
   "HelpSStack": "S: 스택",
-  "HelpDLibrary": "D: 내 서고 수, Shift+D: 상대방 서고 수",
+  "HelpDLibrary": "D: 내 서고, Shift+D: 상대방 서고",
 
   "HelpLLifeTotals": "L: 생명력 합계",
   "HelpTTurnPhase": "T: 턴과 단계",

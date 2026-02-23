@@ -274,7 +274,7 @@
   "HelpGGraveyard": "G: Ваше кладбище, Shift плюс G: Кладбище противника",
   "HelpXExile": "X: Ваше изгнание, Shift плюс X: Изгнание противника",
   "HelpSStack": "S: Стек",
-  "HelpDLibrary": "D: Количество карт в библиотеке, Shift плюс D: Количество карт в библиотеке противника",
+  "HelpDLibrary": "D: Ваша библиотека, Shift плюс D: Библиотека противника",
 
   "HelpLLifeTotals": "L: Количество жизней",
   "HelpTTurnPhase": "T: Ход и фаза",
