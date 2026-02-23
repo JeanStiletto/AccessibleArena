@@ -59,7 +59,7 @@ Detailed documentation in `docs/`:
 dotnet build src/AccessibleArena.csproj
 
 # Deploy (game must be closed)
-powershell -Command "$repo = (Get-Location).Path; Copy-Item -Path (Join-Path $repo 'src\bin\Debug\net472\AccessibleArena.dll') -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
+powershell -NoProfile -Command "Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
 ```
 
 ### MelonLoader Logs

@@ -3646,6 +3646,13 @@ namespace AccessibleArena.Core.Services
                 var elementsForGrouping = _elements.Select(e => (e.GameObject, e.Label));
                 _groupedNavigator.OrganizeIntoGroups(elementsForGrouping);
 
+                // When a popup is active, auto-enter the Dialog group regardless of other groups
+                // (collection cards and virtual groups may leak through overlay filtering)
+                if (_isPopupActive)
+                {
+                    _groupedNavigator.JumpToGroupAndEnter(ElementGroup.Popup);
+                }
+
                 // Queue type activation may have clicked a real tab — need another rescan
                 if (_groupedNavigator.NeedsFollowUpRescan)
                 {

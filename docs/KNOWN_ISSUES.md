@@ -377,7 +377,24 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 3. Creature death/exile/graveyard announcements with card names
 4. Player username announcements
 5. Game wins display (WinPips)
-6. Brawl accessibility - commander death zone selection (command zone vs graveyard), deck editor commander support (identify/announce commander card)
+6. Brawl accessibility - commander death zone selection (command zone vs graveyard), deck editor commander support (see below)
+
+### Brawl Deck Builder Support
+
+The Brawl deck builder uses a multi-step UI flow that differs from the standard deck builder. When editing a Brawl deck, the game first shows a **commander selection screen** with minimal UI (commander pick buttons, deck name, back) before entering the full deck editor. The mod's WrapperDeckBuilder detection triggers for both steps, but in the commander selection step the standard elements (PoolHolder collection cards, filter bar, MainDeck card tiles) don't exist in the scene yet.
+
+**What's missing:**
+- Commander selection screen only shows 3 groups (Zurück, Herstellen, Spieloptionen) instead of the full 8
+- No collection cards (PoolHolder not present)
+- No filter controls (search, color toggles, card type filters)
+- No deck list cards (MainDeck_MetaCardHolder tiles not rendered)
+- No Sideboard toggle, Next/Fertig buttons
+
+**Needed:**
+- Detect the commander selection sub-screen as a distinct state within WrapperDeckBuilder
+- Provide proper navigation for commander picker (announce commander choices with card info)
+- Handle transition from commander selection to full deck editor
+- Support Commander_MetaCardHolder if the game uses a separate holder for the commander slot
 7. Token state on cards - announce token/copy status when reading card info
 8. Smart mana announcement - announce available mana with color breakdown from game state
 9. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
