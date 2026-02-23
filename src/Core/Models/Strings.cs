@@ -236,6 +236,17 @@ namespace AccessibleArena.Core.Models
         }
 
         // ===========================================
+        // DAMAGE ASSIGNMENT BROWSER
+        // ===========================================
+        public static string DamageAssignEntry(string attackerName, int damage, int blockerCount) =>
+            blockerCount == 1
+                ? L.Format("DamageAssign_Entry_One_Format", attackerName, damage)
+                : L.Format("DamageAssign_Entry_Format", attackerName, damage, blockerCount);
+        public static string DamageAssigned(int assigned, int total) =>
+            L.Format("DamageAssign_Assigned_Format", assigned, total);
+        public static string DamageAssignLethal => L.Get("DamageAssign_Lethal");
+
+        // ===========================================
         // COMBAT STATES
         // ===========================================
         public static string Combat_Attacking => L.Get("Combat_Attacking");

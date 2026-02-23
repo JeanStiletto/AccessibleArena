@@ -593,6 +593,11 @@
   "Browser_ChooseAction": "Choose action",
   "Browser_Default": "Browser",
 
+  "DamageAssign_Entry_Format": "Assign damage. {0}, {1} damage. {2} blockers",
+  "DamageAssign_Entry_One_Format": "Assign damage. {0}, {1} damage. 1 blocker",
+  "DamageAssign_Assigned_Format": "{0} of {1} assigned",
+  "DamageAssign_Lethal": "lethal",
+
   "Combat_Attacking": "attacking",
   "Combat_CanAttack": "can attack",
   "Combat_Blocking_Format": "blocking {0}",

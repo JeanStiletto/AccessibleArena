@@ -36,6 +36,13 @@ namespace AccessibleArena.Core.Services
         // ViewDismiss auto-dismiss tracking
         private bool _viewDismissDismissed;
 
+        // AssignDamage browser state
+        private bool _isAssignDamage;
+        private object _assignDamageBrowserRef;       // AssignDamageBrowser instance
+        private System.Collections.IDictionary _spinnerMap; // InstanceId → SpinnerAnimated
+        private uint _totalDamage;
+        private static readonly BindingFlags ReflFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+
         // Zone name constant
         private const string ZoneLocalHand = "LocalHand";
 
@@ -128,6 +135,13 @@ namespace AccessibleArena.Core.Services
                 _zoneNavigator.Activate(browserInfo);
             }
 
+            // Detect AssignDamage browser
+            if (browserInfo.BrowserType == "AssignDamage")
+            {
+                _isAssignDamage = true;
+                CacheAssignDamageState();
+            }
+
             // Discover elements
             DiscoverBrowserElements();
         }
@@ -152,6 +166,12 @@ namespace AccessibleArena.Core.Services
             _browserButtons.Clear();
             _currentCardIndex = -1;
             _currentButtonIndex = -1;
+
+            // Clear AssignDamage state
+            _isAssignDamage = false;
+            _assignDamageBrowserRef = null;
+            _spinnerMap = null;
+            _totalDamage = 0;
 
             // Invalidate detector cache
             BrowserDetector.InvalidateCache();
@@ -210,6 +230,13 @@ namespace AccessibleArena.Core.Services
                 _hasAnnouncedEntry = true;
             }
 
+            // AssignDamage browser: Up/Down controls spinner, Left/Right navigates blockers
+            if (_isAssignDamage)
+            {
+                if (HandleAssignDamageInput())
+                    return true;
+            }
+
             // Zone-based browsers: delegate C/D/arrows/Enter to zone navigator
             if (_browserInfo.IsZoneBased)
             {
@@ -254,7 +281,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Up/Down arrows - card details (delegate to CardInfoNavigator)
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            // AssignDamage handles Up/Down in HandleAssignDamageInput above
+            if (!_isAssignDamage && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)))
             {
                 if (_browserCards.Count > 0 && _currentCardIndex >= 0)
                 {
@@ -624,8 +652,13 @@ namespace AccessibleArena.Core.Services
 
             string message;
 
+            // Special announcement for AssignDamage
+            if (_isAssignDamage)
+            {
+                message = GetAssignDamageEntryAnnouncement(cardCount, browserName);
+            }
             // Special announcement for London mulligan
-            if (_browserInfo.IsLondon)
+            else if (_browserInfo.IsLondon)
             {
                 var londonAnnouncement = _zoneNavigator.GetLondonEntryAnnouncement(cardCount);
                 if (londonAnnouncement != null)
@@ -677,6 +710,14 @@ namespace AccessibleArena.Core.Services
             if (_currentCardIndex < 0 || _currentCardIndex >= _browserCards.Count) return;
 
             var card = _browserCards[_currentCardIndex];
+
+            // AssignDamage: custom announcement with P/T, lethal, position; skip PrepareForCard
+            if (_isAssignDamage)
+            {
+                AnnounceAssignDamageCard(card);
+                return;
+            }
+
             var info = CardDetector.ExtractCardInfo(card);
             bool isSelectionBrowser = _browserInfo?.BrowserType == "SelectCards" || _browserInfo?.BrowserType == "SelectCardsMultiZone";
             string cardName = isSelectionBrowser && !string.IsNullOrEmpty(info.RulesText)
@@ -1329,6 +1370,374 @@ namespace AccessibleArena.Core.Services
             else
             {
                 _announcer.Announce(Strings.NoButtonsAvailable, AnnouncementPriority.Normal);
+            }
+        }
+
+        #endregion
+
+        #region AssignDamage Browser
+
+        /// <summary>
+        /// Caches state for the AssignDamage browser: browser ref, spinner map, total damage.
+        /// </summary>
+        private void CacheAssignDamageState()
+        {
+            try
+            {
+                // Find GameManager → BrowserManager → CurrentBrowser
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+
+                if (gameManager == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: GameManager not found");
+                    return;
+                }
+
+                var bmProp = gameManager.GetType().GetProperty("BrowserManager", ReflFlags);
+                var browserManager = bmProp?.GetValue(gameManager);
+                if (browserManager == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: BrowserManager not found");
+                    return;
+                }
+
+                var cbProp = browserManager.GetType().GetProperty("CurrentBrowser", ReflFlags);
+                var currentBrowser = cbProp?.GetValue(browserManager);
+                if (currentBrowser == null || !currentBrowser.GetType().Name.Contains("AssignDamage"))
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: CurrentBrowser is {currentBrowser?.GetType().Name ?? "null"}");
+                    return;
+                }
+
+                _assignDamageBrowserRef = currentBrowser;
+                MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Found browser {currentBrowser.GetType().Name}");
+
+                // Cache _idToSpinnerMap
+                var spinnerField = currentBrowser.GetType().GetField("_idToSpinnerMap", ReflFlags);
+                if (spinnerField != null)
+                {
+                    _spinnerMap = spinnerField.GetValue(currentBrowser) as System.Collections.IDictionary;
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Spinner map has {_spinnerMap?.Count ?? 0} entries");
+                }
+                else
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: _idToSpinnerMap field not found");
+                }
+
+                // Cache TotalDamage: GameManager → WorkflowController → CurrentInteraction → _damageAssigner → TotalDamage
+                var wcProp = gameManager.GetType().GetProperty("WorkflowController", ReflFlags);
+                var workflowController = wcProp?.GetValue(gameManager);
+                if (workflowController != null)
+                {
+                    var ciProp = workflowController.GetType().GetProperty("CurrentInteraction", ReflFlags);
+                    var interaction = ciProp?.GetValue(workflowController);
+                    if (interaction != null && interaction.GetType().Name.Contains("AssignDamage"))
+                    {
+                        var daField = interaction.GetType().GetField("_damageAssigner", ReflFlags);
+                        var damageAssigner = daField?.GetValue(interaction);
+                        if (damageAssigner != null)
+                        {
+                            var tdProp = damageAssigner.GetType().GetProperty("TotalDamage", ReflFlags);
+                            if (tdProp != null)
+                            {
+                                _totalDamage = (uint)tdProp.GetValue(damageAssigner);
+                            }
+                            else
+                            {
+                                // Try field
+                                var tdField = damageAssigner.GetType().GetField("TotalDamage", ReflFlags);
+                                if (tdField != null)
+                                    _totalDamage = (uint)tdField.GetValue(damageAssigner);
+                            }
+                            MelonLogger.Msg($"[BrowserNavigator] AssignDamage: TotalDamage = {_totalDamage}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] AssignDamage cache error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles input specific to the AssignDamage browser.
+        /// Up/Down adjusts spinner, Left/Right navigates blockers.
+        /// </summary>
+        private bool HandleAssignDamageInput()
+        {
+            // Up arrow: increase damage on current blocker
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                AdjustDamageSpinner(true);
+                return true;
+            }
+
+            // Down arrow: decrease damage on current blocker
+            if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                AdjustDamageSpinner(false);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the SpinnerAnimated for the currently focused card by InstanceId.
+        /// </summary>
+        private object GetSpinnerForCurrentCard()
+        {
+            if (_spinnerMap == null || _currentCardIndex < 0 || _currentCardIndex >= _browserCards.Count)
+                return null;
+
+            var card = _browserCards[_currentCardIndex];
+            uint instanceId = GetCardInstanceId(card);
+            if (instanceId == 0) return null;
+
+            if (_spinnerMap.Contains(instanceId))
+                return _spinnerMap[instanceId];
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts InstanceId from a card's CDC component.
+        /// </summary>
+        private uint GetCardInstanceId(GameObject card)
+        {
+            if (card == null) return 0;
+
+            try
+            {
+                foreach (var mb in card.GetComponents<MonoBehaviour>())
+                {
+                    if (mb == null) continue;
+                    var type = mb.GetType();
+                    // DuelScene_CDC or similar CDC types have InstanceId
+                    if (type.Name.Contains("CDC"))
+                    {
+                        var idProp = type.GetProperty("InstanceId", ReflFlags);
+                        if (idProp != null)
+                            return (uint)idProp.GetValue(mb);
+
+                        // Try via Model.Instance.InstanceId
+                        var modelProp = type.GetProperty("Model", ReflFlags);
+                        if (modelProp != null)
+                        {
+                            var model = modelProp.GetValue(mb);
+                            if (model != null)
+                            {
+                                var instProp = model.GetType().GetProperty("Instance", ReflFlags);
+                                var instance = instProp?.GetValue(model);
+                                if (instance != null)
+                                {
+                                    var iidProp = instance.GetType().GetProperty("InstanceId", ReflFlags);
+                                    if (iidProp != null)
+                                        return (uint)iidProp.GetValue(instance);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] GetCardInstanceId error: {ex.Message}");
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Clicks the spinner up/down button and announces the new value.
+        /// </summary>
+        private void AdjustDamageSpinner(bool increase)
+        {
+            var spinner = GetSpinnerForCurrentCard();
+            if (spinner == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No spinner for current card");
+                return;
+            }
+
+            try
+            {
+                var spinnerType = spinner.GetType();
+
+                // Click _upButton or _downButton
+                string buttonFieldName = increase ? "_upButton" : "_downButton";
+                var buttonField = spinnerType.GetField(buttonFieldName, ReflFlags);
+                if (buttonField == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: {buttonFieldName} field not found on {spinnerType.Name}");
+                    return;
+                }
+
+                var button = buttonField.GetValue(spinner) as Button;
+                if (button == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: {buttonFieldName} is null");
+                    return;
+                }
+
+                button.onClick.Invoke();
+
+                // Read new value from spinner
+                var valueProp = spinnerType.GetProperty("Value", ReflFlags);
+                int newValue = 0;
+                if (valueProp != null)
+                {
+                    newValue = (int)valueProp.GetValue(spinner);
+                }
+
+                // Announce: "X of Total assigned"
+                string announcement = Strings.DamageAssigned(newValue, (int)_totalDamage);
+
+                // Check lethal
+                if (IsSpinnerLethal(spinner))
+                {
+                    announcement = $"{Strings.DamageAssignLethal}, {announcement}";
+                }
+
+                _announcer.Announce(announcement, AnnouncementPriority.High);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] AdjustDamageSpinner error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Checks if the spinner's value text is gold (lethal damage reached).
+        /// Lethal color: Color32(254, 176, 0, 255).
+        /// </summary>
+        private bool IsSpinnerLethal(object spinner)
+        {
+            try
+            {
+                var spinnerType = spinner.GetType();
+                var textField = spinnerType.GetField("_valueText", ReflFlags);
+                if (textField == null) return false;
+
+                var textComponent = textField.GetValue(spinner);
+                if (textComponent == null) return false;
+
+                var colorProp = textComponent.GetType().GetProperty("color", ReflFlags);
+                if (colorProp == null) return false;
+
+                var color = (Color)colorProp.GetValue(textComponent);
+                // Compare to lethal gold: approximately (254/255, 176/255, 0/255, 1)
+                return color.r > 0.9f && color.g > 0.6f && color.g < 0.8f && color.b < 0.1f;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Announces a card in AssignDamage mode with name, P/T, lethal status, position.
+        /// Does NOT call PrepareForCard so CardInfoNavigator stays inactive
+        /// and Up/Down are free for spinner control.
+        /// </summary>
+        private void AnnounceAssignDamageCard(GameObject card)
+        {
+            var info = CardDetector.ExtractCardInfo(card);
+            string cardName = info.Name ?? "Unknown card";
+
+            var parts = new List<string>();
+            parts.Add(cardName);
+
+            // Add P/T
+            if (!string.IsNullOrEmpty(info.PowerToughness))
+            {
+                parts.Add(info.PowerToughness);
+            }
+
+            // Check lethal state via spinner
+            var spinner = GetSpinnerForCurrentCard();
+            if (spinner != null && IsSpinnerLethal(spinner))
+            {
+                parts.Add(Strings.DamageAssignLethal);
+            }
+
+            // Add position
+            if (_browserCards.Count > 1)
+            {
+                parts.Add($"{_currentCardIndex + 1} of {_browserCards.Count}");
+            }
+
+            _announcer.Announce(string.Join(", ", parts), AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Gets the entry announcement for the AssignDamage browser.
+        /// "Assign damage. [AttackerName], [Power] damage. [N] blockers"
+        /// </summary>
+        private string GetAssignDamageEntryAnnouncement(int cardCount, string fallbackName)
+        {
+            if (_assignDamageBrowserRef == null)
+                return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
+
+            try
+            {
+                var browserType = _assignDamageBrowserRef.GetType();
+
+                // Get _layout from the browser
+                var layoutField = browserType.GetField("_layout", ReflFlags);
+                var layout = layoutField?.GetValue(_assignDamageBrowserRef);
+                if (layout == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: _layout not found");
+                    return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
+                }
+
+                var layoutType = layout.GetType();
+
+                // Get _attacker (DuelScene_CDC)
+                var attackerField = layoutType.GetField("_attacker", ReflFlags);
+                object attacker = attackerField?.GetValue(layout);
+                string attackerName = "Attacker";
+                int power = (int)_totalDamage;
+
+                if (attacker != null)
+                {
+                    // Get attacker's GameObject and extract name
+                    var attackerMb = attacker as MonoBehaviour;
+                    if (attackerMb != null)
+                    {
+                        var attackerInfo = CardDetector.ExtractCardInfo(attackerMb.gameObject);
+                        if (!string.IsNullOrEmpty(attackerInfo.Name))
+                            attackerName = attackerInfo.Name;
+                    }
+                }
+
+                // Get _blockers list for count
+                var blockersField = layoutType.GetField("_blockers", ReflFlags);
+                if (blockersField != null)
+                {
+                    var blockersList = blockersField.GetValue(layout) as IList;
+                    if (blockersList != null)
+                    {
+                        cardCount = blockersList.Count;
+                    }
+                }
+
+                return Strings.DamageAssignEntry(attackerName, power, cardCount);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] AssignDamage entry announcement error: {ex.Message}");
+                return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
             }
         }
 

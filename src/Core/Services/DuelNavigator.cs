@@ -427,7 +427,16 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
+                    // Fallback: try browser's current card (e.g., AssignDamage skips PrepareForCard)
+                    var browserCard = _browserNavigator.GetCurrentCard();
+                    if (extInfoNav != null && browserCard != null)
+                    {
+                        extInfoNav.Open(browserCard);
+                    }
+                    else
+                    {
+                        _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
+                    }
                 }
                 return true;
             }
