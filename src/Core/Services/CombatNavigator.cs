@@ -650,10 +650,15 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Finds a prompt button by type (primary or secondary).
         /// Language-agnostic: uses GameObject name pattern, not button text.
+        /// When multiple buttons match (stale from previous phase + current),
+        /// prefers the one with full parent CanvasGroup alpha (not fading out).
         /// </summary>
         private GameObject FindPromptButton(bool isPrimary)
         {
             string pattern = isPrimary ? "PromptButton_Primary" : "PromptButton_Secondary";
+
+            GameObject bestMatch = null;
+            float bestAlpha = -1f;
 
             foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
             {
@@ -666,11 +671,38 @@ namespace AccessibleArena.Core.Services
 
                 if (selectable.gameObject.name.Contains(pattern))
                 {
-                    return selectable.gameObject;
+                    // Check parent CanvasGroup alpha to skip stale buttons from previous phase
+                    float alpha = GetParentCanvasGroupAlpha(selectable.gameObject);
+                    if (alpha > bestAlpha)
+                    {
+                        bestAlpha = alpha;
+                        bestMatch = selectable.gameObject;
+                    }
                 }
             }
 
-            return null;
+            return bestMatch;
+        }
+
+        /// <summary>
+        /// Gets the minimum CanvasGroup alpha from the button's parent hierarchy.
+        /// Returns 1.0 if no CanvasGroup is found (fully visible).
+        /// Stale buttons from previous phases typically have a parent fading to alpha 0.
+        /// </summary>
+        private float GetParentCanvasGroupAlpha(GameObject obj)
+        {
+            float minAlpha = 1f;
+            Transform current = obj.transform.parent;
+            int depth = 0;
+            while (current != null && depth < 10)
+            {
+                var cg = current.GetComponent<CanvasGroup>();
+                if (cg != null && cg.alpha < minAlpha)
+                    minAlpha = cg.alpha;
+                current = current.parent;
+                depth++;
+            }
+            return minAlpha;
         }
 
 

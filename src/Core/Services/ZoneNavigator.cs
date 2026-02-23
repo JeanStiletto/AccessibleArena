@@ -517,6 +517,33 @@ namespace AccessibleArena.Core.Services
             // Showing hidden cards would be cheating.
             if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
             {
+                // Diagnostic: log all library cards and their properties before filtering
+                if (zone.Cards.Count > 0)
+                {
+                    MelonLogger.Msg($"[ZoneNavigator] Library diagnostic: {zone.Cards.Count} CDCs before filter");
+                    // Log first 3 cards for debugging
+                    for (int i = 0; i < System.Math.Min(3, zone.Cards.Count); i++)
+                    {
+                        var c = zone.Cards[i];
+                        var cdc = CardModelProvider.GetDuelSceneCDC(c);
+                        string cardName = CardDetector.GetCardName(c);
+                        bool hasHL = CardDetector.HasHotHighlight(c);
+                        bool hasReveal = CardDetector.HasRevealOverride(c);
+                        string faceDown = "unknown";
+                        if (cdc != null)
+                        {
+                            var model = CardModelProvider.GetCardModel(cdc);
+                            if (model != null)
+                            {
+                                var faceDownProp = model.GetType().GetProperty("IsDisplayedFaceDown");
+                                if (faceDownProp != null)
+                                    faceDown = faceDownProp.GetValue(model)?.ToString() ?? "null";
+                            }
+                        }
+                        MelonLogger.Msg($"[ZoneNavigator]   [{i}] {c.name} '{cardName}' HL={hasHL} Reveal={hasReveal} FaceDown={faceDown} pos={c.transform.position}");
+                    }
+                }
+
                 zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.HasRevealOverride(c));
             }
         }
