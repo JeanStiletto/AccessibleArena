@@ -2,6 +2,16 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.1 - 2026-02-23
+
+### New: Read-Only Deck Builder Accessibility
+- Starter and precon decks now navigable when opened in read-only mode
+- Cards listed with quantity and name (e.g. "2x Lightning Bolt")
+- Up/Down card details work on read-only deck cards
+- Enter on a card announces "This deck is read only. To edit, open it from My Decks."
+- Screen announces "Deck Builder, Read Only" to distinguish from editable mode
+- Back button (Backspace) works as expected to return to deck list
+
 ## v0.7.0 - 2026-02-23
 
 ### New: Friends Panel Navigation

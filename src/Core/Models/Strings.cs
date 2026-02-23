@@ -917,6 +917,8 @@ namespace AccessibleArena.Core.Models
         public static string ScreenPackOpening => L.Get("ScreenPackOpening");
         public static string ScreenColorChallenge => L.Get("ScreenColorChallenge");
         public static string ScreenDeckBuilder => L.Get("ScreenDeckBuilder");
+        public static string ScreenDeckBuilderReadOnly => L.Get("ScreenDeckBuilderReadOnly");
+        public static string ReadOnlyDeckWarning => L.Get("ReadOnlyDeckWarning");
         public static string ScreenDeckSelection => L.Get("ScreenDeckSelection");
         public static string ScreenEvent => L.Get("ScreenEvent");
         public static string ScreenRewards => L.Get("ScreenRewards");

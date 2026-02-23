@@ -470,6 +470,14 @@ namespace AccessibleArena.Core.Services
                 return deckListInfo.Value;
             }
 
+            // Check if this is a read-only deck card (StaticColumnMetaCardView)
+            var readOnlyInfo = CardModelProvider.ExtractReadOnlyDeckCardInfo(cardObj);
+            if (readOnlyInfo.HasValue && readOnlyInfo.Value.IsValid)
+            {
+                MelonLogger.Msg($"[CardDetector] Using READ-ONLY DECK extraction: {readOnlyInfo.Value.Name} (Qty: {readOnlyInfo.Value.Quantity})");
+                return readOnlyInfo.Value;
+            }
+
             // Try Model-based extraction first (works for compacted battlefield cards)
             var modelInfo = CardModelProvider.ExtractCardInfoFromModel(cardObj);
             if (modelInfo.HasValue && modelInfo.Value.IsValid)

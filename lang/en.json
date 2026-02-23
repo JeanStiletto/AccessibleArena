@@ -490,6 +490,8 @@
   "ScreenPackOpening": "Pack Opening",
   "ScreenColorChallenge": "Color Challenge",
   "ScreenDeckBuilder": "Deck Builder",
+  "ScreenDeckBuilderReadOnly": "Deck Builder, Read Only",
+  "ReadOnlyDeckWarning": "This deck is read only. To edit, open it from My Decks.",
   "ScreenDeckSelection": "Deck Selection",
   "ScreenEvent": "Event",
   "ScreenRewards": "Rewards",

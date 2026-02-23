@@ -109,6 +109,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     return ElementGroup.DeckBuilderDeckList;
             }
 
+            // ReadOnly deck builder cards (StaticColumnMetaCardView in column view)
+            // These appear when viewing starter/precon decks in read-only mode
+            if (name.Contains("StaticColumnMetaCardView") || parentPath.Contains("StaticColumnMetaCardHolder"))
+                return ElementGroup.DeckBuilderDeckList;
+
             // Challenge screen containers -> ChallengeMain group
             // Must be checked BEFORE PlayBlade and Popup, since challenge containers
             // were previously routed through IsInsidePlayBlade.

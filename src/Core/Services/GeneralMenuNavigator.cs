@@ -172,6 +172,9 @@ namespace AccessibleArena.Core.Services
         // instead of the full rescan announcement (set when adding/removing a card)
         private bool _announceDeckCountOnRescan;
 
+        // ReadOnly deck builder mode (starter/precon decks)
+        private bool _isDeckBuilderReadOnly;
+
         // 2D sub-navigation state for DeckBuilderInfo group
         // Rows navigated with Up/Down, entries within rows navigated with Left/Right
         private List<(string label, List<string> entries)> _deckInfoRows;
@@ -833,6 +836,10 @@ namespace AccessibleArena.Core.Services
                         return Strings.ScreenHome;
                 }
 
+                // ReadOnly deck builder gets distinct screen name
+                if (_isDeckBuilderReadOnly && _activeContentController == "WrapperDeckBuilder")
+                    return Strings.ScreenDeckBuilderReadOnly;
+
                 return baseName;
             }
 
@@ -866,6 +873,7 @@ namespace AccessibleArena.Core.Services
             _currentScene = sceneName;
             _hasLoggedUIOnce = false;
             _activationDelay = ActivationDelaySeconds;
+            _isDeckBuilderReadOnly = false;
 
             // Reset NPE button tracking for new scene
             _npeButtonCheckTimer = NPEButtonCheckInterval;
@@ -3625,6 +3633,9 @@ namespace AccessibleArena.Core.Services
             // These are cards currently in your deck
             FindDeckListCards(addedObjects);
 
+            // ReadOnly deck builder: find cards in column view when list view is empty
+            FindReadOnlyDeckCards(addedObjects);
+
             // In mail content view, add mail fields (title, date, body) as navigable elements
             // These appear before buttons in the navigation list
             if (_isInMailDetailView)
@@ -3999,6 +4010,61 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Find cards in read-only deck builder (StaticColumnMetaCardView in column view).
+        /// Only runs when the normal deck list is empty (no MainDeck_MetaCardHolder with list view).
+        /// </summary>
+        private void FindReadOnlyDeckCards(HashSet<GameObject> addedObjects)
+        {
+            // Only active in deck builder
+            if (_activeContentController != "WrapperDeckBuilder")
+                return;
+
+            // Reset flag each scan - will be re-set if read-only cards found
+            _isDeckBuilderReadOnly = false;
+
+            // Only try if the normal deck list didn't find cards
+            var normalDeckCards = CardModelProvider.GetDeckListCards();
+            if (normalDeckCards.Count > 0)
+                return;
+
+            LogDebug($"[{NavigatorId}] Normal deck list empty, checking for read-only column view...");
+
+            var readOnlyCards = CardModelProvider.GetReadOnlyDeckCards();
+            if (readOnlyCards.Count == 0)
+            {
+                LogDebug($"[{NavigatorId}] No read-only deck cards found");
+                return;
+            }
+
+            _isDeckBuilderReadOnly = true;
+            LogDebug($"[{NavigatorId}] Found {readOnlyCards.Count} read-only deck card(s)");
+
+            int cardNum = 1;
+            foreach (var deckCard in readOnlyCards)
+            {
+                if (!deckCard.IsValid) continue;
+
+                var cardObj = deckCard.CardGameObject;
+                if (cardObj == null || addedObjects.Contains(cardObj))
+                    continue;
+
+                // Get card name from GrpId
+                string cardName = CardModelProvider.GetNameFromGrpId(deckCard.GrpId);
+                if (string.IsNullOrEmpty(cardName))
+                    cardName = $"Card #{deckCard.GrpId}";
+
+                // Build label with quantity and card name
+                string label = $"{deckCard.Quantity}x {cardName}";
+
+                LogDebug($"[{NavigatorId}] Adding read-only deck card {cardNum}: {label}");
+
+                AddElement(cardObj, label);
+                addedObjects.Add(cardObj);
+                cardNum++;
+            }
+        }
+
+        /// <summary>
         /// Log the hierarchy of a transform for debugging purposes.
         /// </summary>
         private void LogHierarchy(Transform parent, string indent, int maxDepth)
@@ -4053,6 +4119,24 @@ namespace AccessibleArena.Core.Services
                 return classification.Label;
 
             return $"{classification.Label}, {classification.RoleLabel}";
+        }
+
+        /// <summary>
+        /// Override to intercept Enter on read-only deck cards.
+        /// Shows a warning instead of trying to activate (which would do nothing useful).
+        /// </summary>
+        protected override void ActivateCurrentElement()
+        {
+            if (_isDeckBuilderReadOnly && IsValidIndex)
+            {
+                var element = _elements[_currentIndex].GameObject;
+                if (element != null && CardDetector.IsCard(element))
+                {
+                    _announcer.AnnounceInterrupt(Strings.ReadOnlyDeckWarning);
+                    return;
+                }
+            }
+            base.ActivateCurrentElement();
         }
 
         /// <summary>
@@ -4604,9 +4688,18 @@ namespace AccessibleArena.Core.Services
                 if (currentGroup.HasValue && currentGroup.Value.Group == ElementGroup.DeckBuilderDeckList)
                 {
                     CardModelProvider.ClearDeckListCache();
+                    CardModelProvider.ClearReadOnlyDeckCache();
                     // Force immediate refresh while UI is in active state
                     var deckCards = CardModelProvider.GetDeckListCards();
-                    MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList - refreshed {deckCards.Count} deck cards");
+                    if (deckCards.Count == 0 && _isDeckBuilderReadOnly)
+                    {
+                        var roCards = CardModelProvider.GetReadOnlyDeckCards();
+                        MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList (read-only) - refreshed {roCards.Count} deck cards");
+                    }
+                    else
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList - refreshed {deckCards.Count} deck cards");
+                    }
                 }
 
                 if (_groupedNavigator.EnterGroup())

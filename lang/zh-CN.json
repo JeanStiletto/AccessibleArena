@@ -487,6 +487,8 @@
   "ScreenPackOpening": "开包",
   "ScreenColorChallenge": "颜色挑战",
   "ScreenDeckBuilder": "套牌构建",
+  "ScreenDeckBuilderReadOnly": "Deck Builder, Read Only",
+  "ReadOnlyDeckWarning": "This deck is read only. To edit, open it from My Decks.",
   "ScreenDeckSelection": "套牌选择",
   "ScreenEvent": "赛事",
   "ScreenRewards": "奖励",

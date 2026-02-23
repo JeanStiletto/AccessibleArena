@@ -487,6 +487,8 @@
   "ScreenPackOpening": "Ouverture de boosters",
   "ScreenColorChallenge": "Défi de couleur",
   "ScreenDeckBuilder": "Créateur de deck",
+  "ScreenDeckBuilderReadOnly": "Deck Builder, Read Only",
+  "ReadOnlyDeckWarning": "This deck is read only. To edit, open it from My Decks.",
   "ScreenDeckSelection": "Sélection de deck",
   "ScreenEvent": "Événement",
   "ScreenRewards": "Récompenses",

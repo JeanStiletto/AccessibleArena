@@ -501,6 +501,8 @@
   "ScreenPackOpening": "Открытие бустеров",
   "ScreenColorChallenge": "Испытание цветов",
   "ScreenDeckBuilder": "Конструктор колод",
+  "ScreenDeckBuilderReadOnly": "Deck Builder, Read Only",
+  "ReadOnlyDeckWarning": "This deck is read only. To edit, open it from My Decks.",
   "ScreenDeckSelection": "Выбор колоды",
   "ScreenEvent": "Событие",
   "ScreenRewards": "Награды",

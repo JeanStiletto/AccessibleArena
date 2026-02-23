@@ -501,6 +501,8 @@
   "ScreenPackOpening": "Otwieranie pakietów",
   "ScreenColorChallenge": "Wyzwanie kolorów",
   "ScreenDeckBuilder": "Kreator talii",
+  "ScreenDeckBuilderReadOnly": "Deck Builder, Read Only",
+  "ReadOnlyDeckWarning": "This deck is read only. To edit, open it from My Decks.",
   "ScreenDeckSelection": "Wybór talii",
   "ScreenEvent": "Wydarzenie",
   "ScreenRewards": "Nagrody",

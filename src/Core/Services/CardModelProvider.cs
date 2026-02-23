@@ -3550,6 +3550,200 @@ namespace AccessibleArena.Core.Services
             };
         }
 
+        #endregion
+
+        #region ReadOnly Deck Card Support
+
+        /// <summary>
+        /// Information about a card in a read-only deck (StaticColumnMetaCardView in column view).
+        /// </summary>
+        public struct ReadOnlyDeckCardInfo
+        {
+            public uint GrpId;
+            public int Quantity;
+            public GameObject CardGameObject; // StaticColumnMetaCardView GameObject
+            public bool IsValid => GrpId > 0 && CardGameObject != null;
+        }
+
+        // Cache for read-only deck cards
+        private static List<ReadOnlyDeckCardInfo> _cachedReadOnlyDeckCards = new List<ReadOnlyDeckCardInfo>();
+        private static int _cachedReadOnlyDeckFrame = -1;
+
+        /// <summary>
+        /// Clears the read-only deck card cache, forcing a fresh lookup on next call.
+        /// </summary>
+        public static void ClearReadOnlyDeckCache()
+        {
+            _cachedReadOnlyDeckCards.Clear();
+            _cachedReadOnlyDeckFrame = -1;
+        }
+
+        /// <summary>
+        /// Gets all cards from the read-only deck column view (StaticColumnMetaCardView).
+        /// Used when DeckBuilderMode.ReadOnly is active (starter/precon decks).
+        /// Uses caching to avoid repeated reflection calls within the same frame.
+        /// </summary>
+        public static List<ReadOnlyDeckCardInfo> GetReadOnlyDeckCards()
+        {
+            // Return cached result if same frame
+            if (_cachedReadOnlyDeckFrame == Time.frameCount && _cachedReadOnlyDeckCards.Count > 0)
+                return _cachedReadOnlyDeckCards;
+
+            _cachedReadOnlyDeckCards.Clear();
+            _cachedReadOnlyDeckFrame = Time.frameCount;
+
+            try
+            {
+                // Find StaticColumnMetaCardHolder components directly in the scene
+                // (The "StaticColumnManager" GO is just a container - the component is on child holders)
+                var holders = new List<MonoBehaviour>();
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "StaticColumnMetaCardHolder")
+                        holders.Add(mb);
+                }
+
+                if (holders.Count == 0)
+                {
+                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                        "No StaticColumnMetaCardHolder components found");
+                    return _cachedReadOnlyDeckCards;
+                }
+
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Found {holders.Count} StaticColumnMetaCardHolder(s)");
+
+                // Extract card views from each holder
+                foreach (var holder in holders)
+                {
+                    var holderType = holder.GetType();
+
+                    // Get CardViews property (public, inherited)
+                    var cardViewsProp = holderType.GetProperty("CardViews");
+                    if (cardViewsProp == null)
+                    {
+                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                            $"CardViews property not found on {holderType.Name}");
+                        continue;
+                    }
+
+                    var cardViews = cardViewsProp.GetValue(holder) as System.Collections.IEnumerable;
+                    if (cardViews == null) continue;
+
+                    foreach (var cardView in cardViews)
+                    {
+                        if (cardView == null) continue;
+
+                        var viewType = cardView.GetType();
+                        var info = new ReadOnlyDeckCardInfo();
+
+                        // Store the view's gameObject
+                        if (cardView is Component viewComponent)
+                        {
+                            info.CardGameObject = viewComponent.gameObject;
+                        }
+
+                        // Get Card property which has GrpId
+                        var cardProp = viewType.GetProperty("Card");
+                        if (cardProp != null)
+                        {
+                            var card = cardProp.GetValue(cardView);
+                            if (card != null)
+                            {
+                                var cardType = card.GetType();
+                                var grpIdProp = cardType.GetProperty("GrpId");
+                                if (grpIdProp != null)
+                                {
+                                    info.GrpId = (uint)grpIdProp.GetValue(card);
+                                }
+                            }
+                        }
+
+                        // Get Quantity property
+                        var qtyProp = viewType.GetProperty("Quantity");
+                        if (qtyProp != null)
+                        {
+                            info.Quantity = (int)qtyProp.GetValue(cardView);
+                        }
+
+                        if (info.IsValid)
+                        {
+                            _cachedReadOnlyDeckCards.Add(info);
+                        }
+                    }
+                }
+
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Found {_cachedReadOnlyDeckCards.Count} read-only deck card(s)");
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error getting read-only deck cards: {ex.Message}");
+            }
+
+            return _cachedReadOnlyDeckCards;
+        }
+
+        /// <summary>
+        /// Gets read-only deck card info for a specific UI element.
+        /// Returns null if the element is not a read-only deck card.
+        /// </summary>
+        public static ReadOnlyDeckCardInfo? GetReadOnlyDeckCardInfo(GameObject element)
+        {
+            if (element == null) return null;
+
+            var cards = GetReadOnlyDeckCards();
+            foreach (var card in cards)
+            {
+                if (card.CardGameObject == element)
+                    return card;
+
+                // Check if element is a child of the card view
+                if (card.CardGameObject != null && element.transform.IsChildOf(card.CardGameObject.transform))
+                    return card;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts full card info for a read-only deck card using its GrpId.
+        /// </summary>
+        public static CardInfo? ExtractReadOnlyDeckCardInfo(GameObject element)
+        {
+            var readOnlyCard = GetReadOnlyDeckCardInfo(element);
+            if (readOnlyCard == null || !readOnlyCard.Value.IsValid)
+                return null;
+
+            var info = readOnlyCard.Value;
+
+            // Use ExtractCardInfoFromModel for consistent extraction
+            if (info.CardGameObject != null)
+            {
+                var cardInfo = ExtractCardInfoFromModel(info.CardGameObject);
+                if (cardInfo.HasValue && cardInfo.Value.IsValid)
+                {
+                    var result = cardInfo.Value;
+                    result.Quantity = info.Quantity;
+                    return result;
+                }
+            }
+
+            // Fallback: return minimal info with just name and quantity
+            string name = GetNameFromGrpId(info.GrpId);
+            return new CardInfo
+            {
+                Name = name ?? $"Card #{info.GrpId}",
+                Quantity = info.Quantity,
+                IsValid = true
+            };
+        }
+
+        #endregion
+
+        #region Card Data Lookup by GrpId
+
         /// <summary>
         /// Gets full CardInfo from a GrpId by looking up CardPrintingData from the CardDatabase.
         /// Works in both menu scenes (via deck holder) and duel scenes (via GameManager.CardDatabase).
