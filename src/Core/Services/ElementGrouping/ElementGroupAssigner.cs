@@ -495,6 +495,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // since different tile types exist (FriendTile, InviteOutgoingTile, InviteIncomingTile, etc.)
             if (parentPath.Contains("SocialEntittiesListItem") || parentPath.Contains("SocialEntitiesListItem"))
             {
+                // Only accept the primary clickable element for each tile.
+                // Sub-buttons (accept/reject/block) are handled by left/right action cycling
+                // via FriendInfoProvider, not as separate navigable entries.
+                if (!IsPrimarySocialTileElement(element))
+                    return ElementGroup.Unknown;
+
                 if (parentPath.Contains("Bucket_Friends"))
                     return ElementGroup.FriendSectionFriends;
                 if (parentPath.Contains("Bucket_SentRequests") || parentPath.Contains("Bucket_Outgoing"))
@@ -542,6 +548,36 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Not a recognized friend panel element (headers, dismiss buttons, tab bar, etc.)
             return ElementGroup.Unknown;
+        }
+
+        /// <summary>
+        /// Check if an element is the primary clickable for its social tile.
+        /// Returns false for sub-buttons (accept/reject/block) that should be handled
+        /// by left/right action cycling instead of being separate navigable entries.
+        /// </summary>
+        private static bool IsPrimarySocialTileElement(GameObject element)
+        {
+            // Backer_Hitbox is always the primary clickable
+            if (element.name == "Backer_Hitbox") return true;
+
+            // Walk up to find the SocialEntittiesListItem parent
+            Transform current = element.transform.parent;
+            while (current != null)
+            {
+                if (current.name.StartsWith("SocialEntittiesListItem") ||
+                    current.name.StartsWith("SocialEntitiesListItem"))
+                {
+                    // If this list item has a Backer_Hitbox child, only that should be navigable
+                    var hitbox = current.Find("Backer_Hitbox");
+                    if (hitbox != null && hitbox.gameObject.activeInHierarchy)
+                        return false; // Backer_Hitbox exists but we're not it
+                    // No Backer_Hitbox (e.g. BlockTile) - accept this element as fallback
+                    return true;
+                }
+                current = current.parent;
+            }
+
+            return true;
         }
 
         /// <summary>

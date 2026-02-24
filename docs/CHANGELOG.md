@@ -30,6 +30,10 @@ All notable changes to Accessible Arena.
 ### Fixed: Stale Combat Button During Blockers Phase
 - Combat prompt button was showing stale text after blocker assignment
 
+### Fixed: Duplicate Entries in Incoming Friend Requests
+- Sub-buttons (accept/reject) inside InviteIncomingTile were registered as separate navigable entries
+- One friend request appeared as 3 identical entries instead of 1
+
 ## v0.7.1 - 2026-02-23
 
 ### New: Read-Only Deck Builder Accessibility

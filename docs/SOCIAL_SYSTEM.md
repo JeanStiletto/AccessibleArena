@@ -130,6 +130,8 @@ Elements inside the social panel are assigned groups based on parentPath pattern
 
 Unmatched social panel elements return `Unknown` (hidden via fallthrough guard).
 
+**Sub-button filtering:** Each social tile (FriendTile, InviteIncomingTile, etc.) contains action sub-buttons (_buttonAccept, _buttonReject, etc.) as standard Unity Buttons. The general element scan (`FindObjectsOfType<Button>`) picks these up alongside the main `Backer_Hitbox` CustomButton. `IsPrimarySocialTileElement()` filters them out: if a `SocialEntittiesListItem` has a `Backer_Hitbox` child, only that element is accepted as navigable. Sub-buttons are excluded because their actions are handled via left/right cycling in `FriendInfoProvider`. For tiles without `Backer_Hitbox` (e.g. BlockTile), any child element is accepted as fallback.
+
 **Important:** `ChallengeWidget_Base` in the friends panel contains the challenge button hierarchy. `IsChallengeContainer()` must NOT match `ChallengeWidget` — that pattern would hijack friends panel elements into the `ChallengeMain` group. The actual challenge screen uses `ChallengeOptions`, `FriendChallengeBladeWidget`, `Popout_Play`, and `UnifiedChallenges`.
 
 ### Reflection Details
