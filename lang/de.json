@@ -762,5 +762,14 @@
   "FriendActionRevoke": "Widerrufen",
   "FriendActionUnblock": "Entblocken",
 
+  "ScreenPacketSelect": "Paketauswahl",
+  "EventTileRanked": "Gewertet",
+  "EventTileBo3": "Best of 3",
+  "EventTileInProgress": "Läuft",
+  "EventTileProgress_Format": "{0}/{1} Siege",
+  "EventPageSummary_Format": "{0}/{1} Siege",
+  "EventScreenTitle_Format": "Event: {0}",
+  "PacketOf_Format": "Paket {0} von {1}",
+
   "NumberWords": "eine=1,einer=1,einem=1,einen=1,ein=1,zwei=2,drei=3,vier=4,fünf=5,sechs=6,sieben=7,acht=8,neun=9,zehn=10"
 }

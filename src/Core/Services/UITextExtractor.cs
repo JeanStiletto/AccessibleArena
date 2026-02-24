@@ -106,6 +106,20 @@ namespace AccessibleArena.Core.Services
                 return playModeText;
             }
 
+            // Check if this is an event tile - extract enriched label
+            string eventTileLabel = TryGetEventTileLabel(gameObject);
+            if (!string.IsNullOrEmpty(eventTileLabel))
+            {
+                return eventTileLabel;
+            }
+
+            // Check if this is a packet selection option - extract packet info
+            string packetLabel = TryGetPacketLabel(gameObject);
+            if (!string.IsNullOrEmpty(packetLabel))
+            {
+                return packetLabel;
+            }
+
             // Check if this is a DeckManager icon button - extract function from element name
             string deckManagerButtonText = TryGetDeckManagerButtonText(gameObject);
             if (!string.IsNullOrEmpty(deckManagerButtonText))
@@ -573,6 +587,62 @@ namespace AccessibleArena.Core.Services
                     // Return the cleaned mode name with proper casing
                     return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(mode.ToLowerInvariant());
             }
+        }
+
+        /// <summary>
+        /// Extracts enriched label for PlayBlade event tiles.
+        /// Detects event tiles by walking parent chain for "EventTile -" naming pattern.
+        /// </summary>
+        private static string TryGetEventTileLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            // Check if element is inside an event tile by walking parent chain
+            Transform current = gameObject.transform;
+            bool isInsideEventTile = false;
+            while (current != null)
+            {
+                if (current.name.StartsWith("EventTile"))
+                {
+                    isInsideEventTile = true;
+                    break;
+                }
+                current = current.parent;
+            }
+
+            if (!isInsideEventTile) return null;
+
+            return EventAccessor.GetEventTileLabel(gameObject);
+        }
+
+        /// <summary>
+        /// Extracts enriched label for Jump In packet selection options.
+        /// Detects packet elements by walking parent chain for JumpStartPacket component.
+        /// </summary>
+        private static string TryGetPacketLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            // Check if element is inside a JumpStartPacket by walking parent chain
+            Transform current = gameObject.transform;
+            bool isInsidePacket = false;
+            while (current != null)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "JumpStartPacket")
+                    {
+                        isInsidePacket = true;
+                        break;
+                    }
+                }
+                if (isInsidePacket) break;
+                current = current.parent;
+            }
+
+            if (!isInsidePacket) return null;
+
+            return EventAccessor.GetPacketLabel(gameObject);
         }
 
         /// <summary>

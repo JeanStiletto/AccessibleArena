@@ -738,5 +738,14 @@
   "FriendActionRevoke": "取消",
   "FriendActionUnblock": "ブロック解除",
 
+  "ScreenPacketSelect": "パケット選択",
+  "EventTileRanked": "ランク戦",
+  "EventTileBo3": "3本勝負",
+  "EventTileInProgress": "進行中",
+  "EventTileProgress_Format": "{0}/{1}勝",
+  "EventPageSummary_Format": "{0}/{1}勝",
+  "EventScreenTitle_Format": "イベント: {0}",
+  "PacketOf_Format": "パケット{0}/{1}",
+
   "NumberWords": ""
 }

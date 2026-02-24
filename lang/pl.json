@@ -753,5 +753,14 @@
   "FriendActionRevoke": "Cofnij",
   "FriendActionUnblock": "Odblokuj",
 
+  "ScreenPacketSelect": "Wybór pakietu",
+  "EventTileRanked": "Rankingowy",
+  "EventTileBo3": "Best of 3",
+  "EventTileInProgress": "W trakcie",
+  "EventTileProgress_Format": "{0}/{1} zwycięstw",
+  "EventPageSummary_Format": "{0}/{1} zwycięstw",
+  "EventScreenTitle_Format": "Wydarzenie: {0}",
+  "PacketOf_Format": "Pakiet {0} z {1}",
+
   "NumberWords": "jedną=1,jeden=1,jedno=1,dwie=2,dwa=2,trzy=3,cztery=4,pięć=5,sześć=6,siedem=7,osiem=8,dziewięć=9,dziesięć=10"
 }

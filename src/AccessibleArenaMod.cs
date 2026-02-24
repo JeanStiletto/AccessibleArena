@@ -233,6 +233,7 @@ namespace AccessibleArena
             CardDetector.ClearCache();
             DeckInfoProvider.ClearCache();
             RecentPlayAccessor.ClearCache();
+            EventAccessor.ClearCache();
 
             // Deactivate card info navigator on scene change (prevents stale card reading)
             if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)

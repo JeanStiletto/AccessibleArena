@@ -739,5 +739,14 @@
   "FriendActionRevoke": "撤回",
   "FriendActionUnblock": "取消屏蔽",
 
+  "ScreenPacketSelect": "包选择",
+  "EventTileRanked": "排位",
+  "EventTileBo3": "三局两胜",
+  "EventTileInProgress": "进行中",
+  "EventTileProgress_Format": "{0}/{1}胜",
+  "EventPageSummary_Format": "{0}/{1}胜",
+  "EventScreenTitle_Format": "赛事：{0}",
+  "PacketOf_Format": "包 {0}/{1}",
+
   "NumberWords": ""
 }

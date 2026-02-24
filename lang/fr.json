@@ -759,5 +759,14 @@
   "FriendActionRevoke": "Révoquer",
   "FriendActionUnblock": "Débloquer",
 
+  "ScreenPacketSelect": "Sélection de paquet",
+  "EventTileRanked": "Classé",
+  "EventTileBo3": "Best of 3",
+  "EventTileInProgress": "En cours",
+  "EventTileProgress_Format": "{0}/{1} victoires",
+  "EventPageSummary_Format": "{0}/{1} victoires",
+  "EventScreenTitle_Format": "Événement : {0}",
+  "PacketOf_Format": "Paquet {0} sur {1}",
+
   "NumberWords": "un=1,une=1,deux=2,trois=3,quatre=4,cinq=5,six=6,sept=7,huit=8,neuf=9,dix=10"
 }

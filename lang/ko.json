@@ -738,5 +738,14 @@
   "FriendActionRevoke": "취소",
   "FriendActionUnblock": "차단 해제",
 
+  "ScreenPacketSelect": "패킷 선택",
+  "EventTileRanked": "랭크",
+  "EventTileBo3": "3전 2선승",
+  "EventTileInProgress": "진행 중",
+  "EventTileProgress_Format": "{0}/{1}승",
+  "EventPageSummary_Format": "{0}/{1}승",
+  "EventScreenTitle_Format": "이벤트: {0}",
+  "PacketOf_Format": "패킷 {0}/{1}",
+
   "NumberWords": ""
 }

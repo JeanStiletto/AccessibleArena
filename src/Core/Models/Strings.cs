@@ -1040,6 +1040,18 @@ namespace AccessibleArena.Core.Models
         public static string Bo3Toggle() => L.Get("Bo3Toggle");
 
         // ===========================================
+        // EVENT / PACKET ACCESSIBILITY
+        // ===========================================
+        public static string ScreenPacketSelect => L.Get("ScreenPacketSelect");
+        public static string EventTileRanked => L.Get("EventTileRanked");
+        public static string EventTileBo3 => L.Get("EventTileBo3");
+        public static string EventTileInProgress => L.Get("EventTileInProgress");
+        public static string EventTileProgress(int wins, int maxWins) => L.Format("EventTileProgress_Format", wins, maxWins);
+        public static string EventPageSummary(int wins, int maxWins) => L.Format("EventPageSummary_Format", wins, maxWins);
+        public static string EventScreenTitle(string eventName) => L.Format("EventScreenTitle_Format", eventName);
+        public static string PacketOf(int current, int total) => L.Format("PacketOf_Format", current, total);
+
+        // ===========================================
         // FRIEND ACTIONS
         // ===========================================
         public static string FriendActionChat => L.Get("FriendActionChat");

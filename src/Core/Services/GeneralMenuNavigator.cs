@@ -850,6 +850,22 @@ namespace AccessibleArena.Core.Services
                 if (_isDeckBuilderReadOnly && _activeContentController == "WrapperDeckBuilder")
                     return Strings.ScreenDeckBuilderReadOnly;
 
+                // Event page: append event title (e.g., "Event: Jump In")
+                if (_activeContentController == "EventPageContentController")
+                {
+                    string eventTitle = EventAccessor.GetEventPageTitle();
+                    if (!string.IsNullOrEmpty(eventTitle))
+                        return Strings.EventScreenTitle(eventTitle);
+                }
+
+                // Packet selection: append packet number (e.g., "Packet Selection, Packet 1 of 2")
+                if (_activeContentController == "PacketSelectContentController")
+                {
+                    string packetSummary = EventAccessor.GetPacketScreenSummary();
+                    if (!string.IsNullOrEmpty(packetSummary))
+                        return $"{baseName}, {packetSummary}";
+                }
+
                 return baseName;
             }
 
