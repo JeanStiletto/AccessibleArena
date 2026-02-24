@@ -205,6 +205,13 @@ namespace AccessibleArena.Core.Services
                 return mailboxTitle;
             }
 
+            // Try TooltipTrigger LocString as fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn)
+            string tooltipText = TryGetTooltipText(gameObject);
+            if (!string.IsNullOrEmpty(tooltipText))
+            {
+                return tooltipText;
+            }
+
             // Fallback to GameObject name (cleaned up)
             return CleanObjectName(gameObject.name);
         }
@@ -1144,6 +1151,34 @@ namespace AccessibleArena.Core.Services
             }
 
             return bestTitle;
+        }
+
+        /// <summary>
+        /// Tries to extract label text from a TooltipTrigger's LocString field.
+        /// Used as a last-resort fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn)
+        /// that have no text content but have a localized tooltip.
+        /// </summary>
+        private static string TryGetTooltipText(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            foreach (var comp in gameObject.GetComponents<MonoBehaviour>())
+            {
+                if (comp == null || comp.GetType().Name != "TooltipTrigger") continue;
+
+                var locStringField = comp.GetType().GetField("LocString",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (locStringField == null) continue;
+
+                var locString = locStringField.GetValue(comp);
+                if (locString == null) continue;
+
+                string text = locString.ToString();
+                if (!string.IsNullOrWhiteSpace(text) && text.Length > 1 && text.Length < 60)
+                    return text;
+            }
+
+            return null;
         }
 
         private static string GetParentPath(GameObject gameObject)

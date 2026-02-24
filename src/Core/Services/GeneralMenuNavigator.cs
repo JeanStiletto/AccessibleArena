@@ -757,9 +757,19 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 var currentElement = _groupedNavigator.CurrentElement;
-                if (currentElement == null) return false;
+                GameObject currentObj = null;
 
-                GameObject currentObj = currentElement.Value.GameObject;
+                if (currentElement != null)
+                {
+                    currentObj = currentElement.Value.GameObject;
+                }
+                else if (_groupedNavigator.IsCurrentGroupStandalone)
+                {
+                    // Standalone groups are navigated at GroupList level, so CurrentElement is null.
+                    // Get the element directly from the standalone group.
+                    currentObj = _groupedNavigator.GetStandaloneElement();
+                }
+
                 if (currentObj == null) return false;
 
                 // Booster carousel special handling

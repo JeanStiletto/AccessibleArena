@@ -34,6 +34,18 @@ All notable changes to Accessible Arena.
 - Sub-buttons (accept/reject) inside InviteIncomingTile were registered as separate navigable entries
 - One friend request appeared as 3 identical entries instead of 1
 
+### Fixed: Home Screen Carousel Navigation Broken by Group System
+- Left/Right arrow keys on the promotional carousel stopped working after grouped navigation was introduced
+- Standalone Content groups (like the carousel) are navigated at GroupList level where `CurrentElement` returns null
+- `HandleCarouselArrow` now checks `IsCurrentGroupStandalone` to find the element directly from the group
+
+### Fixed: Carousel and Navbar Buttons Showing Raw GO Names Instead of Content
+- Promotional carousel banner showed "Banner Left" instead of actual content text (e.g., "Du kannst es kaum erwarten...")
+- Root cause: `MaxLabelLength` was 80, banner text was 83 chars - just over the limit. Increased to 120.
+- Image-only navbar buttons (Nav_Settings, Nav_Learn) showed cleaned GO names ("nav settings", "nav learn")
+- Added `TryGetTooltipText()` fallback in `UITextExtractor` that reads `LocString` from `TooltipTrigger` via reflection
+- Now shows localized labels: "Optionen anpassen", "Kodex des Multiversums"
+
 ## v0.7.1 - 2026-02-23
 
 ### New: Read-Only Deck Builder Accessibility

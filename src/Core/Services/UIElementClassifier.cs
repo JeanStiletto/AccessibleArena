@@ -27,7 +27,7 @@ namespace AccessibleArena.Core.Services
         private const int MaxDropdownSearchDepth = 3;
 
         // Label constraints
-        private const int MaxLabelLength = 80;
+        private const int MaxLabelLength = 120;
 
         // Simple name patterns that always filter (case-insensitive Contains check)
         private static readonly string[] FilteredContainsPatterns = new[]

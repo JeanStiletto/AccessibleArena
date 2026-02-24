@@ -409,9 +409,11 @@ From observed elements:
 ### Notes
 
 - Tooltip text is stored in `LocString` field as a LocalizedString
+- `LocalizedString.ToString()` returns the localized text (e.g., "Optionen anpassen")
 - The longer contextual text sometimes seen (e.g., "Complete tutorial to unlock 5 decks") comes from **sibling text elements**, not the TooltipTrigger itself
 - TooltipTrigger implements IPointerClickHandler but should be excluded from activation logic (it just shows tooltips)
-- Currently not extracted for accessibility announcements as existing text extraction is sufficient
+- **Used as last-resort fallback** by `UITextExtractor.TryGetTooltipText()` for image-only buttons (no TMP_Text, no sibling labels)
+- Only used when tooltip text is under 60 chars (avoids verbose descriptions like "Verdiene Gold, indem du spielst...")
 
 ## Native Keybinds
 

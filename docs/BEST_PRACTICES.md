@@ -454,6 +454,12 @@ string clean = UITextExtractor.CleanText(rawText);
 ```
 Removes: zero-width spaces (`\u200B`), rich text tags, normalizes whitespace.
 
+**Tooltip Text Fallback (for image-only buttons):**
+When no text is found via TMP_Text, siblings, or other extractors, `GetText()` tries `TryGetTooltipText()` as a last resort. This reads the `LocString` field from `TooltipTrigger` via reflection. Only used when the tooltip text is under 60 chars to avoid verbose descriptions. Examples:
+- `Nav_Settings` (image-only) -> "Optionen anpassen" (from tooltip)
+- `Nav_Learn` (image-only) -> "Kodex des Multiversums" (from tooltip)
+- `Nav_Coins` (has text "28,025") -> tooltip never reached (text already found)
+
 **Element Type Fallback:**
 `GetElementType()` returns "item" when no specific type is detected. This is the default fallback - check for it if you need to handle unknown elements specially.
 
