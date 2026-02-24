@@ -256,7 +256,13 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                if (_browserCards.Count > 0)
+                // OptionalAction: unified cycle through cards → choice buttons → wrap
+                if (_browserInfo.IsOptionalAction && _browserCards.Count > 0 && _browserButtons.Count > 0)
+                {
+                    if (shift) NavigateToPreviousItem();
+                    else NavigateToNextItem();
+                }
+                else if (_browserCards.Count > 0)
                 {
                     if (shift) NavigateToPreviousCard();
                     else NavigateToNextCard();
@@ -274,13 +280,18 @@ namespace AccessibleArena.Core.Services
             {
                 if (Input.GetKeyDown(KeyCode.LeftArrow))
                 {
-                    if (_browserCards.Count > 0) NavigateToPreviousCard();
+                    // OptionalAction: respect current focus type (card vs button)
+                    if (_browserInfo.IsOptionalAction && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
+                        NavigateToPreviousButton();
+                    else if (_browserCards.Count > 0) NavigateToPreviousCard();
                     else if (_browserButtons.Count > 0) NavigateToPreviousButton();
                     return true;
                 }
                 if (Input.GetKeyDown(KeyCode.RightArrow))
                 {
-                    if (_browserCards.Count > 0) NavigateToNextCard();
+                    if (_browserInfo.IsOptionalAction && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
+                        NavigateToNextButton();
+                    else if (_browserCards.Count > 0) NavigateToNextCard();
                     else if (_browserButtons.Count > 0) NavigateToNextButton();
                     return true;
                 }
@@ -854,6 +865,81 @@ namespace AccessibleArena.Core.Services
             AnnounceCurrentButton();
         }
 
+        /// <summary>
+        /// Navigates to the next item across both cards and buttons.
+        /// Order: cards first, then buttons, then wraps back to first card.
+        /// Maintains mutual exclusion: focusing a card clears button index and vice versa.
+        /// </summary>
+        private void NavigateToNextItem()
+        {
+            int totalCards = _browserCards.Count;
+            int totalButtons = _browserButtons.Count;
+            int totalItems = totalCards + totalButtons;
+            if (totalItems == 0) return;
+
+            // Determine current unified index
+            int currentIndex;
+            if (_currentCardIndex >= 0)
+                currentIndex = _currentCardIndex;
+            else if (_currentButtonIndex >= 0)
+                currentIndex = totalCards + _currentButtonIndex;
+            else
+                currentIndex = -1;
+
+            int nextIndex = (currentIndex + 1) % totalItems;
+
+            if (nextIndex < totalCards)
+            {
+                _currentCardIndex = nextIndex;
+                _currentButtonIndex = -1;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _currentButtonIndex = nextIndex - totalCards;
+                _currentCardIndex = -1;
+                AnnounceCurrentButton();
+            }
+        }
+
+        /// <summary>
+        /// Navigates to the previous item across both cards and buttons.
+        /// Order: wraps from first card to last button, from first button to last card.
+        /// Maintains mutual exclusion: focusing a card clears button index and vice versa.
+        /// </summary>
+        private void NavigateToPreviousItem()
+        {
+            int totalCards = _browserCards.Count;
+            int totalButtons = _browserButtons.Count;
+            int totalItems = totalCards + totalButtons;
+            if (totalItems == 0) return;
+
+            // Determine current unified index
+            int currentIndex;
+            if (_currentCardIndex >= 0)
+                currentIndex = _currentCardIndex;
+            else if (_currentButtonIndex >= 0)
+                currentIndex = totalCards + _currentButtonIndex;
+            else
+                currentIndex = 0;
+
+            int prevIndex = currentIndex - 1;
+            if (prevIndex < 0) prevIndex = totalItems - 1;
+
+            if (prevIndex < totalCards)
+            {
+                _currentCardIndex = prevIndex;
+                _currentButtonIndex = -1;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _currentButtonIndex = prevIndex - totalCards;
+                _currentCardIndex = -1;
+                AnnounceCurrentButton();
+            }
+        }
+
         #endregion
 
         #region Activation
@@ -1184,8 +1270,18 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // OptionalAction: try MainButton (shockland pay-life choices etc.)
+            if (_browserInfo?.IsOptionalAction == true && TryClickButtonByName("MainButton", out clickedLabel))
+            {
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // Fallback: PromptButton_Primary (scene search)
-            if (TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
+            // Skip for OptionalAction — its buttons are choices, not confirm/cancel,
+            // and the global PromptButtons would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
@@ -1223,7 +1319,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Third priority: PromptButton_Secondary
-            if (TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
+            // Skip for OptionalAction — would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update

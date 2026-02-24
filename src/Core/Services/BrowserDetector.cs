@@ -19,6 +19,7 @@ namespace AccessibleArena.Core.Services
         public bool IsLondon { get; set; }
         public bool IsMulligan { get; set; }
         public bool IsWorkflow { get; set; }
+        public bool IsOptionalAction { get; set; }
 
         // For workflow browsers, stores all workflow action buttons found
         public List<GameObject> WorkflowButtons { get; set; }
@@ -247,6 +248,11 @@ namespace AccessibleArena.Core.Services
             return browserType == BrowserTypeWorkflow;
         }
 
+        public static bool IsOptionalActionBrowser(string browserType)
+        {
+            return browserType != null && browserType.Contains("Optional");
+        }
+
         /// <summary>
         /// Gets a user-friendly name for the browser type.
         /// </summary>
@@ -344,7 +350,8 @@ namespace AccessibleArena.Core.Services
                         BrowserGameObject = scaffoldCandidate,
                         IsScryLike = IsScryLikeBrowser(scaffoldType),
                         IsLondon = IsLondonBrowser(scaffoldType),
-                        IsMulligan = isMulligan
+                        IsMulligan = isMulligan,
+                        IsOptionalAction = IsOptionalActionBrowser(scaffoldType)
                     };
                 }
             }
