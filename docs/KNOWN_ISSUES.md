@@ -175,6 +175,30 @@ Individual event types (drafts, sealed, special events) are untested. Basic even
 
 ---
 
+### Jump In: Featured Card Not Read Correctly
+
+Each packet in Jump In displays a featured card (via `PacketDetails.LandGrpId`). The mod attempts to look up card info via `CardModelProvider.GetCardInfoFromGrpId()` but this fails in the packet selection context (`_cachedDeckHolder is null`, no localization method found). Only the packet name and colors are shown in the info blocks, not the featured card data.
+
+Additionally, the featured card display does not update when selecting a different packet - it continues showing the same card data.
+
+**Files:** `EventAccessor.cs` (GetPacketInfoBlocks, GetPacketLandGrpId), `CardModelProvider.cs`
+
+---
+
+### Jump In: Packet Order Chaotic
+
+The packet tiles in Jump In appear in a chaotic/unpredictable order during navigation. The navigation order does not match the visual layout consistently.
+
+**Files:** `GeneralMenuNavigator.cs`, `EventAccessor.cs`
+
+---
+
+### Event Start Tooltip Missing
+
+When starting an event (entering the event page), the game shows a tooltip with event information. This tooltip is not detected or announced by the mod.
+
+---
+
 ### Challenge Screen (Work In Progress)
 
 The direct challenge screen (via friends panel "Challenge" button) is partially implemented. What works:

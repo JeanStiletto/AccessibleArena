@@ -1,0 +1,118 @@
+# Events System
+
+Accessible navigation for MTGA's event system. Covers event tile enrichment on the Play Blade, event page detail, and Jump In packet selection.
+
+---
+
+## General Event Navigation
+
+### Event Tiles (Play Blade)
+
+Event tiles appear in the Play Blade's events tab. Each tile is a `PlayBladeEventTile` with a `MainButton` child used for activation.
+
+**Text enrichment:** `UITextExtractor.TryGetEventTileLabel` detects event tiles by walking the parent chain for "EventTile -" naming pattern, then calls `EventAccessor.GetEventTileLabel` which reads:
+- Title text from `_titleText` (Localize -> TMP_Text)
+- Ranked indicator from `_rankImage` (active Image)
+- Bo3 indicator from `_bestOf3Indicator` (active RectTransform)
+- In-progress status from `_attractParent` (active RectTransform)
+- Progress pips from `_eventProgressPips` (counts active Fill children)
+
+**Announced format:** "{title}, {progress}, Ranked, Best of 3" (optional parts only when active)
+
+### Event Page
+
+When a user activates an event tile, the game opens `EventPageContentController`. The mod enriches the screen name by reading the event context.
+
+**Screen name:** "Event: {title}" via `EventAccessor.GetEventPageTitle()` which reads:
+- `_currentEventContext` -> `PlayerEvent` -> `EventUXInfo.PublicEventName` (preferred, localized)
+- Fallback: `EventInfo.InternalEventName` (underscore-separated, cleaned up)
+
+**Event summary:** `EventAccessor.GetEventPageSummary()` reads:
+- `PlayerEvent.CurrentWins` / `PlayerEvent.MaxWins` -> "{wins}/{maxWins} wins"
+
+---
+
+## Jump In Packet Selection
+
+Jump In is a specific event where the player selects two card packets to build a deck. The packet selection screen is managed by `PacketSelectContentController`.
+
+### Architecture
+
+**Key game types (all in `Wotc.Mtga.Wrapper.PacketSelect` namespace):**
+- `PacketSelectContentController` - Main controller, extends `NavContentController`
+- `JumpStartPacket` - MonoBehaviour on each packet tile GO
+- `PacketInput` - Click handler on same GO as JumpStartPacket (has `CustomTouchButton`)
+- `PacketDetails` - Readonly struct: `Name`, `PacketId`, `LandGrpId` (uint), `ArtId`, `RawColors` (string[])
+- `ServiceState` - Readonly struct: `SubmittedPackets`, `PacketOptions` (PacketDetails[]), `SubmissionCount()`
+
+**Important internal state:**
+- `_packetOptions` - List of JumpStartPacket MonoBehaviours
+- `_packetToId` - Dictionary mapping JumpStartPacket to PacketId string
+- `_selectedPackId` - Currently selected packet ID
+- `_currentState` - ServiceState with submission progress and available options
+
+### Navigation
+
+**Screen detection:** `MenuScreenDetector` recognizes `PacketSelectContentController` and maps it to "Packet Selection" display name.
+
+**Screen name enrichment:** Appends packet number from `EventAccessor.GetPacketScreenSummary()`, e.g., "Packet Selection, Packet 1 of 2".
+
+**Element navigation (Up/Down):**
+Packets are navigated as grouped elements via the standard grouped navigation system. Up/Down arrows move between packet tiles (same pattern as other grouped content).
+
+**Info block navigation (Left/Right):**
+When focused on a packet tile, Left/Right arrows cycle through info blocks built by `EventAccessor.GetPacketInfoBlocks()`:
+- Block 1: Packet name (from `_packTitle` Localize component)
+- Block 2: Colors (from `PacketDetails.RawColors`, translated to readable names)
+- Block 3+: Featured card info (from `PacketDetails.LandGrpId` via `CardModelProvider.GetCardInfoFromGrpId`)
+- Remaining: Description text (long TMP_Text elements from controller, excluding those inside packet tiles)
+
+State is managed by `_packetBlocks` / `_packetBlockIndex` in `GeneralMenuNavigator`, refreshed each time the grouped navigator moves to a new packet element.
+
+**Text enrichment:** `UITextExtractor.TryGetPacketLabel` detects packet elements by walking the parent chain for `JumpStartPacket` component, then calls `EventAccessor.GetPacketLabel` which returns "{name} ({colors})".
+
+### Activation
+
+**Packet selection (Enter on a packet tile):**
+`GeneralMenuNavigator.ActivateCurrentElement()` detects packet context and calls `EventAccessor.ClickPacket()` instead of `UIActivator.Activate()`. This is necessary because:
+- The navigable element is `MainButton` (child GO)
+- The `CustomTouchButton` and `PacketInput` are on the parent `JumpStartPacket` GO
+- `UIActivator`'s pointer simulation on MainButton doesn't reach the click handler on the parent
+
+`ClickPacket` finds the `PacketInput` component via parent walk, then invokes its private `OnClick()` method via reflection, which fires `Clicked?.Invoke(_pack)`.
+
+**Confirm button:**
+The confirm button is a standard `CustomButton` and works through normal `UIActivator.Activate()` in `OnElementActivated`.
+
+### Rescan After Activation
+
+After both packet click and confirm button activation, `TriggerRescan()` is called. This is essential because:
+- The game processes packet selection/confirmation asynchronously via `UXEventQueue`
+- After submission, `OnStateUpdated` fires -> `SetServiceState` destroys old packet GOs and creates new ones
+- No panel open/close event fires since `PacketSelectContentController` stays active
+- The 0.5s delayed rescan picks up the new GOs
+
+### Reflection Access (EventAccessor)
+
+All packet data access goes through `EventAccessor` (static class, follows `RecentPlayAccessor` pattern):
+- Caches `FieldInfo`/`MethodInfo` on first access
+- Caches controller reference (`_cachedPacketController`), validated on each call
+- `ClearCache()` called on scene changes
+
+**Cached reflection targets:**
+- `PacketSelectContentController._packetOptions` (List)
+- `PacketSelectContentController._selectedPackId` (string)
+- `PacketSelectContentController._currentState` (ServiceState)
+- `PacketSelectContentController._packetToId` (Dictionary)
+- `PacketSelectContentController._headerText` (Localize)
+- `JumpStartPacket._packTitle` (Localize)
+
+---
+
+## Files
+
+- `src/Core/Services/EventAccessor.cs` - All reflection-based event/packet data access
+- `src/Core/Services/UITextExtractor.cs` - `TryGetEventTileLabel`, `TryGetPacketLabel`
+- `src/Core/Services/MenuScreenDetector.cs` - Screen detection for EventPage, PacketSelect
+- `src/Core/Services/GeneralMenuNavigator.cs` - Packet navigation, info blocks, activation, rescan
+- `src/Core/Models/Strings.cs` - Localized strings for event/packet labels
