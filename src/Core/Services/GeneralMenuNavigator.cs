@@ -4192,6 +4192,20 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
             }
+
+            // Packet elements need special click handling (CustomTouchButton on parent GO)
+            if (IsInPacketSelectionContext())
+            {
+                var currentElement = _groupedNavigator.CurrentElement;
+                if (currentElement != null && EventAccessor.ClickPacket(currentElement.Value.GameObject))
+                {
+                    _announcer.Announce("Activated", AnnouncementPriority.Normal);
+                    // Game rebuilds packet GOs asynchronously after click - schedule rescan
+                    TriggerRescan();
+                    return;
+                }
+            }
+
             base.ActivateCurrentElement();
         }
 
@@ -5141,6 +5155,13 @@ namespace AccessibleArena.Core.Services
             }
 
             // Note: Rewards popup ClaimButton handling moved to RewardPopupNavigator
+
+            // Packet selection: confirm button or any activation rebuilds GOs asynchronously
+            if (_activeContentController == "PacketSelectContentController")
+            {
+                LogDebug($"[{NavigatorId}] Packet selection activation - scheduling rescan");
+                TriggerRescan();
+            }
 
             return true;
         }

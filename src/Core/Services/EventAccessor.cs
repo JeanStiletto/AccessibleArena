@@ -562,6 +562,57 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Click a packet element by finding the PacketInput on the parent JumpStartPacket
+        /// and invoking its OnClick method. UIActivator's pointer simulation doesn't reach
+        /// CustomTouchButton on the JumpStartPacket GO because the navigable element is MainButton (child).
+        /// </summary>
+        public static bool ClickPacket(GameObject element)
+        {
+            if (element == null) return false;
+
+            try
+            {
+                var packet = FindParentComponent(element, "JumpStartPacket");
+                if (packet == null) return false;
+
+                // Find PacketInput component on the same GO
+                MonoBehaviour packetInput = null;
+                foreach (var mb in packet.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "PacketInput")
+                    {
+                        packetInput = mb;
+                        break;
+                    }
+                }
+                if (packetInput == null)
+                {
+                    MelonLogger.Warning("[EventAccessor] PacketInput not found on JumpStartPacket");
+                    return false;
+                }
+
+                // Invoke OnClick() which fires Clicked?.Invoke(_pack)
+                var onClickMethod = packetInput.GetType().GetMethod("OnClick",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (onClickMethod != null)
+                {
+                    onClickMethod.Invoke(packetInput, null);
+                    MelonLogger.Msg("[EventAccessor] Packet click invoked via PacketInput.OnClick");
+                    return true;
+                }
+                else
+                {
+                    MelonLogger.Warning("[EventAccessor] PacketInput.OnClick method not found");
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[EventAccessor] ClickPacket failed: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Get screen-level packet summary: "Packet 1 of 2" etc.
         /// </summary>
         public static string GetPacketScreenSummary()
