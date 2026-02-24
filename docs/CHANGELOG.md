@@ -2,6 +2,21 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.2-dev
+
+### New: Event System Accessibility
+- Event tiles on Play Blade enriched with title, ranked/Bo3 indicators, progress pips, and in-progress status
+- Event page shows "Event: {title}" with win progress summary
+- Jump In packet selection fully navigable: Up/Down for packets, Left/Right for info blocks (name, colors, description)
+- Packet activation via reflection (ClickPacket) since UIActivator can't reach PacketInput on parent GO
+- Confirm button and rescan after packet selection/confirmation for async GO rebuilds
+- EventAccessor static class for all reflection-based event/packet data access
+
+### Fixed: Player Target Selection (Enter Key)
+- Enter on player targets (e.g. "Choose a player to draw two cards") was activating a hand card instead of selecting the player
+- Root cause: HotHighlightNavigator didn't claim zone ownership when navigating to player/button targets
+- Now properly claims ownership so Enter activates the correct target
+
 ## v0.7.1 - 2026-02-23
 
 ### New: Damage Assignment Browser

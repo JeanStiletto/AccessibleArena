@@ -383,6 +383,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 1. Mana pool info - expand to show color breakdown
 2. Stepper control redesign
+3. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
 
 ---
 

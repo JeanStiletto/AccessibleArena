@@ -558,12 +558,14 @@ namespace AccessibleArena.Core.Services
             var item = _items[_currentIndex];
 
             // Prompt buttons and player targets - announce directly (not in any zone)
+            // Must claim zone ownership so Enter is handled by HotHighlightNavigator
             if (item.IsPromptButton)
             {
                 int position = _currentIndex + 1;
                 int total = _items.Count;
                 string announcement = total > 1 ? $"{item.Name}, {position} of {total}" : item.Name;
                 _announcer.Announce(announcement, AnnouncementPriority.High);
+                _zoneNavigator.SetCurrentZone(ZoneType.Hand, "HotHighlightNavigator");
                 _lastItemZone = "Button";
                 return;
             }
@@ -574,6 +576,7 @@ namespace AccessibleArena.Core.Services
                 int total = _items.Count;
                 string name = item.IsOpponent ? Strings.Opponent : Strings.You;
                 _announcer.Announce($"{name}, player, {position} of {total}", AnnouncementPriority.High);
+                _zoneNavigator.SetCurrentZone(ZoneType.Hand, "HotHighlightNavigator");
                 _lastItemZone = "Player";
                 return;
             }
