@@ -400,8 +400,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Build info blocks for a packet element, readable via Up/Down arrow navigation.
-        /// Includes: packet name, colors, header text, and any instruction text from the controller.
+        /// Build info blocks for a packet element, readable via Left/Right arrow navigation.
+        /// Includes: packet name, colors, featured card info (from LandGrpId), and description text.
         /// </summary>
         public static System.Collections.Generic.List<CardInfoBlock> GetPacketInfoBlocks(GameObject element)
         {
@@ -427,29 +427,32 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(colorInfo))
                     blocks.Add(new CardInfoBlock(Strings.ManaColorless.Contains("Farblos") ? "Farben" : "Colors", colorInfo));
 
-                // Block 3: Header text from controller (_headerText Localize)
-                var controller = FindPacketController();
-                if (controller != null && _headerTextField != null)
+                // Block 3+: Featured card from LandGrpId via CardModelProvider
+                uint landGrpId = GetPacketLandGrpId(packet);
+                if (landGrpId > 0)
                 {
-                    var headerLocalize = _headerTextField.GetValue(controller) as MonoBehaviour;
-                    if (headerLocalize != null)
+                    var cardInfo = CardModelProvider.GetCardInfoFromGrpId(landGrpId);
+                    if (cardInfo.HasValue && cardInfo.Value.IsValid)
                     {
-                        var tmp = headerLocalize.GetComponentInChildren<TMPro.TMP_Text>();
-                        if (tmp != null && !string.IsNullOrEmpty(tmp.text))
-                        {
-                            string headerText = UITextExtractor.CleanText(tmp.text);
-                            if (!string.IsNullOrEmpty(headerText))
-                                blocks.Add(new CardInfoBlock("Info", headerText));
-                        }
+                        var cardBlocks = CardDetector.BuildInfoBlocks(cardInfo.Value);
+                        // Prefix each card block label with "Card" context
+                        foreach (var cb in cardBlocks)
+                            blocks.Add(cb);
+                    }
+                    else
+                    {
+                        // Fallback: at least show card name
+                        string cardName = CardModelProvider.GetNameFromGrpId(landGrpId);
+                        if (!string.IsNullOrEmpty(cardName))
+                            blocks.Add(new CardInfoBlock(Strings.CardInfoName, cardName));
                     }
                 }
 
-                // Block 4+: Collect other visible TMP_Text on the controller that isn't
-                // inside a JumpStartPacket (instruction/description text)
+                // Remaining blocks: description text from controller
+                var controller = FindPacketController();
                 if (controller != null)
                 {
                     var seenTexts = new System.Collections.Generic.HashSet<string>();
-                    // Track texts we already have in blocks
                     foreach (var block in blocks)
                         seenTexts.Add(block.Content);
 
@@ -457,7 +460,7 @@ namespace AccessibleArena.Core.Services
                     {
                         if (tmp == null) continue;
                         string text = UITextExtractor.CleanText(tmp.text);
-                        if (string.IsNullOrWhiteSpace(text) || text.Length < 10) continue;
+                        if (string.IsNullOrWhiteSpace(text) || text.Length < 20) continue;
                         if (seenTexts.Contains(text)) continue;
 
                         // Skip if this text is inside a JumpStartPacket
@@ -468,19 +471,12 @@ namespace AccessibleArena.Core.Services
                             foreach (var mb in current.GetComponents<MonoBehaviour>())
                             {
                                 if (mb != null && mb.GetType().Name == "JumpStartPacket")
-                                {
-                                    insidePacket = true;
-                                    break;
-                                }
+                                { insidePacket = true; break; }
                             }
                             if (insidePacket) break;
                             current = current.parent;
                         }
                         if (insidePacket) continue;
-
-                        // Skip button text (short strings that are button labels)
-                        // Only include substantial text (descriptions/instructions)
-                        if (text.Length < 20) continue;
 
                         seenTexts.Add(text);
                         blocks.Add(new CardInfoBlock("Description", text));
@@ -493,6 +489,66 @@ namespace AccessibleArena.Core.Services
             }
 
             return blocks;
+        }
+
+        /// <summary>
+        /// Get the LandGrpId for a JumpStartPacket by looking up its PacketDetails.
+        /// </summary>
+        private static uint GetPacketLandGrpId(MonoBehaviour packet)
+        {
+            try
+            {
+                var controller = FindPacketController();
+                if (controller == null || _packetToIdField == null || _currentStateField == null)
+                    return 0;
+
+                // Get packet ID from _packetToId dictionary
+                var dict = _packetToIdField.GetValue(controller);
+                if (dict == null) return 0;
+
+                // Use IDictionary to find the packet's ID
+                string packetId = null;
+                foreach (System.Collections.DictionaryEntry entry in (System.Collections.IDictionary)dict)
+                {
+                    if (entry.Key == (object)packet)
+                    {
+                        packetId = entry.Value as string;
+                        break;
+                    }
+                }
+                if (string.IsNullOrEmpty(packetId)) return 0;
+
+                // Get current state and look up PacketDetails
+                var state = _currentStateField.GetValue(controller);
+                if (state == null) return 0;
+
+                // Access PacketOptions field on ServiceState struct
+                var stateType = state.GetType();
+                var optionsField = stateType.GetField("PacketOptions");
+                if (optionsField == null) return 0;
+
+                var options = optionsField.GetValue(state) as System.Array;
+                if (options == null) return 0;
+
+                foreach (var option in options)
+                {
+                    var pidField = option.GetType().GetField("PacketId");
+                    var grpIdField = option.GetType().GetField("LandGrpId");
+                    if (pidField == null || grpIdField == null) continue;
+
+                    string pid = pidField.GetValue(option) as string;
+                    if (pid == packetId)
+                    {
+                        var val = grpIdField.GetValue(option);
+                        if (val is uint grpId) return grpId;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[EventAccessor] GetPacketLandGrpId failed: {ex.Message}");
+            }
+            return 0;
         }
 
         /// <summary>

@@ -185,6 +185,11 @@ namespace AccessibleArena.Core.Services
         private List<(string label, string actionId)> _friendActions;
         private int _friendActionIndex;
 
+        // Packet selection sub-navigation state
+        // Left/Right cycles info blocks for the current packet
+        private List<CardInfoBlock> _packetBlocks;
+        private int _packetBlockIndex;
+
         // Popup overlay tracking (follows SettingsMenuNavigator pattern)
         private GameObject _activePopup;
         private bool _isPopupActive;
@@ -1274,15 +1279,10 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
 
-                // Packet selection navigation (Jump In): Left/Right navigates between packets
-                if (IsInPacketSelectionContext())
+                // Packet selection: Left/Right navigates info blocks within current packet
+                if (IsInPacketSelectionContext() && _packetBlocks != null && _packetBlocks.Count > 0)
                 {
-                    if (isRight)
-                        _groupedNavigator.MoveNext();
-                    else
-                        _groupedNavigator.MovePrevious();
-                    UpdateEventSystemSelectionForGroupedElement();
-                    UpdateCardNavigationForGroupedElement();
+                    HandlePacketBlockNavigation(isRight);
                     return true;
                 }
 
@@ -4583,21 +4583,16 @@ namespace AccessibleArena.Core.Services
             }
             else if (EventAccessor.IsInsideJumpStartPacket(gameObject))
             {
-                // Packet element: build info blocks for Up/Down navigation
-                var blocks = EventAccessor.GetPacketInfoBlocks(gameObject);
-                if (blocks.Count > 0)
-                {
-                    string packetName = blocks[0].Content;
-                    cardNavigator.PrepareForCardInfo(blocks, packetName);
-                }
-                else if (cardNavigator.IsActive)
-                {
+                // Packet element: refresh Left/Right info blocks
+                RefreshPacketBlocks(gameObject);
+                if (cardNavigator.IsActive)
                     cardNavigator.Deactivate();
-                }
             }
-            else if (cardNavigator.IsActive)
+            else
             {
-                cardNavigator.Deactivate();
+                _packetBlocks = null;
+                if (cardNavigator.IsActive)
+                    cardNavigator.Deactivate();
             }
         }
 
@@ -5438,6 +5433,68 @@ namespace AccessibleArena.Core.Services
                 // Fallback to standard announcement
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
             }
+        }
+
+        #endregion
+
+        #region Packet Selection Sub-Navigation
+
+        /// <summary>
+        /// Refresh the info blocks for the current packet element.
+        /// Called when grouped navigator moves to a packet element.
+        /// </summary>
+        private void RefreshPacketBlocks(GameObject element)
+        {
+            _packetBlocks = EventAccessor.GetPacketInfoBlocks(element);
+            _packetBlockIndex = 0;
+            LogDebug($"[{NavigatorId}] Packet blocks: {_packetBlocks?.Count ?? 0}");
+        }
+
+        /// <summary>
+        /// Handle Left/Right navigation through packet info blocks.
+        /// </summary>
+        private void HandlePacketBlockNavigation(bool isRight)
+        {
+            if (_packetBlocks == null || _packetBlocks.Count == 0)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (isRight)
+            {
+                if (_packetBlockIndex >= _packetBlocks.Count - 1)
+                {
+                    AnnouncePacketBlock();
+                    _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _packetBlockIndex++;
+            }
+            else
+            {
+                if (_packetBlockIndex <= 0)
+                {
+                    AnnouncePacketBlock();
+                    _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _packetBlockIndex--;
+            }
+
+            AnnouncePacketBlock();
+        }
+
+        /// <summary>
+        /// Announce the current packet block.
+        /// </summary>
+        private void AnnouncePacketBlock()
+        {
+            if (_packetBlocks == null || _packetBlocks.Count == 0) return;
+            if (_packetBlockIndex < 0 || _packetBlockIndex >= _packetBlocks.Count) return;
+
+            var block = _packetBlocks[_packetBlockIndex];
+            _announcer.AnnounceInterrupt($"{block.Label}: {block.Content}");
         }
 
         #endregion
