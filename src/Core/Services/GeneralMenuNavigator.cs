@@ -1274,6 +1274,18 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
 
+                // Packet selection navigation (Jump In): Left/Right navigates between packets
+                if (IsInPacketSelectionContext())
+                {
+                    if (isRight)
+                        _groupedNavigator.MoveNext();
+                    else
+                        _groupedNavigator.MovePrevious();
+                    UpdateEventSystemSelectionForGroupedElement();
+                    UpdateCardNavigationForGroupedElement();
+                    return true;
+                }
+
                 // Booster carousel navigation (packs screen)
                 if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
                 {
@@ -1481,6 +1493,24 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Check if we're in packet selection context (Jump In) where Left/Right navigates packets.
+        /// </summary>
+        private bool IsInPacketSelectionContext()
+        {
+            if (_activeContentController != "PacketSelectContentController")
+                return false;
+
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return false;
+
+            var currentElement = _groupedNavigator.CurrentElement;
+            if (currentElement == null) return false;
+
+            var go = currentElement.Value.GameObject;
+            return go != null && EventAccessor.IsInsideJumpStartPacket(go);
         }
 
         /// <summary>
@@ -4550,6 +4580,20 @@ namespace AccessibleArena.Core.Services
             {
                 // Prepare card navigation for both collection cards and deck list cards
                 cardNavigator.PrepareForCard(gameObject, ZoneType.Hand);
+            }
+            else if (EventAccessor.IsInsideJumpStartPacket(gameObject))
+            {
+                // Packet element: build info blocks for Up/Down navigation
+                var blocks = EventAccessor.GetPacketInfoBlocks(gameObject);
+                if (blocks.Count > 0)
+                {
+                    string packetName = blocks[0].Content;
+                    cardNavigator.PrepareForCardInfo(blocks, packetName);
+                }
+                else if (cardNavigator.IsActive)
+                {
+                    cardNavigator.Deactivate();
+                }
             }
             else if (cardNavigator.IsActive)
             {

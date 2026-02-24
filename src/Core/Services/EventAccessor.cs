@@ -40,6 +40,7 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _selectedPackIdField;      // _selectedPackId (string)
         private static FieldInfo _currentStateField;        // _currentState (ServiceState)
         private static FieldInfo _packetToIdField;          // _packetToId (Dictionary<JumpStartPacket, string>)
+        private static FieldInfo _headerTextField;          // _headerText (Localize)
 
         // --- JumpStartPacket reflection cache ---
         private static bool _jumpStartReflectionInit;
@@ -399,6 +400,112 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Build info blocks for a packet element, readable via Up/Down arrow navigation.
+        /// Includes: packet name, colors, header text, and any instruction text from the controller.
+        /// </summary>
+        public static System.Collections.Generic.List<CardInfoBlock> GetPacketInfoBlocks(GameObject element)
+        {
+            var blocks = new System.Collections.Generic.List<CardInfoBlock>();
+            if (element == null) return blocks;
+
+            try
+            {
+                // Find the JumpStartPacket
+                var packet = FindParentComponent(element, "JumpStartPacket");
+                if (packet == null) return blocks;
+
+                if (!_jumpStartReflectionInit)
+                    InitJumpStartReflection(packet.GetType());
+
+                // Block 1: Packet name
+                string displayName = ReadPacketDisplayName(packet);
+                if (!string.IsNullOrEmpty(displayName))
+                    blocks.Add(new CardInfoBlock(Strings.CardInfoName, displayName, isVerbose: false));
+
+                // Block 2: Colors
+                string colorInfo = GetPacketColorInfo(packet);
+                if (!string.IsNullOrEmpty(colorInfo))
+                    blocks.Add(new CardInfoBlock(Strings.ManaColorless.Contains("Farblos") ? "Farben" : "Colors", colorInfo));
+
+                // Block 3: Header text from controller (_headerText Localize)
+                var controller = FindPacketController();
+                if (controller != null && _headerTextField != null)
+                {
+                    var headerLocalize = _headerTextField.GetValue(controller) as MonoBehaviour;
+                    if (headerLocalize != null)
+                    {
+                        var tmp = headerLocalize.GetComponentInChildren<TMPro.TMP_Text>();
+                        if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+                        {
+                            string headerText = UITextExtractor.CleanText(tmp.text);
+                            if (!string.IsNullOrEmpty(headerText))
+                                blocks.Add(new CardInfoBlock("Info", headerText));
+                        }
+                    }
+                }
+
+                // Block 4+: Collect other visible TMP_Text on the controller that isn't
+                // inside a JumpStartPacket (instruction/description text)
+                if (controller != null)
+                {
+                    var seenTexts = new System.Collections.Generic.HashSet<string>();
+                    // Track texts we already have in blocks
+                    foreach (var block in blocks)
+                        seenTexts.Add(block.Content);
+
+                    foreach (var tmp in controller.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                    {
+                        if (tmp == null) continue;
+                        string text = UITextExtractor.CleanText(tmp.text);
+                        if (string.IsNullOrWhiteSpace(text) || text.Length < 10) continue;
+                        if (seenTexts.Contains(text)) continue;
+
+                        // Skip if this text is inside a JumpStartPacket
+                        bool insidePacket = false;
+                        Transform current = tmp.transform;
+                        while (current != null && current != controller.transform)
+                        {
+                            foreach (var mb in current.GetComponents<MonoBehaviour>())
+                            {
+                                if (mb != null && mb.GetType().Name == "JumpStartPacket")
+                                {
+                                    insidePacket = true;
+                                    break;
+                                }
+                            }
+                            if (insidePacket) break;
+                            current = current.parent;
+                        }
+                        if (insidePacket) continue;
+
+                        // Skip button text (short strings that are button labels)
+                        // Only include substantial text (descriptions/instructions)
+                        if (text.Length < 20) continue;
+
+                        seenTexts.Add(text);
+                        blocks.Add(new CardInfoBlock("Description", text));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[EventAccessor] GetPacketInfoBlocks failed: {ex.Message}");
+            }
+
+            return blocks;
+        }
+
+        /// <summary>
+        /// Check if a GameObject is inside a JumpStartPacket.
+        /// Used by GeneralMenuNavigator to detect packet elements for info block navigation.
+        /// </summary>
+        public static bool IsInsideJumpStartPacket(GameObject element)
+        {
+            if (element == null) return false;
+            return FindParentComponent(element, "JumpStartPacket") != null;
+        }
+
+        /// <summary>
         /// Get screen-level packet summary: "Packet 1 of 2" etc.
         /// </summary>
         public static string GetPacketScreenSummary()
@@ -490,12 +597,14 @@ namespace AccessibleArena.Core.Services
             _selectedPackIdField = type.GetField("_selectedPackId", PrivateInstance);
             _currentStateField = type.GetField("_currentState", PrivateInstance);
             _packetToIdField = type.GetField("_packetToId", PrivateInstance);
+            _headerTextField = type.GetField("_headerText", PrivateInstance);
 
             _packetReflectionInit = true;
 
             MelonLogger.Msg($"[EventAccessor] Packet reflection init: " +
                 $"options={_packetOptionsField != null}, selected={_selectedPackIdField != null}, " +
-                $"state={_currentStateField != null}, toId={_packetToIdField != null}");
+                $"state={_currentStateField != null}, toId={_packetToIdField != null}, " +
+                $"header={_headerTextField != null}");
         }
 
         private static void InitJumpStartReflection(Type type)

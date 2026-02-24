@@ -136,7 +136,8 @@ namespace AccessibleArena
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", $"Old: {oldName}, New: {newName}");
 
             // If focus moved away from current card, deactivate card navigation
-            if (_cardInfoNavigator.IsActive && _cardInfoNavigator.CurrentCard != newElement)
+            // Skip when CurrentCard is null (blocks-only mode, e.g. packet info) - owner manages lifecycle
+            if (_cardInfoNavigator.IsActive && _cardInfoNavigator.CurrentCard != null && _cardInfoNavigator.CurrentCard != newElement)
             {
                 DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", "Deactivating card navigator");
                 _cardInfoNavigator.Deactivate();

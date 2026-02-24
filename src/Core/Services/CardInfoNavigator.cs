@@ -73,7 +73,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            _currentCard = null; // No GameObject for this card
+            _currentCard = null; // No GameObject - owner manages lifecycle
             _currentZone = ZoneType.OpponentCommand;
             _isActive = true;
             _blocks = blocks;
