@@ -513,7 +513,7 @@ namespace AccessibleArena.Core.Services
 
             // Library is a hidden zone - ONLY include cards visible to sighted players.
             // HotHighlight = playable from library (creature with Vizier, any with Future Sight)
-            // RevealOverride = revealed face-up but not necessarily playable (top card with Vizier)
+            // IsDisplayedFaceUp = revealed face-up but not necessarily playable (e.g., Courser of Kruphix)
             // Showing hidden cards would be cheating.
             if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
             {
@@ -525,26 +525,14 @@ namespace AccessibleArena.Core.Services
                     for (int i = 0; i < System.Math.Min(3, zone.Cards.Count); i++)
                     {
                         var c = zone.Cards[i];
-                        var cdc = CardModelProvider.GetDuelSceneCDC(c);
                         string cardName = CardDetector.GetCardName(c);
                         bool hasHL = CardDetector.HasHotHighlight(c);
-                        bool hasReveal = CardDetector.HasRevealOverride(c);
-                        string faceDown = "unknown";
-                        if (cdc != null)
-                        {
-                            var model = CardModelProvider.GetCardModel(cdc);
-                            if (model != null)
-                            {
-                                var faceDownProp = model.GetType().GetProperty("IsDisplayedFaceDown");
-                                if (faceDownProp != null)
-                                    faceDown = faceDownProp.GetValue(model)?.ToString() ?? "null";
-                            }
-                        }
-                        MelonLogger.Msg($"[ZoneNavigator]   [{i}] {c.name} '{cardName}' HL={hasHL} Reveal={hasReveal} FaceDown={faceDown} pos={c.transform.position}");
+                        bool faceUp = CardDetector.IsDisplayedFaceUp(c);
+                        MelonLogger.Msg($"[ZoneNavigator]   [{i}] {c.name} '{cardName}' HL={hasHL} FaceUp={faceUp} pos={c.transform.position}");
                     }
                 }
 
-                zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.HasRevealOverride(c));
+                zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.IsDisplayedFaceUp(c));
             }
         }
 

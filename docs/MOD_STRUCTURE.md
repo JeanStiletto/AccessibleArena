@@ -216,7 +216,10 @@
 - [x] Card navigation - Left/Right arrows within current zone
 - [x] EventSystem conflict fix - Clears selection to prevent UI cycling
 - [x] Card playing - Enter key plays cards from hand (double-click + center click approach)
-- [x] Hidden zone counts - D (your library), Shift+D (opponent library), Shift+C (opponent hand)
+- [x] Library zone navigation - D (your library), Shift+D (opponent library) with anti-cheat filter
+- [x] Library anti-cheat filter - Only shows cards with HotHighlight (playable) or IsDisplayedFaceUp (revealed); hidden face-down cards never exposed
+- [x] Play from library - Enter on playable library cards uses two-click (same as hand cards)
+- [x] Hidden zone counts - Shift+C (opponent hand count); D/Shift+D announce total count before revealed cards
 
 ### Card Playing (Working)
 - [x] Lands - Play correctly, detected via card type before playing
@@ -518,6 +521,7 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - Read Ahead - Saga chapter selection
 - London Mulligan - Select cards to put on bottom after mulliganing
 - Opening Hand/Mulligan - View starting hand, keep or mulligan
+- AssignDamage - Distribute attacker's combat damage among blockers (see below)
 - ViewDismiss - Card preview popup (auto-dismissed, see below)
 - Generic browsers - YesNo, Dungeon, SelectCards, etc. (Tab + Enter)
 
@@ -535,6 +539,19 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - **Left/Right** - Navigate within current zone
 - **Enter** - Toggle card between zones
 - **Tab** - Navigate all cards (detects zone automatically for activation)
+
+**Damage Assignment Browser:**
+When an attacker is blocked by multiple creatures, the game opens an AssignDamage browser to distribute combat damage.
+- **Detection**: `BrowserDetector` identifies `BrowserType == "AssignDamage"`; browser ref cached from `GameManager.BrowserManager.CurrentBrowser`
+- **Navigation**: Left/Right cycles between blocker cards; Up/Down adjusts the damage spinner on the focused blocker
+- **Spinner access**: `_idToSpinnerMap` (Dictionary: InstanceId → SpinnerAnimated) cached from the AssignDamageBrowser via reflection
+- **Spinner control**: Clicks `_buttonIncrease` / `_buttonDecrease` on SpinnerAnimated, reads `Value` property after click
+- **Lethal detection**: Reads `_valueText` TMP color - gold color means lethal damage reached
+- **Total damage**: Lazily cached from `MtgDamageAssigner.TotalDamage` field (accessed via `WorkflowController.CurrentWorkflow._damageAssigner`)
+- **Assigner count**: Reads `_handledAssigners` (List) and `_unhandledAssigners` (Queue) to show "X of Y" when multiple attackers need damage assigned
+- **Submit**: Invokes `DoneAction` event field on the browser (falls back to `OnButtonCallback("DoneButton")`)
+- **Undo**: Invokes `UndoAction` event field on the browser
+- **Announcements**: Entry shows attacker name + power + blocker count; per-card shows name + P/T + assigned damage + lethal status
 
 **Technical Implementation:**
 - BrowserDetector caches scan results for performance (100ms interval)

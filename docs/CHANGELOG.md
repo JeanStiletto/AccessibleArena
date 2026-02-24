@@ -2,6 +2,34 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.2-dev
+
+### New: Damage Assignment Browser
+- Full keyboard navigation for the damage assignment browser (when your attacker is blocked by multiple creatures)
+- Up/Down arrows adjust damage spinner on current blocker
+- Left/Right arrows navigate between blockers
+- Each blocker announced with name, P/T, current damage assigned, and lethal status
+- Entry announcement: "Assign damage. [AttackerName], [Power] damage. [N] blockers"
+- Lethal damage indicated when spinner value text turns gold
+- Space submits damage assignment (via DoneAction reflection)
+- Backspace undoes last assignment (via UndoAction reflection)
+- Multiple damage assigners in one combat announced as "X of Y"
+- Total damage cached from workflow's MtgDamageAssigner struct
+
+### New: Library Zone Navigation
+- D key navigates your library, Shift+D for opponent's library
+- Only shows cards visible to sighted players (anti-cheat protection):
+  - Cards with HotHighlight (playable from library via Future Sight, Vizier of the Menagerie, etc.)
+  - Cards displayed face-up (revealed by Courser of Kruphix, Experimental Frenzy, etc.)
+  - Hidden face-down cards are never exposed
+- If no revealed/playable cards exist, announces library count without entering navigation
+- Left/Right navigates revealed cards, Enter plays playable cards via two-click
+- Full card info via Up/Down arrows on revealed library cards
+- Uses `IsDisplayedFaceDown` model property for reliable reveal detection
+
+### Fixed: Stale Combat Button During Blockers Phase
+- Combat prompt button was showing stale text after blocker assignment
+
 ## v0.7.1 - 2026-02-23
 
 ### New: Read-Only Deck Builder Accessibility

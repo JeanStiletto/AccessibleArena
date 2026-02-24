@@ -207,14 +207,15 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Checks if a card CDC has a RevealOverride set, meaning the card is displayed
-        /// face-up (revealed by a game effect like Vizier of the Menagerie, Future Sight, etc.).
+        /// Checks if a library card is displayed face-up (revealed by a game effect like
+        /// Vizier of the Menagerie, Future Sight, Experimental Frenzy, Courser of Kruphix, etc.).
+        /// Uses Model.IsDisplayedFaceDown property - cards with FaceDown=False are visible to players.
         /// This is different from HotHighlight: revealed cards are visible but may not be playable.
         /// </summary>
-        private static System.Reflection.PropertyInfo _revealOverrideProp;
-        private static Type _revealOverridePropType;
+        private static System.Reflection.PropertyInfo _faceDownProp;
+        private static Type _faceDownPropType;
 
-        public static bool HasRevealOverride(GameObject obj)
+        public static bool IsDisplayedFaceUp(GameObject obj)
         {
             if (obj == null) return false;
 
@@ -223,13 +224,23 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var cdcType = cdc.GetType();
-                if (cdcType != _revealOverridePropType)
+                var model = CardModelProvider.GetCardModel(cdc);
+                if (model == null) return false;
+
+                var modelType = model.GetType();
+                if (modelType != _faceDownPropType)
                 {
-                    _revealOverrideProp = cdcType.GetProperty("RevealOverride");
-                    _revealOverridePropType = cdcType;
+                    _faceDownProp = modelType.GetProperty("IsDisplayedFaceDown");
+                    _faceDownPropType = modelType;
                 }
-                return _revealOverrideProp?.GetValue(cdc) != null;
+
+                if (_faceDownProp == null) return false;
+
+                var val = _faceDownProp.GetValue(model);
+                if (val is bool faceDown)
+                    return !faceDown;
+
+                return false;
             }
             catch
             {

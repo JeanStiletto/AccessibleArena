@@ -301,7 +301,13 @@ Monitor whether clicking activates the wrong target during duels, especially whe
 
 ### Library Zone Navigation (Anti-Cheat Filter)
 
-Library zone navigation (D / Shift+D) only shows cards with HotHighlight — cards revealed by game effects (e.g., Future Sight, Vizier of the Menagerie, Courser of Kruphix). Without such effects, D only announces the library count without entering navigation. This is by design: the library is a hidden zone and exposing face-down cards would be cheating.
+Library zone navigation (D / Shift+D) only shows cards that are visible to sighted players:
+- **HotHighlight** = playable from library (Future Sight, Vizier of the Menagerie, etc.)
+- **IsDisplayedFaceUp** = revealed face-up but not necessarily playable (Courser of Kruphix, Experimental Frenzy, etc.)
+
+Without such effects, D only announces the library count without entering navigation. This is by design: the library is a hidden zone and exposing face-down cards would be cheating.
+
+Note: The original `RevealOverride` property on the CDC was found to never be set by the game. Replaced with `Model.IsDisplayedFaceDown == false` which correctly identifies face-up cards.
 
 ---
 
@@ -422,6 +428,7 @@ The Brawl deck builder uses a multi-step UI flow that differs from the standard 
 ### Low Priority / v1.1
 
 1. Auto version checking and auto update - check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
+2. Pack expansion selection - allow changing which expansion packs are purchased from in the store
 
 ### Future
 
