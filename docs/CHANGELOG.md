@@ -2,7 +2,7 @@
 
 All notable changes to Accessible Arena.
 
-## v0.7.2-dev
+## v0.7.1 - 2026-02-23
 
 ### New: Damage Assignment Browser
 - Full keyboard navigation for the damage assignment browser (when your attacker is blocked by multiple creatures)
@@ -27,6 +27,14 @@ All notable changes to Accessible Arena.
 - Full card info via Up/Down arrows on revealed library cards
 - Uses `IsDisplayedFaceDown` model property for reliable reveal detection
 
+### New: Read-Only Deck Builder Accessibility
+- Starter and precon decks now navigable when opened in read-only mode
+- Cards listed with quantity and name (e.g. "2x Lightning Bolt")
+- Up/Down card details work on read-only deck cards
+- Enter on a card announces "This deck is read only. To edit, open it from My Decks."
+- Screen announces "Deck Builder, Read Only" to distinguish from editable mode
+- Back button (Backspace) works as expected to return to deck list
+
 ### Fixed: Stale Combat Button During Blockers Phase
 - Combat prompt button was showing stale text after blocker assignment
 
@@ -45,16 +53,6 @@ All notable changes to Accessible Arena.
 - Image-only navbar buttons (Nav_Settings, Nav_Learn) showed cleaned GO names ("nav settings", "nav learn")
 - Added `TryGetTooltipText()` fallback in `UITextExtractor` that reads `LocString` from `TooltipTrigger` via reflection
 - Now shows localized labels: "Optionen anpassen", "Kodex des Multiversums"
-
-## v0.7.1 - 2026-02-23
-
-### New: Read-Only Deck Builder Accessibility
-- Starter and precon decks now navigable when opened in read-only mode
-- Cards listed with quantity and name (e.g. "2x Lightning Bolt")
-- Up/Down card details work on read-only deck cards
-- Enter on a card announces "This deck is read only. To edit, open it from My Decks."
-- Screen announces "Deck Builder, Read Only" to distinguish from editable mode
-- Back button (Backspace) works as expected to return to deck list
 
 ## v0.7.0 - 2026-02-23
 
