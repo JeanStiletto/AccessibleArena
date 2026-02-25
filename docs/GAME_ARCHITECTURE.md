@@ -169,6 +169,12 @@ The game uses a UX event queue (`Wotc.Mtga.DuelScene.UXEvents.UXEventQueue`) to 
 **UXEventUpdatePhase**
 - Purpose: Phase changes
 - Key Fields: `<Phase>k__BackingField`, `<Step>k__BackingField`
+- Phase/Step values (as seen in events):
+  - `Beginning/Untap`, `Beginning/Upkeep`, `Beginning/Draw`
+  - `Main1/None`, `Main2/None`
+  - `Combat/None`, `Combat/DeclareAttack`, `Combat/DeclareBlock`, `Combat/CombatDamage`, `Combat/EndCombat`
+  - `Ending/None` (= End Step), `Ending/Cleanup`
+- Note: `Ending/None` is the End Step (there is no `Ending/End` or `Ending/EndStep` value)
 
 **ToggleCombatUXEvent**
 - Purpose: Combat start/end

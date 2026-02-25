@@ -43,6 +43,7 @@
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
         HelpNavigator.cs         - F1 help menu with navigable keybind list
         ExtendedInfoNavigator.cs - I key extended card info (navigable keyword/face menu)
+        PriorityController.cs    - Full control toggle (P/Shift+P) and phase stop hotkeys (1-0)
 
         # Browser Navigation (library manipulation - scry, surveil, mulligan)
         BrowserDetector.cs       - Static browser detection and caching
@@ -236,7 +237,7 @@
 - [x] Stack announcements - "Cast [name], [P/T], [rules]" when spell goes on stack (full card info)
 - [x] Zone change tracking - Tracks card counts per zone to detect changes
 - [x] Spell resolve tracking - `_lastSpellResolvedTime` set on stack decrease
-- [x] Phase announcements - Upkeep, draw, main phases, combat steps (declare attackers/blockers, damage, end combat)
+- [x] Phase announcements - Upkeep, draw, main phases, combat steps (declare attackers/blockers, damage, end combat), end step
 - [x] Phase debounce (100ms) - Prevents announcement spam during auto-skip, only final phase is spoken
 - [x] Combat announcements - "Combat begins", "Attacker declared", "Attacker removed"
 - [x] Opponent plays - "Opponent played a card" (hand count decrease detection)
@@ -417,6 +418,37 @@ Cards announce targeting relationships using model data:
 - `ManaColorSelector.TryCloseSelector()` (public method) - cancel
 - `IManaSelectorProvider.ValidSelectionCount`, `GetElementAt`, `MaxSelections`, `AllSelectionsComplete`, `CurrentSelection`
 - `ManaProducedData.PrimaryColor` (field or property) - color enum value
+
+### Priority Controller (Full Control & Phase Stops)
+
+Reflection wrapper for GameManager.AutoRespManager and ButtonPhaseLadder. Provides keyboard access to full control and phase stop toggles that are otherwise only accessible via mouse clicks on the phase ladder UI.
+
+**Why reflection instead of simulating clicks:**
+The phase ladder UI requires the ladder to be visible and expanded. The EventTrigger `AllowStop` guard on `PhaseLadderButton.ToggleStop()` blocks toggling when the ladder isn't visible. PriorityController bypasses this by calling `ButtonPhaseLadder.ToggleTransientStop(button)` directly, which sends the stop change to the GRE (game rules engine) regardless of UI state.
+
+**Full Control (P / Shift+P):**
+- `GameManager.AutoRespManager.ToggleFullControl()` - temporary, resets on phase change
+- `GameManager.AutoRespManager.ToggleLockedFullControl()` - permanent until toggled off
+- State read via `FullControlEnabled` / `FullControlLocked` properties
+
+**Phase Stops (1-0 keys):**
+- Reads `PhaseIcons` field on `ButtonPhaseLadder` (List of 22 PhaseLadderButton items)
+- Filters out `AvatarPhaseIcon` buttons (player-specific stops), keeps only `ButtonPhaseIcon`
+- Reads `_playerStopTypes` (private field on base class `PhaseLadderButton`) to map StopType enum values to buttons
+- Key 7 maps to both `FirstStrikeDamageStep` and `CombatDamageStep` buttons
+- After toggle, reads `StopState` property (SettingStatus enum) to announce set/cleared
+
+**Reflection note:** `_playerStopTypes` is private on the base class `PhaseLadderButton`, not on `ButtonPhaseIcon`. Standard `GetField()` with `NonPublic | Instance` does not search base classes for private fields. `GetFieldInHierarchy()` walks up the type hierarchy to find it.
+
+**Phase stop behavior (game mechanic, not mod limitation):**
+Phase stops are "also stop here" markers. They do NOT skip ahead to the marked phase. The game always stops when you have playable actions, regardless of phase stops. Setting a stop at "Declare Attackers" means "also stop at declare attackers even if I have nothing to do there" - it does not skip Main 1.
+
+**Files:**
+- `src/Core/Services/PriorityController.cs` - Reflection wrapper
+- `src/Core/Services/DuelNavigator.cs` - Key handling (P, Shift+P, 1-0)
+- `src/Patches/KeyboardManagerPatch.cs` - Ctrl key blocking in duels
+
+---
 
 ### Element Grouping System (Menu Navigation)
 

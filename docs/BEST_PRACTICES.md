@@ -953,6 +953,14 @@ the game stops and gives priority, phases arrive seconds apart so the debounce h
 Announced phases: Upkeep, Draw, First main phase, Second main phase, Combat phase,
 Declare attackers, Declare blockers, Combat damage, End of combat, End step.
 
+Phase/Step event values used in `BuildPhaseChangeAnnouncement()`:
+- `Main1/None` → First main phase, `Main2/None` → Second main phase
+- `Beginning/Upkeep` → Upkeep, `Beginning/Draw` → Draw
+- `Combat/None` → Combat, `Combat/DeclareAttack` → Declare attackers
+- `Combat/DeclareBlock` → Declare blockers, `Combat/CombatDamage` → Combat damage
+- `Combat/EndCombat` → End of combat
+- `Ending/None` → End step (note: NOT `Ending/End` or `Ending/EndStep`)
+
 Attacker summary announcements (leaving declare attackers) bypass debounce entirely since they
 only occur during real combat stops.
 

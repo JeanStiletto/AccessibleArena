@@ -27,8 +27,14 @@ namespace AccessibleArena.Core.Services
         // Cached ButtonPhaseLadder
         private MonoBehaviour _phaseLadder;
         private int _phaseLadderSearchFrame = -1;
-        private PropertyInfo _phaseIcons;
         private FieldInfo _phaseIconsField;
+
+        // Cached reflection for PhaseLadderButton base type
+        private FieldInfo _playerStopTypesField;
+        private PropertyInfo _stopStateProp;
+
+        // Cached ToggleTransientStop on ButtonPhaseLadder (bypasses AllowStop guard)
+        private MethodInfo _toggleTransientStop;
 
         // Phase stop button cache: maps our key index (0-9) to PhaseLadderButton(s)
         private Dictionary<int, List<object>> _phaseStopMap;
@@ -63,24 +69,23 @@ namespace AccessibleArena.Core.Services
             "PhaseStop_EndStep"
         };
 
-        // StopType enum values we care about, in order matching our key indices
-        // These are the string names from the StopType enum
+        // StopType enum values matching Wotc.Mtgo.Gre.External.Messaging.StopType
         private static readonly string[] StopTypeNames =
         {
-            "Upkeep",              // 1
-            "Draw",                // 2
-            "PrecombatMainPhase",  // 3
-            "BeginCombat",         // 4
-            "DeclareAttackers",    // 5
-            "DeclareBlockers",     // 6
-            "FirstStrikeDamage",   // 7a (combined with CombatDamage)
-            "EndCombat",           // 8
-            "PostcombatMainPhase", // 9
-            "End"                  // 0
+            "UpkeepStep",              // 1
+            "DrawStep",                // 2
+            "PrecombatMainPhase",      // 3
+            "BeginCombatStep",         // 4
+            "DeclareAttackersStep",    // 5
+            "DeclareBlockersStep",     // 6
+            "FirstStrikeDamageStep",   // 7a (combined with CombatDamageStep)
+            "EndCombatStep",           // 8
+            "PostcombatMainPhase",     // 9
+            "EndStep"                  // 0
         };
 
-        // Additional StopType for key 7 (CombatDamage, paired with FirstStrikeDamage)
-        private const string CombatDamageStopType = "CombatDamage";
+        // Additional StopType for key 7 (CombatDamageStep, paired with FirstStrikeDamageStep)
+        private const string CombatDamageStopType = "CombatDamageStep";
 
         private MonoBehaviour FindGameManager()
         {
@@ -240,41 +245,32 @@ namespace AccessibleArena.Core.Services
                     _phaseLadder = mb;
                     var type = mb.GetType();
 
-                    // Dump all members for debugging
-                    MelonLogger.Msg($"[PriorityController] Found ButtonPhaseLadder, type: {type.FullName}");
-                    foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
-                    {
-                        MelonLogger.Msg($"[PriorityController]   Property: {prop.Name} ({prop.PropertyType.Name})");
-                    }
-                    foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
-                    {
-                        MelonLogger.Msg($"[PriorityController]   Field: {field.Name} ({field.FieldType.Name})");
-                    }
-                    foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                    {
-                        MelonLogger.Msg($"[PriorityController]   Method: {method.Name}");
-                    }
+                    // PhaseIcons is a public field (List<PhaseLadderButton>) on ButtonPhaseLadder
+                    _phaseIconsField = type.GetField("PhaseIcons", BindingFlags.Public | BindingFlags.Instance);
 
-                    // Try various property/field names for the phase icons list
-                    _phaseIcons = type.GetProperty("PhaseIcons", BindingFlags.Public | BindingFlags.Instance)
-                               ?? type.GetProperty("PhaseIcons", BindingFlags.NonPublic | BindingFlags.Instance);
+                    // ToggleTransientStop(PhaseLadderButton) is public on ButtonPhaseLadder
+                    _toggleTransientStop = type.GetMethod("ToggleTransientStop", BindingFlags.Public | BindingFlags.Instance);
 
-                    if (_phaseIcons == null)
-                    {
-                        // Try as field instead
-                        var field = type.GetField("PhaseIcons", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                                 ?? type.GetField("_phaseIcons", BindingFlags.NonPublic | BindingFlags.Instance);
-                        if (field != null)
-                        {
-                            // Store field reference instead - we'll handle in BuildPhaseStopMap
-                            _phaseIconsField = field;
-                            MelonLogger.Msg($"[PriorityController] Found PhaseIcons as field: {field.Name}");
-                        }
-                    }
-
-                    MelonLogger.Msg($"[PriorityController] PhaseIcons property={_phaseIcons != null}, field={_phaseIconsField != null}");
+                    MelonLogger.Msg($"[PriorityController] Found ButtonPhaseLadder " +
+                        $"(PhaseIcons={_phaseIconsField != null}, ToggleTransientStop={_toggleTransientStop != null})");
                     return _phaseLadder;
                 }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get a private FieldInfo by walking up the type hierarchy.
+        /// Required because GetField with NonPublic doesn't search base classes.
+        /// </summary>
+        private static FieldInfo GetFieldInHierarchy(Type type, string name)
+        {
+            while (type != null)
+            {
+                var field = type.GetField(name,
+                    BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+                if (field != null) return field;
+                type = type.BaseType;
             }
             return null;
         }
@@ -288,79 +284,47 @@ namespace AccessibleArena.Core.Services
             _phaseStopMap = new Dictionary<int, List<object>>();
 
             var ladder = FindPhaseLadder();
-            if (ladder == null || (_phaseIcons == null && _phaseIconsField == null)) return;
+            if (ladder == null || _phaseIconsField == null) return;
 
-            object icons = _phaseIcons != null
-                ? _phaseIcons.GetValue(ladder)
-                : _phaseIconsField?.GetValue(ladder);
-            if (icons == null) return;
+            var icons = _phaseIconsField.GetValue(ladder) as IList;
+            if (icons == null || icons.Count == 0) return;
 
-            var iconList = icons as IList;
-            if (iconList == null) return;
+            MelonLogger.Msg($"[PriorityController] Building phase stop map from {icons.Count} phase icons");
 
-            MelonLogger.Msg($"[PriorityController] Building phase stop map from {iconList.Count} phase icons");
-
-            // Build a lookup from StopType name to button
+            // Build a lookup from StopType name to button (prefer non-avatar buttons)
             var stopTypeToButton = new Dictionary<string, object>();
-            bool dumpedFirst = false;
 
-            foreach (var button in iconList)
+            foreach (var button in icons)
             {
                 if (button == null) continue;
 
                 var btnType = button.GetType();
 
-                // Dump first button's members for debugging
-                if (!dumpedFirst)
+                // Skip AvatarPhaseIcon buttons - they're for player-specific stops
+                if (btnType.Name == "AvatarPhaseIcon") continue;
+
+                // Cache reflection for PhaseLadderButton base type (once)
+                if (_playerStopTypesField == null)
                 {
-                    dumpedFirst = true;
-                    MelonLogger.Msg($"[PriorityController] PhaseLadderButton type: {btnType.FullName}");
-                    foreach (var f in btnType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
-                    {
-                        try
-                        {
-                            var val = f.GetValue(button);
-                            string valStr = val?.ToString() ?? "null";
-                            if (valStr.Length > 80) valStr = valStr.Substring(0, 80) + "...";
-                            MelonLogger.Msg($"[PriorityController]   Field: {f.Name} ({f.FieldType.Name}) = {valStr}");
-                        }
-                        catch
-                        {
-                            MelonLogger.Msg($"[PriorityController]   Field: {f.Name} ({f.FieldType.Name}) = <error>");
-                        }
-                    }
-                    foreach (var p in btnType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                    {
-                        MelonLogger.Msg($"[PriorityController]   Property: {p.Name} ({p.PropertyType.Name})");
-                    }
-                    foreach (var m in btnType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                    {
-                        MelonLogger.Msg($"[PriorityController]   Method: {m.Name}");
-                    }
+                    // _playerStopTypes is private on base class PhaseLadderButton
+                    _playerStopTypesField = GetFieldInHierarchy(btnType, "_playerStopTypes");
+                    // StopState is public on PhaseLadderButton
+                    _stopStateProp = btnType.GetProperty("StopState", BindingFlags.Public | BindingFlags.Instance);
+
+                    MelonLogger.Msg($"[PriorityController] Cached button reflection: " +
+                        $"_playerStopTypes={_playerStopTypesField != null}, " +
+                        $"StopState={_stopStateProp != null}");
                 }
 
-                // Try multiple field names for stop types
-                FieldInfo stopTypesField = null;
-                string[] fieldNames = { "_playerStopTypes", "PlayerStopTypes", "_stopTypes", "StopTypes",
-                                         "playerStopTypes", "_playerStops", "PlayerStops" };
-                foreach (var name in fieldNames)
-                {
-                    stopTypesField = btnType.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (stopTypesField != null) break;
-                }
+                if (_playerStopTypesField == null) continue;
 
-                if (stopTypesField != null)
+                var stopTypes = _playerStopTypesField.GetValue(button) as IList;
+                if (stopTypes == null) continue;
+
+                foreach (var st in stopTypes)
                 {
-                    var stopTypes = stopTypesField.GetValue(button) as IList;
-                    if (stopTypes != null)
-                    {
-                        foreach (var st in stopTypes)
-                        {
-                            string stName = st.ToString();
-                            stopTypeToButton[stName] = button;
-                            MelonLogger.Msg($"[PriorityController]   StopType '{stName}' -> button");
-                        }
-                    }
+                    string stName = st.ToString();
+                    stopTypeToButton[stName] = button;
                 }
             }
 
@@ -374,7 +338,7 @@ namespace AccessibleArena.Core.Services
                     buttons.Add(btn);
                 }
 
-                // Key 7 (index 6) also maps to CombatDamage
+                // Key 7 (index 6) also maps to CombatDamageStep
                 if (i == 6 && stopTypeToButton.TryGetValue(CombatDamageStopType, out var combatBtn))
                 {
                     if (!buttons.Contains(combatBtn))
@@ -386,7 +350,12 @@ namespace AccessibleArena.Core.Services
                 _phaseStopMap[i] = buttons;
             }
 
-            MelonLogger.Msg($"[PriorityController] Phase stop map built with {_phaseStopMap.Count} entries");
+            int populatedCount = 0;
+            foreach (var kv in _phaseStopMap)
+            {
+                if (kv.Value.Count > 0) populatedCount++;
+            }
+            MelonLogger.Msg($"[PriorityController] Phase stop map: {populatedCount}/{_phaseStopMap.Count} keys mapped");
         }
 
         /// <summary>
@@ -407,28 +376,30 @@ namespace AccessibleArena.Core.Services
                 return null;
             }
 
+            if (_toggleTransientStop == null || _phaseLadder == null)
+            {
+                MelonLogger.Warning($"[PriorityController] Cannot toggle phase stop - ladder not available");
+                return null;
+            }
+
             try
             {
                 bool? resultState = null;
 
                 foreach (var button in buttons)
                 {
-                    var btnType = button.GetType();
-                    var toggleMethod = btnType.GetMethod("ToggleStop", BindingFlags.Public | BindingFlags.Instance);
+                    bool stateBefore = IsPhaseStopSet(button);
 
-                    if (toggleMethod != null)
-                    {
-                        toggleMethod.Invoke(button, null);
+                    // Call ButtonPhaseLadder.ToggleTransientStop(button) directly
+                    // This bypasses AllowStop guard on PhaseLadderButton.ToggleStop()
+                    _toggleTransientStop.Invoke(_phaseLadder, new object[] { button });
 
-                        // Read the current stop state after toggle
-                        if (resultState == null)
-                        {
-                            resultState = IsPhaseStopSet(button);
-                        }
-                    }
-                    else
+                    bool stateAfter = IsPhaseStopSet(button);
+                    MelonLogger.Msg($"[PriorityController] Toggled phase stop index {keyIndex}: {stateBefore} -> {stateAfter}");
+
+                    if (resultState == null)
                     {
-                        MelonLogger.Warning($"[PriorityController] ToggleStop method not found on {btnType.Name}");
+                        resultState = stateAfter;
                     }
                 }
 
@@ -443,32 +414,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Check if a phase stop button is currently set by reading its visual/state.
+        /// Check if a phase stop button is currently set.
+        /// Uses StopState property (SettingStatus enum) on PhaseLadderButton.
         /// </summary>
         private bool IsPhaseStopSet(object button)
         {
             try
             {
-                var btnType = button.GetType();
-
-                // Try IsStopSet property
-                var isSetProp = btnType.GetProperty("IsStopSet", BindingFlags.Public | BindingFlags.Instance);
-                if (isSetProp != null)
+                if (_stopStateProp != null)
                 {
-                    return (bool)isSetProp.GetValue(button);
+                    var stopState = _stopStateProp.GetValue(button);
+                    // SettingStatus.Set means the stop is active
+                    return stopState?.ToString() == "Set";
                 }
-
-                // Try _isStopSet field
-                var isSetField = btnType.GetField("_isStopSet",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                if (isSetField != null)
-                {
-                    return (bool)isSetField.GetValue(button);
-                }
-
-                // Try checking the stop state via the manager
-                // If ToggleStop toggled it, assume it's now the opposite
-                MelonLogger.Msg("[PriorityController] Could not read stop state directly");
             }
             catch (Exception ex)
             {
@@ -503,8 +461,10 @@ namespace AccessibleArena.Core.Services
             _fullControlLocked = null;
             _phaseLadder = null;
             _phaseLadderSearchFrame = -1;
-            _phaseIcons = null;
             _phaseIconsField = null;
+            _toggleTransientStop = null;
+            _playerStopTypesField = null;
+            _stopStateProp = null;
             _phaseStopMap = null;
             MelonLogger.Msg("[PriorityController] Cache cleared");
         }

@@ -4,6 +4,26 @@ All notable changes to Accessible Arena.
 
 ## v0.7.2-dev
 
+### New: Full Control Toggle (P / Shift+P)
+- P key toggles temporary full control (resets on phase change)
+- Shift+P toggles locked full control (permanent until toggled off)
+- Announces "Full control on/off" and "Full control locked/unlocked"
+- Uses GameManager.AutoRespManager reflection for toggle and state read
+
+### New: Phase Stop Hotkeys (1-0)
+- Number keys 1-0 toggle phase stops during duels
+- 1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers, 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step
+- Announces "[Phase] stop set" / "[Phase] stop cleared" with localized phase names
+- Note: Phase stops are "also stop here" markers. The game still stops at any phase where you have playable actions (this is standard MTGA behavior, not a mod limitation). Phase stops ensure the game also stops at the marked phase even when you have nothing to play.
+- Ctrl key blocked from reaching the game in duels (prevents accidental full control toggle when silencing NVDA with Ctrl)
+- Files: PriorityController.cs, DuelNavigator.cs, KeyboardManagerPatch.cs
+
+### Fixed: End Step Phase Not Announced
+- End step was never announced during duels
+- Game sends `Ending/None` for the end step, but code checked for `Ending/End` which never occurs
+- Without the match, the debounce timer from Second Main Phase would fire instead, incorrectly announcing "Second main phase" even when the game stopped at the end step
+- Fix: Match `Ending/None` as the end step event
+
 ### New: Event System Accessibility
 - Event tiles on Play Blade enriched with title, ranked/Bo3 indicators, progress pips, and in-progress status
 - Event page shows "Event: {title}" with win progress summary
