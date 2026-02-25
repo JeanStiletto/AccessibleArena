@@ -30,7 +30,8 @@ namespace AccessibleArena.Core.Services
             "ConstructedDeckSelectController",
             "EventPageContentController",
             "ProgressionTracksContentController",
-            "PacketSelectContentController"
+            "PacketSelectContentController",
+            "DraftContentController"
         };
 
         // Settings submenu panel names
@@ -327,6 +328,7 @@ namespace AccessibleArena.Core.Services
                 "ConstructedDeckSelectController" => Strings.ScreenDeckSelection,
                 "EventPageContentController" => Strings.ScreenEvent,
                 "PacketSelectContentController" => Strings.ScreenPacketSelect,
+                "DraftContentController" => Strings.ScreenDraft,
                 "RewardsOverlay" => Strings.ScreenRewards,
                 "BoosterChamber" => Strings.ScreenPacks,
                 "NPERewards" => Strings.ScreenCardUnlocked,

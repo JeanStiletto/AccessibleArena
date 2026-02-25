@@ -128,10 +128,48 @@ All packet data access goes through `EventAccessor` (static class, follows `Rece
 
 ---
 
+## Draft Card Picking
+
+When a user activates a draft event (e.g., Quick Draft), the game opens `DraftContentController` within the HomePage scene. The draft pick screen shows cards from a pack that the player must choose from.
+
+### Architecture
+
+**Key game types (in Core.dll):**
+- `DraftContentController` - Main controller, extends `NavContentController`
+- `DraftPackHolder` - Extends `MetaCardHolder`, holds pack cards
+- `DraftPackCardView` - Extends `CDCMetaCardView`, individual card view in draft pack
+- `DraftDeckManager` - Tracks which cards are reserved/selected for picking
+- `DraftColumnMetaCardHolder` - Extends `StaticColumnManager`, holds deck cards being built
+
+### Navigation (DraftNavigator)
+
+**Screen detection:** `MenuScreenDetector` recognizes `DraftContentController` and maps it to "Draft" display name. `DraftNavigator` (priority 78) takes over from `GeneralMenuNavigator` when the draft content controller is active.
+
+**Screen name:** "Draft Pick" or "Draft Pick, X cards" when card count is known.
+
+**Card discovery:** Searches `DraftContentController` children for `DraftPackCardView` components. Falls back to `CDCMetaCardView`/`MetaCardView` within `DraftPackHolder` containers. Cards sorted by x-position (left to right).
+
+**Card name extraction:** Uses same "Title" TMP_Text pattern as `BoosterOpenNavigator`.
+
+**Navigation keys:**
+- Left/Right (or A/D): Navigate between cards
+- Home/End: Jump to first/last card
+- Tab/Shift+Tab: Navigate cards
+- Up/Down: Card details (via CardInfoNavigator)
+- Enter: Select/toggle a card for picking (clicks the card)
+- Space: Confirm selection (clicks confirm button)
+- Backspace: Back/exit
+- F11: Debug dump current card
+
+**Rescan:** After Enter (card selection) or Space (confirmation), a delayed rescan (~1.5 seconds) picks up pack changes (new pack, fewer cards, etc.).
+
+---
+
 ## Files
 
 - `src/Core/Services/EventAccessor.cs` - All reflection-based event/packet data access
 - `src/Core/Services/UITextExtractor.cs` - `TryGetEventTileLabel`, `TryGetPacketLabel`
 - `src/Core/Services/MenuScreenDetector.cs` - Screen detection for EventPage, PacketSelect
 - `src/Core/Services/GeneralMenuNavigator.cs` - Packet navigation, info blocks, activation, rescan
-- `src/Core/Models/Strings.cs` - Localized strings for event/packet labels
+- `src/Core/Services/DraftNavigator.cs` - Draft card picking navigator
+- `src/Core/Models/Strings.cs` - Localized strings for event/packet/draft labels
