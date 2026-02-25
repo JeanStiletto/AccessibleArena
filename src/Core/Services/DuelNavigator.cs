@@ -407,9 +407,11 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.P))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                MelonLogger.Msg($"[{NavigatorId}] P key pressed (shift={shift})");
                 if (shift)
                 {
                     var result = _priorityController.ToggleLockFullControl();
+                    MelonLogger.Msg($"[{NavigatorId}] ToggleLockFullControl result: {result}");
                     if (result.HasValue)
                     {
                         _announcer.AnnounceInterrupt(result.Value ? Strings.FullControl_Locked : Strings.FullControl_Unlocked);
@@ -418,6 +420,7 @@ namespace AccessibleArena.Core.Services
                 else
                 {
                     var result = _priorityController.ToggleFullControl();
+                    MelonLogger.Msg($"[{NavigatorId}] ToggleFullControl result: {result}");
                     if (result.HasValue)
                     {
                         _announcer.AnnounceInterrupt(result.Value ? Strings.FullControl_On : Strings.FullControl_Off);
