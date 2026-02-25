@@ -78,7 +78,8 @@ namespace AccessibleArena.Core.Services
             return name.Contains("SystemMessageView") ||
                    name.Contains("Popup") ||
                    name.Contains("Dialog") ||
-                   name.Contains("Modal");
+                   name.Contains("Modal") ||
+                   name.Contains("ChallengeInvite");
         }
 
         #endregion
