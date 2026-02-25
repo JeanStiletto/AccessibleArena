@@ -24,11 +24,30 @@ Event tiles appear in the Play Blade's events tab. Each tile is a `PlayBladeEven
 When a user activates an event tile, the game opens `EventPageContentController`. The mod enriches the screen name by reading the event context.
 
 **Screen name:** "Event: {title}" via `EventAccessor.GetEventPageTitle()` which reads:
-- `_currentEventContext` -> `PlayerEvent` -> `EventUXInfo.PublicEventName` (preferred, localized)
+- `_currentEventContext` -> `PlayerEvent` (public **field**, not property) -> `EventUXInfo.PublicEventName` (preferred, localized)
 - Fallback: `EventInfo.InternalEventName` (underscore-separated, cleaned up)
 
 **Event summary:** `EventAccessor.GetEventPageSummary()` reads:
 - `PlayerEvent.CurrentWins` / `PlayerEvent.MaxWins` -> "{wins}/{maxWins} wins"
+
+### Event Page Info Navigation (Up/Down)
+
+Event page description text is navigable via Up/Down arrows as virtual info items.
+
+**Info block extraction:** `EventAccessor.GetEventPageInfoBlocks()` scans all active `TMP_Text` in the `EventPageContentController` hierarchy with these filters:
+- Skip text inside `CustomButton` or `CustomButtonWithTooltip` parent chain (button labels)
+- Skip text inside GameObjects with "Objective" in name (progress milestones)
+- Skip text shorter than 5 characters
+- Skip blocks that are redundant with the event title (fuzzy match: max 4 words, at least 1/3 of words shared with title, splitting on spaces/colons/hyphens/underscores)
+- Long texts split on `\n` into separate blocks for screen reader readability
+
+**Navigation state** in `GeneralMenuNavigator`:
+- `_eventInfoBlocks` / `_eventInfoIndex` track current position
+- Index `-1` = on the button (default), `0..N-1` = info blocks
+- Down from button -> first info block; Down at end -> "End of list"
+- Up from first info block -> back to button (re-announces current element); Up from button -> "Beginning of list"
+- Tab bypasses info navigation, uses normal element navigation
+- Blocks lazy-loaded on first Down press, cleared when controller changes in `PerformRescan()`
 
 ---
 

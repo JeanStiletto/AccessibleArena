@@ -401,9 +401,9 @@ namespace AccessibleArena.Core.Services
                         if (trimmed.Length < 5) continue;
                         if (seenTexts.Contains(trimmed)) continue;
 
-                        // Skip blocks that only contain the event name (already in screen title)
-                        if (!string.IsNullOrEmpty(eventTitle) &&
-                            string.Equals(trimmed, eventTitle, StringComparison.OrdinalIgnoreCase))
+                        // Skip short blocks that look like the event name (already in screen title)
+                        // Uses fuzzy matching: if <=4 words and shares 1/3 of words with title, skip
+                        if (!string.IsNullOrEmpty(eventTitle) && IsRedundantTitle(trimmed, eventTitle))
                             continue;
 
                         seenTexts.Add(trimmed);
@@ -454,6 +454,39 @@ namespace AccessibleArena.Core.Services
                 current = current.parent;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Check if a text block is a redundant event title that should be filtered.
+        /// True if the block is short (max 4 words) and shares at least 1/3 of its
+        /// words with the event title. Handles abbreviated expansion names.
+        /// </summary>
+        private static bool IsRedundantTitle(string blockText, string eventTitle)
+        {
+            // Split into words, stripping punctuation like colons and hyphens
+            char[] separators = { ' ', ':', '-', '_', '\u2013', '\u2014' };
+            var blockWords = blockText.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+            if (blockWords.Length == 0 || blockWords.Length > 4) return false;
+
+            var titleWords = eventTitle.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+            if (titleWords.Length == 0) return false;
+
+            // Count how many block words appear in the title
+            int matches = 0;
+            foreach (string bw in blockWords)
+            {
+                foreach (string tw in titleWords)
+                {
+                    if (string.Equals(bw, tw, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matches++;
+                        break;
+                    }
+                }
+            }
+
+            // At least 1/3 of the block words must match
+            return matches > 0 && matches >= (blockWords.Length + 2) / 3;
         }
 
         #endregion
