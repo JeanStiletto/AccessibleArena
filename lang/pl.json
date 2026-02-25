@@ -521,6 +521,8 @@
   "ScreenDraftPick": "Draft Pick",
   "ScreenDraftPick_One": "Draft Pick, 1 card",
   "ScreenDraftPick_Format": "Draft Pick, {0} cards",
+  "ScreenDraftPopup": "Draft, Popup",
+  "UpDownForMore_Format": "Up and Down for {0} items",
   "ScreenFriends": "Znajomi",
   "ScreenHomeWithEvents": "Strona główna z wydarzeniami",
   "ScreenHomeWithColorChallenge": "Strona główna z wyzwaniem kolorów",

@@ -2,6 +2,8 @@ using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Services.PanelDetection;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -24,6 +26,16 @@ namespace AccessibleArena.Core.Services
         private bool _initialRescanDone;
         private const int RescanDelayFrames = 90; // ~1.5 seconds at 60fps
 
+        // Popup overlay handling (DraftVaultProgressPopup, gem rewards, etc.)
+        // Follows same pattern as MasteryNavigator: event-based detection via PanelStateManager
+        private bool _isPopupActive;
+        private GameObject _activePopup;
+        private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
+        private int _popupElementIndex;
+        // Text blocks for Up/Down reading (like event info blocks)
+        private List<CardInfoBlock> _popupInfoBlocks;
+        private int _popupInfoIndex; // -1 = not reading, 0..N = text blocks
+
         public override string NavigatorId => "Draft";
         public override string ScreenName => GetScreenName();
         public override int Priority => 78; // Below BoosterOpen (80), above General (15)
@@ -32,6 +44,8 @@ namespace AccessibleArena.Core.Services
 
         private string GetScreenName()
         {
+            if (_isPopupActive)
+                return Strings.ScreenDraftPopup;
             if (_totalCards > 0)
                 return Strings.ScreenDraftPickCount(_totalCards);
             return Strings.ScreenDraftPick;
@@ -259,6 +273,13 @@ namespace AccessibleArena.Core.Services
             // Handle custom input first (F1 help, etc.)
             if (HandleCustomInput()) return;
 
+            // Popup mode: navigate popup elements, Up/Down reads text blocks
+            if (_isPopupActive)
+            {
+                HandlePopupInput();
+                return;
+            }
+
             // F11: Dump current card details for debugging
             if (Input.GetKeyDown(KeyCode.F11))
             {
@@ -425,6 +446,13 @@ namespace AccessibleArena.Core.Services
 
         public override void Update()
         {
+            // Check if popup is still valid (same pattern as MasteryNavigator)
+            if (_isPopupActive && (_activePopup == null || !_activePopup.activeInHierarchy))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup became invalid, returning to navigation");
+                ClearPopupState();
+            }
+
             // Initial rescan after activation (~1.5 seconds for cards to load)
             if (_isActive && !_initialRescanDone)
             {
@@ -468,6 +496,27 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Deactivation check: if 0 cards and no popup for extended time, re-check screen
+            // This handles the transition from draft picking to deck building after finalize
+            if (_isActive && !_isPopupActive && _initialRescanDone && !_rescanPending && _totalCards == 0)
+            {
+                _emptyCardCounter++;
+                if (_emptyCardCounter >= EmptyCardDeactivateFrames)
+                {
+                    _emptyCardCounter = 0;
+                    if (!DetectScreen())
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Draft picking no longer active after timeout, deactivating");
+                        Deactivate();
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                _emptyCardCounter = 0;
+            }
+
             // Check for close after back button
             if (_isActive && _closeTriggered)
             {
@@ -493,6 +542,8 @@ namespace AccessibleArena.Core.Services
 
         private bool _closeTriggered;
         private int _closeRescanCounter;
+        private int _emptyCardCounter; // Frames with 0 cards and no popup
+        private const int EmptyCardDeactivateFrames = 300; // ~5 seconds at 60fps
 
         protected override void OnActivated()
         {
@@ -503,12 +554,354 @@ namespace AccessibleArena.Core.Services
             _rescanPending = false;
             _closeTriggered = false;
             _closeRescanCounter = 0;
+            _emptyCardCounter = 0;
+            ClearPopupState();
+
+            // Subscribe to panel changes for popup detection (same as MasteryNavigator)
+            if (PanelStateManager.Instance != null)
+                PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
+        }
+
+        protected override void OnDeactivating()
+        {
+            ClearPopupState();
+
+            // Unsubscribe from panel changes
+            if (PanelStateManager.Instance != null)
+                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
         }
 
         private void TriggerCloseRescan()
         {
             _closeTriggered = true;
             _closeRescanCounter = 0;
+        }
+
+        #endregion
+
+        #region Popup handling (follows MasteryNavigator pattern)
+
+        /// <summary>
+        /// Handle panel changes from PanelStateManager - detect popups appearing on top of draft.
+        /// Same event-based approach as MasteryNavigator.OnPanelChanged.
+        /// </summary>
+        private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
+        {
+            if (!_isActive) return;
+
+            if (newPanel != null && IsPopupPanel(newPanel))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
+                _activePopup = newPanel.GameObject;
+                _isPopupActive = true;
+                DiscoverPopupElements();
+                AnnouncePopup();
+            }
+            else if (_isPopupActive && newPanel == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup closed, returning to navigation");
+                ClearPopupState();
+            }
+        }
+
+        private static bool IsPopupPanel(PanelInfo panel)
+        {
+            if (panel == null) return false;
+            string name = panel.Name;
+            return name.Contains("Popup") || name.Contains("SystemMessageView") || name.Contains("Dialog");
+        }
+
+        private void ClearPopupState()
+        {
+            _isPopupActive = false;
+            _activePopup = null;
+            _popupElements.Clear();
+            _popupElementIndex = 0;
+            _popupInfoBlocks = null;
+            _popupInfoIndex = -1;
+
+            // Rescan to see what's on screen now
+            _rescanPending = true;
+            _rescanFrameCounter = 0;
+        }
+
+        /// <summary>
+        /// Discover interactive elements in the popup.
+        /// Same structure as MasteryNavigator.DiscoverPopupElements().
+        /// </summary>
+        private void DiscoverPopupElements()
+        {
+            _popupElements.Clear();
+            _popupElementIndex = 0;
+            _popupInfoBlocks = null;
+            _popupInfoIndex = -1;
+
+            if (_activePopup == null) return;
+
+            MelonLogger.Msg($"[{NavigatorId}] Discovering popup elements in: {_activePopup.name}");
+
+            var addedObjects = new HashSet<GameObject>();
+            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+
+            // Find CustomButton and CustomButtonWithTooltip components
+            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(false))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (addedObjects.Contains(mb.gameObject)) continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                {
+                    string label = UITextExtractor.GetText(mb.gameObject);
+                    if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
+
+                    var pos = mb.gameObject.transform.position;
+                    discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
+                    addedObjects.Add(mb.gameObject);
+                }
+            }
+
+            // Also check standard Unity Buttons
+            foreach (var button in _activePopup.GetComponentsInChildren<UnityEngine.UI.Button>(false))
+            {
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
+                if (addedObjects.Contains(button.gameObject)) continue;
+
+                string label = UITextExtractor.GetText(button.gameObject);
+                if (string.IsNullOrEmpty(label)) label = button.gameObject.name;
+
+                var pos = button.gameObject.transform.position;
+                discovered.Add((button.gameObject, label, -pos.y * 1000 + pos.x));
+                addedObjects.Add(button.gameObject);
+            }
+
+            // Sort by visual position: top-to-bottom, left-to-right
+            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+            {
+                _popupElements.Add((obj, label));
+            }
+
+            // Extract text blocks for Up/Down reading
+            _popupInfoBlocks = GetPopupInfoBlocks(_activePopup);
+
+            MelonLogger.Msg($"[{NavigatorId}] Popup has {_popupElements.Count} buttons, {_popupInfoBlocks.Count} text blocks");
+        }
+
+        private void AnnouncePopup()
+        {
+            // Extract popup body text (skipping button labels)
+            string bodyText = _popupInfoBlocks?.Count > 0 ? _popupInfoBlocks[0].Content : null;
+            string announcement;
+
+            if (!string.IsNullOrEmpty(bodyText))
+            {
+                announcement = $"Popup: {bodyText}";
+                if (_popupInfoBlocks.Count > 1)
+                    announcement += $". {Strings.UpDownForMore(_popupInfoBlocks.Count)}";
+            }
+            else
+            {
+                announcement = Strings.ScreenDraftPopup;
+            }
+
+            _announcer?.AnnounceInterrupt(announcement);
+
+            // Announce first button
+            if (_popupElements.Count > 0)
+            {
+                _popupElementIndex = 0;
+                _announcer?.Announce(
+                    $"1 of {_popupElements.Count}: {_popupElements[0].label}",
+                    AnnouncementPriority.Normal);
+            }
+        }
+
+        private void HandlePopupInput()
+        {
+            // Up/Down with Shift held: navigate between popup buttons (same as MasteryNavigator)
+            // Up/Down without Shift: navigate text blocks (like event info)
+            // Tab/Shift+Tab: navigate popup buttons
+
+            // Tab/Shift+Tab: navigate popup buttons
+            if (Input.GetKeyDown(KeyCode.Tab))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                NavigatePopupElement(shift ? -1 : 1);
+                return;
+            }
+
+            // Left/Right: also navigate popup buttons
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
+            {
+                NavigatePopupElement(-1);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
+            {
+                NavigatePopupElement(1);
+                return;
+            }
+
+            // Up arrow: previous text block
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+            {
+                if (_popupInfoBlocks != null && _popupInfoBlocks.Count > 0)
+                {
+                    if (_popupInfoIndex <= 0)
+                    {
+                        _popupInfoIndex = -1;
+                        _announcer?.AnnounceInterrupt(Strings.BeginningOfList);
+                    }
+                    else
+                    {
+                        _popupInfoIndex--;
+                        AnnouncePopupInfoBlock();
+                    }
+                }
+                return;
+            }
+
+            // Down arrow: next text block
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+            {
+                if (_popupInfoBlocks != null && _popupInfoBlocks.Count > 0)
+                {
+                    if (_popupInfoIndex >= _popupInfoBlocks.Count - 1)
+                    {
+                        _announcer?.AnnounceInterrupt(Strings.EndOfList);
+                    }
+                    else
+                    {
+                        _popupInfoIndex++;
+                        AnnouncePopupInfoBlock();
+                    }
+                }
+                return;
+            }
+
+            // Enter/Space: activate current popup element
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
+                Input.GetKeyDown(KeyCode.Space))
+            {
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+
+                if (_popupElements.Count > 0 && _popupElementIndex < _popupElements.Count)
+                {
+                    var elem = _popupElements[_popupElementIndex];
+                    MelonLogger.Msg($"[{NavigatorId}] Activating popup element: {elem.obj?.name ?? "null"}");
+                    _announcer?.AnnounceInterrupt(Strings.Activating(elem.label));
+                    UIActivator.Activate(elem.obj);
+                }
+                return;
+            }
+
+            // Backspace: dismiss/cancel popup
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                InputManager.ConsumeKey(KeyCode.Backspace);
+                // Click first available button to dismiss
+                if (_popupElements.Count > 0)
+                {
+                    var elem = _popupElements[0];
+                    MelonLogger.Msg($"[{NavigatorId}] Dismissing popup via: {elem.obj?.name ?? "null"}");
+                    _announcer?.AnnounceInterrupt(Strings.Cancelled);
+                    UIActivator.Activate(elem.obj);
+                }
+                return;
+            }
+        }
+
+        private void NavigatePopupElement(int direction)
+        {
+            if (_popupElements.Count == 0) return;
+
+            _popupElementIndex += direction;
+            if (_popupElementIndex < 0) _popupElementIndex = _popupElements.Count - 1;
+            if (_popupElementIndex >= _popupElements.Count) _popupElementIndex = 0;
+
+            _announcer?.AnnounceInterrupt(
+                $"{_popupElementIndex + 1} of {_popupElements.Count}: {_popupElements[_popupElementIndex].label}");
+        }
+
+        private void AnnouncePopupInfoBlock()
+        {
+            if (_popupInfoBlocks == null || _popupInfoIndex < 0 || _popupInfoIndex >= _popupInfoBlocks.Count)
+                return;
+
+            var block = _popupInfoBlocks[_popupInfoIndex];
+            _announcer?.AnnounceInterrupt($"{block.Label}: {block.Content}");
+        }
+
+        /// <summary>
+        /// Extract readable text blocks from a popup, filtering out button labels.
+        /// Same pattern as EventAccessor.GetEventPageInfoBlocks().
+        /// </summary>
+        private List<CardInfoBlock> GetPopupInfoBlocks(GameObject popup)
+        {
+            var blocks = new List<CardInfoBlock>();
+            if (popup == null) return blocks;
+
+            var seenTexts = new HashSet<string>();
+            string label = Strings.EventInfoLabel; // Reuse "Info" label
+
+            try
+            {
+                foreach (var tmp in popup.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                {
+                    if (tmp == null) continue;
+
+                    string text = UITextExtractor.CleanText(tmp.text);
+                    if (string.IsNullOrWhiteSpace(text) || text.Length < 3) continue;
+
+                    // Skip text inside buttons (same filter as EventAccessor)
+                    if (IsInsideButton(tmp.transform, popup.transform)) continue;
+
+                    // Split on newlines for readability
+                    var lines = text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string line in lines)
+                    {
+                        string trimmed = line.Trim();
+                        if (trimmed.Length < 3) continue;
+                        if (seenTexts.Contains(trimmed)) continue;
+
+                        seenTexts.Add(trimmed);
+                        blocks.Add(new CardInfoBlock(label, trimmed, isVerbose: false));
+                    }
+                }
+
+                MelonLogger.Msg($"[{NavigatorId}] Popup info blocks: {blocks.Count}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[{NavigatorId}] GetPopupInfoBlocks failed: {ex.Message}");
+            }
+
+            return blocks;
+        }
+
+        /// <summary>
+        /// Check if a transform is inside a button (CustomButton or CustomButtonWithTooltip).
+        /// Walks up from child to stopAt (exclusive).
+        /// Same helper as EventAccessor.IsInsideComponent().
+        /// </summary>
+        private static bool IsInsideButton(Transform child, Transform stopAt)
+        {
+            Transform current = child.parent;
+            while (current != null && current != stopAt)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null)
+                    {
+                        string typeName = mb.GetType().Name;
+                        if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                            return true;
+                    }
+                }
+                current = current.parent;
+            }
+            return false;
         }
 
         #endregion

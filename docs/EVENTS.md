@@ -135,33 +135,111 @@ When a user activates a draft event (e.g., Quick Draft), the game opens `DraftCo
 ### Architecture
 
 **Key game types (in Core.dll):**
-- `DraftContentController` - Main controller, extends `NavContentController`
-- `DraftPackHolder` - Extends `MetaCardHolder`, holds pack cards
-- `DraftPackCardView` - Extends `CDCMetaCardView`, individual card view in draft pack
-- `DraftDeckManager` - Tracks which cards are reserved/selected for picking
-- `DraftColumnMetaCardHolder` - Extends `StaticColumnManager`, holds deck cards being built
+- `Wotc.Mtga.Wrapper.Draft.DraftContentController` - Main controller, extends `NavContentController`. Manages both the picking phase (showing packs) and the deck building phase (after all packs done). Has `IsOpen` property.
+- `DraftPackHolder` - Extends `MetaCardHolder`, holds pack cards on `DraftableCards_CONTAINER`
+- `DraftPackCardView` - Extends `CDCMetaCardView`, individual card view in draft pack. Has `CurrentCard` property and `undoPickButtonObject`.
+- `DraftDeckManager` - Non-MonoBehaviour class tracking reserved/selected cards (`_reservedCards`, `_lockedReservedCards`)
+- `Wotc.Mtga.Wrapper.Draft.DraftDeckView` - View for the deck being built, has `_confirmPickButton`, `_deckDetailsButton`, `ShowSideboardToggle`
+- `DraftVaultProgress` - Simple MonoBehaviour with a single `CustomButton Button` field. One-time popup shown after first draft completion.
 
 ### Navigation (DraftNavigator)
 
-**Screen detection:** `MenuScreenDetector` recognizes `DraftContentController` and maps it to "Draft" display name. `DraftNavigator` (priority 78) takes over from `GeneralMenuNavigator` when the draft content controller is active.
+**Screen detection:** `MenuScreenDetector` recognizes `DraftContentController` and maps it to "Draft" display name. `DraftNavigator` (priority 78) takes over from `GeneralMenuNavigator` when the draft content controller is active and has pack cards present.
 
-**Screen name:** "Draft Pick" or "Draft Pick, X cards" when card count is known.
+**Picking mode detection:** `DetectScreen()` checks for active `DraftContentController` with `IsOpen == true`, AND verifies `DraftPackHolder` or `DraftPackCardView` components exist in the hierarchy. If no pack cards are found, returns false (assumes deck building mode, handled by `GeneralMenuNavigator`).
 
-**Card discovery:** Searches `DraftContentController` children for `DraftPackCardView` components. Falls back to `CDCMetaCardView`/`MetaCardView` within `DraftPackHolder` containers. Cards sorted by x-position (left to right).
+**Screen name:** "Draft Pick" or "Draft Pick, X cards" when card count is known. "Draft, Popup" when a popup overlay is active.
 
-**Card name extraction:** Uses same "Title" TMP_Text pattern as `BoosterOpenNavigator`.
+### Card Discovery
 
-**Navigation keys:**
+Cards are discovered by scanning `DraftContentController` children for `DraftPackCardView` components directly (not via `DraftPackHolder.CardViews` property, which may be empty during async loading). This is the same pattern used by `BoosterOpenNavigator` for `BoosterMetaCardView`. Cards are sorted by x-position (left to right).
+
+**Card recognition:** `DraftPackCardView` is registered in:
+- `CardDetector.IsCardInternal()` - name check for "DraftPackCardView"
+- `CardModelProvider.GetMetaCardView()` - type name check for "DraftPackCardView"
+
+This enables Up/Down card detail reading via `CardInfoNavigator`.
+
+**Card name extraction:** Uses same "Title" `TMP_Text` pattern as `BoosterOpenNavigator`.
+
+### Navigation Keys
+
 - Left/Right (or A/D): Navigate between cards
 - Home/End: Jump to first/last card
 - Tab/Shift+Tab: Navigate cards
 - Up/Down: Card details (via CardInfoNavigator)
-- Enter: Select/toggle a card for picking (clicks the card)
+- Enter: Select/toggle a card for picking (bypasses `ActivateCurrentElement()` to avoid CardInfoNavigator redirect, calls `UIActivator.Activate()` directly)
 - Space: Confirm selection (clicks confirm button)
 - Backspace: Back/exit
 - F11: Debug dump current card
 
-**Rescan:** After Enter (card selection) or Space (confirmation), a delayed rescan (~1.5 seconds) picks up pack changes (new pack, fewer cards, etc.).
+**Enter key bypass:** `BaseNavigator.ActivateCurrentElement()` detects cards and redirects to `CardInfoNavigator` for detail display. In draft, Enter must click the card to select it. `DraftNavigator.HandleInput()` calls `UIActivator.Activate()` directly for cards, bypassing the base class redirect.
+
+### Rescan and Timing
+
+**Initial rescan:** On activation, `_initialRescanDone = false` triggers a delayed rescan at 90 frames (~1.5 seconds). This catches cards that are still loading/animating when the navigator first activates.
+
+**Action rescan:** After Enter (card selection) or Space (confirmation), `_rescanPending = true` triggers another delayed rescan to pick up pack changes (new pack, fewer cards, card count change).
+
+**Deactivation timeout:** When 0 cards and no popup for 300 frames (~5 seconds), re-checks `DetectScreen()`. If draft picking is no longer active (pack holder gone after finalize), deactivates to let `GeneralMenuNavigator` handle the deck builder.
+
+### Popup Handling
+
+After the last card is picked and confirmed, the game's `Coroutine_FinalizeDraft()` runs:
+1. `CompleteDraft()` call
+2. Wait for inventory update (5 second timeout)
+3. Show `DraftVaultProgressPopup` (one-time per account, via `MDNPlayerPrefs`)
+4. Show gem rewards panel (if gems awarded)
+5. Navigate to deck builder
+
+**Detection:** Follows the same event-based pattern as `MasteryNavigator`. Subscribes to `PanelStateManager.OnPanelChanged` in `OnActivated()`, unsubscribes in `OnDeactivating()`. When a popup panel is detected (name contains "Popup", "SystemMessageView", or "Dialog"), enters popup mode.
+
+**Element discovery** (`DiscoverPopupElements`): Finds `CustomButton`, `CustomButtonWithTooltip`, and Unity `Button` components in the popup hierarchy. Sorts by visual position (top-to-bottom, left-to-right). Also extracts text blocks for Up/Down reading.
+
+**Text blocks** (`GetPopupInfoBlocks`): Same pattern as `EventAccessor.GetEventPageInfoBlocks()`. Scans all `TMP_Text` in popup, filters out button text (walks parent chain for `CustomButton`/`CustomButtonWithTooltip`), splits on newlines, skips text shorter than 3 characters, deduplicates.
+
+**Popup announcement:** "Popup: {first text block}. Up and Down for {N} items" followed by "1 of {N}: {button label}".
+
+**Popup navigation:**
+- Tab/Shift+Tab, Left/Right: Navigate between popup buttons with wrapping ("X of N: label")
+- Up/Down: Read text blocks (beginning/end of list at boundaries)
+- Enter/Space: Activate current popup button (`Strings.Activating()`, `InputManager.ConsumeKey()`)
+- Backspace: Dismiss/cancel popup (`Strings.Cancelled`, clicks first button)
+
+**Popup cleanup:** When popup becomes invalid (destroyed/deactivated), clears popup state and triggers rescan to pick up whatever is on screen next.
+
+### State Transitions
+
+```
+Draft Event Opened
+  -> DraftContentController.IsOpen = true, DraftPackHolder present
+  -> DraftNavigator activates (priority 78)
+  -> Cards discovered, initial rescan at ~1.5s
+
+Card Picking (repeat for each pack)
+  -> Enter: select card, rescan picks up changes
+  -> Space: confirm pick, rescan picks up new pack
+
+Last Card Picked + Confirmed
+  -> Rescan finds 0 cards, confirm button still present
+  -> Finalize coroutine starts
+
+Popup Appears (DraftVaultProgressPopup, first time only)
+  -> PanelStateManager.OnPanelChanged fires
+  -> DraftNavigator enters popup mode
+  -> Text blocks + dismiss button navigable
+  -> User dismisses popup
+
+Popup Dismissed
+  -> Popup cleared, rescan triggered
+  -> If more popups (gem rewards): handled same way
+  -> If no popup + 0 cards for ~5s: DetectScreen() returns false
+  -> DraftNavigator deactivates
+
+Deck Builder Opens
+  -> DraftPackHolder gone, DraftDeckView active
+  -> GeneralMenuNavigator handles deck builder
+```
 
 ---
 
@@ -169,7 +247,9 @@ When a user activates a draft event (e.g., Quick Draft), the game opens `DraftCo
 
 - `src/Core/Services/EventAccessor.cs` - All reflection-based event/packet data access
 - `src/Core/Services/UITextExtractor.cs` - `TryGetEventTileLabel`, `TryGetPacketLabel`
-- `src/Core/Services/MenuScreenDetector.cs` - Screen detection for EventPage, PacketSelect
+- `src/Core/Services/MenuScreenDetector.cs` - Screen detection for EventPage, PacketSelect, Draft
 - `src/Core/Services/GeneralMenuNavigator.cs` - Packet navigation, info blocks, activation, rescan
-- `src/Core/Services/DraftNavigator.cs` - Draft card picking navigator
+- `src/Core/Services/DraftNavigator.cs` - Draft card picking navigator with popup handling
+- `src/Core/Services/CardDetector.cs` - Card detection (includes `DraftPackCardView` recognition)
+- `src/Core/Services/CardModelProvider.cs` - Card model extraction (includes `DraftPackCardView`)
 - `src/Core/Models/Strings.cs` - Localized strings for event/packet/draft labels

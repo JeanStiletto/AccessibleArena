@@ -508,6 +508,8 @@
   "ScreenDraftPick": "Draft-Auswahl",
   "ScreenDraftPick_One": "Draft-Auswahl, 1 Karte",
   "ScreenDraftPick_Format": "Draft-Auswahl, {0} Karten",
+  "ScreenDraftPopup": "Draft, Popup",
+  "UpDownForMore_Format": "Hoch und Runter für {0} Einträge",
   "ScreenFriends": "Freunde",
   "ScreenHomeWithEvents": "Startseite mit Events",
   "ScreenHomeWithColorChallenge": "Startseite mit Farb-Herausforderung",

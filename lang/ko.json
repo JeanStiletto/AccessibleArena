@@ -507,6 +507,8 @@
   "ScreenDraftPick": "Draft Pick",
   "ScreenDraftPick_One": "Draft Pick, 1 card",
   "ScreenDraftPick_Format": "Draft Pick, {0} cards",
+  "ScreenDraftPopup": "Draft, Popup",
+  "UpDownForMore_Format": "Up and Down for {0} items",
   "ScreenFriends": "친구",
   "ScreenHomeWithEvents": "홈 (이벤트 포함)",
   "ScreenHomeWithColorChallenge": "홈 (색상 도전 포함)",
