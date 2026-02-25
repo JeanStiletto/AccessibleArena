@@ -30,7 +30,7 @@ namespace AccessibleArena.Core.Services
         // --- EventPageContentController reflection cache ---
         private static bool _eventPageReflectionInit;
         private static FieldInfo _currentEventContextField; // _currentEventContext (EventContext)
-        private static PropertyInfo _playerEventProp;       // EventContext.PlayerEvent
+        private static FieldInfo _playerEventField;           // EventContext.PlayerEvent (field, not property)
         private static PropertyInfo _eventInfoProp;         // IPlayerEvent.EventInfo
         private static PropertyInfo _eventUxInfoProp;       // IPlayerEvent.EventUXInfo
 
@@ -336,14 +336,14 @@ namespace AccessibleArena.Core.Services
             var eventContext = _currentEventContextField.GetValue(controller);
             if (eventContext == null) return null;
 
-            // Lazy init PlayerEvent property
-            if (_playerEventProp == null)
+            // Lazy init PlayerEvent field
+            if (_playerEventField == null)
             {
-                _playerEventProp = eventContext.GetType().GetProperty("PlayerEvent", PublicInstance);
-                if (_playerEventProp == null) return null;
+                _playerEventField = eventContext.GetType().GetField("PlayerEvent", PublicInstance);
+                if (_playerEventField == null) return null;
             }
 
-            var playerEvent = _playerEventProp.GetValue(eventContext);
+            var playerEvent = _playerEventField.GetValue(eventContext);
             if (playerEvent == null) return null;
 
             // Lazy init EventInfo and EventUXInfo props
