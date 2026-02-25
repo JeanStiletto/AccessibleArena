@@ -42,6 +42,7 @@ namespace AccessibleArena.Core.Services
         private GameObject _activePopup;
         private readonly List<PopupItem> _items = new List<PopupItem>();
         private int _currentIndex;
+        private string _title;
 
         #endregion
 
@@ -114,6 +115,7 @@ namespace AccessibleArena.Core.Services
             _activePopup = null;
             _items.Clear();
             _currentIndex = -1;
+            _title = null;
         }
 
         /// <summary>
@@ -229,10 +231,14 @@ namespace AccessibleArena.Core.Services
         private void DiscoverItems()
         {
             _items.Clear();
+            _title = null;
 
             if (_activePopup == null) return;
 
-            // Phase 1: Discover text blocks (non-button TMP_Text)
+            // Phase 0: Extract title from title/header container
+            _title = ExtractTitle();
+
+            // Phase 1: Discover text blocks (non-button TMP_Text, excluding title)
             DiscoverTextBlocks();
 
             // Phase 2: Discover buttons
@@ -253,6 +259,9 @@ namespace AccessibleArena.Core.Services
 
                 // Skip text inside buttons
                 if (IsInsideButton(tmp.transform, _activePopup.transform)) continue;
+
+                // Skip title/header text — it's already announced in "Popup: {title}"
+                if (IsInsideTitleContainer(tmp.transform, _activePopup.transform)) continue;
 
                 string text = UITextExtractor.CleanText(tmp.text);
                 if (string.IsNullOrWhiteSpace(text) || text.Length < 3) continue;
@@ -394,20 +403,23 @@ namespace AccessibleArena.Core.Services
 
         private void AnnouncePopupOpen()
         {
-            // Find first text block for context
-            string firstText = null;
-            foreach (var item in _items)
+            // Use extracted title, fall back to first text block
+            string context = _title;
+            if (string.IsNullOrEmpty(context))
             {
-                if (item.Type == PopupItemType.TextBlock)
+                foreach (var item in _items)
                 {
-                    firstText = item.Label;
-                    break;
+                    if (item.Type == PopupItemType.TextBlock)
+                    {
+                        context = item.Label;
+                        break;
+                    }
                 }
             }
 
             string announcement;
-            if (!string.IsNullOrEmpty(firstText))
-                announcement = $"Popup: {firstText}. {_items.Count} items.";
+            if (!string.IsNullOrEmpty(context))
+                announcement = $"Popup: {context}. {_items.Count} items.";
             else
                 announcement = $"Popup. {_items.Count} items.";
 
@@ -434,6 +446,46 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Extract the popup title from a title/header container.
+        /// Returns null if no title container found.
+        /// </summary>
+        private string ExtractTitle()
+        {
+            if (_activePopup == null) return null;
+
+            foreach (var tmp in _activePopup.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+                if (!IsInsideTitleContainer(tmp.transform, _activePopup.transform)) continue;
+
+                string text = UITextExtractor.CleanText(tmp.text);
+                if (!string.IsNullOrWhiteSpace(text) && text.Length >= 3)
+                    return text.Trim();
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Check if a transform is inside a title/header container.
+        /// Walks up from child to stopAt (exclusive), checking for "Title" or "Header" in names.
+        /// </summary>
+        private static bool IsInsideTitleContainer(Transform child, Transform stopAt)
+        {
+            // Check the element itself and all parents up to the popup root
+            Transform current = child;
+            while (current != null && current != stopAt)
+            {
+                string name = current.name;
+                if (name.IndexOf("Title", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    name.IndexOf("Header", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+                current = current.parent;
+            }
+            return false;
+        }
 
         /// <summary>
         /// Check if a transform is inside a button (CustomButton, CustomButtonWithTooltip,
