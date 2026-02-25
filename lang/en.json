@@ -342,7 +342,7 @@
   "PopupCancel": "Cancel",
 
   "NavigateHint": "Arrow keys to navigate, Enter to select",
-  "DuelKeybindingsHint": "Tab cycles playable cards. C for hand. B for your creatures, A for your lands, R for your non-creatures. Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. P for your timer, Shift plus P for opponent timer. Alt plus up or down switches battlefield rows",
+  "DuelKeybindingsHint": "Tab cycles playable cards. C for hand. B for your creatures, A for your lands, R for your non-creatures. Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. V for player info. P for full control, Shift plus P to lock. Number keys 1 to 0 for phase stops",
   "ItemsCount_One": "1 item",
   "ItemsCount_Format": "{0} items",
   "ActivationWithItems_Format": "{0}. {1}. {2}",
@@ -777,6 +777,27 @@
   "EventPageSummary_Format": "{0}/{1} wins",
   "EventScreenTitle_Format": "Event: {0}",
   "PacketOf_Format": "Packet {0} of {1}",
+
+  "FullControl_On": "Full control on",
+  "FullControl_Off": "Full control off",
+  "FullControl_Locked": "Full control locked",
+  "FullControl_Unlocked": "Full control unlocked",
+  "PhaseStop_Set_Format": "Stop set: {0}",
+  "PhaseStop_Cleared_Format": "Stop cleared: {0}",
+
+  "PhaseStop_Upkeep": "Upkeep",
+  "PhaseStop_Draw": "Draw",
+  "PhaseStop_FirstMain": "First main",
+  "PhaseStop_BeginCombat": "Begin combat",
+  "PhaseStop_DeclareAttackers": "Declare attackers",
+  "PhaseStop_DeclareBlockers": "Declare blockers",
+  "PhaseStop_CombatDamage": "Combat damage",
+  "PhaseStop_EndCombat": "End combat",
+  "PhaseStop_SecondMain": "Second main",
+  "PhaseStop_EndStep": "End step",
+
+  "HelpPFullControl": "P: Full control, Shift plus P: Lock full control",
+  "HelpNumberPhaseStops": "1 to 0: Toggle phase stops (upkeep through end step)",
 
   "NumberWords": "a=1,an=1,one=1,two=2,three=3,four=4,five=5,six=6,seven=7,eight=8,nine=9,ten=10"
 }

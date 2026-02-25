@@ -341,7 +341,7 @@
   "PopupCancel": "Abbrechen",
 
   "NavigateHint": "Pfeiltasten zum Navigieren, Enter zum Auswählen",
-  "DuelKeybindingsHint": "Tab cycles playable cards. C for hand. B for your creatures, A for your lands, R for your non-creatures. Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. P for your timer, Shift plus P for opponent timer. Alt plus up or down switches battlefield rows",
+  "DuelKeybindingsHint": "Tab durchläuft spielbare Karten. C für Hand. B für deine Kreaturen, A für deine Länder, R für deine Nicht-Kreaturen. Umschalt plus B, A, R für Gegner. G für Friedhof, X für Exil, S für Stapel. V für Spielerinfo. P für volle Kontrolle, Umschalt plus P zum Sperren. Ziffertasten 1 bis 0 für Phasenstopps",
   "ItemsCount_One": "1 Gegenstand",
   "ItemsCount_Format": "{0} Gegenstände",
   "ActivationWithItems_Format": "{0}. {1}. {2}",
@@ -770,6 +770,27 @@
   "EventPageSummary_Format": "{0}/{1} Siege",
   "EventScreenTitle_Format": "Event: {0}",
   "PacketOf_Format": "Paket {0} von {1}",
+
+  "FullControl_On": "Volle Kontrolle an",
+  "FullControl_Off": "Volle Kontrolle aus",
+  "FullControl_Locked": "Volle Kontrolle gesperrt",
+  "FullControl_Unlocked": "Volle Kontrolle entsperrt",
+  "PhaseStop_Set_Format": "Stopp gesetzt: {0}",
+  "PhaseStop_Cleared_Format": "Stopp entfernt: {0}",
+
+  "PhaseStop_Upkeep": "Versorgungsphase",
+  "PhaseStop_Draw": "Ziehen",
+  "PhaseStop_FirstMain": "Erste Hauptphase",
+  "PhaseStop_BeginCombat": "Kampfbeginn",
+  "PhaseStop_DeclareAttackers": "Angreifer deklarieren",
+  "PhaseStop_DeclareBlockers": "Blocker deklarieren",
+  "PhaseStop_CombatDamage": "Kampfschaden",
+  "PhaseStop_EndCombat": "Kampfende",
+  "PhaseStop_SecondMain": "Zweite Hauptphase",
+  "PhaseStop_EndStep": "Endschritt",
+
+  "HelpPFullControl": "P: Volle Kontrolle, Umschalt plus P: Volle Kontrolle sperren",
+  "HelpNumberPhaseStops": "1 bis 0: Phasenstopps umschalten (Versorgungsphase bis Endschritt)",
 
   "NumberWords": "eine=1,einer=1,einem=1,einen=1,ein=1,zwei=2,drei=3,vier=4,fünf=5,sechs=6,sieben=7,acht=8,neun=9,zehn=10"
 }

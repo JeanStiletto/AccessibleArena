@@ -174,7 +174,11 @@ namespace AccessibleArena.Core.Services
             KeyCode.T,  // Turn info
             KeyCode.L,  // Life totals
             KeyCode.A,  // Mana pool (Shift+A for opponent)
-            KeyCode.P,  // Pass priority
+            KeyCode.P,  // Full control toggle (P / Shift+P for lock)
+
+            // Number keys for phase stops (duel) and filters (collection)
+            KeyCode.Alpha1, KeyCode.Alpha2, KeyCode.Alpha3, KeyCode.Alpha4, KeyCode.Alpha5,
+            KeyCode.Alpha6, KeyCode.Alpha7, KeyCode.Alpha8, KeyCode.Alpha9, KeyCode.Alpha0,
 
             // Function keys (safe)
             KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4,

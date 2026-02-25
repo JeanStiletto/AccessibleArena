@@ -126,6 +126,12 @@ T (Turn), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descrip
 D (Your Library), Shift+D (Opponent Library), Shift+C (Opponent Hand Count)
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 
+**Duel - Full Control & Phase Stops:**
+P: Toggle full control (temporary, resets on phase change)
+Shift+P: Toggle locked full control (permanent)
+1-0: Toggle phase stops (1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers, 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step)
+Note: Ctrl is blocked from reaching the game in duels (prevents accidental full control toggle when silencing NVDA)
+
 **Duel - Combat:**
 Declare Attackers: Space (All Attack / X Attack), Backspace (No Attacks)
 Declare Blockers: Space (Confirm Blocks / Next), Backspace (No Blocks / Cancel Blocks)

@@ -1052,6 +1052,32 @@ namespace AccessibleArena.Core.Models
         public static string PacketOf(int current, int total) => L.Format("PacketOf_Format", current, total);
 
         // ===========================================
+        // FULL CONTROL & PHASE STOPS
+        // ===========================================
+        public static string FullControl_On => L.Get("FullControl_On");
+        public static string FullControl_Off => L.Get("FullControl_Off");
+        public static string FullControl_Locked => L.Get("FullControl_Locked");
+        public static string FullControl_Unlocked => L.Get("FullControl_Unlocked");
+        public static string PhaseStop_Set(string phase) => L.Format("PhaseStop_Set_Format", phase);
+        public static string PhaseStop_Cleared(string phase) => L.Format("PhaseStop_Cleared_Format", phase);
+
+        // Phase stop names (for announcements)
+        public static string PhaseStop_Upkeep => L.Get("PhaseStop_Upkeep");
+        public static string PhaseStop_Draw => L.Get("PhaseStop_Draw");
+        public static string PhaseStop_FirstMain => L.Get("PhaseStop_FirstMain");
+        public static string PhaseStop_BeginCombat => L.Get("PhaseStop_BeginCombat");
+        public static string PhaseStop_DeclareAttackers => L.Get("PhaseStop_DeclareAttackers");
+        public static string PhaseStop_DeclareBlockers => L.Get("PhaseStop_DeclareBlockers");
+        public static string PhaseStop_CombatDamage => L.Get("PhaseStop_CombatDamage");
+        public static string PhaseStop_EndCombat => L.Get("PhaseStop_EndCombat");
+        public static string PhaseStop_SecondMain => L.Get("PhaseStop_SecondMain");
+        public static string PhaseStop_EndStep => L.Get("PhaseStop_EndStep");
+
+        // Help entries for full control and phase stops
+        public static string HelpPFullControl => L.Get("HelpPFullControl");
+        public static string HelpNumberPhaseStops => L.Get("HelpNumberPhaseStops");
+
+        // ===========================================
         // FRIEND ACTIONS
         // ===========================================
         public static string FriendActionChat => L.Get("FriendActionChat");

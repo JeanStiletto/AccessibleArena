@@ -106,6 +106,8 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpEnterSelect,
                 Strings.HelpYUndo,
                 Strings.HelpQQFloatMana,
+                Strings.HelpPFullControl,
+                Strings.HelpNumberPhaseStops,
 
                 // Combat
                 Strings.HelpCategoryCombat,

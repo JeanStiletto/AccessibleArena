@@ -113,9 +113,15 @@ namespace AccessibleArena.Patches
             // In DuelScene, block Enter entirely - our mod handles all Enter presses
             // This prevents "Pass until response" from triggering when we press Enter
             // for card playing, target selection, player info zone, etc.
+            // Also block Ctrl - prevents game's native full control toggle from firing
+            // when blind users press Ctrl to silence NVDA speech. Our mod uses P/Shift+P instead.
             if (IsInDuelScene())
             {
                 if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
+                {
+                    return true;
+                }
+                if (key == KeyCode.LeftControl || key == KeyCode.RightControl)
                 {
                     return true;
                 }

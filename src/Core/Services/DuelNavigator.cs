@@ -34,6 +34,7 @@ namespace AccessibleArena.Core.Services
         private BrowserNavigator _browserNavigator;
         private ManaColorPickerNavigator _manaColorPicker;
         private PlayerPortraitNavigator _portraitNavigator;
+        private PriorityController _priorityController;
         private DuelAnnouncer _duelAnnouncer;
 
         // DEPRECATED: Old separate navigators replaced by unified HotHighlightNavigator
@@ -72,6 +73,7 @@ namespace AccessibleArena.Core.Services
             _browserNavigator = new BrowserNavigator(announcer);
             _manaColorPicker = new ManaColorPickerNavigator(announcer);
             _portraitNavigator = new PlayerPortraitNavigator(announcer);
+            _priorityController = new PriorityController();
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
             _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
@@ -150,6 +152,7 @@ namespace AccessibleArena.Core.Services
                 _battlefieldNavigator.Deactivate();
                 _portraitNavigator.Deactivate();
                 _duelAnnouncer.Deactivate();
+                _priorityController.ClearCache();
             }
 
             base.OnSceneChanged(sceneName);
@@ -400,6 +403,33 @@ namespace AccessibleArena.Core.Services
             if (_portraitNavigator.HandleInput())
                 return true;
 
+            // P key: Full control toggle
+            if (Input.GetKeyDown(KeyCode.P))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                if (shift)
+                {
+                    var result = _priorityController.ToggleLockFullControl();
+                    if (result.HasValue)
+                    {
+                        _announcer.AnnounceInterrupt(result.Value ? Strings.FullControl_Locked : Strings.FullControl_Unlocked);
+                    }
+                }
+                else
+                {
+                    var result = _priorityController.ToggleFullControl();
+                    if (result.HasValue)
+                    {
+                        _announcer.AnnounceInterrupt(result.Value ? Strings.FullControl_On : Strings.FullControl_Off);
+                    }
+                }
+                return true;
+            }
+
+            // Number keys 1-0: Phase stop toggles (only when mana picker is NOT active)
+            if (HandlePhaseStopKeys())
+                return true;
+
             // T key: Announce browser name if active, otherwise turn and phase info
             if (Input.GetKeyDown(KeyCode.T))
             {
@@ -453,6 +483,40 @@ namespace AccessibleArena.Core.Services
         }
 
         #region Helper Methods
+
+        /// <summary>
+        /// Handle number keys 1-0 for toggling phase stops.
+        /// Maps: 1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers,
+        /// 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step.
+        /// </summary>
+        private bool HandlePhaseStopKeys()
+        {
+            // Map KeyCode.Alpha1-Alpha9 to index 0-8, Alpha0 to index 9
+            int keyIndex = -1;
+
+            if (Input.GetKeyDown(KeyCode.Alpha1)) keyIndex = 0;
+            else if (Input.GetKeyDown(KeyCode.Alpha2)) keyIndex = 1;
+            else if (Input.GetKeyDown(KeyCode.Alpha3)) keyIndex = 2;
+            else if (Input.GetKeyDown(KeyCode.Alpha4)) keyIndex = 3;
+            else if (Input.GetKeyDown(KeyCode.Alpha5)) keyIndex = 4;
+            else if (Input.GetKeyDown(KeyCode.Alpha6)) keyIndex = 5;
+            else if (Input.GetKeyDown(KeyCode.Alpha7)) keyIndex = 6;
+            else if (Input.GetKeyDown(KeyCode.Alpha8)) keyIndex = 7;
+            else if (Input.GetKeyDown(KeyCode.Alpha9)) keyIndex = 8;
+            else if (Input.GetKeyDown(KeyCode.Alpha0)) keyIndex = 9;
+
+            if (keyIndex < 0) return false;
+
+            var result = _priorityController.TogglePhaseStop(keyIndex);
+            if (result.HasValue)
+            {
+                string announcement = result.Value.isSet
+                    ? Strings.PhaseStop_Set(result.Value.phaseName)
+                    : Strings.PhaseStop_Cleared(result.Value.phaseName);
+                _announcer.AnnounceInterrupt(announcement);
+            }
+            return true;
+        }
 
         private bool HasPreGameCancelButton()
         {

@@ -113,20 +113,6 @@ Removed redundant activation methods from `SimulatePointerClick` and `Activate` 
 
 ---
 
-### OptionalAction Browser Navigation (Shocklands)
-
-Added Tab cycling through cards and choice buttons for OptionalAction browsers (e.g., shocklands like Dampfschlote with "pay 2 life or enter tapped"). Also guarded Space/Backspace from clicking unrelated duel phase PromptButtons. Needs in-game testing with:
-- Shocklands (pay 2 life / enter tapped)
-- Other OptionalAction prompts (painlands, channel lands, etc.)
-- Verify Tab cycles: card → choice buttons → wrap
-- Verify Enter activates the focused button
-- Verify Space/Backspace don't click unrelated duel buttons
-- Verify other browsers (Scry, Surveil, SelectCards, Mulligan) are unaffected
-
-**Files:** `BrowserNavigator.cs`, `BrowserDetector.cs`
-
----
-
 ### Other Windows Versions and Screen Readers
 
 Only tested on Windows 11 with NVDA. Other Windows versions (Windows 10) and other screen readers (JAWS, Narrator, etc.) may work via Tolk but are untested.
