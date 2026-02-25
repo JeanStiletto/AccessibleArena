@@ -190,6 +190,11 @@ namespace AccessibleArena.Core.Services
         private List<CardInfoBlock> _packetBlocks;
         private int _packetBlockIndex;
 
+        // Event page info sub-navigation state
+        // Up/Down navigates through event description text blocks
+        private List<CardInfoBlock> _eventInfoBlocks;
+        private int _eventInfoIndex = -1;
+
         // Popup overlay tracking (follows SettingsMenuNavigator pattern)
         private GameObject _activePopup;
         private bool _isPopupActive;
@@ -3145,6 +3150,13 @@ namespace AccessibleArena.Core.Services
             DetectActiveContentController();
             LogDebug($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
 
+            // Clear event page info blocks when controller changes
+            if (previousController != _activeContentController)
+            {
+                _eventInfoBlocks = null;
+                _eventInfoIndex = -1;
+            }
+
             // Remember the navigator's current selection before clearing
             GameObject previousSelection = null;
             if (_currentIndex >= 0 && _currentIndex < _elements.Count)
@@ -4389,6 +4401,24 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void MoveNext()
         {
+            // Event page info: Up/Down navigates description text blocks
+            // Tab still falls through to normal element navigation
+            if (IsEventPageInfoActive() && !Input.GetKey(KeyCode.Tab))
+            {
+                EnsureEventInfoBlocks();
+                if (_eventInfoBlocks != null && _eventInfoBlocks.Count > 0)
+                {
+                    if (_eventInfoIndex >= _eventInfoBlocks.Count - 1)
+                    {
+                        _announcer.AnnounceInterrupt(Strings.EndOfList);
+                        return;
+                    }
+                    _eventInfoIndex++;
+                    AnnounceEventInfoBlock();
+                    return;
+                }
+            }
+
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 // DeckBuilderInfo 2D navigation: Down arrow switches to next row
@@ -4464,6 +4494,25 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void MovePrevious()
         {
+            // Event page info: Up/Down navigates description text blocks
+            // Tab still falls through to normal element navigation
+            if (IsEventPageInfoActive() && !Input.GetKey(KeyCode.Tab))
+            {
+                EnsureEventInfoBlocks();
+                if (_eventInfoBlocks != null && _eventInfoBlocks.Count > 0)
+                {
+                    if (_eventInfoIndex <= 0)
+                    {
+                        _eventInfoIndex = 0;
+                        _announcer.AnnounceInterrupt(Strings.BeginningOfList);
+                        return;
+                    }
+                    _eventInfoIndex--;
+                    AnnounceEventInfoBlock();
+                    return;
+                }
+            }
+
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 // DeckBuilderInfo 2D navigation: Up arrow switches to previous row
@@ -5454,6 +5503,43 @@ namespace AccessibleArena.Core.Services
                 // Fallback to standard announcement
                 _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
             }
+        }
+
+        #endregion
+
+        #region Event Page Info Sub-Navigation
+
+        /// <summary>
+        /// Check if we're on an event page where Up/Down should navigate info blocks.
+        /// </summary>
+        private bool IsEventPageInfoActive()
+        {
+            return _activeContentController == "EventPageContentController";
+        }
+
+        /// <summary>
+        /// Lazy-load event info blocks from EventAccessor if not yet populated.
+        /// </summary>
+        private void EnsureEventInfoBlocks()
+        {
+            if (_eventInfoBlocks == null)
+            {
+                _eventInfoBlocks = EventAccessor.GetEventPageInfoBlocks();
+                _eventInfoIndex = -1;
+                LogDebug($"[{NavigatorId}] Event info blocks: {_eventInfoBlocks?.Count ?? 0}");
+            }
+        }
+
+        /// <summary>
+        /// Announce the current event info block.
+        /// </summary>
+        private void AnnounceEventInfoBlock()
+        {
+            if (_eventInfoBlocks == null || _eventInfoBlocks.Count == 0) return;
+            if (_eventInfoIndex < 0 || _eventInfoIndex >= _eventInfoBlocks.Count) return;
+
+            var block = _eventInfoBlocks[_eventInfoIndex];
+            _announcer.AnnounceInterrupt($"{block.Label}: {block.Content}");
         }
 
         #endregion

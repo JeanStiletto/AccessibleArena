@@ -777,6 +777,7 @@
   "EventPageSummary_Format": "{0}/{1} wins",
   "EventScreenTitle_Format": "Event: {0}",
   "PacketOf_Format": "Packet {0} of {1}",
+  "EventInfoLabel": "Info",
 
   "FullControl_On": "Full control on",
   "FullControl_Off": "Full control off",

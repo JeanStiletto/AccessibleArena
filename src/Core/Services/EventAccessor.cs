@@ -355,6 +355,99 @@ namespace AccessibleArena.Core.Services
             return playerEvent;
         }
 
+        /// <summary>
+        /// Get navigable info blocks from the event page's text content.
+        /// Scans all active TMP_Text in the EventPageContentController hierarchy,
+        /// filters out button text and objective/progress milestones, and splits
+        /// long texts on newlines for screen reader readability.
+        /// </summary>
+        public static System.Collections.Generic.List<CardInfoBlock> GetEventPageInfoBlocks()
+        {
+            var blocks = new System.Collections.Generic.List<CardInfoBlock>();
+
+            try
+            {
+                var controller = FindEventPageController();
+                if (controller == null) return blocks;
+
+                var seenTexts = new System.Collections.Generic.HashSet<string>();
+                string label = Strings.EventInfoLabel;
+
+                foreach (var tmp in controller.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                {
+                    if (tmp == null) continue;
+
+                    string text = UITextExtractor.CleanText(tmp.text);
+                    if (string.IsNullOrWhiteSpace(text) || text.Length < 5) continue;
+
+                    // Skip text inside CustomButton parent chain (buttons)
+                    if (IsInsideComponent(tmp.transform, controller.transform, "CustomButton"))
+                        continue;
+                    if (IsInsideComponent(tmp.transform, controller.transform, "CustomButtonWithTooltip"))
+                        continue;
+
+                    // Skip text inside GameObjects with "Objective" in name (progress milestones)
+                    if (IsInsideNamedParent(tmp.transform, controller.transform, "Objective"))
+                        continue;
+
+                    // Split long texts on newlines for readability
+                    var lines = text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string line in lines)
+                    {
+                        string trimmed = line.Trim();
+                        if (trimmed.Length < 5) continue;
+                        if (seenTexts.Contains(trimmed)) continue;
+
+                        seenTexts.Add(trimmed);
+                        blocks.Add(new CardInfoBlock(label, trimmed, isVerbose: false));
+                    }
+                }
+
+                MelonLogger.Msg($"[EventAccessor] GetEventPageInfoBlocks: {blocks.Count} blocks");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[EventAccessor] GetEventPageInfoBlocks failed: {ex.Message}");
+            }
+
+            return blocks;
+        }
+
+        /// <summary>
+        /// Check if a transform is inside a parent with a component of the given type name.
+        /// Walks up from child to stopAt (exclusive).
+        /// </summary>
+        private static bool IsInsideComponent(Transform child, Transform stopAt, string typeName)
+        {
+            Transform current = child.parent;
+            while (current != null && current != stopAt)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == typeName)
+                        return true;
+                }
+                current = current.parent;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if a transform is inside a parent whose GameObject name contains the given substring.
+        /// Walks up from child to stopAt (exclusive).
+        /// </summary>
+        private static bool IsInsideNamedParent(Transform child, Transform stopAt, string nameSubstring)
+        {
+            Transform current = child.parent;
+            while (current != null && current != stopAt)
+            {
+                if (current.gameObject.name.Contains(nameSubstring))
+                    return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
         #endregion
 
         #region Packet Selection

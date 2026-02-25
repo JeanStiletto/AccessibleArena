@@ -1050,6 +1050,7 @@ namespace AccessibleArena.Core.Models
         public static string EventPageSummary(int wins, int maxWins) => L.Format("EventPageSummary_Format", wins, maxWins);
         public static string EventScreenTitle(string eventName) => L.Format("EventScreenTitle_Format", eventName);
         public static string PacketOf(int current, int total) => L.Format("PacketOf_Format", current, total);
+        public static string EventInfoLabel => L.Get("EventInfoLabel");
 
         // ===========================================
         // FULL CONTROL & PHASE STOPS

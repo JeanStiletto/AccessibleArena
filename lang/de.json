@@ -770,6 +770,7 @@
   "EventPageSummary_Format": "{0}/{1} Siege",
   "EventScreenTitle_Format": "Event: {0}",
   "PacketOf_Format": "Paket {0} von {1}",
+  "EventInfoLabel": "Info",
 
   "FullControl_On": "Volle Kontrolle an",
   "FullControl_Off": "Volle Kontrolle aus",
