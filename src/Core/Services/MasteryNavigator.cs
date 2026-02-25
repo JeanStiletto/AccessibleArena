@@ -47,11 +47,9 @@ namespace AccessibleArena.Core.Services
         private int _currentLevelIndex;    // Index into _levelData list (0 = status item, 1+ = levels)
         private int _currentTierIndex;     // Which reward tier within level (0=Free, 1=Premium, 2=Renewal)
 
-        // Popup overlay tracking
-        private GameObject _activePopup;
+        // Popup overlay handling
+        private readonly PopupHandler _popupHandler;
         private bool _isPopupActive;
-        private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
-        private int _popupElementIndex;
 
         // PrizeWall state
         private MonoBehaviour _prizeWallController;
@@ -184,7 +182,10 @@ namespace AccessibleArena.Core.Services
 
         #region Constructor
 
-        public MasteryNavigator(IAnnouncementService announcer) : base(announcer) { }
+        public MasteryNavigator(IAnnouncementService announcer) : base(announcer)
+        {
+            _popupHandler = new PopupHandler("Mastery", announcer);
+        }
 
         #endregion
 
@@ -295,20 +296,17 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            if (newPanel != null && IsPopupPanel(newPanel))
+            if (newPanel != null && !IsPopupExcluded(newPanel) && PopupHandler.IsPopupPanel(newPanel))
             {
                 MelonLogger.Msg($"[Mastery] Popup detected: {newPanel.Name}");
-                _activePopup = newPanel.GameObject;
                 _isPopupActive = true;
-                DiscoverPopupElements();
-                AnnouncePopup();
+                _popupHandler.OnPopupDetected(newPanel.GameObject);
             }
             else if (_isPopupActive && newPanel == null)
             {
                 MelonLogger.Msg("[Mastery] Popup closed, returning to navigation");
-                _activePopup = null;
                 _isPopupActive = false;
-                _popupElements.Clear();
+                _popupHandler.Clear();
                 // Re-announce current position based on mode
                 if (_mode == MasteryMode.PrizeWall)
                     AnnouncePrizeWallItem();
@@ -317,26 +315,19 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private static bool IsPopupPanel(PanelInfo panel)
+        /// <summary>
+        /// Check if a panel should be excluded from popup handling.
+        /// These are benign game overlays that aren't real popups.
+        /// </summary>
+        private static bool IsPopupExcluded(PanelInfo panel)
         {
             if (panel == null) return false;
-
             string name = panel.Name;
-
-            // Ignore benign game overlays that aren't real popups:
-            // - ObjectivePopup: daily quest overlay
-            // - FullscreenZFBrowser: embedded browser canvas
-            // - RewardPopup3DIcon: 3D reward preview shown on level hover (card art decoration)
-            if (name.Contains("ObjectivePopup") || name.Contains("FullscreenZFBrowser") ||
-                name.Contains("RewardPopup3DIcon"))
-                return false;
-
-            if (panel.Type == PanelType.Popup) return true;
-
-            return name.Contains("SystemMessageView") ||
-                   name.Contains("Popup") ||
-                   name.Contains("Dialog") ||
-                   name.Contains("Modal");
+            // ObjectivePopup: daily quest overlay
+            // FullscreenZFBrowser: embedded browser canvas
+            // RewardPopup3DIcon: 3D reward preview shown on level hover (card art decoration)
+            return name.Contains("ObjectivePopup") || name.Contains("FullscreenZFBrowser") ||
+                   name.Contains("RewardPopup3DIcon");
         }
 
         #endregion
@@ -1153,9 +1144,8 @@ namespace AccessibleArena.Core.Services
         {
             _levelData.Clear();
             _actionButtons.Clear();
-            _activePopup = null;
             _isPopupActive = false;
-            _popupElements.Clear();
+            _popupHandler.Clear();
             _prizeWallItems.Clear();
             _confirmationModalGameObject = null;
 
@@ -1445,20 +1435,16 @@ namespace AccessibleArena.Core.Services
                 if (_confirmationModalGameObject.activeInHierarchy)
                 {
                     MelonLogger.Msg("[Mastery] Confirmation modal detected via polling");
-                    _activePopup = _confirmationModalGameObject;
                     _isPopupActive = true;
-                    DiscoverPopupElements();
-                    AnnouncePopup();
+                    _popupHandler.OnPopupDetected(_confirmationModalGameObject);
                 }
             }
 
             // Check if popup is still valid
-            if (_isPopupActive && (_activePopup == null || !_activePopup.activeInHierarchy))
+            if (_isPopupActive && !_popupHandler.ValidatePopup())
             {
                 MelonLogger.Msg("[Mastery] Popup became invalid, returning to navigation");
-                _activePopup = null;
                 _isPopupActive = false;
-                _popupElements.Clear();
                 // Re-announce current position based on mode
                 if (_mode == MasteryMode.PrizeWall)
                     AnnouncePrizeWallItem();
@@ -1806,242 +1792,9 @@ namespace AccessibleArena.Core.Services
 
         #region Popup Handling
 
-        private void DiscoverPopupElements()
-        {
-            _popupElements.Clear();
-            _popupElementIndex = 0;
-
-            if (_activePopup == null) return;
-
-            MelonLogger.Msg($"[Mastery] Discovering popup elements in: {_activePopup.name}");
-
-            var addedObjects = new HashSet<GameObject>();
-            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
-
-            // Collect StoreItemBase GameObjects so we can skip buttons inside item widgets
-            var storeItemBases = new HashSet<Transform>();
-            foreach (var sib in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (sib != null && sib.GetType().Name == "StoreItemBase")
-                    storeItemBases.Add(sib.transform);
-            }
-
-            // Find CustomButton and SystemMessageButtonView components
-            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (addedObjects.Contains(mb.gameObject)) continue;
-
-                string typeName = mb.GetType().Name;
-                if (typeName == "SystemMessageButtonView" || typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
-                {
-                    // Skip buttons that are children of a StoreItemBase (item preview widget)
-                    if (IsChildOfAny(mb.transform, storeItemBases)) continue;
-
-                    string label = UITextExtractor.GetText(mb.gameObject);
-                    if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
-
-                    var pos = mb.gameObject.transform.position;
-                    discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
-                    addedObjects.Add(mb.gameObject);
-                }
-            }
-
-            // Also check standard Unity Buttons
-            foreach (var button in _activePopup.GetComponentsInChildren<UnityEngine.UI.Button>(true))
-            {
-                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
-                if (addedObjects.Contains(button.gameObject)) continue;
-
-                // Skip buttons inside item preview widget
-                if (IsChildOfAny(button.transform, storeItemBases)) continue;
-
-                string label = UITextExtractor.GetText(button.gameObject);
-                if (string.IsNullOrEmpty(label)) label = button.gameObject.name;
-
-                var pos = button.gameObject.transform.position;
-                discovered.Add((button.gameObject, label, -pos.y * 1000 + pos.x));
-                addedObjects.Add(button.gameObject);
-            }
-
-            // Sort by visual position: top-to-bottom, left-to-right
-            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
-            {
-                _popupElements.Add((obj, label));
-            }
-
-            // Add synthetic Cancel option (dismisses the modal)
-            _popupElements.Add((null, Strings.PopupCancel));
-
-            MelonLogger.Msg($"[Mastery] Popup has {_popupElements.Count} elements " +
-                $"(skipped {storeItemBases.Count} item widgets)");
-        }
-
-        private static bool IsChildOfAny(Transform child, HashSet<Transform> parents)
-        {
-            var current = child.parent;
-            while (current != null)
-            {
-                if (parents.Contains(current)) return true;
-                current = current.parent;
-            }
-            return false;
-        }
-
-        private void AnnouncePopup()
-        {
-            // Extract popup body text (skipping button labels)
-            string bodyText = ExtractPopupBodyText(_activePopup);
-            string announcement;
-
-            if (!string.IsNullOrEmpty(bodyText))
-                announcement = $"Popup: {bodyText}. {_popupElements.Count} options.";
-            else
-                announcement = $"Popup. {_popupElements.Count} options.";
-
-            _announcer.AnnounceInterrupt(announcement);
-
-            if (_popupElements.Count > 0)
-            {
-                _popupElementIndex = 0;
-                _announcer.Announce($"1 of {_popupElements.Count}: {_popupElements[0].label}",
-                    AnnouncementPriority.Normal);
-            }
-        }
-
-        private string ExtractPopupBodyText(GameObject popup)
-        {
-            if (popup == null) return null;
-
-            var texts = popup.GetComponentsInChildren<TMPro.TMP_Text>(true)
-                .Where(t => t != null && t.gameObject.activeInHierarchy)
-                .OrderByDescending(t => t.fontSize)
-                .ToList();
-
-            foreach (var text in texts)
-            {
-                string content = text.text?.Trim();
-                if (string.IsNullOrEmpty(content) || content.Length < 5) continue;
-
-                // Skip text that lives under a button parent
-                var parent = text.transform.parent;
-                bool isButtonText = false;
-                while (parent != null)
-                {
-                    string parentName = parent.name.ToLower();
-                    if (parentName.Contains("button"))
-                    {
-                        isButtonText = true;
-                        break;
-                    }
-                    parent = parent.parent;
-                }
-
-                if (!isButtonText)
-                {
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
-                    if (!string.IsNullOrEmpty(content))
-                        return content;
-                }
-            }
-
-            return null;
-        }
-
         private void HandlePopupInput()
         {
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) ||
-                (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))))
-            {
-                if (_popupElements.Count > 0)
-                {
-                    _popupElementIndex--;
-                    if (_popupElementIndex < 0) _popupElementIndex = _popupElements.Count - 1;
-                    _announcer.AnnounceInterrupt(
-                        $"{_popupElementIndex + 1} of {_popupElements.Count}: {_popupElements[_popupElementIndex].label}");
-                }
-                return;
-            }
-
-            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) ||
-                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
-            {
-                if (_popupElements.Count > 0)
-                {
-                    _popupElementIndex++;
-                    if (_popupElementIndex >= _popupElements.Count) _popupElementIndex = 0;
-                    _announcer.AnnounceInterrupt(
-                        $"{_popupElementIndex + 1} of {_popupElements.Count}: {_popupElements[_popupElementIndex].label}");
-                }
-                return;
-            }
-
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
-                Input.GetKeyDown(KeyCode.Space))
-            {
-                InputManager.ConsumeKey(KeyCode.Return);
-                InputManager.ConsumeKey(KeyCode.KeypadEnter);
-
-                if (_popupElements.Count > 0 && _popupElementIndex < _popupElements.Count)
-                {
-                    var elem = _popupElements[_popupElementIndex];
-                    if (elem.obj == null)
-                    {
-                        // Synthetic Cancel option - dismiss the modal
-                        DismissPopup();
-                    }
-                    else
-                    {
-                        _announcer.AnnounceInterrupt(Strings.Activating(elem.label));
-                        UIActivator.Activate(elem.obj);
-                    }
-                }
-                return;
-            }
-
-            if (Input.GetKeyDown(KeyCode.Backspace))
-            {
-                InputManager.ConsumeKey(KeyCode.Backspace);
-                DismissPopup();
-                return;
-            }
-        }
-
-        private void DismissPopup()
-        {
-            _announcer.AnnounceInterrupt(Strings.Cancelled);
-
-            // For confirmation modal, call Close() via the StoreConfirmationModal
-            if (_confirmationModalGameObject != null && _activePopup == _confirmationModalGameObject)
-            {
-                // Find the Close method on StoreConfirmationModal
-                foreach (var mb in _confirmationModalGameObject.GetComponents<MonoBehaviour>())
-                {
-                    if (mb == null) continue;
-                    var closeMethod = mb.GetType().GetMethod("Close",
-                        BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
-                    if (closeMethod != null)
-                    {
-                        try
-                        {
-                            closeMethod.Invoke(mb, null);
-                            MelonLogger.Msg("[Mastery] Dismissed confirmation modal via Close()");
-                            return;
-                        }
-                        catch (Exception ex)
-                        {
-                            MelonLogger.Msg($"[Mastery] Error calling Close(): {ex.Message}");
-                        }
-                    }
-                }
-            }
-
-            // Fallback: deactivate the popup
-            if (_activePopup != null)
-            {
-                _activePopup.SetActive(false);
-                MelonLogger.Msg("[Mastery] Dismissed popup via SetActive(false)");
-            }
+            _popupHandler.HandleInput();
         }
 
         #endregion

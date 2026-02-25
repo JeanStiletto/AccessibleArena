@@ -1456,20 +1456,43 @@ follow these guidelines to avoid common pitfalls:
 
 ### Popup Handling Pattern (February 2026)
 
-Navigators that manage screens where popups can appear (confirmation dialogs, system messages, purchase modals) should use this pattern. StoreNavigator is the reference implementation.
+Navigators that manage screens where popups can appear (confirmation dialogs, system messages, purchase modals) should use the shared `PopupHandler` utility class (`src/Core/Services/PopupHandler.cs`).
 
 **Key Concepts:**
+- `PopupHandler` is a shared utility - each navigator creates its own instance
 - Popups are detected via `PanelStateManager.OnPanelChanged` events (system popups) or polling (screen-specific modals)
 - When a popup is active, navigation switches to popup elements only
-- Popup input is handled before normal navigation in the input loop
-- Backspace dismisses the popup and returns to normal navigation
+- Navigation model: Up/Down through a flat list of text blocks (first) + buttons (after), no wraparound
+- Backspace dismisses the popup via a 3-level fallback chain
 
-**State Fields:**
+**PopupHandler API:**
 ```csharp
-private GameObject _activePopup;
+// Static detection
+PopupHandler.IsPopupPanel(PanelInfo panel)  // PanelType.Popup OR name contains "SystemMessage"/"Popup"/"Dialog"/"Modal"
+
+// Lifecycle
+handler.OnPopupDetected(GameObject popup)   // Discovers items + announces
+handler.Clear()                             // Resets all state
+handler.ValidatePopup()                     // Returns false if popup gone
+
+// Properties
+handler.IsActive                            // Whether a popup is currently tracked
+handler.ActivePopup                         // The popup GameObject (null if none)
+
+// Input (returns true if consumed)
+handler.HandleInput()                       // Up/Down/Tab navigate, Enter/Space activate, Backspace dismiss
+handler.DismissPopup()                      // 3-level dismissal chain
+```
+
+**Setup - Add a PopupHandler field:**
+```csharp
+private readonly PopupHandler _popupHandler;
 private bool _isPopupActive;
-private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
-private int _popupElementIndex;
+
+public MyNavigator(IAnnouncementService announcer, ...)
+{
+    _popupHandler = new PopupHandler("MyNavigator", announcer);
+}
 ```
 
 **Detection - Subscribe to PanelStateManager:**
@@ -1485,25 +1508,22 @@ protected override void OnDeactivating()
     if (PanelStateManager.Instance != null)
         PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
     _isPopupActive = false;
-    _popupElements.Clear();
+    _popupHandler.Clear();
 }
 
 private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
 {
     if (!_isActive) return;
 
-    if (newPanel != null && IsPopupPanel(newPanel))
+    if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
     {
-        _activePopup = newPanel.GameObject;
         _isPopupActive = true;
-        DiscoverPopupElements();
-        AnnouncePopup();
+        _popupHandler.OnPopupDetected(newPanel.GameObject);
     }
     else if (_isPopupActive && newPanel == null)
     {
         _isPopupActive = false;
-        _activePopup = null;
-        _popupElements.Clear();
+        _popupHandler.Clear();
         // Re-announce current position
     }
 }
@@ -1517,13 +1537,13 @@ if (modalOpen && !_wasModalOpen)
 {
     _wasModalOpen = true;
     _isPopupActive = true;
-    DiscoverModalElements();
+    _popupHandler.OnPopupDetected(modalGameObject);
 }
 else if (!modalOpen && _wasModalOpen)
 {
     _wasModalOpen = false;
     _isPopupActive = false;
-    _popupElements.Clear();
+    _popupHandler.Clear();
 }
 ```
 
@@ -1531,47 +1551,34 @@ else if (!modalOpen && _wasModalOpen)
 ```csharp
 protected override void HandleInput()
 {
-    // Popup input takes priority
     if (_isPopupActive)
     {
-        HandlePopupInput();
+        _popupHandler.HandleInput();
         return;
     }
     // Normal navigation...
 }
 ```
 
-**Popup Element Discovery:**
-```csharp
-private void DiscoverPopupElements()
-{
-    _popupElements.Clear();
-    _popupElementIndex = 0;
-    if (_activePopup == null) return;
+**Popup Dismissal (3-level fallback chain):**
+1. Find and click a cancel/close button by label pattern matching ("cancel", "close", "no", "abbrechen", "nein", "zuruck")
+2. Invoke `SystemMessageView.OnBack(null)` via reflection
+3. `SetActive(false)` as last resort
 
-    // Find buttons in popup (SystemMessageButtonView, CustomButton, standard Button)
-    foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-    {
-        if (!mb.gameObject.activeInHierarchy) continue;
-        string typeName = mb.GetType().Name;
-        if (typeName == "SystemMessageButtonView" || typeName == "CustomButton")
-        {
-            string label = UITextExtractor.GetText(mb.gameObject) ?? mb.gameObject.name;
-            _popupElements.Add((mb.gameObject, $"{label}, button"));
-        }
-    }
-}
-```
+**Element Discovery (handled internally by PopupHandler):**
+- Text blocks: All active `TMP_Text` not inside buttons, cleaned, split on newlines, deduplicated
+- Buttons: 3-pass search (SystemMessageButtonView → CustomButton/CustomButtonWithTooltip → Unity Button), position-sorted
+- Flat list: text blocks first, then buttons
 
-**Popup Dismissal (fallback chain):**
-1. Call modal's own `Close()` method via reflection (if available)
-2. Find and click a cancel/close button by label pattern matching
-3. Invoke `SystemMessageView.OnBack()` as last resort
+**Screen-specific exclusions:**
+Some navigators need to exclude certain panels from popup handling (e.g., MasteryNavigator excludes ObjectivePopup, FullscreenZFBrowser, RewardPopup3DIcon). Add an exclusion check before calling `PopupHandler.IsPopupPanel()`.
 
-**When to use this pattern:**
-- Store (confirmation modals, system messages)
-- Any navigator where the game can show popups/dialogs on top of your screen
-- Navigators that manage web browser overlays (store bundles open external browser)
+**Special cases:**
+- StoreNavigator keeps separate confirmation modal handling (card-containing modals with their own Close() method) alongside PopupHandler for generic popups
+- GeneralMenuNavigator uses its own grouped navigator pattern (not PopupHandler)
+- RewardPopupNavigator is a dedicated navigator (not generic popup handling)
+
+**Current integrations:** SettingsMenuNavigator, DraftNavigator, MasteryNavigator, StoreNavigator
 
 ### Adding Support for New Screens
 
