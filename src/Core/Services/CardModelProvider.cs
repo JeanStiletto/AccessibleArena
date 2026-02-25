@@ -150,6 +150,7 @@ namespace AccessibleArena.Core.Services
                 if (typeName == "PagesMetaCardView" ||
                     typeName == "MetaCardView" ||
                     typeName == "BoosterMetaCardView" ||
+                    typeName == "DraftPackCardView" ||
                     typeName.Contains("ListMetaCardView"))
                 {
                     // Log once when we find a MetaCardView

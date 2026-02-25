@@ -18,9 +18,10 @@ namespace AccessibleArena.Core.Services
         private GameObject _draftControllerObject;
         private int _totalCards;
 
-        // Delayed rescan after card pick (game needs time to update pack)
+        // Delayed rescan: initial activation + after card pick
         private bool _rescanPending;
         private int _rescanFrameCounter;
+        private bool _initialRescanDone;
         private const int RescanDelayFrames = 90; // ~1.5 seconds at 60fps
 
         public override string NavigatorId => "Draft";
@@ -110,68 +111,21 @@ namespace AccessibleArena.Core.Services
 
             var cardEntries = new List<(GameObject obj, float sortOrder)>();
 
-            // Search for DraftPackCardView or other MetaCardView components
-            // within the draft controller's children
-            foreach (var mb in _draftControllerObject.GetComponentsInChildren<MonoBehaviour>(true))
+            // Scan the controller hierarchy for DraftPackCardView components directly
+            // (like BoosterOpenNavigator scans for BoosterMetaCardView by name).
+            // Don't use DraftPackHolder.CardViews property - it may be empty when
+            // cards are still loading/animating in.
+            foreach (var mb in _draftControllerObject.GetComponentsInChildren<MonoBehaviour>(false))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name != "DraftPackCardView") continue;
 
-                string typeName = mb.GetType().Name;
+                var cardObj = mb.gameObject;
+                if (addedObjects.Contains(cardObj)) continue;
 
-                // DraftPackCardView is the primary card type in draft packs
-                // Also check for MetaCardView and CDCMetaCardView as fallback
-                if (typeName == "DraftPackCardView" ||
-                    typeName == "CDCMetaCardView" ||
-                    typeName == "MetaCardView")
-                {
-                    var cardObj = mb.gameObject;
-                    if (addedObjects.Contains(cardObj)) continue;
-
-                    // Skip if parent is also a card view (avoid nested duplicates)
-                    if (cardObj.transform.parent != null)
-                    {
-                        bool parentIsCard = false;
-                        foreach (var parentMb in cardObj.transform.parent.GetComponents<MonoBehaviour>())
-                        {
-                            if (parentMb != null && (parentMb.GetType().Name == "DraftPackCardView" ||
-                                parentMb.GetType().Name == "CDCMetaCardView"))
-                            {
-                                parentIsCard = true;
-                                break;
-                            }
-                        }
-                        if (parentIsCard) continue;
-                    }
-
-                    // Only include DraftPackCardView specifically - CDCMetaCardView/MetaCardView
-                    // on their own are likely deck builder cards, not pack cards
-                    if (typeName != "DraftPackCardView")
-                    {
-                        // Check if this is inside a DraftPackHolder
-                        bool inPackHolder = false;
-                        Transform current = cardObj.transform.parent;
-                        while (current != null)
-                        {
-                            foreach (var comp in current.GetComponents<MonoBehaviour>())
-                            {
-                                if (comp != null && comp.GetType().Name == "DraftPackHolder")
-                                {
-                                    inPackHolder = true;
-                                    break;
-                                }
-                            }
-                            if (inPackHolder) break;
-                            current = current.parent;
-                        }
-                        if (!inPackHolder) continue;
-                    }
-
-                    float sortOrder = cardObj.transform.position.x;
-                    cardEntries.Add((cardObj, sortOrder));
-                    addedObjects.Add(cardObj);
-
-                    MelonLogger.Msg($"[{NavigatorId}] Found draft card: {cardObj.name} (type={typeName})");
-                }
+                float sortOrder = cardObj.transform.position.x;
+                cardEntries.Add((cardObj, sortOrder));
+                addedObjects.Add(cardObj);
             }
 
             // Sort cards by position (left to right)
@@ -467,6 +421,25 @@ namespace AccessibleArena.Core.Services
 
         public override void Update()
         {
+            // Initial rescan after activation (~1.5 seconds for cards to load)
+            if (_isActive && !_initialRescanDone)
+            {
+                _rescanFrameCounter++;
+                if (_rescanFrameCounter >= RescanDelayFrames)
+                {
+                    _initialRescanDone = true;
+                    int oldCount = _totalCards;
+
+                    MelonLogger.Msg($"[{NavigatorId}] Initial rescan (current count: {oldCount})");
+                    ForceRescan();
+
+                    if (_totalCards > oldCount)
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Found {_totalCards - oldCount} additional cards, {_totalCards} total");
+                    }
+                }
+            }
+
             // Rescan after card selection or confirmation (~1.5 seconds)
             if (_isActive && _rescanPending)
             {
@@ -520,8 +493,10 @@ namespace AccessibleArena.Core.Services
         protected override void OnActivated()
         {
             base.OnActivated();
-            _rescanPending = false;
+            // Trigger initial delayed rescan (cards may still be loading/animating)
+            _initialRescanDone = false;
             _rescanFrameCounter = 0;
+            _rescanPending = false;
             _closeTriggered = false;
             _closeRescanCounter = 0;
         }

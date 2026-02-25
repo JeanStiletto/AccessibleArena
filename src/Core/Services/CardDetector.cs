@@ -47,6 +47,7 @@ namespace AccessibleArena.Core.Services
             if (name.Contains("CardAnchor") ||
                 name.Contains("NPERewardPrefab_IndividualCard") ||
                 name.Contains("MetaCardView") ||
+                name.Contains("DraftPackCardView") ||
                 name.Contains("CDC #") ||
                 name.Contains("DuelCardView"))
             {
