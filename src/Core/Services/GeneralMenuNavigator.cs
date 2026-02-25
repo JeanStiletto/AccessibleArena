@@ -4401,7 +4401,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void MoveNext()
         {
-            // Event page info: Up/Down navigates description text blocks
+            // Event page info: Up/Down navigates through button + description text blocks
+            // Index -1 = on the button, 0..N-1 = info blocks
             // Tab still falls through to normal element navigation
             if (IsEventPageInfoActive() && !Input.GetKey(KeyCode.Tab))
             {
@@ -4494,7 +4495,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void MovePrevious()
         {
-            // Event page info: Up/Down navigates description text blocks
+            // Event page info: Up/Down navigates through button + description text blocks
+            // Index -1 = on the button, 0..N-1 = info blocks
             // Tab still falls through to normal element navigation
             if (IsEventPageInfoActive() && !Input.GetKey(KeyCode.Tab))
             {
@@ -4503,8 +4505,12 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_eventInfoIndex <= 0)
                     {
-                        _eventInfoIndex = 0;
-                        _announcer.AnnounceInterrupt(Strings.BeginningOfList);
+                        // Go back to button
+                        _eventInfoIndex = -1;
+                        if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                            _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        else
+                            _announcer.AnnounceInterrupt(Strings.BeginningOfList);
                         return;
                     }
                     _eventInfoIndex--;

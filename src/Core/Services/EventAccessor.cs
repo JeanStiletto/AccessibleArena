@@ -373,6 +373,9 @@ namespace AccessibleArena.Core.Services
                 var seenTexts = new System.Collections.Generic.HashSet<string>();
                 string label = Strings.EventInfoLabel;
 
+                // Get event title to filter out redundant name-only blocks
+                string eventTitle = GetEventPageTitle();
+
                 foreach (var tmp in controller.GetComponentsInChildren<TMPro.TMP_Text>(false))
                 {
                     if (tmp == null) continue;
@@ -397,6 +400,11 @@ namespace AccessibleArena.Core.Services
                         string trimmed = line.Trim();
                         if (trimmed.Length < 5) continue;
                         if (seenTexts.Contains(trimmed)) continue;
+
+                        // Skip blocks that only contain the event name (already in screen title)
+                        if (!string.IsNullOrEmpty(eventTitle) &&
+                            string.Equals(trimmed, eventTitle, StringComparison.OrdinalIgnoreCase))
+                            continue;
 
                         seenTexts.Add(trimmed);
                         blocks.Add(new CardInfoBlock(label, trimmed, isVerbose: false));
