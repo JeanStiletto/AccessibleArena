@@ -311,6 +311,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter selects/toggles a card (picks it for drafting)
+            // Must bypass ActivateCurrentElement() for cards because BaseNavigator
+            // redirects card activation to CardInfoNavigator (card details).
+            // In draft, Enter should click the card to select it, not show details.
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
                 if (IsValidIndex)
@@ -318,8 +321,9 @@ namespace AccessibleArena.Core.Services
                     var elem = _elements[_currentIndex];
                     MelonLogger.Msg($"[{NavigatorId}] Enter pressed on: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
 
-                    // Activate the card (click it to select/toggle)
-                    ActivateCurrentElement();
+                    // Directly click the card via UIActivator (bypasses CardInfoNavigator redirect)
+                    UIActivator.Activate(elem.GameObject);
+                    _announcer?.Announce("Activated", AnnouncementPriority.Normal);
 
                     // Trigger a delayed rescan to pick up selection state changes
                     _rescanPending = true;
