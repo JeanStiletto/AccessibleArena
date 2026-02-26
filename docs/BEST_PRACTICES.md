@@ -1566,19 +1566,40 @@ protected override void HandleInput()
 3. `SetActive(false)` as last resort
 
 **Element Discovery (handled internally by PopupHandler):**
-- Text blocks: All active `TMP_Text` not inside buttons, cleaned, split on newlines, deduplicated
+- Title: Extracted from title/header containers, announced in "Popup: {title}" header
+- Text blocks: All active `TMP_Text` not inside buttons, input fields, or title containers; cleaned, split on newlines, deduplicated
+- Input fields: Active, interactable `TMP_InputField` components, labeled via `UITextExtractor.GetInputFieldLabel()`
 - Buttons: 3-pass search (SystemMessageButtonView → CustomButton/CustomButtonWithTooltip → Unity Button), position-sorted
-- Flat list: text blocks first, then buttons
+- Flat list order: text blocks → input fields → buttons
+
+**Button Filtering:**
+- Buttons inside input fields are skipped (internal submit/clear buttons)
+- Buttons inside other buttons are skipped (nested structural wrappers)
+- Dismiss overlays are skipped: GameObjects with "background", "overlay", "backdrop", or "dismiss" in name (click-outside-to-close areas, redundant with Backspace)
+- Duplicate labels are deduplicated (keep first by position, skip subsequent)
+
+**Input Field Edit Mode:**
+- Enter on an input field activates edit mode (typing passes through to field)
+- Escape exits edit mode, Tab exits and navigates to next/prev item
+- Up/Down reads field content, Left/Right reads character at cursor
+- Backspace announces deleted character (passes through for deletion)
+- Edit state cleaned up on popup close via `Clear()`
+
+**Rescan Suppression:**
+Navigators using PopupHandler must skip their own element rescan while a popup is active. Otherwise the delayed rescan (e.g., GeneralMenuNavigator's 0.5s `PerformRescan()`) overwrites PopupHandler's items with the navigator's full element list. Add a guard at the top of the rescan method:
+```csharp
+if (_isPopupActive) return;
+```
 
 **Screen-specific exclusions:**
 Some navigators need to exclude certain panels from popup handling (e.g., MasteryNavigator excludes ObjectivePopup, FullscreenZFBrowser, RewardPopup3DIcon). Add an exclusion check before calling `PopupHandler.IsPopupPanel()`.
 
 **Special cases:**
 - StoreNavigator keeps separate confirmation modal handling (card-containing modals with their own Close() method) alongside PopupHandler for generic popups
-- GeneralMenuNavigator uses its own grouped navigator pattern (not PopupHandler)
+- GeneralMenuNavigator uses PopupHandler for popups, skips `PerformRescan()` while popup is active
 - RewardPopupNavigator is a dedicated navigator (not generic popup handling)
 
-**Current integrations:** SettingsMenuNavigator, DraftNavigator, MasteryNavigator, StoreNavigator
+**Current integrations:** SettingsMenuNavigator, DraftNavigator, MasteryNavigator, StoreNavigator, GeneralMenuNavigator
 
 ### Adding Support for New Screens
 

@@ -384,6 +384,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 1. Mana pool info - expand to show color breakdown
 2. Stepper control redesign
 3. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
+4. X spell support - spells with variable costs (e.g., Fireball, Walking Ballista) require the player to choose a value for X. Currently no accessible way to set the X value. Needs investigation into how the game presents the X cost input and how to make it navigable.
 
 ---
 

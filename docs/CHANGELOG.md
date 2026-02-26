@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.7.2-dev
 
+### Improved: PopupHandler Rework
+- **Input field support**: Popups with input fields (e.g., InviteFriendPopup, ChallengeInviteWindow) are now fully navigable. Enter activates edit mode, Escape exits, Tab navigates to next item, Up/Down reads content, Left/Right reads character at cursor, Backspace announces deleted character.
+- **Button filtering**: Dismiss overlays (background, overlay, backdrop, dismiss) automatically filtered. Duplicate button labels deduplicated. Buttons nested inside input fields or other buttons skipped.
+- **Text block filtering**: Text inside input fields (placeholder, typed text) no longer appears as separate text blocks.
+- **Rescan suppression**: GeneralMenuNavigator's delayed rescan (0.5s) now skips while popup is active, preventing PopupHandler's items from being overwritten.
+- Files: PopupHandler.cs, GeneralMenuNavigator.cs
+
 ### New: Full Control Toggle (P / Shift+P)
 - P key toggles temporary full control (resets on phase change)
 - Shift+P toggles locked full control (permanent until toggled off)

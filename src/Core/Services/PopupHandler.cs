@@ -351,6 +351,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                 if (addedObjects.Contains(mb.gameObject)) continue;
+                if (IsInsideInputField(mb.transform, _activePopup.transform)) continue;
 
                 if (mb.GetType().Name == "SystemMessageButtonView")
                 {
@@ -368,6 +369,8 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                 if (addedObjects.Contains(mb.gameObject)) continue;
+                if (IsInsideInputField(mb.transform, _activePopup.transform)) continue;
+                if (IsInsideButton(mb.transform, _activePopup.transform)) continue;
 
                 string typeName = mb.GetType().Name;
                 if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
@@ -386,6 +389,8 @@ namespace AccessibleArena.Core.Services
             {
                 if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
                 if (addedObjects.Contains(button.gameObject)) continue;
+                if (IsInsideInputField(button.transform, _activePopup.transform)) continue;
+                if (IsInsideButton(button.transform, _activePopup.transform)) continue;
 
                 string label = UITextExtractor.GetText(button.gameObject);
                 if (string.IsNullOrEmpty(label)) label = button.gameObject.name;
@@ -395,9 +400,23 @@ namespace AccessibleArena.Core.Services
                 addedObjects.Add(button.gameObject);
             }
 
-            // Sort by position and add as PopupItems
+            // Sort by position, skip dismiss overlays, deduplicate by label
+            var seenLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
             {
+                // Skip background dismiss overlays (click-outside-to-close areas)
+                if (IsDismissOverlay(obj))
+                {
+                    MelonLogger.Msg($"[{_navigatorId}] PopupHandler: skipping dismiss overlay: {obj.name}");
+                    continue;
+                }
+
+                if (!seenLabels.Add(label))
+                {
+                    MelonLogger.Msg($"[{_navigatorId}] PopupHandler: skipping duplicate button: {label}");
+                    continue;
+                }
+
                 _items.Add(new PopupItem
                 {
                     Type = PopupItemType.Button,
@@ -718,6 +737,16 @@ namespace AccessibleArena.Core.Services
         private int CountTextBlocks() => _items.Count(i => i.Type == PopupItemType.TextBlock);
         private int CountButtons() => _items.Count(i => i.Type == PopupItemType.Button);
         private int CountInputFields() => _items.Count(i => i.Type == PopupItemType.InputField);
+
+        /// <summary>
+        /// Check if a button is a full-screen dismiss overlay (click-outside-to-close).
+        /// These have no useful functionality beyond Backspace dismissal.
+        /// </summary>
+        private static bool IsDismissOverlay(GameObject obj)
+        {
+            string name = obj.name.ToLower();
+            return name.Contains("background") || name.Contains("overlay") || name.Contains("backdrop") || name.Contains("dismiss");
+        }
 
         #endregion
 

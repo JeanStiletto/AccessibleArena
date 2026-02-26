@@ -2935,6 +2935,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void PerformRescan()
         {
+            // Skip rescan while popup is active - PopupHandler owns discovery
+            if (_isPopupActive)
+            {
+                LogDebug($"[{NavigatorId}] Skipping rescan - popup active");
+                return;
+            }
+
             // Store previous controller to detect screen transitions
             var previousController = _activeContentController;
 
