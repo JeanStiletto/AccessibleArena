@@ -753,20 +753,27 @@ namespace AccessibleArena.Core.Services
                 selectionState = GetCardHolderState(card);
             }
 
+            // For multi-zone browsers, append the card's zone (e.g., "Your graveyard", "Opponent's exile")
+            string zoneSuffix = "";
+            if (_browserInfo?.BrowserType == "SelectCardsMultiZone")
+            {
+                zoneSuffix = GetMultiZoneCardZoneName(card);
+            }
+
             // Build announcement
             string announcement;
             if (_browserCards.Count == 1)
             {
                 announcement = string.IsNullOrEmpty(selectionState)
-                    ? cardName
-                    : $"{cardName}, {selectionState}";
+                    ? $"{cardName}{zoneSuffix}"
+                    : $"{cardName}{zoneSuffix}, {selectionState}";
             }
             else
             {
                 string position = $"{_currentCardIndex + 1} of {_browserCards.Count}";
                 announcement = string.IsNullOrEmpty(selectionState)
-                    ? $"{cardName}, {position}"
-                    : $"{cardName}, {selectionState}, {position}";
+                    ? $"{cardName}{zoneSuffix}, {position}"
+                    : $"{cardName}{zoneSuffix}, {selectionState}, {position}";
             }
 
             _announcer.Announce(announcement, AnnouncementPriority.High);
@@ -795,6 +802,36 @@ namespace AccessibleArena.Core.Services
                 parent = parent.parent;
             }
             return null;
+        }
+
+        // Maps game zone names to mod ZoneType, with local/opponent variants
+        private static readonly Dictionary<string, (ZoneType local, ZoneType opponent)> MultiZoneMap =
+            new Dictionary<string, (ZoneType, ZoneType)>
+        {
+            { "Graveyard", (ZoneType.Graveyard, ZoneType.OpponentGraveyard) },
+            { "Exile", (ZoneType.Exile, ZoneType.OpponentExile) },
+            { "Library", (ZoneType.Library, ZoneType.OpponentLibrary) },
+            { "Hand", (ZoneType.Hand, ZoneType.OpponentHand) },
+            { "Command", (ZoneType.Command, ZoneType.OpponentCommand) }
+        };
+
+        /// <summary>
+        /// Gets the localized zone name for a card in a SelectCardsMultiZone browser.
+        /// Returns ", Your graveyard" or ", Opponent's graveyard" etc.
+        /// </summary>
+        private string GetMultiZoneCardZoneName(GameObject card)
+        {
+            string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+            if (string.IsNullOrEmpty(modelZone)) return "";
+
+            if (MultiZoneMap.TryGetValue(modelZone, out var zonePair))
+            {
+                bool isOpponent = CardModelProvider.IsOpponentCard(card);
+                var zoneType = isOpponent ? zonePair.opponent : zonePair.local;
+                return $", {Strings.GetZoneName(zoneType)}";
+            }
+
+            return "";
         }
 
         /// <summary>
