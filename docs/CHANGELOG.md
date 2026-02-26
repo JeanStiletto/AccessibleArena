@@ -4,6 +4,14 @@ All notable changes to Accessible Arena.
 
 ## v0.7.2-dev
 
+### Fixed: Card Type Lines Now Localized
+- Card type lines (e.g. "Legendary Creature - Elf Warrior") now display in the game's selected language instead of always showing English
+- Uses `TypeTextId`/`SubtypeTextId` localization IDs via `GreLocProvider.GetLocalizedText()`, same system used for flavor text
+- Applies to all card contexts: duel, deck builder, collection, store, booster opening, rewards, drafts, other card faces
+- Fixed `HotHighlightNavigator` and `UIActivator` to use enum-based type detection instead of matching English strings against the now-localized type line
+- Added `GetLocalizedTextById()` helper in CardModelProvider, also used to simplify flavor text lookup
+- Files: CardModelProvider.cs, HotHighlightNavigator.cs, UIActivator.cs
+
 ### New: Deck Builder Sideboard Group
 - Pool holder cards (available cards to add) are now classified as **Sideboard** instead of **Collection** when editing a deck. Applies to draft, sealed, and normal deck builder.
 - New `DeckBuilderSideboard` group with "Sideboard" label (Tab-cyclable between Collection, Sideboard, Deck List, Deck Info, Filters)

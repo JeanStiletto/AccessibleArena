@@ -1354,11 +1354,26 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets the flavor text for a card using its FlavorId.
-        /// Uses GreLocProvider.GetLocalizedText(locId, overrideLangCode, formatted).
+        /// Uses GreLocProvider.GetLocalizedText via GetLocalizedTextById.
         /// </summary>
         private static string GetFlavorText(uint flavorId)
         {
             if (flavorId == 0 || flavorId == 1) return null; // 1 appears to be a placeholder for "no flavor text"
+
+            var text = GetLocalizedTextById(flavorId);
+            if (text != null && text.Contains("Unknown"))
+                return null;
+            return text;
+        }
+
+        /// <summary>
+        /// Looks up a localized text string by its localization ID using GreLocProvider.
+        /// Reuses the flavor text provider (same GreLocProvider.GetLocalizedText method).
+        /// Works for any loc ID: TypeTextId, SubtypeTextId, FlavorTextId, etc.
+        /// </summary>
+        private static string GetLocalizedTextById(uint locId)
+        {
+            if (locId == 0) return null;
 
             if (!_flavorTextProviderSearched)
             {
@@ -1377,11 +1392,11 @@ namespace AccessibleArena.Core.Services
                 if (parameters.Length == 3)
                 {
                     // GetLocalizedText(UInt32 locId, String overrideLangCode, Boolean formatted)
-                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { flavorId, null, false });
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId, null, false });
                 }
                 else if (parameters.Length == 1)
                 {
-                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { flavorId });
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId });
                 }
                 else
                 {
@@ -1389,16 +1404,12 @@ namespace AccessibleArena.Core.Services
                 }
 
                 var text = result as string;
-                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.Contains("Unknown"))
-                {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Flavor text found: {text}");
+                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$"))
                     return text;
-                }
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting flavor text for id {flavorId}: {ex.Message}");
                 return null;
             }
         }
@@ -2018,7 +2029,54 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                if (typeLineParts.Count > 0)
+                // Try localized type line via TypeTextId/SubtypeTextId (uses GreLocProvider)
+                uint typeTextId = 0;
+                uint subtypeTextId = 0;
+
+                // Check directly on model object first
+                var typeTextIdVal = GetModelPropertyValue(dataObj, objType, "TypeTextId");
+                if (typeTextIdVal is uint ttid) typeTextId = ttid;
+                else if (typeTextIdVal is int ttidInt && ttidInt > 0) typeTextId = (uint)ttidInt;
+
+                var subtypeTextIdVal = GetModelPropertyValue(dataObj, objType, "SubtypeTextId");
+                if (subtypeTextIdVal is uint stid) subtypeTextId = stid;
+                else if (subtypeTextIdVal is int stidInt && stidInt > 0) subtypeTextId = (uint)stidInt;
+
+                // Try Printing sub-object if not found directly
+                if (typeTextId == 0)
+                {
+                    var printingForType = GetModelPropertyValue(dataObj, objType, "Printing");
+                    if (printingForType != null)
+                    {
+                        var printingType = printingForType.GetType();
+                        typeTextIdVal = GetModelPropertyValue(printingForType, printingType, "TypeTextId");
+                        if (typeTextIdVal is uint pttid) typeTextId = pttid;
+                        else if (typeTextIdVal is int pttidInt && pttidInt > 0) typeTextId = (uint)pttidInt;
+
+                        if (subtypeTextId == 0)
+                        {
+                            subtypeTextIdVal = GetModelPropertyValue(printingForType, printingType, "SubtypeTextId");
+                            if (subtypeTextIdVal is uint pstid) subtypeTextId = pstid;
+                            else if (subtypeTextIdVal is int pstidInt && pstidInt > 0) subtypeTextId = (uint)pstidInt;
+                        }
+                    }
+                }
+
+                // Look up localized text
+                if (typeTextId > 0)
+                {
+                    var localizedType = GetLocalizedTextById(typeTextId);
+                    if (!string.IsNullOrEmpty(localizedType))
+                    {
+                        string localizedSubtype = subtypeTextId > 0 ? GetLocalizedTextById(subtypeTextId) : null;
+                        info.TypeLine = !string.IsNullOrEmpty(localizedSubtype)
+                            ? localizedType + " - " + localizedSubtype
+                            : localizedType;
+                    }
+                }
+
+                // Fall back to structured enum types (English)
+                if (string.IsNullOrEmpty(info.TypeLine) && typeLineParts.Count > 0)
                 {
                     info.TypeLine = string.Join(" ", typeLineParts);
                     if (subtypeList.Count > 0)
@@ -4123,11 +4181,49 @@ namespace AccessibleArena.Core.Services
                 // Name
                 info.Name = GetNameFromGrpId(grpId);
 
-                // TypeLine
-                var typeLineProp = cardType.GetProperty("TypeLine") ?? cardType.GetProperty("TypeText");
-                if (typeLineProp != null)
+                // TypeLine - try localized lookup via TypeTextId/SubtypeTextId first
+                var typeTextIdProp = cardType.GetProperty("TypeTextId");
+                var subtypeTextIdProp = cardType.GetProperty("SubtypeTextId");
+                if (typeTextIdProp != null)
                 {
-                    info.TypeLine = typeLineProp.GetValue(cardData)?.ToString();
+                    var typeTextIdVal = typeTextIdProp.GetValue(cardData);
+                    uint typeTextId = 0;
+                    if (typeTextIdVal is uint ttid) typeTextId = ttid;
+                    else if (typeTextIdVal is int ttidInt && ttidInt > 0) typeTextId = (uint)ttidInt;
+
+                    if (typeTextId > 0)
+                    {
+                        var localizedType = GetLocalizedTextById(typeTextId);
+                        if (!string.IsNullOrEmpty(localizedType))
+                        {
+                            info.TypeLine = localizedType;
+
+                            if (subtypeTextIdProp != null)
+                            {
+                                var subtypeTextIdVal = subtypeTextIdProp.GetValue(cardData);
+                                uint subtypeTextId = 0;
+                                if (subtypeTextIdVal is uint stid) subtypeTextId = stid;
+                                else if (subtypeTextIdVal is int stidInt && stidInt > 0) subtypeTextId = (uint)stidInt;
+
+                                if (subtypeTextId > 0)
+                                {
+                                    var localizedSubtype = GetLocalizedTextById(subtypeTextId);
+                                    if (!string.IsNullOrEmpty(localizedSubtype))
+                                        info.TypeLine += " - " + localizedSubtype;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Fall back to TypeLine/TypeText string property
+                if (string.IsNullOrEmpty(info.TypeLine))
+                {
+                    var typeLineProp = cardType.GetProperty("TypeLine") ?? cardType.GetProperty("TypeText");
+                    if (typeLineProp != null)
+                    {
+                        info.TypeLine = typeLineProp.GetValue(cardData)?.ToString();
+                    }
                 }
 
                 // ManaCost - try structured PrintedCastingCost first (same as MODEL extraction)

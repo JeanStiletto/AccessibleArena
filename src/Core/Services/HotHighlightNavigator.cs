@@ -492,7 +492,7 @@ namespace AccessibleArena.Core.Services
             {
                 var cardInfo = CardDetector.ExtractCardInfo(go);
                 item.PowerToughness = cardInfo.PowerToughness;
-                item.CardType = DetermineCardType(cardInfo.TypeLine);
+                item.CardType = DetermineCardType(go);
             }
 
             return item;
@@ -734,22 +734,13 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Determines card type from type line.
+        /// Determines card type from model enum values (language-agnostic).
         /// </summary>
-        private string DetermineCardType(string typeLine)
+        private string DetermineCardType(GameObject go)
         {
-            if (string.IsNullOrEmpty(typeLine)) return "Permanent";
-
-            string lower = typeLine.ToLower();
-
-            if (lower.Contains("creature")) return "Creature";
-            if (lower.Contains("planeswalker")) return "Planeswalker";
-            if (lower.Contains("artifact")) return "Artifact";
-            if (lower.Contains("enchantment")) return "Enchantment";
-            if (lower.Contains("land")) return "Land";
-            if (lower.Contains("instant")) return "Instant";
-            if (lower.Contains("sorcery")) return "Sorcery";
-
+            var (isCreature, isLand, _) = CardDetector.GetCardCategory(go);
+            if (isCreature) return "Creature";
+            if (isLand) return "Land";
             return "Permanent";
         }
 

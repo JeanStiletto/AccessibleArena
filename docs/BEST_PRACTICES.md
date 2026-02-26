@@ -514,8 +514,13 @@ List<CardInfoBlock> blocks = CardDetector.BuildInfoBlocks(info);
 **Card info extraction hierarchy:**
 - `CardDetector.ExtractCardInfo(gameObject)` - Entry point. Tries deck list, then Model, then UI fallback
 - `CardModelProvider.ExtractCardInfoFromModel(gameObject)` - Finds Model via CDC/MetaCardView, delegates to `ExtractCardInfoFromObject`
-- `CardModelProvider.ExtractCardInfoFromObject(dataObj)` - Shared extraction from any card data object. Tries structured properties first (Supertypes/CardTypes/Subtypes, ManaQuantity[]), falls back to simpler properties (TypeLine string, ManaCost string). Only shows P/T for creatures. Resolves artist from Printing sub-object.
-- `CardModelProvider.ExtractCardInfoFromCardData(cardData, grpId)` - Legacy extraction from CardPrintingData (less rich than `ExtractCardInfoFromObject`)
+- `CardModelProvider.ExtractCardInfoFromObject(dataObj)` - Shared extraction from any card data object. Type line uses localized lookup via TypeTextId/SubtypeTextId first, falls back to structured enums then string properties. Only shows P/T for creatures. Resolves artist from Printing sub-object.
+- `CardModelProvider.ExtractCardInfoFromCardData(cardData, grpId)` - Extraction from CardPrintingData. Also uses TypeTextId/SubtypeTextId for localized type lines.
+
+**Type detection vs display:**
+- For **display** (type line shown to user): Always use `info.TypeLine` from CardInfo - already localized by extraction methods
+- For **internal type checks** (isCreature, isLand): Use `CardModelProvider.GetCardCategory(go)`, `IsCreatureCard(go)`, or `IsLandCard(go)` - these check enum values directly and are language-agnostic
+- **Never** match English strings against `info.TypeLine` for type detection - it is localized
 
 **When to use which:**
 - **CardDetector.ExtractCardInfo**: Default choice - handles all card types with automatic fallback

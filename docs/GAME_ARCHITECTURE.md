@@ -798,11 +798,27 @@ CardDatabase.AbilityTextProvider.GetAbilityTextByCardAbilityGrpId(
     uint cardTitleId, string overrideLangCode, bool formatted)
 ```
 
-**Flavor Text (via GreLocProvider):**
+**Flavor Text / Type Line Text (via GreLocProvider):**
 ```csharp
 // GreLocProvider is SqlGreLocalizationProvider
 CardDatabase.GreLocProvider.GetLocalizedText(uint locId, string overrideLangCode, bool formatted)
+// Used for FlavorTextId, TypeTextId, SubtypeTextId
 // FlavorTextId = 1 is a placeholder meaning "no flavor text"
+```
+
+**Card Type Line Text (via GreLocProvider or CardTypeProvider):**
+```csharp
+// Option 1: Direct loc ID lookup (used by mod for type lines)
+CardDatabase.GreLocProvider.GetLocalizedText(printing.TypeTextId)   // e.g. "Legendary Creature"
+CardDatabase.GreLocProvider.GetLocalizedText(printing.SubtypeTextId) // e.g. "Elf Warrior"
+
+// Option 2: Translate individual enum values
+CardDatabase.GreLocProvider.GetLocalizedTextForEnumValue("CardType", (int)cardType)
+CardDatabase.GreLocProvider.GetLocalizedTextForEnumValue("SuperType", (int)superType)
+CardDatabase.GreLocProvider.GetLocalizedTextForEnumValue("SubType", (int)subType)
+
+// Option 3: Full type line via CardTypeProvider (handles modifications, color tags)
+CardDatabase.CardTypeProvider.GetTypelineText(ICardDataAdapter, CardTextColorSettings, overrideLang)
 ```
 
 ### Card Model Properties
@@ -816,10 +832,15 @@ The same properties are available on CardData objects from store items, making u
 - `FlavorTextId` (uint) - Localization key for flavor (1 = none)
 - `InstanceId` (uint) - Unique instance in a duel (0 for non-duel cards)
 
-**Types (structured):**
+**Types (structured, always English enum names):**
 - `Supertypes` (SuperType[]) - Legendary, Basic, etc.
 - `CardTypes` (CardType[]) - Creature, Land, Instant, Sorcery, etc.
 - `Subtypes` (SubType[]) - Goblin, Forest, Aura, etc.
+
+**Type line localization IDs (on model or Printing sub-object):**
+- `TypeTextId` (uint) - Localization key for type text (e.g. "Legendary Creature")
+- `SubtypeTextId` (uint) - Localization key for subtype text (e.g. "Elf Warrior")
+- Looked up via `GreLocProvider.GetLocalizedText(locId)` for localized display
 
 **Stats:**
 - `PrintedCastingCost` (ManaQuantity[]) - Mana cost array (structured)
@@ -833,6 +854,8 @@ The same properties are available on CardData objects from store items, making u
 **Print-specific:**
 - `Printing` (CardPrintingData) - Print-run specific data (artist, set)
 - `Printing.ArtistCredit` (string) - Artist name
+- `Printing.TypeTextId` (uint) - Type line localization key
+- `Printing.SubtypeTextId` (uint) - Subtype localization key
 - `ExpansionCode` (string) - Set code (e.g., "FDN")
 - `Rarity` (CardRarity) - Common, Uncommon, Rare, MythicRare
 
@@ -841,7 +864,9 @@ The same properties are available on CardData objects from store items, making u
 - `ManaCost` / `CastingCost` (string) - Mana cost as string (e.g., "oU")
 - `OldSchoolManaText` (string) - Mana cost in old format
 
-`ExtractCardInfoFromObject` tries structured properties first, falling back to string properties. This means it works with both full Model objects (duel, deck builder) and simpler CardData objects (store items).
+`ExtractCardInfoFromObject` tries localized type line first (via TypeTextId/SubtypeTextId), then falls back to structured enum types (English), then string properties. This means it works with both full Model objects (duel, deck builder) and simpler CardData objects (store items), always producing localized output when possible.
+
+**Important:** Structured enum types (Supertypes/CardTypes/Subtypes) always return English names via `.ToString()`. Use them only for internal type detection (isCreature, isLand), never for display. For display, use `TypeTextId`/`SubtypeTextId` via `GetLocalizedTextById()` or `GreLocProvider.GetLocalizedText()`.
 
 ### Mana Symbol Formats
 
