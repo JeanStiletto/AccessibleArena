@@ -1014,6 +1014,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.DeckBuilderDeckList: return L.Get("GroupDeckList");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderSideboard: return L.Get("GroupSideboard");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderInfo: return L.Get("GroupDeckInfo");
+                case Services.ElementGrouping.ElementGroup.EventInfo: return L.Get("GroupEventInfo");
                 case Services.ElementGrouping.ElementGroup.MailboxList: return L.Get("GroupMailList");
                 case Services.ElementGrouping.ElementGroup.MailboxContent: return L.Get("GroupMail");
                 case Services.ElementGrouping.ElementGroup.RewardsPopup: return L.Get("GroupRewards");

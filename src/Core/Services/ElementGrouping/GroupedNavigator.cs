@@ -1322,7 +1322,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// screen reader navigation, not tied to any Unity GameObject.
         /// Inserts after the specified target group type, or at end if not found.
         /// </summary>
-        public void AddVirtualGroup(ElementGroup group, List<GroupedElement> elements, ElementGroup? insertAfter = null)
+        public void AddVirtualGroup(ElementGroup group, List<GroupedElement> elements,
+            ElementGroup? insertAfter = null, bool isStandalone = false, string displayName = null)
         {
             if (elements == null || elements.Count == 0)
                 return;
@@ -1330,11 +1331,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var groupInfo = new ElementGroupInfo
             {
                 Group = group,
-                DisplayName = group.GetDisplayName(),
+                DisplayName = displayName ?? group.GetDisplayName(),
                 Elements = elements,
                 IsFolderGroup = false,
                 FolderToggle = null,
-                IsStandaloneElement = false
+                IsStandaloneElement = isStandalone
             };
 
             if (insertAfter.HasValue)

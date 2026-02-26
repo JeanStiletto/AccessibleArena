@@ -190,11 +190,6 @@ namespace AccessibleArena.Core.Services
         private List<CardInfoBlock> _packetBlocks;
         private int _packetBlockIndex;
 
-        // Event page info sub-navigation state
-        // Up/Down navigates through event description text blocks
-        private List<CardInfoBlock> _eventInfoBlocks;
-        private int _eventInfoIndex = -1;
-
         // Popup overlay tracking
         private GameObject _activePopup;
         private bool _isPopupActive;
@@ -975,10 +970,14 @@ namespace AccessibleArena.Core.Services
             _currentIndex = -1;
             DiscoverElements();
 
-            // Inject deck info virtual group in deck builder context
+            // Inject virtual groups based on context
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 InjectDeckInfoGroup();
+            }
+            else if (_activeContentController == "EventPageContentController")
+            {
+                InjectEventInfoGroup();
             }
 
             if (_elements.Count > 0)
@@ -2952,13 +2951,6 @@ namespace AccessibleArena.Core.Services
             DetectActiveContentController();
             LogDebug($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
 
-            // Clear event page info blocks when controller changes
-            if (previousController != _activeContentController)
-            {
-                _eventInfoBlocks = null;
-                _eventInfoIndex = -1;
-            }
-
             // Remember the navigator's current selection before clearing
             GameObject previousSelection = null;
             if (_currentIndex >= 0 && _currentIndex < _elements.Count)
@@ -2980,10 +2972,14 @@ namespace AccessibleArena.Core.Services
 
             DiscoverElements();
 
-            // Inject deck info virtual group in deck builder context
+            // Inject virtual groups based on context
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 InjectDeckInfoGroup();
+            }
+            else if (_activeContentController == "EventPageContentController")
+            {
+                InjectEventInfoGroup();
             }
 
             // Try to find the previously selected object in the new element list
@@ -4263,25 +4259,6 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void MoveNext()
         {
-            // Event page info: Up/Down navigates through button + description text blocks
-            // Index -1 = on the button, 0..N-1 = info blocks
-            // Tab still falls through to normal element navigation
-            if (IsEventPageInfoActive() && !Input.GetKey(KeyCode.Tab))
-            {
-                EnsureEventInfoBlocks();
-                if (_eventInfoBlocks != null && _eventInfoBlocks.Count > 0)
-                {
-                    if (_eventInfoIndex >= _eventInfoBlocks.Count - 1)
-                    {
-                        _announcer.AnnounceInterrupt(Strings.EndOfList);
-                        return;
-                    }
-                    _eventInfoIndex++;
-                    AnnounceEventInfoBlock();
-                    return;
-                }
-            }
-
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 // DeckBuilderInfo 2D navigation: Down arrow switches to next row
@@ -4357,30 +4334,6 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void MovePrevious()
         {
-            // Event page info: Up/Down navigates through button + description text blocks
-            // Index -1 = on the button, 0..N-1 = info blocks
-            // Tab still falls through to normal element navigation
-            if (IsEventPageInfoActive() && !Input.GetKey(KeyCode.Tab))
-            {
-                EnsureEventInfoBlocks();
-                if (_eventInfoBlocks != null && _eventInfoBlocks.Count > 0)
-                {
-                    if (_eventInfoIndex <= 0)
-                    {
-                        // Go back to button
-                        _eventInfoIndex = -1;
-                        if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
-                            _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
-                        else
-                            _announcer.AnnounceInterrupt(Strings.BeginningOfList);
-                        return;
-                    }
-                    _eventInfoIndex--;
-                    AnnounceEventInfoBlock();
-                    return;
-                }
-            }
-
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 // DeckBuilderInfo 2D navigation: Up arrow switches to previous row
@@ -4633,19 +4586,23 @@ namespace AccessibleArena.Core.Services
                 // Check if this is a standalone element (Primary action button)
                 if (_groupedNavigator.IsCurrentGroupStandalone)
                 {
-                    // Standalone element - activate directly without entering group
+                    // Virtual standalone element (no GameObject) - re-announce on Enter
                     var standaloneObj = _groupedNavigator.GetStandaloneElement();
-                    if (standaloneObj != null)
+                    if (standaloneObj == null)
                     {
-                        // Find the element in our _elements list and activate it
-                        for (int i = 0; i < _elements.Count; i++)
+                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        return true;
+                    }
+
+                    // Real standalone element - activate directly without entering group
+                    // Find the element in our _elements list and activate it
+                    for (int i = 0; i < _elements.Count; i++)
+                    {
+                        if (_elements[i].GameObject == standaloneObj)
                         {
-                            if (_elements[i].GameObject == standaloneObj)
-                            {
-                                _currentIndex = i;
-                                ActivateCurrentElement();
-                                return true;
-                            }
+                            _currentIndex = i;
+                            ActivateCurrentElement();
+                            return true;
                         }
                     }
                 }
@@ -5376,39 +5333,56 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
-        #region Event Page Info Sub-Navigation
+        #region Event Page Info Virtual Group
 
         /// <summary>
-        /// Check if we're on an event page where Up/Down should navigate info blocks.
+        /// Injects event info blocks as standalone virtual elements into the grouped navigator.
+        /// Each block becomes its own standalone group, directly navigable with Up/Down
+        /// without needing to enter a subgroup.
         /// </summary>
-        private bool IsEventPageInfoActive()
+        private void InjectEventInfoGroup()
         {
-            return _activeContentController == "EventPageContentController";
-        }
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return;
 
-        /// <summary>
-        /// Lazy-load event info blocks from EventAccessor if not yet populated.
-        /// </summary>
-        private void EnsureEventInfoBlocks()
-        {
-            if (_eventInfoBlocks == null)
+            var blocks = EventAccessor.GetEventPageInfoBlocks();
+            if (blocks == null || blocks.Count == 0)
             {
-                _eventInfoBlocks = EventAccessor.GetEventPageInfoBlocks();
-                _eventInfoIndex = -1;
-                LogDebug($"[{NavigatorId}] Event info blocks: {_eventInfoBlocks?.Count ?? 0}");
+                MelonLogger.Msg($"[{NavigatorId}] EventAccessor returned no info blocks");
+                return;
             }
-        }
+            MelonLogger.Msg($"[{NavigatorId}] Injecting {blocks.Count} event info elements");
 
-        /// <summary>
-        /// Announce the current event info block.
-        /// </summary>
-        private void AnnounceEventInfoBlock()
-        {
-            if (_eventInfoBlocks == null || _eventInfoBlocks.Count == 0) return;
-            if (_eventInfoIndex < 0 || _eventInfoIndex >= _eventInfoBlocks.Count) return;
+            // Insert each block as a standalone virtual element after the previous one.
+            // First block appends at end, subsequent blocks insert after the last EventInfo.
+            ElementGroup? insertAfter = null;
+            foreach (var block in blocks)
+            {
+                string label = string.IsNullOrEmpty(block.Label)
+                    ? block.Content
+                    : $"{block.Label}: {block.Content}";
 
-            var block = _eventInfoBlocks[_eventInfoIndex];
-            _announcer.AnnounceInterrupt($"{block.Label}: {block.Content}");
+                var elements = new List<ElementGrouping.GroupedElement>
+                {
+                    new ElementGrouping.GroupedElement
+                    {
+                        GameObject = null,
+                        Label = label,
+                        Group = ElementGrouping.ElementGroup.EventInfo
+                    }
+                };
+
+                _groupedNavigator.AddVirtualGroup(
+                    ElementGrouping.ElementGroup.EventInfo,
+                    elements,
+                    insertAfter: insertAfter,
+                    isStandalone: true,
+                    displayName: label
+                );
+
+                // Subsequent blocks insert after the last EventInfo
+                insertAfter = ElementGrouping.ElementGroup.EventInfo;
+            }
         }
 
         #endregion

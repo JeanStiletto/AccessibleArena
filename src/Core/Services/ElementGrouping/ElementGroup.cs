@@ -133,6 +133,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         DeckBuilderInfo,
 
         /// <summary>
+        /// Event page info blocks (losses, description text).
+        /// Contains virtual standalone elements with no GameObjects - purely informational text
+        /// read from the event page via EventAccessor.
+        /// </summary>
+        EventInfo,
+
+        /// <summary>
         /// Mailbox mail list (left pane). Shown when browsing mails.
         /// </summary>
         MailboxList,

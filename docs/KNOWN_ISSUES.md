@@ -95,6 +95,18 @@ When selecting a different color in Color Challenge, the announced deck name doe
 
 ---
 
+### Card Types Displayed in English in All Languages
+
+Card type names (e.g., "Creature", "Instant", "Sorcery") are always shown in English regardless of the selected language. They should use localized names.
+
+---
+
+### Deck Renaming Causes Bad Mod State
+
+Renaming a deck breaks the mod's navigation state. After renaming, the mod may lose track of elements, fail to announce correctly, or require a screen transition to recover.
+
+---
+
 ## Needs Testing
 
 ### UIActivator Single-Activation Cleanup
@@ -237,6 +249,12 @@ Zone card lists sometimes don't refresh when a card enters or leaves a zone (e.g
 ---
 
 ## Not Reproducible Yet
+
+### Card Names in English Despite Non-English Game Language
+
+Reported by some users: card names are read in English while the rest of the card text (rules text, type line) and the game UI are in the correct non-English language. Could not reproduce so far. May be related to game client language settings, account region, or a specific card data loading order.
+
+---
 
 ### Game Assets Loading Problem
 
