@@ -255,15 +255,16 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - "Fertig" (Done) button
 
 **Groups:**
-- `DeckBuilderCollection` - Collection card grid
+- `DeckBuilderCollection` - Collection card grid (when browsing collection without a deck)
+- `DeckBuilderSideboard` - Sideboard/available cards (pool cards when editing a deck - draft, sealed, or normal)
 - `DeckBuilderDeckList` - Deck list cards (compact list with quantities)
 - `DeckBuilderInfo` - Deck statistics (card count, types, mana curve) with 2D sub-navigation
 - `Filters` - Color checkboxes, type filters, advanced filters
-- `Content` - Header controls (Sideboard, deck name, etc.)
+- `Content` - Header controls (Sideboard toggle, deck name, etc.)
 
 **Navigation:**
 - Arrow Up/Down: Navigate between groups and elements
-- Tab/Shift+Tab: Cycle between groups (Collection, Deck List, Deck Info, Filters) and auto-enter
+- Tab/Shift+Tab: Cycle between groups (Collection/Sideboard, Deck List, Deck Info, Filters) and auto-enter
 - Enter on group: Enter the group to navigate individual items
 - Backspace: Exit current group, return to group list
 
@@ -292,7 +293,7 @@ Navigation within Deck Info:
 - Left/Right arrows: Navigate individual entries within the current row
 - Home/End: Jump to first/last entry in current row
 - Enter: Refresh all data from game UI and re-announce current entry
-- Tab/Shift+Tab: Cycle to other deck builder groups (Collection, Deck List, Filters)
+- Tab/Shift+Tab: Cycle to other deck builder groups (Collection/Sideboard, Deck List, Filters)
 - Backspace: Exit Deck Info back to group level
 
 Card count is also announced automatically whenever a card is added to or removed from the deck.
@@ -322,7 +323,7 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 - Deck list unowned detection via `MetaCardView.ShowUnCollectedTreatment` field (set by `SetDisplayInformation`)
 - Quantity buttons (`CustomButton - Tag` showing "4x", "2x") are filtered to Unknown group
 - Deck header controls (Sideboard toggle, deck name field) are in Content group
-- Tab cycling skips standalone elements, only cycles between actual groups
+- Tab cycling skips standalone elements, only cycles between actual groups (deck builder card groups always remain proper groups even with 1 card)
 - `DeckInfoProvider` reads deck statistics via reflection on `DeckCostsDetails` and `DeckMainTitlePanel`
 - Deck data populated via `Pantry.Get<DeckBuilderModelProvider>().Model.GetFilteredMainDeck()` reflection chain
 - `DeckBuilderInfo` group uses virtual elements (GameObject=null) with 2D sub-navigation (see element-grouping-feature.md)
@@ -352,7 +353,6 @@ This ensures deck list cards are always accessible regardless of the holder's in
 
 **Known Limitations:**
 - Quantity buttons may still appear in navigation (filter not fully working)
-- Sideboard management not yet implemented
 
 ## NPE Screens
 

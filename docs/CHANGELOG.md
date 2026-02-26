@@ -4,6 +4,18 @@ All notable changes to Accessible Arena.
 
 ## v0.7.2-dev
 
+### New: Deck Builder Sideboard Group
+- Pool holder cards (available cards to add) are now classified as **Sideboard** instead of **Collection** when editing a deck. Applies to draft, sealed, and normal deck builder.
+- New `DeckBuilderSideboard` group with "Sideboard" label (Tab-cyclable between Collection, Sideboard, Deck List, Deck Info, Filters)
+- Sideboard cards use quantity-prefixed labels ("1x Card Name") matching deck list format
+- Card detail navigation (Up/Down) works for sideboard cards
+- Files: ElementGroup.cs, ElementGroupAssigner.cs, GroupedNavigator.cs, GeneralMenuNavigator.cs, CardModelProvider.cs, CardDetector.cs, Strings.cs, en.json, de.json
+
+### Fixed: Single-Card Groups Shown as Standalone Items
+- Deck builder card groups (Collection, Sideboard, Deck List) now always appear as proper groups even when they contain only 1 card
+- Previously a single card would appear as a standalone item in the list without the group name, losing context about which section it belongs to
+- Files: ElementGroup.cs, GroupedNavigator.cs
+
 ### Improved: PopupHandler Rework
 - **Input field support**: Popups with input fields (e.g., InviteFriendPopup, ChallengeInviteWindow) are now fully navigable. Enter activates edit mode, Escape exits, Tab navigates to next item, Up/Down reads content, Left/Right reads character at cursor, Backspace announces deleted character.
 - **Button filtering**: Dismiss overlays (background, overlay, backdrop, dismiss) automatically filtered. Duplicate button labels deduplicated. Buttons nested inside input fields or other buttons skipped.
