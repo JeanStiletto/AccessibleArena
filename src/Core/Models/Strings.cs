@@ -106,6 +106,14 @@ namespace AccessibleArena.Core.Models
             count == 1 ? L.Format("RowWithCount_One", rowName) : L.Format("RowWithCount_Format", rowName, count);
         public static string RowEmptyShort(string rowName) => L.Format("RowEmptyShort_Format", rowName);
 
+        // Land summary (M key)
+        public static string LandSummaryEmpty(string rowName) => L.Format("LandSummary_Empty_Format", rowName);
+        public static string LandSummaryTotal(int count) =>
+            count == 1 ? L.Get("LandSummary_Total_One") : L.Format("LandSummary_Total_Format", count);
+        public static string LandSummaryAllTapped(string totalPart) => L.Format("LandSummary_AllTapped_Format", totalPart);
+        public static string LandSummaryAllUntapped(string totalPart, string untappedList) => L.Format("LandSummary_AllUntapped_Format", totalPart, untappedList);
+        public static string LandSummaryMixed(string totalPart, string untappedList) => L.Format("LandSummary_Mixed_Format", totalPart, untappedList);
+
         // ===========================================
         // ZONE NAVIGATION
         // ===========================================
@@ -749,6 +757,7 @@ namespace AccessibleArena.Core.Models
         public static string HelpLLifeTotals => L.Get("HelpLLifeTotals");
         public static string HelpTTurnPhase => L.Get("HelpTTurnPhase");
         public static string HelpVPlayerInfo => L.Get("HelpVPlayerInfo");
+        public static string HelpMLandSummary => L.Get("HelpMLandSummary");
 
         // Card navigation
         public static string HelpLeftRightCards => L.Get("HelpLeftRightCards");

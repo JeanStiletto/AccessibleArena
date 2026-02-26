@@ -474,6 +474,16 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // M key: Land summary (M = your lands, Shift+M = opponent lands)
+            if (Input.GetKeyDown(KeyCode.M))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                var landRow = shift ? BattlefieldRow.EnemyLands : BattlefieldRow.PlayerLands;
+                string summary = _battlefieldNavigator.GetLandSummary(landRow);
+                _announcer.AnnounceInterrupt(summary);
+                return true;
+            }
+
             // Battlefield navigation (A/R/B shortcuts and row-based navigation)
             if (_battlefieldNavigator.HandleInput())
                 return true;

@@ -60,6 +60,13 @@
   "RowWithCount_Format": "{0}, {1} cards",
   "RowEmptyShort_Format": "{0}, empty",
 
+  "LandSummary_Empty_Format": "{0}, no lands",
+  "LandSummary_Total_One": "1 land",
+  "LandSummary_Total_Format": "{0} lands",
+  "LandSummary_AllTapped_Format": "{0}, all tapped",
+  "LandSummary_AllUntapped_Format": "{0}, {1} untapped",
+  "LandSummary_Mixed_Format": "{0}, {1} untapped",
+
   "EndOfZone": "End of zone",
   "BeginningOfZone": "Beginning of zone",
   "ZoneNotFound_Format": "{0} not found",
@@ -271,6 +278,7 @@
   "HelpLLifeTotals": "L: Life totals",
   "HelpTTurnPhase": "T: Turn and phase",
   "HelpVPlayerInfo": "V: Player info zone",
+  "HelpMLandSummary": "M: Your land summary, Shift plus M: Opponent land summary",
 
   "HelpLeftRightCards": "Left or Right arrow: Previous or next card",
   "HelpHomeEndCards": "Home or End: First or last card",

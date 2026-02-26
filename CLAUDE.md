@@ -123,6 +123,7 @@ Within Row: Left/Right (Navigate cards), Home/End (Jump to first/last)
 
 **Duel - Info:**
 T (Turn), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descriptions + other faces)
+M (Your Land Summary), Shift+M (Opponent Land Summary)
 D (Your Library), Shift+D (Opponent Library), Shift+C (Opponent Hand Count)
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 

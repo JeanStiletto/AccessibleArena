@@ -508,6 +508,8 @@ Active gameplay with zones and cards.
 **Info Shortcuts:**
 - T - Announce turn number and active player
 - L - Announce life totals
+- M - Your land summary (total count + untapped lands grouped by name)
+- Shift+M - Opponent land summary
 - V - Enter player info zone (portrait navigation)
 - D - Your library count
 - Shift+D - Opponent library count

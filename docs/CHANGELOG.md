@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.7.2-dev
 
+### New: Land Summary Shortcut (M / Shift+M)
+- Press **M** to hear a summary of your lands: total count and untapped lands grouped by name
+- Press **Shift+M** for the opponent's land summary
+- Example announcements: "7 lands, 2 Island, 1 Mountain, 1 Azorius Gate untapped" or "5 lands, all tapped"
+- Uses existing battlefield land rows and tap state detection
+- Files: BattlefieldNavigator.cs, DuelNavigator.cs, InputManager.cs, Strings.cs, HelpNavigator.cs, en.json
+
 ### Fixed: Card Type Lines Now Correctly Localized
 - Card type lines (e.g. "Legendary Creature - Elf Warrior") now display in the game's selected language instead of always showing English
 - Uses `TypeTextId`/`SubtypeTextId` localization IDs via `GreLocProvider`, same system used for flavor text

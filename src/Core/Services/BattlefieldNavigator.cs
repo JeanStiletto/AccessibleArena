@@ -725,6 +725,67 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Builds a land summary for the given land row: total count + untapped lands grouped by name.
+        /// Example: "7 lands, 2 Islands, 1 Mountain, 1 Azorius Gate untapped"
+        /// </summary>
+        public string GetLandSummary(BattlefieldRow landRow)
+        {
+            DiscoverAndCategorizeCards();
+
+            var cards = _rows[landRow];
+            int total = cards.Count;
+
+            if (total == 0)
+                return Strings.LandSummaryEmpty(GetRowName(landRow));
+
+            // Group untapped lands by name, preserving order of first appearance
+            var untappedGroups = new List<KeyValuePair<string, int>>();
+            var untappedCounts = new Dictionary<string, int>();
+            int tappedCount = 0;
+
+            foreach (var card in cards)
+            {
+                bool isTapped = CardModelProvider.GetIsTappedFromCard(card);
+                if (isTapped)
+                {
+                    tappedCount++;
+                    continue;
+                }
+
+                string name = CardDetector.GetCardName(card);
+                if (untappedCounts.ContainsKey(name))
+                {
+                    untappedCounts[name]++;
+                }
+                else
+                {
+                    untappedCounts[name] = 1;
+                    untappedGroups.Add(new KeyValuePair<string, int>(name, 0)); // placeholder
+                }
+            }
+
+            // Build the untapped part: "2 Islands, 1 Mountain"
+            var parts = new List<string>();
+            foreach (var kvp in untappedGroups)
+            {
+                int count = untappedCounts[kvp.Key];
+                parts.Add($"{count} {kvp.Key}");
+            }
+
+            string totalPart = Strings.LandSummaryTotal(total);
+
+            if (parts.Count == 0)
+                return Strings.LandSummaryAllTapped(totalPart);
+
+            string untappedPart = string.Join(", ", parts);
+
+            if (tappedCount == 0)
+                return Strings.LandSummaryAllUntapped(totalPart, untappedPart);
+
+            return Strings.LandSummaryMixed(totalPart, untappedPart);
+        }
+
+        /// <summary>
         /// Gets the display name for a row.
         /// </summary>
         private string GetRowName(BattlefieldRow row)
