@@ -715,11 +715,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                             });
                         }
                     }
-                    else if (elementList.Count == 1 && !groupType.IsFriendSectionGroup())
+                    else if (elementList.Count == 1 && !groupType.IsFriendSectionGroup() && !groupType.IsDeckBuilderCardGroup())
                     {
                         // Single element - show standalone instead of creating a group
                         // Exception: Friend section groups always show as proper groups
                         // (section name provides context, left/right sub-navigation for actions)
+                        // Exception: Deck builder card groups always show as proper groups
+                        // (group name like "Sideboard" / "Deck List" provides essential context)
                         _groups.Add(new ElementGroupInfo
                         {
                             Group = groupType,

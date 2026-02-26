@@ -252,6 +252,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Returns true if this group is a deck builder card group (collection, sideboard, deck list).
+        /// These groups should always remain proper groups even with a single element.
+        /// </summary>
+        public static bool IsDeckBuilderCardGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.DeckBuilderCollection
+                || group == ElementGroup.DeckBuilderSideboard
+                || group == ElementGroup.DeckBuilderDeckList;
+        }
+
+        /// <summary>
         /// Returns true if this group is the challenge main group.
         /// </summary>
         public static bool IsChallengeGroup(this ElementGroup group)
