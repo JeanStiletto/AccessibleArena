@@ -24,12 +24,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void SetProfileButtonId(int instanceId) => _profileButtonInstanceId = instanceId;
         public void ClearProfileButtonId() => _profileButtonInstanceId = 0;
 
-        /// <summary>
-        /// When true, pool holder cards (PagesMetaCardView in PoolHolder) are classified as
-        /// DeckBuilderSideboard instead of DeckBuilderCollection. Set by the navigator when
-        /// a deck list exists (the pool shows cards available to add to the deck).
-        /// </summary>
-        public bool PoolCardsAreSideboard { get; set; }
 
         /// <summary>
         /// Determine which group an element belongs to.
@@ -102,11 +96,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         private ElementGroup DetermineOverlayGroup(GameObject element, string name, string parentPath)
         {
-            // Deck Builder collection/sideboard cards (PoolHolder canvas)
-            // When a deck list exists, pool cards are sideboard (PoolCardsAreSideboard flag)
+            // Deck Builder collection cards (PoolHolder canvas)
+            // Pool cards are always collection - actual sideboard cards are in MetaCardHolders_Container
             if (parentPath.Contains("PoolHolder") &&
                 (name.Contains("MetaCardView") || name.Contains("PagesMetaCardView")))
-                return PoolCardsAreSideboard ? ElementGroup.DeckBuilderSideboard : ElementGroup.DeckBuilderCollection;
+                return ElementGroup.DeckBuilderCollection;
 
             // Deck Builder deck list cards (MainDeck_MetaCardHolder)
             // These are the cards currently in your deck, shown as a compact list

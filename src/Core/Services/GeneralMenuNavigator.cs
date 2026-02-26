@@ -1461,12 +1461,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsInCollectionCardContext()
         {
-            // Check if current element is in DeckBuilderCollection or DeckBuilderDeckList group
+            // Check if current element is in any deck builder card group (collection, sideboard, or deck list)
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 var currentGroup = _groupedNavigator.CurrentGroup;
-                if (currentGroup?.Group == ElementGroup.DeckBuilderCollection ||
-                    currentGroup?.Group == ElementGroup.DeckBuilderDeckList)
+                if (currentGroup?.Group.IsDeckBuilderCardGroup() == true)
                     return true;
             }
 
@@ -3491,18 +3490,9 @@ namespace AccessibleArena.Core.Services
             // These are not buttons but should be navigable to read card info
             FindNPERewardCards(addedObjects);
 
-            // Pool cards are the sideboard when a deck list exists (draft, sealed, or normal deck builder)
-            if (_activeContentController == "WrapperDeckBuilder")
-            {
-                bool hasDeckList = CardModelProvider.GetDeckListCards().Count > 0;
-                _groupAssigner.PoolCardsAreSideboard = hasDeckList;
-            }
-            else
-            {
-                _groupAssigner.PoolCardsAreSideboard = false;
-            }
-
-            // Find deck builder collection/sideboard cards (PoolHolder canvas)
+            // Find deck builder collection cards (PoolHolder canvas)
+            // Pool cards are always collection. Actual sideboard cards are in MetaCardHolders_Container,
+            // detected separately by FindSideboardCards().
             FindPoolHolderCards(addedObjects);
 
             // Find deck list cards (MainDeck_MetaCardHolder)
@@ -3704,10 +3694,9 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Find collection/sideboard cards in the deck builder's PoolHolder canvas.
+        /// Find collection cards in the deck builder's PoolHolder canvas.
         /// Uses CardPoolAccessor to get only the current page's cards directly from the game's
         /// CardPoolHolder API, instead of scanning the entire hierarchy.
-        /// In draft/sealed, pool cards are the sideboard (PoolCardsAreSideboard flag).
         /// </summary>
         private void FindPoolHolderCards(HashSet<GameObject> addedObjects)
         {
@@ -3715,8 +3704,7 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController != "WrapperDeckBuilder")
                 return;
 
-            bool isSideboard = _groupAssigner.PoolCardsAreSideboard;
-            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for {(isSideboard ? "sideboard" : "collection")} cards via CardPoolAccessor...");
+            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for collection cards via CardPoolAccessor...");
 
             // Try direct API access via CardPoolAccessor
             var poolHolder = CardPoolAccessor.FindCardPoolHolder();
@@ -3755,27 +3743,17 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
-                string label;
-                if (isSideboard)
+                // Collection style: "CardName, TypeLine, ManaCost"
+                string label = cardInfo.Name;
+
+                if (!string.IsNullOrEmpty(cardInfo.TypeLine))
                 {
-                    // Sideboard style: "Nx CardName" (like deck list cards)
-                    int qty = cardInfo.OwnedCount > 0 ? cardInfo.OwnedCount : 1;
-                    label = $"{qty}x {cardInfo.Name}";
+                    label += $", {cardInfo.TypeLine}";
                 }
-                else
+
+                if (!string.IsNullOrEmpty(cardInfo.ManaCost))
                 {
-                    // Collection style: "CardName, TypeLine, ManaCost"
-                    label = cardInfo.Name;
-
-                    if (!string.IsNullOrEmpty(cardInfo.TypeLine))
-                    {
-                        label += $", {cardInfo.TypeLine}";
-                    }
-
-                    if (!string.IsNullOrEmpty(cardInfo.ManaCost))
-                    {
-                        label += $", {cardInfo.ManaCost}";
-                    }
+                    label += $", {cardInfo.ManaCost}";
                 }
 
                 addedObjects.Add(cardObj);

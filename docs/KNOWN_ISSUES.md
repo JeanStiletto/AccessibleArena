@@ -181,6 +181,12 @@ Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing wheth
 
 ---
 
+### Sideboard Cards in Draft/Sealed Deck Building
+
+Pool cards are now always classified as "Collection" (DeckBuilderCollection). Actual sideboard cards (non-MainDeck holders inside MetaCardHolders_Container) are detected separately. This works correctly for normal deck building, but in draft/sealed the pool cards may conceptually be the sideboard. Needs testing whether draft/sealed sideboard cards are still properly detected and navigable.
+
+---
+
 ### Specific Events
 
 Individual event types (drafts, sealed, special events) are untested. Basic event navigation works but event-specific flows may have issues.
