@@ -43,14 +43,6 @@ When clicking a non-attacking token during declare attackers, the game always se
 
 ---
 
-### ~~Delayed "kann angreifen" State on Newly Created Tokens~~ (Fixed)
-
-Fixed by adding model-based fallback in `CombatNavigator.GetCombatStateText()`. When `CombatIcon_AttackerFrame` hasn't appeared yet, checks `HasSummoningSickness` field on the model directly. Creature shows "kann angreifen" if no summoning sickness and not tapped, regardless of UI frame state.
-
-**Files:** `CombatNavigator.cs`, `CardModelProvider.cs` (GetHasSummoningSicknessFromCard)
-
----
-
 ### Battlefield Cards Splitting Into Two Stacks
 
 Cards on the battlefield sometimes split into two separate stacks/rows when they should be grouped together.
@@ -60,18 +52,6 @@ Cards on the battlefield sometimes split into two separate stacks/rows when they
 ### Bot Match Not Working From Recent Played
 
 Starting a bot match from the "Recent Played" section does not work properly.
-
----
-
-### Add Friend Popup Only Closes on Escape, Not Backspace
-
-The "Add Friend" popup (InviteFriendPopup) from the Friends panel does not close with Backspace. Only Escape works. The per-navigator popup tracking detects it correctly (`Popup detected: InviteFriendPopup`), and the dismiss chain finds and invokes `SystemMessageView.OnBack(null)`, but the popup does not actually close. Needs investigation into why OnBack succeeds but doesn't dismiss the popup, or whether a different dismiss mechanism is needed.
-
----
-
-### Deck Settings Dialog Requires Double Backspace to Exit
-
-When inside the deck settings dialog (DeckDetailsPopup, opened via "Format auswählen" in deck builder), the first Backspace press does not exit the dialog group. A second Backspace is needed. This is likely related to nested dialog/popup handling — the popup sits on top of the deck builder, and the first Backspace may be consumed by the popup dismiss rather than the group navigation. May need proper nested dialog and holder recognition for a smoother deck building experience. Functional for now.
 
 ---
 
@@ -95,12 +75,6 @@ When selecting a different color in Color Challenge, the announced deck name doe
 
 ---
 
-### Card Types Displayed in English in All Languages
-
-Card type names (e.g., "Creature", "Instant", "Sorcery") are always shown in English regardless of the selected language. They should use localized names.
-
----
-
 ### Deck Renaming Causes Bad Mod State
 
 Renaming a deck breaks the mod's navigation state. After renaming, the mod may lose track of elements, fail to announce correctly, or require a screen transition to recover.
@@ -108,22 +82,6 @@ Renaming a deck breaks the mod's navigation state. After renaming, the mod may l
 ---
 
 ## Needs Testing
-
-### UIActivator Single-Activation Cleanup
-
-Removed redundant activation methods from `SimulatePointerClick` and `Activate` (Feb 2026). Previously, every button press fired 3-4 overlapping activation pathways (pointer events, submit handler, children clicks, direct IPointerClickHandler, reflection onClick). Now only the core pointer sequence fires (enter, down, up, click). This fixed NPE tutorial matches failing to start, but all button types across the game need monitoring:
-- Menu buttons (play, settings, store, etc.)
-- Duel prompt buttons (pass, attack, block)
-- Card activation and targeting
-- Deck builder buttons
-- Collection/store purchase buttons
-- Login and registration buttons
-
-**If a button stops working:** Re-add targeted handling for that specific button in `UIActivator.Activate()`, similar to existing special cases (Nav_Mail, NPE reward, SystemMessageButtonView).
-
-**Files:** `UIActivator.cs`
-
----
 
 ### Other Windows Versions and Screen Readers
 
@@ -184,12 +142,6 @@ Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing wheth
 ### Sideboard Cards in Draft/Sealed Deck Building
 
 Pool cards are now always classified as "Collection" (DeckBuilderCollection). Actual sideboard cards (non-MainDeck holders inside MetaCardHolders_Container) are detected separately. This works correctly for normal deck building, but in draft/sealed the pool cards may conceptually be the sideboard. Needs testing whether draft/sealed sideboard cards are still properly detected and navigable.
-
----
-
-### Specific Events
-
-Individual event types (drafts, sealed, special events) are untested. Basic event navigation works but event-specific flows may have issues.
 
 ---
 
@@ -325,39 +277,9 @@ Changed `ElementGroupAssigner.DetermineOverlayGroup()` to exclude `Objective_NPE
 
 ---
 
-### Card Info Navigation (Up/Down Arrows)
-
-Reported once: Up/Down arrows stopped reading card details during a duel. Could not reproduce. Diagnostic logging added.
-
-**If it happens again:** Check log for `[CardInfo]` entries around the time of the issue.
-
-**Files:** `CardInfoNavigator.cs`, `AccessibleArenaMod.cs`
-
----
-
-### Container Element Filtering
-
-Elements with "Container" in name + 0x0 sizeDelta are skipped. Some legitimate containers might be incorrectly filtered.
-
-**If a button stops working:** Check `UIElementClassifier.ShouldBeFiltered()`.
-
----
-
 ### Targeting Spells With Non-Battlefield Objects in Highlight List
 
 Monitor whether clicking activates the wrong target during duels, especially when targeting spells while non-battlefield objects (e.g., UI buttons, zone elements) are present in the highlight list.
-
-### Library Zone Navigation (Anti-Cheat Filter)
-
-Library zone navigation (D / Shift+D) only shows cards that are visible to sighted players:
-- **HotHighlight** = playable from library (Future Sight, Vizier of the Menagerie, etc.)
-- **IsDisplayedFaceUp** = revealed face-up but not necessarily playable (Courser of Kruphix, Experimental Frenzy, etc.)
-
-Without such effects, D only announces the library count without entering navigation. This is by design: the library is a hidden zone and exposing face-down cards would be cheating.
-
-Note: The original `RevealOverride` property on the CDC was found to never be set by the game. Replaced with `Model.IsDisplayedFaceDown == false` which correctly identifies face-up cards.
-
----
 
 ## Design Decisions
 
@@ -405,34 +327,16 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 ### Immediate
 
-1. Mana pool info - expand to show color breakdown
-2. Stepper control redesign
-3. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
-4. X spell support - spells with variable costs (e.g., Fireball, Walking Ballista) require the player to choose a value for X. Currently no accessible way to set the X value. Needs investigation into how the game presents the X cost input and how to make it navigable.
+1. Stepper control redesign
+2. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
+3. X spell support - spells with variable costs (e.g., Fireball, Walking Ballista) require the player to choose a value for X. Currently no accessible way to set the X value. Needs investigation into how the game presents the X cost input and how to make it navigable.
 
 ---
-
-### Mana Pool Info (Research Notes)
-
-The mana pool UI exists and is readable, but only shows total count, not color breakdown.
-
-**What We Found (January 2026):**
-- **UI Path:** `UIElements/ManaPool/Content/ManaPoolButton(Clone)`
-- **How it's read:** FocusTracker extracts text when focused (via Tab during mana payment)
-- **Current output:** Just a number (e.g., "1")
-- **Missing:** Color breakdown (e.g., "1 Green, 2 Blue")
-
-**Next Steps:**
-1. Investigate ManaPool children - may have per-color elements
-2. Check if game has ManaPool data accessible via reflection
-3. Look for mana symbols/icons that indicate colors
-4. Consider adding a dedicated shortcut to read mana pool during duels
 
 ### Upcoming
 
 1. Manual trigger ordering - allow players to manually choose the order of their triggered abilities when multiple triggers happen simultaneously
-2. Phase stop markers - allow setting stop markers for specific phases so the game pauses at those points for the player to act
-3. Auto-skip tracking and hotkeys - correct tracking and switching of auto-skip state, including a new hotkey for toggling auto-skip and full auto-skip modes
+2. Auto-skip tracking and hotkeys - correct tracking and switching of auto-skip state, including a new hotkey for toggling auto-skip and full auto-skip modes
 4. First letter navigation - press a letter key to jump to the next element starting with that letter in menus and lists
 5. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
 6. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
@@ -440,28 +344,8 @@ The mana pool UI exists and is readable, but only shows total count, not color b
 8. Creature death/exile/graveyard announcements with card names
 9. Player username announcements
 10. Game wins display (WinPips)
-11. Brawl accessibility - commander death zone selection (command zone vs graveyard), deck editor commander support (see below)
-12. ~~Damage assignment browser~~ - implemented in v0.7.2
-
-### Brawl Deck Builder Support
-
-The Brawl deck builder uses a multi-step UI flow that differs from the standard deck builder. When editing a Brawl deck, the game first shows a **commander selection screen** with minimal UI (commander pick buttons, deck name, back) before entering the full deck editor. The mod's WrapperDeckBuilder detection triggers for both steps, but in the commander selection step the standard elements (PoolHolder collection cards, filter bar, MainDeck card tiles) don't exist in the scene yet.
-
-**What's missing:**
-- Commander selection screen only shows 3 groups (Zurück, Herstellen, Spieloptionen) instead of the full 8
-- No collection cards (PoolHolder not present)
-- No filter controls (search, color toggles, card type filters)
-- No deck list cards (MainDeck_MetaCardHolder tiles not rendered)
-- No Sideboard toggle, Next/Fertig buttons
-
-**Needed:**
-- Detect the commander selection sub-screen as a distinct state within WrapperDeckBuilder
-- Provide proper navigation for commander picker (announce commander choices with card info)
-- Handle transition from commander selection to full deck editor
-- Support Commander_MetaCardHolder if the game uses a separate holder for the commander slot
-13. Token state on cards - announce token/copy status when reading card info
-14. Smart mana announcement - announce available mana with color breakdown from game state
-15. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
+11. Token state on cards - announce token/copy status when reading card info
+14. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
 16. Browser announcements - shorter, less verbose; only announce when it is the player's browser (not opponent's)
 17. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
 18. Better group announcements - improve how element groups are announced when entering/switching groups
@@ -482,18 +366,11 @@ The Brawl deck builder uses a multi-step UI flow that differs from the standard 
 
 ### Future
 
-1. Draft/sealed events
-2. Full deck editing workflow (add/remove cards, save deck)
-3. Single-key info shortcuts (inspired by Hearthstone Access)
+1. Single-key info shortcuts (inspired by Hearthstone Access)
    - Quick status queries without navigation
    - Benefits: Faster information access, less navigation needed
 
    **Priority shortcuts to implement:**
-
-   **M / Shift+M - Mana Announcement**
-   - M: Announce "X mana available of Y total" (your mana)
-   - Shift+M: Announce opponent's mana
-   - Requires: Finding mana data from game state (not currently extracted)
 
    **K - Keyword Explanation**
    - When focused on a card, K announces keyword abilities with definitions

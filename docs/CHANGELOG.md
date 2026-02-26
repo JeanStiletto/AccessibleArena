@@ -64,10 +64,23 @@ All notable changes to Accessible Arena.
 ### New: Event System Accessibility
 - Event tiles on Play Blade enriched with title, ranked/Bo3 indicators, progress pips, and in-progress status
 - Event page shows "Event: {title}" with win progress summary
+- Improved reading of event informational text (description, rules, rewards)
 - Jump In packet selection fully navigable: Up/Down for packets, Left/Right for info blocks (name, colors, description)
 - Packet activation via reflection (ClickPacket) since UIActivator can't reach PacketInput on parent GO
 - Confirm button and rescan after packet selection/confirmation for async GO rebuilds
+- Tested with Jump Start, Starter Duel, and Draft events
 - EventAccessor static class for all reflection-based event/packet data access
+
+### New: Draft Navigator
+- Full keyboard navigation for the draft card picking screen
+- Navigate available cards, select picks with Enter
+- Draft popup handling for pack transitions
+- Files: DraftNavigator.cs
+
+### New: OptionalAction Browser Navigation
+- Shockland-style choice prompts (e.g. "Pay 2 life?") now navigable as a browser
+- Tab to navigate options, Enter to select
+- Files: BrowserNavigator.cs
 
 ### Fixed: Player Target Selection (Enter Key)
 - Enter on player targets (e.g. "Choose a player to draw two cards") was activating a hand card instead of selecting the player
