@@ -1950,14 +1950,33 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Name - get from GrpId using CardTitleProvider lookup
+                // Name - try TitleId via GreLocProvider first (guaranteed localized),
+                // fall back to CardTitleProvider lookup by GrpId
                 uint cardGrpId = 0;
                 var grpIdObj = GetModelPropertyValue(dataObj, objType, "GrpId");
                 if (grpIdObj is uint grpId)
-                {
                     cardGrpId = grpId;
-                    info.Name = GetNameFromGrpId(grpId);
+
+                var titleIdObj = GetModelPropertyValue(dataObj, objType, "TitleId");
+                if (titleIdObj is uint titleId && titleId > 0)
+                    info.Name = GetLocalizedTextById(titleId);
+
+                // Fall back: try Printing.TitleId
+                if (string.IsNullOrEmpty(info.Name))
+                {
+                    var printingForName = GetModelPropertyValue(dataObj, objType, "Printing");
+                    if (printingForName != null)
+                    {
+                        var printingType = printingForName.GetType();
+                        var printingTitleId = GetModelPropertyValue(printingForName, printingType, "TitleId");
+                        if (printingTitleId is uint ptid && ptid > 0)
+                            info.Name = GetLocalizedTextById(ptid);
+                    }
                 }
+
+                // Fall back: CardTitleProvider by GrpId
+                if (string.IsNullOrEmpty(info.Name) && cardGrpId > 0)
+                    info.Name = GetNameFromGrpId(cardGrpId);
 
                 // Mana Cost - try PrintedCastingCost (ManaQuantity[]) first, fall back to string
                 var castingCost = GetModelPropertyValue(dataObj, objType, "PrintedCastingCost");
@@ -4178,8 +4197,19 @@ namespace AccessibleArena.Core.Services
             {
                 var cardType = cardData.GetType();
 
-                // Name
-                info.Name = GetNameFromGrpId(grpId);
+                // Name - try TitleId via GreLocProvider first, fall back to CardTitleProvider
+                var titleIdProp = cardType.GetProperty("TitleId");
+                if (titleIdProp != null)
+                {
+                    var titleIdVal = titleIdProp.GetValue(cardData);
+                    uint titleId = 0;
+                    if (titleIdVal is uint tid) titleId = tid;
+                    else if (titleIdVal is int tidInt && tidInt > 0) titleId = (uint)tidInt;
+                    if (titleId > 0)
+                        info.Name = GetLocalizedTextById(titleId);
+                }
+                if (string.IsNullOrEmpty(info.Name))
+                    info.Name = GetNameFromGrpId(grpId);
 
                 // TypeLine - try localized lookup via TypeTextId/SubtypeTextId first
                 var typeTextIdProp = cardType.GetProperty("TypeTextId");

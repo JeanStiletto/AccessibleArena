@@ -514,8 +514,8 @@ List<CardInfoBlock> blocks = CardDetector.BuildInfoBlocks(info);
 **Card info extraction hierarchy:**
 - `CardDetector.ExtractCardInfo(gameObject)` - Entry point. Tries deck list, then Model, then UI fallback
 - `CardModelProvider.ExtractCardInfoFromModel(gameObject)` - Finds Model via CDC/MetaCardView, delegates to `ExtractCardInfoFromObject`
-- `CardModelProvider.ExtractCardInfoFromObject(dataObj)` - Shared extraction from any card data object. Type line uses localized lookup via TypeTextId/SubtypeTextId first, falls back to structured enums then string properties. Only shows P/T for creatures. Resolves artist from Printing sub-object.
-- `CardModelProvider.ExtractCardInfoFromCardData(cardData, grpId)` - Extraction from CardPrintingData. Also uses TypeTextId/SubtypeTextId for localized type lines.
+- `CardModelProvider.ExtractCardInfoFromObject(dataObj)` - Shared extraction from any card data object. Name uses TitleId via GreLocProvider, type line uses TypeTextId/SubtypeTextId. Falls back to CardTitleProvider (name) or structured enums (types) if loc IDs unavailable. Only shows P/T for creatures. Resolves artist from Printing sub-object.
+- `CardModelProvider.ExtractCardInfoFromCardData(cardData, grpId)` - Extraction from CardPrintingData. Also uses TitleId and TypeTextId/SubtypeTextId for localized names and type lines.
 
 **Type detection vs display:**
 - For **display** (type line shown to user): Always use `info.TypeLine` from CardInfo - already localized by extraction methods

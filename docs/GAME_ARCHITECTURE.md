@@ -827,8 +827,8 @@ Cards have a `Model` object (type `GreClient.CardData.CardData`) with these key 
 The same properties are available on CardData objects from store items, making unified extraction possible via `CardModelProvider.ExtractCardInfoFromObject()`.
 
 **Identity:**
-- `GrpId` (uint) - Card database ID
-- `TitleId` (uint) - Localization key for name
+- `GrpId` (uint) - Card database ID (used for CardTitleProvider fallback)
+- `TitleId` (uint) - Localization key for name (primary, via `GetLocalizedTextById`)
 - `FlavorTextId` (uint) - Localization key for flavor (1 = none)
 - `InstanceId` (uint) - Unique instance in a duel (0 for non-duel cards)
 
@@ -854,6 +854,7 @@ The same properties are available on CardData objects from store items, making u
 **Print-specific:**
 - `Printing` (CardPrintingData) - Print-run specific data (artist, set)
 - `Printing.ArtistCredit` (string) - Artist name
+- `Printing.TitleId` (uint) - Name localization key (fallback if not on model directly)
 - `Printing.TypeTextId` (uint) - Type line localization key
 - `Printing.SubtypeTextId` (uint) - Subtype localization key
 - `ExpansionCode` (string) - Set code (e.g., "FDN")
@@ -864,9 +865,9 @@ The same properties are available on CardData objects from store items, making u
 - `ManaCost` / `CastingCost` (string) - Mana cost as string (e.g., "oU")
 - `OldSchoolManaText` (string) - Mana cost in old format
 
-`ExtractCardInfoFromObject` tries localized type line first (via TypeTextId/SubtypeTextId), then falls back to structured enum types (English), then string properties. This means it works with both full Model objects (duel, deck builder) and simpler CardData objects (store items), always producing localized output when possible.
+`ExtractCardInfoFromObject` uses localization IDs via `GetLocalizedTextById()` for both name (`TitleId`) and type line (`TypeTextId`/`SubtypeTextId`), falling back to `CardTitleProvider` (name) or structured enum types (type line) only when loc IDs are unavailable. This means it works with both full Model objects (duel, deck builder) and simpler CardData objects (store items), always producing localized output when possible.
 
-**Important:** Structured enum types (Supertypes/CardTypes/Subtypes) always return English names via `.ToString()`. Use them only for internal type detection (isCreature, isLand), never for display. For display, use `TypeTextId`/`SubtypeTextId` via `GetLocalizedTextById()` or `GreLocProvider.GetLocalizedText()`.
+**Important:** Structured enum types (Supertypes/CardTypes/Subtypes) always return English names via `.ToString()`. Use them only for internal type detection (isCreature, isLand), never for display. For display, use loc IDs (`TitleId`, `TypeTextId`, `SubtypeTextId`) via `GetLocalizedTextById()` or `GreLocProvider.GetLocalizedText()`.
 
 ### Mana Symbol Formats
 
