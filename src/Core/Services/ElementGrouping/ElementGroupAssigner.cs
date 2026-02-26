@@ -25,6 +25,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void ClearProfileButtonId() => _profileButtonInstanceId = 0;
 
         /// <summary>
+        /// When true, pool holder cards (PagesMetaCardView in PoolHolder) are classified as
+        /// DeckBuilderSideboard instead of DeckBuilderCollection. Set by the navigator when
+        /// a deck list exists (the pool shows cards available to add to the deck).
+        /// </summary>
+        public bool PoolCardsAreSideboard { get; set; }
+
+        /// <summary>
         /// Determine which group an element belongs to.
         /// Returns the appropriate group based on element name and parent hierarchy.
         /// </summary>
@@ -95,10 +102,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         private ElementGroup DetermineOverlayGroup(GameObject element, string name, string parentPath)
         {
-            // Deck Builder collection cards (PoolHolder canvas)
+            // Deck Builder collection/sideboard cards (PoolHolder canvas)
+            // When a deck list exists, pool cards are sideboard (PoolCardsAreSideboard flag)
             if (parentPath.Contains("PoolHolder") &&
                 (name.Contains("MetaCardView") || name.Contains("PagesMetaCardView")))
-                return ElementGroup.DeckBuilderCollection;
+                return PoolCardsAreSideboard ? ElementGroup.DeckBuilderSideboard : ElementGroup.DeckBuilderCollection;
 
             // Deck Builder deck list cards (MainDeck_MetaCardHolder)
             // These are the cards currently in your deck, shown as a compact list
@@ -108,6 +116,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (name == "CustomButton - Tile")
                     return ElementGroup.DeckBuilderDeckList;
             }
+
+            // Deck Builder sideboard cards (non-MainDeck holders inside MetaCardHolders_Container)
+            // These are cards available to add to deck in draft/sealed deck building
+            if (parentPath.Contains("MetaCardHolders_Container") && !parentPath.Contains("MainDeck_MetaCardHolder")
+                && name == "CustomButton - Tile")
+                return ElementGroup.DeckBuilderSideboard;
 
             // ReadOnly deck builder cards (StaticColumnMetaCardView in column view)
             // These appear when viewing starter/precon decks in read-only mode

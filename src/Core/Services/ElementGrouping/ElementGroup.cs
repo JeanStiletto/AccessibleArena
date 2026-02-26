@@ -120,6 +120,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         DeckBuilderDeckList,
 
         /// <summary>
+        /// Deck Builder sideboard cards (non-MainDeck holders in MetaCardHolders_Container).
+        /// Cards available to add to deck in draft/sealed deck building.
+        /// </summary>
+        DeckBuilderSideboard,
+
+        /// <summary>
         /// Deck Builder info group (card count, mana curve, type breakdown, colors).
         /// Contains virtual elements with no GameObjects - purely informational text
         /// read from the game's own UI components via reflection.
@@ -210,6 +216,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.NPE
                 || group == ElementGroup.DeckBuilderCollection
                 || group == ElementGroup.DeckBuilderDeckList
+                || group == ElementGroup.DeckBuilderSideboard
                 || group == ElementGroup.DeckBuilderInfo
                 || group == ElementGroup.MailboxList
                 || group == ElementGroup.MailboxContent

@@ -3244,6 +3244,10 @@ namespace AccessibleArena.Core.Services
         private static GameObject _cachedDeckHolder = null;
         private static int _cachedDeckListFrame = -1;
 
+        // Cache for sideboard cards (draft/sealed deck builder)
+        private static List<DeckListCardInfo> _cachedSideboardCards = new List<DeckListCardInfo>();
+        private static int _cachedSideboardFrame = -1;
+
         /// <summary>
         /// Clears the deck list card cache, forcing a fresh lookup on next call.
         /// Call this when entering the DeckBuilderDeckList group to ensure fresh data.
@@ -3253,6 +3257,8 @@ namespace AccessibleArena.Core.Services
             _cachedDeckListCards.Clear();
             _cachedDeckHolder = null;
             _cachedDeckListFrame = -1;
+            _cachedSideboardCards.Clear();
+            _cachedSideboardFrame = -1;
         }
 
         /// <summary>
@@ -3428,6 +3434,176 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets all sideboard cards from non-MainDeck holders inside MetaCardHolders_Container.
+        /// Used in draft/sealed deck building where sideboard cards are in a separate holder.
+        /// </summary>
+        public static List<DeckListCardInfo> GetSideboardCards()
+        {
+            // Return cached result if same frame
+            if (_cachedSideboardFrame == Time.frameCount && _cachedSideboardCards.Count > 0)
+                return _cachedSideboardCards;
+
+            _cachedSideboardCards.Clear();
+            _cachedSideboardFrame = Time.frameCount;
+
+            try
+            {
+                // Find the MetaCardHolders_Container parent
+                // Strategy: start from _cachedDeckHolder (MainDeck_MetaCardHolder) and walk up
+                if (_cachedDeckHolder == null)
+                    GetDeckListCards(); // Populate _cachedDeckHolder
+
+                Transform holdersContainer = null;
+
+                if (_cachedDeckHolder != null)
+                {
+                    // Walk up from MainDeck_MetaCardHolder to find MetaCardHolders_Container
+                    Transform current = _cachedDeckHolder.transform.parent;
+                    while (current != null)
+                    {
+                        if (current.name.Contains("MetaCardHolders_Container"))
+                        {
+                            holdersContainer = current;
+                            break;
+                        }
+                        current = current.parent;
+                    }
+                }
+
+                // Fallback: search scene for MetaCardHolders_Container
+                if (holdersContainer == null)
+                {
+                    var containerObj = GameObject.Find("MetaCardHolders_Container");
+                    if (containerObj != null)
+                        holdersContainer = containerObj.transform;
+                }
+
+                if (holdersContainer == null)
+                {
+                    return _cachedSideboardCards;
+                }
+
+                // Search all children for ListMetaCardHolder components that aren't on MainDeck_MetaCardHolder
+                foreach (Transform child in holdersContainer)
+                {
+                    if (child == null || child.name == "MainDeck_MetaCardHolder")
+                        continue;
+
+                    // Find ListMetaCardHolder component on this child
+                    MonoBehaviour holderComponent = null;
+                    foreach (var mb in child.GetComponents<MonoBehaviour>())
+                    {
+                        if (mb != null && mb.GetType().Name.Contains("ListMetaCardHolder"))
+                        {
+                            holderComponent = mb;
+                            break;
+                        }
+                    }
+
+                    if (holderComponent == null)
+                        continue;
+
+                    MelonLogger.Msg($"[CardModelProvider] Found sideboard holder: '{child.name}' with component {holderComponent.GetType().Name}");
+
+                    // Get CardViews property (same pattern as GetDeckListCards)
+                    var holderType = holderComponent.GetType();
+                    var cardViewsProp = holderType.GetProperty("CardViews");
+                    if (cardViewsProp == null)
+                        continue;
+
+                    var cardViews = cardViewsProp.GetValue(holderComponent) as System.Collections.IEnumerable;
+                    if (cardViews == null)
+                        continue;
+
+                    foreach (var cardView in cardViews)
+                    {
+                        if (cardView == null) continue;
+
+                        var viewType = cardView.GetType();
+                        var info = new DeckListCardInfo();
+
+                        if (cardView is Component viewComponent)
+                        {
+                            info.ViewGameObject = viewComponent.gameObject;
+                        }
+
+                        // Get Card property which has GrpId
+                        var cardProp = viewType.GetProperty("Card");
+                        if (cardProp != null)
+                        {
+                            var card = cardProp.GetValue(cardView);
+                            if (card != null)
+                            {
+                                var cardType = card.GetType();
+                                var grpIdProp = cardType.GetProperty("GrpId");
+                                if (grpIdProp != null)
+                                {
+                                    info.GrpId = (uint)grpIdProp.GetValue(card);
+                                }
+                            }
+                        }
+
+                        // Get Quantity
+                        var qtyProp = viewType.GetProperty("Quantity");
+                        if (qtyProp != null)
+                        {
+                            info.Quantity = (int)qtyProp.GetValue(cardView);
+                        }
+
+                        // Get TileButton (the card name button)
+                        var tileBtnProp = viewType.GetProperty("TileButton");
+                        if (tileBtnProp != null)
+                        {
+                            var tileBtn = tileBtnProp.GetValue(cardView) as Component;
+                            if (tileBtn != null)
+                            {
+                                info.TileButton = tileBtn.gameObject;
+                            }
+                        }
+
+                        // Get TagButton (the quantity button)
+                        var tagBtnProp = viewType.GetProperty("TagButton");
+                        if (tagBtnProp != null)
+                        {
+                            var tagBtn = tagBtnProp.GetValue(cardView) as Component;
+                            if (tagBtn != null)
+                            {
+                                info.TagButton = tagBtn.gameObject;
+                            }
+                        }
+
+                        // Get the CardTile_Base parent via CanvasGroup
+                        var canvasGroupProp = viewType.GetProperty("CanvasGroup");
+                        if (canvasGroupProp != null)
+                        {
+                            var canvasGroup = canvasGroupProp.GetValue(cardView) as Component;
+                            if (canvasGroup != null)
+                            {
+                                info.CardTileBase = canvasGroup.gameObject;
+                            }
+                        }
+
+                        if (info.IsValid)
+                        {
+                            _cachedSideboardCards.Add(info);
+                        }
+                    }
+                }
+
+                if (_cachedSideboardCards.Count > 0)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] Found {_cachedSideboardCards.Count} sideboard card(s)");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting sideboard cards: {ex.Message}");
+            }
+
+            return _cachedSideboardCards;
+        }
+
+        /// <summary>
         /// Gets deck list card info for a specific UI element (TileButton, TagButton, or CardTileBase).
         /// Returns null if the element is not a deck list card.
         /// </summary>
@@ -3471,6 +3647,74 @@ namespace AccessibleArena.Core.Services
         public static bool IsDeckListCard(GameObject element)
         {
             return GetDeckListCardInfo(element) != null;
+        }
+
+        /// <summary>
+        /// Checks if an element is a sideboard card (in non-MainDeck holder).
+        /// </summary>
+        public static bool IsSideboardCard(GameObject element)
+        {
+            return GetSideboardCardInfo(element) != null;
+        }
+
+        /// <summary>
+        /// Gets sideboard card info for a specific UI element.
+        /// Returns null if the element is not a sideboard card.
+        /// </summary>
+        public static DeckListCardInfo? GetSideboardCardInfo(GameObject element)
+        {
+            if (element == null) return null;
+
+            var sideboardCards = GetSideboardCards();
+            foreach (var card in sideboardCards)
+            {
+                if (card.TileButton == element ||
+                    card.TagButton == element ||
+                    card.CardTileBase == element ||
+                    card.ViewGameObject == element)
+                {
+                    return card;
+                }
+
+                if (card.ViewGameObject != null && element.transform.IsChildOf(card.ViewGameObject.transform))
+                    return card;
+                if (card.CardTileBase != null && element.transform.IsChildOf(card.CardTileBase.transform))
+                    return card;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts full card info from a sideboard card element.
+        /// Uses the same logic as ExtractDeckListCardInfo.
+        /// </summary>
+        public static CardInfo? ExtractSideboardCardInfo(GameObject element)
+        {
+            var sideCardInfo = GetSideboardCardInfo(element);
+            if (sideCardInfo == null || !sideCardInfo.Value.IsValid)
+                return null;
+
+            var info = sideCardInfo.Value;
+
+            if (info.ViewGameObject != null)
+            {
+                var cardInfo = ExtractCardInfoFromModel(info.ViewGameObject);
+                if (cardInfo.HasValue && cardInfo.Value.IsValid)
+                {
+                    var result = cardInfo.Value;
+                    result.Quantity = info.Quantity;
+                    return result;
+                }
+            }
+
+            string name = GetNameFromGrpId(info.GrpId);
+            return new CardInfo
+            {
+                Name = name ?? $"Card #{info.GrpId}",
+                Quantity = info.Quantity,
+                IsValid = true
+            };
         }
 
         // Cache for ShowUnCollectedTreatment field (public field on MetaCardView base class)

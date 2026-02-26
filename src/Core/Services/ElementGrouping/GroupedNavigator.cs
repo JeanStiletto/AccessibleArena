@@ -682,6 +682,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.SettingsMenu,
                 ElementGroup.NPE,
                 ElementGroup.DeckBuilderCollection,
+                ElementGroup.DeckBuilderSideboard,
                 ElementGroup.DeckBuilderDeckList,
                 ElementGroup.Unknown
             };

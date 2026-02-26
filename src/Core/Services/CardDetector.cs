@@ -513,6 +513,14 @@ namespace AccessibleArena.Core.Services
                 return deckListInfo.Value;
             }
 
+            // Check if this is a sideboard card (non-MainDeck holder)
+            var sideboardInfo = CardModelProvider.ExtractSideboardCardInfo(cardObj);
+            if (sideboardInfo.HasValue && sideboardInfo.Value.IsValid)
+            {
+                MelonLogger.Msg($"[CardDetector] Using SIDEBOARD extraction: {sideboardInfo.Value.Name} (Qty: {sideboardInfo.Value.Quantity})");
+                return sideboardInfo.Value;
+            }
+
             // Check if this is a read-only deck card (StaticColumnMetaCardView)
             var readOnlyInfo = CardModelProvider.ExtractReadOnlyDeckCardInfo(cardObj);
             if (readOnlyInfo.HasValue && readOnlyInfo.Value.IsValid)

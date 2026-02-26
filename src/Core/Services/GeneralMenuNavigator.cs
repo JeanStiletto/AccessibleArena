@@ -954,11 +954,13 @@ namespace AccessibleArena.Core.Services
             bool needsPositionAnnouncement = _suppressNavigationAnnouncement;
             _suppressNavigationAnnouncement = false; // Clear the flag
 
-            // Get old collection count before rescan (if grouped navigation is active)
-            int oldCollectionCount = 0;
+            // Get old collection/sideboard count before rescan (if grouped navigation is active)
+            int oldPoolCount = 0;
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
-                oldCollectionCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection);
+                // Check both collection and sideboard (draft uses sideboard for pool cards)
+                oldPoolCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection)
+                             + _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderSideboard);
 
                 // Save current group position so rescan restores it
                 // (Tab already cycled to Collection, don't lose that)
@@ -988,8 +990,9 @@ namespace AccessibleArena.Core.Services
             // After rescan, announce the results
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
-                int newCollectionCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection);
-                MelonLogger.Msg($"[{NavigatorId}] Search rescan collection: {oldCollectionCount} -> {newCollectionCount} cards");
+                int newPoolCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection)
+                               + _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderSideboard);
+                MelonLogger.Msg($"[{NavigatorId}] Search rescan pool: {oldPoolCount} -> {newPoolCount} cards");
 
                 // If we suppressed the navigation announcement, now announce current position
                 if (needsPositionAnnouncement)
@@ -1001,16 +1004,16 @@ namespace AccessibleArena.Core.Services
                         _announcer.AnnounceInterrupt(currentAnnouncement);
                     }
                 }
-                else if (newCollectionCount != oldCollectionCount)
+                else if (newPoolCount != oldPoolCount)
                 {
                     // Normal case (Escape from search) - just announce count change
-                    if (newCollectionCount == 0)
+                    if (newPoolCount == 0)
                     {
                         _announcer.AnnounceInterrupt("No search results");
                     }
                     else
                     {
-                        _announcer.AnnounceInterrupt(Models.Strings.SearchResults(newCollectionCount));
+                        _announcer.AnnounceInterrupt(Models.Strings.SearchResults(newPoolCount));
                     }
                 }
             }
@@ -3492,13 +3495,27 @@ namespace AccessibleArena.Core.Services
             // These are not buttons but should be navigable to read card info
             FindNPERewardCards(addedObjects);
 
-            // Find deck builder collection cards (PoolHolder canvas)
-            // These are cards you can add to your deck
+            // Pool cards are the sideboard when a deck list exists (draft, sealed, or normal deck builder)
+            if (_activeContentController == "WrapperDeckBuilder")
+            {
+                bool hasDeckList = CardModelProvider.GetDeckListCards().Count > 0;
+                _groupAssigner.PoolCardsAreSideboard = hasDeckList;
+            }
+            else
+            {
+                _groupAssigner.PoolCardsAreSideboard = false;
+            }
+
+            // Find deck builder collection/sideboard cards (PoolHolder canvas)
             FindPoolHolderCards(addedObjects);
 
             // Find deck list cards (MainDeck_MetaCardHolder)
             // These are cards currently in your deck
             FindDeckListCards(addedObjects);
+
+            // Find sideboard cards (non-MainDeck holders in MetaCardHolders_Container)
+            // These are cards available to add to deck in draft/sealed
+            FindSideboardCards(addedObjects);
 
             // ReadOnly deck builder: find cards in column view when list view is empty
             FindReadOnlyDeckCards(addedObjects);
@@ -3691,9 +3708,10 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Find collection cards in the deck builder's PoolHolder canvas.
+        /// Find collection/sideboard cards in the deck builder's PoolHolder canvas.
         /// Uses CardPoolAccessor to get only the current page's cards directly from the game's
         /// CardPoolHolder API, instead of scanning the entire hierarchy.
+        /// In draft/sealed, pool cards are the sideboard (PoolCardsAreSideboard flag).
         /// </summary>
         private void FindPoolHolderCards(HashSet<GameObject> addedObjects)
         {
@@ -3701,7 +3719,8 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController != "WrapperDeckBuilder")
                 return;
 
-            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for collection cards via CardPoolAccessor...");
+            bool isSideboard = _groupAssigner.PoolCardsAreSideboard;
+            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for {(isSideboard ? "sideboard" : "collection")} cards via CardPoolAccessor...");
 
             // Try direct API access via CardPoolAccessor
             var poolHolder = CardPoolAccessor.FindCardPoolHolder();
@@ -3740,16 +3759,27 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
-                string label = cardInfo.Name;
-
-                if (!string.IsNullOrEmpty(cardInfo.TypeLine))
+                string label;
+                if (isSideboard)
                 {
-                    label += $", {cardInfo.TypeLine}";
+                    // Sideboard style: "Nx CardName" (like deck list cards)
+                    int qty = cardInfo.OwnedCount > 0 ? cardInfo.OwnedCount : 1;
+                    label = $"{qty}x {cardInfo.Name}";
                 }
-
-                if (!string.IsNullOrEmpty(cardInfo.ManaCost))
+                else
                 {
-                    label += $", {cardInfo.ManaCost}";
+                    // Collection style: "CardName, TypeLine, ManaCost"
+                    label = cardInfo.Name;
+
+                    if (!string.IsNullOrEmpty(cardInfo.TypeLine))
+                    {
+                        label += $", {cardInfo.TypeLine}";
+                    }
+
+                    if (!string.IsNullOrEmpty(cardInfo.ManaCost))
+                    {
+                        label += $", {cardInfo.ManaCost}";
+                    }
                 }
 
                 addedObjects.Add(cardObj);
@@ -3863,6 +3893,45 @@ namespace AccessibleArena.Core.Services
                 LogDebug($"[{NavigatorId}] Adding deck list card {cardNum}: {label}");
 
                 // Add as navigable element
+                AddElement(cardObj, label);
+                addedObjects.Add(cardObj);
+                cardNum++;
+            }
+        }
+
+        /// <summary>
+        /// Find sideboard cards in draft/sealed deck builder.
+        /// These are cards in non-MainDeck holders inside MetaCardHolders_Container.
+        /// </summary>
+        private void FindSideboardCards(HashSet<GameObject> addedObjects)
+        {
+            // Only active in deck builder
+            if (_activeContentController != "WrapperDeckBuilder")
+                return;
+
+            var sideboardCards = CardModelProvider.GetSideboardCards();
+            if (sideboardCards.Count == 0)
+                return;
+
+            LogDebug($"[{NavigatorId}] Found {sideboardCards.Count} sideboard card(s)");
+
+            int cardNum = 1;
+            foreach (var sideCard in sideboardCards)
+            {
+                if (!sideCard.IsValid) continue;
+
+                var cardObj = sideCard.TileButton;
+                if (cardObj == null || addedObjects.Contains(cardObj))
+                    continue;
+
+                string cardName = CardModelProvider.GetNameFromGrpId(sideCard.GrpId);
+                if (string.IsNullOrEmpty(cardName))
+                    cardName = $"Card #{sideCard.GrpId}";
+
+                string label = $"{sideCard.Quantity}x {cardName}";
+
+                LogDebug($"[{NavigatorId}] Adding sideboard card {cardNum}: {label}");
+
                 AddElement(cardObj, label);
                 addedObjects.Add(cardObj);
                 cardNum++;
@@ -4179,6 +4248,7 @@ namespace AccessibleArena.Core.Services
         private static readonly ElementGroup[] DeckBuilderCycleGroups = new[]
         {
             ElementGroup.DeckBuilderCollection,  // Card pool (Collection)
+            ElementGroup.DeckBuilderSideboard,   // Sideboard cards (draft/sealed)
             ElementGroup.DeckBuilderDeckList,    // Deck list cards (cards in your deck)
             ElementGroup.DeckBuilderInfo,        // Deck info (card count, mana curve, types, colors)
             ElementGroup.Filters,                // Filter controls
@@ -4433,11 +4503,12 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if it's a regular card (collection) or a deck list card
+            // Check if it's a regular card (collection), deck list card, or sideboard card
             bool isCard = CardDetector.IsCard(gameObject);
             bool isDeckListCard = CardModelProvider.IsDeckListCard(gameObject);
+            bool isSideboardCard = CardModelProvider.IsSideboardCard(gameObject);
 
-            if (isCard || isDeckListCard)
+            if (isCard || isDeckListCard || isSideboardCard)
             {
                 // Prepare card navigation for both collection cards and deck list cards
                 cardNavigator.PrepareForCard(gameObject, ZoneType.Hand);

@@ -1012,6 +1012,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.NPE: return L.Get("GroupTutorial");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderCollection: return L.Get("GroupCollection");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderDeckList: return L.Get("GroupDeckList");
+                case Services.ElementGrouping.ElementGroup.DeckBuilderSideboard: return L.Get("GroupSideboard");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderInfo: return L.Get("GroupDeckInfo");
                 case Services.ElementGrouping.ElementGroup.MailboxList: return L.Get("GroupMailList");
                 case Services.ElementGrouping.ElementGroup.MailboxContent: return L.Get("GroupMail");
