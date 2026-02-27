@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} 起動しました",
   "Back": "戻る",
   "NoSelection": "選択なし",
@@ -452,6 +452,15 @@
   "ChallengeOpponent": "対戦相手",
   "ChallengeNotInvited": "未招待",
   "ChallengeInvited": "招待済み",
+  "ChallengeSettingsLocked": "Settings controlled by host",
+  "ChallengeLocked_Format": "Locked: {0}",
+  "ChallengeOpponentJoined_Format": "Opponent joined: {0}",
+  "ChallengeOpponentLeft": "Opponent left",
+  "ChallengeMatchStarting": "Match starting",
+  "ChallengeCountdownCancelled": "Countdown cancelled",
+  "ChallengeKickOpponent": "Kick opponent",
+  "ChallengeBlockOpponent": "Block opponent",
+  "ChallengeAddFriend": "Add friend",
   "GroupOther": "その他",
 
   "NoItemsFound": "項目が見つかりません。",

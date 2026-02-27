@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} запущен",
   "Back": "Назад",
   "NoSelection": "Ничего не выбрано",
@@ -465,6 +465,15 @@
   "ChallengeOpponent": "Противник",
   "ChallengeNotInvited": "Не приглашён",
   "ChallengeInvited": "Приглашён",
+  "ChallengeSettingsLocked": "Settings controlled by host",
+  "ChallengeLocked_Format": "Locked: {0}",
+  "ChallengeOpponentJoined_Format": "Opponent joined: {0}",
+  "ChallengeOpponentLeft": "Opponent left",
+  "ChallengeMatchStarting": "Match starting",
+  "ChallengeCountdownCancelled": "Countdown cancelled",
+  "ChallengeKickOpponent": "Kick opponent",
+  "ChallengeBlockOpponent": "Block opponent",
+  "ChallengeAddFriend": "Add friend",
   "GroupOther": "Прочее",
 
   "NoItemsFound": "Элементы не найдены.",

@@ -2,7 +2,9 @@
 
 All notable changes to Accessible Arena.
 
-## v0.7.2-dev
+## v0.7.3-dev
+
+## v0.7.2 - 2026-02-26
 
 ### New: Land Summary Shortcut (M / Shift+M)
 - Press **M** to hear a summary of your lands: total count and untapped lands grouped by name

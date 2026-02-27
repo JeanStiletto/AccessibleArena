@@ -81,6 +81,54 @@ Renaming a deck breaks the mod's navigation state. After renaming, the mod may l
 
 ---
 
+### Weekly Progress Enter Locks Mod
+
+Pressing Enter on the Weekly Progress element puts the mod in a locked state requiring screen transition to recover.
+
+---
+
+### Some Progress Items Open Buggy Screens
+
+Pressing Enter on specific Progress items for certain modes opens the corresponding screen but may create buggy navigation states.
+
+---
+
+### Multi-Zone Card Selection Auto-Focuses Graveyard
+
+Cards that let you select from different zones (e.g., graveyard + exile) auto-focus the graveyard zone unwantedly instead of letting the user choose.
+
+---
+
+### Stack Abilities Missing Rules Text
+
+Sometimes abilities on the stack only show the Name and Type blocks but not the rules text block.
+
+---
+
+### Some Tutorial Messages Not Localized
+
+Some tutorial hint messages like "button", "activated" are still hardcoded in English instead of going through LocaleManager.
+
+---
+
+### Item Count Spoken Before Menu Entry
+
+The item count is announced before the menu entry announcement. It should be the last thing spoken.
+
+---
+
+### Color Pips Not Localized
+
+Mana color pips (W/U/B/R/G) in card costs and other contexts are not localized to the user's language.
+
+---
+
+### Gold and Gems Not Correctly Labeled
+
+Gold and gem currency amounts are not correctly labeled as "Gold" and "Gems" in announcements.
+
+---
+
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers
@@ -232,6 +280,24 @@ Opening the settings menu (F2) during the declare attackers phase causes issues.
 
 ---
 
+### Adding Cards to Deck Exits Collection Group
+
+Adding cards to a deck reportedly moves the user out of the Collection group to the upper group level. Exact reproduction steps unknown.
+
+---
+
+### Enter Opens Settings Menu
+
+Pressing Enter reportedly opens the settings menu in an unexpected context. Exact reproduction steps unknown.
+
+---
+
+### Color Challenge Broken
+
+Color Challenge mode may be broken. Exact symptoms and reproduction steps unknown.
+
+---
+
 ## Technical Debt
 
 ### Code Archaeology
@@ -357,6 +423,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 24. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
 25. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
 26. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
+27. Hotkey to jump to attached card - when focused on an aura/equipment, press a key to navigate directly to the card it's attached to (and vice versa)
 22. Mana color picker confirmation step - add an artificial confirmation step (Tab to navigate, Enter to stage, Space to confirm) for consistency with browser/selection patterns. Currently each Enter immediately submits the color choice.
 
 ### Low Priority / v1.1

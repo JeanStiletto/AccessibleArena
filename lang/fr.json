@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} lancé",
   "Back": "Retour",
   "NoSelection": "Aucune sélection",
@@ -452,6 +452,15 @@
   "ChallengeOpponent": "Adversaire",
   "ChallengeNotInvited": "Non invité",
   "ChallengeInvited": "Invité",
+  "ChallengeSettingsLocked": "Settings controlled by host",
+  "ChallengeLocked_Format": "Locked: {0}",
+  "ChallengeOpponentJoined_Format": "Opponent joined: {0}",
+  "ChallengeOpponentLeft": "Opponent left",
+  "ChallengeMatchStarting": "Match starting",
+  "ChallengeCountdownCancelled": "Countdown cancelled",
+  "ChallengeKickOpponent": "Kick opponent",
+  "ChallengeBlockOpponent": "Block opponent",
+  "ChallengeAddFriend": "Add friend",
   "GroupOther": "Autre",
 
   "NoItemsFound": "Aucun élément trouvé.",

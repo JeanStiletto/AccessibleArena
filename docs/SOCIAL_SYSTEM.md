@@ -378,3 +378,201 @@ ContentController - Popout_Play_Desktop_16x9(Clone)
 - **`OverlayDetector.cs`** - Returns ChallengeMain overlay when PlayBladeState >= 2; `IsInsideChallengeScreen()` checks
 - **`GeneralMenuNavigator.cs`** - Challenge helper integration, spinner rescan, label enhancement, player status in announcements, `ShouldShowElement` filters `MainButton_Leave`
 - **`Strings.cs`** + `lang/*.json` - ChallengeYou, ChallengeOpponent, ChallengeNotInvited, ChallengeInvited, GroupChallengeMain
+
+---
+
+# Challenge Screen - Work In Progress
+
+Investigation of missing elements and settings on the challenge screen that the mod does not yet expose. Based on decompilation of `UnifiedChallengeBladeWidget`, `UnifiedChallengeDisplay`, `ChallengePlayerDisplay`, `PVPChallengeData`, spinner types, and related classes.
+
+---
+
+## Currently Navigable (Already Working)
+
+- **Mode spinner** (`_challengeTypeSpinner`) - 7 options: Challenge Match, Tournament Match (Standard/Limited/Historic/Alchemy/Explorer/Timeless)
+- **Deck Type spinner** (`_deckTypeSpinner`) - 4 options: 60-Card, Brawl, 40-Card (Limited), 60-Card Alchemy. Hidden in tournament mode.
+- **Best Of spinner** (`_bestOfSpinner`) - Best of 1 / Best of 3. Only visible when NOT tournament AND deck type allows Bo3.
+- **Starting Player spinner** (`_startingPlayerSpinner`) - Random / Challenger / Opponent. Always visible.
+- **Select Deck / Deck display** - Opens deck selector on Enter
+- **Invite button** (enemy player card, `_noPlayerInviteButton`) - Opens invite popup
+- **Main status button** (`UnifiedChallenge_MainButton`) - Enhanced with player name prefix
+- **Player status summary** - Announced once on challenge open via `GetPlayerStatusSummary()`
+
+---
+
+## Missing Elements - Not Yet Implemented
+
+### Priority 1: Challenge Status Text (High Impact)
+
+`_challengeStatusText` (Localize) sits below the main button and shows crucial contextual guidance. It is NOT a button, so the mod never reads it.
+
+**Status text values by state:**
+- `"MainNav/Challenges/MainButton/NoInvitesDescription"` - "Invite an opponent" (no invites sent, waiting for opponent)
+- `"MainNav/Challenges/MainButtonDescription/Waiting"` - "Waiting for an opponent" (invite sent, pending)
+- `"MainNav/Challenges/MainButtonDescription/SelectDeck"` - "Select a deck" / "Create or choose a valid deck"
+- `"MainNav/Challenges/MainButtonDescription/Ready"` / `"MainNav/Challenges/MainButtonDescription/Unready"` - "Waiting for all players to select valid deck and ready"
+- `"MainNav/Challenges/MainButtonDescription/WaitingForHost"` - "Waiting for Host to start game"
+- `"MainNav/Challenges/MainButton/StartingMatch"` - "Starting" (countdown active)
+- `"MainNav/Challenges/MainButtonDescription/Cancel"` - "Starting" (can still cancel)
+
+**Approach:** Read `_challengeStatusText` and include it in the main button announcement, or announce it separately when challenge data changes.
+
+### Priority 2: Player Status Change Notifications (High Impact)
+
+The mod reads player status **once** on challenge open. It does NOT re-announce when:
+- Opponent joins the challenge
+- Opponent readies up / unreadies
+- Opponent leaves or gets kicked
+- Opponent's deck becomes valid/invalid
+
+**Game mechanism:** `PVPChallengeController.RegisterForChallengeChanges(Action<PVPChallengeData>)` fires on every state change. `UnifiedChallengeBladeWidget` already subscribes to this via `OnChallengeDataChanged`.
+
+**Approach:** Subscribe to challenge data changes (or poll) and announce meaningful transitions (opponent joined, ready state changed, etc.).
+
+### Priority 3: Match Start Countdown Timer (High Impact)
+
+When both players are ready and the owner clicks "Start Match", `ChallengeStatus.Starting` activates:
+- `DraftTimer _timer` becomes visible, showing countdown seconds
+- `UpdateCountdown()` is polled every 30ms via `System.Timers.Timer`
+- `_timer.UpdateTime(totalSeconds, matchLaunchCountdown)` updates the visual
+- Audio pulses play (`_timerPulseEvent`, `_timerCriticalPulseEvent`)
+- Button changes to "Starting Match" (locked) or "Cancel" (can still cancel)
+- `_challengeController.IsChallengeLocked(challengeId)` determines if cancellation is still possible
+
+A blind user has **no indication** a countdown is happening or how much time remains before the match starts.
+
+**Key data:** `challengeData.MatchLaunchDateTime` (target time), `challengeData.MatchLaunchCountdown` (total seconds), `DateTime.Now` for remaining calculation.
+
+**Approach:** Detect `ChallengeStatus.Starting` transition. Announce "Match starting in X seconds". Announce at key intervals (10s, 5s, 3, 2, 1). Announce whether cancellation is still possible.
+
+### Priority 4: Enemy Player Card Action Buttons (Medium Impact)
+
+`ChallengePlayerDisplay` (enemy) has `AdvancedButton` (extends `Button`) controls:
+- **`_kickButton`** - Kick opponent. Only visible when local player is challenge owner.
+- **`_blockButton`** - Block opponent. Always visible when opponent present.
+- **`_addFriendButton`** - Add as friend. Visible when not already friends/invited.
+- **`_noPlayerInviteButton`** / **`_invitedPlayerInviteButton`** - Invite buttons on player card area.
+
+These ARE picked up by `FindObjectsOfType<Button>()` since `AdvancedButton extends Button`. However:
+- They are icon-only buttons with no readable text labels
+- A blind user hears the GameObject name or nothing useful
+- Context is unclear (which button does what, which player area)
+
+**Approach:** Either provide proper labels via announcement enhancement (detect button names in enemy player area and map to localized labels), or use an attached-actions pattern like friend tiles (Left/Right to cycle Kick/Block/Add Friend actions on the opponent element).
+
+### Priority 5: Settings Lock Announcement (Medium Impact)
+
+When joining someone else's challenge (`ChallengeOwnerId != LocalPlayerId`), settings are locked:
+- `IsChallengeSettingsLocked = true`
+- `_settingsAnimator.SetBool(ANIMATOR_LOCKED_HASH, true)` - spinners enter "Locked" visual state
+- Spinner arrow buttons may become non-interactable
+
+The mod never announces this. A blind user may try to change settings and not understand why nothing happens.
+
+**Approach:** On challenge open, check `ChallengeOwnerId vs LocalPlayerId`. Announce "Settings controlled by host" or similar when locked. Could also prefix spinner labels with a locked indicator.
+
+### Priority 6: Tournament Mode Parameters (Medium Impact)
+
+When a tournament match type is selected (any of the 6 tournament variants):
+- Interactive spinners (_deckTypeSpinner, _bestOfSpinner, _startingPlayerSpinner) are hidden
+- `TournamentParameters` container becomes ACTIVE with 4 static text labels:
+  - **Format** - Card pool text (e.g., "Zeitlose Karten", "Pioneer-Karten", "Klassische Standardkarten")
+  - **BestofX** - Always "Best-of-Three" in tournament modes
+  - **Coin** - Always "Münzwurf" (Coin Flip) in tournament modes
+  - **Timer** - Shows "Timer an" (Timer On) in all tournament modes
+
+In Challenge Match mode, `TournamentParameters` is INACTIVE and the interactive spinners are shown instead (no Timer element).
+
+**UI structure:** `ChallengeOptions > Content > TournamentParameters > {Format, BestofX, Coin, Timer}` - each child is a `LayoutElement` with a `Text [TextMeshProUGUI, Localize]` child.
+
+**Border element:** `ChallengeOptions > Border` contains the full mode title text (e.g., "Timeless – Turnier-Match", "Herausforderungs-Match").
+
+These are all non-interactive text labels. A blind user selecting a tournament mode has no feedback about what card pool, match format, or timer settings apply.
+
+**Approach:** When TournamentParameters is active, read all 4 child text values and announce them as a summary when the mode spinner changes. Could also expose them as readable elements in the navigation.
+
+### Priority 7: Timer Setting (Medium Impact)
+
+**Confirmed via deep UI dump:** The "Timer" setting exists ONLY in tournament modes as a static text label inside `TournamentParameters`. It is NOT a toggle or interactive control - it always shows "Timer an" (Timer On).
+
+In Challenge Match mode, there is no Timer element at all (TournamentParameters is INACTIVE).
+
+This means:
+- Tournament modes always have Timer On (not configurable by players)
+- Challenge Match mode has no timer display (timer behavior may be different/absent)
+- The Timer text is purely informational, not a user-changeable setting
+
+**Approach:** Include Timer status in the tournament parameters announcement (Priority 6 covers this).
+
+### Priority 8: Fake Option Indicators (Low Impact)
+
+- `_fakeOptionB01` - Static "Best of 1" shown when deck type doesn't allow Bo3 (instead of the spinner)
+- `_fakeOption60Card` - Static deck size indicator for tournament modes
+
+These are visual-only GameObjects, not interactive. A blind user doesn't know the forced setting.
+
+**Approach:** When these are active, include their meaning in the announcement (e.g., announce "Best of 1 (fixed)" when `_fakeOptionB01` is active).
+
+### Priority 9: Player Title (Low Impact)
+
+`_playerTitle` (Localize) displays each player's cosmetic title on their player card. Set via `_playerTitle.SetText(value.Cosmetics.titleSelection)`.
+
+### Priority 10: Challenge Owner / Party Leader (Low Impact)
+
+`_partyLeaderCrown` GameObject is activated for the challenge owner's player card. Not announced directly, but partially conveyed by the settings lock state (Priority 5).
+
+---
+
+## Relevant Type Details
+
+### UnifiedChallengeBladeWidget (extends PlayBladeWidget)
+- **Spinners:** `_challengeTypeSpinner`, `_bestOfSpinner`, `_startingPlayerSpinner`, `_deckTypeSpinner` (all `Spinner_OptionSelector`)
+- **Fake options:** `_fakeOptionB01`, `_fakeOption60Card` (GameObjects)
+- **Tournament text:** `TournamentSettingsText` (TMP_Text)
+- **Timer:** `_timer` (DraftTimer), `_timerPulseEvent`, `_timerCriticalPulseEvent` (AudioEvents)
+- **Status:** `_challengeStatusText` (Localize), `_mainButtonGlow` (GameObject)
+- **Lock:** `IsChallengeSettingsLocked` (bool), `_settingsAnimator` with Expand/Tournament/Locked states
+- **Key methods:** `OnChallengeDataChanged()`, `UpdateView()`, `UpdateButton()`, `UpdateCountdown()`, `SetSpinnersFromChallenge()`
+
+### ChallengePlayerDisplay (Wizards.Mtga.PrivateGame)
+- **Identity:** `_playerName` (TMP_Text), `_playerTitle` (Localize), `_playerStatus` (Localize), `PlayerId` (string property)
+- **Visual:** `_avatarImage` (Image), `_companionAnchor`, `_sleeveAnchor`, `_deckboxAnchor`, `_readyUpGlow`
+- **Enemy-only:** `_invitedAvatar`, `_playerInvited`, `_noPlayer` (GameObjects for invite states)
+- **Action buttons (AdvancedButton):** `_kickButton`, `_blockButton`, `_addFriendButton`, `_noPlayerInviteButton`, `_invitedPlayerInviteButton`
+- **Callbacks:** `KickButtonPressed`, `BlockButtonPressed`, `AddFriendButtonPressed`, `InviteButtonPressed` (Action delegates)
+
+### PVPChallengeData (SharedClientCore)
+- `ChallengeId` (Guid), `Status` (ChallengeStatus: None/Setup/Starting/Removed)
+- `ChallengeOwnerId` (string), `LocalPlayerId` (string)
+- `MatchType` (ChallengeMatchTypes), `IsBestOf3` (bool), `StartingPlayer` (WhoPlaysFirst)
+- `MatchLaunchCountdown` (int, total seconds), `MatchLaunchDateTime` (DateTime, target time)
+- `ChallengePlayers` (Dictionary), `Invites` (Dictionary)
+- `LocalPlayer` / `OpponentFullName` / `OpponentPlayerId` (derived properties)
+
+### ChallengePlayer (SharedClientCore)
+- `PlayerId`, `FullDisplayName` (string)
+- `PlayerStatus` (PlayerStatus: NotReady/Ready)
+- `Cosmetics` (ClientVanitySelectionsV3: avatarSelection, petSelection, cardBackSelection, titleSelection)
+- `DeckArtId`, `DeckTileId` (uint), `DeckId` (Guid)
+
+### Spinner_OptionSelector
+- `_valueLabel` (TextMeshProUGUI) - current value display
+- `_buttonNextValue` / `_buttonPreviousValue` (CustomButton) - arrow navigation
+- `ValueIndex` (int property) - current selection, wraps around
+- `onValueChanged` (SpinnerValueChangeEvent) - fires `(int index, string value)`
+- `OnNextValue()` / `OnPreviousValue()` - increment/decrement
+
+### ChallengeSpinnerMatchTypes (Wizards.Mtga.PrivateGame.Challenges)
+- `ChallengeMatch` - Label: `"MainNav/PrivateGame/ChallengeMatch"`, IsTournament: false
+- `TournamentMatch` - Label: `"MainNav/PrivateGame/TournamentMatch"`, TournamentText: TraditionalStandardCards
+- `LimitedTournamentMatch` - TournamentText: TraditionalLimitedCards
+- `HistoricTournamentMatch` - TournamentText: HistoricCards
+- `AlchemyTournamentMatch` - TournamentText: AlchemyCards
+- `ExplorerTournamentMatch` - TournamentText: ExplorerCards
+- `TimelessTournamentMatch` - TournamentText: TimelessCards
+
+### ChallengeSpinnerDeckTypes (Wizards.Mtga.PrivateGame.Challenges)
+- `Standard` - Label: `"MainNav/PrivateGame/DeckType_60_Card"`, AllowBo3: true
+- `Brawl` - Label: `"MainNav/PrivateGame/DeckType_Brawl"`, AllowBo3: false
+- `Limited` - Label: `"MainNav/PrivateGame/DeckType_40_Card"`, AllowBo3: true
+- `Alchemy` - Label: `"MainNav/PrivateGame/DeckType_60_Card_Alchemy"`, AllowBo3: true

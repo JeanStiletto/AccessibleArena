@@ -973,6 +973,15 @@ namespace AccessibleArena.Core.Models
         public static string ChallengeOpponent => L.Get("ChallengeOpponent");
         public static string ChallengeNotInvited => L.Get("ChallengeNotInvited");
         public static string ChallengeInvited => L.Get("ChallengeInvited");
+        public static string ChallengeSettingsLocked => L.Get("ChallengeSettingsLocked");
+        public static string ChallengeLocked(string label) => L.Format("ChallengeLocked_Format", label);
+        public static string ChallengeOpponentJoined(string name) => L.Format("ChallengeOpponentJoined_Format", name);
+        public static string ChallengeOpponentLeft => L.Get("ChallengeOpponentLeft");
+        public static string ChallengeMatchStarting => L.Get("ChallengeMatchStarting");
+        public static string ChallengeCountdownCancelled => L.Get("ChallengeCountdownCancelled");
+        public static string ChallengeKickOpponent => L.Get("ChallengeKickOpponent");
+        public static string ChallengeBlockOpponent => L.Get("ChallengeBlockOpponent");
+        public static string ChallengeAddFriend => L.Get("ChallengeAddFriend");
         public static string ScreenConfirmation => L.Get("ScreenConfirmation");
         public static string ScreenInviteFriend => L.Get("ScreenInviteFriend");
         public static string ScreenSocial => L.Get("ScreenSocial");

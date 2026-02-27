@@ -323,7 +323,7 @@ namespace AccessibleArena.Core.Services
             _groupAssigner = new ElementGroupAssigner(_overlayDetector);
             _groupedNavigator = new GroupedNavigator(announcer, _groupAssigner);
             _playBladeHelper = new PlayBladeNavigationHelper(_groupedNavigator);
-            _challengeHelper = new ChallengeNavigationHelper(_groupedNavigator);
+            _challengeHelper = new ChallengeNavigationHelper(_groupedNavigator, announcer);
             _popupHandler = new PopupHandler(NavigatorId, announcer);
 
             // Subscribe to PanelStateManager for rescan triggers
@@ -1123,6 +1123,10 @@ namespace AccessibleArena.Core.Services
                     TriggerRescan();
                 }
             }
+
+            // Challenge screen: poll for opponent status changes
+            if (_challengeHelper.IsActive)
+                _challengeHelper.Update(Time.deltaTime);
 
             // Panel detection handled by PanelDetectorManager via events (OnPanelChanged/OnAnyPanelOpened)
             base.Update();
@@ -2073,6 +2077,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DumpUIHierarchy()
         {
+            // If challenge screen is active, do a deep challenge blade dump instead
+            if (_challengeHelper.IsActive)
+            {
+                MenuDebugHelper.DumpChallengeBlade(NavigatorId, _announcer);
+                return;
+            }
             MenuDebugHelper.DumpUIHierarchy(NavigatorId, _announcer);
         }
 
@@ -2920,6 +2930,14 @@ namespace AccessibleArena.Core.Services
                         _currentIndex + 1, _elements.Count, _elements[_currentIndex].Label);
                     _announcer.Announce(posAnnouncement, Models.AnnouncementPriority.Normal);
                 }
+            }
+
+            // Challenge context: announce tournament parameters after mode spinner change
+            if (_challengeHelper.IsActive)
+            {
+                var tournamentSummary = _challengeHelper.GetTournamentParametersSummary();
+                if (!string.IsNullOrEmpty(tournamentSummary))
+                    _announcer.Announce(tournamentSummary, Models.AnnouncementPriority.Normal);
             }
         }
 
@@ -5496,14 +5514,6 @@ namespace AccessibleArena.Core.Services
                 3 => Strings.ScreenFriendChallenge,
                 _ => null
             };
-
-            // Append player status summary for challenge screens
-            if (baseName != null && state >= 2 && _challengeHelper != null)
-            {
-                var playerStatus = _challengeHelper.GetPlayerStatusSummary();
-                if (!string.IsNullOrEmpty(playerStatus))
-                    baseName = $"{baseName}. {playerStatus}";
-            }
 
             return baseName;
         }

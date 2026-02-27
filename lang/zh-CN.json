@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} 已启动",
   "Back": "返回",
   "NoSelection": "未选择",
@@ -452,6 +452,15 @@
   "ChallengeOpponent": "对手",
   "ChallengeNotInvited": "未邀请",
   "ChallengeInvited": "已邀请",
+  "ChallengeSettingsLocked": "Settings controlled by host",
+  "ChallengeLocked_Format": "Locked: {0}",
+  "ChallengeOpponentJoined_Format": "Opponent joined: {0}",
+  "ChallengeOpponentLeft": "Opponent left",
+  "ChallengeMatchStarting": "Match starting",
+  "ChallengeCountdownCancelled": "Countdown cancelled",
+  "ChallengeKickOpponent": "Kick opponent",
+  "ChallengeBlockOpponent": "Block opponent",
+  "ChallengeAddFriend": "Add friend",
   "GroupOther": "其他",
 
   "NoItemsFound": "未找到项目。",

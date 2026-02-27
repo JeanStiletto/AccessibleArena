@@ -403,6 +403,115 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Deep dump of the challenge blade widget hierarchy.
+        /// Finds FriendChallengeBladeWidget and prints ALL children recursively
+        /// with components and text content. Used to discover hidden/non-interactive elements.
+        /// </summary>
+        public static void DumpChallengeBlade(string tag, IAnnouncementService announcer)
+        {
+            MelonLogger.Msg($"[{tag}] === CHALLENGE BLADE DEEP DUMP ===");
+
+            // Find UnifiedChallengeBladeWidget by type name
+            GameObject bladeWidget = null;
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "UnifiedChallengeBladeWidget" && mb.gameObject.activeInHierarchy)
+                {
+                    bladeWidget = mb.gameObject;
+                    break;
+                }
+            }
+
+            if (bladeWidget == null)
+            {
+                MelonLogger.Msg($"[{tag}] UnifiedChallengeBladeWidget not found or not active");
+                MelonLogger.Msg($"[{tag}] === END CHALLENGE BLADE DUMP ===");
+                announcer?.Announce("Challenge blade not found", Models.AnnouncementPriority.High);
+                return;
+            }
+
+            MelonLogger.Msg($"[{tag}] Found: {bladeWidget.name} [{bladeWidget.GetType().Name}]");
+
+            // Also dump the parent up to Popout canvas for context
+            var parent = bladeWidget.transform.parent;
+            if (parent != null)
+                MelonLogger.Msg($"[{tag}] Parent: {parent.name}");
+
+            // Deep recursive dump - no depth limit
+            DumpDeepChildren(tag, bladeWidget, 1);
+
+            // Also dump the Container_Buttons canvas (main button + status text)
+            var containerButtons = GameObject.Find("Container_Buttons");
+            if (containerButtons != null)
+            {
+                MelonLogger.Msg($"[{tag}] --- Container_Buttons ---");
+                DumpDeepChildren(tag, containerButtons, 1);
+            }
+
+            // Also dump UnifiedChallengesCONTAINER (leave, invite, player cards)
+            var challengesContainer = GameObject.Find("UnifiedChallengesCONTAINER");
+            if (challengesContainer != null)
+            {
+                MelonLogger.Msg($"[{tag}] --- UnifiedChallengesCONTAINER ---");
+                DumpDeepChildren(tag, challengesContainer, 1);
+            }
+
+            MelonLogger.Msg($"[{tag}] === END CHALLENGE BLADE DUMP ===");
+            announcer?.Announce("Challenge blade dump complete", Models.AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Recursively dump ALL children with full detail (components, text, active state).
+        /// No depth limit - dumps the entire subtree.
+        /// </summary>
+        private static void DumpDeepChildren(string tag, GameObject parent, int depth)
+        {
+            if (parent == null) return;
+            string indent = new string(' ', depth * 2);
+
+            foreach (Transform child in parent.transform)
+            {
+                if (child == null) continue;
+
+                bool active = child.gameObject.activeInHierarchy;
+                string activeStr = active ? "" : " [INACTIVE]";
+
+                // Components
+                var components = child.GetComponents<Component>();
+                var componentNames = new List<string>();
+                foreach (var c in components)
+                {
+                    if (c != null && !(c is Transform) && !(c is RectTransform))
+                        componentNames.Add(c.GetType().Name);
+                }
+                string componentsStr = componentNames.Count > 0 ? $" [{string.Join(", ", componentNames)}]" : "";
+
+                // Text content
+                string textInfo = "";
+                if (active)
+                {
+                    // Try TMP_Text directly on this object
+                    var tmpText = child.GetComponent<TMP_Text>();
+                    if (tmpText != null && !string.IsNullOrEmpty(tmpText.text))
+                        textInfo = $" TEXT=\"{tmpText.text.Replace("\n", "\\n")}\"";
+
+                    // Try UITextExtractor for Localize and other text sources
+                    if (string.IsNullOrEmpty(textInfo))
+                    {
+                        string extracted = UITextExtractor.GetText(child.gameObject);
+                        if (!string.IsNullOrEmpty(extracted) && extracted != child.name.ToLower().Replace("_", " "))
+                            textInfo = $" TEXT=\"{extracted.Replace("\n", "\\n")}\"";
+                    }
+                }
+
+                MelonLogger.Msg($"[{tag}] {indent}{child.name}{componentsStr}{activeStr}{textInfo}");
+
+                // Recurse into children
+                DumpDeepChildren(tag, child.gameObject, depth + 1);
+            }
+        }
+
+        /// <summary>
         /// Recursively dump children of a GameObject to the log.
         /// </summary>
         public static void DumpGameObjectChildren(string tag, GameObject parent, int currentDepth, int maxDepth)

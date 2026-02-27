@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} 시작되었습니다",
   "Back": "뒤로",
   "NoSelection": "선택 없음",
@@ -452,6 +452,15 @@
   "ChallengeOpponent": "상대",
   "ChallengeNotInvited": "초대 안 됨",
   "ChallengeInvited": "초대됨",
+  "ChallengeSettingsLocked": "Settings controlled by host",
+  "ChallengeLocked_Format": "Locked: {0}",
+  "ChallengeOpponentJoined_Format": "Opponent joined: {0}",
+  "ChallengeOpponentLeft": "Opponent left",
+  "ChallengeMatchStarting": "Match starting",
+  "ChallengeCountdownCancelled": "Countdown cancelled",
+  "ChallengeKickOpponent": "Kick opponent",
+  "ChallengeBlockOpponent": "Block opponent",
+  "ChallengeAddFriend": "Add friend",
   "GroupOther": "기타",
 
   "NoItemsFound": "항목을 찾을 수 없습니다.",
