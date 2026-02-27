@@ -1733,16 +1733,16 @@ namespace AccessibleArena.Core.Services
         {
             switch (colorEnum)
             {
-                case "White": case "W": return "White";
-                case "Blue": case "U": return "Blue";
-                case "Black": case "B": return "Black";
-                case "Red": case "R": return "Red";
-                case "Green": case "G": return "Green";
-                case "Colorless": case "C": return "Colorless";
-                case "Generic": return "Generic";
-                case "Snow": case "S": return "Snow";
-                case "Phyrexian": case "P": return "Phyrexian";
-                case "X": return "X";
+                case "White": case "W": return Strings.ManaWhite;
+                case "Blue": case "U": return Strings.ManaBlue;
+                case "Black": case "B": return Strings.ManaBlack;
+                case "Red": case "R": return Strings.ManaRed;
+                case "Green": case "G": return Strings.ManaGreen;
+                case "Colorless": case "C": return Strings.ManaColorless;
+                case "Generic": return Strings.ManaGeneric;
+                case "Snow": case "S": return Strings.ManaSnow;
+                case "Phyrexian": case "P": return Strings.ManaPhyrexianBare;
+                case "X": return Strings.ManaX;
                 default: return colorEnum;
             }
         }

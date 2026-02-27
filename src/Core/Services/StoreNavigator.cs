@@ -1928,13 +1928,13 @@ namespace AccessibleArena.Core.Services
                         // Expand common shorthand
                         switch (symbol.ToUpper())
                         {
-                            case "W": parts.Add("White"); break;
-                            case "U": parts.Add("Blue"); break;
-                            case "B": parts.Add("Black"); break;
-                            case "R": parts.Add("Red"); break;
-                            case "G": parts.Add("Green"); break;
-                            case "C": parts.Add("Colorless"); break;
-                            case "X": parts.Add("X"); break;
+                            case "W": parts.Add(Strings.ManaWhite); break;
+                            case "U": parts.Add(Strings.ManaBlue); break;
+                            case "B": parts.Add(Strings.ManaBlack); break;
+                            case "R": parts.Add(Strings.ManaRed); break;
+                            case "G": parts.Add(Strings.ManaGreen); break;
+                            case "C": parts.Add(Strings.ManaColorless); break;
+                            case "X": parts.Add(Strings.ManaX); break;
                             default: parts.Add(symbol); break;
                         }
                         i = end + 1;

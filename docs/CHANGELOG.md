@@ -12,6 +12,14 @@ All notable changes to Accessible Arena.
 - Shared `InputFieldEditHelper` class eliminates code duplication between BaseNavigator and PopupHandler
 - Files: InputFieldEditHelper.cs (new), PopupHandler.cs, BaseNavigator.cs
 
+### Fixed: Localize Mana Colors and Action Strings
+- Mana color names (White, Blue, Black, Red, Green, Colorless, Snow, etc.) now use locale keys instead of hardcoded English
+- Hybrid mana (e.g., "White or Blue") and Phyrexian mana use localized format strings
+- "Activated" and "selected" announcements now use locale keys
+- Color filter toggle labels in deck builder are now localized
+- Added new locale keys: ManaGeneric, ManaPhyrexian (bare), Activated (bare)
+- Updated: CardDetector.cs, CardModelProvider.cs, StoreNavigator.cs, UIActivator.cs, DraftNavigator.cs, GeneralMenuNavigator.cs, UIElementClassifier.cs
+
 ### Changed: Announcement Order
 - Item count and position are now read last instead of first in all menu and screen announcements
 - Content (label, hints, instructions) is announced before "X of Y" position info

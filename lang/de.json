@@ -200,6 +200,8 @@
   "ManaX": "X",
   "ManaSnow": "Schnee",
   "ManaEnergy": "Energie",
+  "ManaGeneric": "Generisch",
+  "ManaPhyrexian": "Phyrexianisch",
   "ManaPhyrexian_Format": "Phyrexianisches {0}",
   "ManaHybrid_Format": "{0} oder {1}",
 
@@ -372,6 +374,7 @@
   "Page_Format": "Seite {0} von {1}",
   "PageLabel_Format": "{0} Seite",
   "FilterLabel_Format": "{0}: {1}",
+  "Activated": "Aktiviert",
   "Activated_Format": "{0} aktiviert",
   "NoFilter_Format": "Kein Filter {0}. {1} Filter verfügbar.",
   "NoFiltersAvailable": "Keine Filter verfügbar",

@@ -1692,11 +1692,11 @@ namespace AccessibleArena.Core.Services
         {
             if (string.IsNullOrEmpty(name)) return "Unknown";
 
-            // Special handling for color filter toggles: "CardFilterView Color_White" -> "White"
+            // Special handling for color filter toggles: "CardFilterView Color_White" -> localized color
             if (name.StartsWith("CardFilterView Color_", System.StringComparison.OrdinalIgnoreCase))
             {
                 string color = name.Substring(21); // After "CardFilterView Color_"
-                return color;
+                return CardModelProvider.ConvertManaColorToName(color);
             }
 
             // Special handling for multicolor filter: "CardFilterView Multicolor" -> "Multicolor"

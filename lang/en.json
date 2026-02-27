@@ -208,6 +208,8 @@
   "ManaX": "X",
   "ManaSnow": "Snow",
   "ManaEnergy": "Energy",
+  "ManaGeneric": "Generic",
+  "ManaPhyrexian": "Phyrexian",
   "ManaPhyrexian_Format": "Phyrexian {0}",
   "ManaHybrid_Format": "{0} or {1}",
 
@@ -381,6 +383,7 @@
   "Page_Format": "Page {0} of {1}",
   "PageLabel_Format": "{0} page",
   "FilterLabel_Format": "{0}: {1}",
+  "Activated": "Activated",
   "Activated_Format": "Activated {0}",
   "NoFilter_Format": "No filter {0}. {1} filters available.",
   "NoFiltersAvailable": "No filters available",

@@ -173,7 +173,7 @@ namespace AccessibleArena.Core.Services
                     Log($"SystemMessageButtonView detected on: {element.name}");
                     TryInvokeMethod(systemMsgButton, "Click");
                     TryDismissViaSystemMessageManager();
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
 
                 var pointerResult2 = SimulatePointerClick(element);
@@ -209,7 +209,7 @@ namespace AccessibleArena.Core.Services
             if (button != null)
             {
                 button.onClick.Invoke();
-                return new ActivationResult(true, "Activated", ActivationType.Button);
+                return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
             }
 
             // Try child Button
@@ -218,7 +218,7 @@ namespace AccessibleArena.Core.Services
             {
                 Log($"Using child Button: {childButton.gameObject.name}");
                 childButton.onClick.Invoke();
-                return new ActivationResult(true, "Activated", ActivationType.Button);
+                return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
             }
 
             // Try to find the actual clickable element in hierarchy
@@ -238,15 +238,15 @@ namespace AccessibleArena.Core.Services
                 Log($"SystemMessageButtonView detected, trying Click method");
                 if (TryInvokeMethod(systemMessageButton, "Click"))
                 {
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
                 if (TryInvokeMethod(systemMessageButton, "OnClick"))
                 {
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
                 if (TryInvokeMethod(systemMessageButton, "OnButtonClicked"))
                 {
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
             }
 
@@ -291,7 +291,7 @@ namespace AccessibleArena.Core.Services
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
 
-            return new ActivationResult(true, "Activated", ActivationType.PointerClick);
+            return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
         }
 
         /// <summary>
@@ -320,7 +320,7 @@ namespace AccessibleArena.Core.Services
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
 
-            return new ActivationResult(true, "Activated", ActivationType.PointerClick);
+            return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
         }
 
         /// <summary>
@@ -785,7 +785,7 @@ namespace AccessibleArena.Core.Services
                             try
                             {
                                 invokeMethod.Invoke(onClick, null);
-                                return new ActivationResult(true, "Activated", ActivationType.Button);
+                                return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                             }
                             catch (System.Exception ex)
                             {
@@ -2083,7 +2083,7 @@ namespace AccessibleArena.Core.Services
                     Log($"Invoking IPointerClickHandler.OnPointerClick on {mb.GetType().Name}");
                     var pointer = CreatePointerEventData(cardElement);
                     clickHandler.OnPointerClick(pointer);
-                    return new ActivationResult(true, "Activated", ActivationType.PointerClick);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
                 }
             }
 

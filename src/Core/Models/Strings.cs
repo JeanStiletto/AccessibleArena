@@ -672,6 +672,8 @@ namespace AccessibleArena.Core.Models
         public static string ManaX => L.Get("ManaX");
         public static string ManaSnow => L.Get("ManaSnow");
         public static string ManaEnergy => L.Get("ManaEnergy");
+        public static string ManaGeneric => L.Get("ManaGeneric");
+        public static string ManaPhyrexianBare => L.Get("ManaPhyrexian");
         public static string ManaPhyrexian(string color) => L.Format("ManaPhyrexian_Format", color);
         public static string ManaHybrid(string color1, string color2) => L.Format("ManaHybrid_Format", color1, color2);
 
@@ -882,6 +884,7 @@ namespace AccessibleArena.Core.Models
         public static string PageOf(int current, int total) => L.Format("Page_Format", current, total);
         public static string PageLabel(string label) => L.Format("PageLabel_Format", label);
         public static string FilterLabel(string label, string state) => L.Format("FilterLabel_Format", label, state);
+        public static string ActivatedBare => L.Get("Activated");
         public static string Activated(string label) => L.Format("Activated_Format", label);
         public static string NoFilter(int index, int count) => L.Format("NoFilter_Format", index, count);
         public static string NoFiltersAvailable => L.Get("NoFiltersAvailable");

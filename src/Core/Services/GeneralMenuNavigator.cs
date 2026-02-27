@@ -4076,7 +4076,7 @@ namespace AccessibleArena.Core.Services
                 var currentElement = _groupedNavigator.CurrentElement;
                 if (currentElement != null && EventAccessor.ClickPacket(currentElement.Value.GameObject))
                 {
-                    _announcer.Announce("Activated", AnnouncementPriority.Normal);
+                    _announcer.Announce(Models.Strings.ActivatedBare, AnnouncementPriority.Normal);
                     // Game rebuilds packet GOs asynchronously after click - schedule rescan
                     TriggerRescan();
                     return;

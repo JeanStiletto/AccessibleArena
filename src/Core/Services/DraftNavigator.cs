@@ -211,7 +211,7 @@ namespace AccessibleArena.Core.Services
                     if (name.Contains("selectframe") || name.Contains("selected") ||
                         name.Contains("checkmark") || name.Contains("reserved"))
                     {
-                        return "selected";
+                        return Models.Strings.Selected;
                     }
                 }
             }
@@ -327,7 +327,7 @@ namespace AccessibleArena.Core.Services
 
                     // Directly click the card via UIActivator (bypasses CardInfoNavigator redirect)
                     UIActivator.Activate(elem.GameObject);
-                    _announcer?.Announce("Activated", AnnouncementPriority.Normal);
+                    _announcer?.Announce(Models.Strings.ActivatedBare, AnnouncementPriority.Normal);
 
                     // Trigger a delayed rescan to pick up selection state changes
                     _rescanPending = true;

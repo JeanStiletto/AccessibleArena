@@ -845,32 +845,32 @@ namespace AccessibleArena.Core.Services
 
             switch (symbol.ToUpper())
             {
-                case "W": return "White";
-                case "U": return "Blue";
-                case "B": return "Black";
-                case "R": return "Red";
-                case "G": return "Green";
-                case "C": return "Colorless";
-                case "S": return "Snow";
-                case "X": return "X";
-                case "T": return "Tap";
-                case "Q": return "Untap";
-                case "E": return "Energy";
-                case "WU": case "UW": return "White or Blue";
-                case "WB": case "BW": return "White or Black";
-                case "UB": case "BU": return "Blue or Black";
-                case "UR": case "RU": return "Blue or Red";
-                case "BR": case "RB": return "Black or Red";
-                case "BG": case "GB": return "Black or Green";
-                case "RG": case "GR": return "Red or Green";
-                case "RW": case "WR": return "Red or White";
-                case "GW": case "WG": return "Green or White";
-                case "GU": case "UG": return "Green or Blue";
-                case "WP": case "PW": return "Phyrexian White";
-                case "UP": case "PU": return "Phyrexian Blue";
-                case "BP": case "PB": return "Phyrexian Black";
-                case "RP": case "PR": return "Phyrexian Red";
-                case "GP": case "PG": return "Phyrexian Green";
+                case "W": return Models.Strings.ManaWhite;
+                case "U": return Models.Strings.ManaBlue;
+                case "B": return Models.Strings.ManaBlack;
+                case "R": return Models.Strings.ManaRed;
+                case "G": return Models.Strings.ManaGreen;
+                case "C": return Models.Strings.ManaColorless;
+                case "S": return Models.Strings.ManaSnow;
+                case "X": return Models.Strings.ManaX;
+                case "T": return Models.Strings.ManaTap;
+                case "Q": return Models.Strings.ManaUntap;
+                case "E": return Models.Strings.ManaEnergy;
+                case "WU": case "UW": return Models.Strings.ManaHybrid(Models.Strings.ManaWhite, Models.Strings.ManaBlue);
+                case "WB": case "BW": return Models.Strings.ManaHybrid(Models.Strings.ManaWhite, Models.Strings.ManaBlack);
+                case "UB": case "BU": return Models.Strings.ManaHybrid(Models.Strings.ManaBlue, Models.Strings.ManaBlack);
+                case "UR": case "RU": return Models.Strings.ManaHybrid(Models.Strings.ManaBlue, Models.Strings.ManaRed);
+                case "BR": case "RB": return Models.Strings.ManaHybrid(Models.Strings.ManaBlack, Models.Strings.ManaRed);
+                case "BG": case "GB": return Models.Strings.ManaHybrid(Models.Strings.ManaBlack, Models.Strings.ManaGreen);
+                case "RG": case "GR": return Models.Strings.ManaHybrid(Models.Strings.ManaRed, Models.Strings.ManaGreen);
+                case "RW": case "WR": return Models.Strings.ManaHybrid(Models.Strings.ManaRed, Models.Strings.ManaWhite);
+                case "GW": case "WG": return Models.Strings.ManaHybrid(Models.Strings.ManaGreen, Models.Strings.ManaWhite);
+                case "GU": case "UG": return Models.Strings.ManaHybrid(Models.Strings.ManaGreen, Models.Strings.ManaBlue);
+                case "WP": case "PW": return Models.Strings.ManaPhyrexian(Models.Strings.ManaWhite);
+                case "UP": case "PU": return Models.Strings.ManaPhyrexian(Models.Strings.ManaBlue);
+                case "BP": case "PB": return Models.Strings.ManaPhyrexian(Models.Strings.ManaBlack);
+                case "RP": case "PR": return Models.Strings.ManaPhyrexian(Models.Strings.ManaRed);
+                case "GP": case "PG": return Models.Strings.ManaPhyrexian(Models.Strings.ManaGreen);
                 default:
                     if (int.TryParse(symbol, out int num))
                         return num.ToString();
