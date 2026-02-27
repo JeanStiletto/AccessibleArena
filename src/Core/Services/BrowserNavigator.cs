@@ -602,14 +602,34 @@ namespace AccessibleArena.Core.Services
                 }
                 _browserButtons = regularButtons;
 
-                // Sort zone buttons by name for consistent order
-                _zoneButtons.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
-
-                if (_zoneButtons.Count > 0)
+                // Check how many distinct zones the cards actually span
+                var distinctZones = new HashSet<string>();
+                foreach (var card in _browserCards)
                 {
-                    _currentZoneButtonIndex = FindActiveZoneButtonIndex();
-                    _onZoneSelector = true;
-                    MelonLogger.Msg($"[BrowserNavigator] Multi-zone: {_zoneButtons.Count} zone buttons, active index: {_currentZoneButtonIndex}");
+                    string zone = CardModelProvider.GetCardZoneTypeName(card);
+                    bool isOpponent = CardModelProvider.IsOpponentCard(card);
+                    string key = (isOpponent ? "opp_" : "own_") + (zone ?? "unknown");
+                    distinctZones.Add(key);
+                }
+
+                if (distinctZones.Count <= 1)
+                {
+                    // Only one zone - zone selector is pointless, treat as regular browser
+                    MelonLogger.Msg($"[BrowserNavigator] Multi-zone scaffold but only {distinctZones.Count} distinct zone(s) - skipping zone selector");
+                    _isMultiZone = false;
+                    // Zone buttons are already excluded from _browserButtons, no need to re-add
+                }
+                else
+                {
+                    // Sort zone buttons by name for consistent order
+                    _zoneButtons.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
+
+                    if (_zoneButtons.Count > 0)
+                    {
+                        _currentZoneButtonIndex = FindActiveZoneButtonIndex();
+                        _onZoneSelector = true;
+                        MelonLogger.Msg($"[BrowserNavigator] Multi-zone: {_zoneButtons.Count} zone buttons, {distinctZones.Count} distinct zones, active index: {_currentZoneButtonIndex}");
+                    }
                 }
             }
 
@@ -729,6 +749,7 @@ namespace AccessibleArena.Core.Services
                 if (!child.gameObject.activeInHierarchy) continue;
                 if (!BrowserDetector.MatchesButtonPattern(child.name, BrowserDetector.ButtonPatterns)) continue;
                 if (!BrowserDetector.HasClickableComponent(child.gameObject)) continue;
+                if (!UIElementClassifier.IsVisibleViaCanvasGroup(child.gameObject)) continue;
                 if (_browserButtons.Contains(child.gameObject)) continue;
 
                 _browserButtons.Add(child.gameObject);

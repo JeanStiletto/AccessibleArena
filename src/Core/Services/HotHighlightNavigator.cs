@@ -860,10 +860,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsButtonVisible(GameObject button)
         {
-            if (button == null) return false;
-            var cg = button.GetComponent<CanvasGroup>();
-            if (cg == null) return true; // No CanvasGroup = assume visible
-            return cg.alpha > 0 && cg.interactable;
+            return UIElementClassifier.IsVisibleViaCanvasGroup(button);
         }
 
         /// <summary>
