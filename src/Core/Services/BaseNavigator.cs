@@ -1076,6 +1076,24 @@ namespace AccessibleArena.Core.Services
             // Custom input first (subclass-specific keys)
             if (HandleCustomInput()) return;
 
+            // I key: Extended card info (keyword descriptions + linked face)
+            // Works in any context where a card is focused (deck builder, collection, store, draft, etc.)
+            // DuelNavigator handles its own "I" key in HandleCustomInput() with browser fallback.
+            if (Input.GetKeyDown(KeyCode.I))
+            {
+                var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
+                var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
+                if (extInfoNav != null && cardNav != null && cardNav.IsActive && cardNav.CurrentCard != null)
+                {
+                    extInfoNav.Open(cardNav.CurrentCard);
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
+                }
+                return;
+            }
+
             // Menu navigation with Arrow Up/Down, W/S alternatives, and Tab/Shift+Tab
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
             {
