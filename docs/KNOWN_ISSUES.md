@@ -81,6 +81,14 @@ Renaming a deck breaks the mod's navigation state. After renaming, the mod may l
 
 ---
 
+### Deck Picker Invalid Reason Not Always Exposed
+
+The deck picker now announces "invalid deck", but the specific reason (for example missing cards) is only announced when MTGA exposes per-deck reason text on that tile. In some queues/screens, the game only exposes invalid status without detailed reason text.
+
+**Workaround:** Open the Decks screen to review and fix deck validation problems.
+
+---
+
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers

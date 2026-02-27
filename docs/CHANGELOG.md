@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.7.2-dev
 
+### Fixed: Deck Picker Invalid Deck Announcement
+- Play/Find Match deck picker now announces when a deck is invalid
+- Decks shown under the visible **Invalid Decks** section are treated as invalid
+- If MTGA exposes a deck-specific reason on that deck tile, the reason is included
+- If no reason text is exposed by the game, announcement stays as "invalid deck"
+- Files: UIActivator.cs, GeneralMenuNavigator.cs
+
 ### New: Land Summary Shortcut (M / Shift+M)
 - Press **M** to hear a summary of your lands: total count and untapped lands grouped by name
 - Press **Shift+M** for the opponent's land summary
