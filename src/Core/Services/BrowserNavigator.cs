@@ -46,6 +46,12 @@ namespace AccessibleArena.Core.Services
         private int _assignerTotal;   // total number of damage assigners in this combat
         private static readonly BindingFlags ReflFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
 
+        // Multi-zone browser state (SelectCardsMultiZone)
+        private bool _isMultiZone;
+        private List<GameObject> _zoneButtons = new List<GameObject>();
+        private int _currentZoneButtonIndex = -1;
+        private bool _onZoneSelector; // true when focus is on the zone selector element
+
         // Zone name constant
         private const string ZoneLocalHand = "LocalHand";
 
@@ -138,6 +144,9 @@ namespace AccessibleArena.Core.Services
                 _zoneNavigator.Activate(browserInfo);
             }
 
+            // Detect multi-zone browser
+            _isMultiZone = browserInfo.BrowserType == "SelectCardsMultiZone";
+
             // Detect AssignDamage browser
             if (browserInfo.BrowserType == "AssignDamage")
             {
@@ -169,6 +178,12 @@ namespace AccessibleArena.Core.Services
             _browserButtons.Clear();
             _currentCardIndex = -1;
             _currentButtonIndex = -1;
+
+            // Clear multi-zone state
+            _isMultiZone = false;
+            _zoneButtons.Clear();
+            _currentZoneButtonIndex = -1;
+            _onZoneSelector = false;
 
             // Clear AssignDamage state
             _isAssignDamage = false;
@@ -252,10 +267,161 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Multi-zone browser: zone selector handles Up/Down and blocks other input
+            if (_isMultiZone && _onZoneSelector && _zoneButtons.Count > 0)
+            {
+                if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
+                {
+                    CycleMultiZone(next: false);
+                    return true;
+                }
+                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+                {
+                    CycleMultiZone(next: true);
+                    return true;
+                }
+                // Tab from zone selector → first card (or first button if no cards)
+                if (Input.GetKeyDown(KeyCode.Tab))
+                {
+                    bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    if (!shift)
+                    {
+                        _onZoneSelector = false;
+                        if (_browserCards.Count > 0)
+                        {
+                            _currentCardIndex = 0;
+                            _currentButtonIndex = -1;
+                            AnnounceCurrentCard();
+                        }
+                        else if (_browserButtons.Count > 0)
+                        {
+                            _currentButtonIndex = 0;
+                            AnnounceCurrentButton();
+                        }
+                    }
+                    else
+                    {
+                        // Shift+Tab from zone selector → last button or last card (wrap)
+                        _onZoneSelector = false;
+                        if (_browserButtons.Count > 0)
+                        {
+                            _currentButtonIndex = _browserButtons.Count - 1;
+                            _currentCardIndex = -1;
+                            AnnounceCurrentButton();
+                        }
+                        else if (_browserCards.Count > 0)
+                        {
+                            _currentCardIndex = _browserCards.Count - 1;
+                            AnnounceCurrentCard();
+                        }
+                    }
+                    return true;
+                }
+                // Home/End: jump to first/last zone
+                if (Input.GetKeyDown(KeyCode.Home))
+                {
+                    if (_currentZoneButtonIndex != 0)
+                    {
+                        _currentZoneButtonIndex = 0;
+                        ActivateMultiZoneButton();
+                    }
+                    return true;
+                }
+                if (Input.GetKeyDown(KeyCode.End))
+                {
+                    int lastIdx = _zoneButtons.Count - 1;
+                    if (_currentZoneButtonIndex != lastIdx)
+                    {
+                        _currentZoneButtonIndex = lastIdx;
+                        ActivateMultiZoneButton();
+                    }
+                    return true;
+                }
+                // Block other keys while on zone selector (except Space/Backspace for confirm/cancel)
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    ClickConfirmButton();
+                    return true;
+                }
+                if (Input.GetKeyDown(KeyCode.Backspace))
+                {
+                    ClickCancelButton();
+                    return true;
+                }
+                return true;
+            }
+
             // Tab / Shift+Tab - cycle through items (generic navigation)
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+                // Multi-zone: Tab wraps back to zone selector at boundaries
+                if (_isMultiZone && _zoneButtons.Count > 0)
+                {
+                    if (shift)
+                    {
+                        // Shift+Tab: if on first card → go to zone selector
+                        if (_currentCardIndex == 0 && _currentButtonIndex < 0)
+                        {
+                            _onZoneSelector = true;
+                            _currentCardIndex = -1;
+                            AnnounceMultiZoneSelector();
+                            return true;
+                        }
+                        // Shift+Tab: if on first button and no cards → zone selector
+                        if (_currentButtonIndex == 0 && _browserCards.Count == 0)
+                        {
+                            _onZoneSelector = true;
+                            _currentButtonIndex = -1;
+                            AnnounceMultiZoneSelector();
+                            return true;
+                        }
+                        // Otherwise, navigate backwards through cards/buttons
+                        if (_currentButtonIndex > 0)
+                        {
+                            NavigateToPreviousButton();
+                        }
+                        else if (_currentButtonIndex == 0 && _browserCards.Count > 0)
+                        {
+                            _currentButtonIndex = -1;
+                            _currentCardIndex = _browserCards.Count - 1;
+                            AnnounceCurrentCard();
+                        }
+                        else if (_currentCardIndex > 0)
+                        {
+                            NavigateToPreviousCard();
+                        }
+                    }
+                    else
+                    {
+                        // Tab forward: cards → buttons → zone selector
+                        if (_currentCardIndex >= 0 && _currentCardIndex < _browserCards.Count - 1)
+                        {
+                            NavigateToNextCard();
+                        }
+                        else if (_currentCardIndex == _browserCards.Count - 1 && _browserButtons.Count > 0)
+                        {
+                            _currentCardIndex = -1;
+                            _currentButtonIndex = 0;
+                            AnnounceCurrentButton();
+                        }
+                        else if (_currentButtonIndex >= 0 && _currentButtonIndex < _browserButtons.Count - 1)
+                        {
+                            NavigateToNextButton();
+                        }
+                        else
+                        {
+                            // At end → wrap to zone selector
+                            _onZoneSelector = true;
+                            _currentCardIndex = -1;
+                            _currentButtonIndex = -1;
+                            AnnounceMultiZoneSelector();
+                        }
+                    }
+                    return true;
+                }
+
                 // OptionalAction: unified cycle through cards → choice buttons → wrap
                 if (_browserInfo.IsOptionalAction && _browserCards.Count > 0 && _browserButtons.Count > 0)
                 {
@@ -420,6 +586,31 @@ namespace AccessibleArena.Core.Services
             if (_browserCards.Count > 0 && _browserButtons.Count == 0)
             {
                 DiscoverPromptButtons();
+            }
+
+            // For multi-zone browsers: separate zone buttons from regular buttons
+            if (_isMultiZone)
+            {
+                _zoneButtons.Clear();
+                var regularButtons = new List<GameObject>();
+                foreach (var button in _browserButtons)
+                {
+                    if (button != null && button.name.StartsWith("ZoneButton"))
+                        _zoneButtons.Add(button);
+                    else
+                        regularButtons.Add(button);
+                }
+                _browserButtons = regularButtons;
+
+                // Sort zone buttons by name for consistent order
+                _zoneButtons.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
+
+                if (_zoneButtons.Count > 0)
+                {
+                    _currentZoneButtonIndex = FindActiveZoneButtonIndex();
+                    _onZoneSelector = true;
+                    MelonLogger.Msg($"[BrowserNavigator] Multi-zone: {_zoneButtons.Count} zone buttons, active index: {_currentZoneButtonIndex}");
+                }
             }
 
             MelonLogger.Msg($"[BrowserNavigator] Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
@@ -707,7 +898,15 @@ namespace AccessibleArena.Core.Services
             _announcer.Announce(message, AnnouncementPriority.High);
 
             // Auto-navigate to first item
-            if (cardCount > 0)
+            if (_isMultiZone && _zoneButtons.Count > 0)
+            {
+                // Multi-zone: start on zone selector
+                _onZoneSelector = true;
+                _currentCardIndex = -1;
+                _currentButtonIndex = -1;
+                AnnounceMultiZoneSelector();
+            }
+            else if (cardCount > 0)
             {
                 _currentCardIndex = 0;
                 AnnounceCurrentCard();
@@ -833,6 +1032,119 @@ namespace AccessibleArena.Core.Services
 
             return "";
         }
+
+        #region Multi-Zone Navigation
+
+        /// <summary>
+        /// Announces the multi-zone selector element with current zone name and card count.
+        /// </summary>
+        private void AnnounceMultiZoneSelector()
+        {
+            string zoneName = GetCurrentZoneButtonLabel();
+            string hint = _zoneButtons.Count > 1
+                ? $", {_currentZoneButtonIndex + 1} of {_zoneButtons.Count}"
+                : "";
+            string cardInfo = _browserCards.Count > 0 ? $", {_browserCards.Count} cards" : "";
+            string announcement = $"{Strings.ZoneChange}: {zoneName}{hint}{cardInfo}";
+            _announcer.Announce(announcement, AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Cycles to the next/previous zone in a multi-zone browser.
+        /// Clicks the zone button and rediscovers cards after a delay.
+        /// </summary>
+        private void CycleMultiZone(bool next)
+        {
+            if (_zoneButtons.Count == 0) return;
+
+            int newIndex = _currentZoneButtonIndex + (next ? 1 : -1);
+            if (newIndex < 0)
+            {
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return;
+            }
+            if (newIndex >= _zoneButtons.Count)
+            {
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            _currentZoneButtonIndex = newIndex;
+            ActivateMultiZoneButton();
+        }
+
+        /// <summary>
+        /// Clicks the current zone button and schedules card rediscovery.
+        /// </summary>
+        private void ActivateMultiZoneButton()
+        {
+            var button = _zoneButtons[_currentZoneButtonIndex];
+            MelonLogger.Msg($"[BrowserNavigator] Activating zone button: {button.name}");
+            UIActivator.SimulatePointerClick(button);
+
+            // Rediscover cards after game updates the holder
+            MelonCoroutines.Start(RediscoverMultiZoneCards());
+        }
+
+        /// <summary>
+        /// Waits for the game to update the card holder after a zone change,
+        /// then rediscovers cards and announces the new zone.
+        /// </summary>
+        private IEnumerator RediscoverMultiZoneCards()
+        {
+            yield return new WaitForSeconds(0.3f);
+
+            // Rediscover cards in holders
+            _browserCards.Clear();
+            _currentCardIndex = -1;
+            DiscoverCardsInHolders();
+
+            MelonLogger.Msg($"[BrowserNavigator] Multi-zone rediscovery: {_browserCards.Count} cards");
+            AnnounceMultiZoneSelector();
+        }
+
+        /// <summary>
+        /// Gets the display label for the currently selected zone button.
+        /// </summary>
+        private string GetCurrentZoneButtonLabel()
+        {
+            if (_currentZoneButtonIndex < 0 || _currentZoneButtonIndex >= _zoneButtons.Count)
+                return "?";
+
+            var button = _zoneButtons[_currentZoneButtonIndex];
+            string label = UITextExtractor.GetButtonText(button, button.name);
+
+            // If the button only has a generic name like "ZoneButton0", try to extract zone info
+            if (label.StartsWith("ZoneButton"))
+                label = $"Zone {_currentZoneButtonIndex + 1}";
+
+            return label;
+        }
+
+        /// <summary>
+        /// Finds which zone button is currently active/selected by checking visual state.
+        /// Falls back to 0 if no active button can be determined.
+        /// </summary>
+        private int FindActiveZoneButtonIndex()
+        {
+            // Try to detect which zone button is visually active (selected state)
+            for (int i = 0; i < _zoneButtons.Count; i++)
+            {
+                var button = _zoneButtons[i];
+                // Check if button has a Toggle component that's on
+                var toggle = button.GetComponent<Toggle>();
+                if (toggle != null && toggle.isOn)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Zone button {i} ({button.name}) is active (Toggle.isOn)");
+                    return i;
+                }
+            }
+
+            // Fallback: first button
+            return 0;
+        }
+
+        #endregion
 
         /// <summary>
         /// Announces the current button.

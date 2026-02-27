@@ -326,6 +326,7 @@
   "BrowserCards_Format": "{0}. {1} cards. Tab to navigate, Enter to select",
   "BrowserCards_One": "{0}. 1 card. Tab to navigate, Enter to select",
   "BrowserOptions_Format": "{0}. Tab to navigate options",
+  "ZoneChange": "Zone",
 
   "MasteryActivation_Format": "{0}. Level {1} of {2}, {3}. Arrow keys to navigate levels.",
   "MasteryLevel_Format": "Level {0}: {1}",

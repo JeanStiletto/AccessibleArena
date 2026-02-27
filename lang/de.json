@@ -317,6 +317,7 @@
   "BrowserCards_Format": "{0}. {1} Karten. Tab zum Navigieren, Enter zum Auswählen",
   "BrowserCards_One": "{0}. 1 Karte. Tab zum Navigieren, Enter zum Auswählen",
   "BrowserOptions_Format": "{0}. Tab zum Navigieren der Optionen",
+  "ZoneChange": "Zone",
 
   "MasteryActivation_Format": "{0}. Stufe {1} von {2}, {3}. Pfeiltasten zum Navigieren der Stufen.",
   "MasteryLevel_Format": "Stufe {0}: {1}",

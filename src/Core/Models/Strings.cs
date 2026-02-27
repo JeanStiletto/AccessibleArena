@@ -810,6 +810,7 @@ namespace AccessibleArena.Core.Models
         public static string NoConfirmButton => L.Get("NoConfirmButton");
         public static string KeepOnTop => L.Get("KeepOnTop");
         public static string PutOnBottom => L.Get("PutOnBottom");
+        public static string ZoneChange => L.Get("ZoneChange");
         public static string CouldNotClick(string label) => L.Format("CouldNotClick_Format", label);
         public static string BrowserCards(int count, string browserName) =>
             count == 1 ? L.Format("BrowserCards_One", browserName) : L.Format("BrowserCards_Format", browserName, count);
