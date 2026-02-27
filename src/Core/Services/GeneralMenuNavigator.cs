@@ -1133,19 +1133,26 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Early input hook: route popup input before BaseNavigator's auto-focus logic.
+        /// Without this, MTGA's auto-focused input fields in popups would be intercepted
+        /// by BaseNavigator's arrow key handling before PopupHandler gets a chance to run.
+        /// </summary>
+        protected override bool HandleEarlyInput()
+        {
+            if (_isPopupActive)
+            {
+                _popupHandler.HandleInput();
+                return true; // Consume all input while popup is active
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Handle custom input keys. Backspace goes back one level in menus.
         /// F4 toggles the Friends panel.
         /// </summary>
         protected override bool HandleCustomInput()
         {
-            // PopupHandler intercepts ALL input while popup is active
-            if (_isPopupActive)
-            {
-                if (_popupHandler.HandleInput())
-                    return true;
-                return true; // Consume all input while popup is active
-            }
-
             // F4: Toggle Friends panel
             if (Input.GetKeyDown(KeyCode.F4))
             {

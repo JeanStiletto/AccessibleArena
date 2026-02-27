@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
@@ -39,17 +38,12 @@ namespace AccessibleArena.Core.Services
 
         private readonly string _navigatorId;
         private readonly IAnnouncementService _announcer;
+        private readonly InputFieldEditHelper _inputHelper;
 
         private GameObject _activePopup;
         private readonly List<PopupItem> _items = new List<PopupItem>();
         private int _currentIndex;
         private string _title;
-
-        // Input field edit mode
-        private bool _isEditing;
-        private GameObject _editingField;
-        private string _prevText;
-        private int _prevCaretPos;
 
         #endregion
 
@@ -66,6 +60,7 @@ namespace AccessibleArena.Core.Services
         {
             _navigatorId = navigatorId;
             _announcer = announcer;
+            _inputHelper = new InputFieldEditHelper(announcer);
         }
 
         #endregion
@@ -119,15 +114,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void Clear()
         {
-            if (_isEditing)
-                ExitEditMode();
+            _inputHelper.Clear();
 
             _activePopup = null;
             _items.Clear();
             _currentIndex = -1;
             _title = null;
-            _prevText = null;
-            _prevCaretPos = 0;
         }
 
         /// <summary>
@@ -158,10 +150,10 @@ namespace AccessibleArena.Core.Services
             if (_activePopup == null) return false;
 
             // Input field edit mode intercepts all keys first
-            if (_isEditing)
+            if (_inputHelper.IsEditing)
             {
-                bool consumed = HandleInputFieldEditing();
-                TrackInputFieldState();
+                bool consumed = _inputHelper.HandleEditing(dir => NavigateItem(dir));
+                _inputHelper.TrackState();
                 return consumed;
             }
 
@@ -466,7 +458,7 @@ namespace AccessibleArena.Core.Services
             }
             else if (item.Type == PopupItemType.InputField && item.GameObject != null)
             {
-                EnterEditMode(item.GameObject);
+                _inputHelper.EnterEditMode(item.GameObject);
             }
             else if (item.Type == PopupItemType.Button && item.GameObject != null)
             {
@@ -516,11 +508,21 @@ namespace AccessibleArena.Core.Services
             if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
             var item = _items[_currentIndex];
-            string suffix = item.Type == PopupItemType.Button ? ", button"
-                          : item.Type == PopupItemType.InputField ? ", text field"
-                          : "";
+            string label = item.Label;
+
+            // For input fields, refresh label with current text content (same as BaseNavigator)
+            if (item.Type == PopupItemType.InputField && item.GameObject != null)
+            {
+                label = BaseNavigator.RefreshElementLabel(item.GameObject, label);
+            }
+            else
+            {
+                string suffix = item.Type == PopupItemType.Button ? ", button" : "";
+                label = $"{label}{suffix}";
+            }
+
             _announcer?.Announce(
-                $"{_currentIndex + 1} of {_items.Count}: {item.Label}{suffix}",
+                $"{_currentIndex + 1} of {_items.Count}: {label}",
                 AnnouncementPriority.Normal);
         }
 
@@ -746,230 +748,6 @@ namespace AccessibleArena.Core.Services
         {
             string name = obj.name.ToLower();
             return name.Contains("background") || name.Contains("overlay") || name.Contains("backdrop") || name.Contains("dismiss");
-        }
-
-        #endregion
-
-        #region Input Field Editing
-
-        private void EnterEditMode(GameObject field)
-        {
-            _isEditing = true;
-            _editingField = field;
-            UIFocusTracker.EnterInputFieldEditMode(field);
-            UIActivator.Activate(field);
-            _announcer?.Announce(Strings.EditingTextField, AnnouncementPriority.Normal);
-            TrackInputFieldState();
-        }
-
-        private void ExitEditMode()
-        {
-            _isEditing = false;
-            UIFocusTracker.ExitInputFieldEditMode();
-            UIFocusTracker.DeactivateFocusedInputField();
-            _editingField = null;
-        }
-
-        /// <summary>
-        /// Handle keys while editing an input field. Returns true if consumed.
-        /// </summary>
-        private bool HandleInputFieldEditing()
-        {
-            // Escape: exit edit mode
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                ExitEditMode();
-                _announcer?.Announce(Strings.ExitedEditMode, AnnouncementPriority.Normal);
-                return true;
-            }
-
-            // Tab/Shift+Tab: exit edit mode and navigate
-            if (Input.GetKeyDown(KeyCode.Tab))
-            {
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                ExitEditMode();
-                NavigateItem(shiftTab ? -1 : 1);
-                return true;
-            }
-
-            // Backspace: announce deleted char, pass through for actual deletion
-            if (Input.GetKeyDown(KeyCode.Backspace))
-            {
-                AnnounceDeletedChar();
-                return false;
-            }
-
-            // Up/Down: announce field content, reactivate field
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
-            {
-                AnnounceFieldContent();
-                ReactivateField();
-                return true;
-            }
-
-            // Left/Right: announce character at cursor
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
-            {
-                AnnounceCharAtCursor();
-                return true;
-            }
-
-            // All other keys pass through for typing
-            return false;
-        }
-
-        /// <summary>
-        /// Track input field text/caret for next frame's Backspace detection.
-        /// </summary>
-        private void TrackInputFieldState()
-        {
-            var (text, caretPos, _, isValid) = GetFieldInfo();
-            if (isValid)
-            {
-                _prevText = text ?? "";
-                _prevCaretPos = caretPos;
-            }
-            else
-            {
-                _prevText = "";
-                _prevCaretPos = 0;
-            }
-        }
-
-        /// <summary>
-        /// Get info from the editing input field.
-        /// </summary>
-        private (string text, int caretPos, bool isPassword, bool isValid) GetFieldInfo()
-        {
-            if (_editingField == null)
-                return (null, 0, false, false);
-
-            bool inEditMode = _isEditing && UIFocusTracker.IsEditingInputField();
-
-            var tmpInput = _editingField.GetComponent<TMP_InputField>();
-            if (tmpInput != null && (tmpInput.isFocused || inEditMode))
-            {
-                int caret = tmpInput.isFocused ? tmpInput.stringPosition : (tmpInput.text?.Length ?? 0);
-                bool isPw = tmpInput.inputType == TMP_InputField.InputType.Password;
-                return (tmpInput.text, caret, isPw, true);
-            }
-
-            return (null, 0, false, false);
-        }
-
-        private void AnnounceDeletedChar()
-        {
-            var (currentText, _, isPassword, isValid) = GetFieldInfo();
-            if (!isValid) return;
-
-            currentText = currentText ?? "";
-            string prevText = _prevText ?? "";
-
-            if (prevText.Length <= currentText.Length)
-                return;
-
-            if (isPassword)
-            {
-                _announcer?.AnnounceInterrupt(Strings.InputFieldStar);
-                return;
-            }
-
-            char deletedChar = FindDeletedCharacter(prevText, currentText, _prevCaretPos);
-            _announcer?.AnnounceInterrupt(Strings.GetCharacterName(deletedChar));
-        }
-
-        private char FindDeletedCharacter(string prevText, string currentText, int prevCaretPos)
-        {
-            int deletedIndex = prevCaretPos - 1;
-            if (deletedIndex >= 0 && deletedIndex < prevText.Length)
-                return prevText[deletedIndex];
-
-            for (int i = 0; i < currentText.Length; i++)
-            {
-                if (i >= prevText.Length || prevText[i] != currentText[i])
-                {
-                    if (i < prevText.Length)
-                        return prevText[i];
-                    break;
-                }
-            }
-
-            if (currentText.Length < prevText.Length)
-                return prevText[currentText.Length];
-
-            return '?';
-        }
-
-        private void AnnounceCharAtCursor()
-        {
-            var (text, caretPos, isPassword, isValid) = GetFieldInfo();
-            if (!isValid) return;
-
-            bool isLeft = Input.GetKeyDown(KeyCode.LeftArrow);
-            bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
-
-            if (string.IsNullOrEmpty(text))
-            {
-                _announcer?.AnnounceInterrupt(Strings.InputFieldEmpty);
-                return;
-            }
-
-            if (isPassword)
-            {
-                if (caretPos == 0 && isLeft)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
-                else if (caretPos >= text.Length && isRight)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
-                else
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldStar);
-                return;
-            }
-
-            if (caretPos == 0 && isLeft)
-                _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
-            else if (caretPos >= text.Length && isRight)
-                _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
-            else if (caretPos >= 0 && caretPos < text.Length)
-                _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
-            else
-                _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
-        }
-
-        private void AnnounceFieldContent()
-        {
-            var (content, _, isPassword, isValid) = GetFieldInfo();
-            if (!isValid) return;
-
-            string label = UITextExtractor.GetInputFieldLabel(_editingField);
-
-            if (isPassword)
-            {
-                string announcement = string.IsNullOrEmpty(content)
-                    ? Strings.InputFieldEmptyWithLabel(label)
-                    : Strings.InputFieldPasswordWithCount(label, content.Length);
-                _announcer?.AnnounceInterrupt(announcement);
-            }
-            else
-            {
-                string announcement = string.IsNullOrEmpty(content)
-                    ? Strings.InputFieldEmptyWithLabel(label)
-                    : Strings.InputFieldContent(label, content);
-                _announcer?.AnnounceInterrupt(announcement);
-            }
-        }
-
-        private void ReactivateField()
-        {
-            if (_editingField == null || !_editingField.activeInHierarchy) return;
-
-            var tmpInput = _editingField.GetComponent<TMP_InputField>();
-            if (tmpInput != null && !tmpInput.isFocused)
-            {
-                var eventSystem = EventSystem.current;
-                if (eventSystem != null)
-                    eventSystem.SetSelectedGameObject(_editingField);
-                tmpInput.ActivateInputField();
-            }
         }
 
         #endregion

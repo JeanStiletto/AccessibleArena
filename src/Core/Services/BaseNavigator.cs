@@ -42,13 +42,8 @@ namespace AccessibleArena.Core.Services
         private float _spinnerRescanDelay;
         private const float SpinnerRescanDelaySeconds = 0.5f;
 
-        // Cached input field being edited (set when entering edit mode)
-        private GameObject _editingInputField;
-
-        // Track previous frame's input field state for Backspace character announcement
-        // (By the time we detect Backspace, Unity has already deleted the character and moved caret)
-        private string _prevInputFieldText = "";
-        private int _prevInputFieldCaretPos = 0;
+        // Shared input field editing helper (announcements, field info, reactivation, character detection)
+        private InputFieldEditHelper _inputFieldHelper;
 
         // Track whether last navigation was via Tab (vs arrow keys)
         // Tab navigation should auto-enter input field edit mode, arrow keys should not
@@ -97,18 +92,6 @@ namespace AccessibleArena.Core.Services
             /// Used for Popout hover buttons that open submenus on click.
             /// </summary>
             public bool UseHoverActivation { get; set; }
-        }
-
-        /// <summary>
-        /// Info about a focused input field for navigation announcements
-        /// </summary>
-        private struct InputFieldInfo
-        {
-            public bool IsValid;
-            public string Text;
-            public int CaretPosition;
-            public bool IsPassword;
-            public GameObject GameObject;
         }
 
         #endregion
@@ -375,6 +358,7 @@ namespace AccessibleArena.Core.Services
         protected BaseNavigator(IAnnouncementService announcer)
         {
             _announcer = announcer;
+            _inputFieldHelper = new InputFieldEditHelper(announcer);
         }
 
         #endregion
@@ -428,7 +412,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Handle input (uses _prevInputFieldText from last frame for Backspace)
+            // Handle input (helper tracks prev state for Backspace character detection)
             HandleInput();
 
             // Track input field text for NEXT frame's Backspace character announcement
@@ -440,22 +424,19 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Track current input field state for next frame's Backspace detection.
         /// Called each frame to maintain previous state.
+        /// Uses scene-wide scan to handle mouse-clicked fields.
         /// </summary>
         private void TrackInputFieldState()
         {
             if (!UIFocusTracker.IsAnyInputFieldFocused() && !UIFocusTracker.IsEditingInputField())
             {
-                _prevInputFieldText = "";
-                _prevInputFieldCaretPos = 0;
+                _inputFieldHelper.TrackState(new InputFieldEditHelper.FieldInfo { IsValid = false });
                 return;
             }
 
-            var info = GetAnyFocusedInputFieldInfo();
-            if (info.IsValid)
-            {
-                _prevInputFieldText = info.Text ?? "";
-                _prevInputFieldCaretPos = info.CaretPosition;
-            }
+            GameObject fallback = IsValidIndex ? _elements[_currentIndex].GameObject : null;
+            var info = _inputFieldHelper.ScanForAnyFocusedField(fallback);
+            _inputFieldHelper.TrackState(info);
         }
 
         private void TryActivate()
@@ -526,12 +507,10 @@ namespace AccessibleArena.Core.Services
         private bool ExitInputFieldEditMode(bool suppressNextAnnouncement = false)
         {
             // Check if we're exiting a search field - need to rescan to pick up filtered results
-            bool wasSearchField = _editingInputField != null &&
-                _editingInputField.name.IndexOf("Search", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool wasSearchField = _inputFieldHelper.EditingField != null &&
+                _inputFieldHelper.EditingField.name.IndexOf("Search", StringComparison.OrdinalIgnoreCase) >= 0;
 
-            _editingInputField = null;
-            UIFocusTracker.ExitInputFieldEditMode();
-            UIFocusTracker.DeactivateFocusedInputField();
+            _inputFieldHelper.ExitEditMode();
 
             // If this was a search field, schedule delayed rescan
             if (wasSearchField)
@@ -612,7 +591,10 @@ namespace AccessibleArena.Core.Services
             // Backspace: announce the character being deleted, then let it pass through
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                AnnounceDeletedCharacter();
+                // Use scene-wide scan for Backspace since field may have been mouse-clicked
+                GameObject fallback = IsValidIndex ? _elements[_currentIndex].GameObject : null;
+                var info = _inputFieldHelper.ScanForAnyFocusedField(fallback);
+                _inputFieldHelper.AnnounceDeletedCharacter(info);
                 // Don't return - let key pass through to input field for actual deletion
             }
             // Up or Down arrow: announce the current input field content
@@ -620,13 +602,13 @@ namespace AccessibleArena.Core.Services
             // running before our code), so we must re-activate the field afterwards.
             else if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {
-                AnnounceCurrentInputFieldContent();
-                ReactivateInputField();
+                _inputFieldHelper.AnnounceFieldContent();
+                _inputFieldHelper.ReactivateField();
             }
             // Left/Right arrows: announce character at cursor position
             else if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
-                AnnounceCharacterAtCursor();
+                _inputFieldHelper.AnnounceCharacterAtCursor();
             }
             // All other keys pass through for typing
         }
@@ -985,290 +967,18 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Get info about the currently focused input field from cache or current element.
-        /// Uses cached field when available, avoids expensive FindObjectsOfType.
+        /// Early input hook called before any BaseNavigator input processing.
+        /// Override to intercept input before auto-focus and navigation logic.
+        /// Return true to consume input (skip all BaseNavigator handling).
+        /// Used by navigators with PopupHandler to route popup input first.
         /// </summary>
-        private InputFieldInfo GetFocusedInputFieldInfo()
-        {
-            var result = new InputFieldInfo { IsValid = false };
-
-            // Try cached editing field first
-            GameObject fieldObj = _editingInputField;
-            if (fieldObj == null && IsValidIndex)
-            {
-                fieldObj = _elements[_currentIndex].GameObject;
-            }
-
-            if (fieldObj == null) return result;
-
-            // When in explicit edit mode, accept the field even if not isFocused.
-            // TMP_InputField deactivates on Up/Down in single-line mode (via OnUpdateSelected)
-            // before our code runs, so isFocused may be false even though we're still editing.
-            bool inEditMode = _editingInputField != null && UIFocusTracker.IsEditingInputField();
-
-            // Check TMP_InputField
-            var tmpInput = fieldObj.GetComponent<TMPro.TMP_InputField>();
-            if (tmpInput != null && (tmpInput.isFocused || inEditMode))
-            {
-                result.IsValid = true;
-                result.Text = tmpInput.text;
-                result.CaretPosition = tmpInput.isFocused ? tmpInput.stringPosition : (tmpInput.text?.Length ?? 0);
-                result.IsPassword = tmpInput.inputType == TMPro.TMP_InputField.InputType.Password;
-                result.GameObject = fieldObj;
-                return result;
-            }
-
-            // Check legacy InputField
-            var legacyInput = fieldObj.GetComponent<UnityEngine.UI.InputField>();
-            if (legacyInput != null && (legacyInput.isFocused || inEditMode))
-            {
-                result.IsValid = true;
-                result.Text = legacyInput.text;
-                result.CaretPosition = legacyInput.isFocused ? legacyInput.caretPosition : (legacyInput.text?.Length ?? 0);
-                result.IsPassword = legacyInput.inputType == UnityEngine.UI.InputField.InputType.Password;
-                result.GameObject = fieldObj;
-                return result;
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Get info about any focused input field in the scene.
-        /// Used when the field might have been activated by mouse click rather than our navigation.
-        /// </summary>
-        private InputFieldInfo GetAnyFocusedInputFieldInfo()
-        {
-            // First try the cached/navigated field
-            var result = GetFocusedInputFieldInfo();
-            if (result.IsValid) return result;
-
-            // Scan scene for any focused input field (handles mouse-clicked fields)
-            var tmpInputFields = GameObject.FindObjectsOfType<TMPro.TMP_InputField>();
-            foreach (var field in tmpInputFields)
-            {
-                if (field.isFocused)
-                {
-                    return new InputFieldInfo
-                    {
-                        IsValid = true,
-                        Text = field.text,
-                        CaretPosition = field.stringPosition,
-                        IsPassword = field.inputType == TMPro.TMP_InputField.InputType.Password,
-                        GameObject = field.gameObject
-                    };
-                }
-            }
-
-            var legacyInputFields = GameObject.FindObjectsOfType<UnityEngine.UI.InputField>();
-            foreach (var field in legacyInputFields)
-            {
-                if (field.isFocused)
-                {
-                    return new InputFieldInfo
-                    {
-                        IsValid = true,
-                        Text = field.text,
-                        CaretPosition = field.caretPosition,
-                        IsPassword = field.inputType == UnityEngine.UI.InputField.InputType.Password,
-                        GameObject = field.gameObject
-                    };
-                }
-            }
-
-            return new InputFieldInfo { IsValid = false };
-        }
-
-        /// <summary>
-        /// Announce the character being deleted by Backspace.
-        /// Called BEFORE Unity processes the deletion so character is still in the text.
-        /// </summary>
-        private void AnnounceDeletedCharacter()
-        {
-            var info = GetAnyFocusedInputFieldInfo();
-            if (!info.IsValid) return;
-
-            string currentText = info.Text ?? "";
-            string prevText = _prevInputFieldText ?? "";
-
-            // Compare previous and current text to find deleted character
-            // By the time we detect Backspace, Unity has already processed it
-            if (prevText.Length <= currentText.Length)
-            {
-                // Text didn't get shorter - nothing was deleted (or text was added)
-                return;
-            }
-
-            // Handle password fields - don't reveal characters
-            if (info.IsPassword)
-            {
-                _announcer.AnnounceInterrupt(Strings.InputFieldStar);
-                return;
-            }
-
-            // Find the deleted character by comparing strings
-            // Typically it's at the caret position in the previous text
-            char deletedChar = FindDeletedCharacter(prevText, currentText, _prevInputFieldCaretPos);
-            string charName = Strings.GetCharacterName(deletedChar);
-            _announcer.AnnounceInterrupt(charName);
-        }
-
-        /// <summary>
-        /// Find the character that was deleted by comparing previous and current text.
-        /// </summary>
-        private char FindDeletedCharacter(string prevText, string currentText, int prevCaretPos)
-        {
-            // Backspace deletes the character before the caret
-            // So if caret was at position N, the deleted char was at N-1
-            int deletedIndex = prevCaretPos - 1;
-
-            // Sanity check
-            if (deletedIndex >= 0 && deletedIndex < prevText.Length)
-            {
-                return prevText[deletedIndex];
-            }
-
-            // Fallback: find first difference between strings
-            for (int i = 0; i < currentText.Length; i++)
-            {
-                if (i >= prevText.Length || prevText[i] != currentText[i])
-                {
-                    // Found difference - the deleted char was at position i in prevText
-                    if (i < prevText.Length)
-                        return prevText[i];
-                    break;
-                }
-            }
-
-            // If current is a prefix of prev, the deleted char is the one after current ends
-            if (currentText.Length < prevText.Length)
-            {
-                return prevText[currentText.Length];
-            }
-
-            // Couldn't determine - return placeholder
-            return '?';
-        }
-
-        /// <summary>
-        /// Re-activate the input field after Unity deactivated it (e.g., Up/Down in single-line mode).
-        /// Restores EventSystem selection and re-activates the field so typing can continue.
-        /// </summary>
-        private void ReactivateInputField()
-        {
-            if (_editingInputField == null || !_editingInputField.activeInHierarchy) return;
-
-            var eventSystem = EventSystem.current;
-
-            var tmpInput = _editingInputField.GetComponent<TMPro.TMP_InputField>();
-            if (tmpInput != null && !tmpInput.isFocused)
-            {
-                if (eventSystem != null)
-                {
-                    eventSystem.SetSelectedGameObject(_editingInputField);
-                }
-                tmpInput.ActivateInputField();
-                return;
-            }
-
-            var legacyInput = _editingInputField.GetComponent<InputField>();
-            if (legacyInput != null && !legacyInput.isFocused)
-            {
-                if (eventSystem != null)
-                {
-                    eventSystem.SetSelectedGameObject(_editingInputField);
-                }
-                legacyInput.ActivateInputField();
-            }
-        }
-
-        /// <summary>
-        /// Announce the character at the current cursor position in the focused input field.
-        /// </summary>
-        private void AnnounceCharacterAtCursor()
-        {
-            var info = GetFocusedInputFieldInfo();
-            if (!info.IsValid) return;
-
-            bool isLeftArrow = Input.GetKeyDown(KeyCode.LeftArrow);
-            bool isRightArrow = Input.GetKeyDown(KeyCode.RightArrow);
-            string text = info.Text;
-            int caretPos = info.CaretPosition;
-
-            // Handle empty field
-            if (string.IsNullOrEmpty(text))
-            {
-                _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
-                return;
-            }
-
-            // Handle password fields - don't reveal characters
-            if (info.IsPassword)
-            {
-                if (caretPos == 0 && isLeftArrow)
-                    _announcer.AnnounceInterrupt(Strings.InputFieldStart);
-                else if (caretPos >= text.Length && isRightArrow)
-                    _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
-                else if (caretPos >= 0 && caretPos < text.Length)
-                    _announcer.AnnounceInterrupt(Strings.InputFieldStar);
-                else
-                    _announcer.AnnounceInterrupt(caretPos == 0 ? Strings.InputFieldStart : Strings.InputFieldEnd);
-                return;
-            }
-
-            // At start and pressing left - can't go further
-            if (caretPos == 0 && isLeftArrow)
-            {
-                _announcer.AnnounceInterrupt(Strings.InputFieldStart);
-            }
-            // At end and pressing right - can't go further
-            else if (caretPos >= text.Length && isRightArrow)
-            {
-                _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
-            }
-            // Normal position - announce character (caretPos < text.Length implied by above)
-            else if (caretPos >= 0 && caretPos < text.Length)
-            {
-                char c = text[caretPos];
-                string charName = Strings.GetCharacterName(c);
-                _announcer.AnnounceInterrupt(charName);
-            }
-            // At end position (caretPos >= text.Length, left arrow) - announce end
-            else
-            {
-                _announcer.AnnounceInterrupt(Strings.InputFieldEnd);
-            }
-        }
-
-        /// <summary>
-        /// Announce the content of the currently focused input field.
-        /// </summary>
-        private void AnnounceCurrentInputFieldContent()
-        {
-            var info = GetFocusedInputFieldInfo();
-            if (!info.IsValid) return;
-
-            string label = UITextExtractor.GetInputFieldLabel(info.GameObject);
-            string content = info.Text;
-
-            if (info.IsPassword)
-            {
-                string announcement = string.IsNullOrEmpty(content)
-                    ? Strings.InputFieldEmptyWithLabel(label)
-                    : Strings.InputFieldPasswordWithCount(label, content.Length);
-                _announcer.AnnounceInterrupt(announcement);
-            }
-            else
-            {
-                string announcement = string.IsNullOrEmpty(content)
-                    ? Strings.InputFieldEmptyWithLabel(label)
-                    : Strings.InputFieldContent(label, content);
-                _announcer.AnnounceInterrupt(announcement);
-            }
-        }
+        protected virtual bool HandleEarlyInput() => false;
 
         protected virtual void HandleInput()
         {
+            // Early input hook - lets subclasses (e.g. popup handling) intercept before auto-focus logic
+            if (HandleEarlyInput()) return;
+
             // Check if we're in explicit edit mode (user activated field or game focused it)
             if (UIFocusTracker.IsEditingInputField())
             {
@@ -1288,15 +998,15 @@ namespace AccessibleArena.Core.Services
             // EventSystem selection for arrow nav, preventing Unity's native navigation).
             if (UIFocusTracker.IsAnyInputFieldFocused())
             {
-                var info = GetAnyFocusedInputFieldInfo();
+                GameObject fallback = IsValidIndex ? _elements[_currentIndex].GameObject : null;
+                var info = _inputFieldHelper.ScanForAnyFocusedField(fallback);
                 if (info.IsValid && info.GameObject != null)
                 {
                     if (_lastNavigationWasTab)
                     {
                         // Tab navigation - enter edit mode immediately
                         _lastNavigationWasTab = false;
-                        _editingInputField = info.GameObject;
-                        UIFocusTracker.EnterInputFieldEditMode(info.GameObject);
+                        _inputFieldHelper.SetEditingFieldSilently(info.GameObject);
                         HandleInputFieldNavigation();
                         return;
                     }
@@ -1329,9 +1039,9 @@ namespace AccessibleArena.Core.Services
             _lastNavigationWasTab = false; // Clear flag if not used
 
             // Clear edit mode when no input field is focused
-            if (_editingInputField != null)
+            if (_inputFieldHelper.IsEditing)
             {
-                _editingInputField = null;
+                _inputFieldHelper.ClearEditingFieldSilently();
                 UIFocusTracker.ExitInputFieldEditMode();
             }
 
@@ -1987,12 +1697,7 @@ namespace AccessibleArena.Core.Services
             // Check if this is an input field - enter edit mode
             if (UIFocusTracker.IsInputField(element))
             {
-                _editingInputField = element;
-                UIFocusTracker.EnterInputFieldEditMode(element);
-                _announcer.Announce(Strings.EditingTextField, AnnouncementPriority.Normal);
-
-                // Also activate the field so it receives keyboard input
-                UIActivator.Activate(element);
+                _inputFieldHelper.EnterEditMode(element);
                 return;
             }
 

@@ -498,16 +498,18 @@ namespace AccessibleArena.Core.Services
 
         #region Input Handling
 
-        protected override bool HandleCustomInput()
+        protected override bool HandleEarlyInput()
         {
-            // If popup is active, route all input through PopupHandler
             if (_isPopupActive)
             {
-                if (_popupHandler.HandleInput())
-                    return true;
+                _popupHandler.HandleInput();
                 return true; // Consume all input while popup is active
             }
+            return false;
+        }
 
+        protected override bool HandleCustomInput()
+        {
             // Backspace: Navigate back in settings or close settings
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
