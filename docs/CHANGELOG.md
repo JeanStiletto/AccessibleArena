@@ -12,6 +12,11 @@ All notable changes to Accessible Arena.
 - Shared `InputFieldEditHelper` class eliminates code duplication between BaseNavigator and PopupHandler
 - Files: InputFieldEditHelper.cs (new), PopupHandler.cs, BaseNavigator.cs
 
+### Changed: Announcement Order
+- Item count and position are now read last instead of first in all menu and screen announcements
+- Content (label, hints, instructions) is announced before "X of Y" position info
+- Updated across all navigators and all 12 locale files
+
 ### Fixed: Popup Leaving State
 - Fixed getting stuck on empty screen after pressing buttons in popups that trigger server actions (e.g., sending invite with invalid name)
 - Popup validation now checks if popup GameObject still exists before consuming input

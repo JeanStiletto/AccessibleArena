@@ -391,15 +391,15 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            string countInfo = _elements.Count > 1 ? $"{_elements.Count} items. " : "";
+            string countInfo = _elements.Count > 1 ? $" {_elements.Count} items." : "";
 
             // Try to include content summary for What's New
             if (_overlayType == "WhatsNew")
             {
-                return $"{ScreenName} overlay. {countInfo}{Models.Strings.NavigateWithArrows}, Enter to continue.";
+                return $"{ScreenName} overlay. {Models.Strings.NavigateWithArrows}, Enter to continue.{countInfo}";
             }
 
-            return $"{ScreenName}. {countInfo}{Models.Strings.NavigateWithArrows}, Enter to select.";
+            return $"{ScreenName}. {Models.Strings.NavigateWithArrows}, Enter to select.{countInfo}";
         }
 
         public override void OnSceneChanged(string sceneName)

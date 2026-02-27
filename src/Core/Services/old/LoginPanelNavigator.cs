@@ -72,7 +72,7 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            return $"{ScreenName}. {_elements.Count} fields. {Models.Strings.NavigateWithArrows}.";
+            return $"{ScreenName}. {Models.Strings.NavigateWithArrows}. {_elements.Count} fields.";
         }
 
         protected override string GetElementAnnouncement(int index)
@@ -106,7 +106,7 @@ namespace AccessibleArena.Core.Services
                         label = $"{label}: {content}";
                 }
 
-                return $"{index + 1} of {_elements.Count}: {label}";
+                return $"{label}, {index + 1} of {_elements.Count}";
             }
 
             // Handle toggles
@@ -114,11 +114,11 @@ namespace AccessibleArena.Core.Services
             if (toggle != null)
             {
                 string state = toggle.isOn ? "checked" : "unchecked";
-                return $"{index + 1} of {_elements.Count}: {label}, checkbox, {state}";
+                return $"{label}, checkbox, {state}, {index + 1} of {_elements.Count}";
             }
 
             // Default for buttons
-            return $"{index + 1} of {_elements.Count}: {label}";
+            return $"{label}, {index + 1} of {_elements.Count}";
         }
 
         protected override void AnnounceCurrentElement()

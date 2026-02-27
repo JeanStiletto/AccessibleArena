@@ -515,11 +515,11 @@ namespace AccessibleArena.Core.Services
         {
             if (_isDeckReward)
             {
-                string deckInfo = _totalCards > 0 ? $"{_totalCards} {(_totalCards == 1 ? "deck" : "decks")}. " : "";
-                return $"{ScreenName}. {deckInfo}Left and Right to navigate. Enter to open.";
+                string deckInfo = _totalCards > 0 ? $" {_totalCards} {(_totalCards == 1 ? "deck" : "decks")}." : "";
+                return $"{ScreenName}. Left and Right to navigate. Enter to open.{deckInfo}";
             }
-            string cardInfo = _totalCards > 0 ? $"{_totalCards} {(_totalCards == 1 ? "card" : "cards")}. " : "";
-            return $"{ScreenName}. {cardInfo}Left and Right to navigate, Up and Down for card details.";
+            string cardInfo = _totalCards > 0 ? $" {_totalCards} {(_totalCards == 1 ? "card" : "cards")}." : "";
+            return $"{ScreenName}. Left and Right to navigate, Up and Down for card details.{cardInfo}";
         }
 
         protected override void HandleInput()

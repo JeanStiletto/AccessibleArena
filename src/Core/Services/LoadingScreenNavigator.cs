@@ -614,12 +614,12 @@ namespace AccessibleArena.Core.Services
                 case ScreenMode.MatchEnd:
                     string result = string.IsNullOrEmpty(_matchResultText) ? Strings.ScreenMatchEnded : _matchResultText;
                     if (_elements.Count > 0)
-                        return Strings.WithHint($"{result}. {Strings.ItemCount(_elements.Count)}", "NavigateHint");
+                        return Strings.WithHint(result, "NavigateHint") + $" {Strings.ItemCount(_elements.Count)}.";
                     return result;
 
                 case ScreenMode.PreGame:
                     if (_elements.Count > 0)
-                        return Strings.WithHint($"{Strings.ScreenSearchingForMatch}. {Strings.ItemCount(_elements.Count)}", "NavigateHint");
+                        return Strings.WithHint(Strings.ScreenSearchingForMatch, "NavigateHint") + $" {Strings.ItemCount(_elements.Count)}.";
                     return $"{Strings.ScreenSearchingForMatch}.";
 
                 case ScreenMode.Matchmaking:

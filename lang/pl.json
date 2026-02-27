@@ -483,9 +483,9 @@
   "ItemCount_Few": "{0} elementy",
   "ItemCount_Format": "{0} elementów",
   "GroupItemCount_Format": "{0}, {1}",
-  "ItemPositionOf_Format": "{0} z {1}: {2}",
-  "ScreenGroupsSummary_Format": "{0}. {1}. {2}",
-  "ScreenItemsSummary_Format": "{0}. {1}. {2}",
+  "ItemPositionOf_Format": "{2}, {0} z {1}",
+  "ScreenGroupsSummary_Format": "{0}. {2}. {1}",
+  "ScreenItemsSummary_Format": "{0}. {2}. {1}",
   "ObjectivesEntry_Format": "Cele, {0}",
 
   "LangEnglish": "Angielski",

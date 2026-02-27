@@ -250,8 +250,8 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            string countInfo = _totalCards > 0 ? $"{_totalCards} cards. " : "";
-            return $"Draft Pick. {countInfo}Left and Right to navigate cards, Enter to select, Space to confirm.";
+            string countInfo = _totalCards > 0 ? $" {_totalCards} cards." : "";
+            return $"Draft Pick. Left and Right to navigate cards, Enter to select, Space to confirm.{countInfo}";
         }
 
         protected override void HandleInput()

@@ -522,7 +522,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _announcer?.Announce(
-                $"{_currentIndex + 1} of {_items.Count}: {label}",
+                $"{label}, {_currentIndex + 1} of {_items.Count}",
                 AnnouncementPriority.Normal);
         }
 

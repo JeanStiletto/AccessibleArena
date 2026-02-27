@@ -746,7 +746,7 @@ namespace AccessibleArena.Core.Services
             {
                 return $"{menuName}. No navigable items found.";
             }
-            return $"{menuName}. {_elements.Count} items. {Models.Strings.NavigateWithArrows}, Enter to select.";
+            return $"{menuName}. {Models.Strings.NavigateWithArrows}, Enter to select. {_elements.Count} items.";
         }
 
         #endregion

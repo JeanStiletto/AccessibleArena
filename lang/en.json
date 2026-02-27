@@ -481,9 +481,9 @@
   "ItemCount_One": "1 item",
   "ItemCount_Format": "{0} items",
   "GroupItemCount_Format": "{0}, {1}",
-  "ItemPositionOf_Format": "{0} of {1}: {2}",
-  "ScreenGroupsSummary_Format": "{0}. {1}. {2}",
-  "ScreenItemsSummary_Format": "{0}. {1}. {2}",
+  "ItemPositionOf_Format": "{2}, {0} of {1}",
+  "ScreenGroupsSummary_Format": "{0}. {2}. {1}",
+  "ScreenItemsSummary_Format": "{0}. {2}. {1}",
   "ObjectivesEntry_Format": "Objectives, {0}",
 
   "LangEnglish": "English",

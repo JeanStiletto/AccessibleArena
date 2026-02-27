@@ -124,7 +124,7 @@ namespace AccessibleArena.Core.Services
                 if (element.GameObject?.GetComponent<Toggle>() != null)
                     toggleCount++;
             }
-            return $"{ScreenName}. {toggleCount} checkboxes. {Models.Strings.NavigateWithArrows}. Press C to read terms.";
+            return $"{ScreenName}. {Models.Strings.NavigateWithArrows}. Press C to read terms. {toggleCount} checkboxes.";
         }
 
         protected override bool HandleCustomInput()

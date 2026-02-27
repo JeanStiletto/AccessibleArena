@@ -469,9 +469,9 @@
   "ItemCount_One": "1件",
   "ItemCount_Format": "{0}件",
   "GroupItemCount_Format": "{0}、{1}",
-  "ItemPositionOf_Format": "{1}件中{0}件目: {2}",
-  "ScreenGroupsSummary_Format": "{0}。{1}。{2}",
-  "ScreenItemsSummary_Format": "{0}。{1}。{2}",
+  "ItemPositionOf_Format": "{2}、{1}件中{0}件目",
+  "ScreenGroupsSummary_Format": "{0}。{2}。{1}",
+  "ScreenItemsSummary_Format": "{0}。{2}。{1}",
   "ObjectivesEntry_Format": "目標、{0}",
 
   "LangEnglish": "英語",

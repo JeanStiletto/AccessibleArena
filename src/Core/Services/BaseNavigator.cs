@@ -143,8 +143,8 @@ namespace AccessibleArena.Core.Services
         /// <summary>Build the initial screen announcement</summary>
         protected virtual string GetActivationAnnouncement()
         {
-            string countInfo = _elements.Count > 1 ? $"{_elements.Count} items. " : "";
-            string core = $"{ScreenName}. {countInfo}".TrimEnd();
+            string countInfo = _elements.Count > 1 ? $" {_elements.Count} items." : "";
+            string core = $"{ScreenName}.{countInfo}".TrimEnd();
             return Strings.WithHint(core, "NavigateHint");
         }
 
@@ -156,7 +156,7 @@ namespace AccessibleArena.Core.Services
             var navElement = _elements[index];
             string label = RefreshElementLabel(navElement.GameObject, navElement.Label);
 
-            return $"{index + 1} of {_elements.Count}: {label}";
+            return $"{label}, {index + 1} of {_elements.Count}";
         }
 
         /// <summary>

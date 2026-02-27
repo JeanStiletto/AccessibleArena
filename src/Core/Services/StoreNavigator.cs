@@ -1013,12 +1013,12 @@ namespace AccessibleArena.Core.Services
                     ? _tabs[_currentTabIndex].DisplayName
                     : "Store";
 
-                return $"Store, {tabName}. {_items.Count} items. {Strings.NavigateWithArrows}, Enter to buy, Backspace for tabs.";
+                return $"Store, {tabName}. {Strings.NavigateWithArrows}, Enter to buy, Backspace for tabs. {_items.Count} items.";
             }
 
             // No items - stay at tab level
             _navLevel = NavigationLevel.Tabs;
-            return $"Store. {_tabs.Count} tabs. {Strings.NavigateWithArrows}, Enter to select.";
+            return $"Store. {Strings.NavigateWithArrows}, Enter to select. {_tabs.Count} tabs.";
         }
 
         protected override string GetElementAnnouncement(int index)
@@ -1036,14 +1036,14 @@ namespace AccessibleArena.Core.Services
             if (tab.IsUtility)
             {
                 _announcer.AnnounceInterrupt(
-                    $"{_currentTabIndex + 1} of {_tabs.Count}: {tab.DisplayName}");
+                    $"{tab.DisplayName}, {_currentTabIndex + 1} of {_tabs.Count}");
             }
             else
             {
                 bool isActive = IsTabActive(tab);
                 string activeIndicator = isActive ? ", active" : "";
                 _announcer.AnnounceInterrupt(
-                    $"{_currentTabIndex + 1} of {_tabs.Count}: {tab.DisplayName}{activeIndicator}");
+                    $"{tab.DisplayName}{activeIndicator}, {_currentTabIndex + 1} of {_tabs.Count}");
             }
         }
 
@@ -1069,7 +1069,7 @@ namespace AccessibleArena.Core.Services
             string descText = !string.IsNullOrEmpty(item.Description) ? $". {item.Description}" : "";
 
             _announcer.AnnounceInterrupt(
-                $"{_currentItemIndex + 1} of {_items.Count}: {item.Label}{descText}{optionText}");
+                $"{item.Label}{descText}{optionText}, {_currentItemIndex + 1} of {_items.Count}");
         }
 
         private void AnnouncePurchaseOption()
@@ -2387,7 +2387,7 @@ namespace AccessibleArena.Core.Services
             }
             _modalElementIndex = newIndex;
             _announcer.AnnounceInterrupt(
-                $"{_modalElementIndex + 1} of {_modalElements.Count}: {_modalElements[_modalElementIndex].label}");
+                $"{_modalElements[_modalElementIndex].label}, {_modalElementIndex + 1} of {_modalElements.Count}");
         }
 
         /// <summary>

@@ -469,9 +469,9 @@
   "ItemCount_One": "1个项目",
   "ItemCount_Format": "{0}个项目",
   "GroupItemCount_Format": "{0}，{1}",
-  "ItemPositionOf_Format": "第{0}个，共{1}个：{2}",
-  "ScreenGroupsSummary_Format": "{0}。{1}。{2}",
-  "ScreenItemsSummary_Format": "{0}。{1}。{2}",
+  "ItemPositionOf_Format": "{2}，第{0}个，共{1}个",
+  "ScreenGroupsSummary_Format": "{0}。{2}。{1}",
+  "ScreenItemsSummary_Format": "{0}。{2}。{1}",
   "ObjectivesEntry_Format": "任务，{0}",
 
   "LangEnglish": "英语",
