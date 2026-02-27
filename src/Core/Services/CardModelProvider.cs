@@ -4429,7 +4429,11 @@ namespace AccessibleArena.Core.Services
             {
                 // We need a CDC to call the hanger provider
                 var cdc = GetDuelSceneCDC(card);
-                if (cdc == null) return result;
+                if (cdc == null)
+                {
+                    // Non-duel context: extract individual ability texts from card model
+                    return GetAbilityTextsFromCardModel(card);
+                }
 
                 // Ensure hanger provider is cached (retry if not found previously)
                 if (_abilityHangerProvider == null)
@@ -4517,6 +4521,140 @@ namespace AccessibleArena.Core.Services
             catch (Exception ex)
             {
                 MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Error getting keyword descriptions: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Fallback for non-duel contexts: extracts individual ability texts from the card model.
+        /// Returns each ability as a separate navigable item for the extended info menu.
+        /// </summary>
+        private static List<string> GetAbilityTextsFromCardModel(GameObject card)
+        {
+            var result = new List<string>();
+            if (card == null) return result;
+
+            try
+            {
+                // Get the card model (same path as ExtractCardInfoFromModel)
+                object model = null;
+
+                var metaCardView = GetMetaCardView(card);
+                if (metaCardView == null)
+                {
+                    var parent = card.transform.parent;
+                    int maxLevels = 5;
+                    while (metaCardView == null && parent != null && maxLevels-- > 0)
+                    {
+                        metaCardView = GetMetaCardView(parent.gameObject);
+                        parent = parent.parent;
+                    }
+                }
+
+                if (metaCardView != null)
+                    model = GetMetaCardModel(metaCardView);
+
+                if (model == null)
+                {
+                    MelonLogger.Msg("[CardModelProvider] [ExtInfo] No model found for non-duel card");
+                    return result;
+                }
+
+                var objType = model.GetType();
+
+                // Get GrpId and TitleId for ability text lookup
+                uint cardGrpId = 0;
+                var grpIdObj = GetModelPropertyValue(model, objType, "GrpId");
+                if (grpIdObj is uint gid) cardGrpId = gid;
+
+                uint cardTitleId = 0;
+                var titleIdObj = GetModelPropertyValue(model, objType, "TitleId");
+                if (titleIdObj is uint tid) cardTitleId = tid;
+
+                // Get all ability IDs for context
+                var abilityIdsVal = GetModelPropertyValue(model, objType, "AbilityIds");
+                uint[] abilityIds = null;
+                if (abilityIdsVal is IEnumerable<uint> aidEnum)
+                    abilityIds = aidEnum.ToArray();
+                else if (abilityIdsVal is uint[] aidArray)
+                    abilityIds = aidArray;
+
+                // Extract abilities
+                var abilities = GetModelPropertyValue(model, objType, "Abilities");
+                if (abilities is IEnumerable abilityEnum)
+                {
+                    var seen = new HashSet<string>();
+                    foreach (var ability in abilityEnum)
+                    {
+                        if (ability == null) continue;
+                        var abilityType = ability.GetType();
+
+                        uint abilityId = 0;
+                        var idProp = abilityType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+                        if (idProp != null)
+                        {
+                            var idVal = idProp.GetValue(ability);
+                            if (idVal is uint aid) abilityId = aid;
+                        }
+
+                        var textValue = GetAbilityText(ability, abilityType, cardGrpId, abilityId, abilityIds, cardTitleId);
+                        if (!string.IsNullOrEmpty(textValue))
+                        {
+                            textValue = ParseManaSymbolsInText(textValue);
+                            if (seen.Add(textValue))
+                            {
+                                result.Add(textValue);
+                                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Ability: '{textValue}'");
+                            }
+                        }
+                    }
+                }
+
+                // Also try CardPrintingData path if model didn't have abilities
+                if (result.Count == 0 && cardGrpId > 0)
+                {
+                    var cardData = GetCardDataFromGrpId(cardGrpId) ?? GetCardDataFromGrpIdDuelScene(cardGrpId);
+                    if (cardData != null)
+                    {
+                        var cardType = cardData.GetType();
+                        var abilitiesProp = cardType.GetProperty("Abilities") ?? cardType.GetProperty("IntrinsicAbilities");
+                        if (abilitiesProp != null)
+                        {
+                            var abilitiesFromData = abilitiesProp.GetValue(cardData) as IEnumerable;
+                            if (abilitiesFromData != null)
+                            {
+                                var seen = new HashSet<string>();
+                                foreach (var ability in abilitiesFromData)
+                                {
+                                    if (ability == null) continue;
+                                    var aType = ability.GetType();
+                                    var idProp = aType.GetProperty("Id");
+                                    if (idProp != null)
+                                    {
+                                        var abilityId = (uint)idProp.GetValue(ability);
+                                        var abilityText = GetAbilityTextFromProvider(cardGrpId, abilityId, null, 0);
+                                        if (!string.IsNullOrEmpty(abilityText))
+                                        {
+                                            abilityText = ParseManaSymbolsInText(abilityText);
+                                            if (seen.Add(abilityText))
+                                            {
+                                                result.Add(abilityText);
+                                                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Ability (data): '{abilityText}'");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] GetAbilityTextsFromCardModel: {result.Count} entries");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Error extracting ability texts: {ex.Message}");
             }
 
             return result;
