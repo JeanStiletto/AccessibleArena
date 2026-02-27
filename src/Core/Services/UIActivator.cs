@@ -33,6 +33,17 @@ namespace AccessibleArena.Core.Services
 
         // Compiled regex for Submit button detection
         private static readonly Regex SubmitButtonPattern = new Regex(@"^Submit\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex RichTextTagPattern = new Regex(@"<[^>]+>", RegexOptions.Compiled);
+        private static readonly Regex WhitespacePattern = new Regex(@"\s+", RegexOptions.Compiled);
+        private static readonly Regex FractionOnlyPattern = new Regex(@"^\d+\s*/\s*\d+$", RegexOptions.Compiled);
+        private static readonly string[] InvalidDeckKeywords =
+        {
+            "invalid", "illegal", "not legal",
+            "ungult", "ungült", "unzul",
+            "inválid", "invalide", "invalido", "inválido",
+            "niepraw", "недопуст", "невер",
+            "無効", "无效", "무효"
+        };
 
         // Targeting mode detection cache (avoids expensive FindObjectsOfType every call)
         private const float TargetingCacheTimeout = 0.1f;
@@ -2246,6 +2257,421 @@ namespace AccessibleArena.Core.Services
 
             // Compare if this deck's DeckView matches the selected one
             return deckView == selectedDeckView;
+        }
+
+        /// <summary>
+        /// Returns an invalid-deck announcement suffix for a deck entry.
+        /// Returns null for valid decks or when invalid state cannot be determined.
+        /// </summary>
+        public static string GetDeckInvalidAnnouncement(GameObject deckElement)
+        {
+            if (deckElement == null) return null;
+
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null) return null;
+
+            string details = TryGetDeckInvalidDetails(deckView);
+            bool hasValidity = TryGetDeckIsValid(deckView, out bool isValid);
+            bool inInvalidSection = IsInInvalidDeckSection(deckView.gameObject, out string invalidSectionText);
+
+            if (hasValidity && isValid && !inInvalidSection)
+                return null;
+
+            if (!hasValidity && !inInvalidSection && !ContainsInvalidKeyword(details))
+                return null;
+
+            return BuildInvalidDeckAnnouncement(details, invalidSectionText);
+        }
+
+        private static string BuildInvalidDeckAnnouncement(string details, string invalidSectionText)
+        {
+            if (!string.IsNullOrEmpty(details))
+            {
+                return ContainsInvalidKeyword(details)
+                    ? details
+                    : $"invalid deck. {details}";
+            }
+
+            if (!string.IsNullOrEmpty(invalidSectionText))
+                return "invalid deck";
+
+            return "invalid deck";
+        }
+
+        private static bool TryGetDeckIsValid(MonoBehaviour deckView, out bool isValid)
+        {
+            isValid = true;
+            if (deckView == null) return false;
+
+            var flags = System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance;
+            var type = deckView.GetType();
+
+            // Prefer exact IsValid member if present (MetaDeckView).
+            var isValidProp = type.GetProperty("IsValid", flags);
+            if (isValidProp != null && isValidProp.PropertyType == typeof(bool))
+            {
+                try
+                {
+                    isValid = (bool)isValidProp.GetValue(deckView);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Error reading {type.Name}.IsValid: {ex.Message}");
+                }
+            }
+
+            foreach (string fieldName in new[] { "_isValid", "isValid", "DeckIsValid", "_deckIsValid" })
+            {
+                var field = type.GetField(fieldName, flags);
+                if (field == null || field.FieldType != typeof(bool))
+                    continue;
+
+                try
+                {
+                    isValid = (bool)field.GetValue(deckView);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Error reading {type.Name}.{fieldName}: {ex.Message}");
+                }
+            }
+
+            foreach (string propName in new[] { "IsInvalid", "isInvalid", "DeckIsInvalid", "_deckIsInvalid" })
+            {
+                var prop = type.GetProperty(propName, flags);
+                if (prop == null || prop.PropertyType != typeof(bool))
+                    continue;
+
+                try
+                {
+                    isValid = !(bool)prop.GetValue(deckView);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Error reading {type.Name}.{propName}: {ex.Message}");
+                }
+            }
+
+            foreach (string fieldName in new[] { "_isInvalid", "isInvalid" })
+            {
+                var field = type.GetField(fieldName, flags);
+                if (field == null || field.FieldType != typeof(bool))
+                    continue;
+
+                try
+                {
+                    isValid = !(bool)field.GetValue(deckView);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log($"Error reading {type.Name}.{fieldName}: {ex.Message}");
+                }
+            }
+
+            return false;
+        }
+
+        private static string TryGetDeckInvalidDetails(MonoBehaviour deckView)
+        {
+            if (deckView == null) return null;
+
+            var candidates = new System.Collections.Generic.List<string>();
+
+            // Known DeckView/MetaDeckView members used for status or description.
+            TryAddDeckTextFromMember(deckView, "DescriptionText", candidates);
+            TryAddDeckTextFromMember(deckView, "_descriptionText", candidates);
+            TryAddDeckTextFromMember(deckView, "InvalidText", candidates);
+            TryAddDeckTextFromMember(deckView, "_invalidText", candidates);
+            TryAddDeckTextFromMember(deckView, "ErrorText", candidates);
+            TryAddDeckTextFromMember(deckView, "_errorText", candidates);
+            TryAddDeckTextFromMember(deckView, "StatusText", candidates);
+            TryAddDeckTextFromMember(deckView, "_statusText", candidates);
+            TryAddDeckTextFromMember(deckView, "ValidationText", candidates);
+            TryAddDeckTextFromMember(deckView, "_validationText", candidates);
+
+            string deckName = GetDeckNameFromInput(deckView.gameObject);
+
+            // Fallback: scan likely status/description text children in the deck view.
+            var fallbackText = new System.Collections.Generic.List<string>();
+            foreach (var tmp in deckView.gameObject.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy)
+                    continue;
+
+                string cleaned = CleanDeckStatusText(tmp.text);
+                if (IsTrivialDeckStatusText(cleaned, deckName))
+                    continue;
+
+                string objName = tmp.gameObject.name;
+                if (LooksLikeDeckStatusName(objName))
+                    candidates.Add(cleaned);
+                else
+                    fallbackText.Add(cleaned);
+            }
+
+            if (candidates.Count == 0 && fallbackText.Count > 0)
+            {
+                string best = fallbackText
+                    .OrderByDescending(s => s.Length)
+                    .FirstOrDefault();
+                if (!string.IsNullOrEmpty(best))
+                    candidates.Add(best);
+            }
+
+            var deduped = new System.Collections.Generic.List<string>();
+            var seen = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var candidate in candidates)
+            {
+                string cleaned = CleanDeckStatusText(candidate);
+                if (IsTrivialDeckStatusText(cleaned, deckName))
+                    continue;
+                if (seen.Add(cleaned))
+                    deduped.Add(cleaned);
+                if (deduped.Count >= 2)
+                    break;
+            }
+
+            if (deduped.Count == 0)
+                return null;
+
+            return string.Join(". ", deduped);
+        }
+
+        private static void TryAddDeckTextFromMember(object source, string memberName, System.Collections.Generic.List<string> candidates)
+        {
+            if (source == null || string.IsNullOrEmpty(memberName) || candidates == null)
+                return;
+
+            var flags = System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance;
+            var type = source.GetType();
+
+            try
+            {
+                var prop = type.GetProperty(memberName, flags);
+                if (prop != null)
+                {
+                    TryAddDeckTextValue(prop.GetValue(source), candidates);
+                }
+            }
+            catch { }
+
+            try
+            {
+                var field = type.GetField(memberName, flags);
+                if (field != null)
+                {
+                    TryAddDeckTextValue(field.GetValue(source), candidates);
+                }
+            }
+            catch { }
+        }
+
+        private static void TryAddDeckTextValue(object value, System.Collections.Generic.List<string> candidates)
+        {
+            if (value == null || candidates == null)
+                return;
+
+            if (value is TMP_Text tmpText)
+            {
+                candidates.Add(tmpText.text);
+                return;
+            }
+
+            if (value is Text uiText)
+            {
+                candidates.Add(uiText.text);
+                return;
+            }
+
+            if (value is string s)
+            {
+                candidates.Add(s);
+                return;
+            }
+
+            if (value is GameObject go)
+            {
+                candidates.Add(UITextExtractor.GetText(go));
+                return;
+            }
+
+            if (value is Component component)
+            {
+                candidates.Add(UITextExtractor.GetText(component.gameObject));
+            }
+        }
+
+        private static string GetDeckNameFromInput(GameObject deckObject)
+        {
+            if (deckObject == null) return null;
+
+            var input = deckObject.GetComponentInChildren<TMP_InputField>(true);
+            if (input == null || string.IsNullOrWhiteSpace(input.text))
+                return null;
+
+            return CleanDeckStatusText(input.text);
+        }
+
+        private static string CleanDeckStatusText(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
+
+            string text = raw.Replace("\u200B", "").Trim();
+            text = RichTextTagPattern.Replace(text, "");
+            text = WhitespacePattern.Replace(text, " ").Trim();
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+
+        private static bool IsTrivialDeckStatusText(string text, string deckName)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return true;
+            if (text.Length <= 2)
+                return true;
+            if (FractionOnlyPattern.IsMatch(text))
+                return true;
+            if (text.IndexOf("enter deck name", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+            if (!string.IsNullOrEmpty(deckName) &&
+                string.Equals(text, deckName, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (string.Equals(text, "deck", System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        }
+
+        private static bool LooksLikeDeckStatusName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return false;
+
+            return name.IndexOf("description", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("status", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("invalid", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("error", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("warning", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("validation", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("reason", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool ContainsInvalidKeyword(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            foreach (var keyword in InvalidDeckKeywords)
+            {
+                if (text.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsInInvalidDeckSection(GameObject deckObject, out string invalidSectionText)
+        {
+            invalidSectionText = null;
+            if (deckObject == null) return false;
+
+            // Fast path: ancestor names often include "invalid" for invalid deck containers.
+            Transform current = deckObject.transform;
+            int depth = 0;
+            while (current != null && depth < 10)
+            {
+                if (ContainsInvalidKeyword(current.name))
+                {
+                    invalidSectionText = current.name;
+                    return true;
+                }
+                current = current.parent;
+                depth++;
+            }
+
+            // Fallback: detect "Invalid Decks" heading above this deck in the same selector list.
+            var deckSelectorRoot = FindAncestorWithNameToken(deckObject.transform, "DeckViewSelector", 16);
+            if (deckSelectorRoot == null)
+                return false;
+
+            float deckY = GetVerticalScreenPosition(deckObject);
+
+            foreach (var tmp in GameObject.FindObjectsOfType<TMP_Text>())
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy)
+                    continue;
+
+                string text = CleanDeckStatusText(tmp.text);
+                if (!LooksLikeInvalidDeckHeading(text))
+                    continue;
+
+                var headingRoot = FindAncestorWithNameToken(tmp.transform, "DeckViewSelector", 16);
+                if (headingRoot != deckSelectorRoot)
+                    continue;
+
+                float headingY = GetVerticalScreenPosition(tmp.gameObject);
+                if (deckY < headingY - 2f)
+                {
+                    invalidSectionText = text;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool LooksLikeInvalidDeckHeading(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            // Section headings are usually short and explicit.
+            if (text.Length > 80)
+                return false;
+
+            return ContainsInvalidKeyword(text);
+        }
+
+        private static Transform FindAncestorWithNameToken(Transform start, string token, int maxDepth)
+        {
+            if (start == null || string.IsNullOrEmpty(token))
+                return null;
+
+            Transform current = start;
+            int depth = 0;
+            while (current != null && depth < maxDepth)
+            {
+                if (current.name.IndexOf(token, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return current;
+                current = current.parent;
+                depth++;
+            }
+            return null;
+        }
+
+        private static float GetVerticalScreenPosition(GameObject obj)
+        {
+            if (obj == null)
+                return 0f;
+
+            var rect = obj.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                Vector3 world = rect.TransformPoint(rect.rect.center);
+                return RectTransformUtility.WorldToScreenPoint(null, world).y;
+            }
+
+            Vector3 pos = obj.transform.position;
+            if (Camera.main != null)
+                return Camera.main.WorldToScreenPoint(pos).y;
+            return pos.y;
         }
 
         /// <summary>

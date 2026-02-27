@@ -3469,6 +3469,13 @@ namespace AccessibleArena.Core.Services
                         announcement += ", selected";
                     }
 
+                    // Add invalid deck status and reason details when available.
+                    string invalidDeckInfo = UIActivator.GetDeckInvalidAnnouncement(obj);
+                    if (!string.IsNullOrEmpty(invalidDeckInfo))
+                    {
+                        announcement += $", {invalidDeckInfo}";
+                    }
+
                     // Get the rename button (TextBox) for this deck
                     GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
                     attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
