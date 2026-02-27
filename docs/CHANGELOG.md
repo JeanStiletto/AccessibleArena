@@ -4,6 +4,15 @@ All notable changes to Accessible Arena.
 
 ## v0.7.3-dev
 
+### New: Multi-Zone Browser Support (First Iteration)
+- Cards that select from multiple zones (e.g., Kronleuchter targeting both graveyards) now have navigable zone selection
+- Up/Down arrows cycle between zones, Tab moves to cards, Shift+Tab returns to zone selector
+- Zone buttons with real localized names (e.g., "Dein Friedhof", "Friedhof des Gegners") are included; generic unnamed zones are filtered out
+- False positive multi-zone scaffolds (e.g., Tiefste Epoche selecting from a single zone) are correctly detected and treated as single-zone browsers
+- Invisible scaffold layout buttons (SingleButton, 2Button_Left/Right) filtered via shared IsVisibleViaCanvasGroup check
+- CardInfoNavigator deactivated while on zone selector to prevent arrow key conflicts
+- Files: BrowserNavigator.cs, HotHighlightNavigator.cs
+
 ### Fixed: Input Fields in Popups
 - Input fields in popups (e.g., invite friend, challenge invite) now use the same full implementation as menu navigators
 - Arrow Up/Down reads field content, Left/Right reads character at cursor, Backspace announces deleted character

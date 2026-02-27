@@ -93,9 +93,11 @@ Pressing Enter on specific Progress items for certain modes opens the correspond
 
 ---
 
-### Multi-Zone Card Selection Auto-Focuses Graveyard
+### Multi-Zone Browser UI Needs Improvement
 
-Cards that let you select from different zones (e.g., graveyard + exile) auto-focus the graveyard zone unwantedly instead of letting the user choose.
+First iteration of multi-zone browser works but UI can be improved:
+- Add better zone change system (current Up/Down cycling is basic)
+- Remove "view battlefield" button that appears in the tab order but is not useful for accessibility
 
 ---
 
