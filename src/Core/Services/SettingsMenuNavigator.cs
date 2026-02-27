@@ -502,6 +502,12 @@ namespace AccessibleArena.Core.Services
         {
             if (_isPopupActive)
             {
+                if (!_popupHandler.ValidatePopup())
+                {
+                    _isPopupActive = false;
+                    _popupHandler.Clear();
+                    return false;
+                }
                 _popupHandler.HandleInput();
                 return true; // Consume all input while popup is active
             }

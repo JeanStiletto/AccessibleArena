@@ -1552,18 +1552,32 @@ else if (!modalOpen && _wasModalOpen)
 }
 ```
 
-**Input Switching:**
+**Input Switching via HandleEarlyInput (CRITICAL):**
+
+Popup input **must** be routed through `HandleEarlyInput()`, not `HandleCustomInput()` or `HandleInput()`. This is because `BaseNavigator.HandleInput()` processes auto-focused input fields (via `UIFocusTracker`) *before* calling `HandleCustomInput()`. If a popup contains an input field that has focus, BaseNavigator would intercept arrow keys and other input before the popup handler ever sees them.
+
+`HandleEarlyInput()` runs at the very top of `HandleInput()`, before any BaseNavigator logic:
+
 ```csharp
-protected override void HandleInput()
+protected override bool HandleEarlyInput()
 {
     if (_isPopupActive)
     {
+        // Validate popup still exists (game may destroy it without panel event)
+        if (!_popupHandler.ValidatePopup())
+        {
+            _isPopupActive = false;
+            _popupHandler.Clear();
+            return false;  // Fall through to normal navigation
+        }
         _popupHandler.HandleInput();
-        return;
+        return true;  // Consumed - skip all BaseNavigator processing
     }
-    // Normal navigation...
+    return false;
 }
 ```
+
+**Popup Validation:** Always call `ValidatePopup()` in `HandleEarlyInput()`. When the game destroys a popup externally (e.g., after clicking a button that triggers a server action), the `PanelStateManager` may not fire a close event. Without validation, `_isPopupActive` stays true and all input is consumed forever, leaving the user stuck on an empty screen.
 
 **Popup Dismissal (3-level fallback chain):**
 1. Find and click a cancel/close button by label pattern matching ("cancel", "close", "no", "abbrechen", "nein", "zuruck")
@@ -1583,12 +1597,18 @@ protected override void HandleInput()
 - Dismiss overlays are skipped: GameObjects with "background", "overlay", "backdrop", or "dismiss" in name (click-outside-to-close areas, redundant with Backspace)
 - Duplicate labels are deduplicated (keep first by position, skip subsequent)
 
-**Input Field Edit Mode:**
+**Input Field Edit Mode (via InputFieldEditHelper):**
+
+Input field editing is handled by the shared `InputFieldEditHelper` class (`src/Core/Services/InputFieldEditHelper.cs`), used by both `BaseNavigator` (for menu input fields) and `PopupHandler` (for popup input fields). This eliminates code duplication and ensures consistent behavior:
+
 - Enter on an input field activates edit mode (typing passes through to field)
 - Escape exits edit mode, Tab exits and navigates to next/prev item
 - Up/Down reads field content, Left/Right reads character at cursor
 - Backspace announces deleted character (passes through for deletion)
+- Supports both `TMP_InputField` and legacy Unity `InputField`
 - Edit state cleaned up on popup close via `Clear()`
+
+PopupHandler uses the helper internally - navigators don't interact with it directly for popup input fields. BaseNavigator uses its own instance for scene-wide auto-focused input field handling.
 
 **Rescan Suppression:**
 Navigators using PopupHandler must skip their own element rescan while a popup is active. Otherwise the delayed rescan (e.g., GeneralMenuNavigator's 0.5s `PerformRescan()`) overwrites PopupHandler's items with the navigator's full element list. Add a guard at the top of the rescan method:

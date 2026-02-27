@@ -4,6 +4,20 @@ All notable changes to Accessible Arena.
 
 ## v0.7.3-dev
 
+### Fixed: Input Fields in Popups
+- Input fields in popups (e.g., invite friend, challenge invite) now use the same full implementation as menu navigators
+- Arrow Up/Down reads field content, Left/Right reads character at cursor, Backspace announces deleted character
+- Tab navigates to next/previous popup item (consumed properly, no longer leaks to game)
+- Legacy Unity InputField support added alongside TMP_InputField
+- Shared `InputFieldEditHelper` class eliminates code duplication between BaseNavigator and PopupHandler
+- Files: InputFieldEditHelper.cs (new), PopupHandler.cs, BaseNavigator.cs
+
+### Fixed: Popup Leaving State
+- Fixed getting stuck on empty screen after pressing buttons in popups that trigger server actions (e.g., sending invite with invalid name)
+- Popup validation now checks if popup GameObject still exists before consuming input
+- Uses `HandleEarlyInput()` hook to route popup input before BaseNavigator's auto-focus logic can intercept it
+- Files: BaseNavigator.cs, GeneralMenuNavigator.cs, SettingsMenuNavigator.cs
+
 ## v0.7.2 - 2026-02-26
 
 ### New: Land Summary Shortcut (M / Shift+M)
