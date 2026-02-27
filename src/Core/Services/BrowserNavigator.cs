@@ -55,6 +55,16 @@ namespace AccessibleArena.Core.Services
         // Zone name constant
         private const string ZoneLocalHand = "LocalHand";
 
+        /// <summary>
+        /// Enters zone selector mode and deactivates CardInfoNavigator
+        /// so it doesn't intercept arrow keys meant for zone cycling.
+        /// </summary>
+        private void EnterZoneSelector()
+        {
+            _onZoneSelector = true;
+            AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
+        }
+
         public BrowserNavigator(IAnnouncementService announcer)
         {
             _announcer = announcer;
@@ -364,7 +374,7 @@ namespace AccessibleArena.Core.Services
                         // Shift+Tab: if on first card → go to zone selector
                         if (_currentCardIndex == 0 && _currentButtonIndex < 0)
                         {
-                            _onZoneSelector = true;
+                            EnterZoneSelector();
                             _currentCardIndex = -1;
                             AnnounceMultiZoneSelector();
                             return true;
@@ -372,7 +382,7 @@ namespace AccessibleArena.Core.Services
                         // Shift+Tab: if on first button and no cards → zone selector
                         if (_currentButtonIndex == 0 && _browserCards.Count == 0)
                         {
-                            _onZoneSelector = true;
+                            EnterZoneSelector();
                             _currentButtonIndex = -1;
                             AnnounceMultiZoneSelector();
                             return true;
@@ -413,7 +423,7 @@ namespace AccessibleArena.Core.Services
                         else
                         {
                             // At end → wrap to zone selector
-                            _onZoneSelector = true;
+                            EnterZoneSelector();
                             _currentCardIndex = -1;
                             _currentButtonIndex = -1;
                             AnnounceMultiZoneSelector();
@@ -600,37 +610,37 @@ namespace AccessibleArena.Core.Services
                     else
                         regularButtons.Add(button);
                 }
+                // Filter invisible scaffold layout buttons (SingleButton, 2Button_Left/Right)
+                regularButtons.RemoveAll(b => !UIElementClassifier.IsVisibleViaCanvasGroup(b));
                 _browserButtons = regularButtons;
 
-                // Check how many distinct zones the cards actually span
-                var distinctZones = new HashSet<string>();
-                foreach (var card in _browserCards)
-                {
-                    string zone = CardModelProvider.GetCardZoneTypeName(card);
-                    bool isOpponent = CardModelProvider.IsOpponentCard(card);
-                    string key = (isOpponent ? "opp_" : "own_") + (zone ?? "unknown");
-                    distinctZones.Add(key);
-                }
+                // Sort zone buttons by name for consistent order
+                _zoneButtons.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
 
-                if (distinctZones.Count <= 1)
+                // Only keep zone buttons with real localized names (not generic "ZoneButtonN").
+                // This filters spurious unnamed zones and detects false positive multi-zone
+                // scaffolds (e.g. Tiefste Epoche) where all zones have generic names.
+                _zoneButtons.RemoveAll(zb =>
                 {
-                    // Only one zone - zone selector is pointless, treat as regular browser
-                    MelonLogger.Msg($"[BrowserNavigator] Multi-zone scaffold but only {distinctZones.Count} distinct zone(s) - skipping zone selector");
-                    _isMultiZone = false;
-                    // Zone buttons are already excluded from _browserButtons, no need to re-add
+                    string label = UITextExtractor.GetButtonText(zb, zb.name);
+                    return label.StartsWith("ZoneButton");
+                });
+
+                if (_zoneButtons.Count > 1)
+                {
+                    _currentZoneButtonIndex = FindActiveZoneButtonIndex();
+                    EnterZoneSelector();
+                    MelonLogger.Msg($"[BrowserNavigator] Multi-zone: {_zoneButtons.Count} zone buttons, {_browserCards.Count} cards, active index: {_currentZoneButtonIndex}");
                 }
                 else
                 {
-                    // Sort zone buttons by name for consistent order
-                    _zoneButtons.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
-
-                    if (_zoneButtons.Count > 0)
-                    {
-                        _currentZoneButtonIndex = FindActiveZoneButtonIndex();
-                        _onZoneSelector = true;
-                        MelonLogger.Msg($"[BrowserNavigator] Multi-zone: {_zoneButtons.Count} zone buttons, {distinctZones.Count} distinct zones, active index: {_currentZoneButtonIndex}");
-                    }
+                    _zoneButtons.Clear();
                 }
+            }
+            else
+            {
+                // Non-multi-zone: filter invisible scaffold buttons from all buttons
+                _browserButtons.RemoveAll(b => !UIElementClassifier.IsVisibleViaCanvasGroup(b));
             }
 
             MelonLogger.Msg($"[BrowserNavigator] Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
@@ -749,7 +759,6 @@ namespace AccessibleArena.Core.Services
                 if (!child.gameObject.activeInHierarchy) continue;
                 if (!BrowserDetector.MatchesButtonPattern(child.name, BrowserDetector.ButtonPatterns)) continue;
                 if (!BrowserDetector.HasClickableComponent(child.gameObject)) continue;
-                if (!UIElementClassifier.IsVisibleViaCanvasGroup(child.gameObject)) continue;
                 if (_browserButtons.Contains(child.gameObject)) continue;
 
                 _browserButtons.Add(child.gameObject);
@@ -922,7 +931,7 @@ namespace AccessibleArena.Core.Services
             if (_isMultiZone && _zoneButtons.Count > 0)
             {
                 // Multi-zone: start on zone selector
-                _onZoneSelector = true;
+                EnterZoneSelector();
                 _currentCardIndex = -1;
                 _currentButtonIndex = -1;
                 AnnounceMultiZoneSelector();
