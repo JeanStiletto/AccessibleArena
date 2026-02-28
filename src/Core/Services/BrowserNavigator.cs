@@ -650,9 +650,16 @@ namespace AccessibleArena.Core.Services
             }
 
             // Filter "View Battlefield" button - no functionality for blind users
-            _browserButtons.RemoveAll(b => b != null && b.name == "MainButton" &&
-                b.transform.parent != null && b.transform.parent.parent != null &&
-                b.transform.parent.parent.name.StartsWith("ViewBattlefield"));
+            _browserButtons.RemoveAll(b =>
+            {
+                if (b == null || b.name != "MainButton") return false;
+                var t = b.transform.parent;
+                for (int d = 0; t != null && d < 3; d++, t = t.parent)
+                {
+                    if (t.name.StartsWith("ViewBattlefield")) return true;
+                }
+                return false;
+            });
 
             MelonLogger.Msg($"[BrowserNavigator] Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
         }
@@ -786,6 +793,7 @@ namespace AccessibleArena.Core.Services
         private void DiscoverLargeScrollListChoices(GameObject root)
         {
             var choiceButtons = new List<GameObject>();
+            var seenTexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
             {
@@ -794,19 +802,26 @@ namespace AccessibleArena.Core.Services
                 if (_browserButtons.Contains(child.gameObject)) continue;
                 if (BrowserDetector.MatchesButtonPattern(child.name, BrowserDetector.ButtonPatterns)) continue;
 
-                choiceButtons.Add(child.gameObject);
                 string choiceText = UITextExtractor.GetButtonText(child.gameObject, child.name);
+
+                // Skip internal UI elements (e.g. Primary_Base(Clone))
+                if (string.IsNullOrEmpty(choiceText) || choiceText == child.name)
+                    continue;
+
+                // Deduplicate by text (parent+child both have clickable components)
+                if (!seenTexts.Add(choiceText))
+                    continue;
+
+                choiceButtons.Add(child.gameObject);
                 MelonLogger.Msg($"[BrowserNavigator] Found LargeScrollList choice: '{choiceText}'");
             }
 
             if (choiceButtons.Count > 0)
             {
-                // Reorder: choices first, then existing scaffold buttons (MainButton etc.)
-                var scaffoldButtons = new List<GameObject>(_browserButtons);
+                // Replace scaffold buttons entirely - choices are the only navigable items
                 _browserButtons.Clear();
                 _browserButtons.AddRange(choiceButtons);
-                _browserButtons.AddRange(scaffoldButtons);
-                MelonLogger.Msg($"[BrowserNavigator] LargeScrollList: {choiceButtons.Count} choices + {scaffoldButtons.Count} scaffold buttons");
+                MelonLogger.Msg($"[BrowserNavigator] LargeScrollList: {choiceButtons.Count} choices");
             }
         }
 
