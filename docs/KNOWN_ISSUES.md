@@ -125,12 +125,6 @@ Mana color pips (W/U/B/R/G) in card costs and other contexts are not localized t
 
 ---
 
-### Gold and Gems Not Correctly Labeled
-
-Gold and gem currency amounts are not correctly labeled as "Gold" and "Gems" in announcements.
-
----
-
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers

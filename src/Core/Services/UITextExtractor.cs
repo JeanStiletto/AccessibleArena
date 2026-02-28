@@ -134,6 +134,13 @@ namespace AccessibleArena.Core.Services
                 return navGoldLabel;
             }
 
+            // Top-nav gems button can expose amount without type; normalize it.
+            string navGemsLabel = TryGetNavGemsLabel(gameObject);
+            if (!string.IsNullOrEmpty(navGemsLabel))
+            {
+                return navGemsLabel;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -1278,6 +1285,26 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             return $"Gold: {amount}";
+        }
+
+        /// <summary>
+        /// Build a normalized label for top-nav gems button ("Gems: 0").
+        /// </summary>
+        private static string TryGetNavGemsLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+            if (!IsNavResourceElement(gameObject)) return null;
+
+            string nameAndPath = gameObject.name + "/" + GetParentPath(gameObject);
+            bool isGemsButton = nameAndPath.IndexOf("gem", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            if (!isGemsButton)
+                return null;
+
+            string amount = TryGetCurrencyAmountText(gameObject);
+            if (string.IsNullOrEmpty(amount))
+                return null;
+
+            return $"Gems: {amount}";
         }
 
         private static bool IsNavResourceElement(GameObject gameObject)
