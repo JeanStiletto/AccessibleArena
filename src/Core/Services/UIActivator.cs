@@ -2249,6 +2249,95 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns a short invalid-deck status label for a deck entry.
+        /// Returns null for valid decks.
+        /// </summary>
+        public static string GetDeckInvalidStatus(GameObject deckElement)
+        {
+            if (deckElement == null) return null;
+
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null) return null;
+
+            var type = deckView.GetType();
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            bool animateInvalid = GetFieldValue<bool>(type, deckView, "_animateInvalid", flags);
+            int invalidCardCount = GetFieldValue<int>(type, deckView, "_invalidCardCount", flags);
+            bool craftable = GetFieldValue<bool>(type, deckView, "_animateCraftable", flags);
+            bool uncraftable = GetFieldValue<bool>(type, deckView, "_animateUncraftable", flags);
+            bool invalidCompanion = GetFieldValue<bool>(type, deckView, "_animateInvalidCompanion", flags);
+            bool unavailable = GetFieldValue<bool>(type, deckView, "_animateUnavailable", flags);
+
+            if (unavailable) return "unavailable";
+            if (animateInvalid) return "invalid deck";
+            if (invalidCardCount > 0) return $"{invalidCardCount} invalid cards";
+            if (uncraftable) return "missing cards";
+            if (craftable) return "missing cards, craftable";
+            if (invalidCompanion) return "invalid companion";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the detailed tooltip text for an invalid deck.
+        /// Returns null for valid decks or when no detail is available.
+        /// </summary>
+        public static string GetDeckInvalidTooltip(GameObject deckElement)
+        {
+            if (deckElement == null) return null;
+
+            // Only return tooltip if deck actually has an issue
+            if (string.IsNullOrEmpty(GetDeckInvalidStatus(deckElement)))
+                return null;
+
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null) return null;
+
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var pubFlags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+
+            // Read _tooltipTrigger field from DeckView
+            var triggerField = deckView.GetType().GetField("_tooltipTrigger", flags);
+            if (triggerField == null) return null;
+
+            var trigger = triggerField.GetValue(deckView);
+            if (trigger == null) return null;
+
+            // Read TooltipData from trigger (public property)
+            var triggerType = trigger.GetType();
+            var dataProp = triggerType.GetProperty("TooltipData", pubFlags);
+            if (dataProp == null) return null;
+
+            var data = dataProp.GetValue(trigger);
+            if (data == null) return null;
+
+            // Read Text from TooltipData (public property)
+            var textProp = data.GetType().GetProperty("Text", pubFlags);
+            if (textProp == null) return null;
+
+            var text = textProp.GetValue(data) as string;
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            // Clean up: trim and collapse whitespace
+            text = text.Trim();
+            if (string.IsNullOrEmpty(text)) return null;
+
+            return text;
+        }
+
+        private static T GetFieldValue<T>(System.Type type, object instance, string fieldName, System.Reflection.BindingFlags flags)
+        {
+            var field = type.GetField(fieldName, flags);
+            if (field != null)
+            {
+                try { return (T)field.GetValue(instance); }
+                catch { }
+            }
+            return default;
+        }
+
+        /// <summary>
         /// Get the currently selected DeckView from DeckViewSelector.
         /// </summary>
         private static MonoBehaviour GetSelectedDeckView()

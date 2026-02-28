@@ -1703,6 +1703,12 @@ namespace AccessibleArena.Core.Services
                     _announcer.Announce(actionResult.Message, AnnouncementPriority.Normal);
                     return;
                 }
+                else if (action.TargetButton == null)
+                {
+                    // Info-only action: re-announce the label
+                    _announcer.Announce(action.Label, AnnouncementPriority.Normal);
+                    return;
+                }
                 else
                 {
                     _announcer.Announce(Strings.ActionNotAvailable, AnnouncementPriority.Normal);

@@ -3499,9 +3499,23 @@ namespace AccessibleArena.Core.Services
                         announcement += ", selected";
                     }
 
+                    // Append short invalid status (Level 1)
+                    string invalidStatus = UIActivator.GetDeckInvalidStatus(obj);
+                    if (!string.IsNullOrEmpty(invalidStatus))
+                    {
+                        announcement += $", {invalidStatus}";
+                    }
+
                     // Get the rename button (TextBox) for this deck
                     GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
                     attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
+
+                    // Insert detailed tooltip as first virtual info item (Level 2)
+                    string invalidTooltip = UIActivator.GetDeckInvalidTooltip(obj);
+                    if (!string.IsNullOrEmpty(invalidTooltip))
+                    {
+                        attachedActions.Insert(0, new AttachedAction { Label = invalidTooltip, TargetButton = null });
+                    }
 
                     if (attachedActions.Count > 0)
                     {
