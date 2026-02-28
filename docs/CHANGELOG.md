@@ -35,6 +35,11 @@ All notable changes to Accessible Arena.
 - Added new locale keys: ManaGeneric, ManaPhyrexian (bare), Activated (bare)
 - Updated: CardDetector.cs, CardModelProvider.cs, StoreNavigator.cs, UIActivator.cs, DraftNavigator.cs, GeneralMenuNavigator.cs, UIElementClassifier.cs
 
+### Improved: Localized Role Labels for Generic UI Elements
+- Generic role words now use locale keys instead of hardcoded English in fallback announcements
+- Added locale keys for `button`, `checkbox`, `dropdown`, and `control`
+- Updated: DuelNavigator.cs, UITextExtractor.cs, Strings.cs, all `lang/*.json`
+
 ### Changed: Announcement Order
 - Item count and position are now read last instead of first in all menu and screen announcements
 - Content (label, hints, instructions) is announced before "X of Y" position info

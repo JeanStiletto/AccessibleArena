@@ -280,7 +280,7 @@ namespace AccessibleArena.Core.Services
 
                 MelonLogger.Msg($"[{NavigatorId}] CustomButton: {name} - Text: '{label}'");
 
-                AddElement(mb.gameObject, $"{label}, button");
+                AddElement(mb.gameObject, $"{label}, {Models.Strings.RoleButton}");
                 addedObjects.Add(mb.gameObject);
             }
         }
@@ -586,18 +586,18 @@ namespace AccessibleArena.Core.Services
 
         private string GetSelectableType(Selectable selectable)
         {
-            if (selectable is Button) return "button";
-            if (selectable is Toggle) return "checkbox";
+            if (selectable is Button) return Models.Strings.RoleButton;
+            if (selectable is Toggle) return Models.Strings.RoleCheckbox;
             if (selectable is Slider) return "slider";
             if (selectable is Scrollbar) return "scrollbar";
-            if (selectable is Dropdown) return "dropdown";
-            if (selectable is InputField) return "text field";
+            if (selectable is Dropdown) return Models.Strings.RoleDropdown;
+            if (selectable is InputField) return Models.Strings.TextField;
 
             string typeName = selectable.GetType().Name.ToLower();
-            if (typeName.Contains("button")) return "button";
-            if (typeName.Contains("toggle")) return "checkbox";
+            if (typeName.Contains("button")) return Models.Strings.RoleButton;
+            if (typeName.Contains("toggle")) return Models.Strings.RoleCheckbox;
 
-            return "control";
+            return Models.Strings.RoleControl;
         }
 
         private bool HasComponent(GameObject obj, string componentName)

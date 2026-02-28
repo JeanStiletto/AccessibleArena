@@ -557,6 +557,10 @@ namespace AccessibleArena.Core.Models
         // INPUT FIELD NAVIGATION
         // ===========================================
         public static string TextField => L.Get("TextField");
+        public static string RoleButton => L.Get("RoleButton");
+        public static string RoleCheckbox => L.Get("RoleCheckbox");
+        public static string RoleDropdown => L.Get("RoleDropdown");
+        public static string RoleControl => L.Get("RoleControl");
         public static string InputFieldHint => L.Get("InputFieldHint");
         public static string InputFieldEmpty => L.Get("InputFieldEmpty");
         public static string InputFieldStart => L.Get("InputFieldStart");

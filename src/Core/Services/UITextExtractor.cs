@@ -1278,16 +1278,16 @@ namespace AccessibleArena.Core.Services
                 return "card";
 
             if (gameObject.GetComponent<Button>() != null)
-                return "button";
+                return Models.Strings.RoleButton;
 
             if (gameObject.GetComponent<TMP_InputField>() != null || gameObject.GetComponent<InputField>() != null)
-                return "text field";
+                return Models.Strings.TextField;
 
             if (gameObject.GetComponent<Toggle>() != null)
-                return "checkbox";
+                return Models.Strings.RoleCheckbox;
 
             if (gameObject.GetComponent<TMP_Dropdown>() != null || gameObject.GetComponent<Dropdown>() != null)
-                return "dropdown";
+                return Models.Strings.RoleDropdown;
 
             if (gameObject.GetComponent<Slider>() != null)
                 return "slider";
@@ -1296,7 +1296,7 @@ namespace AccessibleArena.Core.Services
                 return "scrollbar";
 
             if (gameObject.GetComponent<Selectable>() != null)
-                return "control";
+                return Models.Strings.RoleControl;
 
             return "item";
         }
@@ -1309,7 +1309,7 @@ namespace AccessibleArena.Core.Services
         /// <returns>A readable label extracted from the field</returns>
         public static string GetInputFieldLabel(GameObject inputField)
         {
-            if (inputField == null) return "text field";
+            if (inputField == null) return Models.Strings.TextField;
 
             string name = inputField.name;
 
@@ -1349,7 +1349,7 @@ namespace AccessibleArena.Core.Services
 
             // Fallback: clean up the name
             string cleaned = name.Replace("Input Field", "").Replace("InputField", "").Trim();
-            return string.IsNullOrEmpty(cleaned) ? "text field" : cleaned;
+            return string.IsNullOrEmpty(cleaned) ? Models.Strings.TextField : cleaned;
         }
 
         /// <summary>
