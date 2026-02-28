@@ -29,6 +29,12 @@ namespace AccessibleArena.Core.Services
         // Reference to CombatNavigator for attacker/blocker state announcements
         private CombatNavigator _combatNavigator;
 
+        // Per-frame state watcher: after Enter click, watch for state change on that card
+        private GameObject _watchedCard;
+        private string _watchedStateBefore;
+        private float _watchStartTime;
+        private const float WatchTimeoutSeconds = 3f;
+
         // DEPRECATED: TargetNavigator was used to check IsTargeting for row navigation behavior
         // Now HotHighlightNavigator handles targeting - battlefield navigation is always available
         // private TargetNavigator _targetNavigator;
@@ -129,6 +135,9 @@ namespace AccessibleArena.Core.Services
         public bool HandleInput()
         {
             if (!_isActive) return false;
+
+            // Per-frame: check if a watched card's state changed after Enter click
+            CheckWatchedCardState();
 
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
@@ -257,6 +266,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Discovers all battlefield cards and categorizes them into rows.
+        /// Uses DuelHolderCache for cached holder lookup instead of full scene scan.
         /// </summary>
         public void DiscoverAndCategorizeCards()
         {
@@ -266,19 +276,8 @@ namespace AccessibleArena.Core.Services
                 row.Clear();
             }
 
-            // Find battlefield zone holder
-            GameObject battlefieldHolder = null;
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                if (go.name.Contains("BattlefieldCardHolder"))
-                {
-                    battlefieldHolder = go;
-                    break;
-                }
-            }
+            // Find battlefield zone holder via shared cache
+            var battlefieldHolder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
 
             if (battlefieldHolder == null)
             {
@@ -581,23 +580,96 @@ namespace AccessibleArena.Core.Services
             }
 
             string cardName = CardDetector.GetCardName(card);
-            MelonLogger.Msg($"[BattlefieldNavigator] Clicking card: {cardName}");
+            string stateBefore = GetCardStateSnapshot(card);
+            MelonLogger.Msg($"[BattlefieldNavigator] Clicking card: {cardName} (state: {stateBefore})");
 
-            UIActivator.SimulatePointerClick(card);
+            // Use the card's actual screen position to avoid hitting wrong overlapping token
+            if (Camera.main != null)
+            {
+                Vector2 cardScreenPos = Camera.main.WorldToScreenPoint(card.transform.position);
+                UIActivator.SimulatePointerClick(card, cardScreenPos);
+            }
+            else
+            {
+                UIActivator.SimulatePointerClick(card);
+            }
 
-            // DIAGNOSTIC: Log button state after clicking (for activated ability debugging)
-            MelonCoroutines.Start(LogButtonStateAfterClick(cardName));
+            // Start watching this card for state change (checked per-frame in HandleInput)
+            _watchedCard = card;
+            _watchedStateBefore = stateBefore;
+            _watchStartTime = Time.time;
         }
 
         /// <summary>
-        /// DIAGNOSTIC: Logs button state after a short delay to capture ability activation mode.
+        /// Per-frame check: after Enter click on a card, watches for state change.
+        /// Announces only the new state text (no card name - user already knows what card).
+        /// Stops watching after timeout or state change detected.
         /// </summary>
-        private System.Collections.IEnumerator LogButtonStateAfterClick(string cardName)
+        private void CheckWatchedCardState()
         {
-            // Wait for game UI to update
-            yield return new UnityEngine.WaitForSeconds(0.3f);
-            MelonLogger.Msg($"[BattlefieldNavigator] === BUTTON STATE AFTER CLICKING {cardName} ===");
-            DuelAnnouncer.LogAllPromptButtons();
+            if (_watchedCard == null) return;
+
+            // Timeout
+            if (Time.time - _watchStartTime > WatchTimeoutSeconds)
+            {
+                MelonLogger.Msg("[BattlefieldNavigator] State watch timed out");
+                _watchedCard = null;
+                return;
+            }
+
+            string stateAfter = GetCardStateSnapshot(_watchedCard);
+            if (stateAfter != _watchedStateBefore)
+            {
+                MelonLogger.Msg($"[BattlefieldNavigator] State changed: '{_watchedStateBefore}' -> '{stateAfter}'");
+                if (!string.IsNullOrEmpty(stateAfter))
+                {
+                    // Announce just the state (trim leading ", ")
+                    string announcement = stateAfter.StartsWith(", ") ? stateAfter.Substring(2) : stateAfter;
+                    string before = _watchedStateBefore.StartsWith(", ") ? _watchedStateBefore.Substring(2) : _watchedStateBefore;
+
+                    // If the new state extends the old state, only announce the new part
+                    // e.g. "attacking" -> "attacking, blocked by Angel" announces just "blocked by Angel"
+                    if (!string.IsNullOrEmpty(before) && announcement.StartsWith(before + ", "))
+                        announcement = announcement.Substring(before.Length + 2);
+
+                    _announcer.Announce(announcement, AnnouncementPriority.High);
+                }
+                _watchedCard = null;
+            }
+        }
+
+        /// <summary>
+        /// Builds a combined state snapshot of a card: combat state + selection state.
+        /// Used for before/after comparison to detect and announce state changes.
+        /// Selection state is only checked when combat state is empty, since combat
+        /// state already includes selection indicators (e.g. "selected to block").
+        /// </summary>
+        private string GetCardStateSnapshot(GameObject card)
+        {
+            string combat = _combatNavigator?.GetCombatStateText(card) ?? "";
+            if (!string.IsNullOrEmpty(combat))
+                return combat;
+            return GetSelectionState(card);
+        }
+
+        /// <summary>
+        /// Checks if a card has selection indicators (sacrifice, exile, choose targets, etc.).
+        /// Looks for active children with "select", "chosen", or "pick" in the name.
+        /// </summary>
+        private string GetSelectionState(GameObject card)
+        {
+            if (card == null) return "";
+
+            foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
+            {
+                if (!child.gameObject.activeInHierarchy) continue;
+
+                string childName = child.name.ToLower();
+                if (childName.Contains("select") || childName.Contains("chosen") || childName.Contains("pick"))
+                    return $", {Strings.Selected}";
+            }
+
+            return "";
         }
 
         /// <summary>
@@ -650,6 +722,67 @@ namespace AccessibleArena.Core.Services
             {
                 ZoneNavigator.SetFocusedGameObject(null, "BattlefieldNavigator.Clear");
             }
+        }
+
+        /// <summary>
+        /// Builds a land summary for the given land row: total count + untapped lands grouped by name.
+        /// Example: "7 lands, 2 Islands, 1 Mountain, 1 Azorius Gate untapped"
+        /// </summary>
+        public string GetLandSummary(BattlefieldRow landRow)
+        {
+            DiscoverAndCategorizeCards();
+
+            var cards = _rows[landRow];
+            int total = cards.Count;
+
+            if (total == 0)
+                return Strings.LandSummaryEmpty(GetRowName(landRow));
+
+            // Group untapped lands by name, preserving order of first appearance
+            var untappedGroups = new List<KeyValuePair<string, int>>();
+            var untappedCounts = new Dictionary<string, int>();
+            int tappedCount = 0;
+
+            foreach (var card in cards)
+            {
+                bool isTapped = CardModelProvider.GetIsTappedFromCard(card);
+                if (isTapped)
+                {
+                    tappedCount++;
+                    continue;
+                }
+
+                string name = CardDetector.GetCardName(card);
+                if (untappedCounts.ContainsKey(name))
+                {
+                    untappedCounts[name]++;
+                }
+                else
+                {
+                    untappedCounts[name] = 1;
+                    untappedGroups.Add(new KeyValuePair<string, int>(name, 0)); // placeholder
+                }
+            }
+
+            // Build the untapped part: "2 Islands, 1 Mountain"
+            var parts = new List<string>();
+            foreach (var kvp in untappedGroups)
+            {
+                int count = untappedCounts[kvp.Key];
+                parts.Add($"{count} {kvp.Key}");
+            }
+
+            string totalPart = Strings.LandSummaryTotal(total);
+
+            if (parts.Count == 0)
+                return Strings.LandSummaryAllTapped(totalPart);
+
+            string untappedPart = string.Join(", ", parts);
+
+            if (tappedCount == 0)
+                return Strings.LandSummaryAllUntapped(totalPart, untappedPart);
+
+            return Strings.LandSummaryMixed(totalPart, untappedPart);
         }
 
         /// <summary>

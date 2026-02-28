@@ -86,6 +86,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpLLifeTotals,
                 Strings.HelpTTurnPhase,
                 Strings.HelpVPlayerInfo,
+                Strings.HelpMLandSummary,
 
                 // Card navigation in zone
                 Strings.HelpCategoryCardNavigation,
@@ -98,6 +99,16 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpCategoryCardDetails,
                 Strings.HelpUpDownDetails,
                 Strings.HelpIExtendedInfo,
+
+                // General duel commands
+                Strings.HelpCategoryDuelGeneral,
+                Strings.HelpSpaceAdvance,
+                Strings.HelpBackspaceCancel,
+                Strings.HelpEnterSelect,
+                Strings.HelpYUndo,
+                Strings.HelpQQFloatMana,
+                Strings.HelpPFullControl,
+                Strings.HelpNumberPhaseStops,
 
                 // Combat
                 Strings.HelpCategoryCombat,

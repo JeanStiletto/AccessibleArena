@@ -106,6 +106,20 @@ namespace AccessibleArena.Core.Services
                 return playModeText;
             }
 
+            // Check if this is an event tile - extract enriched label
+            string eventTileLabel = TryGetEventTileLabel(gameObject);
+            if (!string.IsNullOrEmpty(eventTileLabel))
+            {
+                return eventTileLabel;
+            }
+
+            // Check if this is a packet selection option - extract packet info
+            string packetLabel = TryGetPacketLabel(gameObject);
+            if (!string.IsNullOrEmpty(packetLabel))
+            {
+                return packetLabel;
+            }
+
             // Check if this is a DeckManager icon button - extract function from element name
             string deckManagerButtonText = TryGetDeckManagerButtonText(gameObject);
             if (!string.IsNullOrEmpty(deckManagerButtonText))
@@ -203,6 +217,13 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(mailboxTitle))
             {
                 return mailboxTitle;
+            }
+
+            // Try TooltipTrigger LocString as fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn)
+            string tooltipText = TryGetTooltipText(gameObject);
+            if (!string.IsNullOrEmpty(tooltipText))
+            {
+                return tooltipText;
             }
 
             // Fallback to GameObject name (cleaned up)
@@ -566,6 +587,62 @@ namespace AccessibleArena.Core.Services
                     // Return the cleaned mode name with proper casing
                     return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(mode.ToLowerInvariant());
             }
+        }
+
+        /// <summary>
+        /// Extracts enriched label for PlayBlade event tiles.
+        /// Detects event tiles by walking parent chain for "EventTile -" naming pattern.
+        /// </summary>
+        private static string TryGetEventTileLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            // Check if element is inside an event tile by walking parent chain
+            Transform current = gameObject.transform;
+            bool isInsideEventTile = false;
+            while (current != null)
+            {
+                if (current.name.StartsWith("EventTile"))
+                {
+                    isInsideEventTile = true;
+                    break;
+                }
+                current = current.parent;
+            }
+
+            if (!isInsideEventTile) return null;
+
+            return EventAccessor.GetEventTileLabel(gameObject);
+        }
+
+        /// <summary>
+        /// Extracts enriched label for Jump In packet selection options.
+        /// Detects packet elements by walking parent chain for JumpStartPacket component.
+        /// </summary>
+        private static string TryGetPacketLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            // Check if element is inside a JumpStartPacket by walking parent chain
+            Transform current = gameObject.transform;
+            bool isInsidePacket = false;
+            while (current != null)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "JumpStartPacket")
+                    {
+                        isInsidePacket = true;
+                        break;
+                    }
+                }
+                if (isInsidePacket) break;
+                current = current.parent;
+            }
+
+            if (!isInsidePacket) return null;
+
+            return EventAccessor.GetPacketLabel(gameObject);
         }
 
         /// <summary>
@@ -1146,6 +1223,34 @@ namespace AccessibleArena.Core.Services
             return bestTitle;
         }
 
+        /// <summary>
+        /// Tries to extract label text from a TooltipTrigger's LocString field.
+        /// Used as a last-resort fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn)
+        /// that have no text content but have a localized tooltip.
+        /// </summary>
+        private static string TryGetTooltipText(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            foreach (var comp in gameObject.GetComponents<MonoBehaviour>())
+            {
+                if (comp == null || comp.GetType().Name != "TooltipTrigger") continue;
+
+                var locStringField = comp.GetType().GetField("LocString",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (locStringField == null) continue;
+
+                var locString = locStringField.GetValue(comp);
+                if (locString == null) continue;
+
+                string text = locString.ToString();
+                if (!string.IsNullOrWhiteSpace(text) && text.Length > 1 && text.Length < 60)
+                    return text;
+            }
+
+            return null;
+        }
+
         private static string GetParentPath(GameObject gameObject)
         {
             if (gameObject == null) return "";
@@ -1501,25 +1606,26 @@ namespace AccessibleArena.Core.Services
                     string placeholder = CleanText(placeholderText.text);
                     if (!string.IsNullOrWhiteSpace(placeholder))
                     {
+                        string empty = Models.Strings.InputFieldEmpty;
                         if (!string.IsNullOrEmpty(fieldLabel))
-                            return $"{fieldLabel}, empty";
-                        return $"{placeholder}, empty";
+                            return $"{fieldLabel}, {empty}";
+                        return $"{placeholder}, {empty}";
                     }
                 }
             }
 
             // Use derived label if we have one
             if (!string.IsNullOrEmpty(fieldLabel))
-                return $"{fieldLabel}, empty";
+                return $"{fieldLabel}, {Models.Strings.InputFieldEmpty}";
 
             // Fall back to field name
             string fieldName = CleanObjectName(inputField.gameObject.name);
             if (!string.IsNullOrWhiteSpace(fieldName))
             {
-                return $"{fieldName}, empty";
+                return $"{fieldName}, {Models.Strings.InputFieldEmpty}";
             }
 
-            return "empty";
+            return Models.Strings.InputFieldEmpty;
         }
 
         private static string GetInputFieldText(InputField inputField)
@@ -1536,7 +1642,7 @@ namespace AccessibleArena.Core.Services
                 if (inputField.inputType == InputField.InputType.Password)
                     return "password field, contains text";
 
-                return $"{CleanText(text)}, text field";
+                return $"{CleanText(text)}, {Models.Strings.TextField}";
             }
 
             if (inputField.placeholder != null)
@@ -1544,11 +1650,11 @@ namespace AccessibleArena.Core.Services
                 var placeholderText = inputField.placeholder.GetComponent<Text>();
                 if (placeholderText != null && !string.IsNullOrWhiteSpace(placeholderText.text))
                 {
-                    return $"{CleanText(placeholderText.text)}, text field, empty";
+                    return $"{CleanText(placeholderText.text)}, {Models.Strings.TextField}, {Models.Strings.InputFieldEmpty}";
                 }
             }
 
-            return "text field, empty";
+            return $"{Models.Strings.TextField}, {Models.Strings.InputFieldEmpty}";
         }
 
         private static string GetToggleText(Toggle toggle)

@@ -7,7 +7,7 @@ using AccessibleArena.Core.Services;
 using AccessibleArena.Core.Services.PanelDetection;
 using AccessibleArena.Patches;
 
-[assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", "0.6.6", "Accessible Arena Team")]
+[assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", VersionInfo.Value, "Accessible Arena Team")]
 [assembly: MelonGame("Wizards Of The Coast", "MTGA")]
 
 namespace AccessibleArena
@@ -112,6 +112,7 @@ namespace AccessibleArena
                 new OverlayNavigator(_announcer),
                 new SettingsMenuNavigator(_announcer),  // Settings menu - works everywhere including duels (priority 90)
                 new BoosterOpenNavigator(_announcer),  // Pack opening card list (priority 80)
+                new DraftNavigator(_announcer),         // Draft card picking (priority 78)
                 new NPERewardNavigator(_announcer),    // NPE reward screen - card unlocked (priority 75)
                 // PreBattleNavigator removed - game auto-transitions to duel without needing button click
                 new DuelNavigator(_announcer),
@@ -136,7 +137,8 @@ namespace AccessibleArena
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", $"Old: {oldName}, New: {newName}");
 
             // If focus moved away from current card, deactivate card navigation
-            if (_cardInfoNavigator.IsActive && _cardInfoNavigator.CurrentCard != newElement)
+            // Skip when CurrentCard is null (blocks-only mode, e.g. packet info) - owner manages lifecycle
+            if (_cardInfoNavigator.IsActive && _cardInfoNavigator.CurrentCard != null && _cardInfoNavigator.CurrentCard != newElement)
             {
                 DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", "Deactivating card navigator");
                 _cardInfoNavigator.Deactivate();
@@ -233,6 +235,7 @@ namespace AccessibleArena
             CardDetector.ClearCache();
             DeckInfoProvider.ClearCache();
             RecentPlayAccessor.ClearCache();
+            EventAccessor.ClearCache();
 
             // Deactivate card info navigator on scene change (prevents stale card reading)
             if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)

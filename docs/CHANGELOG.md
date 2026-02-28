@@ -2,6 +2,270 @@
 
 All notable changes to Accessible Arena.
 
+## v0.7.3-dev
+
+### New: Invalid Deck Status in Deck Picker
+- Deck announcements now include validity status: "invalid deck", "N invalid cards", "missing cards", "missing cards, craftable", "invalid companion", or "unavailable"
+- Press Right arrow on an invalid deck to hear the detailed reason (localized tooltip with banned card counts, wildcard costs, companion issues, etc.)
+- Reads DeckView's pre-computed validation state and tooltip text directly — no scene scanning or i18n keyword matching
+- Files: UIActivator.cs, GeneralMenuNavigator.cs, BaseNavigator.cs
+
+### New: Multi-Zone Browser Support (First Iteration)
+- Cards that select from multiple zones (e.g., Kronleuchter targeting both graveyards) now have navigable zone selection
+- Up/Down arrows cycle between zones, Tab moves to cards, Shift+Tab returns to zone selector
+- Zone buttons with real localized names (e.g., "Dein Friedhof", "Friedhof des Gegners") are included; generic unnamed zones are filtered out
+- False positive multi-zone scaffolds (e.g., Tiefste Epoche selecting from a single zone) are correctly detected and treated as single-zone browsers
+- Invisible scaffold layout buttons (SingleButton, 2Button_Left/Right) filtered via shared IsVisibleViaCanvasGroup check
+- CardInfoNavigator deactivated while on zone selector to prevent arrow key conflicts
+- Files: BrowserNavigator.cs, HotHighlightNavigator.cs
+
+### Fixed: Input Fields in Popups
+- Input fields in popups (e.g., invite friend, challenge invite) now use the same full implementation as menu navigators
+- Arrow Up/Down reads field content, Left/Right reads character at cursor, Backspace announces deleted character
+- Tab navigates to next/previous popup item (consumed properly, no longer leaks to game)
+- Legacy Unity InputField support added alongside TMP_InputField
+- Shared `InputFieldEditHelper` class eliminates code duplication between BaseNavigator and PopupHandler
+- Files: InputFieldEditHelper.cs (new), PopupHandler.cs, BaseNavigator.cs
+
+### Fixed: Localize Mana Colors and Action Strings
+- Mana color names (White, Blue, Black, Red, Green, Colorless, Snow, etc.) now use locale keys instead of hardcoded English
+- Hybrid mana (e.g., "White or Blue") and Phyrexian mana use localized format strings
+- "Activated" and "selected" announcements now use locale keys
+- Color filter toggle labels in deck builder are now localized
+- Added new locale keys: ManaGeneric, ManaPhyrexian (bare), Activated (bare)
+- Updated: CardDetector.cs, CardModelProvider.cs, StoreNavigator.cs, UIActivator.cs, DraftNavigator.cs, GeneralMenuNavigator.cs, UIElementClassifier.cs
+
+### Changed: Announcement Order
+- Item count and position are now read last instead of first in all menu and screen announcements
+- Content (label, hints, instructions) is announced before "X of Y" position info
+- Updated across all navigators and all 12 locale files
+
+### New: Extended Card Info (I Key) in All Screens
+- The I key now works outside of duels — in deck builder, collection, store, draft, and other card screens
+- Shows individual ability texts as separate navigable items (Up/Down to cycle)
+- Extracts abilities from card model directly when duel-only AbilityHangerProvider is unavailable
+- Files: BaseNavigator.cs, CardModelProvider.cs
+
+### Improved: Challenge Screen Accessibility
+- Main button now includes challenge status text (e.g., waiting for opponent)
+- Polls for opponent join/leave and status text changes at 1-second intervals
+- Detects match countdown start/cancel from status text
+- Icon-only enemy buttons labeled: Kick, Block, Add Friend
+- Spinners prefixed with "Locked" when settings are controlled by host
+- Tournament parameters announced after mode spinner change
+- Files: ChallengeNavigationHelper.cs, GeneralMenuNavigator.cs
+
+### Fixed: Popup Leaving State
+- Fixed getting stuck on empty screen after pressing buttons in popups that trigger server actions (e.g., sending invite with invalid name)
+- Popup validation now checks if popup GameObject still exists before consuming input
+- Uses `HandleEarlyInput()` hook to route popup input before BaseNavigator's auto-focus logic can intercept it
+- Files: BaseNavigator.cs, GeneralMenuNavigator.cs, SettingsMenuNavigator.cs
+
+## v0.7.2 - 2026-02-26
+
+### New: Land Summary Shortcut (M / Shift+M)
+- Press **M** to hear a summary of your lands: total count and untapped lands grouped by name
+- Press **Shift+M** for the opponent's land summary
+- Example announcements: "7 lands, 2 Island, 1 Mountain, 1 Azorius Gate untapped" or "5 lands, all tapped"
+- Uses existing battlefield land rows and tap state detection
+- Files: BattlefieldNavigator.cs, DuelNavigator.cs, InputManager.cs, Strings.cs, HelpNavigator.cs, en.json
+
+### Fixed: Card Type Lines Now Correctly Localized
+- Card type lines (e.g. "Legendary Creature - Elf Warrior") now display in the game's selected language instead of always showing English
+- Uses `TypeTextId`/`SubtypeTextId` localization IDs via `GreLocProvider`, same system used for flavor text
+- Applies to all card contexts: duel, deck builder, collection, store, booster opening, rewards, drafts, other card faces
+- Files: CardModelProvider.cs, HotHighlightNavigator.cs, UIActivator.cs
+
+### Improved: Card Name Localization
+- Card names now use `TitleId` via `GreLocProvider` as primary lookup to avoid cases where names could appear in English while other card text was correctly localized
+- Falls back to previous `CardTitleProvider` lookup when `TitleId` is not available
+- Files: CardModelProvider.cs
+
+### New: Deck Builder Sideboard Group
+- Pool holder cards (available cards to add) are now classified as **Sideboard** instead of **Collection** when editing a deck. Applies to draft, sealed, and normal deck builder.
+- New `DeckBuilderSideboard` group with "Sideboard" label (Tab-cyclable between Collection, Sideboard, Deck List, Deck Info, Filters)
+- Sideboard cards use quantity-prefixed labels ("1x Card Name") matching deck list format
+- Card detail navigation (Up/Down) works for sideboard cards
+- Files: ElementGroup.cs, ElementGroupAssigner.cs, GroupedNavigator.cs, GeneralMenuNavigator.cs, CardModelProvider.cs, CardDetector.cs, Strings.cs, en.json, de.json
+
+### Fixed: Single-Card Groups Shown as Standalone Items
+- Deck builder card groups (Collection, Sideboard, Deck List) now always appear as proper groups even when they contain only 1 card
+- Previously a single card would appear as a standalone item in the list without the group name, losing context about which section it belongs to
+- Files: ElementGroup.cs, GroupedNavigator.cs
+
+### Improved: PopupHandler Rework
+- **Input field support**: Popups with input fields (e.g., InviteFriendPopup, ChallengeInviteWindow) are now fully navigable. Enter activates edit mode, Escape exits, Tab navigates to next item, Up/Down reads content, Left/Right reads character at cursor, Backspace announces deleted character.
+- **Button filtering**: Dismiss overlays (background, overlay, backdrop, dismiss) automatically filtered. Duplicate button labels deduplicated. Buttons nested inside input fields or other buttons skipped.
+- **Text block filtering**: Text inside input fields (placeholder, typed text) no longer appears as separate text blocks.
+- **Rescan suppression**: GeneralMenuNavigator's delayed rescan (0.5s) now skips while popup is active, preventing PopupHandler's items from being overwritten.
+- Files: PopupHandler.cs, GeneralMenuNavigator.cs
+
+### New: Full Control Toggle (P / Shift+P)
+- P key toggles temporary full control (resets on phase change)
+- Shift+P toggles locked full control (permanent until toggled off)
+- Announces "Full control on/off" and "Full control locked/unlocked"
+- Uses GameManager.AutoRespManager reflection for toggle and state read
+
+### New: Phase Stop Hotkeys (1-0)
+- Number keys 1-0 toggle phase stops during duels
+- 1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers, 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step
+- Announces "[Phase] stop set" / "[Phase] stop cleared" with localized phase names
+- Note: Phase stops are "also stop here" markers. The game still stops at any phase where you have playable actions (this is standard MTGA behavior, not a mod limitation). Phase stops ensure the game also stops at the marked phase even when you have nothing to play.
+- Ctrl key blocked from reaching the game in duels (prevents accidental full control toggle when silencing NVDA with Ctrl)
+- Files: PriorityController.cs, DuelNavigator.cs, KeyboardManagerPatch.cs
+
+### Fixed: End Step Phase Not Announced
+- End step was never announced during duels
+- Game sends `Ending/None` for the end step, but code checked for `Ending/End` which never occurs
+- Without the match, the debounce timer from Second Main Phase would fire instead, incorrectly announcing "Second main phase" even when the game stopped at the end step
+- Fix: Match `Ending/None` as the end step event
+
+### New: Event System Accessibility
+- Event tiles on Play Blade enriched with title, ranked/Bo3 indicators, progress pips, and in-progress status
+- Event page shows "Event: {title}" with win progress summary
+- Improved reading of event informational text (description, rules, rewards)
+- Jump In packet selection fully navigable: Up/Down for packets, Left/Right for info blocks (name, colors, description)
+- Packet activation via reflection (ClickPacket) since UIActivator can't reach PacketInput on parent GO
+- Confirm button and rescan after packet selection/confirmation for async GO rebuilds
+- Tested with Jump Start, Starter Duel, and Draft events
+- EventAccessor static class for all reflection-based event/packet data access
+
+### New: Draft Navigator
+- Full keyboard navigation for the draft card picking screen
+- Navigate available cards, select picks with Enter
+- Draft popup handling for pack transitions
+- Files: DraftNavigator.cs
+
+### New: OptionalAction Browser Navigation
+- Shockland-style choice prompts (e.g. "Pay 2 life?") now navigable as a browser
+- Tab to navigate options, Enter to select
+- Files: BrowserNavigator.cs
+
+### Fixed: Player Target Selection (Enter Key)
+- Enter on player targets (e.g. "Choose a player to draw two cards") was activating a hand card instead of selecting the player
+- Root cause: HotHighlightNavigator didn't claim zone ownership when navigating to player/button targets
+- Now properly claims ownership so Enter activates the correct target
+
+## v0.7.1 - 2026-02-23
+
+### New: Damage Assignment Browser
+- Full keyboard navigation for the damage assignment browser (when your attacker is blocked by multiple creatures)
+- Up/Down arrows adjust damage spinner on current blocker
+- Left/Right arrows navigate between blockers
+- Each blocker announced with name, P/T, current damage assigned, and lethal status
+- Entry announcement: "Assign damage. [AttackerName], [Power] damage. [N] blockers"
+- Lethal damage indicated when spinner value text turns gold
+- Space submits damage assignment (via DoneAction reflection)
+- Backspace undoes last assignment (via UndoAction reflection)
+- Multiple damage assigners in one combat announced as "X of Y"
+- Total damage cached from workflow's MtgDamageAssigner struct
+
+### New: Library Zone Navigation
+- D key navigates your library, Shift+D for opponent's library
+- Only shows cards visible to sighted players (anti-cheat protection):
+  - Cards with HotHighlight (playable from library via Future Sight, Vizier of the Menagerie, etc.)
+  - Cards displayed face-up (revealed by Courser of Kruphix, Experimental Frenzy, etc.)
+  - Hidden face-down cards are never exposed
+- If no revealed/playable cards exist, announces library count without entering navigation
+- Left/Right navigates revealed cards, Enter plays playable cards via two-click
+- Full card info via Up/Down arrows on revealed library cards
+- Uses `IsDisplayedFaceDown` model property for reliable reveal detection
+
+### New: Read-Only Deck Builder Accessibility
+- Starter and precon decks now navigable when opened in read-only mode
+- Cards listed with quantity and name (e.g. "2x Lightning Bolt")
+- Up/Down card details work on read-only deck cards
+- Enter on a card announces "This deck is read only. To edit, open it from My Decks."
+- Screen announces "Deck Builder, Read Only" to distinguish from editable mode
+- Back button (Backspace) works as expected to return to deck list
+
+### Fixed: Stale Combat Button During Blockers Phase
+- Combat prompt button was showing stale text after blocker assignment
+
+### Fixed: Duplicate Entries in Incoming Friend Requests
+- Sub-buttons (accept/reject) inside InviteIncomingTile were registered as separate navigable entries
+- One friend request appeared as 3 identical entries instead of 1
+
+### Fixed: Home Screen Carousel Navigation Broken by Group System
+- Left/Right arrow keys on the promotional carousel stopped working after grouped navigation was introduced
+- Standalone Content groups (like the carousel) are navigated at GroupList level where `CurrentElement` returns null
+- `HandleCarouselArrow` now checks `IsCurrentGroupStandalone` to find the element directly from the group
+
+### Fixed: Carousel and Navbar Buttons Showing Raw GO Names Instead of Content
+- Promotional carousel banner showed "Banner Left" instead of actual content text (e.g., "Du kannst es kaum erwarten...")
+- Root cause: `MaxLabelLength` was 80, banner text was 83 chars - just over the limit. Increased to 120.
+- Image-only navbar buttons (Nav_Settings, Nav_Learn) showed cleaned GO names ("nav settings", "nav learn")
+- Added `TryGetTooltipText()` fallback in `UITextExtractor` that reads `LocString` from `TooltipTrigger` via reflection
+- Now shows localized labels: "Optionen anpassen", "Kodex des Multiversums"
+
+## v0.7.0 - 2026-02-23
+
+### New: Friends Panel Navigation
+- Full keyboard navigation for the friends/social panel
+- Hierarchical groups: Friends, Incoming Requests, Sent Requests, Blocked
+- Per-friend actions: Challenge, Chat, Unfriend, Block, Accept, Decline, Revoke, Unblock
+- Your Profile section with full username display
+- Blocked users section forced open for accessibility
+
+### New: Challenge Screen
+- Dedicated ChallengeMain navigator for direct challenge setup
+- Popout stepper navigation for format/scene/timer options (Left/Right to cycle)
+- Deck selection via PlayBlade-style grouped navigation with folder support
+- Player status announcements (invited, waiting, deck selected)
+- Invite and Leave buttons with proper state tracking across spinner changes
+
+### New: Command Zone Shortcuts
+- W key to navigate your command zone (commander/companion)
+- Shift+W for opponent's command zone
+- Full card details for opponent's commander
+- Commander filtered from mulligan hand display
+
+### New: Origin Zone Display
+- Cards playable from non-hand zones now show their origin (e.g. "Lightning Bolt, from graveyard")
+- Works for flashback, escape, commander, and similar mechanics
+
+### Improved: Card State Change Announcements
+- Pressing Enter on a battlefield card announces the resulting state change (e.g. "attacking", "selected")
+- Per-frame watcher detects combat and selection state changes reliably
+- Blocker assignment on an attacker now announces just "blocked by Angel" instead of redundant "attacking, blocked by Angel"
+- Works for attack/block selection, and non-combat selection (sacrifice, exile)
+
+### Improved: Selection Mode Announcements (Discard, Exile, etc.)
+- Toggle announcement now shows progress: "CardName, 1 of 2 selected"
+- Deselecting a card says: "CardName deselected, 0 of 2 selected"
+- Required count read from game's prompt text (e.g. "Discard 2 cards")
+- Number word parsing for languages that spell out numbers (e.g. "zwei" in German)
+- NumberWords mappings in language files - contributors can fix their language without code changes
+
+### Improved: Combat Announcements
+- Attacker selection detected via SelectedHighlightBattlefield during declare attackers phase
+- Delayed attack eligibility now uses model-based fallback for newly created tokens
+- Blocker deselection and unassignment announced with card name and "can block" state
+- Blocker P/T announcement no longer includes redundant "blocking" word
+
+### Improved: Duel Performance
+- Cached reflection lookups for card model access (fields, properties, methods)
+- Shared DuelHolderCache for zone and battlefield holder lookups, replacing per-frame FindObjectsOfType scans
+- Compiled regex patterns for highlight discovery
+- Precise battlefield click positions using card screen coordinates to avoid hitting wrong overlapping tokens
+
+### Fixed: Store and Mastery Backspace Not Returning Home
+- Store tab-level Backspace now navigates home instead of silently deactivating
+- Mastery screen Backspace falls back to home navigation when no in-screen back button is found
+- Moved `NavigateToHome()` to BaseNavigator as shared utility for all navigators
+- Bug originally reported and fix approach contributed by **@blindndangerous** (PR #1)
+
+### Fixed
+- German "milled" translation corrected from "wird gemahlen" to "wird gemillt"
+- Deck builder popups now auto-enter Dialog group when opened
+- Challenge invite popup navigation with per-navigator popup tracking
+- Input field tutorial hint added and text field labels localized
+- General duel commands section added to help menu (F1)
+
+### Installer
+- MelonLoader console window hidden by default during installation
+- Unified version management via Directory.Build.props
+
 ## v0.6.9 - 2026-02-19
 
 ### New: Mana Color Picker Navigator

@@ -215,6 +215,67 @@ namespace AccessibleArenaInstaller
         }
 
         /// <summary>
+        /// Configures MelonLoader to hide the console window on startup.
+        /// Creates or updates UserData/Loader.cfg with hide_console = true.
+        /// </summary>
+        public void ConfigureMelonLoaderConsole()
+        {
+            string userDataPath = Path.Combine(_mtgaPath, "UserData");
+            string loaderCfgPath = Path.Combine(userDataPath, "Loader.cfg");
+
+            try
+            {
+                if (!Directory.Exists(userDataPath))
+                {
+                    Logger.Info($"Creating UserData folder: {userDataPath}");
+                    Directory.CreateDirectory(userDataPath);
+                }
+
+                if (File.Exists(loaderCfgPath))
+                {
+                    // Update existing Loader.cfg
+                    string content = File.ReadAllText(loaderCfgPath);
+                    if (content.Contains("hide_console = false"))
+                    {
+                        content = content.Replace("hide_console = false", "hide_console = true");
+                        File.WriteAllText(loaderCfgPath, content);
+                        Logger.Info("Updated Loader.cfg: hide_console = true");
+                    }
+                    else if (!content.Contains("hide_console"))
+                    {
+                        // [console] section exists but no hide_console line
+                        if (content.Contains("[console]"))
+                        {
+                            content = content.Replace("[console]",
+                                "[console]\nhide_console = true");
+                        }
+                        else
+                        {
+                            content += "\n[console]\nhide_console = true\n";
+                        }
+                        File.WriteAllText(loaderCfgPath, content);
+                        Logger.Info("Added hide_console = true to Loader.cfg");
+                    }
+                    else
+                    {
+                        Logger.Info("Loader.cfg already has hide_console configured");
+                    }
+                }
+                else
+                {
+                    // Create minimal Loader.cfg with just the console setting
+                    string content = "[console]\nhide_console = true\n";
+                    File.WriteAllText(loaderCfgPath, content);
+                    Logger.Info("Created Loader.cfg with hide_console = true");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Could not configure MelonLoader console: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Writes the mod settings file with the selected language.
         /// Creates UserData/AccessibleArena.json in the MTGA folder.
         /// If the file already exists, only updates the Language field.

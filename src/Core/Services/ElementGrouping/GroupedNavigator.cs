@@ -96,6 +96,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Set when a PlayBlade tab is activated.
         /// </summary>
         private bool _pendingPlayBladeContentEntry = false;
+        private int _pendingPlayBladeContentEntryIndex = -1;
 
         /// <summary>
         /// When true, auto-enter first folder group after next OrganizeIntoGroups.
@@ -121,6 +122,25 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Used to determine whether to create PlayBladeFolders wrapper group.
         /// </summary>
         private bool _isPlayBladeContext = false;
+
+        /// <summary>
+        /// Whether we're currently in a Challenge context (Direct/Friend Challenge screen).
+        /// Set by ChallengeNavigationHelper when challenge opens/closes.
+        /// Used to determine whether to create PlayBladeFolders wrapper group for deck selection.
+        /// </summary>
+        private bool _isChallengeContext = false;
+
+        /// <summary>
+        /// When true, auto-enter ChallengeMain group after next OrganizeIntoGroups.
+        /// Set when challenge opens or when returning from deck selection.
+        /// </summary>
+        private bool _pendingChallengeMainEntry = false;
+
+        /// <summary>
+        /// Specific element index to restore when entering ChallengeMain.
+        /// Used by spinner rescan to preserve position.
+        /// </summary>
+        private int _pendingChallengeMainEntryIndex = -1;
 
         /// <summary>
         /// Reference to the FindMatch game tab for proxy clicking when not active.
@@ -314,8 +334,21 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void RequestPlayBladeContentEntry()
         {
             _pendingPlayBladeContentEntry = true;
+            _pendingPlayBladeContentEntryIndex = -1; // Start at 0
             _pendingPlayBladeTabsEntry = false; // Clear tabs flag
             MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeContent auto-entry");
+        }
+
+        /// <summary>
+        /// Request auto-entry into PlayBladeContent group at a specific element index.
+        /// Used by spinner rescan to restore the user's position on their stepper.
+        /// </summary>
+        public void RequestPlayBladeContentEntryAtIndex(int elementIndex)
+        {
+            _pendingPlayBladeContentEntry = true;
+            _pendingPlayBladeContentEntryIndex = elementIndex;
+            _pendingPlayBladeTabsEntry = false;
+            MelonLogger.Msg($"[GroupedNavigator] Requested PlayBladeContent auto-entry at index {elementIndex}");
         }
 
         /// <summary>
@@ -417,6 +450,62 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public bool IsPlayBladeContext => _isPlayBladeContext;
 
         /// <summary>
+        /// Whether we're currently in a Challenge context.
+        /// </summary>
+        public bool IsChallengeContext => _isChallengeContext;
+
+        /// <summary>
+        /// Set whether we're in a Challenge context.
+        /// Call when challenge screen opens (true) or closes (false).
+        /// </summary>
+        public void SetChallengeContext(bool isActive)
+        {
+            _isChallengeContext = isActive;
+
+            if (!isActive)
+            {
+                _pendingChallengeMainEntry = false;
+                _pendingChallengeMainEntryIndex = -1;
+                _pendingGroupRestore = null;
+                _pendingLevelRestore = NavigationLevel.GroupList;
+                _pendingElementIndexRestore = -1;
+                MelonLogger.Msg($"[GroupedNavigator] Challenge context set to: {isActive} - cleared pending state");
+            }
+            else
+            {
+                MelonLogger.Msg($"[GroupedNavigator] Challenge context set to: {isActive}");
+            }
+        }
+
+        /// <summary>
+        /// Request auto-entry into ChallengeMain group after next rescan.
+        /// Call when challenge opens or when returning from deck selection.
+        /// </summary>
+        public void RequestChallengeMainEntry()
+        {
+            _pendingChallengeMainEntry = true;
+            _pendingChallengeMainEntryIndex = -1;
+            _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeContentEntry = false;
+            _pendingFoldersEntry = false;
+            MelonLogger.Msg("[GroupedNavigator] Requested ChallengeMain auto-entry");
+        }
+
+        /// <summary>
+        /// Request auto-entry into ChallengeMain group at a specific element index.
+        /// Used by spinner rescan to restore the user's position on their stepper.
+        /// </summary>
+        public void RequestChallengeMainEntryAtIndex(int elementIndex)
+        {
+            _pendingChallengeMainEntry = true;
+            _pendingChallengeMainEntryIndex = elementIndex;
+            _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeContentEntry = false;
+            _pendingFoldersEntry = false;
+            MelonLogger.Msg($"[GroupedNavigator] Requested ChallengeMain auto-entry at index {elementIndex}");
+        }
+
+        /// <summary>
         /// Save the current group state for restoration after rescan.
         /// Call this before triggering a rescan to preserve the user's position.
         /// </summary>
@@ -476,6 +565,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // First pass: identify folder toggles and their names
             var folderToggles = new Dictionary<string, GameObject>(); // folderName -> toggle GameObject
             var folderDecks = new Dictionary<string, List<GroupedElement>>(); // folderName -> decks in that folder
+            var folderExtraElements = new List<GroupedElement>(); // non-folder, non-deck elements assigned to PlayBladeFolders (e.g. NewDeck, EditDeck)
             var nonFolderElements = new Dictionary<ElementGroup, List<GroupedElement>>(); // standard groups
 
             foreach (var (obj, label) in elements)
@@ -526,6 +616,19 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     }
                 }
 
+                // PlayBladeFolders extra elements (NewDeck, EditDeck) - collect separately
+                // These are added to the folder group alongside folder toggles
+                if (group == ElementGroup.PlayBladeFolders)
+                {
+                    folderExtraElements.Add(new GroupedElement
+                    {
+                        GameObject = obj,
+                        Label = label,
+                        Group = group
+                    });
+                    continue;
+                }
+
                 // Standard element - add to its group
                 var groupedElement = new GroupedElement
                 {
@@ -564,13 +667,22 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.Secondary,
                 ElementGroup.Popup,
                 ElementGroup.FriendsPanel,
+                ElementGroup.FriendsPanelChallenge,
+                ElementGroup.FriendsPanelAddFriend,
+                ElementGroup.FriendSectionFriends,
+                ElementGroup.FriendSectionIncoming,
+                ElementGroup.FriendSectionOutgoing,
+                ElementGroup.FriendSectionBlocked,
+                ElementGroup.FriendsPanelProfile,
                 ElementGroup.MailboxList,
                 ElementGroup.MailboxContent,
                 ElementGroup.PlayBladeTabs,
                 ElementGroup.PlayBladeContent,
+                ElementGroup.ChallengeMain,
                 ElementGroup.SettingsMenu,
                 ElementGroup.NPE,
                 ElementGroup.DeckBuilderCollection,
+                ElementGroup.DeckBuilderSideboard,
                 ElementGroup.DeckBuilderDeckList,
                 ElementGroup.Unknown
             };
@@ -603,9 +715,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                             });
                         }
                     }
-                    else if (elementList.Count == 1)
+                    else if (elementList.Count == 1 && !groupType.IsFriendSectionGroup() && !groupType.IsDeckBuilderCardGroup())
                     {
                         // Single element - show standalone instead of creating a group
+                        // Exception: Friend section groups always show as proper groups
+                        // (section name provides context, left/right sub-navigation for actions)
+                        // Exception: Deck builder card groups always show as proper groups
+                        // (group name like "Sideboard" / "Deck List" provides essential context)
                         _groups.Add(new ElementGroupInfo
                         {
                             Group = groupType,
@@ -660,7 +776,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Add folder groups
             // In PlayBlade context: Create a single PlayBladeFolders group containing folder selectors
             // Outside PlayBlade: Each folder becomes its own group (current behavior for Decks screen)
-            if (_isPlayBladeContext && folderToggles.Count > 0)
+            if ((_isPlayBladeContext || _isChallengeContext) && folderToggles.Count > 0)
             {
                 // Create folder selector elements for the PlayBladeFolders group
                 var folderSelectors = new List<GroupedElement>();
@@ -678,6 +794,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         FolderName = folderName
                     });
                 }
+
+                // Append extra elements (NewDeck, EditDeck) after folder toggles
+                if (folderExtraElements.Count > 0)
+                    folderSelectors.AddRange(folderExtraElements);
 
                 if (folderSelectors.Count > 0)
                 {
@@ -800,10 +920,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
             }
 
-            // Check for pending PlayBlade content entry (set when a tab is activated)
+            // Check for pending PlayBlade content entry (set when a tab is activated or spinner rescan)
             if (_pendingPlayBladeContentEntry)
             {
                 _pendingPlayBladeContentEntry = false;
+                int requestedIndex = _pendingPlayBladeContentEntryIndex;
+                _pendingPlayBladeContentEntryIndex = -1;
                 // Find PlayBladeContent group and auto-enter it
                 for (int i = 0; i < _groups.Count; i++)
                 {
@@ -811,9 +933,34 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     {
                         _currentGroupIndex = i;
                         _navigationLevel = NavigationLevel.InsideGroup;
-                        _currentElementIndex = 0;
+                        // Use requested index if valid, otherwise start at 0
+                        int maxIdx = _groups[i].Count - 1;
+                        _currentElementIndex = (requestedIndex >= 0 && requestedIndex <= maxIdx) ? requestedIndex : 0;
                         playBladeAutoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items");
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items at index {_currentElementIndex}");
+                        break;
+                    }
+                }
+            }
+
+            // Check for pending ChallengeMain entry (set when challenge opens or returning from deck selection)
+            bool challengeAutoEntryPerformed = false;
+            if (_pendingChallengeMainEntry)
+            {
+                _pendingChallengeMainEntry = false;
+                int requestedIndex = _pendingChallengeMainEntryIndex;
+                _pendingChallengeMainEntryIndex = -1;
+                // Find ChallengeMain group and auto-enter it
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group == ElementGroup.ChallengeMain && _groups[i].Count > 0)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        int maxIdx = _groups[i].Count - 1;
+                        _currentElementIndex = (requestedIndex >= 0 && requestedIndex <= maxIdx) ? requestedIndex : 0;
+                        challengeAutoEntryPerformed = true;
+                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered ChallengeMain with {_groups[i].Count} items at index {_currentElementIndex}");
                         break;
                     }
                 }
@@ -919,10 +1066,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Restoring old state would interfere with the intended navigation flow
             if (_pendingGroupRestore.HasValue)
             {
-                if (_isPlayBladeContext || enteredPendingFolder || playBladeAutoEntryPerformed)
+                bool isPopupRestore = _pendingGroupRestore.Value == ElementGroup.Popup;
+                if (!isPopupRestore && (_isPlayBladeContext || _isChallengeContext || enteredPendingFolder || playBladeAutoEntryPerformed || challengeAutoEntryPerformed))
                 {
                     // Clear stale restore state - auto-entries take precedence
-                    string reason = playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : "PlayBlade context");
+                    string reason = challengeAutoEntryPerformed ? "Challenge auto-entry" : (playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : (_isChallengeContext ? "Challenge context" : "PlayBlade context")));
                     MelonLogger.Msg($"[GroupedNavigator] Skipping group restore due to {reason} (was: {_pendingGroupRestore.Value})");
                     _pendingGroupRestore = null;
                     _pendingLevelRestore = NavigationLevel.GroupList;
@@ -1174,7 +1322,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// screen reader navigation, not tied to any Unity GameObject.
         /// Inserts after the specified target group type, or at end if not found.
         /// </summary>
-        public void AddVirtualGroup(ElementGroup group, List<GroupedElement> elements, ElementGroup? insertAfter = null)
+        public void AddVirtualGroup(ElementGroup group, List<GroupedElement> elements,
+            ElementGroup? insertAfter = null, bool isStandalone = false, string displayName = null)
         {
             if (elements == null || elements.Count == 0)
                 return;
@@ -1182,11 +1331,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var groupInfo = new ElementGroupInfo
             {
                 Group = group,
-                DisplayName = group.GetDisplayName(),
+                DisplayName = displayName ?? group.GetDisplayName(),
                 Elements = elements,
                 IsFolderGroup = false,
                 FolderToggle = null,
-                IsStandaloneElement = false
+                IsStandaloneElement = isStandalone
             };
 
             if (insertAfter.HasValue)
@@ -1515,9 +1664,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 // Single group - auto-entered, announce first element
                 var group = _groups[0];
-                var firstElement = group.Elements.Count > 0 ? group.Elements[0].Label : "";
+                var firstElem = group.Elements.Count > 0 ? group.Elements[0] : (GroupedElement?)null;
+                string firstLabel = firstElem.HasValue
+                    ? BaseNavigator.RefreshElementLabel(firstElem.Value.GameObject, firstElem.Value.Label)
+                    : "";
                 return Strings.ScreenItemsSummary(screenName, Strings.ItemCount(group.Count),
-                    Strings.ItemPositionOf(1, group.Count, firstElement));
+                    Strings.ItemPositionOf(1, group.Count, firstLabel));
             }
 
             return Strings.ScreenGroupsSummary(screenName, Strings.GroupCount(_groups.Count), GetCurrentAnnouncement());
@@ -1611,7 +1763,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (!element.HasValue) return "";
 
             int count = GetCurrentElementCount();
-            return Strings.ItemPositionOf(_currentElementIndex + 1, count, element.Value.Label);
+            string label = BaseNavigator.RefreshElementLabel(element.Value.GameObject, element.Value.Label);
+            return Strings.ItemPositionOf(_currentElementIndex + 1, count, label);
         }
 
         private void AnnounceCurrentGroup()

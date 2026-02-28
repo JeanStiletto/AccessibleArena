@@ -60,7 +60,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 return ElementGroup.MailboxList;
             }
 
-            // 7. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
+            // 7a. Challenge screen (PlayBladeState 2 or 3)
+            if (PanelStateManager.Instance?.PlayBladeState >= 2)
+                return ElementGroup.ChallengeMain;
+
+            // 7b. Play blade expanded (return PlayBladeTabs as marker that PlayBlade is active)
             if (PanelStateManager.Instance?.IsPlayBladeActive == true)
                 return ElementGroup.PlayBladeTabs;
 
@@ -83,7 +87,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (obj == null) return false;
             string name = obj.name;
-            return name.Contains("Popup") || name.Contains("SystemMessageView");
+            return name.Contains("Popup") || name.Contains("SystemMessageView") || name.Contains("ChallengeInviteWindow");
         }
 
         /// <summary>
@@ -103,10 +107,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.MailboxList => IsInsideMailboxList(obj),
                 ElementGroup.MailboxContent => IsInsideMailboxContent(obj),
                 ElementGroup.RewardsPopup => IsInsideRewardsPopup(obj),
+                ElementGroup.ChallengeMain => IsInsideChallengeScreen(obj),
                 ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
                 ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),
-                _ => true
+                _ => overlay.Value.IsFriendPanelGroup() ? IsInsideSocialPanel(obj) : true
             };
         }
 
@@ -250,6 +255,39 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 // Event page main button (Play button on Color Challenge, etc.)
                 // These coexist with the blade and should be navigable
                 if (name.Contains("CampaignGraphMainButtonModule"))
+                    return true;
+
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if an element is inside the challenge screen.
+        /// </summary>
+        private static bool IsInsideChallengeScreen(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            while (current != null)
+            {
+                string name = current.name;
+
+                // Exclude invite popup — handled as Popup overlay
+                if (name.Contains("ChallengeInviteWindow"))
+                    return false;
+
+                if (name.Contains("ChallengeOptions") || name.Contains("ChallengeWidget") ||
+                    name.Contains("UnifiedChallenges") || name.Contains("InviteFriendPopup") ||
+                    name.Contains("Popout_Play") || name.Contains("FriendChallengeBladeWidget"))
+                    return true;
+
+                // Also match PlayBlade/Blade hierarchy when in challenge mode
+                // (DeckSelectBlade opens inside blade containers during challenge)
+                if (name.Contains("PlayBlade") || name.Contains("Blade_") ||
+                    name.Contains("BladeContent") || name.Contains("BladeContainer"))
                     return true;
 
                 current = current.parent;

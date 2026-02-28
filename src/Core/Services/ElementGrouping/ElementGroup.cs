@@ -93,6 +93,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         PlayBladeFolders,
 
         /// <summary>
+        /// Challenge screen main settings. Flat list of spinners, buttons, and status elements.
+        /// Used for Direct Challenge and Friend Challenge screens.
+        /// </summary>
+        ChallengeMain,
+
+        /// <summary>
         /// Settings menu elements. Suppresses all other groups when active.
         /// </summary>
         SettingsMenu,
@@ -114,11 +120,24 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         DeckBuilderDeckList,
 
         /// <summary>
+        /// Deck Builder sideboard cards (non-MainDeck holders in MetaCardHolders_Container).
+        /// Cards available to add to deck in draft/sealed deck building.
+        /// </summary>
+        DeckBuilderSideboard,
+
+        /// <summary>
         /// Deck Builder info group (card count, mana curve, type breakdown, colors).
         /// Contains virtual elements with no GameObjects - purely informational text
         /// read from the game's own UI components via reflection.
         /// </summary>
         DeckBuilderInfo,
+
+        /// <summary>
+        /// Event page info blocks (losses, description text).
+        /// Contains virtual standalone elements with no GameObjects - purely informational text
+        /// read from the event page via EventAccessor.
+        /// </summary>
+        EventInfo,
 
         /// <summary>
         /// Mailbox mail list (left pane). Shown when browsing mails.
@@ -135,7 +154,47 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Rewards popup overlay. Shown after claiming rewards from mail or other sources.
         /// Contains reward items (cards, sleeves, etc.) and a click-to-progress background.
         /// </summary>
-        RewardsPopup
+        RewardsPopup,
+
+        // --- Friends Panel Sub-Groups ---
+        // These replace the single FriendsPanel group with per-section groups.
+
+        /// <summary>
+        /// Friends panel: Challenge action button. Single-element standalone group.
+        /// </summary>
+        FriendsPanelChallenge,
+
+        /// <summary>
+        /// Friends panel: Add Friend action button. Single-element standalone group.
+        /// </summary>
+        FriendsPanelAddFriend,
+
+        /// <summary>
+        /// Friends panel: Actual friends list section.
+        /// Navigate with Up/Down, Left/Right for actions on each friend.
+        /// </summary>
+        FriendSectionFriends,
+
+        /// <summary>
+        /// Friends panel: Incoming friend requests section.
+        /// </summary>
+        FriendSectionIncoming,
+
+        /// <summary>
+        /// Friends panel: Outgoing/sent friend requests section.
+        /// </summary>
+        FriendSectionOutgoing,
+
+        /// <summary>
+        /// Friends panel: Blocked users section.
+        /// </summary>
+        FriendSectionBlocked,
+
+        /// <summary>
+        /// Friends panel: Local player profile (username#number + status).
+        /// Single-element standalone group for sharing your username.
+        /// </summary>
+        FriendsPanelProfile
     }
 
     /// <summary>
@@ -150,6 +209,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             return group == ElementGroup.Popup
                 || group == ElementGroup.FriendsPanel
+                || group == ElementGroup.FriendsPanelChallenge
+                || group == ElementGroup.FriendsPanelAddFriend
+                || group == ElementGroup.FriendSectionFriends
+                || group == ElementGroup.FriendSectionIncoming
+                || group == ElementGroup.FriendSectionOutgoing
+                || group == ElementGroup.FriendSectionBlocked
+                || group == ElementGroup.FriendsPanelProfile
                 || group == ElementGroup.PlayBladeTabs
                 || group == ElementGroup.PlayBladeContent
                 || group == ElementGroup.PlayBladeFolders
@@ -157,10 +223,58 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.NPE
                 || group == ElementGroup.DeckBuilderCollection
                 || group == ElementGroup.DeckBuilderDeckList
+                || group == ElementGroup.DeckBuilderSideboard
                 || group == ElementGroup.DeckBuilderInfo
                 || group == ElementGroup.MailboxList
                 || group == ElementGroup.MailboxContent
-                || group == ElementGroup.RewardsPopup;
+                || group == ElementGroup.RewardsPopup
+                || group == ElementGroup.ChallengeMain;
+        }
+
+        /// <summary>
+        /// Returns true if this group is one of the friend panel sub-groups
+        /// (challenge, add friend, or any friend section).
+        /// </summary>
+        public static bool IsFriendPanelGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.FriendsPanelChallenge
+                || group == ElementGroup.FriendsPanelAddFriend
+                || group == ElementGroup.FriendsPanelProfile
+                || group == ElementGroup.FriendSectionFriends
+                || group == ElementGroup.FriendSectionIncoming
+                || group == ElementGroup.FriendSectionOutgoing
+                || group == ElementGroup.FriendSectionBlocked;
+        }
+
+        /// <summary>
+        /// Returns true if this group is a friend section (not action buttons).
+        /// These sections support left/right action sub-navigation.
+        /// </summary>
+        public static bool IsFriendSectionGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.FriendSectionFriends
+                || group == ElementGroup.FriendSectionIncoming
+                || group == ElementGroup.FriendSectionOutgoing
+                || group == ElementGroup.FriendSectionBlocked;
+        }
+
+        /// <summary>
+        /// Returns true if this group is a deck builder card group (collection, sideboard, deck list).
+        /// These groups should always remain proper groups even with a single element.
+        /// </summary>
+        public static bool IsDeckBuilderCardGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.DeckBuilderCollection
+                || group == ElementGroup.DeckBuilderSideboard
+                || group == ElementGroup.DeckBuilderDeckList;
+        }
+
+        /// <summary>
+        /// Returns true if this group is the challenge main group.
+        /// </summary>
+        public static bool IsChallengeGroup(this ElementGroup group)
+        {
+            return group == ElementGroup.ChallengeMain;
         }
 
         /// <summary>

@@ -255,15 +255,16 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - "Fertig" (Done) button
 
 **Groups:**
-- `DeckBuilderCollection` - Collection card grid
+- `DeckBuilderCollection` - Collection card grid (when browsing collection without a deck)
+- `DeckBuilderSideboard` - Sideboard/available cards (pool cards when editing a deck - draft, sealed, or normal)
 - `DeckBuilderDeckList` - Deck list cards (compact list with quantities)
 - `DeckBuilderInfo` - Deck statistics (card count, types, mana curve) with 2D sub-navigation
 - `Filters` - Color checkboxes, type filters, advanced filters
-- `Content` - Header controls (Sideboard, deck name, etc.)
+- `Content` - Header controls (Sideboard toggle, deck name, etc.)
 
 **Navigation:**
 - Arrow Up/Down: Navigate between groups and elements
-- Tab/Shift+Tab: Cycle between groups (Collection, Deck List, Deck Info, Filters) and auto-enter
+- Tab/Shift+Tab: Cycle between groups (Collection/Sideboard, Deck List, Deck Info, Filters) and auto-enter
 - Enter on group: Enter the group to navigate individual items
 - Backspace: Exit current group, return to group list
 
@@ -292,7 +293,7 @@ Navigation within Deck Info:
 - Left/Right arrows: Navigate individual entries within the current row
 - Home/End: Jump to first/last entry in current row
 - Enter: Refresh all data from game UI and re-announce current entry
-- Tab/Shift+Tab: Cycle to other deck builder groups (Collection, Deck List, Filters)
+- Tab/Shift+Tab: Cycle to other deck builder groups (Collection/Sideboard, Deck List, Filters)
 - Backspace: Exit Deck Info back to group level
 
 Card count is also announced automatically whenever a card is added to or removed from the deck.
@@ -322,7 +323,7 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 - Deck list unowned detection via `MetaCardView.ShowUnCollectedTreatment` field (set by `SetDisplayInformation`)
 - Quantity buttons (`CustomButton - Tag` showing "4x", "2x") are filtered to Unknown group
 - Deck header controls (Sideboard toggle, deck name field) are in Content group
-- Tab cycling skips standalone elements, only cycles between actual groups
+- Tab cycling skips standalone elements, only cycles between actual groups (deck builder card groups always remain proper groups even with 1 card)
 - `DeckInfoProvider` reads deck statistics via reflection on `DeckCostsDetails` and `DeckMainTitlePanel`
 - Deck data populated via `Pantry.Get<DeckBuilderModelProvider>().Model.GetFilteredMainDeck()` reflection chain
 - `DeckBuilderInfo` group uses virtual elements (GameObject=null) with 2D sub-navigation (see element-grouping-feature.md)
@@ -352,7 +353,6 @@ This ensures deck list cards are always accessible regardless of the holder's in
 
 **Known Limitations:**
 - Quantity buttons may still appear in navigation (filter not fully working)
-- Sideboard management not yet implemented
 
 ## NPE Screens
 
@@ -508,6 +508,8 @@ Active gameplay with zones and cards.
 **Info Shortcuts:**
 - T - Announce turn number and active player
 - L - Announce life totals
+- M - Your land summary (total count + untapped lands grouped by name)
+- Shift+M - Opponent land summary
 - V - Enter player info zone (portrait navigation)
 - D - Your library count
 - Shift+D - Opponent library count
@@ -632,6 +634,94 @@ Fields without content are skipped. Pressing Down past the last field transition
 - Nav_Mail button requires special activation via `NavBarController.MailboxButton_OnClick()`
 - Harmony patch on `ContentControllerPlayerInbox.OnLetterSelected()` detects mail selection
 - Buttons without actual text content (only object name) are filtered out
+
+## Friends Panel (Social System)
+
+**Navigator:** `GeneralMenuNavigator` (overlay mode via element grouping)
+**Trigger:** F4 key (toggle) or NavBar social button
+**Close:** Backspace
+
+The Friends Panel is an overlay that shows friends, sent/incoming requests, and blocked users. Uses hierarchical group navigation with per-friend action sub-navigation.
+
+**Groups (overlay, suppresses all other elements):**
+- Challenge - Standalone button
+- Add Friend - Standalone button
+- Friends - Accepted friends section (navigable)
+- Sent Requests - Outgoing invite section (navigable)
+- Incoming Requests - Incoming invite section (navigable)
+- Blocked - Blocked users section (navigable)
+
+**Navigation - Group Level:**
+- Up/Down arrows: Navigate between groups
+- Enter: Enter a friend section or activate standalone button
+- Backspace: Close friends panel
+
+**Navigation - Inside Friend Section:**
+- Up/Down arrows: Navigate between friend entries
+- Left/Right arrows: Cycle available actions (Chat, Challenge, Unfriend, Block, etc.)
+- Enter: Activate the currently selected action
+- Backspace: Exit section, return to group level
+
+**Announcements:**
+- Entering section: "1 of 3. wuternst, Online"
+- Action cycling: "Chat, 1 of 4"
+- Friend label: "name, status" (e.g., "wuternst, Online") or "name, date" for sent requests
+
+**Available Actions by Tile Type:**
+- FriendTile: Chat (if online/has history), Challenge (if enabled), Unfriend, Block
+- InviteOutgoingTile: Revoke
+- InviteIncomingTile: Accept, Decline, Block
+- BlockTile: Unblock
+
+**Technical Notes:**
+- Social tile types live in Core.dll (no namespace), NOT Assembly-CSharp.dll
+- `FriendInfoProvider` handles all tile data reading and action invocation via reflection
+- Overlay detection via `MenuScreenDetector.IsSocialPanelOpen()` checking `SocialUI_V2_Desktop_16x9(Clone)`
+- Element assignment via parentPath bucket detection (`Bucket_Friends_CONTAINER`, `Bucket_SentRequests_CONTAINER`, etc.)
+- `SocialEntittiesListItem` has double-t typo in game code (matched with both spellings)
+- See `docs/SOCIAL_SYSTEM.md` for full implementation details
+
+## Challenge Screen (Direct Challenge / Friend Challenge)
+
+**Navigator:** `GeneralMenuNavigator` (overlay mode via element grouping + `ChallengeNavigationHelper`)
+**Trigger:** Challenge action on a friend tile, or "Challenge" button in social panel
+**Close:** Backspace from main level, or Leave button
+
+The Challenge Screen provides two-level navigation: a flat main settings list and folder-based deck selection.
+
+**Level 1 - ChallengeMain (flat list):**
+- Mode spinner (always present)
+- Additional spinners (mode-dependent: Deck Type, Format, Coin Flip)
+- Select Deck button
+- Leave button (`MainButton_Leave`)
+- Invite button (when no opponent invited)
+- Status button (`UnifiedChallenge_MainButton`) - prefixed with local player name
+
+**Level 2 - Deck Selection (folder-based):**
+- Reuses PlayBladeFolders infrastructure (folder toggles, deck entries)
+
+**Navigation - ChallengeMain:**
+- Up/Down arrows: Navigate between spinners and buttons
+- Left/Right arrows: Change spinner value (OnNextValue/OnPreviousValue)
+- Enter: Activate button (Select Deck opens deck selection, Invite opens popup)
+- Backspace: Close challenge blade (leave challenge)
+
+**Navigation - Deck Selection:**
+- Same as PlayBlade folder navigation
+- Enter on deck: select deck, auto-return to ChallengeMain
+- Backspace: return to ChallengeMain
+
+**Announcements:**
+- On entry: "Challenge Settings. You: PlayerName, Status. Opponent: Not invited/OpponentName"
+- Status button: "PlayerName: Invalid Deck" / "PlayerName: Ready"
+
+**Technical Notes:**
+- `ChallengeNavigationHelper` handles Enter/Backspace, challenge open/close, player status, deck blade closure
+- `CloseDeckSelectBlade()` calls `PlayBladeController.HideDeckSelector()` (not `DeckSelectBlade.Hide()` directly) to properly reactivate Leave/Invite buttons
+- Overlay detection via `PlayBladeVisualState >= 2` (Challenge state)
+- Element assignment via `IsChallengeContainer()` in `ElementGroupAssigner`
+- Invite popup handled by existing Popup overlay detection (PopupBase)
+- See `docs/SOCIAL_SYSTEM.md` for full implementation details and game class decompilation
 
 ## Rewards Popup
 

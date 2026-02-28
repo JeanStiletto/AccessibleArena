@@ -127,6 +127,7 @@ namespace AccessibleArena.Core.Services
         private readonly ElementGroupAssigner _groupAssigner;
         private readonly GroupedNavigator _groupedNavigator;
         private readonly PlayBladeNavigationHelper _playBladeHelper;
+        private readonly ChallengeNavigationHelper _challengeHelper;
 
         /// <summary>
         /// Whether grouped (hierarchical) navigation is enabled.
@@ -146,6 +147,10 @@ namespace AccessibleArena.Core.Services
 
         // Mail content field navigation
         private UITextExtractor.MailContentParts _mailContentParts;
+
+        // Friends panel: cached profile button info for label override
+        private GameObject _profileButtonGO;
+        private string _profileLabel;
 
         // Element tracking
         private float _bladeAutoExpandDelay;
@@ -167,10 +172,28 @@ namespace AccessibleArena.Core.Services
         // instead of the full rescan announcement (set when adding/removing a card)
         private bool _announceDeckCountOnRescan;
 
+        // ReadOnly deck builder mode (starter/precon decks)
+        private bool _isDeckBuilderReadOnly;
+
         // 2D sub-navigation state for DeckBuilderInfo group
         // Rows navigated with Up/Down, entries within rows navigated with Left/Right
         private List<(string label, List<string> entries)> _deckInfoRows;
         private int _deckInfoEntryIndex;
+
+        // Friend section sub-navigation state
+        // Left/Right cycles available actions for the current friend entry
+        private List<(string label, string actionId)> _friendActions;
+        private int _friendActionIndex;
+
+        // Packet selection sub-navigation state
+        // Left/Right cycles info blocks for the current packet
+        private List<CardInfoBlock> _packetBlocks;
+        private int _packetBlockIndex;
+
+        // Popup overlay tracking
+        private GameObject _activePopup;
+        private bool _isPopupActive;
+        private readonly PopupHandler _popupHandler;
 
         #endregion
 
@@ -300,6 +323,8 @@ namespace AccessibleArena.Core.Services
             _groupAssigner = new ElementGroupAssigner(_overlayDetector);
             _groupedNavigator = new GroupedNavigator(announcer, _groupAssigner);
             _playBladeHelper = new PlayBladeNavigationHelper(_groupedNavigator);
+            _challengeHelper = new ChallengeNavigationHelper(_groupedNavigator, announcer);
+            _popupHandler = new PopupHandler(NavigatorId, announcer);
 
             // Subscribe to PanelStateManager for rescan triggers
             if (PanelStateManager.Instance != null)
@@ -322,6 +347,7 @@ namespace AccessibleArena.Core.Services
             // ALWAYS check PlayBlade state first, before any early returns
             // PlayBlade state can change even when panel source is SocialUI
             CheckAndInitPlayBladeHelper("ActiveChanged");
+            CheckAndInitChallengeHelper("ActiveChanged");
 
             // Ignore SocialUI as SOURCE of change - it's just the corner icon, causes spurious rescans
             // But DO rescan when something closes and falls back to SocialUI (e.g., popup closes)
@@ -336,6 +362,23 @@ namespace AccessibleArena.Core.Services
             {
                 LogDebug($"[{NavigatorId}] Ignoring SettingsMenu panel change");
                 return;
+            }
+
+            // Detect popup transitions
+            if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
+            {
+                if (!_isPopupActive)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
+                    _isPopupActive = true;
+                    _activePopup = newPanel.GameObject;
+                    _popupHandler.OnPopupDetected(newPanel.GameObject);
+                }
+            }
+            else if (_isPopupActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup closed, was: {_activePopup?.name}");
+                ClearPopupState();
             }
 
             // Reset mail detail view state when mailbox closes
@@ -361,6 +404,19 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void CheckAndInitPlayBladeHelper(string source)
         {
+            // Challenge screen uses PlayBladeState >= 2; skip normal PlayBlade init for those
+            int bladeState = PanelStateManager.Instance?.PlayBladeState ?? 0;
+            if (bladeState >= 2)
+            {
+                // If PlayBlade helper was active for regular blade, close it
+                if (_playBladeHelper.IsActive)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] CheckPlayBlade({source}): Challenge state {bladeState} - closing PlayBlade helper");
+                    _playBladeHelper.OnPlayBladeClosed();
+                }
+                return; // Challenge handled by CheckAndInitChallengeHelper
+            }
+
             bool isPlayBladeNowActive = PanelStateManager.Instance?.IsPlayBladeActive == true;
             bool helperIsActive = _playBladeHelper.IsActive;
 
@@ -379,6 +435,28 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Detect challenge screen state changes and initialize/close ChallengeNavigationHelper.
+        /// PlayBladeState 2 = DirectChallenge, 3 = FriendChallenge.
+        /// </summary>
+        private void CheckAndInitChallengeHelper(string source)
+        {
+            int bladeState = PanelStateManager.Instance?.PlayBladeState ?? 0;
+            bool isChallengeNow = bladeState >= 2;
+            bool helperIsActive = _challengeHelper.IsActive;
+
+            if (isChallengeNow && !helperIsActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Challenge screen became active (state={bladeState}) - initializing helper ({source})");
+                _challengeHelper.OnChallengeOpened();
+            }
+            else if (!isChallengeNow && helperIsActive)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Challenge screen became inactive - closing helper ({source})");
+                _challengeHelper.OnChallengeClosed();
+            }
+        }
+
+        /// <summary>
         /// Handler for PanelStateManager.OnAnyPanelOpened - fires when ANY panel opens.
         /// Used for triggering rescans on screens that don't filter (e.g., HomePage).
         /// Also handles special behaviors like Color Challenge blade auto-expand.
@@ -389,6 +467,7 @@ namespace AccessibleArena.Core.Services
 
             // ALWAYS check PlayBlade state first, before any early returns
             CheckAndInitPlayBladeHelper("AnyOpened");
+            CheckAndInitChallengeHelper("AnyOpened");
 
             // SocialUI events: only rescan if the Friends panel is actually open
             // The corner social button triggers SocialUI events but shouldn't cause rescans
@@ -417,12 +496,6 @@ namespace AccessibleArena.Core.Services
             {
                 _bladeAutoExpandDelay = BladeAutoExpandDelay;
                 LogDebug($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
-            }
-
-            // Announce popup body text when a popup/dialog opens
-            if (panel?.GameObject != null && IsPopupOverlay(panel.GameObject))
-            {
-                AnnouncePopupBodyText(panel.GameObject);
             }
 
             TriggerRescan();
@@ -671,32 +744,61 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Override carousel arrow handling to support booster carousel navigation.
+        /// Override carousel arrow handling to support grouped navigation and booster carousel.
+        /// In grouped navigation mode, _currentIndex may be out of sync with GroupedNavigator's
+        /// current element. We sync it here before delegating to base for carousel/stepper handling.
         /// </summary>
         protected override bool HandleCarouselArrow(bool isNext)
         {
-            // Check if current element is in the booster carousel
-            if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
+            // When grouped navigation is active, sync _currentIndex with GroupedNavigator
+            // so base.HandleCarouselArrow reads the correct element's carousel info
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
-                // Get current element from grouped navigator or base elements
+                var currentElement = _groupedNavigator.CurrentElement;
                 GameObject currentObj = null;
-                if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+
+                if (currentElement != null)
                 {
-                    var currentElement = _groupedNavigator.CurrentElement;
-                    currentObj = currentElement?.GameObject;
+                    currentObj = currentElement.Value.GameObject;
                 }
-                else if (IsValidIndex)
+                else if (_groupedNavigator.IsCurrentGroupStandalone)
                 {
-                    currentObj = _elements[_currentIndex].GameObject;
+                    // Standalone groups are navigated at GroupList level, so CurrentElement is null.
+                    // Get the element directly from the standalone group.
+                    currentObj = _groupedNavigator.GetStandaloneElement();
                 }
 
-                if (currentObj != null && _boosterPackHitboxes.Contains(currentObj))
+                if (currentObj == null) return false;
+
+                // Booster carousel special handling
+                if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0 &&
+                    _boosterPackHitboxes.Contains(currentObj))
+                {
+                    return HandleBoosterCarouselNavigation(isNext);
+                }
+
+                // Find the matching element in _elements and sync _currentIndex
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == currentObj)
+                    {
+                        _currentIndex = i;
+                        return base.HandleCarouselArrow(isNext);
+                    }
+                }
+
+                return false; // Element not found in flat list
+            }
+
+            // Flat navigation: booster check then base
+            if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0 && IsValidIndex)
+            {
+                if (_boosterPackHitboxes.Contains(_elements[_currentIndex].GameObject))
                 {
                     return HandleBoosterCarouselNavigation(isNext);
                 }
             }
 
-            // Fall back to base implementation for other carousels
             return base.HandleCarouselArrow(isNext);
         }
 
@@ -742,6 +844,26 @@ namespace AccessibleArena.Core.Services
                         return Strings.ScreenHome;
                 }
 
+                // ReadOnly deck builder gets distinct screen name
+                if (_isDeckBuilderReadOnly && _activeContentController == "WrapperDeckBuilder")
+                    return Strings.ScreenDeckBuilderReadOnly;
+
+                // Event page: append event title (e.g., "Event: Jump In")
+                if (_activeContentController == "EventPageContentController")
+                {
+                    string eventTitle = EventAccessor.GetEventPageTitle();
+                    if (!string.IsNullOrEmpty(eventTitle))
+                        return Strings.EventScreenTitle(eventTitle);
+                }
+
+                // Packet selection: append packet number (e.g., "Packet Selection, Packet 1 of 2")
+                if (_activeContentController == "PacketSelectContentController")
+                {
+                    string packetSummary = EventAccessor.GetPacketScreenSummary();
+                    if (!string.IsNullOrEmpty(packetSummary))
+                        return $"{baseName}, {packetSummary}";
+                }
+
                 return baseName;
             }
 
@@ -775,6 +897,7 @@ namespace AccessibleArena.Core.Services
             _currentScene = sceneName;
             _hasLoggedUIOnce = false;
             _activationDelay = ActivationDelaySeconds;
+            _isDeckBuilderReadOnly = false;
 
             // Reset NPE button tracking for new scene
             _npeButtonCheckTimer = NPEButtonCheckInterval;
@@ -805,6 +928,8 @@ namespace AccessibleArena.Core.Services
         {
             base.OnDeactivating();
 
+            ClearPopupState();
+
             _screenDetector.Reset();
 
             // Soft reset PanelStateManager (preserve tracking, clear announced state)
@@ -824,11 +949,13 @@ namespace AccessibleArena.Core.Services
             bool needsPositionAnnouncement = _suppressNavigationAnnouncement;
             _suppressNavigationAnnouncement = false; // Clear the flag
 
-            // Get old collection count before rescan (if grouped navigation is active)
-            int oldCollectionCount = 0;
+            // Get old collection/sideboard count before rescan (if grouped navigation is active)
+            int oldPoolCount = 0;
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
-                oldCollectionCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection);
+                // Check both collection and sideboard (draft uses sideboard for pool cards)
+                oldPoolCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection)
+                             + _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderSideboard);
 
                 // Save current group position so rescan restores it
                 // (Tab already cycled to Collection, don't lose that)
@@ -843,10 +970,14 @@ namespace AccessibleArena.Core.Services
             _currentIndex = -1;
             DiscoverElements();
 
-            // Inject deck info virtual group in deck builder context
+            // Inject virtual groups based on context
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 InjectDeckInfoGroup();
+            }
+            else if (_activeContentController == "EventPageContentController")
+            {
+                InjectEventInfoGroup();
             }
 
             if (_elements.Count > 0)
@@ -858,8 +989,9 @@ namespace AccessibleArena.Core.Services
             // After rescan, announce the results
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
-                int newCollectionCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection);
-                MelonLogger.Msg($"[{NavigatorId}] Search rescan collection: {oldCollectionCount} -> {newCollectionCount} cards");
+                int newPoolCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection)
+                               + _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderSideboard);
+                MelonLogger.Msg($"[{NavigatorId}] Search rescan pool: {oldPoolCount} -> {newPoolCount} cards");
 
                 // If we suppressed the navigation announcement, now announce current position
                 if (needsPositionAnnouncement)
@@ -871,16 +1003,16 @@ namespace AccessibleArena.Core.Services
                         _announcer.AnnounceInterrupt(currentAnnouncement);
                     }
                 }
-                else if (newCollectionCount != oldCollectionCount)
+                else if (newPoolCount != oldPoolCount)
                 {
                     // Normal case (Escape from search) - just announce count change
-                    if (newCollectionCount == 0)
+                    if (newPoolCount == 0)
                     {
                         _announcer.AnnounceInterrupt("No search results");
                     }
                     else
                     {
-                        _announcer.AnnounceInterrupt(Models.Strings.SearchResults(newCollectionCount));
+                        _announcer.AnnounceInterrupt(Models.Strings.SearchResults(newPoolCount));
                     }
                 }
             }
@@ -992,8 +1124,32 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Challenge screen: poll for opponent status changes
+            if (_challengeHelper.IsActive)
+                _challengeHelper.Update(Time.deltaTime);
+
             // Panel detection handled by PanelDetectorManager via events (OnPanelChanged/OnAnyPanelOpened)
             base.Update();
+        }
+
+        /// <summary>
+        /// Early input hook: route popup input before BaseNavigator's auto-focus logic.
+        /// Without this, MTGA's auto-focused input fields in popups would be intercepted
+        /// by BaseNavigator's arrow key handling before PopupHandler gets a chance to run.
+        /// </summary>
+        protected override bool HandleEarlyInput()
+        {
+            if (_isPopupActive)
+            {
+                if (!_popupHandler.ValidatePopup())
+                {
+                    ClearPopupState();
+                    return false;
+                }
+                _popupHandler.HandleInput();
+                return true; // Consume all input while popup is active
+            }
+            return false;
         }
 
         /// <summary>
@@ -1066,7 +1222,23 @@ namespace AccessibleArena.Core.Services
                     return false; // Let it pass through to the input field
                 }
 
-                // PlayBlade gets priority - helper handles all PlayBlade navigation
+                // Challenge helper gets priority over PlayBlade
+                if (_challengeHelper.IsActive)
+                {
+                    var challengeResult = _challengeHelper.HandleBackspace();
+                    switch (challengeResult)
+                    {
+                        case PlayBladeResult.CloseBlade:
+                            return ClosePlayBlade();
+                        case PlayBladeResult.RescanNeeded:
+                            TriggerRescan();
+                            return true;
+                        case PlayBladeResult.Handled:
+                            return true;
+                    }
+                }
+
+                // PlayBlade navigation
                 var playBladeResult = _playBladeHelper.HandleBackspace();
                 switch (playBladeResult)
                 {
@@ -1079,7 +1251,7 @@ namespace AccessibleArena.Core.Services
                         return true;
                 }
 
-                // Not PlayBlade - use grouped navigation if inside a group
+                // Not PlayBlade/Challenge - use grouped navigation if inside a group
                 if (HandleGroupedBackspace())
                     return true;
 
@@ -1108,6 +1280,20 @@ namespace AccessibleArena.Core.Services
                 if (IsDeckInfoSubNavActive())
                 {
                     HandleDeckInfoEntryNavigation(isRight);
+                    return true;
+                }
+
+                // Friend section sub-navigation: Left/Right cycles available actions
+                if (IsFriendSectionActive() && _friendActions != null && _friendActions.Count > 0)
+                {
+                    HandleFriendActionNavigation(isRight);
+                    return true;
+                }
+
+                // Packet selection: Left/Right navigates info blocks within current packet
+                if (IsInPacketSelectionContext() && _packetBlocks != null && _packetBlocks.Count > 0)
+                {
+                    HandlePacketBlockNavigation(isRight);
                     return true;
                 }
 
@@ -1291,12 +1477,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsInCollectionCardContext()
         {
-            // Check if current element is in DeckBuilderCollection or DeckBuilderDeckList group
+            // Check if current element is in any deck builder card group (collection, sideboard, or deck list)
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 var currentGroup = _groupedNavigator.CurrentGroup;
-                if (currentGroup?.Group == ElementGroup.DeckBuilderCollection ||
-                    currentGroup?.Group == ElementGroup.DeckBuilderDeckList)
+                if (currentGroup?.Group.IsDeckBuilderCardGroup() == true)
                     return true;
             }
 
@@ -1318,6 +1503,24 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Check if we're in packet selection context (Jump In) where Left/Right navigates packets.
+        /// </summary>
+        private bool IsInPacketSelectionContext()
+        {
+            if (_activeContentController != "PacketSelectContentController")
+                return false;
+
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return false;
+
+            var currentElement = _groupedNavigator.CurrentElement;
+            if (currentElement == null) return false;
+
+            var go = currentElement.Value.GameObject;
+            return go != null && EventAccessor.IsInsideJumpStartPacket(go);
         }
 
         /// <summary>
@@ -1390,10 +1593,19 @@ namespace AccessibleArena.Core.Services
 
             if (activeOverlay != null)
             {
+                // Friend panel sub-groups: handle backspace at group level as close panel
+                if (activeOverlay.Value == ElementGroup.FriendsPanel || activeOverlay.Value.IsFriendPanelGroup())
+                {
+                    // If inside a group, let HandleGroupedBackspace exit to group level first
+                    if (_groupedNavigator.Level == NavigationLevel.InsideGroup)
+                        return HandleGroupedBackspace();
+                    // At group level, close the panel
+                    return CloseSocialPanel();
+                }
+
                 return activeOverlay switch
                 {
-                    ElementGroup.Popup => DismissPopup(),
-                    ElementGroup.FriendsPanel => CloseSocialPanel(),
+                    ElementGroup.Popup => false, // Handled by PopupHandler
                     ElementGroup.MailboxContent => CloseMailDetailView(), // Close mail, return to list
                     ElementGroup.MailboxList => CloseMailbox(), // Close mailbox entirely
                     // RewardsPopup handled by RewardPopupNavigator
@@ -1558,45 +1770,13 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Dismiss the current popup/dialog.
+        /// Clear popup tracking state.
         /// </summary>
-        private bool DismissPopup()
+        private void ClearPopupState()
         {
-            LogDebug($"[{NavigatorId}] Dismissing popup");
-            if (_foregroundPanel != null)
-            {
-                var closeButton = FindCloseButtonInPanel(_foregroundPanel);
-                if (closeButton != null)
-                {
-                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
-                    UIActivator.Activate(closeButton);
-                    TriggerRescan();
-                    return true;
-                }
-            }
-
-            return TryGenericBackButton();
-        }
-
-        /// <summary>
-        /// Announce the body text of a popup/dialog when it opens.
-        /// This helps users understand what the popup is asking before navigating to buttons.
-        /// </summary>
-        private void AnnouncePopupBodyText(GameObject popupGameObject)
-        {
-            if (popupGameObject == null) return;
-
-            string bodyText = UITextExtractor.GetPopupBodyText(popupGameObject);
-
-            if (!string.IsNullOrWhiteSpace(bodyText))
-            {
-                LogDebug($"[{NavigatorId}] Popup body text: {bodyText}");
-                _announcer.Announce(bodyText, Models.AnnouncementPriority.High);
-            }
-            else
-            {
-                LogDebug($"[{NavigatorId}] No popup body text found for: {popupGameObject.name}");
-            }
+            _isPopupActive = false;
+            _activePopup = null;
+            _popupHandler.Clear();
         }
 
         /// <summary>
@@ -1851,6 +2031,20 @@ namespace AccessibleArena.Core.Services
         {
             LogDebug($"[{NavigatorId}] Attempting to close PlayBlade");
 
+            // Challenge screen: try the Leave button first
+            if (_challengeHelper.IsActive)
+            {
+                var leaveButton = GameObject.Find("MainButton_Leave");
+                if (leaveButton != null && leaveButton.activeInHierarchy)
+                {
+                    LogDebug($"[{NavigatorId}] Found MainButton_Leave, activating");
+                    _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
+                    UIActivator.Activate(leaveButton);
+                    ClearBladeStateAndRescan();
+                    return true;
+                }
+            }
+
             var bladeIsOpenButton = GameObject.Find("Btn_BladeIsOpen");
             if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
             {
@@ -1882,6 +2076,8 @@ namespace AccessibleArena.Core.Services
         {
             LogDebug($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
             _playBladeHelper.OnPlayBladeClosed();
+            if (_challengeHelper.IsActive)
+                _challengeHelper.OnChallengeClosed();
             ReportPanelClosedByName("PlayBlade");
             PanelStateManager.Instance?.SetPlayBladeState(0);
             TriggerRescan();
@@ -1893,6 +2089,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DumpUIHierarchy()
         {
+            // If challenge screen is active, do a deep challenge blade dump instead
+            if (_challengeHelper.IsActive)
+            {
+                MenuDebugHelper.DumpChallengeBlade(NavigatorId, _announcer);
+                return;
+            }
             MenuDebugHelper.DumpUIHierarchy(NavigatorId, _announcer);
         }
 
@@ -1957,45 +2159,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Find and activate the Home button to return to the main menu.
-        /// </summary>
-        private bool NavigateToHome()
-        {
-            var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)");
-            if (navBar == null)
-            {
-                navBar = GameObject.Find("NavBar");
-            }
-
-            if (navBar == null)
-            {
-                LogDebug($"[{NavigatorId}] NavBar not found for Home navigation");
-                _announcer.Announce(Models.Strings.CannotNavigateHome, Models.AnnouncementPriority.High);
-                return true;
-            }
-
-            var homeButtonTransform = navBar.transform.Find("Base/Nav_Home");
-            GameObject homeButton = homeButtonTransform?.gameObject;
-            if (homeButton == null)
-            {
-                homeButton = FindChildByName(navBar.transform, "Nav_Home");
-            }
-
-            if (homeButton == null || !homeButton.activeInHierarchy)
-            {
-                LogDebug($"[{NavigatorId}] Home button not found or inactive");
-                _announcer.Announce(Models.Strings.HomeNotAvailable, Models.AnnouncementPriority.High);
-                return true;
-            }
-
-            LogDebug($"[{NavigatorId}] Navigating to Home via Backspace");
-            _announcer.Announce(Models.Strings.ReturningHome, Models.AnnouncementPriority.High);
-            UIActivator.Activate(homeButton);
-
-            return true;
-        }
-
-        /// <summary>
         /// Check if element should be shown based on current foreground layer.
         /// Uses OverlayDetector for overlay detection, falls back to content panel filtering.
         /// </summary>
@@ -2003,6 +2166,10 @@ namespace AccessibleArena.Core.Services
         {
             // Exclude Options_Button globally - it's the settings gear icon, always reachable via Escape
             if (obj.name == "Options_Button")
+                return false;
+
+            // Exclude Leave button in challenge screen - Backspace shortcut handles this
+            if (obj.name == "MainButton_Leave")
                 return false;
 
             // In mail content view, filter out buttons that have no actual text content
@@ -2059,6 +2226,286 @@ namespace AccessibleArena.Core.Services
         {
             var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
             return socialPanel != null && IsChildOf(obj, socialPanel);
+        }
+
+        /// <summary>
+        /// Discover social tile entries that were missed by the standard CustomButton scan.
+        /// Handles two cases:
+        /// 1. Tiles with non-CustomButton clickable components
+        /// 2. Tiles in collapsed/inactive sections (Blocked section is collapsed by default)
+        /// For collapsed sections, expands them first so entries become active and interactable.
+        /// </summary>
+        private void DiscoverSocialTileEntries(
+            HashSet<GameObject> addedObjects,
+            List<(GameObject obj, UIElementClassifier.ClassificationResult classification, float sortOrder)> discoveredElements,
+            System.Func<GameObject, string> getParentPath)
+        {
+            // Find the social panel root
+            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+            if (socialPanel == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Social tile scan: social panel not found");
+                return;
+            }
+
+            // Step 1: Ensure tiles exist for all sections (especially Blocked which is collapsed by default).
+            // The game uses a virtualized scroll view - tiles only exist for viewport-visible entries.
+            // For blocked users, we need to force-create tiles via the FriendsWidget.
+            EnsureAllSocialTilesExist(socialPanel);
+
+            // Step 2: Scan for tile components (now including newly created ones)
+            string[] tileTypeNames = { "FriendTile", "InviteOutgoingTile", "InviteIncomingTile", "BlockTile" };
+            int scanned = 0;
+            int added = 0;
+
+            foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null) continue;
+
+                string typeName = mb.GetType().Name;
+                bool isTile = false;
+                foreach (var tileName in tileTypeNames)
+                {
+                    if (typeName == tileName) { isTile = true; break; }
+                }
+                if (!isTile) continue;
+                scanned++;
+
+                var tileObj = mb.gameObject;
+                if (!tileObj.activeInHierarchy)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Social tile scan: {typeName} '{tileObj.name}' is INACTIVE");
+                    continue;
+                }
+
+                // Try to find the clickable child element (Backer_Hitbox is the standard pattern)
+                GameObject clickable = null;
+                var hitbox = tileObj.transform.Find("Backer_Hitbox");
+                if (hitbox != null && hitbox.gameObject.activeInHierarchy)
+                    clickable = hitbox.gameObject;
+
+                // Fallback: search immediate children for any Button or CustomButton component
+                if (clickable == null)
+                {
+                    foreach (Transform child in tileObj.transform)
+                    {
+                        if (!child.gameObject.activeInHierarchy) continue;
+                        foreach (var comp in child.GetComponents<MonoBehaviour>())
+                        {
+                            if (comp != null && (IsCustomButtonType(comp.GetType().Name) || comp is Button))
+                            {
+                                clickable = child.gameObject;
+                                break;
+                            }
+                        }
+                        if (clickable != null) break;
+                    }
+                }
+
+                // Last resort: use the tile's own GameObject
+                if (clickable == null)
+                    clickable = tileObj;
+
+                // Skip if this element was already discovered by the standard scan
+                if (addedObjects.Contains(clickable)) continue;
+
+                // Get label from FriendInfoProvider for proper "name, status" format
+                string label = FriendInfoProvider.GetFriendLabel(clickable);
+                if (string.IsNullOrEmpty(label))
+                    label = FriendInfoProvider.GetFriendLabel(tileObj);
+                if (string.IsNullOrEmpty(label))
+                    label = UITextExtractor.GetText(tileObj) ?? tileObj.name;
+
+                var pos = clickable.transform.position;
+                float sortOrder = -pos.y * 1000 + pos.x;
+
+                discoveredElements.Add((clickable, new UIElementClassifier.ClassificationResult
+                {
+                    Role = UIElementClassifier.ElementRole.Button,
+                    Label = label,
+                    RoleLabel = "button",
+                    IsNavigable = true,
+                    ShouldAnnounce = true
+                }, sortOrder));
+                addedObjects.Add(clickable);
+                added++;
+
+                string parentPath = getParentPath(clickable);
+                MelonLogger.Msg($"[{NavigatorId}] Social tile fallback: {typeName} -> {clickable.name}, label='{label}', path={parentPath}");
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Social tile scan: {scanned} tiles found, {added} new entries added");
+
+            // Step 3: Find the StatusButton (local player profile) and register it
+            // The StatusButton is a CustomButton showing the player's display name.
+            // We register its instance ID so the group assigner routes it to FriendsPanelProfile,
+            // and cache the full username (with #number) for label override in the final addition loop.
+            _profileButtonGO = null;
+            _profileLabel = null;
+            var statusButtonGO = FriendInfoProvider.GetStatusButton(socialPanel);
+            if (statusButtonGO != null)
+            {
+                var (fullName, statusText) = FriendInfoProvider.GetLocalPlayerInfo(socialPanel);
+                if (!string.IsNullOrEmpty(fullName))
+                {
+                    _profileButtonGO = statusButtonGO;
+                    _profileLabel = !string.IsNullOrEmpty(statusText)
+                        ? $"{fullName}, {statusText}"
+                        : fullName;
+                    _groupAssigner.SetProfileButtonId(statusButtonGO.GetInstanceID());
+                    MelonLogger.Msg($"[{NavigatorId}] Profile button registered: {statusButtonGO.name} (ID:{statusButtonGO.GetInstanceID()}), label='{_profileLabel}'");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ensure all social tile entries exist, especially for the Blocked section.
+        /// The game uses a virtualized scroll view and the Blocked section is collapsed by default,
+        /// so tiles may not exist. We force-create them via the FriendsWidget using reflection.
+        /// </summary>
+        private void EnsureAllSocialTilesExist(GameObject socialPanel)
+        {
+            // Find FriendsWidget component
+            Component widget = null;
+            foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "FriendsWidget")
+                {
+                    widget = mb;
+                    break;
+                }
+            }
+
+            if (widget == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] FriendsWidget not found in social panel");
+                return;
+            }
+
+            var widgetType = widget.GetType();
+            var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+            // Open all collapsed sections by setting _isOpen directly (avoids triggering sound effects)
+            foreach (var sectionName in new[] { "SectionBlocks", "SectionIncomingInvites", "SectionOutgoingInvites", "SectionFriends" })
+            {
+                var sectionField = widgetType.GetField(sectionName, flags);
+                if (sectionField == null) continue;
+
+                var header = sectionField.GetValue(widget) as Component;
+                if (header == null) continue;
+
+                var isOpenField = header.GetType().GetField("_isOpen", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (isOpenField != null)
+                {
+                    bool isOpen = (bool)isOpenField.GetValue(header);
+                    if (!isOpen)
+                    {
+                        isOpenField.SetValue(header, true);
+                        MelonLogger.Msg($"[{NavigatorId}] Opened social section: {sectionName}");
+                    }
+                }
+            }
+
+            // Force-create blocked user tiles.
+            // The game's virtualized list only creates tiles within the viewport.
+            // Blocked section is at the bottom and collapsed, so tiles never get created.
+            EnsureBlockedTilesExist(widget, widgetType, flags);
+        }
+
+        /// <summary>
+        /// Ensure BlockTile instances exist for all blocked users.
+        /// Creates tiles from the prefab and initializes them with Block data,
+        /// mirroring what FriendsWidget.CreateWidget_Block + UpdateBlocksList do.
+        /// </summary>
+        private void EnsureBlockedTilesExist(Component widget, Type widgetType, BindingFlags flags)
+        {
+            try
+            {
+                // Access _socialManager from FriendsWidget
+                var smField = widgetType.GetField("_socialManager", flags);
+                var socialManager = smField?.GetValue(widget);
+                if (socialManager == null) return;
+
+                // Get blocked users list: _socialManager.Blocks
+                var blocksProp = socialManager.GetType().GetProperty("Blocks");
+                var blocks = blocksProp?.GetValue(socialManager) as System.Collections.IList;
+                if (blocks == null || blocks.Count == 0) return;
+
+                // Get the section header
+                var sectionField = widgetType.GetField("SectionBlocks", flags);
+                var section = sectionField?.GetValue(widget) as Component;
+                if (section == null) return;
+
+                // Ensure section header is visible (SetCount activates the header if count > 0)
+                var setCount = section.GetType().GetMethod("SetCount");
+                setCount?.Invoke(section, new object[] { blocks.Count });
+
+                // Get the active block tiles pool
+                var tilesField = widgetType.GetField("_activeBlockTiles", flags);
+                var activeTiles = tilesField?.GetValue(widget) as System.Collections.IList;
+                if (activeTiles == null) return;
+
+                // Get the prefab for BlockTile
+                var prefabField = widgetType.GetField("_prefabBlockTile", flags);
+                var prefab = prefabField?.GetValue(widget) as Component;
+                if (prefab == null) return;
+
+                // Get RemoveBlock method from social manager for callback
+                var removeBlockMethod = socialManager.GetType().GetMethod("RemoveBlock");
+
+                // Get WidgetSize for tile positioning
+                var widgetSizeField = widgetType.GetField("WidgetSize", flags);
+                float widgetSize = widgetSizeField != null ? (float)widgetSizeField.GetValue(widget) : 60f;
+
+                // Create tiles until we have enough for all blocked users
+                int created = 0;
+                for (int i = activeTiles.Count; i < blocks.Count; i++)
+                {
+                    var tile = UnityEngine.Object.Instantiate(prefab, section.transform);
+                    activeTiles.Add(tile);
+                    created++;
+
+                    // Set Callback_RemoveBlock = _socialManager.RemoveBlock
+                    if (removeBlockMethod != null)
+                    {
+                        var callbackField = tile.GetType().GetField("Callback_RemoveBlock", flags);
+                        if (callbackField != null)
+                        {
+                            try
+                            {
+                                var callback = Delegate.CreateDelegate(callbackField.FieldType, socialManager, removeBlockMethod);
+                                callbackField.SetValue(tile, callback);
+                            }
+                            catch (Exception ex)
+                            {
+                                MelonLogger.Warning($"[{NavigatorId}] Failed to set RemoveBlock callback: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+
+                // Initialize all tiles with their block data and position them
+                var initMethod = prefab.GetType().GetMethod("Init", flags);
+                for (int i = 0; i < blocks.Count && i < activeTiles.Count; i++)
+                {
+                    var tile = activeTiles[i] as Component;
+                    if (tile == null) continue;
+
+                    initMethod?.Invoke(tile, new[] { blocks[i] });
+
+                    // Position tile for proper sort order within the group
+                    var rt = tile.transform as RectTransform;
+                    if (rt != null)
+                        rt.anchoredPosition = new Vector2(0f, -i * widgetSize);
+                }
+
+                if (created > 0 || blocks.Count > 0)
+                    MelonLogger.Msg($"[{NavigatorId}] Blocked tiles: {blocks.Count} blocked users, {created} new tiles created, {activeTiles.Count} total");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[{NavigatorId}] Error ensuring blocked tiles: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -2135,7 +2582,7 @@ namespace AccessibleArena.Core.Services
         {
             if (obj == null) return false;
             string name = obj.name;
-            return name.Contains("Popup") || name.Contains("SystemMessageView");
+            return name.Contains("Popup") || name.Contains("SystemMessageView") || name.Contains("ChallengeInviteWindow");
         }
 
         /// <summary>
@@ -2402,6 +2849,111 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Override spinner rescan to handle grouped navigation state.
+        /// In PlayBlade context (challenge mode), SaveCurrentGroupForRestore is skipped
+        /// by GroupedNavigator (by design). Instead we use RequestPlayBladeContentEntryAtIndex
+        /// to auto-enter the PlayBladeContent group at the user's current stepper position.
+        /// </summary>
+        protected override void RescanAfterSpinnerChange()
+        {
+            if (!IsActive || !IsValidIndex) return;
+
+            // Save state for grouped navigation restoration
+            bool usePlayBladeContentRestore = false;
+            bool useChallengeMainRestore = false;
+            int groupedElementIndex = -1;
+
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            {
+                var currentGroup = _groupedNavigator.CurrentGroup;
+                if (_groupedNavigator.IsChallengeContext &&
+                    currentGroup.HasValue &&
+                    currentGroup.Value.Group == ElementGroup.ChallengeMain)
+                {
+                    // Challenge context: use explicit ChallengeMain entry with element index.
+                    groupedElementIndex = _groupedNavigator.CurrentElementIndex;
+                    useChallengeMainRestore = true;
+                }
+                else if (_groupedNavigator.IsPlayBladeContext &&
+                    currentGroup.HasValue &&
+                    currentGroup.Value.Group == ElementGroup.PlayBladeContent)
+                {
+                    // PlayBlade context: SaveCurrentGroupForRestore is skipped (by design).
+                    // Use explicit content entry with element index instead.
+                    groupedElementIndex = _groupedNavigator.CurrentElementIndex;
+                    usePlayBladeContentRestore = true;
+                }
+                else if (!_groupedNavigator.HasPendingRestore)
+                {
+                    _groupedNavigator.SaveCurrentGroupForRestore();
+                }
+            }
+
+            var currentObj = _elements[_currentIndex].GameObject;
+            int oldCount = _elements.Count;
+
+            // Request auto-entry BEFORE rescan so OrganizeIntoGroups processes it
+            if (useChallengeMainRestore)
+            {
+                _groupedNavigator.RequestChallengeMainEntryAtIndex(groupedElementIndex);
+            }
+            else if (usePlayBladeContentRestore)
+            {
+                _groupedNavigator.RequestPlayBladeContentEntryAtIndex(groupedElementIndex);
+            }
+
+            // Challenge context: close DeckSelectBlade that auto-opens on spinner change
+            // This prevents inconsistent element counts (8 -> 3 -> 6 fluctuation)
+            if (_challengeHelper.IsActive)
+                ChallengeNavigationHelper.CloseDeckSelectBlade();
+
+            // Re-discover elements (rebuilds groups via OrganizeIntoGroups)
+            _elements.Clear();
+            _currentIndex = -1;
+            DiscoverElements();
+
+            if (_elements.Count == 0) return;
+
+            // Try to restore focus to the same element in flat list
+            if (currentObj != null)
+            {
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == currentObj)
+                    {
+                        _currentIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (_currentIndex < 0)
+                _currentIndex = 0;
+
+            // Announce count changes - but only in flat navigation mode
+            // In grouped mode, the stepper value was already announced and
+            // the group state is restored by auto-entry or SaveCurrentGroupForRestore
+            if (_elements.Count != oldCount)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Spinner rescan: {oldCount} -> {_elements.Count} elements");
+                if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                {
+                    string posAnnouncement = Models.Strings.ItemPositionOf(
+                        _currentIndex + 1, _elements.Count, _elements[_currentIndex].Label);
+                    _announcer.Announce(posAnnouncement, Models.AnnouncementPriority.Normal);
+                }
+            }
+
+            // Challenge context: announce tournament parameters after mode spinner change
+            if (_challengeHelper.IsActive)
+            {
+                var tournamentSummary = _challengeHelper.GetTournamentParametersSummary();
+                if (!string.IsNullOrEmpty(tournamentSummary))
+                    _announcer.Announce(tournamentSummary, Models.AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
         /// Schedule a rescan after a short delay to let UI settle.
         /// </summary>
         private void TriggerRescan()
@@ -2414,6 +2966,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void PerformRescan()
         {
+            // Skip rescan while popup is active - PopupHandler owns discovery
+            if (_isPopupActive)
+            {
+                LogDebug($"[{NavigatorId}] Skipping rescan - popup active");
+                return;
+            }
+
             // Store previous controller to detect screen transitions
             var previousController = _activeContentController;
 
@@ -2442,10 +3001,14 @@ namespace AccessibleArena.Core.Services
 
             DiscoverElements();
 
-            // Inject deck info virtual group in deck builder context
+            // Inject virtual groups based on context
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 InjectDeckInfoGroup();
+            }
+            else if (_activeContentController == "EventPageContentController")
+            {
+                InjectEventInfoGroup();
             }
 
             // Try to find the previously selected object in the new element list
@@ -2778,6 +3341,14 @@ namespace AccessibleArena.Core.Services
 
             // Note: Settings custom controls (dropdowns, steppers) now handled by SettingsMenuNavigator
 
+            // Social panel: discover tile entries that may not have CustomButton components.
+            // BlockTile has no CustomButton (only a Button), so it needs fallback discovery.
+            // Also forces creation of blocked tiles (section is collapsed by default).
+            if (_overlayDetector.GetActiveOverlay() == ElementGroup.FriendsPanel)
+            {
+                DiscoverSocialTileEntries(addedObjects, discoveredElements, GetParentPath);
+            }
+
             // Find deck toolbar buttons for attached actions (Delete, Edit, Export)
             // These are in DeckManager_Desktop_16x9(Clone)/SafeArea/MainButtons/
             var deckToolbarButtons = FindDeckToolbarButtons();
@@ -2894,6 +3465,14 @@ namespace AccessibleArena.Core.Services
 
                 string announcement = BuildAnnouncement(classification);
 
+                // Friends panel: override profile button label with full username#number
+                if (_profileButtonGO != null && obj == _profileButtonGO && _profileLabel != null)
+                    announcement = _profileLabel;
+
+                // Challenge context: prefix player name on challenge status buttons
+                if (_challengeHelper.IsActive)
+                    announcement = _challengeHelper.EnhanceButtonLabel(obj, announcement);
+
                 // Recent tab: enrich deck labels with event/mode name
                 if (recentDeckEventTitles.TryGetValue(obj, out var eventTitle))
                     announcement += " — " + eventTitle;
@@ -2905,7 +3484,8 @@ namespace AccessibleArena.Core.Services
                         HasArrowNavigation = true,
                         PreviousControl = classification.PreviousControl,
                         NextControl = classification.NextControl,
-                        SliderComponent = classification.SliderComponent
+                        SliderComponent = classification.SliderComponent,
+                        UseHoverActivation = classification.UseHoverActivation
                     }
                     : default;
 
@@ -2919,9 +3499,23 @@ namespace AccessibleArena.Core.Services
                         announcement += ", selected";
                     }
 
+                    // Append short invalid status (Level 1)
+                    string invalidStatus = UIActivator.GetDeckInvalidStatus(obj);
+                    if (!string.IsNullOrEmpty(invalidStatus))
+                    {
+                        announcement += $", {invalidStatus}";
+                    }
+
                     // Get the rename button (TextBox) for this deck
                     GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
                     attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
+
+                    // Insert detailed tooltip as first virtual info item (Level 2)
+                    string invalidTooltip = UIActivator.GetDeckInvalidTooltip(obj);
+                    if (!string.IsNullOrEmpty(invalidTooltip))
+                    {
+                        attachedActions.Insert(0, new AttachedAction { Label = invalidTooltip, TargetButton = null });
+                    }
 
                     if (attachedActions.Count > 0)
                     {
@@ -2941,12 +3535,20 @@ namespace AccessibleArena.Core.Services
             FindNPERewardCards(addedObjects);
 
             // Find deck builder collection cards (PoolHolder canvas)
-            // These are cards you can add to your deck
+            // Pool cards are always collection. Actual sideboard cards are in MetaCardHolders_Container,
+            // detected separately by FindSideboardCards().
             FindPoolHolderCards(addedObjects);
 
             // Find deck list cards (MainDeck_MetaCardHolder)
             // These are cards currently in your deck
             FindDeckListCards(addedObjects);
+
+            // Find sideboard cards (non-MainDeck holders in MetaCardHolders_Container)
+            // These are cards available to add to deck in draft/sealed
+            FindSideboardCards(addedObjects);
+
+            // ReadOnly deck builder: find cards in column view when list view is empty
+            FindReadOnlyDeckCards(addedObjects);
 
             // In mail content view, add mail fields (title, date, body) as navigable elements
             // These appear before buttons in the navigation list
@@ -3185,6 +3787,7 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
+                // Collection style: "CardName, TypeLine, ManaCost"
                 string label = cardInfo.Name;
 
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
@@ -3315,6 +3918,100 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Find sideboard cards in draft/sealed deck builder.
+        /// These are cards in non-MainDeck holders inside MetaCardHolders_Container.
+        /// </summary>
+        private void FindSideboardCards(HashSet<GameObject> addedObjects)
+        {
+            // Only active in deck builder
+            if (_activeContentController != "WrapperDeckBuilder")
+                return;
+
+            var sideboardCards = CardModelProvider.GetSideboardCards();
+            if (sideboardCards.Count == 0)
+                return;
+
+            LogDebug($"[{NavigatorId}] Found {sideboardCards.Count} sideboard card(s)");
+
+            int cardNum = 1;
+            foreach (var sideCard in sideboardCards)
+            {
+                if (!sideCard.IsValid) continue;
+
+                var cardObj = sideCard.TileButton;
+                if (cardObj == null || addedObjects.Contains(cardObj))
+                    continue;
+
+                string cardName = CardModelProvider.GetNameFromGrpId(sideCard.GrpId);
+                if (string.IsNullOrEmpty(cardName))
+                    cardName = $"Card #{sideCard.GrpId}";
+
+                string label = $"{sideCard.Quantity}x {cardName}";
+
+                LogDebug($"[{NavigatorId}] Adding sideboard card {cardNum}: {label}");
+
+                AddElement(cardObj, label);
+                addedObjects.Add(cardObj);
+                cardNum++;
+            }
+        }
+
+        /// <summary>
+        /// Find cards in read-only deck builder (StaticColumnMetaCardView in column view).
+        /// Only runs when the normal deck list is empty (no MainDeck_MetaCardHolder with list view).
+        /// </summary>
+        private void FindReadOnlyDeckCards(HashSet<GameObject> addedObjects)
+        {
+            // Only active in deck builder
+            if (_activeContentController != "WrapperDeckBuilder")
+                return;
+
+            // Reset flag each scan - will be re-set if read-only cards found
+            _isDeckBuilderReadOnly = false;
+
+            // Only try if the normal deck list didn't find cards
+            var normalDeckCards = CardModelProvider.GetDeckListCards();
+            if (normalDeckCards.Count > 0)
+                return;
+
+            LogDebug($"[{NavigatorId}] Normal deck list empty, checking for read-only column view...");
+
+            var readOnlyCards = CardModelProvider.GetReadOnlyDeckCards();
+            if (readOnlyCards.Count == 0)
+            {
+                LogDebug($"[{NavigatorId}] No read-only deck cards found");
+                return;
+            }
+
+            _isDeckBuilderReadOnly = true;
+            LogDebug($"[{NavigatorId}] Found {readOnlyCards.Count} read-only deck card(s)");
+
+            int cardNum = 1;
+            foreach (var deckCard in readOnlyCards)
+            {
+                if (!deckCard.IsValid) continue;
+
+                var cardObj = deckCard.CardGameObject;
+                if (cardObj == null || addedObjects.Contains(cardObj))
+                    continue;
+
+                // Get card name from GrpId
+                string cardName = CardModelProvider.GetNameFromGrpId(deckCard.GrpId);
+                if (string.IsNullOrEmpty(cardName))
+                    cardName = $"Card #{deckCard.GrpId}";
+
+                // Build label with quantity and card name
+                string label = $"{deckCard.Quantity}x {cardName}";
+
+                LogDebug($"[{NavigatorId}] Adding read-only deck card {cardNum}: {label}");
+
+                AddElement(cardObj, label);
+                addedObjects.Add(cardObj);
+                cardNum++;
+            }
+        }
+
+        /// <summary>
         /// Log the hierarchy of a transform for debugging purposes.
         /// </summary>
         private void LogHierarchy(Transform parent, string indent, int maxDepth)
@@ -3369,6 +4066,38 @@ namespace AccessibleArena.Core.Services
                 return classification.Label;
 
             return $"{classification.Label}, {classification.RoleLabel}";
+        }
+
+        /// <summary>
+        /// Override to intercept Enter on read-only deck cards.
+        /// Shows a warning instead of trying to activate (which would do nothing useful).
+        /// </summary>
+        protected override void ActivateCurrentElement()
+        {
+            if (_isDeckBuilderReadOnly && IsValidIndex)
+            {
+                var element = _elements[_currentIndex].GameObject;
+                if (element != null && CardDetector.IsCard(element))
+                {
+                    _announcer.AnnounceInterrupt(Strings.ReadOnlyDeckWarning);
+                    return;
+                }
+            }
+
+            // Packet elements need special click handling (CustomTouchButton on parent GO)
+            if (IsInPacketSelectionContext())
+            {
+                var currentElement = _groupedNavigator.CurrentElement;
+                if (currentElement != null && EventAccessor.ClickPacket(currentElement.Value.GameObject))
+                {
+                    _announcer.Announce(Models.Strings.ActivatedBare, AnnouncementPriority.Normal);
+                    // Game rebuilds packet GOs asynchronously after click - schedule rescan
+                    TriggerRescan();
+                    return;
+                }
+            }
+
+            base.ActivateCurrentElement();
         }
 
         /// <summary>
@@ -3537,6 +4266,7 @@ namespace AccessibleArena.Core.Services
         private static readonly ElementGroup[] DeckBuilderCycleGroups = new[]
         {
             ElementGroup.DeckBuilderCollection,  // Card pool (Collection)
+            ElementGroup.DeckBuilderSideboard,   // Sideboard cards (draft/sealed)
             ElementGroup.DeckBuilderDeckList,    // Deck list cards (cards in your deck)
             ElementGroup.DeckBuilderInfo,        // Deck info (card count, mana curve, types, colors)
             ElementGroup.Filters,                // Filter controls
@@ -3564,6 +4294,20 @@ namespace AccessibleArena.Core.Services
                         AnnounceDeckInfoEntry(includeRowName: true);
                     }
                     // If !moved, GroupedNavigator already announced "End of list"
+                    return;
+                }
+
+                // Friend section navigation: Up/Down navigates between friends
+                // Skip when Tab is pressed - let Tab handle group cycling
+                if (IsFriendSectionActive() && !Input.GetKey(KeyCode.Tab))
+                {
+                    bool moved = _groupedNavigator.MoveNext();
+                    if (moved)
+                    {
+                        RefreshFriendActions();
+                        AnnounceFriendEntry();
+                        AnnounceFirstFriendAction();
+                    }
                     return;
                 }
 
@@ -3628,6 +4372,19 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
+                // Friend section navigation: Up/Down navigates between friends
+                if (IsFriendSectionActive() && !Input.GetKey(KeyCode.Tab))
+                {
+                    bool moved = _groupedNavigator.MovePrevious();
+                    if (moved)
+                    {
+                        RefreshFriendActions();
+                        AnnounceFriendEntry();
+                        AnnounceFirstFriendAction();
+                    }
+                    return;
+                }
+
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
                 bool isTabPressed = Input.GetKey(KeyCode.Tab);
@@ -3681,7 +4438,16 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
                 _groupedNavigator.MoveFirst();
-                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                if (IsFriendSectionActive())
+                {
+                    RefreshFriendActions();
+                    AnnounceFriendEntry();
+                    AnnounceFirstFriendAction();
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                }
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
@@ -3712,18 +4478,28 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if it's a regular card (collection) or a deck list card
+            // Check if it's a regular card (collection), deck list card, or sideboard card
             bool isCard = CardDetector.IsCard(gameObject);
             bool isDeckListCard = CardModelProvider.IsDeckListCard(gameObject);
+            bool isSideboardCard = CardModelProvider.IsSideboardCard(gameObject);
 
-            if (isCard || isDeckListCard)
+            if (isCard || isDeckListCard || isSideboardCard)
             {
                 // Prepare card navigation for both collection cards and deck list cards
                 cardNavigator.PrepareForCard(gameObject, ZoneType.Hand);
             }
-            else if (cardNavigator.IsActive)
+            else if (EventAccessor.IsInsideJumpStartPacket(gameObject))
             {
-                cardNavigator.Deactivate();
+                // Packet element: refresh Left/Right info blocks
+                RefreshPacketBlocks(gameObject);
+                if (cardNavigator.IsActive)
+                    cardNavigator.Deactivate();
+            }
+            else
+            {
+                _packetBlocks = null;
+                if (cardNavigator.IsActive)
+                    cardNavigator.Deactivate();
             }
         }
 
@@ -3799,7 +4575,16 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
                 _groupedNavigator.MoveLast();
-                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                if (IsFriendSectionActive())
+                {
+                    RefreshFriendActions();
+                    AnnounceFriendEntry();
+                    AnnounceFirstFriendAction();
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                }
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
                 return;
@@ -3823,19 +4608,23 @@ namespace AccessibleArena.Core.Services
                 // Check if this is a standalone element (Primary action button)
                 if (_groupedNavigator.IsCurrentGroupStandalone)
                 {
-                    // Standalone element - activate directly without entering group
+                    // Virtual standalone element (no GameObject) - re-announce on Enter
                     var standaloneObj = _groupedNavigator.GetStandaloneElement();
-                    if (standaloneObj != null)
+                    if (standaloneObj == null)
                     {
-                        // Find the element in our _elements list and activate it
-                        for (int i = 0; i < _elements.Count; i++)
+                        _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        return true;
+                    }
+
+                    // Real standalone element - activate directly without entering group
+                    // Find the element in our _elements list and activate it
+                    for (int i = 0; i < _elements.Count; i++)
+                    {
+                        if (_elements[i].GameObject == standaloneObj)
                         {
-                            if (_elements[i].GameObject == standaloneObj)
-                            {
-                                _currentIndex = i;
-                                ActivateCurrentElement();
-                                return true;
-                            }
+                            _currentIndex = i;
+                            ActivateCurrentElement();
+                            return true;
                         }
                     }
                 }
@@ -3875,9 +4664,18 @@ namespace AccessibleArena.Core.Services
                 if (currentGroup.HasValue && currentGroup.Value.Group == ElementGroup.DeckBuilderDeckList)
                 {
                     CardModelProvider.ClearDeckListCache();
+                    CardModelProvider.ClearReadOnlyDeckCache();
                     // Force immediate refresh while UI is in active state
                     var deckCards = CardModelProvider.GetDeckListCards();
-                    MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList - refreshed {deckCards.Count} deck cards");
+                    if (deckCards.Count == 0 && _isDeckBuilderReadOnly)
+                    {
+                        var roCards = CardModelProvider.GetReadOnlyDeckCards();
+                        MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList (read-only) - refreshed {roCards.Count} deck cards");
+                    }
+                    else
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList - refreshed {deckCards.Count} deck cards");
+                    }
                 }
 
                 if (_groupedNavigator.EnterGroup())
@@ -3888,6 +4686,13 @@ namespace AccessibleArena.Core.Services
                     {
                         InitializeDeckInfoSubNav();
                         AnnounceDeckInfoEntry(includeRowName: true);
+                    }
+                    else if (enteredGroup.HasValue && enteredGroup.Value.Group.IsFriendSectionGroup())
+                    {
+                        // Friend section: initialize actions and announce first friend + default action
+                        RefreshFriendActions();
+                        AnnounceFriendEntry();
+                        AnnounceFirstFriendAction();
                     }
                     else
                     {
@@ -3920,6 +4725,23 @@ namespace AccessibleArena.Core.Services
                     if (_groupedNavigator.EnterSubgroup())
                     {
                         _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+                        return true;
+                    }
+                }
+
+                // Friend section: Enter activates the currently selected action
+                if (IsFriendSectionActive() && _friendActions != null && _friendActions.Count > 0
+                    && _friendActionIndex >= 0 && _friendActionIndex < _friendActions.Count)
+                {
+                    var friendElem = _groupedNavigator.CurrentElement;
+                    if (friendElem.HasValue && friendElem.Value.GameObject != null)
+                    {
+                        var (actionLabel, actionId) = _friendActions[_friendActionIndex];
+                        if (FriendInfoProvider.ActivateFriendAction(friendElem.Value.GameObject, actionId))
+                        {
+                            _announcer.Announce(Strings.Activated(actionLabel), AnnouncementPriority.High);
+                            TriggerRescan();
+                        }
                         return true;
                     }
                 }
@@ -4023,11 +4845,20 @@ namespace AccessibleArena.Core.Services
                 {
                     // Clear 2D sub-nav state when exiting DeckBuilderInfo
                     _deckInfoRows = null;
+                    // Clear friend action state when exiting friend section
+                    _friendActions = null;
+                    _friendActionIndex = 0;
 
                     if (wasFolderGroup)
                     {
+                        // In challenge context, go back to ChallengeMain after exiting a folder
+                        if (_challengeHelper.IsActive)
+                        {
+                            _groupedNavigator.RequestChallengeMainEntry();
+                            LogDebug($"[{NavigatorId}] Challenge folder exit - requesting ChallengeMain entry");
+                        }
                         // In PlayBlade context, go back to folders list after exiting a folder
-                        if (wasPlayBladeContext)
+                        else if (wasPlayBladeContext)
                         {
                             _groupedNavigator.RequestFoldersEntry();
                             LogDebug($"[{NavigatorId}] PlayBlade folder exit - requesting folders list entry");
@@ -4073,15 +4904,20 @@ namespace AccessibleArena.Core.Services
             // Check if this is a popup/dialog button (SystemMessageButton) - popup will close with animation
             bool isPopupButton = element.name.Contains("SystemMessageButton");
 
-            // Handle PlayBlade activations BEFORE UIActivator.Activate
+            // Handle Challenge/PlayBlade activations BEFORE UIActivator.Activate
             // Helper sets up pending entry flags before blade Hide/Show events can interfere
             var elementGroup = _groupAssigner.DetermineGroup(element);
+
+            // Challenge helper handles ChallengeMain elements (Select Deck button)
+            var challengeResult = _challengeHelper.IsActive
+                ? _challengeHelper.HandleEnter(element, elementGroup)
+                : PlayBladeResult.NotHandled;
 
             // Recent tab decks: skip PlayBlade helper (it would request folders entry, but
             // Recent tab has no folders — we handle auto-play directly below)
             bool isRecentTabDeck = elementGroup == ElementGroup.PlayBladeContent
                 && RecentPlayAccessor.IsActive && UIActivator.IsDeckEntry(element);
-            var playBladeResult = isRecentTabDeck
+            var playBladeResult = (isRecentTabDeck || _challengeHelper.IsActive)
                 ? PlayBladeResult.NotHandled
                 : _playBladeHelper.HandleEnter(element, elementGroup);
 
@@ -4110,8 +4946,20 @@ namespace AccessibleArena.Core.Services
             // Note: Mailbox mail item selection is detected via Harmony patch on OnLetterSelected
             // which announces the mail content directly with actual letter data
 
+            // Challenge deck selection: activate deck, return to ChallengeMain (no auto-play)
+            // Skip if HandleEnter already handled this (e.g., deck display in ContextDisplay
+            // which opens the deck selector rather than selecting a deck)
+            if (challengeResult == PlayBladeResult.NotHandled &&
+                _challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Challenge deck selected - returning to ChallengeMain");
+                _challengeHelper.HandleDeckSelected();
+                TriggerRescan();
+                return true;
+            }
+
             // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
-            if (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            if (_playBladeHelper.IsActive && !_challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
             {
                 // Recent tab: press the tile's own play button instead of the generic PlayBlade one
                 if (isRecentTabDeck)
@@ -4147,8 +4995,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // PlayBlade mode activation needs rescan (mode selection doesn't trigger panel changes)
-            if (playBladeResult == PlayBladeResult.RescanNeeded)
+            // Challenge or PlayBlade activation needs rescan
+            if (challengeResult == PlayBladeResult.RescanNeeded || playBladeResult == PlayBladeResult.RescanNeeded)
             {
                 TriggerRescan();
                 return true;
@@ -4204,6 +5052,13 @@ namespace AccessibleArena.Core.Services
             }
 
             // Note: Rewards popup ClaimButton handling moved to RewardPopupNavigator
+
+            // Packet selection: confirm button or any activation rebuilds GOs asynchronously
+            if (_activeContentController == "PacketSelectContentController")
+            {
+                LogDebug($"[{NavigatorId}] Packet selection activation - scheduling rescan");
+                TriggerRescan();
+            }
 
             return true;
         }
@@ -4383,6 +5238,239 @@ namespace AccessibleArena.Core.Services
             RefreshDeckInfoLabels();
         }
 
+        #region Friend Section Sub-Navigation
+
+        /// <summary>
+        /// Check if we're currently inside a FriendSection group (actual friends, incoming, outgoing, blocked).
+        /// </summary>
+        private bool IsFriendSectionActive()
+        {
+            return _groupedNavigationEnabled && _groupedNavigator.IsActive
+                && _groupedNavigator.Level == NavigationLevel.InsideGroup
+                && _groupedNavigator.CurrentGroup.HasValue
+                && _groupedNavigator.CurrentGroup.Value.Group.IsFriendSectionGroup();
+        }
+
+        /// <summary>
+        /// Initialize friend actions for the current friend entry.
+        /// Called when entering a friend section or moving to a new friend.
+        /// </summary>
+        private void RefreshFriendActions()
+        {
+            _friendActions = null;
+            _friendActionIndex = 0;
+
+            var element = _groupedNavigator.CurrentElement;
+            if (!element.HasValue || element.Value.GameObject == null) return;
+
+            _friendActions = FriendInfoProvider.GetFriendActions(element.Value.GameObject);
+            LogDebug($"[{NavigatorId}] Friend actions: {_friendActions?.Count ?? 0} for {element.Value.Label}");
+        }
+
+        /// <summary>
+        /// Handle Left/Right navigation through friend actions.
+        /// </summary>
+        private void HandleFriendActionNavigation(bool isRight)
+        {
+            if (_friendActions == null || _friendActions.Count == 0)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (isRight)
+            {
+                if (_friendActionIndex >= _friendActions.Count - 1)
+                {
+                    // Re-announce current action at boundary (like GroupedNavigator does for elements)
+                    AnnounceFriendActionPosition();
+                    _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _friendActionIndex++;
+            }
+            else
+            {
+                if (_friendActionIndex <= 0)
+                {
+                    // Re-announce current action at boundary
+                    AnnounceFriendActionPosition();
+                    _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _friendActionIndex--;
+            }
+
+            AnnounceFriendActionPosition();
+        }
+
+        /// <summary>
+        /// Announce the current friend action with its position (e.g., "Revoke, 1 of 1").
+        /// </summary>
+        private void AnnounceFriendActionPosition()
+        {
+            if (_friendActions == null || _friendActions.Count == 0) return;
+            if (_friendActionIndex < 0 || _friendActionIndex >= _friendActions.Count) return;
+
+            var (label, _) = _friendActions[_friendActionIndex];
+            _announcer.AnnounceInterrupt(
+                Strings.ItemPositionOf(_friendActionIndex + 1, _friendActions.Count, label));
+        }
+
+        /// <summary>
+        /// Announce the first/default friend action after entering a section or moving to a new friend.
+        /// Tells the user what pressing Enter will do.
+        /// </summary>
+        private void AnnounceFirstFriendAction()
+        {
+            if (_friendActions == null || _friendActions.Count == 0) return;
+
+            var (label, _) = _friendActions[0];
+            _announcer.Announce(
+                Strings.ItemPositionOf(1, _friendActions.Count, label),
+                AnnouncementPriority.Normal);
+        }
+
+        /// <summary>
+        /// Announce the current friend entry with name and status.
+        /// </summary>
+        private void AnnounceFriendEntry()
+        {
+            var element = _groupedNavigator.CurrentElement;
+            if (!element.HasValue || element.Value.GameObject == null) return;
+
+            string friendLabel = FriendInfoProvider.GetFriendLabel(element.Value.GameObject);
+            if (!string.IsNullOrEmpty(friendLabel))
+            {
+                int count = _groupedNavigator.CurrentGroup?.Count ?? 0;
+                int idx = _groupedNavigator.CurrentElementIndex + 1;
+                _announcer.AnnounceInterrupt(Strings.ItemPositionOf(idx, count, friendLabel));
+            }
+            else
+            {
+                // Fallback to standard announcement
+                _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
+            }
+        }
+
+        #endregion
+
+        #region Event Page Info Virtual Group
+
+        /// <summary>
+        /// Injects event info blocks as standalone virtual elements into the grouped navigator.
+        /// Each block becomes its own standalone group, directly navigable with Up/Down
+        /// without needing to enter a subgroup.
+        /// </summary>
+        private void InjectEventInfoGroup()
+        {
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return;
+
+            var blocks = EventAccessor.GetEventPageInfoBlocks();
+            if (blocks == null || blocks.Count == 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] EventAccessor returned no info blocks");
+                return;
+            }
+            MelonLogger.Msg($"[{NavigatorId}] Injecting {blocks.Count} event info elements");
+
+            // Insert each block as a standalone virtual element after the previous one.
+            // First block appends at end, subsequent blocks insert after the last EventInfo.
+            ElementGroup? insertAfter = null;
+            foreach (var block in blocks)
+            {
+                string label = string.IsNullOrEmpty(block.Label)
+                    ? block.Content
+                    : $"{block.Label}: {block.Content}";
+
+                var elements = new List<ElementGrouping.GroupedElement>
+                {
+                    new ElementGrouping.GroupedElement
+                    {
+                        GameObject = null,
+                        Label = label,
+                        Group = ElementGrouping.ElementGroup.EventInfo
+                    }
+                };
+
+                _groupedNavigator.AddVirtualGroup(
+                    ElementGrouping.ElementGroup.EventInfo,
+                    elements,
+                    insertAfter: insertAfter,
+                    isStandalone: true,
+                    displayName: label
+                );
+
+                // Subsequent blocks insert after the last EventInfo
+                insertAfter = ElementGrouping.ElementGroup.EventInfo;
+            }
+        }
+
+        #endregion
+
+        #region Packet Selection Sub-Navigation
+
+        /// <summary>
+        /// Refresh the info blocks for the current packet element.
+        /// Called when grouped navigator moves to a packet element.
+        /// </summary>
+        private void RefreshPacketBlocks(GameObject element)
+        {
+            _packetBlocks = EventAccessor.GetPacketInfoBlocks(element);
+            _packetBlockIndex = 0;
+            LogDebug($"[{NavigatorId}] Packet blocks: {_packetBlocks?.Count ?? 0}");
+        }
+
+        /// <summary>
+        /// Handle Left/Right navigation through packet info blocks.
+        /// </summary>
+        private void HandlePacketBlockNavigation(bool isRight)
+        {
+            if (_packetBlocks == null || _packetBlocks.Count == 0)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (isRight)
+            {
+                if (_packetBlockIndex >= _packetBlocks.Count - 1)
+                {
+                    AnnouncePacketBlock();
+                    _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _packetBlockIndex++;
+            }
+            else
+            {
+                if (_packetBlockIndex <= 0)
+                {
+                    AnnouncePacketBlock();
+                    _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                    return;
+                }
+                _packetBlockIndex--;
+            }
+
+            AnnouncePacketBlock();
+        }
+
+        /// <summary>
+        /// Announce the current packet block.
+        /// </summary>
+        private void AnnouncePacketBlock()
+        {
+            if (_packetBlocks == null || _packetBlocks.Count == 0) return;
+            if (_packetBlockIndex < 0 || _packetBlockIndex >= _packetBlocks.Count) return;
+
+            var block = _packetBlocks[_packetBlockIndex];
+            _announcer.AnnounceInterrupt($"{block.Label}: {block.Content}");
+        }
+
+        #endregion
+
         // Note: IsSettingsSubmenuButton() removed - handled by SettingsMenuNavigator
 
         /// <summary>
@@ -4444,13 +5532,16 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             // PlayBlade states: 0=Hidden, 1=Events, 2=DirectChallenge, 3=FriendChallenge
-            return PanelStateManager.Instance.PlayBladeState switch
+            var state = PanelStateManager.Instance.PlayBladeState;
+            string baseName = state switch
             {
                 1 => Strings.ScreenPlayModeSelection,
                 2 => Strings.ScreenDirectChallenge,
                 3 => Strings.ScreenFriendChallenge,
                 _ => null
             };
+
+            return baseName;
         }
 
         /// <summary>

@@ -50,13 +50,14 @@ namespace AccessibleArena.Core.Services
         private bool _waitingForTabLoad;
         private float _loadCheckTimer;
 
-        // Popup overlay tracking (follows SettingsMenuNavigator pattern)
-        private GameObject _activePopup;
+        // Popup overlay handling
+        private readonly PopupHandler _popupHandler;
         private bool _isPopupActive;
-        private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
-        private int _popupElementIndex;
-        private bool _wasConfirmationModalOpen; // Track modal transitions
+        private bool _wasConfirmationModalOpen; // Track modal transitions for confirmation modal
         private MonoBehaviour _confirmationModalMb; // Reference for calling Close()
+        // Confirmation modal uses its own element list (special handling with purchase buttons)
+        private List<(GameObject obj, string label)> _modalElements = new List<(GameObject, string)>();
+        private int _modalElementIndex;
 
         // Web browser accessibility (payment popup)
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
@@ -213,7 +214,10 @@ namespace AccessibleArena.Core.Services
 
         #region Constructor
 
-        public StoreNavigator(IAnnouncementService announcer) : base(announcer) { }
+        public StoreNavigator(IAnnouncementService announcer) : base(announcer)
+        {
+            _popupHandler = new PopupHandler("Store", announcer);
+        }
 
         #endregion
 
@@ -337,13 +341,11 @@ namespace AccessibleArena.Core.Services
                 _isWebBrowserActive = true;
                 _webBrowser.Activate(newPanel.GameObject, _announcer);
             }
-            else if (newPanel != null && IsPopupPanel(newPanel))
+            else if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
             {
                 MelonLogger.Msg($"[Store] Popup detected on top of store: {newPanel.Name}");
-                _activePopup = newPanel.GameObject;
                 _isPopupActive = true;
-                DiscoverPopupElements();
-                AnnouncePopup();
+                _popupHandler.OnPopupDetected(newPanel.GameObject);
             }
             else if ((_isPopupActive || _isWebBrowserActive) && newPanel == null)
             {
@@ -356,9 +358,9 @@ namespace AccessibleArena.Core.Services
                 if (_isPopupActive)
                 {
                     MelonLogger.Msg("[Store] Popup closed, returning to store");
-                    _activePopup = null;
                     _isPopupActive = false;
-                    _popupElements.Clear();
+                    _popupHandler.Clear();
+                    _modalElements.Clear();
                 }
                 // Re-announce current position
                 if (_navLevel == NavigationLevel.Items && _items.Count > 0)
@@ -373,18 +375,6 @@ namespace AccessibleArena.Core.Services
             if (panel == null || panel.GameObject == null) return false;
             // Check if the panel contains a ZFBrowser.Browser component
             return panel.GameObject.GetComponentInChildren<ZenFulcrum.EmbeddedBrowser.Browser>(true) != null;
-        }
-
-        private static bool IsPopupPanel(PanelInfo panel)
-        {
-            if (panel == null) return false;
-            if (panel.Type == PanelType.Popup) return true;
-
-            string name = panel.Name;
-            return name.Contains("SystemMessageView") ||
-                   name.Contains("Popup") ||
-                   name.Contains("Dialog") ||
-                   name.Contains("Modal");
         }
 
         #endregion
@@ -954,9 +944,9 @@ namespace AccessibleArena.Core.Services
             _detailsCards.Clear();
             _detailsCardBlocks.Clear();
             _detailsDescription = null;
-            _activePopup = null;
             _isPopupActive = false;
-            _popupElements.Clear();
+            _popupHandler.Clear();
+            _modalElements.Clear();
             _wasConfirmationModalOpen = false;
             _confirmationModalMb = null;
 
@@ -1023,12 +1013,12 @@ namespace AccessibleArena.Core.Services
                     ? _tabs[_currentTabIndex].DisplayName
                     : "Store";
 
-                return $"Store, {tabName}. {_items.Count} items. {Strings.NavigateWithArrows}, Enter to buy, Backspace for tabs.";
+                return $"Store, {tabName}. {Strings.NavigateWithArrows}, Enter to buy, Backspace for tabs. {_items.Count} items.";
             }
 
             // No items - stay at tab level
             _navLevel = NavigationLevel.Tabs;
-            return $"Store. {_tabs.Count} tabs. {Strings.NavigateWithArrows}, Enter to select.";
+            return $"Store. {Strings.NavigateWithArrows}, Enter to select. {_tabs.Count} tabs.";
         }
 
         protected override string GetElementAnnouncement(int index)
@@ -1046,14 +1036,14 @@ namespace AccessibleArena.Core.Services
             if (tab.IsUtility)
             {
                 _announcer.AnnounceInterrupt(
-                    $"{_currentTabIndex + 1} of {_tabs.Count}: {tab.DisplayName}");
+                    $"{tab.DisplayName}, {_currentTabIndex + 1} of {_tabs.Count}");
             }
             else
             {
                 bool isActive = IsTabActive(tab);
                 string activeIndicator = isActive ? ", active" : "";
                 _announcer.AnnounceInterrupt(
-                    $"{_currentTabIndex + 1} of {_tabs.Count}: {tab.DisplayName}{activeIndicator}");
+                    $"{tab.DisplayName}{activeIndicator}, {_currentTabIndex + 1} of {_tabs.Count}");
             }
         }
 
@@ -1079,7 +1069,7 @@ namespace AccessibleArena.Core.Services
             string descText = !string.IsNullOrEmpty(item.Description) ? $". {item.Description}" : "";
 
             _announcer.AnnounceInterrupt(
-                $"{_currentItemIndex + 1} of {_items.Count}: {item.Label}{descText}{optionText}");
+                $"{item.Label}{descText}{optionText}, {_currentItemIndex + 1} of {_items.Count}");
         }
 
         private void AnnouncePurchaseOption()
@@ -1142,7 +1132,6 @@ namespace AccessibleArena.Core.Services
                 if (modalObj != null)
                 {
                     MelonLogger.Msg($"[Store] Confirmation modal opened, handling as popup");
-                    _activePopup = modalObj;
                     _isPopupActive = true;
                     _confirmationModalMb = GetConfirmationModalMb();
                     DiscoverConfirmationModalElements();
@@ -1157,9 +1146,9 @@ namespace AccessibleArena.Core.Services
                 if (_isPopupActive)
                 {
                     MelonLogger.Msg("[Store] Confirmation modal closed, returning to store");
-                    _activePopup = null;
                     _isPopupActive = false;
-                    _popupElements.Clear();
+                    _popupHandler.Clear();
+                    _modalElements.Clear();
                     _confirmationModalMb = null;
                     // Re-announce current position
                     if (_navLevel == NavigationLevel.Items && _items.Count > 0)
@@ -1180,13 +1169,11 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Check if popup is still valid
-            if (_isPopupActive && (_activePopup == null || !_activePopup.activeInHierarchy))
+            // Check if generic popup is still valid
+            if (_isPopupActive && !_wasConfirmationModalOpen && !_popupHandler.ValidatePopup())
             {
                 MelonLogger.Msg("[Store] Popup became invalid, returning to store");
-                _activePopup = null;
                 _isPopupActive = false;
-                _popupElements.Clear();
             }
 
             // Handle loading state
@@ -1233,10 +1220,13 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // If popup is active, handle popup input
+            // If popup is active, route input
             if (_isPopupActive)
             {
-                HandlePopupInput();
+                if (_wasConfirmationModalOpen)
+                    HandleConfirmationModalInput();
+                else
+                    _popupHandler.HandleInput();
                 return;
             }
 
@@ -1938,13 +1928,13 @@ namespace AccessibleArena.Core.Services
                         // Expand common shorthand
                         switch (symbol.ToUpper())
                         {
-                            case "W": parts.Add("White"); break;
-                            case "U": parts.Add("Blue"); break;
-                            case "B": parts.Add("Black"); break;
-                            case "R": parts.Add("Red"); break;
-                            case "G": parts.Add("Green"); break;
-                            case "C": parts.Add("Colorless"); break;
-                            case "X": parts.Add("X"); break;
+                            case "W": parts.Add(Strings.ManaWhite); break;
+                            case "U": parts.Add(Strings.ManaBlue); break;
+                            case "B": parts.Add(Strings.ManaBlack); break;
+                            case "R": parts.Add(Strings.ManaRed); break;
+                            case "G": parts.Add(Strings.ManaGreen); break;
+                            case "C": parts.Add(Strings.ManaColorless); break;
+                            case "X": parts.Add(Strings.ManaX); break;
                             default: parts.Add(symbol); break;
                         }
                         i = end + 1;
@@ -2198,8 +2188,8 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverConfirmationModalElements()
         {
-            _popupElements.Clear();
-            _popupElementIndex = 0;
+            _modalElements.Clear();
+            _modalElementIndex = 0;
 
             if (_confirmationModalMb == null || _modalButtonFields == null) return;
 
@@ -2236,15 +2226,15 @@ namespace AccessibleArena.Core.Services
                     if (string.IsNullOrEmpty(priceText))
                         priceText = UITextExtractor.GetText(customButton.gameObject) ?? customButton.gameObject.name;
 
-                    _popupElements.Add((customButton.gameObject, $"{priceText}, button"));
+                    _modalElements.Add((customButton.gameObject, $"{priceText}, button"));
                 }
                 catch { }
             }
 
             // Add Cancel option
-            _popupElements.Add((null, "Cancel"));
+            _modalElements.Add((null, "Cancel"));
 
-            MelonLogger.Msg($"[Store] Found {_popupElements.Count} confirmation modal elements");
+            MelonLogger.Msg($"[Store] Found {_modalElements.Count} confirmation modal elements");
         }
 
         private void AnnounceConfirmationModal()
@@ -2305,168 +2295,65 @@ namespace AccessibleArena.Core.Services
 
             // Fallback to generic text extraction
             if (string.IsNullOrEmpty(labelText))
-                labelText = ExtractPopupMessage(_activePopup);
+                labelText = UITextExtractor.GetText(_popupHandler.ActivePopup ?? _confirmationModalMb?.gameObject);
 
             string announcement = "Confirm purchase";
             if (!string.IsNullOrEmpty(labelText))
                 announcement += $": {labelText}";
             if (!string.IsNullOrEmpty(descText))
                 announcement += $". {descText}";
-            announcement += $". {_popupElements.Count} options.";
+            announcement += $". {_modalElements.Count} options.";
 
             _announcer.AnnounceInterrupt(announcement);
 
-            if (_popupElements.Count > 0)
+            if (_modalElements.Count > 0)
             {
-                _popupElementIndex = 0;
-                _announcer.Announce($"1 of {_popupElements.Count}: {_popupElements[0].label}", AnnouncementPriority.Normal);
+                _modalElementIndex = 0;
+                _announcer.Announce($"1 of {_modalElements.Count}: {_modalElements[0].label}", AnnouncementPriority.Normal);
             }
         }
 
-        private void DiscoverPopupElements()
+        /// <summary>
+        /// Handle input for the confirmation modal (special case with purchase buttons).
+        /// Generic popups route through PopupHandler.HandleInput() instead.
+        /// </summary>
+        private void HandleConfirmationModalInput()
         {
-            _popupElements.Clear();
-            _popupElementIndex = 0;
+            if (_modalElements.Count == 0) return;
 
-            if (_activePopup == null) return;
-
-            MelonLogger.Msg($"[Store] Discovering popup elements in: {_activePopup.name}");
-
-            var addedObjects = new HashSet<GameObject>();
-            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
-
-            // Find SystemMessageButtonView buttons (MTGA's standard popup buttons)
-            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (addedObjects.Contains(mb.gameObject)) continue;
-
-                string typeName = mb.GetType().Name;
-                if (typeName == "SystemMessageButtonView" || typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
-                {
-                    string label = UITextExtractor.GetText(mb.gameObject);
-                    if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
-
-                    var pos = mb.gameObject.transform.position;
-                    discovered.Add((mb.gameObject, $"{label}, button", -pos.y * 1000 + pos.x));
-                    addedObjects.Add(mb.gameObject);
-                }
-            }
-
-            // Also check standard Unity Buttons
-            foreach (var button in _activePopup.GetComponentsInChildren<Button>(true))
-            {
-                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
-                if (addedObjects.Contains(button.gameObject)) continue;
-
-                string label = UITextExtractor.GetText(button.gameObject);
-                if (string.IsNullOrEmpty(label)) label = button.gameObject.name;
-
-                var pos = button.gameObject.transform.position;
-                discovered.Add((button.gameObject, $"{label}, button", -pos.y * 1000 + pos.x));
-                addedObjects.Add(button.gameObject);
-            }
-
-            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
-            {
-                _popupElements.Add((obj, label));
-            }
-
-            MelonLogger.Msg($"[Store] Found {_popupElements.Count} popup elements");
-        }
-
-        private void AnnouncePopup()
-        {
-            // Try to extract popup message
-            string message = ExtractPopupMessage(_activePopup);
-            string announcement = !string.IsNullOrEmpty(message)
-                ? $"Confirmation. {message}. {_popupElements.Count} options."
-                : $"Confirmation. {_popupElements.Count} options.";
-
-            _announcer.AnnounceInterrupt(announcement);
-
-            if (_popupElements.Count > 0)
-            {
-                _popupElementIndex = 0;
-                _announcer.Announce($"{_popupElements[0].label}", AnnouncementPriority.Normal);
-            }
-        }
-
-        private string ExtractPopupMessage(GameObject popup)
-        {
-            if (popup == null) return null;
-
-            var texts = popup.GetComponentsInChildren<TMPro.TMP_Text>(true)
-                .Where(t => t != null && t.gameObject.activeInHierarchy)
-                .OrderByDescending(t => t.fontSize)
-                .ToList();
-
-            foreach (var text in texts)
-            {
-                string content = text.text?.Trim();
-                if (string.IsNullOrEmpty(content) || content.Length < 3) continue;
-
-                // Skip button labels
-                var parent = text.transform.parent;
-                bool isButtonText = false;
-                while (parent != null)
-                {
-                    if (parent.name.ToLower().Contains("button"))
-                    {
-                        isButtonText = true;
-                        break;
-                    }
-                    parent = parent.parent;
-                }
-
-                if (!isButtonText && content.Length > 5)
-                {
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", "").Trim();
-                    if (!string.IsNullOrEmpty(content))
-                        return content;
-                }
-            }
-
-            return null;
-        }
-
-        private void HandlePopupInput()
-        {
-            if (_popupElements.Count == 0) return;
-
-            // Up/Down navigate popup elements
+            // Up/Down navigate modal elements
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
             {
-                MovePopupElement(-1);
+                MoveModalElement(-1);
                 return;
             }
             if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
             {
-                MovePopupElement(1);
+                MoveModalElement(1);
                 return;
             }
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MovePopupElement(shift ? -1 : 1);
+                MoveModalElement(shift ? -1 : 1);
                 return;
             }
 
-            // Enter activates current popup element
+            // Enter/Space activates current element
             bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
             bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
             if (enterPressed || spacePressed)
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
-                if (_popupElementIndex >= 0 && _popupElementIndex < _popupElements.Count)
+                if (_modalElementIndex >= 0 && _modalElementIndex < _modalElements.Count)
                 {
-                    var elem = _popupElements[_popupElementIndex];
-                    MelonLogger.Msg($"[Store] Activating popup element: {elem.label}");
+                    var elem = _modalElements[_modalElementIndex];
+                    MelonLogger.Msg($"[Store] Activating modal element: {elem.label}");
                     if (elem.obj == null)
                     {
                         // Synthetic cancel option
-                        DismissPopup();
+                        DismissConfirmationModal();
                     }
                     else
                     {
@@ -2476,38 +2363,38 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Backspace dismisses popup
+            // Backspace dismisses modal
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
-                DismissPopup();
+                DismissConfirmationModal();
                 return;
             }
         }
 
-        private void MovePopupElement(int direction)
+        private void MoveModalElement(int direction)
         {
-            int newIndex = _popupElementIndex + direction;
+            int newIndex = _modalElementIndex + direction;
             if (newIndex < 0)
             {
                 _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
                 return;
             }
-            if (newIndex >= _popupElements.Count)
+            if (newIndex >= _modalElements.Count)
             {
                 _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
                 return;
             }
-            _popupElementIndex = newIndex;
+            _modalElementIndex = newIndex;
             _announcer.AnnounceInterrupt(
-                $"{_popupElementIndex + 1} of {_popupElements.Count}: {_popupElements[_popupElementIndex].label}");
+                $"{_modalElements[_modalElementIndex].label}, {_modalElementIndex + 1} of {_modalElements.Count}");
         }
 
-        private void DismissPopup()
+        /// <summary>
+        /// Dismiss the confirmation modal by calling Close() directly.
+        /// </summary>
+        private void DismissConfirmationModal()
         {
-            if (_activePopup == null) return;
-
-            // If this is the confirmation modal, call Close() directly
             if (_confirmationModalMb != null && _modalCloseMethod != null)
             {
                 try
@@ -2523,49 +2410,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Look for cancel/close button
-            string[] cancelPatterns = { "cancel", "close", "no", "abbrechen", "nein", "zurück" };
-
-            foreach (var (obj, label) in _popupElements)
-            {
-                string lowerLabel = label.ToLower();
-                foreach (var pattern in cancelPatterns)
-                {
-                    if (lowerLabel.Contains(pattern))
-                    {
-                        MelonLogger.Msg($"[Store] Dismissing popup via: {label}");
-                        _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
-                        UIActivator.Activate(obj);
-                        return;
-                    }
-                }
-            }
-
-            // Fallback: try SystemMessageView.OnBack()
-            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (mb != null && mb.GetType().Name == "SystemMessageView")
-                {
-                    var onBack = mb.GetType().GetMethod("OnBack",
-                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (onBack != null && onBack.GetParameters().Length == 1)
-                    {
-                        try
-                        {
-                            MelonLogger.Msg("[Store] Invoking SystemMessageView.OnBack()");
-                            onBack.Invoke(mb, new object[] { null });
-                            _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
-                            return;
-                        }
-                        catch (Exception ex)
-                        {
-                            MelonLogger.Msg($"[Store] Error invoking OnBack: {ex.Message}");
-                        }
-                    }
-                }
-            }
-
-            MelonLogger.Msg("[Store] No cancel button found in popup");
+            MelonLogger.Msg("[Store] Could not close confirmation modal");
         }
 
         #endregion
@@ -2593,16 +2438,9 @@ namespace AccessibleArena.Core.Services
 
         private void HandleBackFromStore()
         {
-            // At tab level, Backspace navigates home (standard back)
             MelonLogger.Msg("[Store] Back from store - navigating home");
-
-            // Find and click the NavBar Home button via standard back mechanism
-            // The game handles Escape as back navigation, but we use a softer approach:
-            // Just deactivate ourselves and let GeneralMenuNavigator handle the back action
+            NavigateToHome();
             Deactivate();
-
-            // Simulate Escape which the game interprets as "back"
-            // (The game's InputManager will process this next frame)
         }
 
         #endregion

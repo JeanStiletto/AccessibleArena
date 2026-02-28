@@ -636,8 +636,8 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            string countInfo = _totalCards > 0 ? $"{_totalCards} cards. " : "";
-            return $"Pack Contents. {countInfo}Left and Right to navigate cards, Up and Down for card details.";
+            string countInfo = _totalCards > 0 ? $" {_totalCards} cards." : "";
+            return $"Pack Contents. Left and Right to navigate cards, Up and Down for card details.{countInfo}";
         }
 
         protected override void HandleInput()

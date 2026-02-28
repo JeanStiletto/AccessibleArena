@@ -6,59 +6,8 @@ using MelonLoader;
 using System.Collections;
 using System.Linq;
 using System.Text.RegularExpressions;
-// NOTE: System.Runtime.InteropServices kept for potential WinAPI reactivation
-// using System.Runtime.InteropServices;
-
 namespace AccessibleArena.Core.Services
 {
-    /*
-    // =============================================================================
-    // WINDOWS API APPROACH - KEPT FOR FUTURE USE (January 2026)
-    // =============================================================================
-    // DO NOT DELETE OR REFACTOR THIS CODE - it is a proven working fallback!
-    //
-    // History:
-    // - Unity events approach stopped working at some point (unknown cause)
-    // - WinAPI approach was implemented and worked reliably
-    // - After PC restart, Unity events approach works again
-    // - Root cause was likely external factors (mouse position, overlays, etc.)
-    //
-    // Keep this code available because:
-    // - Overlapping overlays may interfere with Unity raycasts in the future
-    // - Mouse positioning issues may recur
-    // - WinAPI bypasses Unity event system entirely and controls real cursor
-    //
-    // If Unity events approach fails again, reactivate this WinAPI code.
-    // =============================================================================
-
-    /// <summary>
-    /// Windows API imports for real mouse control.
-    /// Required because the game checks Input.mousePosition (actual cursor)
-    /// rather than event position data.
-    /// </summary>
-    internal static class WinAPI
-    {
-        [DllImport("user32.dll")]
-        public static extern bool SetCursorPos(int X, int Y);
-
-        [DllImport("user32.dll")]
-        public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, int dwExtraInfo);
-
-        public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
-        public const uint MOUSEEVENTF_LEFTUP = 0x0004;
-
-        [DllImport("user32.dll")]
-        public static extern bool GetCursorPos(out POINT lpPoint);
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct POINT
-        {
-            public int X;
-            public int Y;
-        }
-    }
-    */
-
     /// <summary>
     /// Centralized UI activation utilities.
     /// Handles clicking buttons, toggling checkboxes, focusing input fields,
@@ -224,7 +173,7 @@ namespace AccessibleArena.Core.Services
                     Log($"SystemMessageButtonView detected on: {element.name}");
                     TryInvokeMethod(systemMsgButton, "Click");
                     TryDismissViaSystemMessageManager();
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
 
                 var pointerResult2 = SimulatePointerClick(element);
@@ -260,7 +209,7 @@ namespace AccessibleArena.Core.Services
             if (button != null)
             {
                 button.onClick.Invoke();
-                return new ActivationResult(true, "Activated", ActivationType.Button);
+                return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
             }
 
             // Try child Button
@@ -269,7 +218,7 @@ namespace AccessibleArena.Core.Services
             {
                 Log($"Using child Button: {childButton.gameObject.name}");
                 childButton.onClick.Invoke();
-                return new ActivationResult(true, "Activated", ActivationType.Button);
+                return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
             }
 
             // Try to find the actual clickable element in hierarchy
@@ -289,15 +238,15 @@ namespace AccessibleArena.Core.Services
                 Log($"SystemMessageButtonView detected, trying Click method");
                 if (TryInvokeMethod(systemMessageButton, "Click"))
                 {
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
                 if (TryInvokeMethod(systemMessageButton, "OnClick"))
                 {
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
                 if (TryInvokeMethod(systemMessageButton, "OnButtonClicked"))
                 {
-                    return new ActivationResult(true, "Activated", ActivationType.Button);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
             }
 
@@ -342,7 +291,36 @@ namespace AccessibleArena.Core.Services
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
 
-            return new ActivationResult(true, "Activated", ActivationType.PointerClick);
+            return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
+        }
+
+        /// <summary>
+        /// Simulates a pointer click on an element using a specific screen position.
+        /// Used for battlefield cards where the default screen-center position can hit
+        /// the wrong overlapping token's collider.
+        /// </summary>
+        public static ActivationResult SimulatePointerClick(GameObject element, Vector2 screenPosition)
+        {
+            if (element == null)
+                return new ActivationResult(false, "Element is null");
+
+            var pointer = CreatePointerEventData(element, screenPosition);
+
+            Log($"Simulating pointer events on: {element.name} at position ({screenPosition.x:F0}, {screenPosition.y:F0})");
+
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(element);
+                Log($"Set EventSystem selected object to: {element.name}");
+            }
+
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerEnterHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
+
+            return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
         }
 
         /// <summary>
@@ -356,6 +334,47 @@ namespace AccessibleArena.Core.Services
             var pointer = CreatePointerEventData(element);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerExitHandler);
             Log($"Sent PointerExit to: {element.name}");
+        }
+
+        /// <summary>
+        /// Activates a Popout stepper by invoking OnNextValue/OnPreviousValue on the
+        /// parent's Spinner_OptionSelector component via reflection.
+        /// Avoids full pointer simulation which would open a submenu (DeckSelectBlade).
+        /// </summary>
+        public static void SimulateHover(GameObject hoverControl, bool isNext = true)
+        {
+            if (hoverControl == null) return;
+
+            // Go to Popout_* parent to find the Spinner_OptionSelector
+            Transform popoutParent = hoverControl.transform.parent;
+            if (popoutParent == null)
+            {
+                Log($"No parent found for {hoverControl.name}");
+                return;
+            }
+
+            var spinner = popoutParent.GetComponents<MonoBehaviour>()
+                .FirstOrDefault(c => c != null && c.GetType().Name == "Spinner_OptionSelector");
+
+            if (spinner == null)
+            {
+                Log($"No Spinner_OptionSelector found on {popoutParent.name}");
+                return;
+            }
+
+            string methodName = isNext ? "OnNextValue" : "OnPreviousValue";
+            var method = spinner.GetType().GetMethod(methodName,
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            if (method != null)
+            {
+                method.Invoke(spinner, null);
+                Log($"Invoked {methodName} on {popoutParent.name}");
+            }
+            else
+            {
+                Log($"Method {methodName} not found on Spinner_OptionSelector");
+            }
         }
 
         /// <summary>
@@ -479,8 +498,7 @@ namespace AccessibleArena.Core.Services
         private static IEnumerator PlayCardCoroutine(GameObject card, System.Action<bool, string> callback)
         {
             // Step 0: Check if card is a land (lands use simplified double-click, no screen center needed)
-            var cardInfo = CardDetector.ExtractCardInfo(card);
-            bool isLand = cardInfo.TypeLine?.ToLower().Contains("land") ?? false;
+            bool isLand = CardModelProvider.IsLandCard(card);
 
             // Step 1: First click (select)
             Log("Step 1: First click (select)");
@@ -530,30 +548,10 @@ namespace AccessibleArena.Core.Services
             yield return new WaitForSeconds(CardPickupDelay);
 
             // Step 3: Click screen center via Unity events (confirm play)
-            // Unity events approach works after PC restart (Jan 2026).
-            // If this stops working, check for overlapping overlays or mouse positioning
-            // issues, and consider reactivating the WinAPI fallback below.
             Log("Step 3: Click screen center via Unity events (confirm play)");
 
             Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
             SimulateClickAtPosition(center);
-
-            /*
-            // WINAPI APPROACH - DO NOT DELETE, proven fallback if Unity events fail
-            // See WinAPI class comment at top of file for history.
-            // Move cursor to screen center
-            int centerX = Screen.width / 2;
-            int centerY = Screen.height / 2;
-            WinAPI.SetCursorPos(centerX, centerY);
-
-            // Small delay for cursor to register
-            yield return new WaitForSeconds(0.05f);
-
-            // Perform real mouse click
-            WinAPI.mouse_event(WinAPI.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-            yield return new WaitForSeconds(0.05f);
-            WinAPI.mouse_event(WinAPI.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-            */
 
             // Step 4: Wait for game to process the play and UI to update
             // Need enough time for targeting UI (Cancel/Submit buttons) to appear
@@ -787,7 +785,7 @@ namespace AccessibleArena.Core.Services
                             try
                             {
                                 invokeMethod.Invoke(onClick, null);
-                                return new ActivationResult(true, "Activated", ActivationType.Button);
+                                return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                             }
                             catch (System.Exception ex)
                             {
@@ -1516,23 +1514,41 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Creates a PointerEventData with a specific screen position override.
+        /// Used for battlefield cards to ensure the position matches the card's actual location.
+        /// </summary>
+        private static PointerEventData CreatePointerEventData(GameObject element, Vector2 screenPosition)
+        {
+            return new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left,
+                pointerPress = element,
+                pointerEnter = element,
+                position = screenPosition,
+                pressPosition = screenPosition
+            };
+        }
+
+        /// <summary>
         /// Gets the screen position of a UI element's center.
         /// </summary>
         private static Vector2 GetScreenPosition(GameObject obj)
         {
             var rectTransform = obj.GetComponent<RectTransform>();
-            if (rectTransform == null)
-                return new Vector2(Screen.width / 2, Screen.height / 2);
+            if (rectTransform != null)
+            {
+                Vector3[] corners = new Vector3[4];
+                rectTransform.GetWorldCorners(corners);
+                Vector3 center = (corners[0] + corners[2]) / 2f;
 
-            Vector3[] corners = new Vector3[4];
-            rectTransform.GetWorldCorners(corners);
-            Vector3 center = (corners[0] + corners[2]) / 2f;
+                var canvas = obj.GetComponentInParent<Canvas>();
+                if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera && canvas.worldCamera != null)
+                    return canvas.worldCamera.WorldToScreenPoint(center);
 
-            var canvas = obj.GetComponentInParent<Canvas>();
-            if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera && canvas.worldCamera != null)
-                return canvas.worldCamera.WorldToScreenPoint(center);
+                return center;
+            }
 
-            return center;
+            return new Vector2(Screen.width / 2, Screen.height / 2);
         }
 
         private static void Log(string message)
@@ -2067,7 +2083,7 @@ namespace AccessibleArena.Core.Services
                     Log($"Invoking IPointerClickHandler.OnPointerClick on {mb.GetType().Name}");
                     var pointer = CreatePointerEventData(cardElement);
                     clickHandler.OnPointerClick(pointer);
-                    return new ActivationResult(true, "Activated", ActivationType.PointerClick);
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
                 }
             }
 
@@ -2230,6 +2246,95 @@ namespace AccessibleArena.Core.Services
 
             // Compare if this deck's DeckView matches the selected one
             return deckView == selectedDeckView;
+        }
+
+        /// <summary>
+        /// Returns a short invalid-deck status label for a deck entry.
+        /// Returns null for valid decks.
+        /// </summary>
+        public static string GetDeckInvalidStatus(GameObject deckElement)
+        {
+            if (deckElement == null) return null;
+
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null) return null;
+
+            var type = deckView.GetType();
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            bool animateInvalid = GetFieldValue<bool>(type, deckView, "_animateInvalid", flags);
+            int invalidCardCount = GetFieldValue<int>(type, deckView, "_invalidCardCount", flags);
+            bool craftable = GetFieldValue<bool>(type, deckView, "_animateCraftable", flags);
+            bool uncraftable = GetFieldValue<bool>(type, deckView, "_animateUncraftable", flags);
+            bool invalidCompanion = GetFieldValue<bool>(type, deckView, "_animateInvalidCompanion", flags);
+            bool unavailable = GetFieldValue<bool>(type, deckView, "_animateUnavailable", flags);
+
+            if (unavailable) return "unavailable";
+            if (animateInvalid) return "invalid deck";
+            if (invalidCardCount > 0) return $"{invalidCardCount} invalid cards";
+            if (uncraftable) return "missing cards";
+            if (craftable) return "missing cards, craftable";
+            if (invalidCompanion) return "invalid companion";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the detailed tooltip text for an invalid deck.
+        /// Returns null for valid decks or when no detail is available.
+        /// </summary>
+        public static string GetDeckInvalidTooltip(GameObject deckElement)
+        {
+            if (deckElement == null) return null;
+
+            // Only return tooltip if deck actually has an issue
+            if (string.IsNullOrEmpty(GetDeckInvalidStatus(deckElement)))
+                return null;
+
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null) return null;
+
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var pubFlags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+
+            // Read _tooltipTrigger field from DeckView
+            var triggerField = deckView.GetType().GetField("_tooltipTrigger", flags);
+            if (triggerField == null) return null;
+
+            var trigger = triggerField.GetValue(deckView);
+            if (trigger == null) return null;
+
+            // Read TooltipData from trigger (public field)
+            var triggerType = trigger.GetType();
+            var dataField = triggerType.GetField("TooltipData", pubFlags);
+            if (dataField == null) return null;
+
+            var data = dataField.GetValue(trigger);
+            if (data == null) return null;
+
+            // Read Text from TooltipData (public property)
+            var textProp = data.GetType().GetProperty("Text", pubFlags);
+            if (textProp == null) return null;
+
+            var text = textProp.GetValue(data) as string;
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            // Clean up: trim and collapse whitespace
+            text = text.Trim();
+            if (string.IsNullOrEmpty(text)) return null;
+
+            return text;
+        }
+
+        private static T GetFieldValue<T>(System.Type type, object instance, string fieldName, System.Reflection.BindingFlags flags)
+        {
+            var field = type.GetField(fieldName, flags);
+            if (field != null)
+            {
+                try { return (T)field.GetValue(instance); }
+                catch { }
+            }
+            return default;
         }
 
         /// <summary>

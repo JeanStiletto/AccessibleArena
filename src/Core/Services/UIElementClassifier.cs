@@ -27,7 +27,7 @@ namespace AccessibleArena.Core.Services
         private const int MaxDropdownSearchDepth = 3;
 
         // Label constraints
-        private const int MaxLabelLength = 80;
+        private const int MaxLabelLength = 120;
 
         // Simple name patterns that always filter (case-insensitive Contains check)
         private static readonly string[] FilteredContainsPatterns = new[]
@@ -146,6 +146,12 @@ namespace AccessibleArena.Core.Services
             /// Reference to slider component for direct value adjustment via arrow keys
             /// </summary>
             public Slider SliderComponent { get; set; }
+
+            /// <summary>
+            /// If true, arrow nav controls should be activated via hover (pointer enter/exit)
+            /// instead of full click. Used for Popout hover buttons.
+            /// </summary>
+            public bool UseHoverActivation { get; set; }
         }
 
         /// <summary>
@@ -163,6 +169,7 @@ namespace AccessibleArena.Core.Services
             // Try each classification in priority order
             return TryClassifyAsInternal(obj, objName, text)
                 ?? TryClassifyAsCard(obj)
+                ?? TryClassifyAsPopoutControl(obj, objName)
                 ?? TryClassifyAsStepperControl(obj, objName)
                 ?? TryClassifyAsStepperNavControl(obj, objName)
                 ?? TryClassifyAsSettingsDropdown(obj, objName)
@@ -220,6 +227,52 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             return CreateResult(ElementRole.Internal, null, "", false, false);
+        }
+
+        /// <summary>
+        /// Classify Popout_* controls (challenge screen steppers).
+        /// LeftHover = internal (hidden), RightHover = stepper with arrow navigation.
+        /// </summary>
+        private static ClassificationResult TryClassifyAsPopoutControl(GameObject obj, string objName)
+        {
+            if (obj == null) return null;
+
+            // Must be LeftHover or RightHover
+            bool isLeft = EqualsIgnoreCase(objName, "LeftHover");
+            bool isRight = EqualsIgnoreCase(objName, "RightHover");
+            if (!isLeft && !isRight) return null;
+
+            // Must be direct child of a Popout_* parent
+            Transform parent = obj.transform.parent;
+            if (parent == null || !parent.name.StartsWith("Popout_", System.StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            // LeftHover: hide from navigation (the RightHover stepper handles both directions)
+            if (isLeft)
+                return CreateResult(ElementRole.Internal, null, "", false, false);
+
+            // RightHover: classify as stepper
+            // Find sibling LeftHover for the previous-control
+            Transform leftHover = parent.Find("LeftHover");
+            GameObject leftControl = leftHover != null ? leftHover.gameObject : null;
+
+            // Read label from the Popout parent's text content
+            string label = UITextExtractor.GetText(parent.gameObject);
+            if (string.IsNullOrEmpty(label))
+                label = parent.name;
+
+            return new ClassificationResult
+            {
+                Role = ElementRole.Button,
+                Label = label,
+                RoleLabel = "stepper, use left and right arrows",
+                IsNavigable = true,
+                ShouldAnnounce = true,
+                HasArrowNavigation = true,
+                PreviousControl = leftControl,
+                NextControl = obj, // RightHover itself cycles forward
+                UseHoverActivation = true
+            };
         }
 
         private static ClassificationResult TryClassifyAsSettingsDropdown(GameObject obj, string objName)
@@ -305,7 +358,7 @@ namespace AccessibleArena.Core.Services
             if (obj.GetComponent<TMP_InputField>() == null && obj.GetComponent<InputField>() == null)
                 return null;
 
-            return CreateResult(ElementRole.TextField, text, "text field", true, true);
+            return CreateResult(ElementRole.TextField, text, Models.Strings.TextField, true, true);
         }
 
         private static ClassificationResult TryClassifyAsScrollbar(GameObject obj, string text)
@@ -1639,11 +1692,11 @@ namespace AccessibleArena.Core.Services
         {
             if (string.IsNullOrEmpty(name)) return "Unknown";
 
-            // Special handling for color filter toggles: "CardFilterView Color_White" -> "White"
+            // Special handling for color filter toggles: "CardFilterView Color_White" -> localized color
             if (name.StartsWith("CardFilterView Color_", System.StringComparison.OrdinalIgnoreCase))
             {
                 string color = name.Substring(21); // After "CardFilterView Color_"
-                return color;
+                return CardModelProvider.ConvertManaColorToName(color);
             }
 
             // Special handling for multicolor filter: "CardFilterView Multicolor" -> "Multicolor"

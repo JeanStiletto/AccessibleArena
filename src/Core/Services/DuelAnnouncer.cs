@@ -3,8 +3,10 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace AccessibleArena.Core.Services
@@ -50,6 +52,14 @@ namespace AccessibleArena.Core.Services
         // Current combat phase tracking
         private string _currentPhase;
         private string _currentStep;
+
+        // Track commander GrpIds for command zone access (Brawl/Commander)
+        private readonly HashSet<uint> _commandZoneGrpIds = new HashSet<uint>();
+
+        // Pre-compiled regex patterns for zone event parsing
+        private static readonly Regex ZoneNamePattern = new Regex(@"^(\w+)\s*\(", RegexOptions.Compiled);
+        private static readonly Regex ZoneCountPattern = new Regex(@"(\d+)\s*cards?\)", RegexOptions.Compiled);
+        private static readonly Regex LocalPlayerPattern = new Regex(@"Player[^:]*:\s*(\d+)\s*\(LocalPlayer\)", RegexOptions.Compiled);
 
         // Phase announcement debounce (100ms) to avoid spam during auto-skip
         private string _pendingPhaseAnnouncement;
@@ -129,6 +139,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _localPlayerId = localPlayerId;
             _zoneCounts.Clear();
+            _commandZoneGrpIds.Clear();
             _userTurnCount = 0;
         }
 
@@ -139,7 +150,32 @@ namespace AccessibleArena.Core.Services
             _currentStep = null;
             _isUserTurn = true;
             _pendingPhaseAnnouncement = null;
+            DuelHolderCache.Clear();
+            _instanceIdToName.Clear();
         }
+
+        /// <summary>
+        /// Yields active CDC child GameObjects from a cached holder.
+        /// Reads live children each call - no stale card data.
+        /// </summary>
+        private IEnumerable<GameObject> EnumerateCDCsInHolder(string nameContains)
+        {
+            var holder = DuelHolderCache.GetHolder(nameContains);
+            if (holder == null) yield break;
+
+            foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
+            {
+                if (child != null && child.gameObject.activeInHierarchy && child.name.StartsWith("CDC "))
+                    yield return child.gameObject;
+            }
+        }
+
+        // All zone holder names for cross-zone card lookups
+        private static readonly string[] AllZoneHolders = {
+            "BattlefieldCardHolder", "StackCardHolder", "LocalHand",
+            "LocalGraveyard", "ExileCardHolder", "CommandCardHolder",
+            "OpponentGraveyard", "OpponentExile"
+        };
 
         /// <summary>
         /// Call each frame to flush debounced phase announcements.
@@ -185,6 +221,85 @@ namespace AccessibleArena.Core.Services
         public int GetOpponentLibraryCount()
         {
             return _zoneCounts.TryGetValue("Opp_Library", out int count) ? count : -1;
+        }
+
+        /// <summary>
+        /// Gets the opponent's commander GrpId for Brawl/Commander games.
+        /// Determines ownership by checking which command zone GrpId matches
+        /// a card in the local hand with model ZoneType=="Command" (our commander).
+        /// The remaining GrpId is the opponent's commander.
+        /// </summary>
+        public uint GetOpponentCommanderGrpId()
+        {
+            if (_commandZoneGrpIds.Count == 0) return 0;
+
+            // Find our commander GrpId by scanning local hand for a card with model ZoneType=="Command"
+            uint ourCommanderGrpId = FindOurCommanderGrpId();
+
+            // Find the opponent's commander: any command zone GrpId that isn't ours
+            foreach (var grpId in _commandZoneGrpIds)
+            {
+                if (grpId != ourCommanderGrpId)
+                    return grpId;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Gets the full CardInfo for the opponent's commander from the card database.
+        /// Returns null if not available.
+        /// </summary>
+        public CardInfo? GetOpponentCommanderInfo()
+        {
+            uint grpId = GetOpponentCommanderGrpId();
+            if (grpId == 0) return null;
+            return CardModelProvider.GetCardInfoFromGrpId(grpId);
+        }
+
+        /// <summary>
+        /// Gets the opponent's commander card name. Convenience wrapper around GetOpponentCommanderGrpId.
+        /// </summary>
+        public string GetOpponentCommanderName()
+        {
+            uint grpId = GetOpponentCommanderGrpId();
+            if (grpId == 0) return null;
+            return CardModelProvider.GetNameFromGrpId(grpId);
+        }
+
+        /// <summary>
+        /// Finds our own commander's GrpId by scanning the local hand for a card
+        /// with model ZoneType=="Command".
+        /// </summary>
+        private uint FindOurCommanderGrpId()
+        {
+            if (_zoneNavigator == null) return 0;
+
+            _zoneNavigator.DiscoverZones();
+            var handCards = _zoneNavigator.GetCardsInZone(ZoneType.Hand);
+            if (handCards == null) return 0;
+
+            foreach (var card in handCards)
+            {
+                string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+                if (modelZone == "Command")
+                {
+                    var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                    if (cdc == null) continue;
+                    var model = CardModelProvider.GetCardModel(cdc);
+                    if (model == null) continue;
+
+                    var grpIdProp = model.GetType().GetProperty("GrpId", BindingFlags.Public | BindingFlags.Instance);
+                    if (grpIdProp != null)
+                    {
+                        var val = grpIdProp.GetValue(model);
+                        if (val is uint gid) return gid;
+                        if (val is int gidi) return (uint)gidi;
+                    }
+                }
+            }
+
+            return 0;
         }
 
         #endregion
@@ -339,8 +454,8 @@ namespace AccessibleArena.Core.Services
             bool isLocal = zoneStr.Contains("LocalPlayer") || (!zoneStr.Contains("Opponent") && zoneStr.Contains("Player,"));
             bool isOpponent = zoneStr.Contains("Opponent");
 
-            var zoneMatch = System.Text.RegularExpressions.Regex.Match(zoneStr, @"^(\w+)\s*\(");
-            var countMatch = System.Text.RegularExpressions.Regex.Match(zoneStr, @"(\d+)\s*cards?\)");
+            var zoneMatch = ZoneNamePattern.Match(zoneStr);
+            var countMatch = ZoneCountPattern.Match(zoneStr);
 
             if (!zoneMatch.Success) return null;
 
@@ -732,51 +847,21 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Search for cards on battlefield/stack with matching InstanceId
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                foreach (var holderName in AllZoneHolders)
                 {
-                    if (go == null || !go.activeInHierarchy) continue;
-
-                    // Only check card holders
-                    Transform current = go.transform;
-                    bool inCardZone = false;
-                    while (current != null)
+                    foreach (var go in EnumerateCDCsInHolder(holderName))
                     {
-                        if (current.name.Contains("CardHolder") || current.name.Contains("StackCard"))
-                        {
-                            inCardZone = true;
-                            break;
-                        }
-                        current = current.parent;
-                    }
-                    if (!inCardZone) continue;
+                        var cdcComponent = CardModelProvider.GetDuelSceneCDC(go);
+                        if (cdcComponent == null) continue;
 
-                    // Check for CDC component with matching InstanceId
-                    var cdcComponent = CardModelProvider.GetDuelSceneCDC(go);
-                    if (cdcComponent != null)
-                    {
                         var model = CardModelProvider.GetCardModel(cdcComponent);
-                        if (model != null)
+                        if (model == null) continue;
+
+                        var cid = GetFieldValue<uint>(model, "InstanceId");
+                        if (cid == instanceId)
                         {
-                            var modelType = model.GetType();
-                            var instanceIdProp = modelType.GetProperty("InstanceId");
-                            if (instanceIdProp != null)
-                            {
-                                var cardInstanceId = instanceIdProp.GetValue(model);
-                                if (cardInstanceId is uint cid && cid == instanceId)
-                                {
-                                    // Found matching card, get its name
-                                    var grpIdProp = modelType.GetProperty("GrpId");
-                                    if (grpIdProp != null)
-                                    {
-                                        var grpId = grpIdProp.GetValue(model);
-                                        if (grpId is uint gid)
-                                        {
-                                            return CardModelProvider.GetNameFromGrpId(gid);
-                                        }
-                                    }
-                                }
-                            }
+                            var gid = GetFieldValue<uint>(model, "GrpId");
+                            if (gid != 0) return CardModelProvider.GetNameFromGrpId(gid);
                         }
                     }
                 }
@@ -835,7 +920,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (phase == "Beginning" && step == "Upkeep") phaseAnnouncement = Strings.Duel_Phase_Upkeep;
                 else if (phase == "Beginning" && step == "Draw") phaseAnnouncement = Strings.Duel_Phase_Draw;
-                else if (phase == "Ending" && step == "End") phaseAnnouncement = Strings.Duel_Phase_EndStep;
+                else if (phase == "Ending" && step == "None") phaseAnnouncement = Strings.Duel_Phase_EndStep;
 
                 // If we have attacker info, announce immediately (this is a real combat stop, not auto-skip)
                 if (attackerAnnouncement != null)
@@ -867,15 +952,8 @@ namespace AccessibleArena.Core.Services
         private List<string> GetAttackingCreaturesInfo()
         {
             var attackers = new List<string>();
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            foreach (var go in EnumerateCDCsInHolder("BattlefieldCardHolder"))
             {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                // Only check CDC (card) objects
-                if (!go.name.StartsWith("CDC "))
-                    continue;
-
                 // Check if this card has an "IsAttacking" indicator
                 // Note: The indicator may be inactive (activeInHierarchy=false) but still present,
                 // which means the creature IS attacking. We count if the child EXISTS, not just if active.
@@ -1044,53 +1122,28 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                string[] holders = { "BattlefieldCardHolder", "StackCardHolder" };
+                foreach (var holderName in holders)
                 {
-                    if (go == null || !go.activeInHierarchy) continue;
-                    if (!go.name.StartsWith("CDC ")) continue;
-
-                    var cdcComponent = CardModelProvider.GetDuelSceneCDC(go);
-                    if (cdcComponent == null) continue;
-
-                    var model = CardModelProvider.GetCardModel(cdcComponent);
-                    if (model == null) continue;
-
-                    var modelType = model.GetType();
-                    var instanceIdProp = modelType.GetProperty("InstanceId");
-                    if (instanceIdProp == null) continue;
-
-                    var cardInstanceId = instanceIdProp.GetValue(model);
-                    if (!(cardInstanceId is uint cid) || cid != instanceId) continue;
-
-                    // Found the card, get P/T
-                    int power = -1;
-                    int toughness = -1;
-                    bool isOpponent = false;
-
-                    var powerProp = modelType.GetProperty("Power");
-                    var toughnessProp = modelType.GetProperty("Toughness");
-
-                    if (powerProp != null && toughnessProp != null)
+                    foreach (var go in EnumerateCDCsInHolder(holderName))
                     {
-                        var powerVal = powerProp.GetValue(model);
-                        var toughnessVal = toughnessProp.GetValue(model);
+                        var cdcComponent = CardModelProvider.GetDuelSceneCDC(go);
+                        if (cdcComponent == null) continue;
 
-                        if (powerVal is int p && toughnessVal is int t)
-                        {
-                            power = p;
-                            toughness = t;
-                        }
+                        var model = CardModelProvider.GetCardModel(cdcComponent);
+                        if (model == null) continue;
+
+                        var cid = GetFieldValue<uint>(model, "InstanceId");
+                        if (cid != instanceId) continue;
+
+                        int power = GetFieldValue<int>(model, "Power");
+                        int toughness = GetFieldValue<int>(model, "Toughness");
+
+                        var controller = GetFieldValue<object>(model, "ControllerNum");
+                        bool isOpponent = controller?.ToString() == "Opponent";
+
+                        return (power, toughness, isOpponent);
                     }
-
-                    // Check ownership from ControllerNum property
-                    var controllerProp = modelType.GetProperty("ControllerNum");
-                    if (controllerProp != null)
-                    {
-                        var controller = controllerProp.GetValue(model);
-                        isOpponent = controller?.ToString() == "Opponent";
-                    }
-
-                    return (power, toughness, isOpponent);
                 }
             }
             catch (Exception ex)
@@ -1353,6 +1406,13 @@ namespace AccessibleArena.Core.Services
                 string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
                 string announcement = null;
 
+                // Track cards entering Command zone (for opponent commander detection)
+                if (toZoneTypeStr == "Command" && grpId != 0)
+                {
+                    _commandZoneGrpIds.Add(grpId);
+                    MelonLogger.Msg($"[DuelAnnouncer] Tracking command zone card: GrpId={grpId} ({cardName})");
+                }
+
                 // Determine announcement based on zone transfer type
                 switch (toZoneTypeStr)
                 {
@@ -1482,51 +1542,37 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Use AttachedToId (the game's real attachment tracking field)
                 uint attachedToId = GetNestedPropertyValue<uint>(cardInstance, "AttachedToId");
                 if (attachedToId == 0) return null;
 
                 DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card has AttachedToId={attachedToId}, scanning battlefield for parent");
 
-                // Find the parent card on the battlefield by scanning all CDCs
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                var holder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
+                if (holder == null) return null;
+
+                foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
                 {
-                    if (go == null || !go.activeInHierarchy) continue;
-                    if (!go.name.Contains("BattlefieldCardHolder")) continue;
+                    if (child == null || !child.gameObject.activeInHierarchy) continue;
 
-                    foreach (var child in go.GetComponentsInChildren<Transform>(true))
+                    var cdc = CardModelProvider.GetDuelSceneCDC(child.gameObject);
+                    if (cdc == null) continue;
+
+                    var model = CardModelProvider.GetCardModel(cdc);
+                    if (model == null) continue;
+
+                    var instanceId = GetFieldValue<uint>(model, "InstanceId");
+                    if (instanceId != attachedToId) continue;
+
+                    var grpId = GetFieldValue<uint>(model, "GrpId");
+                    if (grpId > 0)
                     {
-                        if (child == null || !child.gameObject.activeInHierarchy) continue;
-
-                        var cdc = CardModelProvider.GetDuelSceneCDC(child.gameObject);
-                        if (cdc == null) continue;
-
-                        var model = CardModelProvider.GetCardModel(cdc);
-                        if (model == null) continue;
-
-                        var instanceIdProp = model.GetType().GetProperty("InstanceId");
-                        if (instanceIdProp == null) continue;
-
-                        var idVal = instanceIdProp.GetValue(model);
-                        if (!(idVal is uint instanceId) || instanceId != attachedToId) continue;
-
-                        // Found matching card - get its name
-                        var grpIdProp = model.GetType().GetProperty("GrpId");
-                        if (grpIdProp != null)
+                        string parentName = CardModelProvider.GetNameFromGrpId(grpId);
+                        if (!string.IsNullOrEmpty(parentName))
                         {
-                            var gidVal = grpIdProp.GetValue(model);
-                            if (gidVal is uint grpId && grpId > 0)
-                            {
-                                string parentName = CardModelProvider.GetNameFromGrpId(grpId);
-                                if (!string.IsNullOrEmpty(parentName))
-                                {
-                                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (InstanceId={attachedToId})");
-                                    return parentName;
-                                }
-                            }
+                            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (InstanceId={attachedToId})");
+                            return parentName;
                         }
                     }
-                    break; // Only one battlefield holder needed
                 }
 
                 DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"AttachedToId={attachedToId} but parent not found on battlefield");
@@ -1685,24 +1731,7 @@ namespace AccessibleArena.Core.Services
             string cardName = CardModelProvider.GetNameFromGrpId(grpId);
             if (!string.IsNullOrEmpty(cardName))
             {
-                // Common basic land names in various languages
-                var basicLandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    // English
-                    "Plains", "Island", "Swamp", "Mountain", "Forest",
-                    // German
-                    "Ebene", "Insel", "Sumpf", "Gebirge", "Wald",
-                    // French
-                    "Plaine", "Île", "Marais", "Montagne", "Forêt",
-                    // Spanish
-                    "Llanura", "Isla", "Pantano", "Montaña", "Bosque",
-                    // Italian
-                    "Pianura", "Isola", "Palude", "Montagna", "Foresta",
-                    // Portuguese
-                    "Planície", "Ilha", "Pântano", "Montanha", "Floresta"
-                };
-
-                if (basicLandNames.Contains(cardName))
+                if (BasicLandNames.Contains(cardName))
                 {
                     return true;
                 }
@@ -2046,12 +2075,11 @@ namespace AccessibleArena.Core.Services
             if (obj == null) return default(T);
             try
             {
-                var prop = obj.GetType().GetProperty(propertyName);
-                if (prop != null)
-                {
-                    var value = prop.GetValue(obj);
-                    if (value is T typedValue) return typedValue;
-                }
+                var member = LookupMember(obj.GetType(), propertyName);
+                if (member == null) return default(T);
+
+                object value = member is FieldInfo fi ? fi.GetValue(obj) : ((PropertyInfo)member).GetValue(obj);
+                return value is T typedValue ? typedValue : default(T);
             }
             catch { }
             return default(T);
@@ -2068,41 +2096,29 @@ namespace AccessibleArena.Core.Services
             if (_instanceIdToName.TryGetValue(instanceId, out string cachedName))
                 return cachedName;
 
-            // Try to find card in battlefield/zones
             try
             {
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                foreach (var holderName in AllZoneHolders)
                 {
-                    if (go == null || !go.activeInHierarchy) continue;
-                    if (!go.name.StartsWith("CDC #")) continue;
-
-                    var cdcComponent = CardModelProvider.GetDuelSceneCDC(go);
-                    if (cdcComponent != null)
+                    foreach (var go in EnumerateCDCsInHolder(holderName))
                     {
+                        var cdcComponent = CardModelProvider.GetDuelSceneCDC(go);
+                        if (cdcComponent == null) continue;
+
                         var model = CardModelProvider.GetCardModel(cdcComponent);
-                        if (model != null)
+                        if (model == null) continue;
+
+                        var cid = GetFieldValue<uint>(model, "InstanceId");
+                        if (cid == instanceId)
                         {
-                            var modelType = model.GetType();
-                            var instIdProp = modelType.GetProperty("InstanceId");
-                            if (instIdProp != null)
+                            var gid = GetFieldValue<uint>(model, "GrpId");
+                            if (gid != 0)
                             {
-                                var cardInstId = instIdProp.GetValue(model);
-                                if (cardInstId is uint cid && cid == instanceId)
+                                string name = CardModelProvider.GetNameFromGrpId(gid);
+                                if (!string.IsNullOrEmpty(name))
                                 {
-                                    var grpIdProp = modelType.GetProperty("GrpId");
-                                    if (grpIdProp != null)
-                                    {
-                                        var grpId = grpIdProp.GetValue(model);
-                                        if (grpId is uint gid)
-                                        {
-                                            string name = CardModelProvider.GetNameFromGrpId(gid);
-                                            if (!string.IsNullOrEmpty(name))
-                                            {
-                                                _instanceIdToName[instanceId] = name;
-                                                return name;
-                                            }
-                                        }
-                                    }
+                                    _instanceIdToName[instanceId] = name;
+                                    return name;
                                 }
                             }
                         }
@@ -2142,15 +2158,10 @@ namespace AccessibleArena.Core.Services
                 var instigator = GetFieldValue<object>(uxEvent, "Instigator");
                 if (instigator != null)
                 {
-                    var instigatorType = instigator.GetType();
-                    var grpIdProp = instigatorType.GetProperty("GrpId");
-                    if (grpIdProp != null)
+                    var gid = GetFieldValue<uint>(instigator, "GrpId");
+                    if (gid != 0)
                     {
-                        var grpId = grpIdProp.GetValue(instigator);
-                        if (grpId is uint gid && gid != 0)
-                        {
-                            cardName = CardModelProvider.GetNameFromGrpId(gid);
-                        }
+                        cardName = CardModelProvider.GetNameFromGrpId(gid);
                     }
                 }
 
@@ -2440,46 +2451,55 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                var holder = DuelHolderCache.GetHolder("StackCardHolder");
+                if (holder == null) return null;
+
+                foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
                 {
-                    if (go == null || !go.activeInHierarchy) continue;
-
-                    if (go.name.Contains("StackCardHolder"))
-                    {
-                        foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
-                        {
-                            if (child == null || !child.gameObject.activeInHierarchy) continue;
-
-                            if (child.name.Contains("CDC #"))
-                                return child.gameObject;
-                        }
-                    }
+                    if (child != null && child.gameObject.activeInHierarchy && child.name.Contains("CDC #"))
+                        return child.gameObject;
                 }
             }
             catch { }
             return null;
         }
 
+        // Reflection cache: maps (Type, memberName) -> MemberInfo (FieldInfo or PropertyInfo).
+        // Static because types don't change at runtime. ConcurrentDictionary for thread safety.
+        // A null value means "we looked and neither field nor property exists" (negative cache).
+        private static readonly ConcurrentDictionary<(Type, string), MemberInfo> _reflectionCache
+            = new ConcurrentDictionary<(Type, string), MemberInfo>();
+
+        private const BindingFlags AllInstanceFlags =
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+        // Basic land names in all supported languages (static to avoid per-call allocation)
+        private static readonly HashSet<string> BasicLandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Plains", "Island", "Swamp", "Mountain", "Forest",           // English
+            "Ebene", "Insel", "Sumpf", "Gebirge", "Wald",               // German
+            "Plaine", "Île", "Marais", "Montagne", "Forêt",             // French
+            "Llanura", "Isla", "Pantano", "Montaña", "Bosque",          // Spanish
+            "Pianura", "Isola", "Palude", "Montagna", "Foresta",        // Italian
+            "Planície", "Ilha", "Pântano", "Montanha", "Floresta"       // Portuguese
+        };
+
+        private static MemberInfo LookupMember(Type type, string name)
+        {
+            return _reflectionCache.GetOrAdd((type, name), key =>
+                key.Item1.GetField(key.Item2, AllInstanceFlags) as MemberInfo
+                ?? key.Item1.GetProperty(key.Item2, AllInstanceFlags) as MemberInfo);
+        }
+
         private T GetFieldValue<T>(object obj, string fieldName)
         {
             if (obj == null) return default;
 
-            var type = obj.GetType();
-            var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null)
-            {
-                var value = field.GetValue(obj);
-                if (value is T typed) return typed;
-            }
+            var member = LookupMember(obj.GetType(), fieldName);
+            if (member == null) return default;
 
-            var prop = type.GetProperty(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (prop != null)
-            {
-                var value = prop.GetValue(obj);
-                if (value is T typed) return typed;
-            }
-
-            return default;
+            object value = member is FieldInfo fi ? fi.GetValue(obj) : ((PropertyInfo)member).GetValue(obj);
+            return value is T typed ? typed : default;
         }
 
         /// <summary>
@@ -2493,7 +2513,7 @@ namespace AccessibleArena.Core.Services
                 return;
 
             // Extract player number from pattern like "Player: 2 (LocalPlayer)" or "PlayerPlayer: 2 (LocalPlayer)"
-            var match = System.Text.RegularExpressions.Regex.Match(zoneStr, @"Player[^:]*:\s*(\d+)\s*\(LocalPlayer\)");
+            var match = LocalPlayerPattern.Match(zoneStr);
             if (match.Success && uint.TryParse(match.Groups[1].Value, out uint detectedId))
             {
                 if (detectedId != _localPlayerId && detectedId > 0)

@@ -641,8 +641,8 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            string rewardInfo = _rewardCount > 0 ? $"{_rewardCount} rewards. " : "";
-            return $"Rewards. {rewardInfo}Left and Right to navigate. Up and Down for card details. Backspace to continue.";
+            string rewardInfo = _rewardCount > 0 ? $" {_rewardCount} rewards." : "";
+            return $"Rewards. Left and Right to navigate. Up and Down for card details. Backspace to continue.{rewardInfo}";
         }
 
         protected override void HandleInput()

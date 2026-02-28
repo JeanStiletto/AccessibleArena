@@ -1021,6 +1021,22 @@ All duel event announcements. These are spoken automatically as game events occu
 - **Test with a screen reader.** If possible, run the mod with your language selected and listen to how the translations sound when spoken aloud. Some phrasing that reads well on screen sounds awkward when spoken.
 - **Placeholders can be reordered.** If your language puts the count before the noun, that's fine: `"{1} cartes dans {0}"` works just as well as `"{0}, {1} cards"`.
 
+## NumberWords
+
+The `NumberWords` key maps spelled-out number words to digits. The mod uses this when the game's prompt text spells out a number as a word instead of a digit (e.g. German "Wirf **zwei** Karten ab" instead of "Discard **2** cards"). The mod first tries to find a digit with a regex; NumberWords is the fallback.
+
+Format: comma-separated `word=number` pairs, all lowercase:
+
+```json
+"NumberWords": "one=1,two=2,three=3,four=4,five=5,six=6,seven=7,eight=8,nine=9,ten=10"
+```
+
+Tips:
+- Include all grammatical forms your language uses in game prompts (e.g. German needs "eine=1,einer=1,einem=1,einen=1,ein=1,zwei=2,...")
+- Numbers 1-10 are usually enough - higher counts are rare in game prompts
+- Languages that always use digits in game prompts (Japanese, Korean, Chinese) can leave this empty: `"NumberWords": ""`
+- Matching is case-insensitive and whole-word only, so "ein" won't match inside "einen" (both should be listed separately)
+
 ## How to Test
 
 1. Build the mod: `dotnet build src/AccessibleArena.csproj`

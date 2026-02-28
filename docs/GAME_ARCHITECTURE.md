@@ -70,6 +70,16 @@ Cards are children of zone holders. Detection patterns:
 - Name contains: `CardAnchor`
 - Component types: `CDCMetaCardView`, `CardView`, `DuelCardView`, `Meta_CDC`
 
+### HotHighlight (Card Targeting/Playability Indicator)
+
+The game marks playable and targetable cards by adding a child GameObject with "HotHighlight" in its name. This is NOT a direct child of the card CDC — it is nested deeper in the card's hierarchy (e.g., `CDC #123 > SubContainer > HotHighlightBattlefield(Clone)`).
+
+- Name pattern: `HotHighlight*` (e.g., `HotHighlightBattlefield(Clone)`, `HotHighlightHand(Clone)`)
+- The HotHighlight object may exist but be **inactive** — existence (not active state) indicates the card is playable/targetable
+- To find highlighted cards: scan for GameObjects named "HotHighlight", then walk up the parent chain to find the owning card (use `CardDetector.IsCard()`)
+- The game adds/removes these dynamically as game state changes (priority, mana, targets)
+- Player avatars do NOT use HotHighlight — they use `HighlightSystem` sprite swapping instead (see DuelScene_AvatarView section)
+
 ## Key Game Classes
 
 From decompiled Core.dll:
@@ -159,6 +169,12 @@ The game uses a UX event queue (`Wotc.Mtga.DuelScene.UXEvents.UXEventQueue`) to 
 **UXEventUpdatePhase**
 - Purpose: Phase changes
 - Key Fields: `<Phase>k__BackingField`, `<Step>k__BackingField`
+- Phase/Step values (as seen in events):
+  - `Beginning/Untap`, `Beginning/Upkeep`, `Beginning/Draw`
+  - `Main1/None`, `Main2/None`
+  - `Combat/None`, `Combat/DeclareAttack`, `Combat/DeclareBlock`, `Combat/CombatDamage`, `Combat/EndCombat`
+  - `Ending/None` (= End Step), `Ending/Cleanup`
+- Note: `Ending/None` is the End Step (there is no `Ending/End` or `Ending/EndStep` value)
 
 **ToggleCombatUXEvent**
 - Purpose: Combat start/end
@@ -399,9 +415,11 @@ From observed elements:
 ### Notes
 
 - Tooltip text is stored in `LocString` field as a LocalizedString
+- `LocalizedString.ToString()` returns the localized text (e.g., "Optionen anpassen")
 - The longer contextual text sometimes seen (e.g., "Complete tutorial to unlock 5 decks") comes from **sibling text elements**, not the TooltipTrigger itself
 - TooltipTrigger implements IPointerClickHandler but should be excluded from activation logic (it just shows tooltips)
-- Currently not extracted for accessibility announcements as existing text extraction is sufficient
+- **Used as last-resort fallback** by `UITextExtractor.TryGetTooltipText()` for image-only buttons (no TMP_Text, no sibling labels)
+- Only used when tooltip text is under 60 chars (avoids verbose descriptions like "Verdiene Gold, indem du spielst...")
 
 ## Native Keybinds
 
@@ -780,11 +798,27 @@ CardDatabase.AbilityTextProvider.GetAbilityTextByCardAbilityGrpId(
     uint cardTitleId, string overrideLangCode, bool formatted)
 ```
 
-**Flavor Text (via GreLocProvider):**
+**Flavor Text / Type Line Text (via GreLocProvider):**
 ```csharp
 // GreLocProvider is SqlGreLocalizationProvider
 CardDatabase.GreLocProvider.GetLocalizedText(uint locId, string overrideLangCode, bool formatted)
+// Used for FlavorTextId, TypeTextId, SubtypeTextId
 // FlavorTextId = 1 is a placeholder meaning "no flavor text"
+```
+
+**Card Type Line Text (via GreLocProvider or CardTypeProvider):**
+```csharp
+// Option 1: Direct loc ID lookup (used by mod for type lines)
+CardDatabase.GreLocProvider.GetLocalizedText(printing.TypeTextId)   // e.g. "Legendary Creature"
+CardDatabase.GreLocProvider.GetLocalizedText(printing.SubtypeTextId) // e.g. "Elf Warrior"
+
+// Option 2: Translate individual enum values
+CardDatabase.GreLocProvider.GetLocalizedTextForEnumValue("CardType", (int)cardType)
+CardDatabase.GreLocProvider.GetLocalizedTextForEnumValue("SuperType", (int)superType)
+CardDatabase.GreLocProvider.GetLocalizedTextForEnumValue("SubType", (int)subType)
+
+// Option 3: Full type line via CardTypeProvider (handles modifications, color tags)
+CardDatabase.CardTypeProvider.GetTypelineText(ICardDataAdapter, CardTextColorSettings, overrideLang)
 ```
 
 ### Card Model Properties
@@ -793,15 +827,20 @@ Cards have a `Model` object (type `GreClient.CardData.CardData`) with these key 
 The same properties are available on CardData objects from store items, making unified extraction possible via `CardModelProvider.ExtractCardInfoFromObject()`.
 
 **Identity:**
-- `GrpId` (uint) - Card database ID
-- `TitleId` (uint) - Localization key for name
+- `GrpId` (uint) - Card database ID (used for CardTitleProvider fallback)
+- `TitleId` (uint) - Localization key for name (primary, via `GetLocalizedTextById`)
 - `FlavorTextId` (uint) - Localization key for flavor (1 = none)
 - `InstanceId` (uint) - Unique instance in a duel (0 for non-duel cards)
 
-**Types (structured):**
+**Types (structured, always English enum names):**
 - `Supertypes` (SuperType[]) - Legendary, Basic, etc.
 - `CardTypes` (CardType[]) - Creature, Land, Instant, Sorcery, etc.
 - `Subtypes` (SubType[]) - Goblin, Forest, Aura, etc.
+
+**Type line localization IDs (on model or Printing sub-object):**
+- `TypeTextId` (uint) - Localization key for type text (e.g. "Legendary Creature")
+- `SubtypeTextId` (uint) - Localization key for subtype text (e.g. "Elf Warrior")
+- Looked up via `GreLocProvider.GetLocalizedText(locId)` for localized display
 
 **Stats:**
 - `PrintedCastingCost` (ManaQuantity[]) - Mana cost array (structured)
@@ -815,6 +854,9 @@ The same properties are available on CardData objects from store items, making u
 **Print-specific:**
 - `Printing` (CardPrintingData) - Print-run specific data (artist, set)
 - `Printing.ArtistCredit` (string) - Artist name
+- `Printing.TitleId` (uint) - Name localization key (fallback if not on model directly)
+- `Printing.TypeTextId` (uint) - Type line localization key
+- `Printing.SubtypeTextId` (uint) - Subtype localization key
 - `ExpansionCode` (string) - Set code (e.g., "FDN")
 - `Rarity` (CardRarity) - Common, Uncommon, Rare, MythicRare
 
@@ -823,7 +865,9 @@ The same properties are available on CardData objects from store items, making u
 - `ManaCost` / `CastingCost` (string) - Mana cost as string (e.g., "oU")
 - `OldSchoolManaText` (string) - Mana cost in old format
 
-`ExtractCardInfoFromObject` tries structured properties first, falling back to string properties. This means it works with both full Model objects (duel, deck builder) and simpler CardData objects (store items).
+`ExtractCardInfoFromObject` uses localization IDs via `GetLocalizedTextById()` for both name (`TitleId`) and type line (`TypeTextId`/`SubtypeTextId`), falling back to `CardTitleProvider` (name) or structured enum types (type line) only when loc IDs are unavailable. This means it works with both full Model objects (duel, deck builder) and simpler CardData objects (store items), always producing localized output when possible.
+
+**Important:** Structured enum types (Supertypes/CardTypes/Subtypes) always return English names via `.ToString()`. Use them only for internal type detection (isCreature, isLand), never for display. For display, use loc IDs (`TitleId`, `TypeTextId`, `SubtypeTextId`) via `GetLocalizedTextById()` or `GreLocProvider.GetLocalizedText()`.
 
 ### Mana Symbol Formats
 
@@ -933,3 +977,201 @@ MonoBehaviour attached to GameObjects with text. On enable, subscribes to `Langu
 **Class:** `Wotc.Mtga.Login.BirthLanguagePanel` (Core.dll)
 
 Uses `TMP_Dropdown` populated from `Languages.ExternalLanguages`. Display text from loc keys like `"MainNav/Settings/LanguageNative_de"`. Initial language can come from PlayerPrefs, `MTGAUpdater.ini`, or Windows registry `ProductLanguage`.
+
+## Event System Architecture
+
+The game's event system (promotional events like Jump In, Standard Event, Draft, etc.) uses a layered architecture of data models, managers, and modular UI components.
+
+### Event Data Layer
+
+**EventManager** (`Wizards.MDN.EventManager`, implements `IEventManager`):
+- `EventContexts` (List\<EventContext\>) - All loaded event contexts
+- `EventsByInternalName` (Dictionary\<string, EventContext\>) - Lookup by internal name
+- `GetEventContext(string internalEventName)` - Get specific event
+- `Coroutine_GetEventsAndCourses()` fetches events from server
+
+**EventContext** (`Wizards.MDN.EventContext`):
+- `PlayerEvent` (IPlayerEvent) - Player's state in the event
+- `DeckSelectContext` (DeckSelectSceneContext) - SelectDeck or InspectDeck
+- `DeckIsFixed` - Whether deck is fixed format
+
+**IEventInfo** (`Wotc.Mtga.Events.IEventInfo`) - Static event metadata:
+- `EventId`, `InternalEventName`, `EventState` (MDNEventState enum)
+- `FormatType` (MDNEFormatType), `StartTime`, `LockedTime`, `ClosedTime`
+- `EntryFees` (List of EventEntryFeeInfo)
+- `IsRanked`, `IsAiOpponent`, `IsPreconEvent`, `UpdateQuests`
+
+**IPlayerEvent** (`Wotc.Mtga.Events.IPlayerEvent`) - Player's event state:
+- `EventInfo` (IEventInfo), `EventUXInfo` (IEventUXInfo)
+- `Format` (DeckFormat), `CourseData` (has `CurrentModule` enum)
+- `CurrentWins`, `CurrentLosses`, `GamesPlayed`
+- `MaxWins`, `MaxLosses`, `WinCondition`
+- `HasUnclaimedRewards`, `MatchMakingName`
+- `CurrentChoices`, `PacketsChosen`, `HistoricalChoices` (Jump In specific)
+- Key methods: `JoinAndPay()`, `SubmitEventDeck()`, `ResignFromEvent()`, `ClaimPrize()`, `JoinNewMatchQueue()`, `SetChoice()`, `SubmitEventChoice()`
+
+**IEventUXInfo** (`Wotc.Mtga.Events.IEventUXInfo`) - Display data:
+- `PublicEventName`, `TitleLocKey`, `DisplayPriority`
+- `Parameters` (Dictionary), `Group`
+- `HasEventPage`, `DeckSelectFormat`, `OpenedFromPlayBlade`
+- `EventComponentData` - Layout data for event page components
+
+**PlayerEventModule enum** (state machine driving the entire event flow):
+- `Join` / `Pay` / `PayEntry` -> Joining phase
+- `Jumpstart` -> Packet selection (Jump In)
+- `DeckSelect` / `Choice` -> Deck selection
+- `Draft` / `HumanDraft` -> Draft phase
+- `TransitionToMatches` / `WinLossGate` / `WinNoGate` -> Playing matches
+- `ClaimPrize` -> Rewards
+- `Complete` -> Done
+- `NPEUpdate` -> New player experience
+
+### Play Blade (Event Selection UI)
+
+**EventBladeContentView** (`Wizards.Mtga.PlayBlade.EventBladeContentView`, extends `BladeContentView`):
+- `_eventTileContainer` (RectTransform) - Parent container for tiles
+- `_views` (List of PlayBladeEventTile) - All instantiated tiles
+- `UpdateViewFromSelection()` creates tiles from filtered events
+- Click handler dispatches `GoToEventPageSignal` with event name
+
+**EventBladeView** (`Wizards.Mtga.PlayBlade.EventBladeView`, extends `BladeView`):
+- `_optionsContainer` (Transform) - Container for filter items
+- Filter items are `BladeFilterItem` -> `BladeListItem` with `CustomButton` + `Localize`
+
+**PlayBladeEventTile** (`Wizards.Mtga.PlayBlade.PlayBladeEventTile`):
+- `_customButton` (CustomButton) - Main click target
+- `_titleText` (Localize) - Event name
+- `_timerText` (TMP_Text) - Countdown/status timer
+- `_rankImage` (Image) - Ranked indicator
+- `_bestOf3Indicator` (RectTransform) - Bo3 indicator
+- `_eventProgressPips` (RectTransform) - Win progress (1-3 pips)
+- `_attractParent` (RectTransform) - Active when event is in progress
+- GO naming: `"EventTile - (Jump_In_2024)"`, `"EventTile - (Standard_Event)"`
+- Tile container path: `.../Viewport/Content - Grid - Event Tiles/`
+- Clickable area: `.../EventTile - (name)/Container/Hitbox`
+
+**BladeEventInfo** (data model per tile):
+- `EventName`, `FormatName`, `LocTitle`, `LocShortTitle`, `LocDescription`
+- `TimerType` enum: Invalid, Hidden, Preview, Unjoined_LockingSoon, Joined_ClosingSoon, ClosedAndCompleted
+- `StartTime`, `LockTime`, `CloseTime` (DateTime)
+- `IsInProgress`, `IsRanked`, `IsLimited`, `IsBotMatch`
+- `WinCondition` (MatchWinCondition enum, includes BestOf3)
+- `TotalProgressPips`, `PlayerProgress`
+
+### Event Page (Event Detail)
+
+**EventPageContentController** (`EventPage.EventPageContentController`, extends `NavContentController`):
+- `NavContentType` = `NavContentType.EventLanding`
+- `_currentEventContext` (EventContext) - Currently displayed event
+- `_instantiatedEventPages` (Dictionary\<string, EventPage\>) - Cached pages keyed by `InternalEventName`
+- `_factory` (EventPageComponentFactory) - Creates modular UI components
+- `OnBeginOpen()` creates/caches `EventPageScaffolding` + `EventComponentManager`
+- GO naming: root named after `InternalEventName` (e.g., "Jump_In_2024")
+- Layout path: `.../Jump_In_2024/SafeArea/LowerRightVerticalLayoutGroup/`
+
+**EventComponentManager** (`EventPage.Components.EventComponentManager`):
+- Manages all `IComponentController` instances for an event page
+- `OnEventPageOpen()` subscribes to keyboard/inventory, updates components
+- `UpdateComponents()` determines state from `CurrentModule`
+- `MainButton_OnPlayButtonClicked()` handles main action based on module state
+- `MainButton_OnPayJoinButtonClicked()` handles payment flow
+
+**Event Page Components** (all in `EventPage.Components` namespace):
+- `MainButtonComponent` / `MainButtonComponentController` - The main action button
+  - GO: `EventComponent_MainButton_Desktop_16x9(Clone)/MainButton_Play`
+  - 5 button states: Play, Start, PayWithGems, PayWithGold, PayWithEventToken
+  - Text varies by module: "Choose Packets", "Select Deck", "Play Match", "Claim Prize", etc.
+- `ObjectiveTrackComponent` / `ObjectiveTrackComponentController` - Win/loss progress
+  - GO: `Objective_CumulativeEvent(Clone)`
+- `TimerComponent` / `TimerComponentController` - Event countdown
+- `TextComponent` / `DescriptionComponentController` / `SubtitleComponentController` - Event text
+- `SelectedDeckComponent` / `SelectedDeckComponentController` - Selected deck display
+- `ResignComponent` / `ResignComponentController` - Resign button
+- `PrizeWallComponent` / `PrizeWallComponentController` - Prize tier display
+- `LossDetailsComponent` / `LossDetailsComponentController` - Loss tracking
+- `ViewCardPoolComponent` / `ViewCardPoolComponentController` - Card pool button
+- `InspectPreconDecksComponent` / `InspectSingleDeckComponent` - Deck preview
+- `EmblemComponent` / `EmblemComponentController` - Event emblem display
+- `EventButtonComponent` / `EventButtonComponentController` - Additional buttons
+
+**IComponentController** interface:
+- `Update(IPlayerEvent)` - Refresh with current data
+- `OnEventPageOpen(EventContext)` - Called when page opens
+- `OnEventPageStateChanged(IPlayerEvent, EventPageStates)` - On state change
+- States: `DisplayQuest`, `ClaimQuestRewards`, `DisplayEvent`, `ClaimEventRewards`
+
+### Packet Selection (Jump In)
+
+**PacketSelectContentController** (`Wotc.Mtga.Wrapper.PacketSelect.PacketSelectContentController`, extends `NavContentController`):
+- `NavContentType` = `NavContentType.PacketSelect`
+- `_confirmSelectionButton` (CustomButton) - "Confirm selection" button
+- `_headerText` (Localize) - Header showing "First Packet" / "Second Packet"
+- `_packPrefab` (JumpStartPacket) - Prefab for instantiating packet tiles
+- `_packetOptions` (List\<JumpStartPacket\>) - Currently displayed selectable packet instances
+- `_submittedPacks` (List\<JumpStartPacket\>) - Already submitted packet instances
+- `_packetToId` (Dictionary\<JumpStartPacket, string\>) - Maps packet MonoBehaviour to packet ID string
+- `_idToPacket` (Dictionary\<string, JumpStartPacket\>) - Reverse mapping
+- `_selectedPackId` (string) - Currently selected packet ID (empty string = none)
+- `_currentState` (ServiceState readonly struct) - Canonical state from service
+- `SetServiceState()` recreates packet instances from `_currentState.PacketOptions`
+- Header loc keys: `"Events/Packets/Event_Header_First_Packet"` / `"Events/Packets/Event_Header_Second_Packet"`
+- Single click = toggle selection, double click = select + submit
+
+**ServiceState** (`Wotc.Mtga.Wrapper.PacketSelect.ServiceState`, readonly struct):
+- `SubmittedPackets` (PacketDetails[]) - Already submitted packets (readonly field)
+- `PacketOptions` (PacketDetails[]) - Available packet options (readonly field)
+- `SubmissionCount()` returns **uint** (not int) - counts non-default entries in SubmittedPackets
+- `AllPacketsSubmitted()` - True if no default entries remain in SubmittedPackets
+- `CanSubmit(string packetId)` - True if not all submitted and option exists
+- `GetDetailsById(string packetId)` - Checks submissions first, then options
+- `GetOptionById(string packetId)` / `GetSubmissionById(string packetId)`
+
+**PacketDetails** (`Wotc.Mtga.Wrapper.PacketSelect.PacketDetails`, readonly struct):
+- `Name` (string) - Internal packet name (e.g., "Azorius"), used as loc key via `"Events/Packets/" + Name`
+- `PacketId` (string) - Unique identifier for submission
+- `LandGrpId` (uint) - GRP ID of the included basic land
+- `ArtId` (uint) - Asset ID for packet card back art
+- `RawColors` (string[]) - Array of single-char color codes (e.g., `["W", "U"]`), sorted by `PacketColorCore.SortColors()`
+
+**JumpStartPacket** (`Wotc.Mtga.Wrapper.PacketSelect.JumpStartPacket`, MonoBehaviour):
+- Instantiated from `_packPrefab` per packet option; each is a 3D card-like object
+- `_input` (PacketInput) - Click/hover handler (delegates Clicked, DoubleClicked, MouseEntered, MouseExit)
+- `_packTitle` (Localize) - Localized display name, set via `SetName(MTGALocalizedString)`
+- `_cardBack` (MeshRenderer) - Card back with "ArtInFrame" material for packet art
+- `_hoverHighlight` (GameObject) - Visual highlight on hover
+- `_colorDisplayView` (ColorDisplayView) - Mana color display, set via `SetPacketColors(string[])`
+- `_bluePickTab` / `_bluePickTabText` - Blue banner for submitted packet number
+- `_orangePickTab` / `_orangePickTabText` - Orange banner for selected (pending) packet number
+- `Root` property returns `transform` (used for movement system positioning)
+- Banner loc key: `"Events/Packets/Banner_Text"` with parameter `packetNum`
+- **Note:** The clickable element inside each packet is via PacketInput, not a CustomButton directly on the JumpStartPacket. The buttons discovered by GeneralMenuNavigator are CustomButtons inside the PacketInput hierarchy.
+
+### Home Page Carousel
+
+**HomeCarouselController** (root namespace):
+- `MainButton` (CustomButton) - Click banner to navigate
+- `NavLeftButton` / `NavRightButton` (CustomButton) - Arrow navigation
+- `TitleLoc` (Localize) - Banner title
+- `DescriptionLoc` (Localize) - Banner description
+- `_visibleItems` (List\<Client_CarouselItem\>) - Carousel data
+- `Client_CarouselItem` has: `TitleKey`, `DescriptionKey`, `Name`, `Actions`
+- Auto-rotates every 15 seconds
+
+**CarouselActionType enum:**
+- `GoToEvent`, `GoToColorChallenge`, `GoToStoreItem`, `GoToExternalUrl`
+- `OpenPlayBlade`, `OpenStoreTab`, `GoToScreen`, `GoToDynamicFilter`
+
+### Asset Lookup Tree (Event Visuals)
+
+Event visual assets are resolved via `AssetLookupTree` with extractors:
+- `Event_Type`, `Event_State`, `Event_InternalName`, `Event_MatchmakingName`
+- `Event_PublicName`, `Event_TimerState`, `Event_GamesWon`
+
+Payload types for event visuals: `BackgroundPayload`, `BannerPayload`, `BladePayload`, `EmblemPayload`, etc.
+
+### Factionalized Events (Newer System)
+
+**Namespace:** `Core.Meta.MainNavigation.EventPageV2`
+- `FactionalizedEventBlade` / `FactionalizedEventBladeItem` - Faction selection UI
+- `FactionEventContext` - Extends EventContext with faction data
+- `FactionalizedEventTemplate` / `FactionalizedEventUtils` - Template system

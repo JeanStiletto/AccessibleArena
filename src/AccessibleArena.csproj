@@ -10,8 +10,19 @@
     <AssemblyName>AccessibleArena</AssemblyName>
     <RootNamespace>AccessibleArena</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <Version>0.6.7</Version>
   </PropertyGroup>
+
+  <!-- Generate VersionInfo.g.cs so MelonInfo can use a const from Directory.Build.props -->
+  <Target Name="GenerateVersionInfo" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_VersionLines Include="// Auto-generated from Directory.Build.props — do not edit" />
+      <_VersionLines Include="internal static class VersionInfo { internal const string Value = &quot;$(ModVersion)&quot;%3B }" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)VersionInfo.g.cs" Lines="@(_VersionLines)" Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)VersionInfo.g.cs" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <Reference Include="0Harmony">

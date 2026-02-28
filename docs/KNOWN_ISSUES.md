@@ -24,15 +24,48 @@ Some cards have ability IDs greater than ~100000 that cannot be resolved correct
 
 ---
 
+### Token Attack Selection Uses Game's Internal Order (Not a Mod Bug)
+
+When clicking a non-attacking token during declare attackers, the game always selects the first available token in its internal order, regardless of which specific token CDC was clicked. This is game behavior for identical tokens (e.g., Goblin tokens). Clicking an already-attacking token correctly deselects that specific one.
+
+**Confirmed not a position issue:** BattlefieldNavigator now sends each card's actual screen position via `Camera.main.WorldToScreenPoint`, and tokens at different positions (e.g., 127px apart) still exhibit this behavior. The game intentionally ignores which token object receives the click event.
+
+**For sighted users:** Tokens are visually stacked; clicking the stack selects them in order. This is by design.
+
+**Workaround:** Use Space ("All Attack") then deselect specific tokens, or accept that tokens are selected in the game's internal order.
+
+**Investigation history:**
+- Failed fix 1: Setting `pointerCurrentRaycast`/`pointerPressRaycast` in CreatePointerEventData - broke all card plays (incomplete RaycastResult struct)
+- Failed fix 2: `Camera.main.WorldToScreenPoint` in generic `GetScreenPosition` - broke hand card playing (hand cards are also 3D objects)
+- Fix 3 (kept): Battlefield-specific position override in `BattlefieldNavigator.ActivateCurrentCard()` - correct positions but game ignores them for tokens. Kept for potential benefit with non-token overlapping cards.
+
+**Files:** `UIActivator.cs` (SimulatePointerClick overload), `BattlefieldNavigator.cs` (ActivateCurrentCard)
+
+---
+
 ### Battlefield Cards Splitting Into Two Stacks
 
 Cards on the battlefield sometimes split into two separate stacks/rows when they should be grouped together.
 
 ---
 
-### Store Not Closing Correctly
+### Bot Match Not Working From Recent Played
 
-Store screen does not always close properly, which can leave navigation in an unexpected state.
+Starting a bot match from the "Recent Played" section does not work properly.
+
+---
+
+### Friends Panel "add friend" / "add challenge" Buttons Show English Labels
+
+The "add friend" and "add challenge" buttons in the FriendsWidget show English GameObject names instead of localized text. Our text extraction falls back to the GameObject name (`Button_AddFriend`, `Button_AddChallenge`) when it can't find the localized TextMeshProUGUI label. The actual localized text likely lives on a child object or uses a different text component that we miss.
+
+**Path:** `FriendsWidget_Desktop_16x9(Clone)/FriendWidget_Base/Button_AddFriend/Backer_Hitbox`
+
+---
+
+### Haide Land Browser Broken (Leicht Gepanzert Deck)
+
+The Haide land (from the "Leicht Gepanzert" Brawl deck) opens a color picker browser to choose a mana color except white. This browser is not handled correctly and breaks navigation.
 
 ---
 
@@ -42,23 +75,63 @@ When selecting a different color in Color Challenge, the announced deck name doe
 
 ---
 
-## Needs Testing
+### Deck Renaming Causes Bad Mod State
 
-### UIActivator Single-Activation Cleanup
-
-Removed redundant activation methods from `SimulatePointerClick` and `Activate` (Feb 2026). Previously, every button press fired 3-4 overlapping activation pathways (pointer events, submit handler, children clicks, direct IPointerClickHandler, reflection onClick). Now only the core pointer sequence fires (enter, down, up, click). This fixed NPE tutorial matches failing to start, but all button types across the game need monitoring:
-- Menu buttons (play, settings, store, etc.)
-- Duel prompt buttons (pass, attack, block)
-- Card activation and targeting
-- Deck builder buttons
-- Collection/store purchase buttons
-- Login and registration buttons
-
-**If a button stops working:** Re-add targeted handling for that specific button in `UIActivator.Activate()`, similar to existing special cases (Nav_Mail, NPE reward, SystemMessageButtonView).
-
-**Files:** `UIActivator.cs`
+Renaming a deck breaks the mod's navigation state. After renaming, the mod may lose track of elements, fail to announce correctly, or require a screen transition to recover.
 
 ---
+
+### Weekly Progress Enter Locks Mod
+
+Pressing Enter on the Weekly Progress element puts the mod in a locked state requiring screen transition to recover.
+
+---
+
+### Some Progress Items Open Buggy Screens
+
+Pressing Enter on specific Progress items for certain modes opens the corresponding screen but may create buggy navigation states.
+
+---
+
+### Multi-Zone Browser UI Needs Improvement
+
+First iteration of multi-zone browser works but UI can be improved:
+- Add better zone change system (current Up/Down cycling is basic)
+- Remove "view battlefield" button that appears in the tab order but is not useful for accessibility
+
+---
+
+### Stack Abilities Missing Rules Text
+
+Sometimes abilities on the stack only show the Name and Type blocks but not the rules text block.
+
+---
+
+### Some Tutorial Messages Not Localized
+
+Some tutorial hint messages like "button", "activated" are still hardcoded in English instead of going through LocaleManager.
+
+---
+
+### Item Count Spoken Before Menu Entry
+
+The item count is announced before the menu entry announcement. It should be the last thing spoken.
+
+---
+
+### Color Pips Not Localized
+
+Mana color pips (W/U/B/R/G) in card costs and other contexts are not localized to the user's language.
+
+---
+
+### Gold and Gems Not Correctly Labeled
+
+Gold and gem currency amounts are not correctly labeled as "Gold" and "Gems" in announcements.
+
+---
+
+## Needs Testing
 
 ### Other Windows Versions and Screen Readers
 
@@ -89,9 +162,36 @@ Sometimes secondary or irrelevant buttons appear in the Tab navigation order dur
 
 ---
 
-### Damage Assignment Browser
+### Damage Assignment Browser Opens Twice
 
-Damage assignment browser (e.g., when distributing combat damage across multiple blockers) needs testing for correct navigation and value assignment.
+The damage assignment browser sometimes opens twice in sequence for the same attacker (same blockers, same TotalDamage). This causes the game to request two separate damage assignments. Observed with a 5/4 creature blocked by 4 creatures — no first strike on any attacker or blocker. A creature with first strike (Halana und Alena) was on the battlefield but not in combat. Unclear whether this is caused by:
+- A first strike damage step being created by a non-combat creature with first strike
+- A game-internal behavior we don't understand yet
+- Something else on the battlefield granting first strike
+
+Currently mitigated with "1 of N" announcement so the user knows multiple rounds are expected.
+
+**Files:** `BrowserNavigator.cs` (GetAssignDamageEntryAnnouncement, EnsureTotalDamageCached)
+
+---
+
+### Damage Assignment Submit via SimulatePointerClick
+
+The damage assignment browser submit currently uses direct DoneAction invocation via reflection. Before our AssignDamage accessibility changes, the generic SimulatePointerClick on SubmitButton worked for confirmation. It's unclear whether SimulatePointerClick still works or if our input routing changes broke it. If DoneAction ever fails, test whether reverting to SimulatePointerClick on the SubmitButton is a viable alternative.
+
+**Files:** `BrowserNavigator.cs` (SubmitAssignDamage method)
+
+---
+
+### Long Scroll List Browsers
+
+Browsers that use long scroll lists (virtualized/recycled item views) may not work correctly with the mod's browser navigation. Cards outside the visible viewport may not be accessible or may cause issues when selected.
+
+---
+
+### Yes/No Prompts While Duelling
+
+Yes/No prompt dialogs that appear during a duel may not be detected or navigable. Needs testing to confirm whether these prompts are announced and whether the buttons can be activated.
 
 ---
 
@@ -101,15 +201,53 @@ Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing wheth
 
 ---
 
-### Specific Events
+### Sideboard Cards in Draft/Sealed Deck Building
 
-Individual event types (drafts, sealed, special events) are untested. Basic event navigation works but event-specific flows may have issues.
+Pool cards are now always classified as "Collection" (DeckBuilderCollection). Actual sideboard cards (non-MainDeck holders inside MetaCardHolders_Container) are detected separately. This works correctly for normal deck building, but in draft/sealed the pool cards may conceptually be the sideboard. Needs testing whether draft/sealed sideboard cards are still properly detected and navigable.
 
 ---
 
-### Friends Adding and Direct Challenge
+### Jump In: Featured Card Not Read Correctly
 
-Adding friends and the direct challenge feature are untested.
+Each packet in Jump In displays a featured card (via `PacketDetails.LandGrpId`). The mod attempts to look up card info via `CardModelProvider.GetCardInfoFromGrpId()` but this fails in the packet selection context (`_cachedDeckHolder is null`, no localization method found). Only the packet name and colors are shown in the info blocks, not the featured card data.
+
+Additionally, the featured card display does not update when selecting a different packet - it continues showing the same card data.
+
+**Files:** `EventAccessor.cs` (GetPacketInfoBlocks, GetPacketLandGrpId), `CardModelProvider.cs`
+
+---
+
+### Jump In: Packet Order Chaotic
+
+The packet tiles in Jump In appear in a chaotic/unpredictable order during navigation. The navigation order does not match the visual layout consistently.
+
+**Files:** `GeneralMenuNavigator.cs`, `EventAccessor.cs`
+
+---
+
+### Event Start Tooltip Missing
+
+When starting an event (entering the event page), the game shows a tooltip with event information. This tooltip is not detected or announced by the mod.
+
+---
+
+### Challenge Screen (Work In Progress)
+
+The direct challenge screen (via friends panel "Challenge" button) is partially implemented. What works:
+
+- **Screen detection**: PlayBladeState "Challenge" recognized as state 2 (DirectChallenge), screen announced as "Direct Challenge"
+- **Stepper controls**: Popout options (Deck Type, Format, Coin Flip, Match Type) work as steppers with Left/Right arrows via Spinner_OptionSelector reflection
+- **Overlay filtering**: Challenge containers (ChallengeOptions, UnifiedChallenges, Popout_Play, FriendChallengeBladeWidget) pass the PlayBlade overlay filter
+- **Group assignment**: Challenge elements correctly classified as PlayBladeContent (bypassing Popup and FriendsPanel group conflicts via IsInsidePlayBlade guards)
+- **Grouped navigation**: Enabled with PlayBladeContent auto-entry and position restore after spinner rescan
+
+Known issues still to address:
+- **Deck selection**: DeckSelectBlade opens when spinner values change, adding ~120 deck entries. Deck pairing (UI/TextBox dedup) and folder grouping should work via existing PlayBlade patterns but needs testing
+- **Stepper carousel in grouped mode**: HandleCarouselArrow syncs _currentIndex with GroupedNavigator.CurrentElement, but this is new code and needs verification
+- **Auto-entry after rescan**: RequestPlayBladeContentEntryAtIndex restores user position after spinner rescan, bypassing the SaveCurrentGroupForRestore mechanism which is skipped in PlayBlade context. Needs testing
+- **Leave/Invite buttons**: MainButton_Leave and Invite Button become INACTIVE when DeckSelectBlade opens (game hides UnifiedChallengesCONTAINER). Alternative: UnifiedChallenge_MainButton ("Warten") and NoDeck ("Select Deck") stay active in Popout_Play/FriendChallengeBladeWidget
+
+**Files:** `HarmonyPanelDetector.cs`, `OverlayDetector.cs`, `ElementGroupAssigner.cs`, `GroupedNavigator.cs`, `GeneralMenuNavigator.cs`, `BaseNavigator.cs`, `UIElementClassifier.cs`, `UIActivator.cs`
 
 ---
 
@@ -132,6 +270,12 @@ Zone card lists sometimes don't refresh when a card enters or leaves a zone (e.g
 
 ## Not Reproducible Yet
 
+### Card Names in English Despite Non-English Game Language
+
+Reported by some users: card names are read in English while the rest of the card text (rules text, type line) and the game UI are in the correct non-English language. Could not reproduce so far. May be related to game client language settings, account region, or a specific card data loading order.
+
+---
+
 ### Game Assets Loading Problem
 
 Intermittent issue during game asset loading. Exact symptoms and reproduction steps unknown.
@@ -150,9 +294,21 @@ Opening the settings menu (F2) during the declare attackers phase causes issues.
 
 ---
 
-### Objectives Menu Cannot Be Closed With Backspace
+### Adding Cards to Deck Exits Collection Group
 
-The objectives menu does not respond to Backspace to close. Exact reproduction steps unknown.
+Adding cards to a deck reportedly moves the user out of the Collection group to the upper group level. Exact reproduction steps unknown.
+
+---
+
+### Enter Opens Settings Menu
+
+Pressing Enter reportedly opens the settings menu in an unexpected context. Exact reproduction steps unknown.
+
+---
+
+### Color Challenge Broken
+
+Color Challenge mode may be broken. Exact symptoms and reproduction steps unknown.
 
 ---
 
@@ -166,21 +322,6 @@ Accumulated defensive fallback code needs review:
 - Extensive logging throughout - review what's still needed
 
 **Priority:** Low
-
----
-
-### WinAPI Fallback (UIActivator.cs)
-
-~47 lines of commented WinAPI code. Test if still needed, remove if stable without it.
-
-**Location:** `UIActivator.cs` lines 13-59
-
----
-
-### Performance
-
-- Multiple `FindObjectsOfType` calls in `DiscoverElements`
-- Repeated `GameObject.Find` calls in back navigation
 
 ---
 
@@ -216,21 +357,9 @@ Changed `ElementGroupAssigner.DetermineOverlayGroup()` to exclude `Objective_NPE
 
 ---
 
-### Card Info Navigation (Up/Down Arrows)
+### Targeting Spells With Non-Battlefield Objects in Highlight List
 
-Reported once: Up/Down arrows stopped reading card details during a duel. Could not reproduce. Diagnostic logging added.
-
-**If it happens again:** Check log for `[CardInfo]` entries around the time of the issue.
-
-**Files:** `CardInfoNavigator.cs`, `AccessibleArenaMod.cs`
-
----
-
-### Container Element Filtering
-
-Elements with "Container" in name + 0x0 sizeDelta are skipped. Some legitimate containers might be incorrectly filtered.
-
-**If a button stops working:** Check `UIElementClassifier.ShouldBeFiltered()`.
+Monitor whether clicking activates the wrong target during duels, especially when targeting spells while non-battlefield objects (e.g., UI buttons, zone elements) are present in the highlight list.
 
 ## Design Decisions
 
@@ -278,72 +407,51 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 ### Immediate
 
-1. Mana pool info - expand to show color breakdown
-2. Stepper control redesign
+1. Stepper control redesign
+2. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
+3. X spell support - spells with variable costs (e.g., Fireball, Walking Ballista) require the player to choose a value for X. Currently no accessible way to set the X value. Needs investigation into how the game presents the X cost input and how to make it navigable.
 
 ---
 
-### Mana Pool Info (Research Notes)
-
-The mana pool UI exists and is readable, but only shows total count, not color breakdown.
-
-**What We Found (January 2026):**
-- **UI Path:** `UIElements/ManaPool/Content/ManaPoolButton(Clone)`
-- **How it's read:** FocusTracker extracts text when focused (via Tab during mana payment)
-- **Current output:** Just a number (e.g., "1")
-- **Missing:** Color breakdown (e.g., "1 Green, 2 Blue")
-
-**Next Steps:**
-1. Investigate ManaPool children - may have per-color elements
-2. Check if game has ManaPool data accessible via reflection
-3. Look for mana symbols/icons that indicate colors
-4. Consider adding a dedicated shortcut to read mana pool during duels
-
 ### Upcoming
 
-1. First letter navigation - press a letter key to jump to the next element starting with that letter in menus and lists
-2. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
-3. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
-2. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
-3. Creature death/exile/graveyard announcements with card names
-4. Player username announcements
-5. Game wins display (WinPips)
-6. Brawl accessibility - Brawl game mode navigation and format-specific handling
-7. Token state on cards - announce token/copy status when reading card info
-8. Smart mana announcement - announce available mana with color breakdown from game state
-9. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
-10. Browser announcements - shorter, less verbose; only announce when it is the player's browser (not opponent's)
-11. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
-12. Better group announcements - improve how element groups are announced when entering/switching groups
-13. Loading screen announcement cleanup - reduce repetitive announcements during loading screens
-14. Loading screen announcements - less repetition, cleaner output during screen transitions
-15. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
-16. K hotkey for mark/counter information on cards - announce +1/+1 counters, damage marks, and other markers
-17. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
-18. Card crafting - wildcard crafting workflow accessibility
-19. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
-20. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
-21. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
+1. Manual trigger ordering - allow players to manually choose the order of their triggered abilities when multiple triggers happen simultaneously
+2. Auto-skip tracking and hotkeys - correct tracking and switching of auto-skip state, including a new hotkey for toggling auto-skip and full auto-skip modes
+4. First letter navigation - press a letter key to jump to the next element starting with that letter in menus and lists
+5. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
+6. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
+7. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
+8. Creature death/exile/graveyard announcements with card names
+9. Player username announcements
+10. Game wins display (WinPips)
+11. Token state on cards - announce token/copy status when reading card info
+14. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
+16. Browser announcements - shorter, less verbose; only announce when it is the player's browser (not opponent's)
+17. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
+18. Better group announcements - improve how element groups are announced when entering/switching groups
+19. Loading screen announcement cleanup - reduce repetitive announcements during loading screens
+20. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
+21. K hotkey for mark/counter information on cards - announce +1/+1 counters, damage marks, and other markers
+22. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
+23. Card crafting - wildcard crafting workflow accessibility
+24. Planeswalker support - loyalty abilities, activation, and loyalty counter announcements
+25. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
+26. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
+27. Hotkey to jump to attached card - when focused on an aura/equipment, press a key to navigate directly to the card it's attached to (and vice versa)
 22. Mana color picker confirmation step - add an artificial confirmation step (Tab to navigate, Enter to stage, Space to confirm) for consistency with browser/selection patterns. Currently each Enter immediately submits the color choice.
 
 ### Low Priority / v1.1
 
 1. Auto version checking and auto update - check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
+2. Pack expansion selection - allow changing which expansion packs are purchased from in the store
 
 ### Future
 
-1. Draft/sealed events
-2. Full deck editing workflow (add/remove cards, save deck)
-3. Single-key info shortcuts (inspired by Hearthstone Access)
+1. Single-key info shortcuts (inspired by Hearthstone Access)
    - Quick status queries without navigation
    - Benefits: Faster information access, less navigation needed
 
    **Priority shortcuts to implement:**
-
-   **M / Shift+M - Mana Announcement**
-   - M: Announce "X mana available of Y total" (your mana)
-   - Shift+M: Announce opponent's mana
-   - Requires: Finding mana data from game state (not currently extracted)
 
    **K - Keyword Explanation**
    - When focused on a card, K announces keyword abilities with definitions

@@ -26,12 +26,16 @@ namespace AccessibleArena.Core.Services
 
         // Track selected blockers by instance ID for change detection
         private HashSet<int> _previousSelectedBlockerIds = new HashSet<int>();
+        private Dictionary<int, GameObject> _previousSelectedBlockerObjects = new Dictionary<int, GameObject>();
 
         // Track assigned blockers (IsBlocking) by instance ID for change detection
         private HashSet<int> _previousAssignedBlockerIds = new HashSet<int>();
+        private Dictionary<int, GameObject> _previousAssignedBlockerObjects = new Dictionary<int, GameObject>();
 
         // Track if we were in blockers phase last frame (to reset on phase change)
         private bool _wasInBlockersPhase = false;
+
+        public bool IsInCombatPhase => _duelAnnouncer.IsInDeclareAttackersPhase || _duelAnnouncer.IsInDeclareBlockersPhase;
 
         public CombatNavigator(IAnnouncementService announcer, DuelAnnouncer duelAnnouncer)
         {
@@ -270,7 +274,9 @@ namespace AccessibleArena.Core.Services
             if (isInBlockersPhase && !_wasInBlockersPhase)
             {
                 _previousSelectedBlockerIds.Clear();
+                _previousSelectedBlockerObjects.Clear();
                 _previousAssignedBlockerIds.Clear();
+                _previousAssignedBlockerObjects.Clear();
                 MelonLogger.Msg("[CombatNavigator] Entering blockers phase, tracking reset");
             }
             _wasInBlockersPhase = isInBlockersPhase;
@@ -287,7 +293,7 @@ namespace AccessibleArena.Core.Services
                 currentAssignedIds.Add(blocker.GetInstanceID());
             }
 
-            // Check if assigned blockers changed (blocker was assigned to an attacker)
+            // Check if assigned blockers changed
             if (!currentAssignedIds.SetEquals(_previousAssignedBlockerIds))
             {
                 // Find newly assigned blockers
@@ -300,32 +306,32 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Announce newly assigned blockers with attacker names
+                // Newly assigned blockers - just log and clear selected tracking
+                // (state change watcher on the attacker announces "blocked by X" which is more informative)
                 if (newlyAssigned.Count > 0)
                 {
-                    var parts = new List<string>();
-                    foreach (var blocker in newlyAssigned)
-                    {
-                        var info = CardDetector.ExtractCardInfo(blocker);
-                        string blockerName = info.Name ?? "creature";
-
-                        // Try to resolve what this blocker is blocking
-                        string blockingTarget = GetBlockingText(blocker);
-                        if (!string.IsNullOrEmpty(blockingTarget))
-                            parts.Add($"{blockerName} {blockingTarget}");
-                        else
-                            parts.Add($"{blockerName} {Models.Strings.Combat_Assigned}");
-                    }
-                    string announcement = string.Join(", ", parts);
-                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count} - {announcement}");
-                    _announcer.Announce(announcement, AnnouncementPriority.High);
-
-                    // Clear selected tracking since these blockers are now assigned
+                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count}");
                     _previousSelectedBlockerIds.Clear();
+                    _previousSelectedBlockerObjects.Clear();
+                }
+
+                // Find removed assigned blockers and announce
+                foreach (var prevId in _previousAssignedBlockerIds)
+                {
+                    if (!currentAssignedIds.Contains(prevId) && _previousAssignedBlockerObjects.TryGetValue(prevId, out var removedBlocker) && removedBlocker != null)
+                    {
+                        var info = CardDetector.ExtractCardInfo(removedBlocker);
+                        string blockerName = info.Name ?? "creature";
+                        MelonLogger.Msg($"[CombatNavigator] Blocker unassigned: {blockerName}");
+                        _announcer.Announce($"{blockerName}, {Models.Strings.Combat_CanBlock}", AnnouncementPriority.High);
+                    }
                 }
 
                 // Update assigned tracking
                 _previousAssignedBlockerIds = currentAssignedIds;
+                _previousAssignedBlockerObjects.Clear();
+                foreach (var blocker in currentAssigned)
+                    _previousAssignedBlockerObjects[blocker.GetInstanceID()] = blocker;
             }
 
             // Get current selected blockers (not yet assigned)
@@ -363,11 +369,27 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (_previousSelectedBlockerIds.Count > 0)
                 {
-                    MelonLogger.Msg("[CombatNavigator] Blocker selection cleared");
+                    // Announce deselected blockers by name
+                    foreach (var prevId in _previousSelectedBlockerIds)
+                    {
+                        if (_previousSelectedBlockerObjects.TryGetValue(prevId, out var deselected) && deselected != null)
+                        {
+                            var info = CardDetector.ExtractCardInfo(deselected);
+                            string blockerName = info.Name ?? "creature";
+                            MelonLogger.Msg($"[CombatNavigator] Blocker deselected: {blockerName}");
+                            _announcer.Announce($"{blockerName}, {Models.Strings.Combat_CanBlock}", AnnouncementPriority.High);
+                        }
+                    }
                 }
 
                 // Update tracking
                 _previousSelectedBlockerIds = currentSelectedIds;
+                _previousSelectedBlockerObjects.Clear();
+                foreach (var blocker in currentSelected)
+                {
+                    if (!currentAssignedIds.Contains(blocker.GetInstanceID()))
+                        _previousSelectedBlockerObjects[blocker.GetInstanceID()] = blocker;
+                }
             }
         }
 
@@ -410,7 +432,7 @@ namespace AccessibleArena.Core.Services
                     isSelected = true;
             }
 
-            // Attacking states (priority: is attacking > can attack)
+            // Attacking states (priority: is attacking > selected to attack > can attack)
             if (isAttacking)
             {
                 // Try to resolve who is blocking this attacker
@@ -420,7 +442,14 @@ namespace AccessibleArena.Core.Services
                 else
                     states.Add(Models.Strings.Combat_Attacking);
             }
+            else if (hasAttackerFrame && isSelected && _duelAnnouncer.IsInDeclareAttackersPhase)
+                states.Add(Models.Strings.Combat_Attacking);
             else if (hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase)
+                states.Add(Models.Strings.Combat_CanAttack);
+            // Model-based fallback: CombatIcon_AttackerFrame can be delayed on newly created tokens.
+            // Check model data directly - creature can attack if no summoning sickness and not tapped.
+            else if (!hasAttackerFrame && _duelAnnouncer.IsInDeclareAttackersPhase
+                     && !isTapped && !CardModelProvider.GetHasSummoningSicknessFromCard(card))
                 states.Add(Models.Strings.Combat_CanAttack);
 
             // Blocking states (priority: is blocking > selected to block > can block)
@@ -516,7 +545,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public bool HandleInput()
         {
-            // Track blocker selection changes and announce combined P/T
+            // Track blocker selection changes per frame
             UpdateBlockerSelection();
 
             // Handle Declare Attackers phase
@@ -621,10 +650,15 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Finds a prompt button by type (primary or secondary).
         /// Language-agnostic: uses GameObject name pattern, not button text.
+        /// When multiple buttons match (stale from previous phase + current),
+        /// prefers the one with full parent CanvasGroup alpha (not fading out).
         /// </summary>
         private GameObject FindPromptButton(bool isPrimary)
         {
             string pattern = isPrimary ? "PromptButton_Primary" : "PromptButton_Secondary";
+
+            GameObject bestMatch = null;
+            float bestAlpha = -1f;
 
             foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
             {
@@ -637,11 +671,38 @@ namespace AccessibleArena.Core.Services
 
                 if (selectable.gameObject.name.Contains(pattern))
                 {
-                    return selectable.gameObject;
+                    // Check parent CanvasGroup alpha to skip stale buttons from previous phase
+                    float alpha = GetParentCanvasGroupAlpha(selectable.gameObject);
+                    if (alpha > bestAlpha)
+                    {
+                        bestAlpha = alpha;
+                        bestMatch = selectable.gameObject;
+                    }
                 }
             }
 
-            return null;
+            return bestMatch;
+        }
+
+        /// <summary>
+        /// Gets the minimum CanvasGroup alpha from the button's parent hierarchy.
+        /// Returns 1.0 if no CanvasGroup is found (fully visible).
+        /// Stale buttons from previous phases typically have a parent fading to alpha 0.
+        /// </summary>
+        private float GetParentCanvasGroupAlpha(GameObject obj)
+        {
+            float minAlpha = 1f;
+            Transform current = obj.transform.parent;
+            int depth = 0;
+            while (current != null && depth < 10)
+            {
+                var cg = current.GetComponent<CanvasGroup>();
+                if (cg != null && cg.alpha < minAlpha)
+                    minAlpha = cg.alpha;
+                current = current.parent;
+                depth++;
+            }
+            return minAlpha;
         }
 
 

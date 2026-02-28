@@ -454,6 +454,12 @@ string clean = UITextExtractor.CleanText(rawText);
 ```
 Removes: zero-width spaces (`\u200B`), rich text tags, normalizes whitespace.
 
+**Tooltip Text Fallback (for image-only buttons):**
+When no text is found via TMP_Text, siblings, or other extractors, `GetText()` tries `TryGetTooltipText()` as a last resort. This reads the `LocString` field from `TooltipTrigger` via reflection. Only used when the tooltip text is under 60 chars to avoid verbose descriptions. Examples:
+- `Nav_Settings` (image-only) -> "Optionen anpassen" (from tooltip)
+- `Nav_Learn` (image-only) -> "Kodex des Multiversums" (from tooltip)
+- `Nav_Coins` (has text "28,025") -> tooltip never reached (text already found)
+
 **Element Type Fallback:**
 `GetElementType()` returns "item" when no specific type is detected. This is the default fallback - check for it if you need to handle unknown elements specially.
 
@@ -508,8 +514,13 @@ List<CardInfoBlock> blocks = CardDetector.BuildInfoBlocks(info);
 **Card info extraction hierarchy:**
 - `CardDetector.ExtractCardInfo(gameObject)` - Entry point. Tries deck list, then Model, then UI fallback
 - `CardModelProvider.ExtractCardInfoFromModel(gameObject)` - Finds Model via CDC/MetaCardView, delegates to `ExtractCardInfoFromObject`
-- `CardModelProvider.ExtractCardInfoFromObject(dataObj)` - Shared extraction from any card data object. Tries structured properties first (Supertypes/CardTypes/Subtypes, ManaQuantity[]), falls back to simpler properties (TypeLine string, ManaCost string). Only shows P/T for creatures. Resolves artist from Printing sub-object.
-- `CardModelProvider.ExtractCardInfoFromCardData(cardData, grpId)` - Legacy extraction from CardPrintingData (less rich than `ExtractCardInfoFromObject`)
+- `CardModelProvider.ExtractCardInfoFromObject(dataObj)` - Shared extraction from any card data object. Name uses TitleId via GreLocProvider, type line uses TypeTextId/SubtypeTextId. Falls back to CardTitleProvider (name) or structured enums (types) if loc IDs unavailable. Only shows P/T for creatures. Resolves artist from Printing sub-object.
+- `CardModelProvider.ExtractCardInfoFromCardData(cardData, grpId)` - Extraction from CardPrintingData. Also uses TitleId and TypeTextId/SubtypeTextId for localized names and type lines.
+
+**Type detection vs display:**
+- For **display** (type line shown to user): Always use `info.TypeLine` from CardInfo - already localized by extraction methods
+- For **internal type checks** (isCreature, isLand): Use `CardModelProvider.GetCardCategory(go)`, `IsCreatureCard(go)`, or `IsLandCard(go)` - these check enum values directly and are language-agnostic
+- **Never** match English strings against `info.TypeLine` for type detection - it is localized
 
 **When to use which:**
 - **CardDetector.ExtractCardInfo**: Default choice - handles all card types with automatic fallback
@@ -946,6 +957,14 @@ the game stops and gives priority, phases arrive seconds apart so the debounce h
 
 Announced phases: Upkeep, Draw, First main phase, Second main phase, Combat phase,
 Declare attackers, Declare blockers, Combat damage, End of combat, End step.
+
+Phase/Step event values used in `BuildPhaseChangeAnnouncement()`:
+- `Main1/None` → First main phase, `Main2/None` → Second main phase
+- `Beginning/Upkeep` → Upkeep, `Beginning/Draw` → Draw
+- `Combat/None` → Combat, `Combat/DeclareAttack` → Declare attackers
+- `Combat/DeclareBlock` → Declare blockers, `Combat/CombatDamage` → Combat damage
+- `Combat/EndCombat` → End of combat
+- `Ending/None` → End step (note: NOT `Ending/End` or `Ending/EndStep`)
 
 Attacker summary announcements (leaving declare attackers) bypass debounce entirely since they
 only occur during real combat stops.
@@ -1442,20 +1461,43 @@ follow these guidelines to avoid common pitfalls:
 
 ### Popup Handling Pattern (February 2026)
 
-Navigators that manage screens where popups can appear (confirmation dialogs, system messages, purchase modals) should use this pattern. StoreNavigator is the reference implementation.
+Navigators that manage screens where popups can appear (confirmation dialogs, system messages, purchase modals) should use the shared `PopupHandler` utility class (`src/Core/Services/PopupHandler.cs`).
 
 **Key Concepts:**
+- `PopupHandler` is a shared utility - each navigator creates its own instance
 - Popups are detected via `PanelStateManager.OnPanelChanged` events (system popups) or polling (screen-specific modals)
 - When a popup is active, navigation switches to popup elements only
-- Popup input is handled before normal navigation in the input loop
-- Backspace dismisses the popup and returns to normal navigation
+- Navigation model: Up/Down through a flat list of text blocks (first) + buttons (after), no wraparound
+- Backspace dismisses the popup via a 3-level fallback chain
 
-**State Fields:**
+**PopupHandler API:**
 ```csharp
-private GameObject _activePopup;
+// Static detection
+PopupHandler.IsPopupPanel(PanelInfo panel)  // PanelType.Popup OR name contains "SystemMessage"/"Popup"/"Dialog"/"Modal"
+
+// Lifecycle
+handler.OnPopupDetected(GameObject popup)   // Discovers items + announces
+handler.Clear()                             // Resets all state
+handler.ValidatePopup()                     // Returns false if popup gone
+
+// Properties
+handler.IsActive                            // Whether a popup is currently tracked
+handler.ActivePopup                         // The popup GameObject (null if none)
+
+// Input (returns true if consumed)
+handler.HandleInput()                       // Up/Down/Tab navigate, Enter/Space activate, Backspace dismiss
+handler.DismissPopup()                      // 3-level dismissal chain
+```
+
+**Setup - Add a PopupHandler field:**
+```csharp
+private readonly PopupHandler _popupHandler;
 private bool _isPopupActive;
-private List<(GameObject obj, string label)> _popupElements = new List<(GameObject, string)>();
-private int _popupElementIndex;
+
+public MyNavigator(IAnnouncementService announcer, ...)
+{
+    _popupHandler = new PopupHandler("MyNavigator", announcer);
+}
 ```
 
 **Detection - Subscribe to PanelStateManager:**
@@ -1471,25 +1513,22 @@ protected override void OnDeactivating()
     if (PanelStateManager.Instance != null)
         PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
     _isPopupActive = false;
-    _popupElements.Clear();
+    _popupHandler.Clear();
 }
 
 private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
 {
     if (!_isActive) return;
 
-    if (newPanel != null && IsPopupPanel(newPanel))
+    if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
     {
-        _activePopup = newPanel.GameObject;
         _isPopupActive = true;
-        DiscoverPopupElements();
-        AnnouncePopup();
+        _popupHandler.OnPopupDetected(newPanel.GameObject);
     }
     else if (_isPopupActive && newPanel == null)
     {
         _isPopupActive = false;
-        _activePopup = null;
-        _popupElements.Clear();
+        _popupHandler.Clear();
         // Re-announce current position
     }
 }
@@ -1503,61 +1542,89 @@ if (modalOpen && !_wasModalOpen)
 {
     _wasModalOpen = true;
     _isPopupActive = true;
-    DiscoverModalElements();
+    _popupHandler.OnPopupDetected(modalGameObject);
 }
 else if (!modalOpen && _wasModalOpen)
 {
     _wasModalOpen = false;
     _isPopupActive = false;
-    _popupElements.Clear();
+    _popupHandler.Clear();
 }
 ```
 
-**Input Switching:**
+**Input Switching via HandleEarlyInput (CRITICAL):**
+
+Popup input **must** be routed through `HandleEarlyInput()`, not `HandleCustomInput()` or `HandleInput()`. This is because `BaseNavigator.HandleInput()` processes auto-focused input fields (via `UIFocusTracker`) *before* calling `HandleCustomInput()`. If a popup contains an input field that has focus, BaseNavigator would intercept arrow keys and other input before the popup handler ever sees them.
+
+`HandleEarlyInput()` runs at the very top of `HandleInput()`, before any BaseNavigator logic:
+
 ```csharp
-protected override void HandleInput()
+protected override bool HandleEarlyInput()
 {
-    // Popup input takes priority
     if (_isPopupActive)
     {
-        HandlePopupInput();
-        return;
-    }
-    // Normal navigation...
-}
-```
-
-**Popup Element Discovery:**
-```csharp
-private void DiscoverPopupElements()
-{
-    _popupElements.Clear();
-    _popupElementIndex = 0;
-    if (_activePopup == null) return;
-
-    // Find buttons in popup (SystemMessageButtonView, CustomButton, standard Button)
-    foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-    {
-        if (!mb.gameObject.activeInHierarchy) continue;
-        string typeName = mb.GetType().Name;
-        if (typeName == "SystemMessageButtonView" || typeName == "CustomButton")
+        // Validate popup still exists (game may destroy it without panel event)
+        if (!_popupHandler.ValidatePopup())
         {
-            string label = UITextExtractor.GetText(mb.gameObject) ?? mb.gameObject.name;
-            _popupElements.Add((mb.gameObject, $"{label}, button"));
+            _isPopupActive = false;
+            _popupHandler.Clear();
+            return false;  // Fall through to normal navigation
         }
+        _popupHandler.HandleInput();
+        return true;  // Consumed - skip all BaseNavigator processing
     }
+    return false;
 }
 ```
 
-**Popup Dismissal (fallback chain):**
-1. Call modal's own `Close()` method via reflection (if available)
-2. Find and click a cancel/close button by label pattern matching
-3. Invoke `SystemMessageView.OnBack()` as last resort
+**Popup Validation:** Always call `ValidatePopup()` in `HandleEarlyInput()`. When the game destroys a popup externally (e.g., after clicking a button that triggers a server action), the `PanelStateManager` may not fire a close event. Without validation, `_isPopupActive` stays true and all input is consumed forever, leaving the user stuck on an empty screen.
 
-**When to use this pattern:**
-- Store (confirmation modals, system messages)
-- Any navigator where the game can show popups/dialogs on top of your screen
-- Navigators that manage web browser overlays (store bundles open external browser)
+**Popup Dismissal (3-level fallback chain):**
+1. Find and click a cancel/close button by label pattern matching ("cancel", "close", "no", "abbrechen", "nein", "zuruck")
+2. Invoke `SystemMessageView.OnBack(null)` via reflection
+3. `SetActive(false)` as last resort
+
+**Element Discovery (handled internally by PopupHandler):**
+- Title: Extracted from title/header containers, announced in "Popup: {title}" header
+- Text blocks: All active `TMP_Text` not inside buttons, input fields, or title containers; cleaned, split on newlines, deduplicated
+- Input fields: Active, interactable `TMP_InputField` components, labeled via `UITextExtractor.GetInputFieldLabel()`
+- Buttons: 3-pass search (SystemMessageButtonView → CustomButton/CustomButtonWithTooltip → Unity Button), position-sorted
+- Flat list order: text blocks → input fields → buttons
+
+**Button Filtering:**
+- Buttons inside input fields are skipped (internal submit/clear buttons)
+- Buttons inside other buttons are skipped (nested structural wrappers)
+- Dismiss overlays are skipped: GameObjects with "background", "overlay", "backdrop", or "dismiss" in name (click-outside-to-close areas, redundant with Backspace)
+- Duplicate labels are deduplicated (keep first by position, skip subsequent)
+
+**Input Field Edit Mode (via InputFieldEditHelper):**
+
+Input field editing is handled by the shared `InputFieldEditHelper` class (`src/Core/Services/InputFieldEditHelper.cs`), used by both `BaseNavigator` (for menu input fields) and `PopupHandler` (for popup input fields). This eliminates code duplication and ensures consistent behavior:
+
+- Enter on an input field activates edit mode (typing passes through to field)
+- Escape exits edit mode, Tab exits and navigates to next/prev item
+- Up/Down reads field content, Left/Right reads character at cursor
+- Backspace announces deleted character (passes through for deletion)
+- Supports both `TMP_InputField` and legacy Unity `InputField`
+- Edit state cleaned up on popup close via `Clear()`
+
+PopupHandler uses the helper internally - navigators don't interact with it directly for popup input fields. BaseNavigator uses its own instance for scene-wide auto-focused input field handling.
+
+**Rescan Suppression:**
+Navigators using PopupHandler must skip their own element rescan while a popup is active. Otherwise the delayed rescan (e.g., GeneralMenuNavigator's 0.5s `PerformRescan()`) overwrites PopupHandler's items with the navigator's full element list. Add a guard at the top of the rescan method:
+```csharp
+if (_isPopupActive) return;
+```
+
+**Screen-specific exclusions:**
+Some navigators need to exclude certain panels from popup handling (e.g., MasteryNavigator excludes ObjectivePopup, FullscreenZFBrowser, RewardPopup3DIcon). Add an exclusion check before calling `PopupHandler.IsPopupPanel()`.
+
+**Special cases:**
+- StoreNavigator keeps separate confirmation modal handling (card-containing modals with their own Close() method) alongside PopupHandler for generic popups
+- GeneralMenuNavigator uses PopupHandler for popups, skips `PerformRescan()` while popup is active
+- RewardPopupNavigator is a dedicated navigator (not generic popup handling)
+
+**Current integrations:** SettingsMenuNavigator, DraftNavigator, MasteryNavigator, StoreNavigator, GeneralMenuNavigator
 
 ### Adding Support for New Screens
 

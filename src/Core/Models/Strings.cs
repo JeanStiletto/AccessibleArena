@@ -106,6 +106,14 @@ namespace AccessibleArena.Core.Models
             count == 1 ? L.Format("RowWithCount_One", rowName) : L.Format("RowWithCount_Format", rowName, count);
         public static string RowEmptyShort(string rowName) => L.Format("RowEmptyShort_Format", rowName);
 
+        // Land summary (M key)
+        public static string LandSummaryEmpty(string rowName) => L.Format("LandSummary_Empty_Format", rowName);
+        public static string LandSummaryTotal(int count) =>
+            count == 1 ? L.Get("LandSummary_Total_One") : L.Format("LandSummary_Total_Format", count);
+        public static string LandSummaryAllTapped(string totalPart) => L.Format("LandSummary_AllTapped_Format", totalPart);
+        public static string LandSummaryAllUntapped(string totalPart, string untappedList) => L.Format("LandSummary_AllUntapped_Format", totalPart, untappedList);
+        public static string LandSummaryMixed(string totalPart, string untappedList) => L.Format("LandSummary_Mixed_Format", totalPart, untappedList);
+
         // ===========================================
         // ZONE NAVIGATION
         // ===========================================
@@ -140,6 +148,7 @@ namespace AccessibleArena.Core.Models
         public static string Zone_OpponentGraveyard => L.Get("Zone_OpponentGraveyard");
         public static string Zone_OpponentLibrary => L.Get("Zone_OpponentLibrary");
         public static string Zone_OpponentExile => L.Get("Zone_OpponentExile");
+        public static string Zone_OpponentCommand => L.Get("Zone_OpponentCommand");
 
         public static string GetZoneName(Services.ZoneType zone)
         {
@@ -156,6 +165,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ZoneType.OpponentGraveyard: return Zone_OpponentGraveyard;
                 case Services.ZoneType.OpponentLibrary: return Zone_OpponentLibrary;
                 case Services.ZoneType.OpponentExile: return Zone_OpponentExile;
+                case Services.ZoneType.OpponentCommand: return Zone_OpponentCommand;
                 default: return zone.ToString();
             }
         }
@@ -232,6 +242,17 @@ namespace AccessibleArena.Core.Models
 
             return L.Get("Browser_Default");
         }
+
+        // ===========================================
+        // DAMAGE ASSIGNMENT BROWSER
+        // ===========================================
+        public static string DamageAssignEntry(string attackerName, int damage, int blockerCount) =>
+            blockerCount == 1
+                ? L.Format("DamageAssign_Entry_One_Format", attackerName, damage)
+                : L.Format("DamageAssign_Entry_Format", attackerName, damage, blockerCount);
+        public static string DamageAssigned(int assigned, int total) =>
+            L.Format("DamageAssign_Assigned_Format", assigned, total);
+        public static string DamageAssignLethal => L.Get("DamageAssign_Lethal");
 
         // ===========================================
         // COMBAT STATES
@@ -445,6 +466,8 @@ namespace AccessibleArena.Core.Models
             count == 1 ? L.Get("DiscardCount_One") : L.Format("DiscardCount_Format", count);
         public static string CardsSelected(int count) =>
             count == 1 ? L.Get("CardsSelected_One") : L.Format("CardsSelected_Format", count);
+        public static string SelectionProgress(int selected, int total) =>
+            L.Format("SelectionProgress_Format", selected, total);
         public static string NeedHaveSelected(int required, int selected) =>
             L.Format("NeedHaveSelected_Format", required, selected);
         public static string SubmittingDiscard(int count) => L.Format("SubmittingDiscard_Format", count);
@@ -533,6 +556,8 @@ namespace AccessibleArena.Core.Models
         // ===========================================
         // INPUT FIELD NAVIGATION
         // ===========================================
+        public static string TextField => L.Get("TextField");
+        public static string InputFieldHint => L.Get("InputFieldHint");
         public static string InputFieldEmpty => L.Get("InputFieldEmpty");
         public static string InputFieldStart => L.Get("InputFieldStart");
         public static string InputFieldEnd => L.Get("InputFieldEnd");
@@ -647,6 +672,8 @@ namespace AccessibleArena.Core.Models
         public static string ManaX => L.Get("ManaX");
         public static string ManaSnow => L.Get("ManaSnow");
         public static string ManaEnergy => L.Get("ManaEnergy");
+        public static string ManaGeneric => L.Get("ManaGeneric");
+        public static string ManaPhyrexianBare => L.Get("ManaPhyrexian");
         public static string ManaPhyrexian(string color) => L.Format("ManaPhyrexian_Format", color);
         public static string ManaHybrid(string color1, string color2) => L.Format("ManaHybrid_Format", color1, color2);
 
@@ -732,6 +759,7 @@ namespace AccessibleArena.Core.Models
         public static string HelpLLifeTotals => L.Get("HelpLLifeTotals");
         public static string HelpTTurnPhase => L.Get("HelpTTurnPhase");
         public static string HelpVPlayerInfo => L.Get("HelpVPlayerInfo");
+        public static string HelpMLandSummary => L.Get("HelpMLandSummary");
 
         // Card navigation
         public static string HelpLeftRightCards => L.Get("HelpLeftRightCards");
@@ -741,6 +769,14 @@ namespace AccessibleArena.Core.Models
 
         // Card details
         public static string HelpUpDownDetails => L.Get("HelpUpDownDetails");
+
+        // General duel commands
+        public static string HelpCategoryDuelGeneral => L.Get("HelpCategoryDuelGeneral");
+        public static string HelpSpaceAdvance => L.Get("HelpSpaceAdvance");
+        public static string HelpBackspaceCancel => L.Get("HelpBackspaceCancel");
+        public static string HelpEnterSelect => L.Get("HelpEnterSelect");
+        public static string HelpYUndo => L.Get("HelpYUndo");
+        public static string HelpQQFloatMana => L.Get("HelpQQFloatMana");
 
         // Combat
         public static string HelpSpaceCombat => L.Get("HelpSpaceCombat");
@@ -774,6 +810,7 @@ namespace AccessibleArena.Core.Models
         public static string NoConfirmButton => L.Get("NoConfirmButton");
         public static string KeepOnTop => L.Get("KeepOnTop");
         public static string PutOnBottom => L.Get("PutOnBottom");
+        public static string ZoneChange => L.Get("ZoneChange");
         public static string CouldNotClick(string label) => L.Format("CouldNotClick_Format", label);
         public static string BrowserCards(int count, string browserName) =>
             count == 1 ? L.Format("BrowserCards_One", browserName) : L.Format("BrowserCards_Format", browserName, count);
@@ -848,6 +885,7 @@ namespace AccessibleArena.Core.Models
         public static string PageOf(int current, int total) => L.Format("Page_Format", current, total);
         public static string PageLabel(string label) => L.Format("PageLabel_Format", label);
         public static string FilterLabel(string label, string state) => L.Format("FilterLabel_Format", label, state);
+        public static string ActivatedBare => L.Get("Activated");
         public static string Activated(string label) => L.Format("Activated_Format", label);
         public static string NoFilter(int index, int count) => L.Format("NoFilter_Format", index, count);
         public static string NoFiltersAvailable => L.Get("NoFiltersAvailable");
@@ -903,6 +941,8 @@ namespace AccessibleArena.Core.Models
         public static string ScreenPackOpening => L.Get("ScreenPackOpening");
         public static string ScreenColorChallenge => L.Get("ScreenColorChallenge");
         public static string ScreenDeckBuilder => L.Get("ScreenDeckBuilder");
+        public static string ScreenDeckBuilderReadOnly => L.Get("ScreenDeckBuilderReadOnly");
+        public static string ReadOnlyDeckWarning => L.Get("ReadOnlyDeckWarning");
         public static string ScreenDeckSelection => L.Get("ScreenDeckSelection");
         public static string ScreenEvent => L.Get("ScreenEvent");
         public static string ScreenRewards => L.Get("ScreenRewards");
@@ -917,6 +957,12 @@ namespace AccessibleArena.Core.Models
         public static string ScreenPackContents => L.Get("ScreenPackContents");
         public static string ScreenPackContentsCount(int count) =>
             count == 1 ? L.Get("ScreenPackContents_One") : L.Format("ScreenPackContents_Format", count);
+        public static string ScreenDraft => L.Get("ScreenDraft");
+        public static string ScreenDraftPick => L.Get("ScreenDraftPick");
+        public static string ScreenDraftPickCount(int count) =>
+            count == 1 ? L.Get("ScreenDraftPick_One") : L.Format("ScreenDraftPick_Format", count);
+        public static string ScreenDraftPopup => L.Get("ScreenDraftPopup");
+        public static string UpDownForMore(int count) => L.Format("UpDownForMore_Format", count);
         public static string ScreenFriends => L.Get("ScreenFriends");
         public static string ScreenHomeWithEvents => L.Get("ScreenHomeWithEvents");
         public static string ScreenHomeWithColorChallenge => L.Get("ScreenHomeWithColorChallenge");
@@ -927,6 +973,19 @@ namespace AccessibleArena.Core.Models
         public static string ScreenPlayModeSelection => L.Get("ScreenPlayModeSelection");
         public static string ScreenDirectChallenge => L.Get("ScreenDirectChallenge");
         public static string ScreenFriendChallenge => L.Get("ScreenFriendChallenge");
+        public static string ChallengeYou => L.Get("ChallengeYou");
+        public static string ChallengeOpponent => L.Get("ChallengeOpponent");
+        public static string ChallengeNotInvited => L.Get("ChallengeNotInvited");
+        public static string ChallengeInvited => L.Get("ChallengeInvited");
+        public static string ChallengeSettingsLocked => L.Get("ChallengeSettingsLocked");
+        public static string ChallengeLocked(string label) => L.Format("ChallengeLocked_Format", label);
+        public static string ChallengeOpponentJoined(string name) => L.Format("ChallengeOpponentJoined_Format", name);
+        public static string ChallengeOpponentLeft => L.Get("ChallengeOpponentLeft");
+        public static string ChallengeMatchStarting => L.Get("ChallengeMatchStarting");
+        public static string ChallengeCountdownCancelled => L.Get("ChallengeCountdownCancelled");
+        public static string ChallengeKickOpponent => L.Get("ChallengeKickOpponent");
+        public static string ChallengeBlockOpponent => L.Get("ChallengeBlockOpponent");
+        public static string ChallengeAddFriend => L.Get("ChallengeAddFriend");
         public static string ScreenConfirmation => L.Get("ScreenConfirmation");
         public static string ScreenInviteFriend => L.Get("ScreenInviteFriend");
         public static string ScreenSocial => L.Get("ScreenSocial");
@@ -975,10 +1034,20 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.NPE: return L.Get("GroupTutorial");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderCollection: return L.Get("GroupCollection");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderDeckList: return L.Get("GroupDeckList");
+                case Services.ElementGrouping.ElementGroup.DeckBuilderSideboard: return L.Get("GroupSideboard");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderInfo: return L.Get("GroupDeckInfo");
+                case Services.ElementGrouping.ElementGroup.EventInfo: return L.Get("GroupEventInfo");
                 case Services.ElementGrouping.ElementGroup.MailboxList: return L.Get("GroupMailList");
                 case Services.ElementGrouping.ElementGroup.MailboxContent: return L.Get("GroupMail");
                 case Services.ElementGrouping.ElementGroup.RewardsPopup: return L.Get("GroupRewards");
+                case Services.ElementGrouping.ElementGroup.FriendsPanelChallenge: return L.Get("GroupFriendsPanelChallenge");
+                case Services.ElementGrouping.ElementGroup.FriendsPanelAddFriend: return L.Get("GroupFriendsPanelAddFriend");
+                case Services.ElementGrouping.ElementGroup.FriendSectionFriends: return L.Get("GroupFriendSectionFriends");
+                case Services.ElementGrouping.ElementGroup.FriendSectionIncoming: return L.Get("GroupFriendSectionIncoming");
+                case Services.ElementGrouping.ElementGroup.FriendSectionOutgoing: return L.Get("GroupFriendSectionOutgoing");
+                case Services.ElementGrouping.ElementGroup.FriendSectionBlocked: return L.Get("GroupFriendSectionBlocked");
+                case Services.ElementGrouping.ElementGroup.FriendsPanelProfile: return L.Get("GroupFriendsPanelProfile");
+                case Services.ElementGrouping.ElementGroup.ChallengeMain: return L.Get("GroupChallengeMain");
                 default: return L.Get("GroupOther");
             }
         }
@@ -999,5 +1068,56 @@ namespace AccessibleArena.Core.Models
         public static string ObjectivesEntry(string itemCount) =>
             L.Format("ObjectivesEntry_Format", itemCount);
         public static string Bo3Toggle() => L.Get("Bo3Toggle");
+
+        // ===========================================
+        // EVENT / PACKET ACCESSIBILITY
+        // ===========================================
+        public static string ScreenPacketSelect => L.Get("ScreenPacketSelect");
+        public static string EventTileRanked => L.Get("EventTileRanked");
+        public static string EventTileBo3 => L.Get("EventTileBo3");
+        public static string EventTileInProgress => L.Get("EventTileInProgress");
+        public static string EventTileProgress(int wins, int maxWins) => L.Format("EventTileProgress_Format", wins, maxWins);
+        public static string EventPageSummary(int wins, int maxWins) => L.Format("EventPageSummary_Format", wins, maxWins);
+        public static string EventScreenTitle(string eventName) => L.Format("EventScreenTitle_Format", eventName);
+        public static string PacketOf(int current, int total) => L.Format("PacketOf_Format", current, total);
+        public static string EventInfoLabel => L.Get("EventInfoLabel");
+
+        // ===========================================
+        // FULL CONTROL & PHASE STOPS
+        // ===========================================
+        public static string FullControl_On => L.Get("FullControl_On");
+        public static string FullControl_Off => L.Get("FullControl_Off");
+        public static string FullControl_Locked => L.Get("FullControl_Locked");
+        public static string FullControl_Unlocked => L.Get("FullControl_Unlocked");
+        public static string PhaseStop_Set(string phase) => L.Format("PhaseStop_Set_Format", phase);
+        public static string PhaseStop_Cleared(string phase) => L.Format("PhaseStop_Cleared_Format", phase);
+
+        // Phase stop names (for announcements)
+        public static string PhaseStop_Upkeep => L.Get("PhaseStop_Upkeep");
+        public static string PhaseStop_Draw => L.Get("PhaseStop_Draw");
+        public static string PhaseStop_FirstMain => L.Get("PhaseStop_FirstMain");
+        public static string PhaseStop_BeginCombat => L.Get("PhaseStop_BeginCombat");
+        public static string PhaseStop_DeclareAttackers => L.Get("PhaseStop_DeclareAttackers");
+        public static string PhaseStop_DeclareBlockers => L.Get("PhaseStop_DeclareBlockers");
+        public static string PhaseStop_CombatDamage => L.Get("PhaseStop_CombatDamage");
+        public static string PhaseStop_EndCombat => L.Get("PhaseStop_EndCombat");
+        public static string PhaseStop_SecondMain => L.Get("PhaseStop_SecondMain");
+        public static string PhaseStop_EndStep => L.Get("PhaseStop_EndStep");
+
+        // Help entries for full control and phase stops
+        public static string HelpPFullControl => L.Get("HelpPFullControl");
+        public static string HelpNumberPhaseStops => L.Get("HelpNumberPhaseStops");
+
+        // ===========================================
+        // FRIEND ACTIONS
+        // ===========================================
+        public static string FriendActionChat => L.Get("FriendActionChat");
+        public static string FriendActionChallenge => L.Get("FriendActionChallenge");
+        public static string FriendActionUnfriend => L.Get("FriendActionUnfriend");
+        public static string FriendActionBlock => L.Get("FriendActionBlock");
+        public static string FriendActionAccept => L.Get("FriendActionAccept");
+        public static string FriendActionDecline => L.Get("FriendActionDecline");
+        public static string FriendActionRevoke => L.Get("FriendActionRevoke");
+        public static string FriendActionUnblock => L.Get("FriendActionUnblock");
     }
 }

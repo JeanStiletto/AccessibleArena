@@ -250,6 +250,8 @@ namespace AccessibleArena.Core.Services.PanelDetection
                     return 2;
                 case "FriendChallenge":
                     return 3;
+                case "Challenge":
+                    return 2;
                 default:
                     return 0;
             }

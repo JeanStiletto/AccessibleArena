@@ -36,8 +36,34 @@ namespace AccessibleArena.Core.Services
         // ViewDismiss auto-dismiss tracking
         private bool _viewDismissDismissed;
 
+        // AssignDamage browser state
+        private bool _isAssignDamage;
+        private object _assignDamageBrowserRef;       // AssignDamageBrowser instance
+        private System.Collections.IDictionary _spinnerMap; // InstanceId → SpinnerAnimated
+        private uint _totalDamage;
+        private bool _totalDamageCached;
+        private int _assignerIndex;   // 1-based index of current assigner
+        private int _assignerTotal;   // total number of damage assigners in this combat
+        private static readonly BindingFlags ReflFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+
+        // Multi-zone browser state (SelectCardsMultiZone)
+        private bool _isMultiZone;
+        private List<GameObject> _zoneButtons = new List<GameObject>();
+        private int _currentZoneButtonIndex = -1;
+        private bool _onZoneSelector; // true when focus is on the zone selector element
+
         // Zone name constant
         private const string ZoneLocalHand = "LocalHand";
+
+        /// <summary>
+        /// Enters zone selector mode and deactivates CardInfoNavigator
+        /// so it doesn't intercept arrow keys meant for zone cycling.
+        /// </summary>
+        private void EnterZoneSelector()
+        {
+            _onZoneSelector = true;
+            AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
+        }
 
         public BrowserNavigator(IAnnouncementService announcer)
         {
@@ -128,6 +154,16 @@ namespace AccessibleArena.Core.Services
                 _zoneNavigator.Activate(browserInfo);
             }
 
+            // Detect multi-zone browser
+            _isMultiZone = browserInfo.BrowserType == "SelectCardsMultiZone";
+
+            // Detect AssignDamage browser
+            if (browserInfo.BrowserType == "AssignDamage")
+            {
+                _isAssignDamage = true;
+                CacheAssignDamageState();
+            }
+
             // Discover elements
             DiscoverBrowserElements();
         }
@@ -152,6 +188,21 @@ namespace AccessibleArena.Core.Services
             _browserButtons.Clear();
             _currentCardIndex = -1;
             _currentButtonIndex = -1;
+
+            // Clear multi-zone state
+            _isMultiZone = false;
+            _zoneButtons.Clear();
+            _currentZoneButtonIndex = -1;
+            _onZoneSelector = false;
+
+            // Clear AssignDamage state
+            _isAssignDamage = false;
+            _assignDamageBrowserRef = null;
+            _spinnerMap = null;
+            _totalDamage = 0;
+            _totalDamageCached = false;
+            _assignerIndex = 0;
+            _assignerTotal = 0;
 
             // Invalidate detector cache
             BrowserDetector.InvalidateCache();
@@ -210,6 +261,13 @@ namespace AccessibleArena.Core.Services
                 _hasAnnouncedEntry = true;
             }
 
+            // AssignDamage browser: Up/Down controls spinner, Left/Right navigates blockers
+            if (_isAssignDamage)
+            {
+                if (HandleAssignDamageInput())
+                    return true;
+            }
+
             // Zone-based browsers: delegate C/D/arrows/Enter to zone navigator
             if (_browserInfo.IsZoneBased)
             {
@@ -219,11 +277,168 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Multi-zone browser: zone selector handles Up/Down and blocks other input
+            if (_isMultiZone && _onZoneSelector && _zoneButtons.Count > 0)
+            {
+                if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
+                {
+                    CycleMultiZone(next: false);
+                    return true;
+                }
+                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+                {
+                    CycleMultiZone(next: true);
+                    return true;
+                }
+                // Tab from zone selector → first card (or first button if no cards)
+                if (Input.GetKeyDown(KeyCode.Tab))
+                {
+                    bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    if (!shift)
+                    {
+                        _onZoneSelector = false;
+                        if (_browserCards.Count > 0)
+                        {
+                            _currentCardIndex = 0;
+                            _currentButtonIndex = -1;
+                            AnnounceCurrentCard();
+                        }
+                        else if (_browserButtons.Count > 0)
+                        {
+                            _currentButtonIndex = 0;
+                            AnnounceCurrentButton();
+                        }
+                    }
+                    else
+                    {
+                        // Shift+Tab from zone selector → last button or last card (wrap)
+                        _onZoneSelector = false;
+                        if (_browserButtons.Count > 0)
+                        {
+                            _currentButtonIndex = _browserButtons.Count - 1;
+                            _currentCardIndex = -1;
+                            AnnounceCurrentButton();
+                        }
+                        else if (_browserCards.Count > 0)
+                        {
+                            _currentCardIndex = _browserCards.Count - 1;
+                            AnnounceCurrentCard();
+                        }
+                    }
+                    return true;
+                }
+                // Home/End: jump to first/last zone
+                if (Input.GetKeyDown(KeyCode.Home))
+                {
+                    if (_currentZoneButtonIndex != 0)
+                    {
+                        _currentZoneButtonIndex = 0;
+                        ActivateMultiZoneButton();
+                    }
+                    return true;
+                }
+                if (Input.GetKeyDown(KeyCode.End))
+                {
+                    int lastIdx = _zoneButtons.Count - 1;
+                    if (_currentZoneButtonIndex != lastIdx)
+                    {
+                        _currentZoneButtonIndex = lastIdx;
+                        ActivateMultiZoneButton();
+                    }
+                    return true;
+                }
+                // Block other keys while on zone selector (except Space/Backspace for confirm/cancel)
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    ClickConfirmButton();
+                    return true;
+                }
+                if (Input.GetKeyDown(KeyCode.Backspace))
+                {
+                    ClickCancelButton();
+                    return true;
+                }
+                return true;
+            }
+
             // Tab / Shift+Tab - cycle through items (generic navigation)
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                if (_browserCards.Count > 0)
+
+                // Multi-zone: Tab wraps back to zone selector at boundaries
+                if (_isMultiZone && _zoneButtons.Count > 0)
+                {
+                    if (shift)
+                    {
+                        // Shift+Tab: if on first card → go to zone selector
+                        if (_currentCardIndex == 0 && _currentButtonIndex < 0)
+                        {
+                            EnterZoneSelector();
+                            _currentCardIndex = -1;
+                            AnnounceMultiZoneSelector();
+                            return true;
+                        }
+                        // Shift+Tab: if on first button and no cards → zone selector
+                        if (_currentButtonIndex == 0 && _browserCards.Count == 0)
+                        {
+                            EnterZoneSelector();
+                            _currentButtonIndex = -1;
+                            AnnounceMultiZoneSelector();
+                            return true;
+                        }
+                        // Otherwise, navigate backwards through cards/buttons
+                        if (_currentButtonIndex > 0)
+                        {
+                            NavigateToPreviousButton();
+                        }
+                        else if (_currentButtonIndex == 0 && _browserCards.Count > 0)
+                        {
+                            _currentButtonIndex = -1;
+                            _currentCardIndex = _browserCards.Count - 1;
+                            AnnounceCurrentCard();
+                        }
+                        else if (_currentCardIndex > 0)
+                        {
+                            NavigateToPreviousCard();
+                        }
+                    }
+                    else
+                    {
+                        // Tab forward: cards → buttons → zone selector
+                        if (_currentCardIndex >= 0 && _currentCardIndex < _browserCards.Count - 1)
+                        {
+                            NavigateToNextCard();
+                        }
+                        else if (_currentCardIndex == _browserCards.Count - 1 && _browserButtons.Count > 0)
+                        {
+                            _currentCardIndex = -1;
+                            _currentButtonIndex = 0;
+                            AnnounceCurrentButton();
+                        }
+                        else if (_currentButtonIndex >= 0 && _currentButtonIndex < _browserButtons.Count - 1)
+                        {
+                            NavigateToNextButton();
+                        }
+                        else
+                        {
+                            // At end → wrap to zone selector
+                            EnterZoneSelector();
+                            _currentCardIndex = -1;
+                            _currentButtonIndex = -1;
+                            AnnounceMultiZoneSelector();
+                        }
+                    }
+                    return true;
+                }
+
+                // OptionalAction: unified cycle through cards → choice buttons → wrap
+                if (_browserInfo.IsOptionalAction && _browserCards.Count > 0 && _browserButtons.Count > 0)
+                {
+                    if (shift) NavigateToPreviousItem();
+                    else NavigateToNextItem();
+                }
+                else if (_browserCards.Count > 0)
                 {
                     if (shift) NavigateToPreviousCard();
                     else NavigateToNextCard();
@@ -241,20 +456,26 @@ namespace AccessibleArena.Core.Services
             {
                 if (Input.GetKeyDown(KeyCode.LeftArrow))
                 {
-                    if (_browserCards.Count > 0) NavigateToPreviousCard();
+                    // OptionalAction: respect current focus type (card vs button)
+                    if (_browserInfo.IsOptionalAction && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
+                        NavigateToPreviousButton();
+                    else if (_browserCards.Count > 0) NavigateToPreviousCard();
                     else if (_browserButtons.Count > 0) NavigateToPreviousButton();
                     return true;
                 }
                 if (Input.GetKeyDown(KeyCode.RightArrow))
                 {
-                    if (_browserCards.Count > 0) NavigateToNextCard();
+                    if (_browserInfo.IsOptionalAction && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
+                        NavigateToNextButton();
+                    else if (_browserCards.Count > 0) NavigateToNextCard();
                     else if (_browserButtons.Count > 0) NavigateToNextButton();
                     return true;
                 }
             }
 
             // Up/Down arrows - card details (delegate to CardInfoNavigator)
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            // AssignDamage handles Up/Down in HandleAssignDamageInput above
+            if (!_isAssignDamage && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)))
             {
                 if (_browserCards.Count > 0 && _currentCardIndex >= 0)
                 {
@@ -376,6 +597,69 @@ namespace AccessibleArena.Core.Services
             {
                 DiscoverPromptButtons();
             }
+
+            // For multi-zone browsers: separate zone buttons from regular buttons
+            if (_isMultiZone)
+            {
+                _zoneButtons.Clear();
+                var regularButtons = new List<GameObject>();
+                foreach (var button in _browserButtons)
+                {
+                    if (button != null && button.name.StartsWith("ZoneButton"))
+                        _zoneButtons.Add(button);
+                    else
+                        regularButtons.Add(button);
+                }
+                // Filter invisible scaffold layout buttons without meaningful text
+                regularButtons.RemoveAll(b =>
+                    !UIElementClassifier.IsVisibleViaCanvasGroup(b) &&
+                    !UITextExtractor.HasActualText(b));
+                _browserButtons = regularButtons;
+
+                // Sort zone buttons by name for consistent order
+                _zoneButtons.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
+
+                // Only keep zone buttons with real localized names (not generic "ZoneButtonN").
+                // This filters spurious unnamed zones and detects false positive multi-zone
+                // scaffolds (e.g. Tiefste Epoche) where all zones have generic names.
+                _zoneButtons.RemoveAll(zb =>
+                {
+                    string label = UITextExtractor.GetButtonText(zb, zb.name);
+                    return label.StartsWith("ZoneButton");
+                });
+
+                if (_zoneButtons.Count > 1)
+                {
+                    _currentZoneButtonIndex = FindActiveZoneButtonIndex();
+                    EnterZoneSelector();
+                    MelonLogger.Msg($"[BrowserNavigator] Multi-zone: {_zoneButtons.Count} zone buttons, {_browserCards.Count} cards, active index: {_currentZoneButtonIndex}");
+                }
+                else
+                {
+                    _zoneButtons.Clear();
+                }
+            }
+            else
+            {
+                // Non-multi-zone: filter invisible scaffold buttons that have no meaningful text.
+                // Keep buttons with real text even if alpha=0 (e.g. YesNo browser 2Button_Left/Right
+                // are hidden via CanvasGroup but are the actual Yes/No action buttons).
+                _browserButtons.RemoveAll(b =>
+                    !UIElementClassifier.IsVisibleViaCanvasGroup(b) &&
+                    !UITextExtractor.HasActualText(b));
+            }
+
+            // Filter "View Battlefield" button - no functionality for blind users
+            _browserButtons.RemoveAll(b =>
+            {
+                if (b == null || b.name != "MainButton") return false;
+                var t = b.transform.parent;
+                for (int d = 0; t != null && d < 3; d++, t = t.parent)
+                {
+                    if (t.name.StartsWith("ViewBattlefield")) return true;
+                }
+                return false;
+            });
 
             MelonLogger.Msg($"[BrowserNavigator] Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
         }
@@ -509,6 +793,7 @@ namespace AccessibleArena.Core.Services
         private void DiscoverLargeScrollListChoices(GameObject root)
         {
             var choiceButtons = new List<GameObject>();
+            var seenTexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
             {
@@ -517,19 +802,26 @@ namespace AccessibleArena.Core.Services
                 if (_browserButtons.Contains(child.gameObject)) continue;
                 if (BrowserDetector.MatchesButtonPattern(child.name, BrowserDetector.ButtonPatterns)) continue;
 
-                choiceButtons.Add(child.gameObject);
                 string choiceText = UITextExtractor.GetButtonText(child.gameObject, child.name);
+
+                // Skip internal UI elements (e.g. Primary_Base(Clone))
+                if (string.IsNullOrEmpty(choiceText) || choiceText == child.name)
+                    continue;
+
+                // Deduplicate by text (parent+child both have clickable components)
+                if (!seenTexts.Add(choiceText))
+                    continue;
+
+                choiceButtons.Add(child.gameObject);
                 MelonLogger.Msg($"[BrowserNavigator] Found LargeScrollList choice: '{choiceText}'");
             }
 
             if (choiceButtons.Count > 0)
             {
-                // Reorder: choices first, then existing scaffold buttons (MainButton etc.)
-                var scaffoldButtons = new List<GameObject>(_browserButtons);
+                // Replace scaffold buttons entirely - choices are the only navigable items
                 _browserButtons.Clear();
                 _browserButtons.AddRange(choiceButtons);
-                _browserButtons.AddRange(scaffoldButtons);
-                MelonLogger.Msg($"[BrowserNavigator] LargeScrollList: {choiceButtons.Count} choices + {scaffoldButtons.Count} scaffold buttons");
+                MelonLogger.Msg($"[BrowserNavigator] LargeScrollList: {choiceButtons.Count} choices");
             }
         }
 
@@ -579,6 +871,15 @@ namespace AccessibleArena.Core.Services
                 var cardInfo = CardDetector.ExtractCardInfo(card);
                 if (string.IsNullOrEmpty(cardInfo.Name)) continue;
 
+                // Filter out cards from other zones (e.g., commander from Command zone)
+                // that the game places visually in the hand holder
+                string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+                if (!string.IsNullOrEmpty(modelZone) && modelZone != "Hand")
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Skipping {cardInfo.Name} - actual zone: {modelZone}");
+                    continue;
+                }
+
                 if (!BrowserDetector.IsDuplicateCard(card, foundCards))
                 {
                     foundCards.Add(card);
@@ -615,8 +916,13 @@ namespace AccessibleArena.Core.Services
 
             string message;
 
+            // Special announcement for AssignDamage
+            if (_isAssignDamage)
+            {
+                message = GetAssignDamageEntryAnnouncement(cardCount, browserName);
+            }
             // Special announcement for London mulligan
-            if (_browserInfo.IsLondon)
+            else if (_browserInfo.IsLondon)
             {
                 var londonAnnouncement = _zoneNavigator.GetLondonEntryAnnouncement(cardCount);
                 if (londonAnnouncement != null)
@@ -648,7 +954,15 @@ namespace AccessibleArena.Core.Services
             _announcer.Announce(message, AnnouncementPriority.High);
 
             // Auto-navigate to first item
-            if (cardCount > 0)
+            if (_isMultiZone && _zoneButtons.Count > 0)
+            {
+                // Multi-zone: start on zone selector
+                EnterZoneSelector();
+                _currentCardIndex = -1;
+                _currentButtonIndex = -1;
+                AnnounceMultiZoneSelector();
+            }
+            else if (cardCount > 0)
             {
                 _currentCardIndex = 0;
                 AnnounceCurrentCard();
@@ -668,6 +982,14 @@ namespace AccessibleArena.Core.Services
             if (_currentCardIndex < 0 || _currentCardIndex >= _browserCards.Count) return;
 
             var card = _browserCards[_currentCardIndex];
+
+            // AssignDamage: custom announcement with P/T, lethal, position; skip PrepareForCard
+            if (_isAssignDamage)
+            {
+                AnnounceAssignDamageCard(card);
+                return;
+            }
+
             var info = CardDetector.ExtractCardInfo(card);
             bool isSelectionBrowser = _browserInfo?.BrowserType == "SelectCards" || _browserInfo?.BrowserType == "SelectCardsMultiZone";
             string cardName = isSelectionBrowser && !string.IsNullOrEmpty(info.RulesText)
@@ -686,20 +1008,27 @@ namespace AccessibleArena.Core.Services
                 selectionState = GetCardHolderState(card);
             }
 
+            // For multi-zone browsers, append the card's zone (e.g., "Your graveyard", "Opponent's exile")
+            string zoneSuffix = "";
+            if (_browserInfo?.BrowserType == "SelectCardsMultiZone")
+            {
+                zoneSuffix = GetMultiZoneCardZoneName(card);
+            }
+
             // Build announcement
             string announcement;
             if (_browserCards.Count == 1)
             {
                 announcement = string.IsNullOrEmpty(selectionState)
-                    ? cardName
-                    : $"{cardName}, {selectionState}";
+                    ? $"{cardName}{zoneSuffix}"
+                    : $"{cardName}{zoneSuffix}, {selectionState}";
             }
             else
             {
                 string position = $"{_currentCardIndex + 1} of {_browserCards.Count}";
                 announcement = string.IsNullOrEmpty(selectionState)
-                    ? $"{cardName}, {position}"
-                    : $"{cardName}, {selectionState}, {position}";
+                    ? $"{cardName}{zoneSuffix}, {position}"
+                    : $"{cardName}{zoneSuffix}, {selectionState}, {position}";
             }
 
             _announcer.Announce(announcement, AnnouncementPriority.High);
@@ -729,6 +1058,149 @@ namespace AccessibleArena.Core.Services
             }
             return null;
         }
+
+        // Maps game zone names to mod ZoneType, with local/opponent variants
+        private static readonly Dictionary<string, (ZoneType local, ZoneType opponent)> MultiZoneMap =
+            new Dictionary<string, (ZoneType, ZoneType)>
+        {
+            { "Graveyard", (ZoneType.Graveyard, ZoneType.OpponentGraveyard) },
+            { "Exile", (ZoneType.Exile, ZoneType.OpponentExile) },
+            { "Library", (ZoneType.Library, ZoneType.OpponentLibrary) },
+            { "Hand", (ZoneType.Hand, ZoneType.OpponentHand) },
+            { "Command", (ZoneType.Command, ZoneType.OpponentCommand) }
+        };
+
+        /// <summary>
+        /// Gets the localized zone name for a card in a SelectCardsMultiZone browser.
+        /// Returns ", Your graveyard" or ", Opponent's graveyard" etc.
+        /// </summary>
+        private string GetMultiZoneCardZoneName(GameObject card)
+        {
+            string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+            if (string.IsNullOrEmpty(modelZone)) return "";
+
+            if (MultiZoneMap.TryGetValue(modelZone, out var zonePair))
+            {
+                bool isOpponent = CardModelProvider.IsOpponentCard(card);
+                var zoneType = isOpponent ? zonePair.opponent : zonePair.local;
+                return $", {Strings.GetZoneName(zoneType)}";
+            }
+
+            return "";
+        }
+
+        #region Multi-Zone Navigation
+
+        /// <summary>
+        /// Announces the multi-zone selector element with current zone name and card count.
+        /// </summary>
+        private void AnnounceMultiZoneSelector()
+        {
+            string zoneName = GetCurrentZoneButtonLabel();
+            string hint = _zoneButtons.Count > 1
+                ? $", {_currentZoneButtonIndex + 1} of {_zoneButtons.Count}"
+                : "";
+            string cardInfo = _browserCards.Count > 0 ? $", {_browserCards.Count} cards" : "";
+            string announcement = $"{Strings.ZoneChange}: {zoneName}{hint}{cardInfo}";
+            _announcer.Announce(announcement, AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Cycles to the next/previous zone in a multi-zone browser.
+        /// Clicks the zone button and rediscovers cards after a delay.
+        /// </summary>
+        private void CycleMultiZone(bool next)
+        {
+            if (_zoneButtons.Count == 0) return;
+
+            int newIndex = _currentZoneButtonIndex + (next ? 1 : -1);
+            if (newIndex < 0)
+            {
+                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return;
+            }
+            if (newIndex >= _zoneButtons.Count)
+            {
+                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
+                return;
+            }
+
+            _currentZoneButtonIndex = newIndex;
+            ActivateMultiZoneButton();
+        }
+
+        /// <summary>
+        /// Clicks the current zone button and schedules card rediscovery.
+        /// </summary>
+        private void ActivateMultiZoneButton()
+        {
+            var button = _zoneButtons[_currentZoneButtonIndex];
+            MelonLogger.Msg($"[BrowserNavigator] Activating zone button: {button.name}");
+            UIActivator.SimulatePointerClick(button);
+
+            // Rediscover cards after game updates the holder
+            MelonCoroutines.Start(RediscoverMultiZoneCards());
+        }
+
+        /// <summary>
+        /// Waits for the game to update the card holder after a zone change,
+        /// then rediscovers cards and announces the new zone.
+        /// </summary>
+        private IEnumerator RediscoverMultiZoneCards()
+        {
+            yield return new WaitForSeconds(0.3f);
+
+            // Rediscover cards in holders
+            _browserCards.Clear();
+            _currentCardIndex = -1;
+            DiscoverCardsInHolders();
+
+            MelonLogger.Msg($"[BrowserNavigator] Multi-zone rediscovery: {_browserCards.Count} cards");
+            AnnounceMultiZoneSelector();
+        }
+
+        /// <summary>
+        /// Gets the display label for the currently selected zone button.
+        /// </summary>
+        private string GetCurrentZoneButtonLabel()
+        {
+            if (_currentZoneButtonIndex < 0 || _currentZoneButtonIndex >= _zoneButtons.Count)
+                return "?";
+
+            var button = _zoneButtons[_currentZoneButtonIndex];
+            string label = UITextExtractor.GetButtonText(button, button.name);
+
+            // If the button only has a generic name like "ZoneButton0", try to extract zone info
+            if (label.StartsWith("ZoneButton"))
+                label = $"Zone {_currentZoneButtonIndex + 1}";
+
+            return label;
+        }
+
+        /// <summary>
+        /// Finds which zone button is currently active/selected by checking visual state.
+        /// Falls back to 0 if no active button can be determined.
+        /// </summary>
+        private int FindActiveZoneButtonIndex()
+        {
+            // Try to detect which zone button is visually active (selected state)
+            for (int i = 0; i < _zoneButtons.Count; i++)
+            {
+                var button = _zoneButtons[i];
+                // Check if button has a Toggle component that's on
+                var toggle = button.GetComponent<Toggle>();
+                if (toggle != null && toggle.isOn)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Zone button {i} ({button.name}) is active (Toggle.isOn)");
+                    return i;
+                }
+            }
+
+            // Fallback: first button
+            return 0;
+        }
+
+        #endregion
 
         /// <summary>
         /// Announces the current button.
@@ -796,6 +1268,81 @@ namespace AccessibleArena.Core.Services
             _currentButtonIndex--;
             if (_currentButtonIndex < 0) _currentButtonIndex = _browserButtons.Count - 1;
             AnnounceCurrentButton();
+        }
+
+        /// <summary>
+        /// Navigates to the next item across both cards and buttons.
+        /// Order: cards first, then buttons, then wraps back to first card.
+        /// Maintains mutual exclusion: focusing a card clears button index and vice versa.
+        /// </summary>
+        private void NavigateToNextItem()
+        {
+            int totalCards = _browserCards.Count;
+            int totalButtons = _browserButtons.Count;
+            int totalItems = totalCards + totalButtons;
+            if (totalItems == 0) return;
+
+            // Determine current unified index
+            int currentIndex;
+            if (_currentCardIndex >= 0)
+                currentIndex = _currentCardIndex;
+            else if (_currentButtonIndex >= 0)
+                currentIndex = totalCards + _currentButtonIndex;
+            else
+                currentIndex = -1;
+
+            int nextIndex = (currentIndex + 1) % totalItems;
+
+            if (nextIndex < totalCards)
+            {
+                _currentCardIndex = nextIndex;
+                _currentButtonIndex = -1;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _currentButtonIndex = nextIndex - totalCards;
+                _currentCardIndex = -1;
+                AnnounceCurrentButton();
+            }
+        }
+
+        /// <summary>
+        /// Navigates to the previous item across both cards and buttons.
+        /// Order: wraps from first card to last button, from first button to last card.
+        /// Maintains mutual exclusion: focusing a card clears button index and vice versa.
+        /// </summary>
+        private void NavigateToPreviousItem()
+        {
+            int totalCards = _browserCards.Count;
+            int totalButtons = _browserButtons.Count;
+            int totalItems = totalCards + totalButtons;
+            if (totalItems == 0) return;
+
+            // Determine current unified index
+            int currentIndex;
+            if (_currentCardIndex >= 0)
+                currentIndex = _currentCardIndex;
+            else if (_currentButtonIndex >= 0)
+                currentIndex = totalCards + _currentButtonIndex;
+            else
+                currentIndex = 0;
+
+            int prevIndex = currentIndex - 1;
+            if (prevIndex < 0) prevIndex = totalItems - 1;
+
+            if (prevIndex < totalCards)
+            {
+                _currentCardIndex = prevIndex;
+                _currentButtonIndex = -1;
+                AnnounceCurrentCard();
+            }
+            else
+            {
+                _currentButtonIndex = prevIndex - totalCards;
+                _currentCardIndex = -1;
+                AnnounceCurrentButton();
+            }
         }
 
         #endregion
@@ -1128,8 +1675,18 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // OptionalAction: try MainButton (shockland pay-life choices etc.)
+            if (_browserInfo?.IsOptionalAction == true && TryClickButtonByName("MainButton", out clickedLabel))
+            {
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // Fallback: PromptButton_Primary (scene search)
-            if (TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
+            // Skip for OptionalAction — its buttons are choices, not confirm/cancel,
+            // and the global PromptButtons would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
@@ -1167,7 +1724,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Third priority: PromptButton_Secondary
-            if (TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
+            // Skip for OptionalAction — would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
@@ -1320,6 +1878,563 @@ namespace AccessibleArena.Core.Services
             else
             {
                 _announcer.Announce(Strings.NoButtonsAvailable, AnnouncementPriority.Normal);
+            }
+        }
+
+        #endregion
+
+        #region AssignDamage Browser
+
+        /// <summary>
+        /// Caches state for the AssignDamage browser: browser ref, spinner map, total damage.
+        /// </summary>
+        private void CacheAssignDamageState()
+        {
+            try
+            {
+                // Find GameManager → BrowserManager → CurrentBrowser
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+
+                if (gameManager == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: GameManager not found");
+                    return;
+                }
+
+                var bmProp = gameManager.GetType().GetProperty("BrowserManager", ReflFlags);
+                var browserManager = bmProp?.GetValue(gameManager);
+                if (browserManager == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: BrowserManager not found");
+                    return;
+                }
+
+                var cbProp = browserManager.GetType().GetProperty("CurrentBrowser", ReflFlags);
+                var currentBrowser = cbProp?.GetValue(browserManager);
+                if (currentBrowser == null || !currentBrowser.GetType().Name.Contains("AssignDamage"))
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: CurrentBrowser is {currentBrowser?.GetType().Name ?? "null"}");
+                    return;
+                }
+
+                _assignDamageBrowserRef = currentBrowser;
+                MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Found browser {currentBrowser.GetType().Name}");
+
+                // Cache _idToSpinnerMap
+                var spinnerField = currentBrowser.GetType().GetField("_idToSpinnerMap", ReflFlags);
+                if (spinnerField != null)
+                {
+                    _spinnerMap = spinnerField.GetValue(currentBrowser) as System.Collections.IDictionary;
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Spinner map has {_spinnerMap?.Count ?? 0} entries");
+                }
+                else
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: _idToSpinnerMap field not found");
+                }
+
+                // TotalDamage is cached lazily via EnsureTotalDamageCached()
+                // because CurrentInteraction may not be set yet at browser open time
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] AssignDamage cache error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles input specific to the AssignDamage browser.
+        /// Up/Down adjusts spinner, Left/Right navigates blockers.
+        /// </summary>
+        private bool HandleAssignDamageInput()
+        {
+            // Up arrow: increase damage on current blocker
+            // Always consume to prevent EventSystem focus leak
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                AdjustDamageSpinner(true);
+                return true;
+            }
+
+            // Down arrow: decrease damage on current blocker
+            // Always consume to prevent EventSystem focus leak
+            if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                AdjustDamageSpinner(false);
+                return true;
+            }
+
+            // Enter: consume without action (cards aren't toggleable in damage assignment)
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                return true;
+            }
+
+            // Space: submit via DoneAction on browser
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                SubmitAssignDamage();
+                return true;
+            }
+
+            // Backspace: undo via UndoAction on browser
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                UndoAssignDamage();
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the SpinnerAnimated for the currently focused card by InstanceId.
+        /// </summary>
+        /// <summary>
+        /// Lazily caches TotalDamage from the workflow's MtgDamageAssigner.
+        /// Called on first use because CurrentInteraction is null at browser open time.
+        /// </summary>
+        private void EnsureTotalDamageCached()
+        {
+            if (_totalDamageCached) return;
+
+            try
+            {
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+                if (gameManager == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: GameManager not found");
+                    return;
+                }
+
+                var wcProp = gameManager.GetType().GetProperty("WorkflowController", ReflFlags);
+                var workflowController = wcProp?.GetValue(gameManager);
+                if (workflowController == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: WorkflowController null (prop found: {wcProp != null})");
+                    return;
+                }
+
+                var cwProp = workflowController.GetType().GetProperty("CurrentWorkflow", ReflFlags);
+                var interaction = cwProp?.GetValue(workflowController);
+                if (interaction == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: CurrentWorkflow null (prop found: {cwProp != null}), WC type: {workflowController.GetType().Name}");
+                    return;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: Interaction type: {interaction.GetType().Name}");
+
+                // Walk type hierarchy to find _damageAssigner (declared on AssignDamageWorkflow, not base)
+                FieldInfo daField = null;
+                var searchType = interaction.GetType();
+                while (searchType != null && daField == null)
+                {
+                    daField = searchType.GetField("_damageAssigner", ReflFlags);
+                    searchType = searchType.BaseType;
+                }
+                if (daField == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: _damageAssigner field not found");
+                    return;
+                }
+
+                var damageAssigner = daField.GetValue(interaction);
+                if (damageAssigner == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: _damageAssigner value is null");
+                    return;
+                }
+
+                MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: damageAssigner type: {damageAssigner.GetType().Name}");
+
+                // TotalDamage is a public readonly field on the MtgDamageAssigner struct
+                var tdField = damageAssigner.GetType().GetField("TotalDamage", BindingFlags.Public | BindingFlags.Instance);
+                if (tdField != null)
+                {
+                    _totalDamage = (uint)tdField.GetValue(damageAssigner);
+                    _totalDamageCached = true;
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: TotalDamage = {_totalDamage}");
+                }
+                else
+                {
+                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: TotalDamage field not found");
+                }
+
+                // Read assigner queue counts: _handledAssigners (List) + _unhandledAssigners (Queue)
+                // Current = handledCount + 1, Total = handledCount + unhandledCount + 1
+                var iType = interaction.GetType();
+                var handledField = iType.GetField("_handledAssigners", ReflFlags);
+                var unhandledField = iType.GetField("_unhandledAssigners", ReflFlags);
+                if (handledField != null && unhandledField != null)
+                {
+                    var handled = handledField.GetValue(interaction) as ICollection;
+                    var unhandled = unhandledField.GetValue(interaction) as ICollection;
+                    int handledCount = handled?.Count ?? 0;
+                    int unhandledCount = unhandled?.Count ?? 0;
+                    _assignerIndex = handledCount + 1;
+                    _assignerTotal = handledCount + unhandledCount + 1;
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Assigner {_assignerIndex} of {_assignerTotal}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] EnsureTotalDamageCached error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Submits the damage assignment by invoking DoneAction on the browser.
+        /// Note: The generic SimulatePointerClick path on the SubmitButton may also work
+        /// (it did before our AssignDamage changes), but DoneAction is the direct event
+        /// the game wires to OnButtonCallback("DoneButton"), so we invoke it explicitly.
+        /// If this ever breaks, try reverting to SimulatePointerClick on SubmitButton.
+        /// </summary>
+        private void SubmitAssignDamage()
+        {
+            if (_assignDamageBrowserRef == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No browser ref for submit");
+                return;
+            }
+
+            try
+            {
+                var browserType = _assignDamageBrowserRef.GetType();
+                var doneField = browserType.GetField("DoneAction", ReflFlags);
+                if (doneField != null)
+                {
+                    var doneAction = doneField.GetValue(_assignDamageBrowserRef) as Action;
+                    if (doneAction != null)
+                    {
+                        doneAction.Invoke();
+                        _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                        MelonLogger.Msg("[BrowserNavigator] AssignDamage: Invoked DoneAction");
+                        return;
+                    }
+                }
+
+                // Fallback: try invoking OnButtonCallback("DoneButton") directly
+                var callbackMethod = browserType.GetMethod("OnButtonCallback", ReflFlags);
+                if (callbackMethod != null)
+                {
+                    callbackMethod.Invoke(_assignDamageBrowserRef, new object[] { "DoneButton" });
+                    _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: Called OnButtonCallback(DoneButton)");
+                    return;
+                }
+
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: Could not find DoneAction or OnButtonCallback");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] SubmitAssignDamage error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Undoes the last damage assignment action via UndoAction on the browser.
+        /// </summary>
+        private void UndoAssignDamage()
+        {
+            if (_assignDamageBrowserRef == null)
+            {
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No browser ref for undo");
+                return;
+            }
+
+            try
+            {
+                var browserType = _assignDamageBrowserRef.GetType();
+                var undoField = browserType.GetField("UndoAction", ReflFlags);
+                if (undoField != null)
+                {
+                    var undoAction = undoField.GetValue(_assignDamageBrowserRef) as Action;
+                    if (undoAction != null)
+                    {
+                        undoAction.Invoke();
+                        _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
+                        MelonLogger.Msg("[BrowserNavigator] AssignDamage: Invoked UndoAction");
+                        return;
+                    }
+                }
+
+                MelonLogger.Msg("[BrowserNavigator] AssignDamage: UndoAction not available");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] UndoAssignDamage error: {ex.Message}");
+            }
+        }
+
+        private object GetSpinnerForCurrentCard()
+        {
+            if (_spinnerMap == null || _currentCardIndex < 0 || _currentCardIndex >= _browserCards.Count)
+                return null;
+
+            var card = _browserCards[_currentCardIndex];
+            uint instanceId = GetCardInstanceId(card);
+            if (instanceId == 0) return null;
+
+            if (_spinnerMap.Contains(instanceId))
+                return _spinnerMap[instanceId];
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts InstanceId from a card's CDC component.
+        /// </summary>
+        private uint GetCardInstanceId(GameObject card)
+        {
+            if (card == null) return 0;
+
+            try
+            {
+                foreach (var mb in card.GetComponents<MonoBehaviour>())
+                {
+                    if (mb == null) continue;
+                    var type = mb.GetType();
+                    // DuelScene_CDC or similar CDC types have InstanceId
+                    if (type.Name.Contains("CDC"))
+                    {
+                        var idProp = type.GetProperty("InstanceId", ReflFlags);
+                        if (idProp != null)
+                            return (uint)idProp.GetValue(mb);
+
+                        // Try via Model.Instance.InstanceId
+                        var modelProp = type.GetProperty("Model", ReflFlags);
+                        if (modelProp != null)
+                        {
+                            var model = modelProp.GetValue(mb);
+                            if (model != null)
+                            {
+                                var instProp = model.GetType().GetProperty("Instance", ReflFlags);
+                                var instance = instProp?.GetValue(model);
+                                if (instance != null)
+                                {
+                                    var iidProp = instance.GetType().GetProperty("InstanceId", ReflFlags);
+                                    if (iidProp != null)
+                                        return (uint)iidProp.GetValue(instance);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] GetCardInstanceId error: {ex.Message}");
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Clicks the spinner up/down button and announces the new value.
+        /// </summary>
+        private void AdjustDamageSpinner(bool increase)
+        {
+            EnsureTotalDamageCached();
+
+            var spinner = GetSpinnerForCurrentCard();
+            if (spinner == null)
+            {
+                // No spinner = attacker card, not a blocker
+                return;
+            }
+
+            try
+            {
+                var spinnerType = spinner.GetType();
+
+                // Click _upButton or _downButton
+                string buttonFieldName = increase ? "_upButton" : "_downButton";
+                var buttonField = spinnerType.GetField(buttonFieldName, ReflFlags);
+                if (buttonField == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: {buttonFieldName} field not found on {spinnerType.Name}");
+                    return;
+                }
+
+                var button = buttonField.GetValue(spinner) as Button;
+                if (button == null)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: {buttonFieldName} is null");
+                    return;
+                }
+
+                button.onClick.Invoke();
+
+                // Read new value from spinner
+                var valueProp = spinnerType.GetProperty("Value", ReflFlags);
+                int newValue = 0;
+                if (valueProp != null)
+                {
+                    newValue = (int)valueProp.GetValue(spinner);
+                }
+
+                // Announce: "X of Total assigned"
+                string announcement = Strings.DamageAssigned(newValue, (int)_totalDamage);
+
+                // Check lethal
+                if (IsSpinnerLethal(spinner))
+                {
+                    announcement = $"{Strings.DamageAssignLethal}, {announcement}";
+                }
+
+                _announcer.Announce(announcement, AnnouncementPriority.High);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] AdjustDamageSpinner error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Checks if the spinner's value text is gold (lethal damage reached).
+        /// Lethal color: Color32(254, 176, 0, 255).
+        /// </summary>
+        private bool IsSpinnerLethal(object spinner)
+        {
+            try
+            {
+                var spinnerType = spinner.GetType();
+                var textField = spinnerType.GetField("_valueText", ReflFlags);
+                if (textField == null) return false;
+
+                var textComponent = textField.GetValue(spinner);
+                if (textComponent == null) return false;
+
+                var colorProp = textComponent.GetType().GetProperty("color", ReflFlags);
+                if (colorProp == null) return false;
+
+                var color = (Color)colorProp.GetValue(textComponent);
+                // Compare to lethal gold: approximately (254/255, 176/255, 0/255, 1)
+                return color.r > 0.9f && color.g > 0.6f && color.g < 0.8f && color.b < 0.1f;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Announces a card in AssignDamage mode with name, P/T, lethal status, position.
+        /// Does NOT call PrepareForCard so CardInfoNavigator stays inactive
+        /// and Up/Down are free for spinner control.
+        /// </summary>
+        private void AnnounceAssignDamageCard(GameObject card)
+        {
+            var info = CardDetector.ExtractCardInfo(card);
+            string cardName = info.Name ?? "Unknown card";
+
+            var parts = new List<string>();
+            parts.Add(cardName);
+
+            // Add P/T
+            if (!string.IsNullOrEmpty(info.PowerToughness))
+            {
+                parts.Add(info.PowerToughness);
+            }
+
+            // Check lethal state via spinner
+            var spinner = GetSpinnerForCurrentCard();
+            if (spinner != null && IsSpinnerLethal(spinner))
+            {
+                parts.Add(Strings.DamageAssignLethal);
+            }
+
+            // Add position
+            if (_browserCards.Count > 1)
+            {
+                parts.Add($"{_currentCardIndex + 1} of {_browserCards.Count}");
+            }
+
+            _announcer.Announce(string.Join(", ", parts), AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Gets the entry announcement for the AssignDamage browser.
+        /// "Assign damage. [AttackerName], [Power] damage. [N] blockers"
+        /// </summary>
+        private string GetAssignDamageEntryAnnouncement(int cardCount, string fallbackName)
+        {
+            EnsureTotalDamageCached();
+
+            if (_assignDamageBrowserRef == null)
+                return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
+
+            try
+            {
+                var browserType = _assignDamageBrowserRef.GetType();
+
+                // Get _layout from the browser
+                var layoutField = browserType.GetField("_layout", ReflFlags);
+                var layout = layoutField?.GetValue(_assignDamageBrowserRef);
+                if (layout == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: _layout not found");
+                    return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
+                }
+
+                var layoutType = layout.GetType();
+
+                // Get _attacker (DuelScene_CDC)
+                var attackerField = layoutType.GetField("_attacker", ReflFlags);
+                object attacker = attackerField?.GetValue(layout);
+                string attackerName = "Attacker";
+                int power = (int)_totalDamage;
+
+                if (attacker != null)
+                {
+                    // Get attacker's GameObject and extract name
+                    var attackerMb = attacker as MonoBehaviour;
+                    if (attackerMb != null)
+                    {
+                        var attackerInfo = CardDetector.ExtractCardInfo(attackerMb.gameObject);
+                        if (!string.IsNullOrEmpty(attackerInfo.Name))
+                            attackerName = attackerInfo.Name;
+                    }
+                }
+
+                // Get _blockers list for count
+                var blockersField = layoutType.GetField("_blockers", ReflFlags);
+                if (blockersField != null)
+                {
+                    var blockersList = blockersField.GetValue(layout) as IList;
+                    if (blockersList != null)
+                    {
+                        cardCount = blockersList.Count;
+                    }
+                }
+
+                string entry = Strings.DamageAssignEntry(attackerName, power, cardCount);
+                if (_assignerTotal > 1)
+                {
+                    entry += $". {_assignerIndex} of {_assignerTotal}";
+                }
+                return entry;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] AssignDamage entry announcement error: {ex.Message}");
+                return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
             }
         }
 

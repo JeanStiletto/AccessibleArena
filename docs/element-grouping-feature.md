@@ -303,7 +303,8 @@ public enum ElementGroup
     PlayBladeFolders, // Play blade folders container (groups deck folders)
     SettingsMenu,     // Settings menu overlay
     NPE,              // New Player Experience overlay (excludes Objective_NPE elements)
-    DeckBuilderCollection, // Deck builder collection cards (PoolHolder grid)
+    DeckBuilderCollection, // Deck builder collection cards (PoolHolder grid, no deck context)
+    DeckBuilderSideboard,  // Deck builder sideboard cards (PoolHolder when editing a deck)
     DeckBuilderDeckList,   // Deck builder deck list cards (MainDeck_MetaCardHolder compact list)
     DeckBuilderInfo,       // Deck builder info (card count, mana curve) with 2D sub-navigation
 }

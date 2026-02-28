@@ -46,7 +46,7 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            return $"{ScreenName}. {_elements.Count} options. {Models.Strings.NavigateWithArrows}, Enter to select.";
+            return $"{ScreenName}. {Models.Strings.NavigateWithArrows}, Enter to select. {_elements.Count} options.";
         }
     }
 }

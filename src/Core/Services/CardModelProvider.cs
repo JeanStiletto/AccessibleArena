@@ -64,6 +64,9 @@ namespace AccessibleArena.Core.Services
             _artistProvider = null;
             _getArtistMethod = null;
             _artistProviderSearched = false;
+            // CDC Model property cache
+            _cdcModelProp = null;
+            _cdcModelPropType = null;
             // Combat state cache
             _instancePropCached = null;
             _instancePropSearched = false;
@@ -73,6 +76,8 @@ namespace AccessibleArena.Core.Services
             _isBlockingPropSearched = false;
             _isTappedField = null;
             _isTappedFieldSearched = false;
+            _hasSummoningSicknessField = null;
+            _hasSummoningSicknessFieldSearched = false;
             _blockingIdsField = null;
             _blockingIdsFieldSearched = false;
             _blockedByIdsField = null;
@@ -82,6 +87,9 @@ namespace AccessibleArena.Core.Services
             _targetIdsFieldSearched = false;
             _targetedByIdsField = null;
             _targetedByIdsFieldSearched = false;
+            // Zone type cache
+            _zoneTypePropCached = null;
+            _zoneTypePropSearched = false;
             // Extended info cache (keywords + linked faces)
             ClearExtendedInfoCache();
         }
@@ -142,6 +150,7 @@ namespace AccessibleArena.Core.Services
                 if (typeName == "PagesMetaCardView" ||
                     typeName == "MetaCardView" ||
                     typeName == "BoosterMetaCardView" ||
+                    typeName == "DraftPackCardView" ||
                     typeName.Contains("ListMetaCardView"))
                 {
                     // Log once when we find a MetaCardView
@@ -161,6 +170,10 @@ namespace AccessibleArena.Core.Services
         /// The Model contains card data like Name, Power, Toughness, CardTypes, etc.
         /// Returns null if not available.
         /// </summary>
+        // Cache for CDC "Model" property - same type throughout entire duel
+        private static PropertyInfo _cdcModelProp = null;
+        private static Type _cdcModelPropType = null;
+
         public static object GetCardModel(Component cdcComponent)
         {
             if (cdcComponent == null) return null;
@@ -168,8 +181,12 @@ namespace AccessibleArena.Core.Services
             try
             {
                 var cdcType = cdcComponent.GetType();
-                var modelProp = cdcType.GetProperty("Model");
-                return modelProp?.GetValue(cdcComponent);
+                if (cdcType != _cdcModelPropType)
+                {
+                    _cdcModelProp = cdcType.GetProperty("Model");
+                    _cdcModelPropType = cdcType;
+                }
+                return _cdcModelProp?.GetValue(cdcComponent);
             }
             catch (Exception ex)
             {
@@ -1341,11 +1358,26 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets the flavor text for a card using its FlavorId.
-        /// Uses GreLocProvider.GetLocalizedText(locId, overrideLangCode, formatted).
+        /// Uses GreLocProvider.GetLocalizedText via GetLocalizedTextById.
         /// </summary>
         private static string GetFlavorText(uint flavorId)
         {
             if (flavorId == 0 || flavorId == 1) return null; // 1 appears to be a placeholder for "no flavor text"
+
+            var text = GetLocalizedTextById(flavorId);
+            if (text != null && text.Contains("Unknown"))
+                return null;
+            return text;
+        }
+
+        /// <summary>
+        /// Looks up a localized text string by its localization ID using GreLocProvider.
+        /// Reuses the flavor text provider (same GreLocProvider.GetLocalizedText method).
+        /// Works for any loc ID: TypeTextId, SubtypeTextId, FlavorTextId, etc.
+        /// </summary>
+        private static string GetLocalizedTextById(uint locId)
+        {
+            if (locId == 0) return null;
 
             if (!_flavorTextProviderSearched)
             {
@@ -1364,11 +1396,11 @@ namespace AccessibleArena.Core.Services
                 if (parameters.Length == 3)
                 {
                     // GetLocalizedText(UInt32 locId, String overrideLangCode, Boolean formatted)
-                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { flavorId, null, false });
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId, null, false });
                 }
                 else if (parameters.Length == 1)
                 {
-                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { flavorId });
+                    result = _getFlavorTextMethod.Invoke(_flavorTextProvider, new object[] { locId });
                 }
                 else
                 {
@@ -1376,16 +1408,12 @@ namespace AccessibleArena.Core.Services
                 }
 
                 var text = result as string;
-                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.Contains("Unknown"))
-                {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Flavor text found: {text}");
+                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$"))
                     return text;
-                }
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting flavor text for id {flavorId}: {ex.Message}");
                 return null;
             }
         }
@@ -1817,16 +1845,16 @@ namespace AccessibleArena.Core.Services
         {
             switch (colorEnum)
             {
-                case "White": case "W": return "White";
-                case "Blue": case "U": return "Blue";
-                case "Black": case "B": return "Black";
-                case "Red": case "R": return "Red";
-                case "Green": case "G": return "Green";
-                case "Colorless": case "C": return "Colorless";
-                case "Generic": return "Generic";
-                case "Snow": case "S": return "Snow";
-                case "Phyrexian": case "P": return "Phyrexian";
-                case "X": return "X";
+                case "White": case "W": return Strings.ManaWhite;
+                case "Blue": case "U": return Strings.ManaBlue;
+                case "Black": case "B": return Strings.ManaBlack;
+                case "Red": case "R": return Strings.ManaRed;
+                case "Green": case "G": return Strings.ManaGreen;
+                case "Colorless": case "C": return Strings.ManaColorless;
+                case "Generic": return Strings.ManaGeneric;
+                case "Snow": case "S": return Strings.ManaSnow;
+                case "Phyrexian": case "P": return Strings.ManaPhyrexianBare;
+                case "X": return Strings.ManaX;
                 default: return colorEnum;
             }
         }
@@ -2034,14 +2062,33 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Name - get from GrpId using CardTitleProvider lookup
+                // Name - try TitleId via GreLocProvider first (guaranteed localized),
+                // fall back to CardTitleProvider lookup by GrpId
                 uint cardGrpId = 0;
                 var grpIdObj = GetModelPropertyValue(dataObj, objType, "GrpId");
                 if (grpIdObj is uint grpId)
-                {
                     cardGrpId = grpId;
-                    info.Name = GetNameFromGrpId(grpId);
+
+                var titleIdObj = GetModelPropertyValue(dataObj, objType, "TitleId");
+                if (titleIdObj is uint titleId && titleId > 0)
+                    info.Name = GetLocalizedTextById(titleId);
+
+                // Fall back: try Printing.TitleId
+                if (string.IsNullOrEmpty(info.Name))
+                {
+                    var printingForName = GetModelPropertyValue(dataObj, objType, "Printing");
+                    if (printingForName != null)
+                    {
+                        var printingType = printingForName.GetType();
+                        var printingTitleId = GetModelPropertyValue(printingForName, printingType, "TitleId");
+                        if (printingTitleId is uint ptid && ptid > 0)
+                            info.Name = GetLocalizedTextById(ptid);
+                    }
                 }
+
+                // Fall back: CardTitleProvider by GrpId
+                if (string.IsNullOrEmpty(info.Name) && cardGrpId > 0)
+                    info.Name = GetNameFromGrpId(cardGrpId);
 
                 // Mana Cost - try PrintedCastingCost (ManaQuantity[]) first, fall back to string
                 var castingCost = GetModelPropertyValue(dataObj, objType, "PrintedCastingCost");
@@ -2113,7 +2160,54 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                if (typeLineParts.Count > 0)
+                // Try localized type line via TypeTextId/SubtypeTextId (uses GreLocProvider)
+                uint typeTextId = 0;
+                uint subtypeTextId = 0;
+
+                // Check directly on model object first
+                var typeTextIdVal = GetModelPropertyValue(dataObj, objType, "TypeTextId");
+                if (typeTextIdVal is uint ttid) typeTextId = ttid;
+                else if (typeTextIdVal is int ttidInt && ttidInt > 0) typeTextId = (uint)ttidInt;
+
+                var subtypeTextIdVal = GetModelPropertyValue(dataObj, objType, "SubtypeTextId");
+                if (subtypeTextIdVal is uint stid) subtypeTextId = stid;
+                else if (subtypeTextIdVal is int stidInt && stidInt > 0) subtypeTextId = (uint)stidInt;
+
+                // Try Printing sub-object if not found directly
+                if (typeTextId == 0)
+                {
+                    var printingForType = GetModelPropertyValue(dataObj, objType, "Printing");
+                    if (printingForType != null)
+                    {
+                        var printingType = printingForType.GetType();
+                        typeTextIdVal = GetModelPropertyValue(printingForType, printingType, "TypeTextId");
+                        if (typeTextIdVal is uint pttid) typeTextId = pttid;
+                        else if (typeTextIdVal is int pttidInt && pttidInt > 0) typeTextId = (uint)pttidInt;
+
+                        if (subtypeTextId == 0)
+                        {
+                            subtypeTextIdVal = GetModelPropertyValue(printingForType, printingType, "SubtypeTextId");
+                            if (subtypeTextIdVal is uint pstid) subtypeTextId = pstid;
+                            else if (subtypeTextIdVal is int pstidInt && pstidInt > 0) subtypeTextId = (uint)pstidInt;
+                        }
+                    }
+                }
+
+                // Look up localized text
+                if (typeTextId > 0)
+                {
+                    var localizedType = GetLocalizedTextById(typeTextId);
+                    if (!string.IsNullOrEmpty(localizedType))
+                    {
+                        string localizedSubtype = subtypeTextId > 0 ? GetLocalizedTextById(subtypeTextId) : null;
+                        info.TypeLine = !string.IsNullOrEmpty(localizedSubtype)
+                            ? localizedType + " - " + localizedSubtype
+                            : localizedType;
+                    }
+                }
+
+                // Fall back to structured enum types (English)
+                if (string.IsNullOrEmpty(info.TypeLine) && typeLineParts.Count > 0)
                 {
                     info.TypeLine = string.Join(" ", typeLineParts);
                     if (subtypeList.Count > 0)
@@ -2540,6 +2634,8 @@ namespace AccessibleArena.Core.Services
         private static bool _isBlockingPropSearched;
         private static FieldInfo _isTappedField;
         private static bool _isTappedFieldSearched;
+        private static FieldInfo _hasSummoningSicknessField;
+        private static bool _hasSummoningSicknessFieldSearched;
         private static FieldInfo _blockingIdsField;
         private static bool _blockingIdsFieldSearched;
         private static FieldInfo _blockedByIdsField;
@@ -2750,6 +2846,45 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns true if the card model's Instance.HasSummoningSickness field is true.
+        /// Note: HasSummoningSickness is a public FIELD on MtgCardInstance, not a property.
+        /// </summary>
+        public static bool GetHasSummoningSickness(object model)
+        {
+            var instance = GetModelInstance(model);
+            if (instance == null) return false;
+            try
+            {
+                if (!_hasSummoningSicknessFieldSearched)
+                {
+                    _hasSummoningSicknessFieldSearched = true;
+                    _hasSummoningSicknessField = instance.GetType().GetField("HasSummoningSickness",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+                if (_hasSummoningSicknessField != null)
+                {
+                    var val = _hasSummoningSicknessField.GetValue(instance);
+                    if (val is bool b) return b;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a card GameObject has summoning sickness, using model data.
+        /// Chains: GetDuelSceneCDC → GetCardModel → GetHasSummoningSickness.
+        /// </summary>
+        public static bool GetHasSummoningSicknessFromCard(GameObject card)
+        {
+            if (card == null) return false;
+            var cdc = GetDuelSceneCDC(card);
+            if (cdc == null) return false;
+            var model = GetCardModel(cdc);
+            return GetHasSummoningSickness(model);
+        }
+
+        /// <summary>
         /// Checks if a card GameObject is attacking, using model data.
         /// Chains: GetDuelSceneCDC → GetCardModel → GetIsAttacking.
         /// </summary>
@@ -2773,6 +2908,53 @@ namespace AccessibleArena.Core.Services
             if (cdc == null) return false;
             var model = GetCardModel(cdc);
             return GetIsBlocking(model);
+        }
+
+        /// <summary>
+        /// Gets the ZoneType string from a card's model (e.g., "Hand", "Command", "Graveyard").
+        /// This is the game's internal zone, which may differ from the UI holder zone
+        /// (e.g., commander cards are in Command zone but visually placed in the hand holder).
+        /// </summary>
+        private static PropertyInfo _zoneTypePropCached;
+        private static bool _zoneTypePropSearched;
+
+        public static string GetModelZoneTypeName(object model)
+        {
+            if (model == null) return null;
+            try
+            {
+                if (!_zoneTypePropSearched)
+                {
+                    _zoneTypePropSearched = true;
+                    _zoneTypePropCached = model.GetType().GetProperty("ZoneType",
+                        BindingFlags.Public | BindingFlags.Instance);
+                }
+
+                PropertyInfo prop = _zoneTypePropCached;
+                if (prop != null && !prop.DeclaringType.IsAssignableFrom(model.GetType()))
+                    prop = model.GetType().GetProperty("ZoneType", BindingFlags.Public | BindingFlags.Instance);
+
+                if (prop != null)
+                {
+                    var val = prop.GetValue(model);
+                    return val?.ToString();
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the ZoneType name from a card GameObject.
+        /// Chains: GetDuelSceneCDC -> GetCardModel -> GetModelZoneTypeName.
+        /// </summary>
+        public static string GetCardZoneTypeName(GameObject card)
+        {
+            if (card == null) return null;
+            var cdc = GetDuelSceneCDC(card);
+            if (cdc == null) return null;
+            var model = GetCardModel(cdc);
+            return GetModelZoneTypeName(model);
         }
 
         #endregion
@@ -3248,6 +3430,10 @@ namespace AccessibleArena.Core.Services
         private static GameObject _cachedDeckHolder = null;
         private static int _cachedDeckListFrame = -1;
 
+        // Cache for sideboard cards (draft/sealed deck builder)
+        private static List<DeckListCardInfo> _cachedSideboardCards = new List<DeckListCardInfo>();
+        private static int _cachedSideboardFrame = -1;
+
         /// <summary>
         /// Clears the deck list card cache, forcing a fresh lookup on next call.
         /// Call this when entering the DeckBuilderDeckList group to ensure fresh data.
@@ -3257,6 +3443,8 @@ namespace AccessibleArena.Core.Services
             _cachedDeckListCards.Clear();
             _cachedDeckHolder = null;
             _cachedDeckListFrame = -1;
+            _cachedSideboardCards.Clear();
+            _cachedSideboardFrame = -1;
         }
 
         /// <summary>
@@ -3432,6 +3620,176 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets all sideboard cards from non-MainDeck holders inside MetaCardHolders_Container.
+        /// Used in draft/sealed deck building where sideboard cards are in a separate holder.
+        /// </summary>
+        public static List<DeckListCardInfo> GetSideboardCards()
+        {
+            // Return cached result if same frame
+            if (_cachedSideboardFrame == Time.frameCount && _cachedSideboardCards.Count > 0)
+                return _cachedSideboardCards;
+
+            _cachedSideboardCards.Clear();
+            _cachedSideboardFrame = Time.frameCount;
+
+            try
+            {
+                // Find the MetaCardHolders_Container parent
+                // Strategy: start from _cachedDeckHolder (MainDeck_MetaCardHolder) and walk up
+                if (_cachedDeckHolder == null)
+                    GetDeckListCards(); // Populate _cachedDeckHolder
+
+                Transform holdersContainer = null;
+
+                if (_cachedDeckHolder != null)
+                {
+                    // Walk up from MainDeck_MetaCardHolder to find MetaCardHolders_Container
+                    Transform current = _cachedDeckHolder.transform.parent;
+                    while (current != null)
+                    {
+                        if (current.name.Contains("MetaCardHolders_Container"))
+                        {
+                            holdersContainer = current;
+                            break;
+                        }
+                        current = current.parent;
+                    }
+                }
+
+                // Fallback: search scene for MetaCardHolders_Container
+                if (holdersContainer == null)
+                {
+                    var containerObj = GameObject.Find("MetaCardHolders_Container");
+                    if (containerObj != null)
+                        holdersContainer = containerObj.transform;
+                }
+
+                if (holdersContainer == null)
+                {
+                    return _cachedSideboardCards;
+                }
+
+                // Search all children for ListMetaCardHolder components that aren't on MainDeck_MetaCardHolder
+                foreach (Transform child in holdersContainer)
+                {
+                    if (child == null || child.name == "MainDeck_MetaCardHolder")
+                        continue;
+
+                    // Find ListMetaCardHolder component on this child
+                    MonoBehaviour holderComponent = null;
+                    foreach (var mb in child.GetComponents<MonoBehaviour>())
+                    {
+                        if (mb != null && mb.GetType().Name.Contains("ListMetaCardHolder"))
+                        {
+                            holderComponent = mb;
+                            break;
+                        }
+                    }
+
+                    if (holderComponent == null)
+                        continue;
+
+                    MelonLogger.Msg($"[CardModelProvider] Found sideboard holder: '{child.name}' with component {holderComponent.GetType().Name}");
+
+                    // Get CardViews property (same pattern as GetDeckListCards)
+                    var holderType = holderComponent.GetType();
+                    var cardViewsProp = holderType.GetProperty("CardViews");
+                    if (cardViewsProp == null)
+                        continue;
+
+                    var cardViews = cardViewsProp.GetValue(holderComponent) as System.Collections.IEnumerable;
+                    if (cardViews == null)
+                        continue;
+
+                    foreach (var cardView in cardViews)
+                    {
+                        if (cardView == null) continue;
+
+                        var viewType = cardView.GetType();
+                        var info = new DeckListCardInfo();
+
+                        if (cardView is Component viewComponent)
+                        {
+                            info.ViewGameObject = viewComponent.gameObject;
+                        }
+
+                        // Get Card property which has GrpId
+                        var cardProp = viewType.GetProperty("Card");
+                        if (cardProp != null)
+                        {
+                            var card = cardProp.GetValue(cardView);
+                            if (card != null)
+                            {
+                                var cardType = card.GetType();
+                                var grpIdProp = cardType.GetProperty("GrpId");
+                                if (grpIdProp != null)
+                                {
+                                    info.GrpId = (uint)grpIdProp.GetValue(card);
+                                }
+                            }
+                        }
+
+                        // Get Quantity
+                        var qtyProp = viewType.GetProperty("Quantity");
+                        if (qtyProp != null)
+                        {
+                            info.Quantity = (int)qtyProp.GetValue(cardView);
+                        }
+
+                        // Get TileButton (the card name button)
+                        var tileBtnProp = viewType.GetProperty("TileButton");
+                        if (tileBtnProp != null)
+                        {
+                            var tileBtn = tileBtnProp.GetValue(cardView) as Component;
+                            if (tileBtn != null)
+                            {
+                                info.TileButton = tileBtn.gameObject;
+                            }
+                        }
+
+                        // Get TagButton (the quantity button)
+                        var tagBtnProp = viewType.GetProperty("TagButton");
+                        if (tagBtnProp != null)
+                        {
+                            var tagBtn = tagBtnProp.GetValue(cardView) as Component;
+                            if (tagBtn != null)
+                            {
+                                info.TagButton = tagBtn.gameObject;
+                            }
+                        }
+
+                        // Get the CardTile_Base parent via CanvasGroup
+                        var canvasGroupProp = viewType.GetProperty("CanvasGroup");
+                        if (canvasGroupProp != null)
+                        {
+                            var canvasGroup = canvasGroupProp.GetValue(cardView) as Component;
+                            if (canvasGroup != null)
+                            {
+                                info.CardTileBase = canvasGroup.gameObject;
+                            }
+                        }
+
+                        if (info.IsValid)
+                        {
+                            _cachedSideboardCards.Add(info);
+                        }
+                    }
+                }
+
+                if (_cachedSideboardCards.Count > 0)
+                {
+                    MelonLogger.Msg($"[CardModelProvider] Found {_cachedSideboardCards.Count} sideboard card(s)");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting sideboard cards: {ex.Message}");
+            }
+
+            return _cachedSideboardCards;
+        }
+
+        /// <summary>
         /// Gets deck list card info for a specific UI element (TileButton, TagButton, or CardTileBase).
         /// Returns null if the element is not a deck list card.
         /// </summary>
@@ -3475,6 +3833,74 @@ namespace AccessibleArena.Core.Services
         public static bool IsDeckListCard(GameObject element)
         {
             return GetDeckListCardInfo(element) != null;
+        }
+
+        /// <summary>
+        /// Checks if an element is a sideboard card (in non-MainDeck holder).
+        /// </summary>
+        public static bool IsSideboardCard(GameObject element)
+        {
+            return GetSideboardCardInfo(element) != null;
+        }
+
+        /// <summary>
+        /// Gets sideboard card info for a specific UI element.
+        /// Returns null if the element is not a sideboard card.
+        /// </summary>
+        public static DeckListCardInfo? GetSideboardCardInfo(GameObject element)
+        {
+            if (element == null) return null;
+
+            var sideboardCards = GetSideboardCards();
+            foreach (var card in sideboardCards)
+            {
+                if (card.TileButton == element ||
+                    card.TagButton == element ||
+                    card.CardTileBase == element ||
+                    card.ViewGameObject == element)
+                {
+                    return card;
+                }
+
+                if (card.ViewGameObject != null && element.transform.IsChildOf(card.ViewGameObject.transform))
+                    return card;
+                if (card.CardTileBase != null && element.transform.IsChildOf(card.CardTileBase.transform))
+                    return card;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts full card info from a sideboard card element.
+        /// Uses the same logic as ExtractDeckListCardInfo.
+        /// </summary>
+        public static CardInfo? ExtractSideboardCardInfo(GameObject element)
+        {
+            var sideCardInfo = GetSideboardCardInfo(element);
+            if (sideCardInfo == null || !sideCardInfo.Value.IsValid)
+                return null;
+
+            var info = sideCardInfo.Value;
+
+            if (info.ViewGameObject != null)
+            {
+                var cardInfo = ExtractCardInfoFromModel(info.ViewGameObject);
+                if (cardInfo.HasValue && cardInfo.Value.IsValid)
+                {
+                    var result = cardInfo.Value;
+                    result.Quantity = info.Quantity;
+                    return result;
+                }
+            }
+
+            string name = GetNameFromGrpId(info.GrpId);
+            return new CardInfo
+            {
+                Name = name ?? $"Card #{info.GrpId}",
+                Quantity = info.Quantity,
+                IsValid = true
+            };
         }
 
         // Cache for ShowUnCollectedTreatment field (public field on MetaCardView base class)
@@ -3555,8 +3981,203 @@ namespace AccessibleArena.Core.Services
             };
         }
 
+        #endregion
+
+        #region ReadOnly Deck Card Support
+
+        /// <summary>
+        /// Information about a card in a read-only deck (StaticColumnMetaCardView in column view).
+        /// </summary>
+        public struct ReadOnlyDeckCardInfo
+        {
+            public uint GrpId;
+            public int Quantity;
+            public GameObject CardGameObject; // StaticColumnMetaCardView GameObject
+            public bool IsValid => GrpId > 0 && CardGameObject != null;
+        }
+
+        // Cache for read-only deck cards
+        private static List<ReadOnlyDeckCardInfo> _cachedReadOnlyDeckCards = new List<ReadOnlyDeckCardInfo>();
+        private static int _cachedReadOnlyDeckFrame = -1;
+
+        /// <summary>
+        /// Clears the read-only deck card cache, forcing a fresh lookup on next call.
+        /// </summary>
+        public static void ClearReadOnlyDeckCache()
+        {
+            _cachedReadOnlyDeckCards.Clear();
+            _cachedReadOnlyDeckFrame = -1;
+        }
+
+        /// <summary>
+        /// Gets all cards from the read-only deck column view (StaticColumnMetaCardView).
+        /// Used when DeckBuilderMode.ReadOnly is active (starter/precon decks).
+        /// Uses caching to avoid repeated reflection calls within the same frame.
+        /// </summary>
+        public static List<ReadOnlyDeckCardInfo> GetReadOnlyDeckCards()
+        {
+            // Return cached result if same frame
+            if (_cachedReadOnlyDeckFrame == Time.frameCount && _cachedReadOnlyDeckCards.Count > 0)
+                return _cachedReadOnlyDeckCards;
+
+            _cachedReadOnlyDeckCards.Clear();
+            _cachedReadOnlyDeckFrame = Time.frameCount;
+
+            try
+            {
+                // Find StaticColumnMetaCardHolder components directly in the scene
+                // (The "StaticColumnManager" GO is just a container - the component is on child holders)
+                var holders = new List<MonoBehaviour>();
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "StaticColumnMetaCardHolder")
+                        holders.Add(mb);
+                }
+
+                if (holders.Count == 0)
+                {
+                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                        "No StaticColumnMetaCardHolder components found");
+                    return _cachedReadOnlyDeckCards;
+                }
+
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Found {holders.Count} StaticColumnMetaCardHolder(s)");
+
+                // Extract card views from each holder
+                foreach (var holder in holders)
+                {
+                    var holderType = holder.GetType();
+
+                    // Get CardViews property (public, inherited)
+                    var cardViewsProp = holderType.GetProperty("CardViews");
+                    if (cardViewsProp == null)
+                    {
+                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                            $"CardViews property not found on {holderType.Name}");
+                        continue;
+                    }
+
+                    var cardViews = cardViewsProp.GetValue(holder) as System.Collections.IEnumerable;
+                    if (cardViews == null) continue;
+
+                    foreach (var cardView in cardViews)
+                    {
+                        if (cardView == null) continue;
+
+                        var viewType = cardView.GetType();
+                        var info = new ReadOnlyDeckCardInfo();
+
+                        // Store the view's gameObject
+                        if (cardView is Component viewComponent)
+                        {
+                            info.CardGameObject = viewComponent.gameObject;
+                        }
+
+                        // Get Card property which has GrpId
+                        var cardProp = viewType.GetProperty("Card");
+                        if (cardProp != null)
+                        {
+                            var card = cardProp.GetValue(cardView);
+                            if (card != null)
+                            {
+                                var cardType = card.GetType();
+                                var grpIdProp = cardType.GetProperty("GrpId");
+                                if (grpIdProp != null)
+                                {
+                                    info.GrpId = (uint)grpIdProp.GetValue(card);
+                                }
+                            }
+                        }
+
+                        // Get Quantity property
+                        var qtyProp = viewType.GetProperty("Quantity");
+                        if (qtyProp != null)
+                        {
+                            info.Quantity = (int)qtyProp.GetValue(cardView);
+                        }
+
+                        if (info.IsValid)
+                        {
+                            _cachedReadOnlyDeckCards.Add(info);
+                        }
+                    }
+                }
+
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Found {_cachedReadOnlyDeckCards.Count} read-only deck card(s)");
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    $"Error getting read-only deck cards: {ex.Message}");
+            }
+
+            return _cachedReadOnlyDeckCards;
+        }
+
+        /// <summary>
+        /// Gets read-only deck card info for a specific UI element.
+        /// Returns null if the element is not a read-only deck card.
+        /// </summary>
+        public static ReadOnlyDeckCardInfo? GetReadOnlyDeckCardInfo(GameObject element)
+        {
+            if (element == null) return null;
+
+            var cards = GetReadOnlyDeckCards();
+            foreach (var card in cards)
+            {
+                if (card.CardGameObject == element)
+                    return card;
+
+                // Check if element is a child of the card view
+                if (card.CardGameObject != null && element.transform.IsChildOf(card.CardGameObject.transform))
+                    return card;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts full card info for a read-only deck card using its GrpId.
+        /// </summary>
+        public static CardInfo? ExtractReadOnlyDeckCardInfo(GameObject element)
+        {
+            var readOnlyCard = GetReadOnlyDeckCardInfo(element);
+            if (readOnlyCard == null || !readOnlyCard.Value.IsValid)
+                return null;
+
+            var info = readOnlyCard.Value;
+
+            // Use ExtractCardInfoFromModel for consistent extraction
+            if (info.CardGameObject != null)
+            {
+                var cardInfo = ExtractCardInfoFromModel(info.CardGameObject);
+                if (cardInfo.HasValue && cardInfo.Value.IsValid)
+                {
+                    var result = cardInfo.Value;
+                    result.Quantity = info.Quantity;
+                    return result;
+                }
+            }
+
+            // Fallback: return minimal info with just name and quantity
+            string name = GetNameFromGrpId(info.GrpId);
+            return new CardInfo
+            {
+                Name = name ?? $"Card #{info.GrpId}",
+                Quantity = info.Quantity,
+                IsValid = true
+            };
+        }
+
+        #endregion
+
+        #region Card Data Lookup by GrpId
+
         /// <summary>
         /// Gets full CardInfo from a GrpId by looking up CardPrintingData from the CardDatabase.
+        /// Works in both menu scenes (via deck holder) and duel scenes (via GameManager.CardDatabase).
         /// Returns null if the card cannot be found.
         /// </summary>
         public static CardInfo? GetCardInfoFromGrpId(uint grpId)
@@ -3565,7 +4186,8 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var cardData = GetCardDataFromGrpId(grpId);
+                // Try menu-scene path first, then fall back to duel-scene path
+                var cardData = GetCardDataFromGrpId(grpId) ?? GetCardDataFromGrpIdDuelScene(grpId);
                 if (cardData == null) return null;
 
                 var info = ExtractCardInfoFromCardData(cardData, grpId);
@@ -3684,14 +4306,63 @@ namespace AccessibleArena.Core.Services
             {
                 var cardType = cardData.GetType();
 
-                // Name
-                info.Name = GetNameFromGrpId(grpId);
-
-                // TypeLine
-                var typeLineProp = cardType.GetProperty("TypeLine") ?? cardType.GetProperty("TypeText");
-                if (typeLineProp != null)
+                // Name - try TitleId via GreLocProvider first, fall back to CardTitleProvider
+                var titleIdProp = cardType.GetProperty("TitleId");
+                if (titleIdProp != null)
                 {
-                    info.TypeLine = typeLineProp.GetValue(cardData)?.ToString();
+                    var titleIdVal = titleIdProp.GetValue(cardData);
+                    uint titleId = 0;
+                    if (titleIdVal is uint tid) titleId = tid;
+                    else if (titleIdVal is int tidInt && tidInt > 0) titleId = (uint)tidInt;
+                    if (titleId > 0)
+                        info.Name = GetLocalizedTextById(titleId);
+                }
+                if (string.IsNullOrEmpty(info.Name))
+                    info.Name = GetNameFromGrpId(grpId);
+
+                // TypeLine - try localized lookup via TypeTextId/SubtypeTextId first
+                var typeTextIdProp = cardType.GetProperty("TypeTextId");
+                var subtypeTextIdProp = cardType.GetProperty("SubtypeTextId");
+                if (typeTextIdProp != null)
+                {
+                    var typeTextIdVal = typeTextIdProp.GetValue(cardData);
+                    uint typeTextId = 0;
+                    if (typeTextIdVal is uint ttid) typeTextId = ttid;
+                    else if (typeTextIdVal is int ttidInt && ttidInt > 0) typeTextId = (uint)ttidInt;
+
+                    if (typeTextId > 0)
+                    {
+                        var localizedType = GetLocalizedTextById(typeTextId);
+                        if (!string.IsNullOrEmpty(localizedType))
+                        {
+                            info.TypeLine = localizedType;
+
+                            if (subtypeTextIdProp != null)
+                            {
+                                var subtypeTextIdVal = subtypeTextIdProp.GetValue(cardData);
+                                uint subtypeTextId = 0;
+                                if (subtypeTextIdVal is uint stid) subtypeTextId = stid;
+                                else if (subtypeTextIdVal is int stidInt && stidInt > 0) subtypeTextId = (uint)stidInt;
+
+                                if (subtypeTextId > 0)
+                                {
+                                    var localizedSubtype = GetLocalizedTextById(subtypeTextId);
+                                    if (!string.IsNullOrEmpty(localizedSubtype))
+                                        info.TypeLine += " - " + localizedSubtype;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Fall back to TypeLine/TypeText string property
+                if (string.IsNullOrEmpty(info.TypeLine))
+                {
+                    var typeLineProp = cardType.GetProperty("TypeLine") ?? cardType.GetProperty("TypeText");
+                    if (typeLineProp != null)
+                    {
+                        info.TypeLine = typeLineProp.GetValue(cardData)?.ToString();
+                    }
                 }
 
                 // ManaCost - try structured PrintedCastingCost first (same as MODEL extraction)
@@ -3761,7 +4432,8 @@ namespace AccessibleArena.Core.Services
 
                         if (rulesTexts.Count > 0)
                         {
-                            info.RulesText = string.Join(" ", rulesTexts);
+                            string rawRulesText = string.Join(" ", rulesTexts);
+                            info.RulesText = ParseManaSymbolsInText(rawRulesText);
                         }
                     }
                 }
@@ -3869,7 +4541,11 @@ namespace AccessibleArena.Core.Services
             {
                 // We need a CDC to call the hanger provider
                 var cdc = GetDuelSceneCDC(card);
-                if (cdc == null) return result;
+                if (cdc == null)
+                {
+                    // Non-duel context: extract individual ability texts from card model
+                    return GetAbilityTextsFromCardModel(card);
+                }
 
                 // Ensure hanger provider is cached (retry if not found previously)
                 if (_abilityHangerProvider == null)
@@ -3957,6 +4633,140 @@ namespace AccessibleArena.Core.Services
             catch (Exception ex)
             {
                 MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Error getting keyword descriptions: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Fallback for non-duel contexts: extracts individual ability texts from the card model.
+        /// Returns each ability as a separate navigable item for the extended info menu.
+        /// </summary>
+        private static List<string> GetAbilityTextsFromCardModel(GameObject card)
+        {
+            var result = new List<string>();
+            if (card == null) return result;
+
+            try
+            {
+                // Get the card model (same path as ExtractCardInfoFromModel)
+                object model = null;
+
+                var metaCardView = GetMetaCardView(card);
+                if (metaCardView == null)
+                {
+                    var parent = card.transform.parent;
+                    int maxLevels = 5;
+                    while (metaCardView == null && parent != null && maxLevels-- > 0)
+                    {
+                        metaCardView = GetMetaCardView(parent.gameObject);
+                        parent = parent.parent;
+                    }
+                }
+
+                if (metaCardView != null)
+                    model = GetMetaCardModel(metaCardView);
+
+                if (model == null)
+                {
+                    MelonLogger.Msg("[CardModelProvider] [ExtInfo] No model found for non-duel card");
+                    return result;
+                }
+
+                var objType = model.GetType();
+
+                // Get GrpId and TitleId for ability text lookup
+                uint cardGrpId = 0;
+                var grpIdObj = GetModelPropertyValue(model, objType, "GrpId");
+                if (grpIdObj is uint gid) cardGrpId = gid;
+
+                uint cardTitleId = 0;
+                var titleIdObj = GetModelPropertyValue(model, objType, "TitleId");
+                if (titleIdObj is uint tid) cardTitleId = tid;
+
+                // Get all ability IDs for context
+                var abilityIdsVal = GetModelPropertyValue(model, objType, "AbilityIds");
+                uint[] abilityIds = null;
+                if (abilityIdsVal is IEnumerable<uint> aidEnum)
+                    abilityIds = aidEnum.ToArray();
+                else if (abilityIdsVal is uint[] aidArray)
+                    abilityIds = aidArray;
+
+                // Extract abilities
+                var abilities = GetModelPropertyValue(model, objType, "Abilities");
+                if (abilities is IEnumerable abilityEnum)
+                {
+                    var seen = new HashSet<string>();
+                    foreach (var ability in abilityEnum)
+                    {
+                        if (ability == null) continue;
+                        var abilityType = ability.GetType();
+
+                        uint abilityId = 0;
+                        var idProp = abilityType.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+                        if (idProp != null)
+                        {
+                            var idVal = idProp.GetValue(ability);
+                            if (idVal is uint aid) abilityId = aid;
+                        }
+
+                        var textValue = GetAbilityText(ability, abilityType, cardGrpId, abilityId, abilityIds, cardTitleId);
+                        if (!string.IsNullOrEmpty(textValue))
+                        {
+                            textValue = ParseManaSymbolsInText(textValue);
+                            if (seen.Add(textValue))
+                            {
+                                result.Add(textValue);
+                                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Ability: '{textValue}'");
+                            }
+                        }
+                    }
+                }
+
+                // Also try CardPrintingData path if model didn't have abilities
+                if (result.Count == 0 && cardGrpId > 0)
+                {
+                    var cardData = GetCardDataFromGrpId(cardGrpId) ?? GetCardDataFromGrpIdDuelScene(cardGrpId);
+                    if (cardData != null)
+                    {
+                        var cardType = cardData.GetType();
+                        var abilitiesProp = cardType.GetProperty("Abilities") ?? cardType.GetProperty("IntrinsicAbilities");
+                        if (abilitiesProp != null)
+                        {
+                            var abilitiesFromData = abilitiesProp.GetValue(cardData) as IEnumerable;
+                            if (abilitiesFromData != null)
+                            {
+                                var seen = new HashSet<string>();
+                                foreach (var ability in abilitiesFromData)
+                                {
+                                    if (ability == null) continue;
+                                    var aType = ability.GetType();
+                                    var idProp = aType.GetProperty("Id");
+                                    if (idProp != null)
+                                    {
+                                        var abilityId = (uint)idProp.GetValue(ability);
+                                        var abilityText = GetAbilityTextFromProvider(cardGrpId, abilityId, null, 0);
+                                        if (!string.IsNullOrEmpty(abilityText))
+                                        {
+                                            abilityText = ParseManaSymbolsInText(abilityText);
+                                            if (seen.Add(abilityText))
+                                            {
+                                                result.Add(abilityText);
+                                                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Ability (data): '{abilityText}'");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] GetAbilityTextsFromCardModel: {result.Count} entries");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] [ExtInfo] Error extracting ability texts: {ex.Message}");
             }
 
             return result;

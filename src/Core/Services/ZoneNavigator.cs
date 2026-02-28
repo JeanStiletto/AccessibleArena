@@ -75,34 +75,22 @@ namespace AccessibleArena.Core.Services
         public int StackCardCount => _zones.ContainsKey(ZoneType.Stack) ? _zones[ZoneType.Stack].Cards.Count : 0;
 
         /// <summary>
-        /// Gets a fresh count of cards on the stack by directly scanning the scene.
+        /// Gets a fresh count of cards on the stack by scanning the cached stack holder.
         /// Use this for timing-sensitive checks where the cached StackCardCount may be stale.
         /// This is lightweight - only counts cards, doesn't discover full zone info.
         /// </summary>
         public int GetFreshStackCount()
         {
+            var holder = DuelHolderCache.GetHolder("StackCardHolder");
+            if (holder == null) return 0;
+
             int count = 0;
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
             {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                // Check if this is the stack holder
-                if (!go.name.Contains("StackCardHolder"))
-                    continue;
-
-                // Count CDC (card) children
-                foreach (Transform child in go.GetComponentsInChildren<Transform>(true))
+                if (child != null && child.gameObject.activeInHierarchy && child.name.Contains("CDC #"))
                 {
-                    if (child == null || !child.gameObject.activeInHierarchy)
-                        continue;
-
-                    if (child.name.Contains("CDC #"))
-                    {
-                        count++;
-                    }
+                    count++;
                 }
-                break; // Only one stack holder
             }
             return count;
         }
@@ -313,19 +301,24 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // D key for library counts (hidden zone info)
+            if (Input.GetKeyDown(KeyCode.W))
+            {
+                _hotHighlightNavigator?.ClearState();
+                if (shift)
+                    AnnounceOpponentCommander();
+                else
+                    NavigateToZone(ZoneType.Command);
+                return true;
+            }
+
+            // D key for library navigation (with revealed cards) or count-only
             if (Input.GetKeyDown(KeyCode.D))
             {
+                _hotHighlightNavigator?.ClearState();
                 if (shift)
-                {
-                    // Shift+D: Opponent's library count
-                    AnnounceOpponentLibraryCount();
-                }
+                    NavigateToLibraryZone(ZoneType.OpponentLibrary);
                 else
-                {
-                    // D: Your library count
-                    AnnounceLocalLibraryCount();
-                }
+                    NavigateToLibraryZone(ZoneType.Library);
                 return true;
             }
 
@@ -435,40 +428,57 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Discovers all zone holders and their cards.
+        /// Uses DuelHolderCache for cached holder lookups instead of full scene scans.
         /// </summary>
         public void DiscoverZones()
         {
             _zones.Clear();
             MelonLogger.Msg("[ZoneNavigator] Discovering zones...");
 
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            foreach (var pattern in ZoneHolderPatterns)
             {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
+                var go = DuelHolderCache.GetHolder(pattern.Key);
+                if (go == null) continue;
 
-                string name = go.name;
-
-                foreach (var pattern in ZoneHolderPatterns)
+                var zoneType = pattern.Value;
+                var zoneInfo = new ZoneInfo
                 {
-                    if (name.Contains(pattern.Key))
-                    {
-                        var zoneType = pattern.Value;
-                        if (!_zones.ContainsKey(zoneType))
-                        {
-                            var zoneInfo = new ZoneInfo
-                            {
-                                Type = zoneType,
-                                Holder = go,
-                                ZoneId = ParseZoneId(name),
-                                OwnerId = ParseOwnerId(name)
-                            };
+                    Type = zoneType,
+                    Holder = go,
+                    ZoneId = ParseZoneId(go.name),
+                    OwnerId = ParseOwnerId(go.name)
+                };
 
-                            DiscoverCardsInZone(zoneInfo);
-                            _zones[zoneType] = zoneInfo;
-                            MelonLogger.Msg($"[ZoneNavigator] Zone: {zoneType} - {name} - {zoneInfo.Cards.Count} cards");
-                        }
-                        break;
-                    }
+                DiscoverCardsInZone(zoneInfo);
+                _zones[zoneType] = zoneInfo;
+                MelonLogger.Msg($"[ZoneNavigator] Zone: {zoneType} - {go.name} - {zoneInfo.Cards.Count} cards");
+            }
+
+            // MTGA places commanders visually in the hand holder, not CommandCardHolder.
+            // Populate the Command zone from hand cards whose model ZoneType is "Command".
+            PopulateCommandZoneFromHand();
+        }
+
+        /// <summary>
+        /// Finds commander cards in the hand holder (model ZoneType=="Command")
+        /// and adds them to the Command zone. MTGA always places castable commanders
+        /// in the hand holder visually, leaving CommandCardHolder empty.
+        /// </summary>
+        private void PopulateCommandZoneFromHand()
+        {
+            if (!_zones.TryGetValue(ZoneType.Command, out var commandZone)) return;
+            if (commandZone.Cards.Count > 0) return; // Already has cards, don't override
+
+            if (!_zones.TryGetValue(ZoneType.Hand, out var handZone)) return;
+
+            foreach (var card in handZone.Cards)
+            {
+                string modelZone = CardModelProvider.GetCardZoneTypeName(card);
+                if (modelZone == "Command")
+                {
+                    commandZone.Cards.Add(card);
+                    string cardName = CardDetector.GetCardName(card);
+                    MelonLogger.Msg($"[ZoneNavigator] Added commander {cardName} to Command zone from hand");
                 }
             }
         }
@@ -500,6 +510,30 @@ namespace AccessibleArena.Core.Services
 
             // Sort cards by position (left to right)
             zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+
+            // Library is a hidden zone - ONLY include cards visible to sighted players.
+            // HotHighlight = playable from library (creature with Vizier, any with Future Sight)
+            // IsDisplayedFaceUp = revealed face-up but not necessarily playable (e.g., Courser of Kruphix)
+            // Showing hidden cards would be cheating.
+            if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
+            {
+                // Diagnostic: log all library cards and their properties before filtering
+                if (zone.Cards.Count > 0)
+                {
+                    MelonLogger.Msg($"[ZoneNavigator] Library diagnostic: {zone.Cards.Count} CDCs before filter");
+                    // Log first 3 cards for debugging
+                    for (int i = 0; i < System.Math.Min(3, zone.Cards.Count); i++)
+                    {
+                        var c = zone.Cards[i];
+                        string cardName = CardDetector.GetCardName(c);
+                        bool hasHL = CardDetector.HasHotHighlight(c);
+                        bool faceUp = CardDetector.IsDisplayedFaceUp(c);
+                        MelonLogger.Msg($"[ZoneNavigator]   [{i}] {c.name} '{cardName}' HL={hasHL} FaceUp={faceUp} pos={c.transform.position}");
+                    }
+                }
+
+                zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.IsDisplayedFaceUp(c));
+            }
         }
 
         /// <summary>
@@ -677,6 +711,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets all cards in the specified zone. Returns null if zone not discovered.
+        /// </summary>
+        public List<GameObject> GetCardsInZone(ZoneType zone)
+        {
+            if (_zones.TryGetValue(zone, out var zoneInfo))
+                return zoneInfo.Cards;
+            return null;
+        }
+
+        /// <summary>
         /// Gets the current card in the current zone.
         /// </summary>
         public GameObject GetCurrentCard()
@@ -707,17 +751,19 @@ namespace AccessibleArena.Core.Services
             string cardName = CardDetector.GetCardName(card);
             MelonLogger.Msg($"[ZoneNavigator] Activating card: {cardName} ({card.name}) in zone {_currentZone}");
 
-            // For hand cards, use the two-click approach (like sighted players)
-            if (_currentZone == ZoneType.Hand)
+            // For hand, command, and library zone cards, use the two-click approach (like sighted players)
+            // Command zone cards (commander/companion) are castable just like hand cards
+            // Library cards (revealed via effects like Future Sight) are playable from library
+            if (_currentZone == ZoneType.Hand || _currentZone == ZoneType.Command || _currentZone == ZoneType.Library)
             {
                 // Check if selection mode is active (discard, exile choices, etc.)
-                if (_hotHighlightNavigator != null && _hotHighlightNavigator.TryToggleSelection(card))
+                if (_currentZone == ZoneType.Hand && _hotHighlightNavigator != null && _hotHighlightNavigator.TryToggleSelection(card))
                 {
                     MelonLogger.Msg($"[ZoneNavigator] Selection toggled for {cardName}");
                     return;
                 }
 
-                MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from hand via two-click");
+                MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from {_currentZone} via two-click");
 
                 // Two-click is async, result comes via callback
                 // DEPRECATED: TargetNavigator was passed to enter targeting after card play
@@ -776,6 +822,46 @@ namespace AccessibleArena.Core.Services
             // Add selection state if in discard/selection mode
             string selectionState = _hotHighlightNavigator?.GetSelectionStateText(card) ?? "";
 
+            // Check if the card's actual game zone differs from the UI holder zone
+            // (e.g., commander in Command zone shown in hand, flashback card in Graveyard shown in hand)
+            string originZoneText = "";
+            if (_currentZone == ZoneType.Hand)
+            {
+                originZoneText = GetOriginZoneText(card);
+            }
+
+            // In selection mode (discard), adjust position/total to only count selectable cards
+            // so non-discardable cards (e.g., commander from command zone) don't inflate the count
+            bool inSelectionMode = _hotHighlightNavigator?.IsInSelectionMode() ?? false;
+            if (inSelectionMode && _currentZone == ZoneType.Hand)
+            {
+                bool currentIsSelectable = CardDetector.HasHotHighlight(card)
+                    || (_hotHighlightNavigator?.IsCardCurrentlySelected(card) ?? false);
+
+                if (currentIsSelectable)
+                {
+                    int selectablePosition = 0;
+                    int selectableTotal = 0;
+                    for (int i = 0; i < zoneInfo.Cards.Count; i++)
+                    {
+                        var c = zoneInfo.Cards[i];
+                        if (CardDetector.HasHotHighlight(c) || (_hotHighlightNavigator?.IsCardCurrentlySelected(c) ?? false))
+                        {
+                            selectableTotal++;
+                            if (i < _cardIndexInZone)
+                                selectablePosition++;
+                            else if (i == _cardIndexInZone)
+                                selectablePosition = selectableTotal;
+                        }
+                    }
+                    if (selectableTotal > 0)
+                    {
+                        position = selectablePosition;
+                        total = selectableTotal;
+                    }
+                }
+            }
+
             // Add combat state if in declare attackers/blockers phase (battlefield only)
             string combatState = "";
             string attachmentText = "";
@@ -793,7 +879,7 @@ namespace AccessibleArena.Core.Services
             }
 
             string prefix = includeZoneName ? $"{GetZoneName(_currentZone)}, " : "";
-            _announcer.Announce($"{prefix}{cardName}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
+            _announcer.Announce($"{prefix}{cardName}{originZoneText}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
@@ -810,6 +896,42 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Maps game ZoneType enum names to mod ZoneType for origin zone detection.
+        /// Returns null if the zone matches the current UI zone (no annotation needed).
+        /// </summary>
+        private static readonly Dictionary<string, ZoneType> GameZoneToModZone = new Dictionary<string, ZoneType>
+        {
+            { "Hand", ZoneType.Hand },
+            { "Battlefield", ZoneType.Battlefield },
+            { "Graveyard", ZoneType.Graveyard },
+            { "Exile", ZoneType.Exile },
+            { "Stack", ZoneType.Stack },
+            { "Library", ZoneType.Library },
+            { "Command", ZoneType.Command }
+        };
+
+        /// <summary>
+        /// Gets origin zone annotation for cards whose game zone differs from UI zone.
+        /// E.g., commander in Command zone shown in hand returns ", Kommandozone".
+        /// Returns empty string if no annotation needed.
+        /// </summary>
+        private string GetOriginZoneText(GameObject card)
+        {
+            string modelZoneName = CardModelProvider.GetCardZoneTypeName(card);
+            if (string.IsNullOrEmpty(modelZoneName)) return "";
+
+            if (GameZoneToModZone.TryGetValue(modelZoneName, out var modelZoneType))
+            {
+                if (modelZoneType != _currentZone)
+                {
+                    return $", {Strings.GetZoneName(modelZoneType)}";
+                }
+            }
+
+            return "";
+        }
+
         private bool HasCardsInCurrentZone()
         {
             if (!_zones.ContainsKey(_currentZone)) return false;
@@ -823,6 +945,68 @@ namespace AccessibleArena.Core.Services
             {
                 SetFocusedGameObject(null, "ZoneNavigator.Clear");
             }
+        }
+
+        /// <summary>
+        /// Navigates to a library zone. Announces total count (from DuelAnnouncer's event-driven tracking).
+        /// If revealed/playable cards exist (HotHighlight), enters zone navigation.
+        /// If none, just announces count without entering zone navigation.
+        /// </summary>
+        private void NavigateToLibraryZone(ZoneType libraryZone)
+        {
+            DiscoverZones();
+
+            // Get total count from DuelAnnouncer's event-driven zone tracking (accurate, not affected by HotHighlight filter)
+            int totalCount = GetLibraryTotalCount(libraryZone);
+
+            string countText;
+            if (libraryZone == ZoneType.Library)
+                countText = totalCount >= 0 ? Strings.LibraryCount(totalCount) : Strings.LibraryCountNotAvailable;
+            else
+                countText = totalCount >= 0 ? Strings.OpponentLibraryCount(totalCount) : Strings.OpponentLibraryCountNotAvailable;
+
+            // Check if any revealed/playable cards exist (filtered by HasHotHighlight in DiscoverCardsInZone)
+            if (!_zones.ContainsKey(libraryZone) || _zones[libraryZone].Cards.Count == 0)
+            {
+                // No revealed cards — just announce count, don't enter zone navigation
+                _announcer.Announce(countText, AnnouncementPriority.High);
+                return;
+            }
+
+            // Revealed cards exist — navigate to zone
+            SetCurrentZone(libraryZone, "NavigateToLibrary");
+            _cardIndexInZone = 0;
+
+            var zoneInfo = _zones[libraryZone];
+            var card = zoneInfo.Cards[0];
+            string cardName = CardDetector.GetCardName(card);
+            _announcer.Announce($"{countText}. {cardName}, 1 of {zoneInfo.Cards.Count}", AnnouncementPriority.High);
+
+            SetFocusedGameObject(card, "ZoneNavigator");
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+            if (cardNavigator != null && CardDetector.IsCard(card))
+                cardNavigator.PrepareForCard(card, libraryZone);
+        }
+
+        /// <summary>
+        /// Gets the total library card count by scanning the holder directly (unfiltered).
+        /// This bypasses the HotHighlight filter to get the real total count.
+        /// </summary>
+        private int GetLibraryTotalCount(ZoneType libraryZone)
+        {
+            string holderKey = libraryZone == ZoneType.Library ? "LocalLibrary" : "OpponentLibrary";
+            var holder = DuelHolderCache.GetHolder(holderKey);
+            if (holder == null) return -1;
+
+            int count = 0;
+            foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+                if (child.gameObject == holder) continue;
+                if (CardDetector.IsCard(child.gameObject))
+                    count++;
+            }
+            return count;
         }
 
         #region Hidden Zone Count Announcements
@@ -843,38 +1027,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Announces the local player's library card count.
-        /// </summary>
-        private void AnnounceLocalLibraryCount()
-        {
-            int count = GetZoneCardCount(ZoneType.Library);
-            if (count >= 0)
-            {
-                _announcer.Announce(Strings.LibraryCount(count), AnnouncementPriority.Normal);
-            }
-            else
-            {
-                _announcer.Announce(Strings.LibraryCountNotAvailable, AnnouncementPriority.Normal);
-            }
-        }
-
-        /// <summary>
-        /// Announces the opponent's library card count.
-        /// </summary>
-        private void AnnounceOpponentLibraryCount()
-        {
-            int count = GetZoneCardCount(ZoneType.OpponentLibrary);
-            if (count >= 0)
-            {
-                _announcer.Announce(Strings.OpponentLibraryCount(count), AnnouncementPriority.Normal);
-            }
-            else
-            {
-                _announcer.Announce(Strings.OpponentLibraryCountNotAvailable, AnnouncementPriority.Normal);
-            }
-        }
-
-        /// <summary>
         /// Announces the opponent's hand card count.
         /// </summary>
         private void AnnounceOpponentHandCount()
@@ -888,6 +1040,47 @@ namespace AccessibleArena.Core.Services
             {
                 _announcer.Announce(Strings.OpponentHandCountNotAvailable, AnnouncementPriority.Normal);
             }
+        }
+
+        /// <summary>
+        /// Announces the opponent's commander card name (Brawl/Commander).
+        /// </summary>
+        private void AnnounceOpponentCommander()
+        {
+            var duelAnnouncer = DuelAnnouncer.Instance;
+            if (duelAnnouncer == null)
+            {
+                _announcer.Announce(Strings.ZoneNotFound(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
+                return;
+            }
+
+            // Try cached card info from zone transfer first, fall back to database lookup
+            var cardInfo = duelAnnouncer.GetOpponentCommanderInfo();
+            if (cardInfo == null)
+            {
+                uint grpId = duelAnnouncer.GetOpponentCommanderGrpId();
+                if (grpId == 0)
+                {
+                    _announcer.Announce(Strings.ZoneEmpty(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
+                    return;
+                }
+                // Fallback: just announce the name
+                string name = CardModelProvider.GetNameFromGrpId(grpId);
+                _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {name ?? "Unknown"}", AnnouncementPriority.High);
+                return;
+            }
+
+            string commanderName = cardInfo.Value.Name ?? "Unknown";
+
+            // Set zone so Left/Right don't navigate the previous zone
+            SetCurrentZone(ZoneType.OpponentCommand, "NavigateToZone");
+
+            _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {commanderName}", AnnouncementPriority.High);
+
+            // Prepare CardInfoNavigator for Up/Down card detail navigation
+            var blocks = CardDetector.BuildInfoBlocks(cardInfo.Value);
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+            cardNavigator?.PrepareForCardInfo(blocks, commanderName);
         }
 
         #endregion
@@ -926,6 +1119,7 @@ namespace AccessibleArena.Core.Services
         OpponentGraveyard,
         OpponentLibrary,
         OpponentExile,
+        OpponentCommand,
         Browser
     }
 

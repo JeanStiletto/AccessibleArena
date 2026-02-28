@@ -310,7 +310,7 @@ namespace AccessibleArena.Core.Services
         protected override string GetActivationAnnouncement()
         {
             int totalItems = _rows.Sum(r => r.Items.Count);
-            return $"Advanced Filters. {_rows.Count} sections, {totalItems} items. Up and Down to switch sections. Left and Right to navigate. Enter to toggle.";
+            return $"Advanced Filters. Up and Down to switch sections. Left and Right to navigate. Enter to toggle. {_rows.Count} sections, {totalItems} items.";
         }
 
         protected override void HandleInput()
@@ -502,11 +502,11 @@ namespace AccessibleArena.Core.Services
 
             if (includeRowName)
             {
-                _announcer.Announce($"{row.Name}. {position}. {item.Label}{state}", AnnouncementPriority.High);
+                _announcer.Announce($"{row.Name}. {item.Label}{state}, {position}", AnnouncementPriority.High);
             }
             else
             {
-                _announcer.Announce($"{position}. {item.Label}{state}", AnnouncementPriority.Normal);
+                _announcer.Announce($"{item.Label}{state}, {position}", AnnouncementPriority.Normal);
             }
         }
 

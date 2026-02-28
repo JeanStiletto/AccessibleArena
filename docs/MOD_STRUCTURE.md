@@ -3,7 +3,7 @@
 ## Project Layout
 
 ```
-C:\Users\fabia\arena\
+<repo-root>\
   src\
     AccessibleArena.csproj
     AccessibleArenaMod.cs      - MelonLoader entry point, holds central services
@@ -43,6 +43,7 @@ C:\Users\fabia\arena\
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
         HelpNavigator.cs         - F1 help menu with navigable keybind list
         ExtendedInfoNavigator.cs - I key extended card info (navigable keyword/face menu)
+        PriorityController.cs    - Full control toggle (P/Shift+P) and phase stop hotkeys (1-0)
 
         # Browser Navigation (library manipulation - scry, surveil, mulligan)
         BrowserDetector.cs       - Static browser detection and caching
@@ -216,7 +217,10 @@ C:\Users\fabia\arena\
 - [x] Card navigation - Left/Right arrows within current zone
 - [x] EventSystem conflict fix - Clears selection to prevent UI cycling
 - [x] Card playing - Enter key plays cards from hand (double-click + center click approach)
-- [x] Hidden zone counts - D (your library), Shift+D (opponent library), Shift+C (opponent hand)
+- [x] Library zone navigation - D (your library), Shift+D (opponent library) with anti-cheat filter
+- [x] Library anti-cheat filter - Only shows cards with HotHighlight (playable) or IsDisplayedFaceUp (revealed); hidden face-down cards never exposed
+- [x] Play from library - Enter on playable library cards uses two-click (same as hand cards)
+- [x] Hidden zone counts - Shift+C (opponent hand count); D/Shift+D announce total count before revealed cards
 
 ### Card Playing (Working)
 - [x] Lands - Play correctly, detected via card type before playing
@@ -233,7 +237,7 @@ C:\Users\fabia\arena\
 - [x] Stack announcements - "Cast [name], [P/T], [rules]" when spell goes on stack (full card info)
 - [x] Zone change tracking - Tracks card counts per zone to detect changes
 - [x] Spell resolve tracking - `_lastSpellResolvedTime` set on stack decrease
-- [x] Phase announcements - Upkeep, draw, main phases, combat steps (declare attackers/blockers, damage, end combat)
+- [x] Phase announcements - Upkeep, draw, main phases, combat steps (declare attackers/blockers, damage, end combat), end step
 - [x] Phase debounce (100ms) - Prevents announcement spam during auto-skip, only final phase is spoken
 - [x] Combat announcements - "Combat begins", "Attacker declared", "Attacker removed"
 - [x] Opponent plays - "Opponent played a card" (hand count decrease detection)
@@ -415,6 +419,37 @@ Cards announce targeting relationships using model data:
 - `IManaSelectorProvider.ValidSelectionCount`, `GetElementAt`, `MaxSelections`, `AllSelectionsComplete`, `CurrentSelection`
 - `ManaProducedData.PrimaryColor` (field or property) - color enum value
 
+### Priority Controller (Full Control & Phase Stops)
+
+Reflection wrapper for GameManager.AutoRespManager and ButtonPhaseLadder. Provides keyboard access to full control and phase stop toggles that are otherwise only accessible via mouse clicks on the phase ladder UI.
+
+**Why reflection instead of simulating clicks:**
+The phase ladder UI requires the ladder to be visible and expanded. The EventTrigger `AllowStop` guard on `PhaseLadderButton.ToggleStop()` blocks toggling when the ladder isn't visible. PriorityController bypasses this by calling `ButtonPhaseLadder.ToggleTransientStop(button)` directly, which sends the stop change to the GRE (game rules engine) regardless of UI state.
+
+**Full Control (P / Shift+P):**
+- `GameManager.AutoRespManager.ToggleFullControl()` - temporary, resets on phase change
+- `GameManager.AutoRespManager.ToggleLockedFullControl()` - permanent until toggled off
+- State read via `FullControlEnabled` / `FullControlLocked` properties
+
+**Phase Stops (1-0 keys):**
+- Reads `PhaseIcons` field on `ButtonPhaseLadder` (List of 22 PhaseLadderButton items)
+- Filters out `AvatarPhaseIcon` buttons (player-specific stops), keeps only `ButtonPhaseIcon`
+- Reads `_playerStopTypes` (private field on base class `PhaseLadderButton`) to map StopType enum values to buttons
+- Key 7 maps to both `FirstStrikeDamageStep` and `CombatDamageStep` buttons
+- After toggle, reads `StopState` property (SettingStatus enum) to announce set/cleared
+
+**Reflection note:** `_playerStopTypes` is private on the base class `PhaseLadderButton`, not on `ButtonPhaseIcon`. Standard `GetField()` with `NonPublic | Instance` does not search base classes for private fields. `GetFieldInHierarchy()` walks up the type hierarchy to find it.
+
+**Phase stop behavior (game mechanic, not mod limitation):**
+Phase stops are "also stop here" markers. They do NOT skip ahead to the marked phase. The game always stops when you have playable actions, regardless of phase stops. Setting a stop at "Declare Attackers" means "also stop at declare attackers even if I have nothing to do there" - it does not skip Main 1.
+
+**Files:**
+- `src/Core/Services/PriorityController.cs` - Reflection wrapper
+- `src/Core/Services/DuelNavigator.cs` - Key handling (P, Shift+P, 1-0)
+- `src/Patches/KeyboardManagerPatch.cs` - Ctrl key blocking in duels
+
+---
+
 ### Element Grouping System (Menu Navigation)
 
 Hierarchical navigation for menu screens. Elements are organized into groups for two-level navigation: first navigate between groups, then enter a group to navigate its elements.
@@ -518,6 +553,7 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - Read Ahead - Saga chapter selection
 - London Mulligan - Select cards to put on bottom after mulliganing
 - Opening Hand/Mulligan - View starting hand, keep or mulligan
+- AssignDamage - Distribute attacker's combat damage among blockers (see below)
 - ViewDismiss - Card preview popup (auto-dismissed, see below)
 - Generic browsers - YesNo, Dungeon, SelectCards, etc. (Tab + Enter)
 
@@ -535,6 +571,19 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - **Left/Right** - Navigate within current zone
 - **Enter** - Toggle card between zones
 - **Tab** - Navigate all cards (detects zone automatically for activation)
+
+**Damage Assignment Browser:**
+When an attacker is blocked by multiple creatures, the game opens an AssignDamage browser to distribute combat damage.
+- **Detection**: `BrowserDetector` identifies `BrowserType == "AssignDamage"`; browser ref cached from `GameManager.BrowserManager.CurrentBrowser`
+- **Navigation**: Left/Right cycles between blocker cards; Up/Down adjusts the damage spinner on the focused blocker
+- **Spinner access**: `_idToSpinnerMap` (Dictionary: InstanceId → SpinnerAnimated) cached from the AssignDamageBrowser via reflection
+- **Spinner control**: Clicks `_buttonIncrease` / `_buttonDecrease` on SpinnerAnimated, reads `Value` property after click
+- **Lethal detection**: Reads `_valueText` TMP color - gold color means lethal damage reached
+- **Total damage**: Lazily cached from `MtgDamageAssigner.TotalDamage` field (accessed via `WorkflowController.CurrentWorkflow._damageAssigner`)
+- **Assigner count**: Reads `_handledAssigners` (List) and `_unhandledAssigners` (Queue) to show "X of Y" when multiple attackers need damage assigned
+- **Submit**: Invokes `DoneAction` event field on the browser (falls back to `OnButtonCallback("DoneButton")`)
+- **Undo**: Invokes `UndoAction` event field on the browser
+- **Announcements**: Entry shows attacker name + power + blocker count; per-card shows name + P/T + assigned damage + lethal status
 
 **Technical Implementation:**
 - BrowserDetector caches scan results for performance (100ms interval)

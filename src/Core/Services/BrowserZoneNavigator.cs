@@ -612,6 +612,13 @@ namespace AccessibleArena.Core.Services
                                 // Filter out placeholder cards
                                 if (!string.IsNullOrEmpty(cardName) && cardName != "Unknown card" && !go.name.Contains("CDC #0"))
                                 {
+                                    // Filter out cards from other zones (e.g., commander from Command zone)
+                                    string modelZone = CardModelProvider.GetCardZoneTypeName(go);
+                                    if (!string.IsNullOrEmpty(modelZone) && modelZone != "Hand")
+                                    {
+                                        MelonLogger.Msg($"[BrowserZoneNavigator] Skipping {cardName} from London hand - actual zone: {modelZone}");
+                                        continue;
+                                    }
                                     _topCards.Add(go);
                                 }
                             }

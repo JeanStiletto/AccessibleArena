@@ -1,4 +1,5 @@
 using UnityEngine;
+using MelonLoader;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
 {
@@ -9,11 +10,20 @@ namespace AccessibleArena.Core.Services.ElementGrouping
     public class ElementGroupAssigner
     {
         private readonly OverlayDetector _overlayDetector;
+        private int _profileButtonInstanceId;
 
         public ElementGroupAssigner(OverlayDetector overlayDetector)
         {
             _overlayDetector = overlayDetector;
         }
+
+        /// <summary>
+        /// Register the local player's StatusButton instance ID so it can be
+        /// recognized and assigned to FriendsPanelProfile during group assignment.
+        /// </summary>
+        public void SetProfileButtonId(int instanceId) => _profileButtonInstanceId = instanceId;
+        public void ClearProfileButtonId() => _profileButtonInstanceId = 0;
+
 
         /// <summary>
         /// Determine which group an element belongs to.
@@ -34,6 +44,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var overlayGroup = DetermineOverlayGroup(element, name, parentPath);
             if (overlayGroup != ElementGroup.Unknown)
                 return overlayGroup;
+
+            // Guard: Elements inside social panel that weren't assigned a friend sub-group
+            // should be hidden (section headers, background elements, etc.)
+            if (parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
+                parentPath.Contains("SocialPanel"))
+                return ElementGroup.Unknown;
 
             // 2. Check for Play-related elements (Play button, events, direct challenge, rankings)
             if (IsPlayElement(element, name, parentPath))
@@ -81,6 +97,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private ElementGroup DetermineOverlayGroup(GameObject element, string name, string parentPath)
         {
             // Deck Builder collection cards (PoolHolder canvas)
+            // Pool cards are always collection - actual sideboard cards are in MetaCardHolders_Container
             if (parentPath.Contains("PoolHolder") &&
                 (name.Contains("MetaCardView") || name.Contains("PagesMetaCardView")))
                 return ElementGroup.DeckBuilderCollection;
@@ -94,19 +111,62 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     return ElementGroup.DeckBuilderDeckList;
             }
 
+            // Deck Builder sideboard cards (non-MainDeck holders inside MetaCardHolders_Container)
+            // These are cards available to add to deck in draft/sealed deck building
+            if (parentPath.Contains("MetaCardHolders_Container") && !parentPath.Contains("MainDeck_MetaCardHolder")
+                && name == "CustomButton - Tile")
+                return ElementGroup.DeckBuilderSideboard;
+
+            // ReadOnly deck builder cards (StaticColumnMetaCardView in column view)
+            // These appear when viewing starter/precon decks in read-only mode
+            if (name.Contains("StaticColumnMetaCardView") || parentPath.Contains("StaticColumnMetaCardHolder"))
+                return ElementGroup.DeckBuilderDeckList;
+
+            // Challenge screen containers -> ChallengeMain group
+            // Must be checked BEFORE PlayBlade and Popup, since challenge containers
+            // were previously routed through IsInsidePlayBlade.
+            // Exception: InviteFriendPopup elements go to Popup (popup overlay takes over)
+            if (IsChallengeContainer(parentPath, name))
+            {
+                // InviteFriendPopup or ChallengeInviteWindow inside challenge -> Popup overlay
+                if (parentPath.Contains("InviteFriendPopup") || parentPath.Contains("ChallengeInviteWindow"))
+                    return ElementGroup.Popup;
+
+                // "New Deck" and "Edit/Change Deck" go to PlayBladeFolders (deck selection group)
+                // GroupedNavigator includes these as extra items alongside folder toggles
+                if (name.Contains("NewDeck") || name.Contains("New Deck") || name.Contains("CreateDeck"))
+                    return ElementGroup.PlayBladeFolders;
+                if (name.Contains("EditDeck") || name.Contains("Edit_Deck"))
+                    return ElementGroup.PlayBladeFolders;
+
+                return ElementGroup.ChallengeMain;
+            }
+
             // Popup/Dialog - be specific to avoid matching "Screenspace Popups" canvas
             // Look for actual popup panel patterns, not just "Popup" substring
-            if (parentPath.Contains("SystemMessageView") ||
-                parentPath.Contains("ConfirmationDialog") ||
-                parentPath.Contains("InviteFriendPopup") ||
-                parentPath.Contains("PopupDialog") ||
-                (parentPath.Contains("Popup") && !parentPath.Contains("Screenspace Popups")))
+            // Skip Popup classification for elements inside PlayBlade (InviteFriendPopup is
+            // also a challenge container, and "Popup" substring would match it)
+            if (!IsInsidePlayBlade(parentPath, name) &&
+                (parentPath.Contains("SystemMessageView") ||
+                 parentPath.Contains("ConfirmationDialog") ||
+                 parentPath.Contains("InviteFriendPopup") ||
+                 parentPath.Contains("PopupDialog") ||
+                 (parentPath.Contains("Popup") && !parentPath.Contains("Screenspace Popups"))))
                 return ElementGroup.Popup;
 
-            // Friends panel overlay
-            if (parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
-                parentPath.Contains("SocialPanel"))
-                return ElementGroup.FriendsPanel;
+            // Friends panel overlay - split into sub-groups
+            // Skip for elements inside challenge/blade containers - they belong to PlayBlade, not the friend panel
+            if ((parentPath.Contains("SocialUI") || parentPath.Contains("FriendsWidget") ||
+                 parentPath.Contains("SocialPanel")) &&
+                !IsInsidePlayBlade(parentPath, name))
+            {
+                var friendGroup = DetermineFriendPanelGroup(element, name, parentPath);
+                if (friendGroup != ElementGroup.Unknown)
+                    return friendGroup;
+                // Filter out elements that don't belong to any friend sub-group
+                // (section headers, background elements, etc.)
+                return ElementGroup.Unknown;
+            }
 
             // Mailbox panel - mail items shown directly as Content (overlay filtering handles the rest)
             // No separate Mailbox group needed since it's already an overlay
@@ -424,6 +484,111 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Determine which friend panel sub-group an element belongs to.
+        /// Maps challenge/add-friend buttons to action groups and friend tiles to section groups.
+        /// </summary>
+        private ElementGroup DetermineFriendPanelGroup(GameObject element, string name, string parentPath)
+        {
+            // Challenge button (Backer_Hitbox inside Button_AddChallenge)
+            if (parentPath.Contains("Button_AddChallenge") || parentPath.Contains("Button_Challenge") ||
+                name.Contains("Button_AddChallenge") || name.Contains("Button_Challenge"))
+                return ElementGroup.FriendsPanelChallenge;
+
+            // Add Friend button (Backer_Hitbox inside Button_AddFriend)
+            if (parentPath.Contains("Button_AddFriend") || name.Contains("Button_AddFriend"))
+                return ElementGroup.FriendsPanelAddFriend;
+
+            // Friend entries: Backer_Hitbox inside SocialEntittiesListItem_* within Bucket_*_CONTAINER
+            // Use bucket container names for section detection - more reliable than component type matching
+            // since different tile types exist (FriendTile, InviteOutgoingTile, InviteIncomingTile, etc.)
+            if (parentPath.Contains("SocialEntittiesListItem") || parentPath.Contains("SocialEntitiesListItem"))
+            {
+                // Only accept the primary clickable element for each tile.
+                // Sub-buttons (accept/reject/block) are handled by left/right action cycling
+                // via FriendInfoProvider, not as separate navigable entries.
+                if (!IsPrimarySocialTileElement(element))
+                    return ElementGroup.Unknown;
+
+                if (parentPath.Contains("Bucket_Friends"))
+                    return ElementGroup.FriendSectionFriends;
+                if (parentPath.Contains("Bucket_SentRequests") || parentPath.Contains("Bucket_Outgoing"))
+                    return ElementGroup.FriendSectionOutgoing;
+                if (parentPath.Contains("Bucket_IncomingRequests") || parentPath.Contains("Bucket_Incoming"))
+                    return ElementGroup.FriendSectionIncoming;
+                if (parentPath.Contains("Bucket_Blocked"))
+                    return ElementGroup.FriendSectionBlocked;
+            }
+
+            // Local player profile button (StatusButton in FriendsWidget)
+            if (_profileButtonInstanceId != 0 && element.GetInstanceID() == _profileButtonInstanceId)
+                return ElementGroup.FriendsPanelProfile;
+
+            // Fallback: detect section by tile component type when path patterns don't match.
+            // Some sections (e.g., Blocked) may use different list item naming or hierarchy.
+            var tile = FriendInfoProvider.FindFriendTile(element);
+            if (tile != null)
+            {
+                string tileName = tile.GetType().Name;
+
+                // First try bucket name from the tile's own parent path (tile may be higher in hierarchy)
+                string tilePath = GetParentPath(tile.gameObject);
+                if (tilePath.Contains("Bucket_Blocked"))
+                    return ElementGroup.FriendSectionBlocked;
+                if (tilePath.Contains("Bucket_Friends"))
+                    return ElementGroup.FriendSectionFriends;
+                if (tilePath.Contains("Bucket_SentRequests") || tilePath.Contains("Bucket_Outgoing"))
+                    return ElementGroup.FriendSectionOutgoing;
+                if (tilePath.Contains("Bucket_IncomingRequests") || tilePath.Contains("Bucket_Incoming"))
+                    return ElementGroup.FriendSectionIncoming;
+
+                // Last resort: map by tile type name
+                if (tileName == "BlockTile")
+                    return ElementGroup.FriendSectionBlocked;
+                if (tileName == "FriendTile")
+                    return ElementGroup.FriendSectionFriends;
+                if (tileName == "InviteOutgoingTile")
+                    return ElementGroup.FriendSectionOutgoing;
+                if (tileName == "InviteIncomingTile")
+                    return ElementGroup.FriendSectionIncoming;
+
+                MelonLogger.Msg($"[ElementGroupAssigner] Social tile fallback matched {tileName} but no section determined, path={tilePath}");
+            }
+
+            // Not a recognized friend panel element (headers, dismiss buttons, tab bar, etc.)
+            return ElementGroup.Unknown;
+        }
+
+        /// <summary>
+        /// Check if an element is the primary clickable for its social tile.
+        /// Returns false for sub-buttons (accept/reject/block) that should be handled
+        /// by left/right action cycling instead of being separate navigable entries.
+        /// </summary>
+        private static bool IsPrimarySocialTileElement(GameObject element)
+        {
+            // Backer_Hitbox is always the primary clickable
+            if (element.name == "Backer_Hitbox") return true;
+
+            // Walk up to find the SocialEntittiesListItem parent
+            Transform current = element.transform.parent;
+            while (current != null)
+            {
+                if (current.name.StartsWith("SocialEntittiesListItem") ||
+                    current.name.StartsWith("SocialEntitiesListItem"))
+                {
+                    // If this list item has a Backer_Hitbox child, only that should be navigable
+                    var hitbox = current.Find("Backer_Hitbox");
+                    if (hitbox != null && hitbox.gameObject.activeInHierarchy)
+                        return false; // Backer_Hitbox exists but we're not it
+                    // No Backer_Hitbox (e.g. BlockTile) - accept this element as fallback
+                    return true;
+                }
+                current = current.parent;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Check if element is a PlayBlade tab (Events, Recent, and queue type tabs like Ranked/OpenPlay/Brawl).
         /// FindMatch nav tab is excluded - replaced by queue type subgroup entries.
         /// </summary>
@@ -473,6 +638,28 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Filter list items in blade context
             if (name.Contains("FilterListItem") && parentPath.Contains("Blade"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is inside a challenge screen container.
+        /// Challenge containers are separate from PlayBlade - they get their own ChallengeMain group.
+        /// </summary>
+        private static bool IsChallengeContainer(string parentPath, string name)
+        {
+            // Challenge options spinners and settings
+            // Note: Do NOT match "ChallengeWidget" - it matches ChallengeWidget_Base in the friends panel
+            if (parentPath.Contains("ChallengeOptions") || parentPath.Contains("UnifiedChallenges"))
+                return true;
+
+            // Challenge play button and deck selection area
+            if (parentPath.Contains("Popout_Play") || parentPath.Contains("FriendChallengeBladeWidget"))
+                return true;
+
+            // InviteFriendPopup (challenge invite dialog)
+            if (parentPath.Contains("InviteFriendPopup"))
                 return true;
 
             return false;

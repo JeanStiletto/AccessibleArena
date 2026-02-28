@@ -6,6 +6,8 @@ labels: bug
 assignees: ''
 ---
 
+**Please check [Known Issues](https://github.com/JeanStiletto/AccessibleArena/blob/main/docs/KNOWN_ISSUES.md) before reporting - your issue may already be tracked.**
+
 **Describe the bug**
 A clear description of what went wrong.
 

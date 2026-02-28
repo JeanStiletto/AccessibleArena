@@ -56,10 +56,10 @@ Detailed documentation in `docs/`:
 ### Build & Deploy
 ```bash
 # Build
-dotnet build "C:\Users\fabia\arena\src\AccessibleArena.csproj"
+dotnet build src/AccessibleArena.csproj
 
 # Deploy (game must be closed)
-powershell -Command "Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
+powershell -NoProfile -Command "Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
 ```
 
 ### MelonLoader Logs
@@ -110,8 +110,8 @@ Arrow Left/Right (while editing): Read character at cursor
 Arrow Up/Down (while editing): Read full content
 
 **Duel - Zone Navigation:**
-Your Zones: C (Hand/Cards), G (Graveyard), X (Exile), S (Stack)
-Opponent Zones: Shift+G (Graveyard), Shift+X (Exile)
+Your Zones: C (Hand/Cards), G (Graveyard), X (Exile), S (Stack), W (Command Zone)
+Opponent Zones: Shift+G (Graveyard), Shift+X (Exile), Shift+W (Command Zone)
 Within Zone: Left/Right (Navigate cards), Home/End (Jump to first/last)
 Card Details: Arrow Up/Down when focused on a card
 
@@ -123,8 +123,15 @@ Within Row: Left/Right (Navigate cards), Home/End (Jump to first/last)
 
 **Duel - Info:**
 T (Turn), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descriptions + other faces)
-D (Your Library Count), Shift+D (Opponent Library Count), Shift+C (Opponent Hand Count)
+M (Your Land Summary), Shift+M (Opponent Land Summary)
+D (Your Library), Shift+D (Opponent Library), Shift+C (Opponent Hand Count)
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
+
+**Duel - Full Control & Phase Stops:**
+P: Toggle full control (temporary, resets on phase change)
+Shift+P: Toggle locked full control (permanent)
+1-0: Toggle phase stops (1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers, 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step)
+Note: Ctrl is blocked from reaching the game in duels (prevents accidental full control toggle when silencing NVDA)
 
 **Duel - Combat:**
 Declare Attackers: Space (All Attack / X Attack), Backspace (No Attacks)
