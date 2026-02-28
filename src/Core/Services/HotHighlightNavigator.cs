@@ -881,11 +881,9 @@ namespace AccessibleArena.Core.Services
             if (!IsMeaningfulButtonText(primaryText) || !IsMeaningfulButtonText(secondaryText))
                 return;
 
-            // Check CanvasGroup visibility - the game hides inactive buttons by setting
-            // CanvasGroup alpha=0 and interactable=false, even though Selectable.interactable
-            // remains true. Buttons with alpha=0 are invisible and not real choices.
-            if (!IsButtonVisible(primaryButton) || !IsButtonVisible(secondaryButton))
-                return;
+            // Note: CanvasGroup visibility check removed here because buttons already
+            // passed the meaningful-text check above. In YesNo browsers, the game sets
+            // alpha=0 on prompt buttons while they are still the real action choices.
 
             _items.Add(new HighlightedItem
             {

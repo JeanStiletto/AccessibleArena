@@ -610,8 +610,10 @@ namespace AccessibleArena.Core.Services
                     else
                         regularButtons.Add(button);
                 }
-                // Filter invisible scaffold layout buttons (SingleButton, 2Button_Left/Right)
-                regularButtons.RemoveAll(b => !UIElementClassifier.IsVisibleViaCanvasGroup(b));
+                // Filter invisible scaffold layout buttons without meaningful text
+                regularButtons.RemoveAll(b =>
+                    !UIElementClassifier.IsVisibleViaCanvasGroup(b) &&
+                    !UITextExtractor.HasActualText(b));
                 _browserButtons = regularButtons;
 
                 // Sort zone buttons by name for consistent order
@@ -639,9 +641,18 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                // Non-multi-zone: filter invisible scaffold buttons from all buttons
-                _browserButtons.RemoveAll(b => !UIElementClassifier.IsVisibleViaCanvasGroup(b));
+                // Non-multi-zone: filter invisible scaffold buttons that have no meaningful text.
+                // Keep buttons with real text even if alpha=0 (e.g. YesNo browser 2Button_Left/Right
+                // are hidden via CanvasGroup but are the actual Yes/No action buttons).
+                _browserButtons.RemoveAll(b =>
+                    !UIElementClassifier.IsVisibleViaCanvasGroup(b) &&
+                    !UITextExtractor.HasActualText(b));
             }
+
+            // Filter "View Battlefield" button - no functionality for blind users
+            _browserButtons.RemoveAll(b => b != null && b.name == "MainButton" &&
+                b.transform.parent != null && b.transform.parent.parent != null &&
+                b.transform.parent.parent.name.StartsWith("ViewBattlefield"));
 
             MelonLogger.Msg($"[BrowserNavigator] Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
         }
