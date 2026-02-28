@@ -2304,12 +2304,12 @@ namespace AccessibleArena.Core.Services
             var trigger = triggerField.GetValue(deckView);
             if (trigger == null) return null;
 
-            // Read TooltipData from trigger (public property)
+            // Read TooltipData from trigger (public field)
             var triggerType = trigger.GetType();
-            var dataProp = triggerType.GetProperty("TooltipData", pubFlags);
-            if (dataProp == null) return null;
+            var dataField = triggerType.GetField("TooltipData", pubFlags);
+            if (dataField == null) return null;
 
-            var data = dataProp.GetValue(trigger);
+            var data = dataField.GetValue(trigger);
             if (data == null) return null;
 
             // Read Text from TooltipData (public property)
