@@ -881,9 +881,12 @@ namespace AccessibleArena.Core.Services
             if (!IsMeaningfulButtonText(primaryText) || !IsMeaningfulButtonText(secondaryText))
                 return;
 
-            // Note: CanvasGroup visibility check removed here because buttons already
-            // passed the meaningful-text check above. In YesNo browsers, the game sets
-            // alpha=0 on prompt buttons while they are still the real action choices.
+            // Check CanvasGroup visibility - the game hides inactive/status buttons by setting
+            // CanvasGroup alpha=0 and interactable=false. Without this check, phase status
+            // buttons like "Opponent's Turn" + "Cancel Attacks" appear as tappable choices.
+            // Note: YesNo browser buttons are handled by BrowserNavigator, not here.
+            if (!IsButtonVisible(primaryButton) || !IsButtonVisible(secondaryButton))
+                return;
 
             _items.Add(new HighlightedItem
             {
