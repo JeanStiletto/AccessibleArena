@@ -4878,16 +4878,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // At group level in deck builder - don't fall through to exit the deck builder
-            // User must use the Done button explicitly to exit. This prevents accidental exits
-            // when navigating groups with backspace.
-            if (_activeContentController == "WrapperDeckBuilder")
-            {
-                LogDebug($"[{NavigatorId}] At group level in deck builder - backspace blocked");
-                _announcer.AnnounceVerbose(Models.Strings.AtTopLevel, Models.AnnouncementPriority.Normal);
-                return true;
-            }
-
             // At group level or exit failed - fall through to normal back navigation
             return false;
         }
