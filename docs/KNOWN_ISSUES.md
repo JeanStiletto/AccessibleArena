@@ -183,6 +183,18 @@ The damage assignment browser submit currently uses direct DoneAction invocation
 
 ---
 
+### Long Scroll List Browsers
+
+Browsers that use long scroll lists (virtualized/recycled item views) may not work correctly with the mod's browser navigation. Cards outside the visible viewport may not be accessible or may cause issues when selected.
+
+---
+
+### Yes/No Prompts While Duelling
+
+Yes/No prompt dialogs that appear during a duel may not be detected or navigable. Needs testing to confirm whether these prompts are announced and whether the buttons can be activated.
+
+---
+
 ### London Mulligan With Very Low Card Counts
 
 Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing whether card selection and bottom placement still works correctly at very low hand sizes.

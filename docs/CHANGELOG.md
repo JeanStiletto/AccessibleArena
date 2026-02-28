@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v0.7.3-dev
 
+### New: Invalid Deck Status in Deck Picker
+- Deck announcements now include validity status: "invalid deck", "N invalid cards", "missing cards", "missing cards, craftable", "invalid companion", or "unavailable"
+- Press Right arrow on an invalid deck to hear the detailed reason (localized tooltip with banned card counts, wildcard costs, companion issues, etc.)
+- Reads DeckView's pre-computed validation state and tooltip text directly — no scene scanning or i18n keyword matching
+- Files: UIActivator.cs, GeneralMenuNavigator.cs, BaseNavigator.cs
+
 ### New: Multi-Zone Browser Support (First Iteration)
 - Cards that select from multiple zones (e.g., Kronleuchter targeting both graveyards) now have navigable zone selection
 - Up/Down arrows cycle between zones, Tab moves to cards, Shift+Tab returns to zone selector
@@ -33,6 +39,21 @@ All notable changes to Accessible Arena.
 - Item count and position are now read last instead of first in all menu and screen announcements
 - Content (label, hints, instructions) is announced before "X of Y" position info
 - Updated across all navigators and all 12 locale files
+
+### New: Extended Card Info (I Key) in All Screens
+- The I key now works outside of duels — in deck builder, collection, store, draft, and other card screens
+- Shows individual ability texts as separate navigable items (Up/Down to cycle)
+- Extracts abilities from card model directly when duel-only AbilityHangerProvider is unavailable
+- Files: BaseNavigator.cs, CardModelProvider.cs
+
+### Improved: Challenge Screen Accessibility
+- Main button now includes challenge status text (e.g., waiting for opponent)
+- Polls for opponent join/leave and status text changes at 1-second intervals
+- Detects match countdown start/cancel from status text
+- Icon-only enemy buttons labeled: Kick, Block, Add Friend
+- Spinners prefixed with "Locked" when settings are controlled by host
+- Tournament parameters announced after mode spinner change
+- Files: ChallengeNavigationHelper.cs, GeneralMenuNavigator.cs
 
 ### Fixed: Popup Leaving State
 - Fixed getting stuck on empty screen after pressing buttons in popups that trigger server actions (e.g., sending invite with invalid name)
