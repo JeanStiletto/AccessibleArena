@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Reflection;
 
 namespace AccessibleArena.Core.Services
 {
@@ -10,6 +11,17 @@ namespace AccessibleArena.Core.Services
     /// </summary>
     public static class UITextExtractor
     {
+        private static readonly BindingFlags ReflectionFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+        private static bool _wildcardInventoryReflectionInitialized;
+        private static PropertyInfo _wrapperInstanceProperty;
+        private static PropertyInfo _inventoryManagerProperty;
+        private static PropertyInfo _inventoryProperty;
+        private static FieldInfo _wcCommonField;
+        private static FieldInfo _wcUncommonField;
+        private static FieldInfo _wcRareField;
+        private static FieldInfo _wcMythicField;
+        private static FieldInfo _vaultProgressField;
+
         /// <summary>
         /// Checks if the GameObject has actual text content (not just object name fallback).
         /// Used to distinguish elements with real labels from those with only internal names.
@@ -1326,11 +1338,128 @@ namespace AccessibleArena.Core.Services
             if (!IsNavWildcardElement(gameObject))
                 return null;
 
+            string inventorySummary = TryGetWildcardInventorySummary();
+            if (!string.IsNullOrEmpty(inventorySummary))
+                return inventorySummary;
+
             string amount = TryGetCurrencyAmountText(gameObject);
             if (!string.IsNullOrEmpty(amount))
                 return $"Wildcards: {amount}";
 
             return "Wildcards";
+        }
+
+        /// <summary>
+        /// Reads wildcard counts from game-computed inventory:
+        /// WrapperController.Instance.InventoryManager.Inventory.{wcCommon,wcUncommon,wcRare,wcMythic,vaultProgress}
+        /// </summary>
+        private static string TryGetWildcardInventorySummary()
+        {
+            try
+            {
+                EnsureWildcardInventoryReflection();
+                if (_wrapperInstanceProperty == null || _inventoryManagerProperty == null || _inventoryProperty == null)
+                    return null;
+
+                var wrapper = _wrapperInstanceProperty.GetValue(null);
+                if (wrapper == null) return null;
+
+                var inventoryManager = _inventoryManagerProperty.GetValue(wrapper);
+                if (inventoryManager == null) return null;
+
+                var inventory = _inventoryProperty.GetValue(inventoryManager);
+                if (inventory == null) return null;
+
+                int common = ReadIntField(inventory, _wcCommonField);
+                int uncommon = ReadIntField(inventory, _wcUncommonField);
+                int rare = ReadIntField(inventory, _wcRareField);
+                int mythic = ReadIntField(inventory, _wcMythicField);
+                double vaultProgress = ReadDoubleField(inventory, _vaultProgressField);
+
+                string commonText = common.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+                string uncommonText = uncommon.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+                string rareText = rare.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+                string mythicText = mythic.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+                string vaultText = (vaultProgress / 100.0).ToString("P1", System.Globalization.CultureInfo.CurrentCulture);
+
+                return $"Wildcards: {commonText} Common, {uncommonText} Uncommon, {rareText} Rare, {mythicText} Mythic, Vault: {vaultText}";
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static void EnsureWildcardInventoryReflection()
+        {
+            if (_wildcardInventoryReflectionInitialized)
+                return;
+
+            _wildcardInventoryReflectionInitialized = true;
+
+            System.Type wrapperType = System.Type.GetType("WrapperController, Core");
+            if (wrapperType == null)
+            {
+                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    wrapperType = asm.GetType("WrapperController");
+                    if (wrapperType != null) break;
+                }
+            }
+
+            if (wrapperType == null)
+                return;
+
+            _wrapperInstanceProperty = wrapperType.GetProperty("Instance", ReflectionFlags);
+            _inventoryManagerProperty = wrapperType.GetProperty("InventoryManager", ReflectionFlags);
+
+            var invManagerType = _inventoryManagerProperty?.PropertyType;
+            _inventoryProperty = invManagerType?.GetProperty("Inventory", ReflectionFlags);
+
+            var invType = _inventoryProperty?.PropertyType;
+            if (invType == null)
+                return;
+
+            // Confirmed via decompilation (WildcardPopup.UpdateWildcardLabels):
+            // fields on ClientPlayerInventory.
+            _wcCommonField = invType.GetField("wcCommon", ReflectionFlags);
+            _wcUncommonField = invType.GetField("wcUncommon", ReflectionFlags);
+            _wcRareField = invType.GetField("wcRare", ReflectionFlags);
+            _wcMythicField = invType.GetField("wcMythic", ReflectionFlags);
+            _vaultProgressField = invType.GetField("vaultProgress", ReflectionFlags);
+        }
+
+        private static int ReadIntField(object target, FieldInfo field)
+        {
+            if (target == null || field == null) return 0;
+            try
+            {
+                object value = field.GetValue(target);
+                if (value == null) return 0;
+                if (value is int i) return i;
+                return System.Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static double ReadDoubleField(object target, FieldInfo field)
+        {
+            if (target == null || field == null) return 0;
+            try
+            {
+                object value = field.GetValue(target);
+                if (value == null) return 0;
+                if (value is double d) return d;
+                if (value is float f) return f;
+                return System.Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         private static bool IsNavWildcardElement(GameObject gameObject)

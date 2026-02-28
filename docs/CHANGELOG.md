@@ -47,6 +47,12 @@ All notable changes to Accessible Arena.
 - Top-nav wildcard button now announces a stable `Wildcards` label instead of inheriting sibling currency text
 - Updated: UITextExtractor.cs
 
+### Improved: Wildcards Count Summary on Focus
+- Focusing the top-nav wildcard button now announces current wildcard inventory from game state
+- Includes common, uncommon, rare, mythic, and vault progress percentage
+- Reads values directly from `ClientPlayerInventory` fields (`wcCommon`, `wcUncommon`, `wcRare`, `wcMythic`, `vaultProgress`)
+- Updated: UITextExtractor.cs
+
 ### Changed: Announcement Order
 - Item count and position are now read last instead of first in all menu and screen announcements
 - Content (label, hints, instructions) is announced before "X of Y" position info
