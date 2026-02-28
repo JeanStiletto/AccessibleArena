@@ -141,6 +141,13 @@ namespace AccessibleArena.Core.Services
                 return navGemsLabel;
             }
 
+            // Top-nav wildcard button can inherit sibling numbers; use a stable label.
+            string navWildcardLabel = TryGetNavWildcardLabel(gameObject);
+            if (!string.IsNullOrEmpty(navWildcardLabel))
+            {
+                return navWildcardLabel;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -1066,6 +1073,10 @@ namespace AccessibleArena.Core.Services
         {
             if (gameObject == null) return null;
 
+            // Prevent Nav_WildCard from inheriting sibling currency values.
+            if (IsNavWildcardElement(gameObject))
+                return null;
+
             var parent = gameObject.transform.parent;
             if (parent == null) return null;
 
@@ -1305,6 +1316,32 @@ namespace AccessibleArena.Core.Services
                 return null;
 
             return $"Gems: {amount}";
+        }
+
+        /// <summary>
+        /// Build a stable label for top-nav wildcard button and avoid sibling text bleed.
+        /// </summary>
+        private static string TryGetNavWildcardLabel(GameObject gameObject)
+        {
+            if (!IsNavWildcardElement(gameObject))
+                return null;
+
+            string amount = TryGetCurrencyAmountText(gameObject);
+            if (!string.IsNullOrEmpty(amount))
+                return $"Wildcards: {amount}";
+
+            return "Wildcards";
+        }
+
+        private static bool IsNavWildcardElement(GameObject gameObject)
+        {
+            if (gameObject == null) return false;
+            if (!IsNavResourceElement(gameObject)) return false;
+
+            string nameAndPath = gameObject.name + "/" + GetParentPath(gameObject);
+            return
+                nameAndPath.IndexOf("wildcard", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                nameAndPath.IndexOf("wild card", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static bool IsNavResourceElement(GameObject gameObject)

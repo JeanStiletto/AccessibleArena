@@ -43,6 +43,10 @@ All notable changes to Accessible Arena.
 - Top-nav gems button now announces as `Gems: {amount}` instead of amount-only text
 - Updated: UITextExtractor.cs
 
+### Fixed: Wildcards Label in Top Nav
+- Top-nav wildcard button now announces a stable `Wildcards` label instead of inheriting sibling currency text
+- Updated: UITextExtractor.cs
+
 ### Changed: Announcement Order
 - Item count and position are now read last instead of first in all menu and screen announcements
 - Content (label, hints, instructions) is announced before "X of Y" position info
