@@ -35,6 +35,10 @@ All notable changes to Accessible Arena.
 - Added new locale keys: ManaGeneric, ManaPhyrexian (bare), Activated (bare)
 - Updated: CardDetector.cs, CardModelProvider.cs, StoreNavigator.cs, UIActivator.cs, DraftNavigator.cs, GeneralMenuNavigator.cs, UIElementClassifier.cs
 
+### Fixed: Gold Label in Top Nav
+- Top-nav gold button now announces as `Gold: {amount}` instead of amount-only text
+- Updated: UITextExtractor.cs
+
 ### Changed: Announcement Order
 - Item count and position are now read last instead of first in all menu and screen announcements
 - Content (label, hints, instructions) is announced before "X of Y" position info

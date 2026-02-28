@@ -127,6 +127,13 @@ namespace AccessibleArena.Core.Services
                 return deckManagerButtonText;
             }
 
+            // Top-nav gold button can expose amount without type; normalize it.
+            string navGoldLabel = TryGetNavGoldLabel(gameObject);
+            if (!string.IsNullOrEmpty(navGoldLabel))
+            {
+                return navGoldLabel;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -1249,6 +1256,98 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Build a normalized label for top-nav gold button ("Gold: 3,400").
+        /// </summary>
+        private static string TryGetNavGoldLabel(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+            if (!IsNavResourceElement(gameObject)) return null;
+
+            string nameAndPath = gameObject.name + "/" + GetParentPath(gameObject);
+            bool isGoldButton =
+                nameAndPath.IndexOf("coin", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                nameAndPath.IndexOf("gold", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            if (!isGoldButton)
+                return null;
+
+            string amount = TryGetCurrencyAmountText(gameObject);
+            if (string.IsNullOrEmpty(amount))
+                return null;
+
+            return $"Gold: {amount}";
+        }
+
+        private static bool IsNavResourceElement(GameObject gameObject)
+        {
+            if (gameObject == null) return false;
+
+            string path = GetParentPath(gameObject);
+            return
+                path.IndexOf("NavBar", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                path.IndexOf("Wallet", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                path.IndexOf("ResourceBar", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                path.IndexOf("CurrencyDisplay", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string TryGetCurrencyAmountText(GameObject gameObject)
+        {
+            string best = null;
+
+            foreach (var tmp in gameObject.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null) continue;
+                string text = CleanText(tmp.text);
+                if (!IsLikelyCurrencyAmount(text))
+                    continue;
+                if (best == null || text.Length > best.Length)
+                    best = text;
+            }
+
+            foreach (var legacy in gameObject.GetComponentsInChildren<Text>(true))
+            {
+                if (legacy == null) continue;
+                string text = CleanText(legacy.text);
+                if (!IsLikelyCurrencyAmount(text))
+                    continue;
+                if (best == null || text.Length > best.Length)
+                    best = text;
+            }
+
+            return best;
+        }
+
+        private static bool IsLikelyCurrencyAmount(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            text = text.Trim();
+            if (text.Length == 0 || text.Length > 20)
+                return false;
+
+            bool hasDigit = false;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (char.IsDigit(c))
+                {
+                    hasDigit = true;
+                    continue;
+                }
+
+                if (c == ',' || c == '.' || c == '\'' || c == ' ' || c == '\u00A0')
+                    continue;
+
+                if ((c == 'k' || c == 'K' || c == 'm' || c == 'M') && i == text.Length - 1)
+                    continue;
+
+                return false;
+            }
+
+            return hasDigit;
         }
 
         private static string GetParentPath(GameObject gameObject)
