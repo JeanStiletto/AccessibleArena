@@ -2531,8 +2531,9 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            // Allow Nav_WildCard in deck builder screens so blind users can check wildcard counts
-            if (obj.name == "Nav_WildCard" && _activeContentController == "WrapperDeckBuilder")
+            // Allow Nav_WildCard in deck builder and booster screens so blind users can check wildcard counts
+            if (obj.name == "Nav_WildCard" &&
+                (_activeContentController == "WrapperDeckBuilder" || _activeContentController == "BoosterChamber"))
                 return true;
 
             // Normal content panel: only show its elements
