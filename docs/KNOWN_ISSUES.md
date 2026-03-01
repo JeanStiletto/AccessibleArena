@@ -6,12 +6,6 @@ For resolved issues and investigation history, see docs/old/RESOLVED_ISSUES.md.
 
 ## Active Bugs
 
-### Space Key Pass Priority
-
-Game's native Space keybinding doesn't work reliably after using mod navigation. HotHighlightNavigator now clicks the primary button directly as workaround.
-
----
-
 ### Spell Resolved Announcement Too Early or Repeated
 
 "Spell resolved" announcement sometimes fires too early or multiple times for a single spell.
@@ -55,12 +49,6 @@ Starting a bot match from the "Recent Played" section does not work properly.
 
 ---
 
-### Haide Land Browser Broken (Leicht Gepanzert Deck)
-
-The Haide land (from the "Leicht Gepanzert" Brawl deck) opens a color picker browser to choose a mana color except white. This browser is not handled correctly and breaks navigation.
-
----
-
 ### Color Challenge Deck Name Not Refreshing
 
 When selecting a different color in Color Challenge, the announced deck name does not update to reflect the newly selected color's deck.
@@ -82,12 +70,6 @@ Pressing Enter on the Weekly Progress element puts the mod in a locked state req
 ### Some Progress Items Open Buggy Screens
 
 Pressing Enter on specific Progress items for certain modes opens the corresponding screen but may create buggy navigation states.
-
----
-
-### Multi-Zone Browser Navigation
-
-Multi-zone browsers (e.g., spells targeting both graveyards) have zone selector navigation with Up/Down to cycle zones and Tab to move to cards. View Battlefield button has been removed. Zone buttons use localized names (e.g., "Dein Friedhof"). False positive multi-zone scaffolds (single-zone spells) are correctly filtered. Invisible scaffold layout buttons are filtered via CanvasGroup alpha check.
 
 ---
 
@@ -155,29 +137,6 @@ Only tested on Windows 11 with NVDA. Other Windows versions (Windows 10) and oth
 
 ---
 
-### PlayBlade Queue Type Selection
-
-The PlayBlade "Find Match" was restructured into three queue type tabs (Ranked, Open Play, Brawl) at the top tab level. Several aspects need further testing:
-
-**Mode selection correctness:**
-- Unclear if selecting a queue type tab (e.g., "Ranked") always correctly sets the game's internal mode
-- The two-step activation (click FindMatch tab -> click queue type tab) relies on timing and rescans
-- Edge case: switching between queue types rapidly may leave the game in an unexpected mode state
-
-**BO3 toggle:**
-- The "Best of 3" checkbox is now labeled correctly (was "POSITION" placeholder)
-- Needs testing whether toggling it actually changes the match format
-
-**Files:** `PlayBladeNavigationHelper.cs`, `GroupedNavigator.cs`, `ElementGroupAssigner.cs`, `GeneralMenuNavigator.cs`
-
----
-
-### Unwanted Secondary Buttons in Tab Order
-
-Sometimes secondary or irrelevant buttons appear in the Tab navigation order during duels. These buttons should be filtered out but occasionally slip through.
-
----
-
 ### Damage Assignment Browser Opens Twice
 
 The damage assignment browser sometimes opens twice in sequence for the same attacker (same blockers, same TotalDamage). This causes the game to request two separate damage assignments. Observed with a 5/4 creature blocked by 4 creatures — no first strike on any attacker or blocker. A creature with first strike (Halana und Alena) was on the battlefield but not in combat. Unclear whether this is caused by:
@@ -191,45 +150,9 @@ Currently mitigated with "1 of N" announcement so the user knows multiple rounds
 
 ---
 
-### Damage Assignment Submit via SimulatePointerClick
-
-The damage assignment browser submit currently uses direct DoneAction invocation via reflection. Before our AssignDamage accessibility changes, the generic SimulatePointerClick on SubmitButton worked for confirmation. It's unclear whether SimulatePointerClick still works or if our input routing changes broke it. If DoneAction ever fails, test whether reverting to SimulatePointerClick on the SubmitButton is a viable alternative.
-
-**Files:** `BrowserNavigator.cs` (SubmitAssignDamage method)
-
----
-
-### Long Scroll List Browsers
-
-Browsers that use long scroll lists (virtualized/recycled item views) may not work correctly. Duplicate items and junk elements (Primary_Base, ViewBattlefield) have been filtered, but cards outside the visible viewport may still not be accessible.
-
----
-
-### Yes/No Prompts While Duelling
-
-Yes/No browser buttons (2Button_Left/Right) had alpha=0 and were filtered out. Fix keeps buttons with meaningful text even when alpha=0. Needs testing to confirm prompts are now navigable.
-
----
-
 ### London Mulligan With Very Low Card Counts
 
 Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing whether card selection and bottom placement still works correctly at very low hand sizes.
-
----
-
-### Sideboard Cards in Draft/Sealed Deck Building
-
-Pool cards are now classified as "Sideboard" (DeckBuilderSideboard) when editing a deck, and "Collection" when browsing without a deck. Sideboard cards use quantity-prefixed labels ("1x Card Name"). Needs testing whether draft/sealed sideboard cards are still properly detected and navigable.
-
----
-
-### Jump In: Featured Card Not Read Correctly
-
-Each packet in Jump In displays a featured card (via `PacketDetails.LandGrpId`). The mod attempts to look up card info via `CardModelProvider.GetCardInfoFromGrpId()` but this fails in the packet selection context (`_cachedDeckHolder is null`, no localization method found). Only the packet name and colors are shown in the info blocks, not the featured card data.
-
-Additionally, the featured card display does not update when selecting a different packet - it continues showing the same card data.
-
-**Files:** `EventAccessor.cs` (GetPacketInfoBlocks, GetPacketLandGrpId), `CardModelProvider.cs`
 
 ---
 
@@ -238,12 +161,6 @@ Additionally, the featured card display does not update when selecting a differe
 The packet tiles in Jump In appear in a chaotic/unpredictable order during navigation. The navigation order does not match the visual layout consistently.
 
 **Files:** `GeneralMenuNavigator.cs`, `EventAccessor.cs`
-
----
-
-### Event Start Tooltip Missing
-
-When starting an event (entering the event page), the game shows a tooltip with event information. This tooltip is not detected or announced by the mod.
 
 ---
 
@@ -277,12 +194,6 @@ Zone card lists sometimes don't refresh when a card enters or leaves a zone (e.g
 ---
 
 ## Not Reproducible Yet
-
-### Card Names in English Despite Non-English Game Language
-
-Reported by some users: card names are read in English while the rest of the card text (rules text, type line) and the game UI are in the correct non-English language. Could not reproduce so far. May be related to game client language settings, account region, or a specific card data loading order.
-
----
 
 ### Game Assets Loading Problem
 
@@ -349,25 +260,11 @@ Zone change events can create redundant announcements when a creature dies and g
 
 ## Potential Issues (Monitor)
 
-### Vault Progress Objects in Packs
+### Wrong Card Played
 
-Pack opening sometimes shows multiple identical "Alchemy Bonus Vault Progress +99" items alongside actual cards (e.g., 6 cards + 3 vault progress = 9 items). This appears to be game behavior, not a mod bug.
-
----
-
-### NPE Overlay Exclusion for Objective_NPE Elements
-
-Changed `ElementGroupAssigner.DetermineOverlayGroup()` to exclude `Objective_NPE` elements from NPE overlay classification. This allows SparkRank (Objective_NPEQuest) to be grouped with other Objectives instead of being treated as an NPE tutorial overlay element.
-
-**Monitor for:** This might break NPE tutorial screens if any tutorial elements have "Objective_NPE" in their path.
-
-**Files:** `ElementGroupAssigner.cs`
+Sometimes the mod plays a different card than the one announced/focused. Root cause unclear.
 
 ---
-
-### Targeting Spells With Non-Battlefield Objects in Highlight List
-
-Monitor whether clicking activates the wrong target during duels, especially when targeting spells while non-battlefield objects (e.g., UI buttons, zone elements) are present in the highlight list.
 
 ## Design Decisions
 
@@ -415,8 +312,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 ### Immediate
 
-1. Stepper control redesign
-2. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
+1. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
 3. X spell support - spells with variable costs (e.g., Fireball, Walking Ballista) require the player to choose a value for X. Currently no accessible way to set the X value. Needs investigation into how the game presents the X cost input and how to make it navigable.
 
 ---
@@ -429,8 +325,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 5. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
 6. Extended tutorial for mod users - explain Space/Backspace behavior (confirm/cancel), the blocking system during combat, and I shortcut for extended card info and keyword descriptions
 7. Better handling of number announcements while tabbing - possibly change how Tab changes focus to reduce noisy or redundant number readouts
-8. Creature death/exile/graveyard announcements with card names
-9. Player username announcements
+8. Player username announcements
 10. Game wins display (WinPips)
 11. Token state on cards - announce token/copy status when reading card info
 14. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
@@ -446,31 +341,17 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 25. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
 26. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
 27. Hotkey to jump to attached card - when focused on an aura/equipment, press a key to navigate directly to the card it's attached to (and vice versa)
-22. Mana color picker confirmation step - add an artificial confirmation step (Tab to navigate, Enter to stage, Space to confirm) for consistency with browser/selection patterns. Currently each Enter immediately submits the color choice.
+28. Vehicle power and toughness - announce power/toughness for vehicle cards when not crewed
+29. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
 
 ### Low Priority / v1.1
 
 1. Auto version checking and auto update - check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
 2. Pack expansion selection - allow changing which expansion packs are purchased from in the store
+3. Card flipping during pack opening - allow flipping/revealing individual cards during pack opening for a more interactive experience
 
 ### Future
 
-1. Single-key info shortcuts (inspired by Hearthstone Access)
-   - Quick status queries without navigation
-   - Benefits: Faster information access, less navigation needed
-
-   **Priority shortcuts to implement:**
-
-   **K - Keyword Explanation**
-   - When focused on a card, K announces keyword abilities with definitions
-   - Example: "Flying. This creature can only be blocked by creatures with flying or reach."
-   - Requires: Keyword detection from card rules text + keyword definition database
-
-   **O - Game Log (Play History)**
-   - O: Announce recent game events (last 5-10 actions)
-   - Example: "Opponent played Mountain. You drew Lightning Bolt. Opponent attacked with Goblin."
-   - Requires: Tracking game events in DuelAnnouncer and storing history
-
-4. Verbose "Big Card" announcements (inspired by Hearthstone Access)
+1. Verbose "Big Card" announcements (inspired by Hearthstone Access)
    - Option to include card details inline with action announcements
    - User preference toggle: brief vs verbose announcements
