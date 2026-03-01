@@ -127,39 +127,8 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Custom activation logic - allows activating with 0 elements
-            // We trust Harmony: if IsSettingsMenuOpen is true, settings IS open
-            if (!_isActive)
-            {
-                if (DetectScreen())
-                {
-                    // Activate even with 0 elements - we trust Harmony
-                    _elements.Clear();
-                    _currentIndex = -1;
-                    DiscoverElements();
-
-                    _isActive = true;
-                    _currentIndex = _elements.Count > 0 ? 0 : -1;
-
-                    MelonLogger.Msg($"[{NavigatorId}] Activated with {_elements.Count} elements");
-                    OnActivated();
-
-                    if (_elements.Count > 0)
-                    {
-                        _announcer.AnnounceInterrupt(GetActivationAnnouncement());
-                    }
-                    else
-                    {
-                        // No elements yet - schedule rescan, don't announce
-                        MelonLogger.Msg($"[{NavigatorId}] No elements yet, scheduling rescan");
-                        TriggerRescan();
-                    }
-                }
-                return;
-            }
-
             // Check if settings panel changed (submenu navigation)
-            if (_settingsContentPanel != null)
+            if (_isActive && _settingsContentPanel != null)
             {
                 string currentPanelName = _settingsContentPanel.name;
                 if (_lastPanelName != currentPanelName)
@@ -170,15 +139,38 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Validate we should stay active
-            if (!ValidateElements())
-            {
-                Deactivate();
-                return;
-            }
+            // Base handles: activation, delayed announcements, validation, input, input field tracking
+            base.Update();
+        }
 
-            // Handle input
-            HandleInput();
+        /// <summary>
+        /// Custom activation: allows activating with 0 elements.
+        /// We trust Harmony: if IsSettingsMenuOpen is true, settings IS open.
+        /// </summary>
+        protected override void TryActivate()
+        {
+            if (!DetectScreen()) return;
+
+            _elements.Clear();
+            _currentIndex = -1;
+            DiscoverElements();
+
+            _isActive = true;
+            _currentIndex = _elements.Count > 0 ? 0 : -1;
+
+            MelonLogger.Msg($"[{NavigatorId}] Activated with {_elements.Count} elements");
+            OnActivated();
+
+            if (_elements.Count > 0)
+            {
+                _announcer.AnnounceInterrupt(GetActivationAnnouncement());
+            }
+            else
+            {
+                // No elements yet - schedule rescan, don't announce
+                MelonLogger.Msg($"[{NavigatorId}] No elements yet, scheduling rescan");
+                TriggerRescan();
+            }
         }
 
         protected override bool ValidateElements()
@@ -305,8 +297,19 @@ namespace AccessibleArena.Core.Services
                     float sortOrder = -pos.y * 1000 + pos.x;
                     discoveredElements.Add((obj, classification, sortOrder));
                     addedObjects.Add(obj);
+
+                    // If this element wraps a slider child, mark the child as handled
+                    // to prevent duplicate entries when FindObjectsOfType<Slider> runs
+                    if (classification.SliderComponent != null && classification.SliderComponent.gameObject != obj)
+                    {
+                        addedObjects.Add(classification.SliderComponent.gameObject);
+                    }
                 }
             }
+
+            // Find Settings custom controls (dropdowns, steppers) FIRST
+            // so that parent stepper controls with slider children get priority
+            FindSettingsCustomControls(TryAddElement);
 
             // Find CustomButtons in settings
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
@@ -343,9 +346,6 @@ namespace AccessibleArena.Core.Services
                 if (dropdown != null && dropdown.interactable)
                     TryAddElement(dropdown.gameObject);
             }
-
-            // Find Settings custom controls (dropdowns, steppers)
-            FindSettingsCustomControls(TryAddElement);
 
             // Sort by position and add elements
             foreach (var (obj, classification, _) in discoveredElements.OrderBy(x => x.sortOrder))

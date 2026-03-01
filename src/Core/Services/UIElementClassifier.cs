@@ -105,6 +105,8 @@ namespace AccessibleArena.Core.Services
             Link,
             Toggle,
             Slider,
+            Stepper,
+            Carousel,
             Dropdown,
             TextField,
             ProgressBar,
@@ -208,9 +210,27 @@ namespace AccessibleArena.Core.Services
             if (!IsSettingsStepperControl(obj, objName, out string label, out string value, out GameObject increment, out GameObject decrement))
                 return null;
 
+            // Check if this stepper control contains a Slider child — if so, use direct slider manipulation
+            // for precise 5% steps instead of relying on game's Increment/Decrement button step size
+            var slider = obj.GetComponentInChildren<Slider>();
+            if (slider != null && slider.interactable)
+            {
+                int percent = CalculateSliderPercent(slider);
+                return new ClassificationResult
+                {
+                    Role = ElementRole.Slider,
+                    Label = label,
+                    RoleLabel = Models.Strings.RoleSliderValue(percent),
+                    IsNavigable = true,
+                    ShouldAnnounce = true,
+                    HasArrowNavigation = true,
+                    SliderComponent = slider
+                };
+            }
+
             return new ClassificationResult
             {
-                Role = ElementRole.Button,
+                Role = ElementRole.Stepper,
                 Label = !string.IsNullOrEmpty(value) ? $"{label}: {value}" : label,
                 RoleLabel = Models.Strings.RoleStepperHint,
                 IsNavigable = true,
@@ -263,7 +283,7 @@ namespace AccessibleArena.Core.Services
 
             return new ClassificationResult
             {
-                Role = ElementRole.Button,
+                Role = ElementRole.Stepper,
                 Label = label,
                 RoleLabel = Models.Strings.RoleStepperHint,
                 IsNavigable = true,
@@ -399,7 +419,7 @@ namespace AccessibleArena.Core.Services
             {
                 return new ClassificationResult
                 {
-                    Role = ElementRole.Button,
+                    Role = ElementRole.Carousel,
                     Label = GetCleanLabel(text, objName),
                     RoleLabel = Models.Strings.RoleCarouselHint,
                     IsNavigable = true,

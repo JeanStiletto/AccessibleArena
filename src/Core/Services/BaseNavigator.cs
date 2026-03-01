@@ -252,6 +252,35 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Update slider labels - re-read current slider value
+            if (role == UIElementClassifier.ElementRole.Slider)
+            {
+                var slider = obj.GetComponent<Slider>();
+                if (slider == null) slider = obj.GetComponentInChildren<Slider>();
+                if (slider != null)
+                {
+                    var classification = UIElementClassifier.Classify(obj);
+                    if (classification != null && classification.IsNavigable)
+                    {
+                        label = string.IsNullOrEmpty(classification.RoleLabel)
+                            ? classification.Label
+                            : $"{classification.Label}, {classification.RoleLabel}";
+                    }
+                }
+            }
+
+            // Update stepper labels - re-read current value from text children
+            if (role == UIElementClassifier.ElementRole.Stepper)
+            {
+                var classification = UIElementClassifier.Classify(obj);
+                if (classification != null && classification.IsNavigable)
+                {
+                    label = string.IsNullOrEmpty(classification.RoleLabel)
+                        ? classification.Label
+                        : $"{classification.Label}, {classification.RoleLabel}";
+                }
+            }
+
             return label;
         }
 
@@ -448,7 +477,7 @@ namespace AccessibleArena.Core.Services
             _inputFieldHelper.TrackState(info);
         }
 
-        private void TryActivate()
+        protected virtual void TryActivate()
         {
             if (!DetectScreen()) return;
 
@@ -1266,36 +1295,24 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Handle slider value adjustment via arrow keys.
-        /// Adjusts by 5% per keypress.
+        /// Handle slider arrow keys by letting Unity's built-in Slider.OnMove do the work (10% steps).
+        /// We just ensure the slider is selected and schedule a delayed announcement.
         /// </summary>
         private bool HandleSliderArrow(Slider slider, bool isNext)
         {
             if (slider == null || !slider.interactable)
                 return false;
 
-            float range = slider.maxValue - slider.minValue;
-            float step = range * 0.05f;  // 5% step
-
-            float newValue = isNext
-                ? Mathf.Min(slider.value + step, slider.maxValue)
-                : Mathf.Max(slider.value - step, slider.minValue);
-
-            // Check if at boundary
-            if ((isNext && slider.value >= slider.maxValue) ||
-                (!isNext && slider.value <= slider.minValue))
+            // Ensure slider is selected in Unity's EventSystem so its built-in
+            // OnMove handles the value change (10% steps per arrow key press)
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null && eventSystem.currentSelectedGameObject != slider.gameObject)
             {
-                int currentPercent = Mathf.RoundToInt((slider.value - slider.minValue) / range * 100);
-                _announcer.Announce(Strings.Percent(currentPercent), AnnouncementPriority.Normal);
-                return true;
+                eventSystem.SetSelectedGameObject(slider.gameObject);
             }
 
-            slider.value = newValue;
-
-            // Announce new value
-            int percent = Mathf.RoundToInt((newValue - slider.minValue) / range * 100);
-            MelonLogger.Msg($"[{NavigatorId}] Slider {(isNext ? "increase" : "decrease")}: {percent}%");
-            _announcer.AnnounceInterrupt(Strings.Percent(percent));
+            // Schedule delayed announcement — Unity needs a frame to process the value change
+            _stepperAnnounceDelay = StepperAnnounceDelaySeconds;
 
             return true;
         }
@@ -1403,14 +1420,27 @@ namespace AccessibleArena.Core.Services
             {
                 // Re-classify to get the updated label with new value
                 var classification = UIElementClassifier.Classify(currentElement);
-                string newLabel = classification.Label;
 
-                // Update cached label in our element list
+                // Update cached label and role in our element list
                 var updatedElement = _elements[_currentIndex];
                 updatedElement.Label = BuildElementLabel(classification);
+                updatedElement.Role = classification.Role;
                 _elements[_currentIndex] = updatedElement;
 
-                _announcer.Announce(newLabel, AnnouncementPriority.High);
+                // For sliders, announce just the percent value
+                if (classification.Role == UIElementClassifier.ElementRole.Slider && classification.SliderComponent != null)
+                {
+                    var slider = classification.SliderComponent;
+                    float range = slider.maxValue - slider.minValue;
+                    int percent = range > 0 ? Mathf.RoundToInt((slider.value - slider.minValue) / range * 100) : 0;
+                    MelonLogger.Msg($"[{NavigatorId}] Slider value: {percent}%");
+                    _announcer.AnnounceInterrupt(Strings.Percent(percent));
+                }
+                else
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Stepper value updated: {classification.Label}");
+                    _announcer.Announce(classification.Label, AnnouncementPriority.High);
+                }
             }
         }
 
