@@ -3084,6 +3084,10 @@ namespace AccessibleArena.Core.Services
             if (DetectActiveContentController() == "ProgressionTracksContentController")
                 return false;
 
+            // Don't activate when Codex/LearnToPlay is active - let CodexNavigator handle it
+            if (DetectActiveContentController() == "LearnToPlayControllerV2")
+                return false;
+
             // Don't activate when game loading panel overlay is showing (e.g. after scene transition)
             if (IsLoadingPanelShowing())
             {

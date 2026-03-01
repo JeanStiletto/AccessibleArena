@@ -321,7 +321,7 @@ namespace AccessibleArena.Core.Services
                 "ContentController_StoreCarousel" => Strings.ScreenStore,
                 "MasteryContentController" => Strings.ScreenMastery,
                 "AchievementsContentController" => Strings.ScreenAchievements,
-                "LearnToPlayControllerV2" => Strings.ScreenLearnToPlay,
+                "LearnToPlayControllerV2" => Strings.ScreenCodex,
                 "PackOpeningController" => Strings.ScreenPackOpening,
                 "CampaignGraphContentController" => Strings.ScreenColorChallenge,
                 "WrapperDeckBuilder" => Strings.ScreenDeckBuilder,

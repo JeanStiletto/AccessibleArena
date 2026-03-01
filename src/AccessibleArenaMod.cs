@@ -119,6 +119,7 @@ namespace AccessibleArena
                 new LoadingScreenNavigator(_announcer),  // MatchEnd/Matchmaking transitional screens (priority 65)
                 new MasteryNavigator(_announcer),            // Mastery/Rewards screen - levels and rewards (priority 60)
                 new StoreNavigator(_announcer),           // Store screen - tabs and items (priority 55)
+                new CodexNavigator(_announcer),            // Codex/LearnToPlay screen (priority 50)
                 // CodeOfConductNavigator removed - default navigation handles this screen
                 new GeneralMenuNavigator(_announcer),
                 // EventTriggerNavigator removed - GeneralMenuNavigator now handles NPE screens

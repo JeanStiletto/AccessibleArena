@@ -1149,6 +1149,19 @@ namespace AccessibleArena.Core.Models
         public static string RoleCarouselHint => $"{RoleCarousel}, {HintUseLeftRightArrows}";
 
         // ===========================================
+        // CODEX (Learn to Play / Codex of the Multiverse)
+        // ===========================================
+        public static string ScreenCodex => L.Get("ScreenCodex");
+        public static string CodexActivation(int topicCount) => L.Format("CodexActivation_Format", topicCount);
+        public static string CodexContentOpened(int paragraphCount) => L.Format("CodexContentOpened_Format", paragraphCount);
+        public static string CodexContentBlock(int current, int total) => L.Format("CodexContentBlock_Format", current, total);
+        public static string CodexCreditsOpened => L.Get("CodexCreditsOpened");
+        public static string CodexExpanded(string topicName) => L.Format("CodexExpanded_Format", topicName);
+        public static string CodexCollapsed(string topicName) => L.Format("CodexCollapsed_Format", topicName);
+        public static string CodexSection => L.Get("CodexSection");
+        public static string CodexNoContent => L.Get("CodexNoContent");
+
+        // ===========================================
         // CRAFT CONFIRMATION
         // ===========================================
         public static string CraftConfirmTitle => L.Get("CraftConfirm_Title");
