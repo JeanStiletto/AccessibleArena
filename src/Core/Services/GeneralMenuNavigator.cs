@@ -448,6 +448,9 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Challenge screen became active (state={bladeState}) - initializing helper ({source})");
                 _challengeHelper.OnChallengeOpened();
+                // Rescan so EnhanceButtonLabel can apply challenge-specific labels.
+                // The initial scan may have run before the challenge context was set.
+                TriggerRescan();
             }
             else if (!isChallengeNow && helperIsActive)
             {

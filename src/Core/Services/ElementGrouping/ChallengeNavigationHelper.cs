@@ -253,14 +253,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             string name = element.name;
 
-            // Enemy player action buttons (icon-only)
-            if (name == "KickPlayer_SecondaryButton")
-                return Models.Strings.ChallengeKickOpponent;
-            if (name == "BlockPlayer_SecondaryButton")
-                return Models.Strings.ChallengeBlockOpponent;
-            if (name == "AddFriend_SecondaryButton")
-                return Models.Strings.ChallengeAddFriend;
-
             // Main challenge button: prefix with player name + append status text
             if (name == "UnifiedChallenge_MainButton")
             {

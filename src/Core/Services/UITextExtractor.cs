@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -10,6 +11,20 @@ namespace AccessibleArena.Core.Services
     /// </summary>
     public static class UITextExtractor
     {
+        /// <summary>
+        /// Centralized fallback labels for buttons that have no text components or tooltips.
+        /// Checked just before the CleanObjectName fallback. Uses Func&lt;string&gt; because
+        /// locale strings resolve at runtime via LocaleManager.Instance.
+        /// </summary>
+        private static readonly Dictionary<string, System.Func<string>> FallbackLabels =
+            new Dictionary<string, System.Func<string>>
+        {
+            { "Invite Button", () => Models.Strings.ScreenInviteFriend },
+            { "KickPlayer_SecondaryButton", () => Models.Strings.ChallengeKickOpponent },
+            { "BlockPlayer_SecondaryButton", () => Models.Strings.ChallengeBlockOpponent },
+            { "AddFriend_SecondaryButton", () => Models.Strings.ChallengeAddFriend },
+        };
+
         /// <summary>
         /// Checks if the GameObject has actual text content (not just object name fallback).
         /// Used to distinguish elements with real labels from those with only internal names.
@@ -230,6 +245,10 @@ namespace AccessibleArena.Core.Services
             {
                 return friendsWidgetLabel;
             }
+
+            // Centralized fallback for known unlabeled buttons
+            if (FallbackLabels.TryGetValue(gameObject.name, out var fallbackFunc))
+                return fallbackFunc();
 
             // Fallback to GameObject name (cleaned up)
             return CleanObjectName(gameObject.name);
