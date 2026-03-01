@@ -61,6 +61,12 @@ All notable changes to Accessible Arena.
 - Uses `HandleEarlyInput()` hook to route popup input before BaseNavigator's auto-focus logic can intercept it
 - Files: BaseNavigator.cs, GeneralMenuNavigator.cs, SettingsMenuNavigator.cs
 
+### Fixed: Friends Panel Add Friend/Challenge Labels
+- FriendsWidget action buttons now prefer localized tooltip/locale text instead of cleaned GameObject names
+- `Button_AddFriend` and `Button_AddChallenge` now resolve to locale keys when no direct label text is present
+- Tooltip fallback now checks parent containers so hitbox children can use their parent `TooltipTrigger` localization
+- Files: UITextExtractor.cs
+
 ## v0.7.2 - 2026-02-26
 
 ### New: Land Summary Shortcut (M / Shift+M)

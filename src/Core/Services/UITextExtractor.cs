@@ -204,14 +204,6 @@ namespace AccessibleArena.Core.Services
                 return siblingText;
             }
 
-            // For FriendsWidget elements, try to get label from parent object name
-            // Pattern: Button_AddFriend/Backer_Hitbox -> "Add Friend"
-            string friendsWidgetLabel = TryGetFriendsWidgetLabel(gameObject);
-            if (!string.IsNullOrEmpty(friendsWidgetLabel))
-            {
-                return friendsWidgetLabel;
-            }
-
             // For Mailbox items, try to get the mail title (skip "Neu" badge)
             string mailboxTitle = TryGetMailboxItemTitle(gameObject);
             if (!string.IsNullOrEmpty(mailboxTitle))
@@ -219,11 +211,19 @@ namespace AccessibleArena.Core.Services
                 return mailboxTitle;
             }
 
-            // Try TooltipTrigger LocString as fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn)
+            // Try TooltipTrigger LocString as fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn).
+            // Check parents too because some clickable hitboxes have TooltipTrigger on a parent container.
             string tooltipText = TryGetTooltipText(gameObject);
             if (!string.IsNullOrEmpty(tooltipText))
             {
                 return tooltipText;
+            }
+
+            // For FriendsWidget elements, use localized labels before object-name cleanup fallback.
+            string friendsWidgetLabel = TryGetFriendsWidgetLabel(gameObject);
+            if (!string.IsNullOrEmpty(friendsWidgetLabel))
+            {
+                return friendsWidgetLabel;
             }
 
             // Fallback to GameObject name (cleaned up)
@@ -1131,6 +1131,12 @@ namespace AccessibleArena.Core.Services
 
             string parentName = parent.name;
 
+            // Prefer explicit localization keys for known FriendsWidget action buttons.
+            if (parentName.Contains("AddFriend"))
+                return LocaleManager.Instance?.Get("GroupFriendsPanelAddFriend") ?? "Add Friend";
+            if (parentName.Contains("AddChallenge") || parentName.Contains("Challenge"))
+                return LocaleManager.Instance?.Get("GroupFriendsPanelChallenge") ?? "Challenge";
+
             // Pattern: Button_Something -> "Something"
             if (parentName.StartsWith("Button_"))
             {
@@ -1229,6 +1235,26 @@ namespace AccessibleArena.Core.Services
         /// that have no text content but have a localized tooltip.
         /// </summary>
         private static string TryGetTooltipText(GameObject gameObject)
+        {
+            if (gameObject == null) return null;
+
+            Transform current = gameObject.transform;
+            int maxLevels = 4; // self + up to 3 parents
+
+            while (current != null && maxLevels > 0)
+            {
+                string text = TryGetTooltipTextFromObject(current.gameObject);
+                if (!string.IsNullOrEmpty(text))
+                    return text;
+
+                current = current.parent;
+                maxLevels--;
+            }
+
+            return null;
+        }
+
+        private static string TryGetTooltipTextFromObject(GameObject gameObject)
         {
             if (gameObject == null) return null;
 

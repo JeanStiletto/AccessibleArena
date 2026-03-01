@@ -55,14 +55,6 @@ Starting a bot match from the "Recent Played" section does not work properly.
 
 ---
 
-### Friends Panel "add friend" / "add challenge" Buttons Show English Labels
-
-The "add friend" and "add challenge" buttons in the FriendsWidget show English GameObject names instead of localized text. Our text extraction falls back to the GameObject name (`Button_AddFriend`, `Button_AddChallenge`) when it can't find the localized TextMeshProUGUI label. The actual localized text likely lives on a child object or uses a different text component that we miss.
-
-**Path:** `FriendsWidget_Desktop_16x9(Clone)/FriendWidget_Base/Button_AddFriend/Backer_Hitbox`
-
----
-
 ### Haide Land Browser Broken (Leicht Gepanzert Deck)
 
 The Haide land (from the "Leicht Gepanzert" Brawl deck) opens a color picker browser to choose a mana color except white. This browser is not handled correctly and breaks navigation.
