@@ -4,6 +4,14 @@ All notable changes to Accessible Arena.
 
 ## v0.7.4-dev
 
+### Fix: SelectNCounters Color Selection Browser
+- Lands with "choose a color" ETB triggers (e.g. Thriving Heath / Gedeihende Heide) use a `SelectColorWorkflow` that reuses the `BrowserScaffold_SelectNCounters` scaffold with a scrollable list of color options
+- Previously blocked all input because the scaffold had no cards and the color text options were not discovered
+- Extended `DiscoverLargeScrollListChoices` to also run for `SelectNCounters` browsers when no cards are found, discovering clickable color options (e.g. "Blau", "Schwarz", "Rot", "Grün")
+- Added post-confirm browser re-entry: when the same scaffold is reused for a new interaction (counter placement -> color selection), the browser now forces a full re-discovery instead of staying in stale state
+- Also detects scaffold instance changes (different GameObject, same type) for re-entry
+- Files: `BrowserNavigator.cs`
+
 ### New: Codex of the Multiverse Accessibility
 - Full keyboard navigation for the Codex of the Multiverse (Learn to Play) screen
 - Hierarchical table of contents with drill-down navigation: Enter to open categories, Backspace to go back
@@ -622,6 +630,7 @@ All notable changes to Accessible Arena.
 - Keyword choice browsers (e.g. Entstellender Künstler with 3+ choices) now discover actual choice buttons
 - Previously only scaffold controls (2Button_Left, MainButton, etc.) were found because choice buttons don't match standard ButtonPatterns
 - New `DiscoverLargeScrollListChoices` scans for all clickable elements that aren't standard scaffold buttons
+- Also used by `SelectNCounters` scaffold for color selection (SelectColorWorkflow) - see v0.7.4 fix
 - Choices ordered first in Tab navigation, scaffold controls last
 - Files: `BrowserNavigator.cs`
 

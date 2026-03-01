@@ -46,6 +46,9 @@ namespace AccessibleArena.Core.Services
         private int _assignerTotal;   // total number of damage assigners in this combat
         private static readonly BindingFlags ReflFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
 
+        // Post-confirm rescan: force re-entry when scaffold is reused for a new interaction
+        private bool _pendingRescan;
+
         // Multi-zone browser state (SelectCardsMultiZone)
         private bool _isMultiZone;
         private List<GameObject> _zoneButtons = new List<GameObject>();
@@ -122,6 +125,21 @@ namespace AccessibleArena.Core.Services
                     ExitBrowserMode();
                     EnterBrowserMode(browserInfo);
                 }
+                // Re-enter if same type but different scaffold instance
+                else if (browserInfo.BrowserGameObject != _browserInfo?.BrowserGameObject)
+                {
+                    MelonLogger.Msg($"[BrowserNavigator] Browser scaffold instance changed for: {browserInfo.BrowserType}");
+                    ExitBrowserMode();
+                    EnterBrowserMode(browserInfo);
+                }
+                // Re-enter after confirm when scaffold is reused with new content
+                else if (_pendingRescan)
+                {
+                    _pendingRescan = false;
+                    MelonLogger.Msg($"[BrowserNavigator] Re-scanning browser after confirm: {browserInfo.BrowserType}");
+                    ExitBrowserMode();
+                    EnterBrowserMode(browserInfo);
+                }
             }
             else
             {
@@ -184,6 +202,7 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _browserInfo = null;
             _hasAnnouncedEntry = false;
+            _pendingRescan = false;
             _browserCards.Clear();
             _browserButtons.Clear();
             _currentCardIndex = -1;
@@ -573,9 +592,13 @@ namespace AccessibleArena.Core.Services
                 FindButtonsInContainer(_browserInfo.BrowserGameObject);
             }
 
-            // For LargeScrollList (keyword choice UI), discover actual choice buttons
-            // that don't match standard ButtonPatterns (e.g. "Eine Karte abwerfen")
-            if (_browserInfo.BrowserType == "LargeScrollList" && _browserInfo.BrowserGameObject != null)
+            // For scaffold browsers with scrollable option lists, discover clickable text
+            // choices that don't match standard ButtonPatterns (e.g. "Eine Karte abwerfen",
+            // color choices like "Blau"/"Schwarz" from SelectColorWorkflow).
+            // SelectNCounters scaffold is reused for both counter and color selection.
+            if (_browserCards.Count == 0 && _browserInfo.BrowserGameObject != null
+                && (_browserInfo.BrowserType == "LargeScrollList"
+                    || _browserInfo.BrowserType == "SelectNCounters"))
             {
                 DiscoverLargeScrollListChoices(_browserInfo.BrowserGameObject);
             }
@@ -1617,6 +1640,9 @@ namespace AccessibleArena.Core.Services
         private void ClickConfirmButton()
         {
             MelonLogger.Msg($"[BrowserNavigator] ClickConfirmButton called. Browser: {_browserInfo?.BrowserType}");
+
+            // Signal re-entry on next frame in case the scaffold is reused for a new interaction
+            _pendingRescan = true;
 
             string clickedLabel;
 
