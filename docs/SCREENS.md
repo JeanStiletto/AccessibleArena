@@ -69,6 +69,12 @@ Note: Reward popups are handled by `RewardPopupNavigator` (see below).
 - Enter: Activate buttons
 - Backspace: Dismiss overlay
 
+### Navbar Currency Labels
+Nav_Coins and Nav_Gems buttons announce "Gold: amount" / "Gems: amount". Nav_WildCard reads per-rarity wildcard counts and vault progress from tooltip text. These buttons appear in appropriate screens (home, deck builder, booster chamber).
+
+### Extended Card Info (I Key)
+The I key opens a navigable modal menu showing individual ability texts and linked face info for the currently focused card. Works in all screens (deck builder, collection, store, draft, duel) - not limited to duels. When outside duels, extracts abilities directly from card model. Each keyword or ability is a separate navigable entry. Navigate with Up/Down, close with I/Backspace/Escape.
+
 ## Login Flow
 
 All Login scene panels are handled by `GeneralMenuNavigator` with automatic panel detection.
@@ -159,6 +165,7 @@ The Booster Chamber screen displays available booster packs in a horizontal caro
 **Elements (flat navigation, no groups):**
 - Wildcard progress bars (`ObjectiveGraphics` in `WildcardProgressUncommon`/`Wildcard Progress Rare`) - Shows vault fill percentage
 - Open All button (`Button_OpenMultiple`) - Opens all packs at once
+- Nav_WildCard button - Shows per-rarity wildcard counts and vault progress
 - Pack carousel (single element) - All packs combined into one navigable carousel element
 
 **Pack Carousel:**
@@ -231,6 +238,11 @@ The Deck Management screen shows all decks organized into folders (My Decks, Sta
 - Right Arrow on deck: Open actions menu (Rename, Edit, Details, Favorite, Clone, Export, Delete)
 - Backspace: Exit folder or go back
 
+**Deck Validity Status:**
+Deck announcements include validity status when a deck has issues:
+- "invalid deck", "N invalid cards", "missing cards", "missing cards, craftable", "invalid companion", "unavailable"
+- Right arrow on an invalid deck reads the detailed reason (localized tooltip with banned card counts, wildcard costs, companion issues)
+
 **Deck Actions (Right Arrow menu):**
 Deck-specific toolbar buttons (Edit, Delete, Export, Favorite, Clone, Details) are hidden from top-level navigation since they require a deck to be selected. They are accessible via the Right Arrow actions menu on each deck entry.
 
@@ -261,6 +273,7 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - `DeckBuilderInfo` - Deck statistics (card count, types, mana curve) with 2D sub-navigation
 - `Filters` - Color checkboxes, type filters, advanced filters
 - `Content` - Header controls (Sideboard toggle, deck name, etc.)
+- `Progress` - Nav_WildCard button (wildcard counts and vault progress)
 
 **Navigation:**
 - Arrow Up/Down: Navigate between groups and elements

@@ -85,11 +85,9 @@ Pressing Enter on specific Progress items for certain modes opens the correspond
 
 ---
 
-### Multi-Zone Browser UI Needs Improvement
+### Multi-Zone Browser Navigation
 
-First iteration of multi-zone browser works but UI can be improved:
-- Add better zone change system (current Up/Down cycling is basic)
-- Remove "view battlefield" button that appears in the tab order but is not useful for accessibility
+Multi-zone browsers (e.g., spells targeting both graveyards) have zone selector navigation with Up/Down to cycle zones and Tab to move to cards. View Battlefield button has been removed. Zone buttons use localized names (e.g., "Dein Friedhof"). False positive multi-zone scaffolds (single-zone spells) are correctly filtered. Invisible scaffold layout buttons are filtered via CanvasGroup alpha check.
 
 ---
 
@@ -98,22 +96,6 @@ First iteration of multi-zone browser works but UI can be improved:
 Sometimes abilities on the stack only show the Name and Type blocks but not the rules text block.
 
 ---
-
-### Some Tutorial Messages Not Localized
-
-Some tutorial hint messages like "button", "activated" are still hardcoded in English instead of going through LocaleManager.
-
----
-
-### Item Count Spoken Before Menu Entry
-
-The item count is announced before the menu entry announcement. It should be the last thing spoken.
-
----
-
-### Color Pips Not Localized
-
-Mana color pips (W/U/B/R/G) in card costs and other contexts are not localized to the user's language.
 
 ---
 
@@ -219,13 +201,13 @@ The damage assignment browser submit currently uses direct DoneAction invocation
 
 ### Long Scroll List Browsers
 
-Browsers that use long scroll lists (virtualized/recycled item views) may not work correctly with the mod's browser navigation. Cards outside the visible viewport may not be accessible or may cause issues when selected.
+Browsers that use long scroll lists (virtualized/recycled item views) may not work correctly. Duplicate items and junk elements (Primary_Base, ViewBattlefield) have been filtered, but cards outside the visible viewport may still not be accessible.
 
 ---
 
 ### Yes/No Prompts While Duelling
 
-Yes/No prompt dialogs that appear during a duel may not be detected or navigable. Needs testing to confirm whether these prompts are announced and whether the buttons can be activated.
+Yes/No browser buttons (2Button_Left/Right) had alpha=0 and were filtered out. Fix keeps buttons with meaningful text even when alpha=0. Needs testing to confirm prompts are now navigable.
 
 ---
 
@@ -237,7 +219,7 @@ Mulliganing down to 3 or fewer cards may behave incorrectly. Needs testing wheth
 
 ### Sideboard Cards in Draft/Sealed Deck Building
 
-Pool cards are now always classified as "Collection" (DeckBuilderCollection). Actual sideboard cards (non-MainDeck holders inside MetaCardHolders_Container) are detected separately. This works correctly for normal deck building, but in draft/sealed the pool cards may conceptually be the sideboard. Needs testing whether draft/sealed sideboard cards are still properly detected and navigable.
+Pool cards are now classified as "Sideboard" (DeckBuilderSideboard) when editing a deck, and "Collection" when browsing without a deck. Sideboard cards use quantity-prefixed labels ("1x Card Name"). Needs testing whether draft/sealed sideboard cards are still properly detected and navigable.
 
 ---
 
@@ -265,23 +247,15 @@ When starting an event (entering the event page), the game shows a tooltip with 
 
 ---
 
-### Challenge Screen (Work In Progress)
+### Challenge Screen
 
-The direct challenge screen (via friends panel "Challenge" button) is partially implemented. What works:
+The direct challenge screen is mostly functional. Working: screen detection, stepper controls with Left/Right, deck selection via folder navigation, main button with challenge status text, opponent join/leave polling, match countdown detection, icon-only enemy button labels (Kick/Block/Add Friend), locked spinner prefix when opponent is host, tournament parameter announcements.
 
-- **Screen detection**: PlayBladeState "Challenge" recognized as state 2 (DirectChallenge), screen announced as "Direct Challenge"
-- **Stepper controls**: Popout options (Deck Type, Format, Coin Flip, Match Type) work as steppers with Left/Right arrows via Spinner_OptionSelector reflection
-- **Overlay filtering**: Challenge containers (ChallengeOptions, UnifiedChallenges, Popout_Play, FriendChallengeBladeWidget) pass the PlayBlade overlay filter
-- **Group assignment**: Challenge elements correctly classified as PlayBladeContent (bypassing Popup and FriendsPanel group conflicts via IsInsidePlayBlade guards)
-- **Grouped navigation**: Enabled with PlayBladeContent auto-entry and position restore after spinner rescan
+Remaining issues:
+- **Deck selection timing**: DeckSelectBlade opens when spinner values change; rescan timing may occasionally miss
+- **Leave/Invite buttons**: Become INACTIVE when DeckSelectBlade opens (game hides container)
 
-Known issues still to address:
-- **Deck selection**: DeckSelectBlade opens when spinner values change, adding ~120 deck entries. Deck pairing (UI/TextBox dedup) and folder grouping should work via existing PlayBlade patterns but needs testing
-- **Stepper carousel in grouped mode**: HandleCarouselArrow syncs _currentIndex with GroupedNavigator.CurrentElement, but this is new code and needs verification
-- **Auto-entry after rescan**: RequestPlayBladeContentEntryAtIndex restores user position after spinner rescan, bypassing the SaveCurrentGroupForRestore mechanism which is skipped in PlayBlade context. Needs testing
-- **Leave/Invite buttons**: MainButton_Leave and Invite Button become INACTIVE when DeckSelectBlade opens (game hides UnifiedChallengesCONTAINER). Alternative: UnifiedChallenge_MainButton ("Warten") and NoDeck ("Select Deck") stay active in Popout_Play/FriendChallengeBladeWidget
-
-**Files:** `HarmonyPanelDetector.cs`, `OverlayDetector.cs`, `ElementGroupAssigner.cs`, `GroupedNavigator.cs`, `GeneralMenuNavigator.cs`, `BaseNavigator.cs`, `UIElementClassifier.cs`, `UIActivator.cs`
+**Files:** `ChallengeNavigationHelper.cs`, `GeneralMenuNavigator.cs`
 
 ---
 

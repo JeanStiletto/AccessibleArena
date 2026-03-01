@@ -27,6 +27,9 @@
         CardModelProvider.cs     - Card data from game models (deck list, collection, attachments, targeting)
         CardPoolAccessor.cs      - Reflection wrapper for CardPoolHolder (collection page API)
         RecentPlayAccessor.cs    - Reflection wrapper for LastPlayedBladeContentView (Recent tab tiles)
+        CraftConfirmationPopup.cs - Custom Unity UI popup for wildcard craft confirmation (under investigation)
+        InputFieldEditHelper.cs  - Shared input field edit mode logic (used by BaseNavigator + PopupHandler)
+        MenuDebugHelper.cs       - UI investigation utilities (DumpGameObjectDetails, LogTooltipTriggerDetails)
 
         # Central Services (held by main mod)
         AnnouncementService.cs   - Speech output management
@@ -42,7 +45,7 @@
         CombatNavigator.cs       - Combat phase navigation (declare attackers/blockers)
         PlayerPortraitNavigator.cs - Player info zone (V key, life/timer/emotes)
         HelpNavigator.cs         - F1 help menu with navigable keybind list
-        ExtendedInfoNavigator.cs - I key extended card info (navigable keyword/face menu)
+        ExtendedInfoNavigator.cs - I key extended card info (navigable keyword/face menu, works in all screens)
         PriorityController.cs    - Full control toggle (P/Shift+P) and phase stop hotkeys (1-0)
 
         # Browser Navigation (library manipulation - scry, surveil, mulligan)
@@ -149,6 +152,7 @@
 - [x] NPERewardNavigator - NPE reward screens (chest, deck boxes)
 - [x] StoreNavigator - Store screen with tab/item/purchase navigation, card details view, popup handling
 - [x] MasteryNavigator - Mastery/Rewards screen with level navigation, reward tiers, XP progress, action buttons
+- [x] CodexNavigator - Codex of the Multiverse / Learn to Play (TOC drill-down, content, credits)
 
 ### Menu Panel Detection (Harmony Patches)
 - [x] PanelStatePatch - Harmony patches for panel state changes
@@ -556,7 +560,8 @@ Refactored into 3 files following the CardDetector/DuelNavigator/ZoneNavigator p
 - Opening Hand/Mulligan - View starting hand, keep or mulligan
 - AssignDamage - Distribute attacker's combat damage among blockers (see below)
 - ViewDismiss - Card preview popup (auto-dismissed, see below)
-- Generic browsers - YesNo, Dungeon, SelectCards, etc. (Tab + Enter)
+- SelectCardsMultiZone - Cards from multiple zones with zone selector (Up/Down cycles zones, Tab moves to cards)
+- Generic browsers - YesNo, Dungeon, SelectCards, OptionalAction, etc. (Tab + Enter)
 
 **ViewDismiss Auto-Dismiss:**
 - The game opens a `BrowserScaffold_ViewDismiss` popup when clicking on graveyard/exile cards

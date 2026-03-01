@@ -275,7 +275,7 @@ if (buttonText.Contains("Attack")) // Fails in German!
 This pattern is used in:
 - `CombatNavigator` - Space clicks Primary, Backspace clicks Secondary
 - `BrowserNavigator` - Space clicks Primary (confirm), Backspace clicks Secondary (cancel)
-- `DiscardNavigator` - Finds Primary button and extracts count from text
+- `HotHighlightNavigator` - Finds Primary button and extracts count from text (selection mode)
 
 ### Input Field Text
 - Empty fields contain zero-width space (U+200B), not empty string
@@ -584,8 +584,8 @@ In selection browsers, cards represent options with different effects, so rules 
 ### ExtendedInfoNavigator
 Modal navigable menu for extended card info (I key). Follows the same pattern as HelpNavigator.
 
-**Opening:** Called from DuelNavigator when I key is pressed while a card is focused.
-Items are built dynamically from the focused card's keyword descriptions and linked face info.
+**Opening:** Called from any navigator (DuelNavigator, BaseNavigator) when I key is pressed while a card is focused.
+Items are built dynamically from the focused card's keyword descriptions and linked face info. Works in all screens - outside duels, extracts individual ability texts from card model directly when AbilityHangerProvider is unavailable.
 
 ```csharp
 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
@@ -886,19 +886,19 @@ The duel scene has multiple "modes" that affect input handling. With unified Hot
 mode tracking is simpler - we trust the game's highlight system.
 
 **Modes (Simplified):**
-1. **Highlight Mode** (HotHighlightNavigator) - Tab cycles whatever game highlights (targets OR playable cards)
-2. **Discard Mode** (DiscardNavigator) - Enter/Space during discard
-3. **Combat Phase** (CombatNavigator) - Space during declare attackers/blockers
-4. **Normal Mode** - Zone navigation
+1. **Highlight/Selection Mode** (HotHighlightNavigator) - Tab cycles whatever game highlights (targets, playable cards, or selection mode for discard/exile choices)
+2. **Combat Phase** (CombatNavigator) - Space during declare attackers/blockers
+3. **Normal Mode** - Zone navigation
 
 **Input Priority in DuelNavigator.HandleCustomInput():**
 ```
-1. BrowserNavigator       → Scry/Surveil/Mulligan browsers
-2. DiscardNavigator       → Enter/Space during discard mode
-3. CombatNavigator        → Space during declare attackers/blockers
-4. HotHighlightNavigator  → Tab/Enter/Backspace for highlights (UNIFIED)
-5. BattlefieldNavigator   → A/R/B shortcuts, row navigation
-6. ZoneNavigator          → C/G/X/S shortcuts, Left/Right in zones
+1. ManaColorPickerNavigator → Mana color selection popup
+2. BrowserNavigator         → Scry/Surveil/Mulligan/AssignDamage/MultiZone browsers
+3. CombatNavigator          → Space during declare attackers/blockers
+4. HotHighlightNavigator    → Tab/Enter/Backspace for highlights + selection mode (UNIFIED)
+5. PlayerPortraitNavigator  → V key player info zone
+6. BattlefieldNavigator     → A/R/B shortcuts, row navigation
+7. ZoneNavigator            → C/G/X/S/W shortcuts, Left/Right in zones
 ```
 
 **Key Simplification:**
@@ -929,17 +929,17 @@ if (!_targetNavigator.IsTargeting && HasValidTargetsOnBattlefield())
 DiscoverAllHighlights(); // Finds whatever game highlights
 ```
 
-**DiscardNavigator Detection:**
+**Selection Mode Detection (in HotHighlightNavigator):**
 ```csharp
-public bool IsDiscardModeActive()
+public bool IsSelectionModeActive()
 {
-    if (GetSubmitButtonInfo() == null)  // No "Submit X" button
-        return false;
-    return true;
+    // Checks for Submit button with count AND no valid targets on battlefield
 }
 ```
-- Looks for "Submit X" button (e.g., "Submit 0", "Submit 1")
-- NOTE: Cancel button alone is NOT reliable (appears in combat too)
+- Detects discard, exile, and other card selection prompts
+- Language-agnostic: matches any number in button text ("Submit 2", "2 abwerfen", "0 bestätigen")
+- Hand cards use single-click to toggle instead of two-click to play
+- Announces "X cards selected" and "CardName, 1 of 2 selected" after toggle
 
 **Combat Phase Detection:**
 ```csharp
@@ -1146,6 +1146,7 @@ protected struct NavigableElement
     public string Label;                // Announcement text
     public CarouselInfo Carousel;       // Arrow key navigation info (optional)
     public GameObject AlternateActionObject; // Secondary action (e.g., edit button for decks)
+    public ElementRole Role;            // Element role enum (Button, Checkbox, Slider, Stepper, Carousel, etc.)
 }
 ```
 Access via `_elements[index].GameObject`, `_elements[index].Label`, etc.
