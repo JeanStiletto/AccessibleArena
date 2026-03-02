@@ -783,7 +783,7 @@ namespace AccessibleArena.Core.Services
         {
             if (popup == null) return null;
 
-            string[] cancelPatterns = { "cancel", "close", "no", "abbrechen", "nein", "zurück" };
+            string[] cancelPatterns = { "cancel", "close", "back", "no", "abbrechen", "nein", "zurück" };
 
             // Pass 1: SystemMessageButtonView
             foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
@@ -826,8 +826,26 @@ namespace AccessibleArena.Core.Services
 
             foreach (var pattern in patterns)
             {
-                if (buttonText.Contains(pattern) || buttonName.Contains(pattern))
+                if (ContainsWord(buttonText, pattern) || ContainsWord(buttonName, pattern))
                     return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if text contains pattern as a whole word (not as a substring of a larger word).
+        /// E.g., "no" matches "No" and "say no" but not "button_outline" or "favorite".
+        /// </summary>
+        private static bool ContainsWord(string text, string word)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            int idx = 0;
+            while ((idx = text.IndexOf(word, idx, StringComparison.Ordinal)) >= 0)
+            {
+                bool startOk = idx == 0 || !char.IsLetterOrDigit(text[idx - 1]);
+                bool endOk = idx + word.Length >= text.Length || !char.IsLetterOrDigit(text[idx + word.Length]);
+                if (startOk && endOk) return true;
+                idx += word.Length;
             }
             return false;
         }
