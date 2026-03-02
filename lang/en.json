@@ -115,6 +115,7 @@
   "CardInfoFlavor": "Flavor",
   "CardInfoRarity": "Rarity",
   "CardInfoArtist": "Artist",
+  "CardInfoSetAndArtist": "Set and Artist",
 
   "CardQuantityMissing_Format": "{0}, missing",
   "CardOwned_Format": "Owned {0}",

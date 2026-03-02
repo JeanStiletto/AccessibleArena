@@ -511,6 +511,7 @@ namespace AccessibleArena.Core.Models
         public static string CardInfoFlavor => L.Get("CardInfoFlavor");
         public static string CardInfoRarity => L.Get("CardInfoRarity");
         public static string CardInfoArtist => L.Get("CardInfoArtist");
+        public static string CardInfoSetAndArtist => L.Get("CardInfoSetAndArtist");
 
         // ===========================================
         // POSITION / COUNTS

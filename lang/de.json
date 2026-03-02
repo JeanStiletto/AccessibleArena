@@ -108,6 +108,7 @@
   "CardInfoFlavor": "Hintergrundtext",
   "CardInfoRarity": "Seltenheit",
   "CardInfoArtist": "Künstler",
+  "CardInfoSetAndArtist": "Set und Künstler",
   "CardQuantityMissing_Format": "{0}, missing",
   "CardOwned_Format": "Owned {0}",
   "CardOwnedInDeck_Format": "Owned {0}, In Deck {1}",

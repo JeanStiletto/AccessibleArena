@@ -2365,6 +2365,23 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
+                // Expansion/Set - try direct ExpansionCode, then Printing.ExpansionCode
+                var expCode = GetModelPropertyValue(dataObj, objType, "ExpansionCode");
+                if (expCode is string expStr && !string.IsNullOrEmpty(expStr))
+                {
+                    info.SetName = UITextExtractor.MapSetCodeToName(expStr);
+                }
+                else if (printing != null)
+                {
+                    var printExpProp = printing.GetType().GetProperty("ExpansionCode");
+                    if (printExpProp != null)
+                    {
+                        var printExpVal = printExpProp.GetValue(printing)?.ToString();
+                        if (!string.IsNullOrEmpty(printExpVal))
+                            info.SetName = UITextExtractor.MapSetCodeToName(printExpVal);
+                    }
+                }
+
                 info.IsValid = !string.IsNullOrEmpty(info.Name);
                 return info;
             }
@@ -4580,6 +4597,15 @@ namespace AccessibleArena.Core.Services
                             DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Extracted artist by ID: {info.Artist}");
                         }
                     }
+                }
+
+                // Expansion/Set
+                var expCodeProp = cardType.GetProperty("ExpansionCode");
+                if (expCodeProp != null)
+                {
+                    var expVal = expCodeProp.GetValue(cardData)?.ToString();
+                    if (!string.IsNullOrEmpty(expVal))
+                        info.SetName = UITextExtractor.MapSetCodeToName(expVal);
                 }
             }
             catch (Exception ex)

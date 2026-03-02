@@ -750,8 +750,7 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(info.Rarity))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRarity, info.Rarity));
 
-            if (!string.IsNullOrEmpty(info.Artist))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoArtist, info.Artist));
+            AddSetAndArtistBlock(blocks, info);
 
             return blocks;
         }
@@ -782,10 +781,27 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoFlavor, info.FlavorText));
             if (!string.IsNullOrEmpty(info.Rarity))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRarity, info.Rarity));
-            if (!string.IsNullOrEmpty(info.Artist))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoArtist, info.Artist));
+
+            AddSetAndArtistBlock(blocks, info);
 
             return blocks;
+        }
+
+        private static void AddSetAndArtistBlock(List<CardInfoBlock> blocks, CardInfo info)
+        {
+            bool hasSet = !string.IsNullOrEmpty(info.SetName);
+            bool hasArtist = !string.IsNullOrEmpty(info.Artist);
+            if (hasSet || hasArtist)
+            {
+                string content;
+                if (hasSet && hasArtist)
+                    content = info.SetName + ", " + Models.Strings.CardInfoArtist + ": " + info.Artist;
+                else if (hasSet)
+                    content = info.SetName;
+                else
+                    content = Models.Strings.CardInfoArtist + ": " + info.Artist;
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoSetAndArtist, content));
+            }
         }
 
         #endregion
@@ -902,6 +918,7 @@ namespace AccessibleArena.Core.Services
         public string RulesText;
         public string FlavorText;
         public string Rarity;
+        public string SetName;
         public string Artist;
         /// <summary>
         /// Quantity of this card in a deck list. 0 means not applicable (not a deck list card).

@@ -7,11 +7,15 @@ All notable changes to Accessible Arena.
 ### New: Planeswalker Loyalty & Counter Accessibility
 - Planeswalker abilities now prefixed with loyalty cost in rules text (e.g., "+2: Search your library...", "-3: Koth deals...")
 - Power/Toughness info block expanded: planeswalkers show "Loyalty 4", creatures with counters show "2/3, 3 +1/+1"
-- Counters read from model Instance on battlefield cards (IReadOnlyDictionary<CounterType, int>)
-- Counter type names formatted: P1P1→"+1/+1", M1M1→"-1/-1", others use enum name
 - New K hotkey announces all counters on currently focused card (works from any zone/navigator)
-- Both extraction paths updated (MODEL and CardPrintingData) for consistency
+- Counter type names formatted: P1P1→"+1/+1", M1M1→"-1/-1", others use enum name
 - Files: CardModelProvider.cs, DuelNavigator.cs, InputManager.cs, HelpNavigator.cs, Strings.cs, en.json, de.json
+
+### New: Set Information in Card Details
+- Card info now shows expansion set name in the last info block (e.g., "Foundations, Artist: John Avon")
+- Reads ExpansionCode property from card model, maps to friendly name via existing set code table
+- Artist block renamed to "Set and Artist" to reflect combined content
+- Files: CardModelProvider.cs, CardDetector.cs, Strings.cs, en.json, de.json
 
 ### Fix: SelectNCounters Color Selection Browser
 - Lands with "choose a color" ETB triggers (e.g. Thriving Heath / Gedeihende Heide) use a `SelectColorWorkflow` that reuses the `BrowserScaffold_SelectNCounters` scaffold with a scrollable list of color options
