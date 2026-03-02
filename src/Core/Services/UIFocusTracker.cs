@@ -495,6 +495,16 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Skip the transient Item 0 focus when a dropdown first opens.
+            // Unity briefly focuses Item 0 before correcting to the actual selected item.
+            // We detect this: dropdown is expanded but OnDropdownOpened hasn't been called yet.
+            if (DropdownStateManager.IsInDropdownMode && IsDropdownItem(element) &&
+                !DropdownStateManager.ShouldBlockEnterFromGame)
+            {
+                Log($"Skipping transient dropdown item focus (dropdown opening): {element.name}");
+                return;
+            }
+
             string text = UITextExtractor.GetText(element);
             Log($"Extracted text: '{text}' from {element.name}");
 

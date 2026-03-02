@@ -246,12 +246,17 @@ namespace AccessibleArena.Core.Services
                 string currentValue = GetDropdownDisplayValue(obj);
                 if (!string.IsNullOrEmpty(currentValue))
                 {
-                    // Strip existing dropdown suffix, update value, re-append
+                    // Strip existing dropdown suffix to get base label
                     string baseLabel = label.EndsWith(dropdownSuffix)
                         ? label.Substring(0, label.Length - dropdownSuffix.Length)
                         : label;
-                    if (baseLabel != currentValue)
-                        label = $"{baseLabel}: {currentValue}{dropdownSuffix}";
+                    // Strip old cached value (appended as ": oldValue" during discovery)
+                    int lastColon = baseLabel.LastIndexOf(": ");
+                    string labelName = lastColon >= 0 ? baseLabel.Substring(0, lastColon) : baseLabel;
+                    if (labelName != currentValue)
+                        label = $"{labelName}: {currentValue}{dropdownSuffix}";
+                    else
+                        label = $"{currentValue}{dropdownSuffix}";
                 }
             }
 
@@ -832,12 +837,19 @@ namespace AccessibleArena.Core.Services
             // Try standard TMP_Dropdown
             var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
             if (tmpDropdown != null && tmpDropdown.captionText != null)
+            {
+                // Force caption sync - game may set value without calling RefreshShownValue
+                tmpDropdown.RefreshShownValue();
                 return tmpDropdown.captionText.text;
+            }
 
             // Try legacy Dropdown
             var legacyDropdown = dropdownObj.GetComponent<Dropdown>();
             if (legacyDropdown != null && legacyDropdown.captionText != null)
+            {
+                legacyDropdown.RefreshShownValue();
                 return legacyDropdown.captionText.text;
+            }
 
             // Try cTMP_Dropdown via reflection
             foreach (var component in dropdownObj.GetComponents<Component>())
@@ -845,6 +857,11 @@ namespace AccessibleArena.Core.Services
                 if (component != null && component.GetType().Name == "cTMP_Dropdown")
                 {
                     var type = component.GetType();
+                    // Force caption sync - game may set m_Value directly without RefreshShownValue
+                    var refreshMethod = type.GetMethod("RefreshShownValue",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    refreshMethod?.Invoke(component, null);
+
                     // Read m_CaptionText field (TMP_Text reference)
                     var captionField = type.GetField("m_CaptionText",
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -1117,6 +1134,7 @@ namespace AccessibleArena.Core.Services
             // If we just exited dropdown mode, sync focus and announce position
             if (justExitedDropdown)
             {
+                // SyncIndexToFocusedElement already announces the current element
                 SyncIndexToFocusedElement();
 
                 // Clear EventSystem selection to prevent MTGA from auto-activating
@@ -1127,7 +1145,6 @@ namespace AccessibleArena.Core.Services
                     eventSystem.SetSelectedGameObject(null);
                 }
 
-                AnnounceCurrentElement();
                 return;
             }
 
