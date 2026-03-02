@@ -34,6 +34,11 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _getAbilityTextMethod = null;
         private static bool _abilityTextProviderSearched = false;
 
+        // Cache: abilityId -> (parentCardGrpId, allAbilityIds, cardTitleId)
+        // Populated when processing normal cards with abilities, used for ability CDC lookups
+        private static readonly Dictionary<uint, (uint cardGrpId, uint[] abilityIds, uint cardTitleId)> _abilityParentCache
+            = new Dictionary<uint, (uint, uint[], uint)>();
+
         // Cache for flavor text provider
         private static object _flavorTextProvider = null;
         private static MethodInfo _getFlavorTextMethod = null;
@@ -1015,7 +1020,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 string text = result?.ToString();
-                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.Contains("Unknown"))
+                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.StartsWith("#") && !text.StartsWith("Ability #") && !text.Contains("Unknown"))
                 {
                     DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Ability {abilityId} -> {text}");
                     return text;
@@ -2288,6 +2293,31 @@ namespace AccessibleArena.Core.Services
                         string rawRulesText = string.Join(" ", rulesLines);
                         info.RulesText = ParseManaSymbolsInText(rawRulesText);
                     }
+
+                    // Cache ability → parent card mapping for ability CDC lookups
+                    if (abilityIds != null && abilityIds.Length > 0 && cardGrpId > 0)
+                    {
+                        foreach (uint aid in abilityIds)
+                        {
+                            if (aid > 0)
+                                _abilityParentCache[aid] = (cardGrpId, abilityIds, cardTitleId);
+                        }
+                    }
+                }
+
+                // Fallback: if no rules text and AbilityIds is empty, the GrpId might BE an ability ID
+                // (e.g., planeswalker ability CDCs in SelectCards browser use ability GrpId as their card GrpId)
+                // Only attempt if the parent cache confirms this GrpId is a known ability ID
+                if (string.IsNullOrEmpty(info.RulesText) && (abilityIds == null || abilityIds.Length == 0) && cardGrpId > 0
+                    && _abilityParentCache.TryGetValue(cardGrpId, out var parentInfo))
+                {
+                    // Try with full parent card context first (handles abilities that reference card name)
+                    var text = GetAbilityTextFromProvider(parentInfo.cardGrpId, cardGrpId, parentInfo.abilityIds, parentInfo.cardTitleId);
+                    // Fall back to self-reference lookup
+                    if (string.IsNullOrEmpty(text))
+                        text = GetAbilityTextFromProvider(cardGrpId, cardGrpId, new uint[]{ cardGrpId }, cardTitleId);
+                    if (!string.IsNullOrEmpty(text))
+                        info.RulesText = ParseManaSymbolsInText(text);
                 }
 
                 // Flavor Text - lookup via FlavorTextId

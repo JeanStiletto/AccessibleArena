@@ -347,6 +347,22 @@ Cards announce targeting relationships using model data:
 - K key announces all counters on focused card (checks CardNavigator, BattlefieldNavigator, ZoneNavigator, BrowserNavigator)
 - `GetCountersFromCard(GameObject)` chains: GetDuelSceneCDC → GetCardModel → GetModelInstance → Counters
 - `FormatCounterTypeName(string)` maps enum names to readable strings
+- Loyalty counter in `Instance.Counters` is skipped (already covered by explicit `Loyalty` property above)
+
+**Ability CDC Lookup (Planeswalker Activation Browser):**
+When a planeswalker is activated, the game opens a SelectCards browser with one CDC per ability. These "ability CDCs" have unusual models:
+- `GrpId` = the ability's ID (e.g., 165883), NOT the parent card's GrpId (e.g., 83838)
+- `AbilityIds` = empty array
+- `Abilities` = empty `AbilityPrintingData[]`
+- `Name` resolves to the parent card's name (the title provider handles ability GrpIds)
+
+To get the correct ability text, the mod uses a two-step approach:
+1. **Parent cache**: When processing any card with abilities, `_abilityParentCache` maps each `abilityId → (parentCardGrpId, allAbilityIds, cardTitleId)`. This is populated during the normal `Abilities` loop in `ExtractCardInfoFromObject`.
+2. **Fallback lookup**: When a model has empty AbilityIds and its GrpId is found in the cache, the ability text provider is called with the parent card's context: `GetAbilityTextByCardAbilityGrpId(parentGrpId, abilityGrpId, allAbilityIds, titleId)`. Some abilities resolve without parent context (self-lookup), others require it (e.g., abilities that reference the card name).
+
+The provider's response is filtered to reject garbage strings: `$`-prefixed, `#`-prefixed (e.g., `#NoTranslationNeeded`), `Ability #NNNNN` patterns, and `Unknown` strings.
+
+This also fixes the known issue "Card Abilities With High IDs Not Resolving" — the high IDs were ability GrpIds being treated as card GrpIds.
 
 **Declare Attackers Phase:**
 - [x] Space key handling - Clicks `PromptButton_Primary` (whatever text: "All Attack", "X Attackers", etc.)

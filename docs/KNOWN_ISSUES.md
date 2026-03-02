@@ -26,9 +26,9 @@ The resolution dropdown in Settings > Graphics always shows the native display r
 
 ---
 
-### Card Abilities With High IDs Not Resolving
+### ~~Card Abilities With High IDs Not Resolving~~ (Fixed v0.7.4)
 
-Some cards have ability IDs greater than ~100000 that cannot be resolved correctly. These abilities fail to display proper names or descriptions.
+Fixed: The high IDs were ability GrpIds being used as card GrpIds in SelectCards browser CDCs. Parent card context is now cached during normal ability extraction and used for lookup.
 
 ---
 

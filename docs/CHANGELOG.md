@@ -4,6 +4,25 @@ All notable changes to Accessible Arena.
 
 ## v0.7.4-dev
 
+### Fix: Planeswalker Ability Text in Activation Browser
+- Activating a planeswalker opens a SelectCards browser with one card per ability — all three now show their specific ability text instead of just the card name
+- Root cause: ability CDCs use the ability ID as their GrpId with empty AbilityIds/Abilities arrays
+- Fix: parent card context is cached during normal ability extraction and used to look up ability text via the provider
+- Also filters garbage provider responses (`#NoTranslationNeeded`, `Ability #NNNNN`)
+- Files: CardModelProvider.cs
+
+### Fix: Loyalty Counter Duplication on Battlefield
+- Planeswalkers on the battlefield no longer announce loyalty twice in the P/T info block
+- Root cause: explicit Loyalty property AND Instance.Counters[Loyalty] both added to the block
+- Fix: skip Loyalty counter type in the Counters loop (explicit property handles it)
+- Files: CardModelProvider.cs
+
+### Fix: False Ability Text on Stack Cards
+- Vanilla creatures (and other cards without abilities) on the stack no longer show spurious ability IDs in their rules block
+- Root cause: ability CDC fallback was too broad, firing for any card with empty AbilityIds
+- Fix: fallback now only triggers when the parent ability cache confirms the GrpId is a known ability ID
+- Files: CardModelProvider.cs
+
 ### New: Deck Type/Subtype Details in Deck Info
 - Cards row in deck info now includes type/subtype breakdown: creature subtypes, other type distribution, and land subtypes
 - Example: "Creatures: 16, 3 Dinosaur, 5 Goblin 27%. Others: 4 Sorcery, 8 Instant 25%. Lands: 25, 12 Mountain"
