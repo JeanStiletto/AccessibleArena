@@ -30,6 +30,7 @@ arena accessibility backlog.txt
 .claude/settings.local.json
 
 # Temp research/decompilation files
+tmp/
 temp_*
 tmp_*
 C*temp_*
