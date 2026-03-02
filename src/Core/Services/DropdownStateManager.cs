@@ -73,6 +73,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static FieldInfo _cachedOnValueChangedField;
 
+        /// <summary>
+        /// When >= 0, the user confirmed a selection (Enter) and onValueChanged should be
+        /// fired with this value after the callback is restored on close.
+        /// -1 means no pending notification (cancel via Escape/Backspace).
+        /// </summary>
+        private static int _pendingNotifyValue = -1;
+
         #endregion
 
         #region Public Properties
@@ -140,9 +147,16 @@ namespace AccessibleArena.Core.Services
             {
                 justExited = true;
                 _blockEnterFromGame = false;
+                // Capture pending value before restore
+                int pendingValue = _pendingNotifyValue;
+                var dropdownComponent = _suppressedDropdownComponent;
+                _pendingNotifyValue = -1;
                 // Restore onValueChanged in case dropdown was closed by the game
                 // (not by our explicit OnDropdownClosed call)
                 RestoreOnValueChanged();
+                // Fire if user had confirmed a selection
+                if (pendingValue >= 0 && dropdownComponent != null)
+                    FireOnValueChanged(dropdownComponent, pendingValue);
                 DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                     "Dropdown mode exit transition detected");
             }
@@ -188,13 +202,14 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Called when the user presses Enter to select a dropdown item.
-        /// Starts the Submit-blocking window to prevent auto-activation of the next focused element.
+        /// Stores the selected value so onValueChanged can be fired after the callback is restored.
         /// </summary>
-        public static void OnDropdownItemSelected()
+        public static void OnDropdownItemSelected(int selectedValue)
         {
             _blockSubmitAfterFrame = UnityEngine.Time.frameCount;
+            _pendingNotifyValue = selectedValue;
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
-                $"Dropdown item selected on frame {_blockSubmitAfterFrame}, blocking Submit for next 3 frames");
+                $"Dropdown item selected (value={selectedValue}) on frame {_blockSubmitAfterFrame}, blocking Submit for next 3 frames");
         }
 
         /// <summary>
@@ -227,8 +242,19 @@ namespace AccessibleArena.Core.Services
             _blockSubmitAfterFrame = UnityEngine.Time.frameCount;
             string newFocusName = null;
 
+            // Capture pending value before restore (restore clears _suppressedDropdownComponent)
+            int pendingValue = _pendingNotifyValue;
+            var dropdownComponent = _suppressedDropdownComponent;
+            _pendingNotifyValue = -1;
+
             // Restore onValueChanged before clearing active dropdown
             RestoreOnValueChanged();
+
+            // Fire onValueChanged if user confirmed a selection (Enter, not Escape)
+            if (pendingValue >= 0 && dropdownComponent != null)
+            {
+                FireOnValueChanged(dropdownComponent, pendingValue);
+            }
 
             var eventSystem = EventSystem.current;
             if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
@@ -255,6 +281,7 @@ namespace AccessibleArena.Core.Services
             _wasInDropdownMode = false;
             _activeDropdownObject = null;
             _blockEnterFromGame = false;
+            _pendingNotifyValue = -1;
             RestoreOnValueChanged();
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
                 "Suppressing dropdown re-entry (auto-opened dropdown closed)");
@@ -270,6 +297,7 @@ namespace AccessibleArena.Core.Services
             _activeDropdownObject = null;
             _blockSubmitAfterFrame = -1;
             _blockEnterFromGame = false;
+            _pendingNotifyValue = -1;
             RestoreOnValueChanged();
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState", "State reset");
         }
@@ -382,6 +410,54 @@ namespace AccessibleArena.Core.Services
 
             _savedOnValueChanged = null;
             _suppressedDropdownComponent = null;
+        }
+
+        /// <summary>
+        /// Invoke onValueChanged on a dropdown component to notify the game of the new value.
+        /// Called after RestoreOnValueChanged when the user confirmed a selection.
+        /// </summary>
+        private static void FireOnValueChanged(Component dropdownComponent, int value)
+        {
+            try
+            {
+                if (dropdownComponent == null || dropdownComponent.gameObject == null)
+                    return;
+
+                var typeName = dropdownComponent.GetType().Name;
+
+                if (typeName == "cTMP_Dropdown")
+                {
+                    var field = GetOnValueChangedField(dropdownComponent.GetType());
+                    if (field != null)
+                    {
+                        var onValueChanged = field.GetValue(dropdownComponent);
+                        if (onValueChanged != null)
+                        {
+                            var invokeMethod = onValueChanged.GetType().GetMethod("Invoke",
+                                new System.Type[] { typeof(int) });
+                            if (invokeMethod != null)
+                            {
+                                invokeMethod.Invoke(onValueChanged, new object[] { value });
+                                MelonLogger.Msg($"[DropdownState] Fired onValueChanged on cTMP_Dropdown with value={value}");
+                            }
+                        }
+                    }
+                }
+                else if (dropdownComponent is TMPro.TMP_Dropdown tmpDropdown)
+                {
+                    tmpDropdown.onValueChanged.Invoke(value);
+                    MelonLogger.Msg($"[DropdownState] Fired onValueChanged on TMP_Dropdown with value={value}");
+                }
+                else if (dropdownComponent is UnityEngine.UI.Dropdown legacyDropdown)
+                {
+                    legacyDropdown.onValueChanged.Invoke(value);
+                    MelonLogger.Msg($"[DropdownState] Fired onValueChanged on legacy Dropdown with value={value}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Warning($"[DropdownState] Error firing onValueChanged: {ex.Message}");
+            }
         }
 
         /// <summary>

@@ -133,8 +133,7 @@ MTGA uses `TMP_Dropdown` and `cTMP_Dropdown` for dropdown menus. The mod tracks 
 **Key Concepts:**
 - **Dropdown Edit Mode**: When a dropdown is expanded, the mod defers arrow key navigation to Unity
 - **Enter Blocking**: Enter/Submit is fully blocked from the game while in dropdown mode (via Harmony patches on KeyboardManager and EventSystem)
-- **Silent Selection**: Items are selected via reflection to avoid triggering `onValueChanged` callbacks (prevents chain auto-advance)
-- **Dropdown Stays Open**: After selecting an item with Enter, the dropdown stays open; user closes with Escape/Backspace
+- **Silent Selection + Deferred Notification**: Items are selected via `SetValueWithoutNotify` (bypasses `onValueChanged`), then `onValueChanged` is fired after restoring the callback on close. This prevents chain auto-advance while browsing but still notifies the game when the user confirms.
 - **Exit Handling**: Tracks transitions out of dropdown mode for navigator index sync
 
 **DropdownStateManager API:**
@@ -162,11 +161,11 @@ if (DropdownStateManager.ShouldBlockEnterFromGame) // Used by Harmony patches
 
 **User Flow:**
 1. Navigate to dropdown with arrow keys
-2. Press Enter to open dropdown
+2. Press Enter to open dropdown (onValueChanged suppressed)
 3. Use Up/Down to navigate items (Unity handles this)
-4. Press Enter to select item (value set silently, dropdown stays open)
-5. Browse more or select again as needed
-6. Press Escape/Backspace to close dropdown
+4. Press Enter to select item (value set silently, pending notification stored)
+5. Dropdown closes, onValueChanged restored and fired with selected value
+6. Or press Escape/Backspace to cancel (onValueChanged restored, no notification)
 
 **Integration Points:**
 - `BaseNavigator.HandleInput()` - Checks dropdown mode before custom navigation
@@ -1588,16 +1587,22 @@ protected override bool HandleEarlyInput()
 **Popup Validation:** Always call `ValidatePopup()` in `HandleEarlyInput()`. When the game destroys a popup externally (e.g., after clicking a button that triggers a server action), the `PanelStateManager` may not fire a close event. Without validation, `_isPopupActive` stays true and all input is consumed forever, leaving the user stuck on an empty screen.
 
 **Popup Dismissal (3-level fallback chain):**
-1. Find and click a cancel/close button by label pattern matching ("cancel", "close", "no", "abbrechen", "nein", "zuruck")
+1. Find and click a cancel/close button by word-boundary pattern matching ("cancel", "close", "no", "back", "abbrechen", "nein", "zuruck") — uses `ContainsWord()` to avoid false positives (e.g., "no" inside "butto-no-utline")
 2. Invoke `SystemMessageView.OnBack(null)` via reflection
 3. `SetActive(false)` as last resort
 
 **Element Discovery (handled internally by PopupHandler):**
 - Title: Extracted from title/header containers, announced in "Popup: {title}" header
-- Text blocks: All active `TMP_Text` not inside buttons, input fields, or title containers; cleaned, split on newlines, deduplicated
+- Text blocks: All active `TMP_Text` not inside buttons, input fields, title containers, or widget content transforms; cleaned, split on newlines, deduplicated, then deduplicated against button labels
 - Input fields: Active, interactable `TMP_InputField` components, labeled via `UITextExtractor.GetInputFieldLabel()`
+- Dropdowns: TMP_Dropdown, Dropdown, and cTMP_Dropdown components, labeled via `GetDropdownDisplayValue()`
 - Buttons: 3-pass search (SystemMessageButtonView → CustomButton/CustomButtonWithTooltip → Unity Button), position-sorted
-- Flat list order: text blocks → input fields → buttons
+- Flat list order: text blocks → input fields → dropdowns → buttons
+
+**Widget Content Filtering (DeckDetailsPopup and similar):**
+When a popup contains game widgets that render their own text (DeckTypesDetails, DeckColorsDetails, CosmeticSelectorController), their raw text is filtered out via `CollectWidgetContentTransforms()`. This collects the content Transform of each widget, and `IsChildOfAny()` skips any TMP_Text that is a descendant. This is necessary because some widgets (e.g., DeckTypesDetails) instantiate items under a separate `ItemParent` Transform that is NOT a descendant of the widget's own GameObject — walk-up ancestry checks fail, so `Transform.IsChildOf()` is used instead.
+
+Additionally, `DeduplicateTextBlocksAgainstButtons()` removes text blocks whose content matches a button label (e.g., "Avatare" appearing as both text and button).
 
 **Button Filtering:**
 - Buttons inside input fields are skipped (internal submit/clear buttons)

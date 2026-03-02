@@ -763,11 +763,12 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Set value without triggering onValueChanged
-            // No announcement here - the exit transition in HandleInput will
-            // call AnnounceCurrentElement which re-reads the dropdown's current value.
+            // Set value without triggering onValueChanged (it's suppressed while dropdown is open).
+            // The pending value is stored so OnDropdownClosed can fire onValueChanged after
+            // restoring the callback - this notifies the game so changes persist.
             if (SetDropdownValueSilent(activeDropdown, itemIndex))
             {
+                DropdownStateManager.OnDropdownItemSelected(itemIndex);
                 MelonLogger.Msg($"[{callerId}] Selected dropdown item {itemIndex}");
             }
         }

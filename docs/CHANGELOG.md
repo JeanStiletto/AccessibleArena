@@ -4,6 +4,36 @@ All notable changes to Accessible Arena.
 
 ## v0.7.4-dev
 
+### New: Deck Type/Subtype Details in Deck Info
+- Cards row in deck info now includes type/subtype breakdown: creature subtypes, other type distribution, and land subtypes
+- Example: "Creatures: 16, 3 Dinosaur, 5 Goblin 27%. Others: 4 Sorcery, 8 Instant 25%. Lands: 25, 12 Mountain"
+- Uses game's DeckTypesDetails widget via reflection (SetDeck, ItemParent, DeckDetailsLineItem)
+- Populates types lazily, skips re-population if ItemParent already has children (avoids Unity deferred Destroy duplication)
+- Files: DeckInfoProvider.cs
+
+### Fix: Popup Text Filtering for Deck Details
+- DeckTypesDetails, DeckColorsDetails, and CosmeticSelectorController raw text filtered from DeckDetailsPopup
+- Uses `CollectWidgetContentTransforms()` to find widget content Transforms and `IsChildOfAny()` with `Transform.IsChildOf()` — necessary because DeckTypesDetails items live under a separate ItemParent, not under the widget's own GameObject
+- Text blocks matching button labels (e.g., "Avatare") deduplicated via `DeduplicateTextBlocksAgainstButtons()`
+- Files: PopupHandler.cs
+
+### Fix: Popup Cancel Button False Positive
+- Cancel button pattern matching now uses word-boundary `ContainsWord()` instead of `Contains()` — prevents "no" matching inside "butto-no-utline"
+- Added "back" to cancel patterns so "BackButton" is correctly found
+- Files: PopupHandler.cs
+
+### Fix: Dropdown Value Persistence in Popups
+- Dropdown value changes in DeckDetailsPopup (and similar destroyed/recreated UI) now persist across close/reopen
+- Root cause: `onValueChanged` was suppressed during selection and value was set with `SetValueWithoutNotify`, so the game's data model was never updated
+- Fix: `OnDropdownItemSelected(value)` stores pending value; `OnDropdownClosed()` restores `onValueChanged` then fires it via `FireOnValueChanged()` to notify the game
+- Cancel (Escape/Backspace) restores without firing — no spurious changes
+- Files: DropdownStateManager.cs, BaseNavigator.cs
+
+### Changed: Proprietary DLLs Removed from Repository
+- Game DLLs removed from git tracking (libs/ folder)
+- Project references updated to use game install path via MtgaPath/MtgaManagedPath/MelonLoaderPath properties
+- Files: .gitignore, AccessibleArena.csproj
+
 ### New: Planeswalker Loyalty & Counter Accessibility
 - Planeswalker abilities now prefixed with loyalty cost in rules text (e.g., "+2: Search your library...", "-3: Koth deals...")
 - Power/Toughness info block expanded: planeswalkers show "Loyalty 4", creatures with counters show "2/3, 3 +1/+1"

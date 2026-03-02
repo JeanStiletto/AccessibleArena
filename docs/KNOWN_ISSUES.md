@@ -69,9 +69,9 @@ When selecting a different color in Color Challenge, the announced deck name doe
 
 ---
 
-### Deck Renaming Causes Bad Mod State
+### ~~Deck Renaming Causes Bad Mod State~~ (Fixed v0.7.4)
 
-Renaming a deck breaks the mod's navigation state. After renaming, the mod may lose track of elements, fail to announce correctly, or require a screen transition to recover.
+Fixed: Popup cancel button matching now uses word-boundary detection (`ContainsWord`) and includes "back" pattern, so DeckDetailsPopup closes correctly after editing deck name.
 
 ---
 

@@ -1,7 +1,7 @@
 # Dropdown Handling - Unified State Management
 
 **Created:** 2026-02-03
-**Updated:** 2026-03-02 (PopupHandler dropdown support, captionText reading, stale value correction)
+**Updated:** 2026-03-02 (deferred value notification, PopupHandler dropdown support, captionText reading, stale value correction)
 
 ---
 
@@ -35,6 +35,7 @@ All dropdown state is managed by `DropdownStateManager` (`src/Core/Services/Drop
 - `_savedOnValueChanged` - Saved `m_OnValueChanged` event, replaced with empty event while dropdown is open
 - `_suppressedDropdownComponent` - The component whose onValueChanged was suppressed
 - `_cachedOnValueChangedField` - Cached FieldInfo for cTMP_Dropdown.m_OnValueChanged
+- `_pendingNotifyValue` - Selected value (>=0) to fire via onValueChanged after restore on close (-1 = no pending notification)
 
 **Public API:**
 ```csharp
@@ -56,7 +57,7 @@ string OnDropdownClosed()            // Returns new focus element name, clears b
 void SuppressReentry()
 
 // Called when Enter selects a dropdown item
-void OnDropdownItemSelected()        // Starts Submit-blocking window
+void OnDropdownItemSelected(int selectedValue)  // Stores pending value + starts Submit-blocking window
 
 // Post-selection Submit blocking
 bool ShouldBlockSubmit()             // True for 3 frames after item selection
@@ -77,6 +78,8 @@ When a dropdown is opened by the mod, `DropdownStateManager` temporarily replace
 - `SuppressReentry()` - auto-opened dropdown closed
 - `Reset()` - navigator deactivates or scene changes
 
+After restoring, if the user confirmed a selection (Enter, not Escape), `FireOnValueChanged()` invokes the restored callback with the selected value. This notifies the game so the change persists even when the UI is destroyed and recreated (e.g., DeckDetailsPopup).
+
 Supports all dropdown types: `cTMP_Dropdown` (via reflection on `m_OnValueChanged` field), `TMP_Dropdown`, and legacy `Dropdown` (via `onValueChanged` property).
 
 ### Enter/Submit Blocking
@@ -91,11 +94,11 @@ The mod fully handles Enter key presses in dropdown mode. The game never sees En
 
 When the user presses Enter on a dropdown item, the mod selects it and closes the dropdown:
 
-- **`SelectDropdownItem()`** - Parses item index from the item name ("Item N: ..."), calls `SetDropdownValueSilent()`
+- **`SelectDropdownItem()`** - Parses item index from the item name ("Item N: ..."), calls `SetDropdownValueSilent()`, then calls `DropdownStateManager.OnDropdownItemSelected(itemIndex)` to store the pending value
 - **`SetDropdownValueSilent()`** - Sets the value via reflection:
   - `TMP_Dropdown` / `Dropdown`: Uses `SetValueWithoutNotify()`
   - `cTMP_Dropdown` (MTGA custom): Sets `m_Value` field directly + calls `RefreshShownValue()` (no `SetValueWithoutNotify` available)
-- After selection, `CloseActiveDropdown(silent: true)` closes the dropdown
+- After selection, `CloseActiveDropdown(silent: true)` closes the dropdown, which restores onValueChanged and fires it with the pending value via `FireOnValueChanged()`
 - The exit transition then calls `AnnounceCurrentElement()`, which re-reads the dropdown's current value via `GetDropdownDisplayValue()` and announces e.g. "2 of 10: Monat der Geburt: Januar, dropdown"
 
 ### Dynamic Dropdown Value Display (BaseNavigator)
@@ -199,10 +202,10 @@ if (justExitedDropdown)
     | Arrow keys handled by Unity's dropdown
     v User presses Enter on an item
 [Select and Close]
-    | SelectDropdownItem() sets value silently
+    | SelectDropdownItem() sets value silently + stores pending value
     | CloseActiveDropdown(silent: true)
     | DropdownStateManager.OnDropdownClosed()
-    | onValueChanged restored
+    | onValueChanged restored, then fired with pending value
     | _blockEnterFromGame = false
     | Submit blocked for 3 frames
     v
@@ -317,9 +320,11 @@ MTGA has multiple ways of detecting Enter:
 
 All three must be blocked while in dropdown mode. The `_blockEnterFromGame` flag is set when entering dropdown mode and persists until our `Update()` processes the exit transition. This is necessary because `EventSystem.Process()` runs before our `Update()` and may close the dropdown before `PublishKeyDown` is called.
 
-### Why Silent Value Setting?
+### Why Silent Value Setting + Deferred Notification?
 
 MTGA's `cTMP_Dropdown` (custom dropdown class) has no `SetValueWithoutNotify()`. Its `value` setter always fires `onValueChanged`, which triggers the game's auto-advance chain (Month -> Day -> Year -> Country -> Experience). By setting `m_Value` directly via reflection and calling `RefreshShownValue()`, we update the visual state without triggering any callbacks.
+
+However, some UI (e.g., DeckDetailsPopup) is destroyed on close and recreated on reopen. The game populates the new UI from its data model, which is only updated via `onValueChanged`. To handle both cases, the mod uses **deferred notification**: the value is set silently while browsing, but when the user confirms with Enter, `OnDropdownItemSelected(value)` stores the pending value. On close, after restoring `onValueChanged`, `FireOnValueChanged()` invokes the callback to notify the game. Cancel (Escape/Backspace) does not fire the notification.
 
 ### Why Suppress onValueChanged While Open?
 
