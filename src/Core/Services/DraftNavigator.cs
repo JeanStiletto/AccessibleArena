@@ -2,7 +2,6 @@ using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
-using AccessibleArena.Core.Services.PanelDetection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,22 +25,17 @@ namespace AccessibleArena.Core.Services
         private bool _initialRescanDone;
         private const int RescanDelayFrames = 90; // ~1.5 seconds at 60fps
 
-        // Popup overlay handling (DraftVaultProgressPopup, gem rewards, etc.)
-        private readonly PopupHandler _popupHandler;
-        private bool _isPopupActive;
-
         public override string NavigatorId => "Draft";
         public override string ScreenName => GetScreenName();
         public override int Priority => 78; // Below BoosterOpen (80), above General (15)
 
         public DraftNavigator(IAnnouncementService announcer) : base(announcer)
         {
-            _popupHandler = new PopupHandler("Draft", announcer);
         }
 
         private string GetScreenName()
         {
-            if (_isPopupActive)
+            if (IsInPopupMode)
                 return Strings.ScreenDraftPopup;
             if (_totalCards > 0)
                 return Strings.ScreenDraftPickCount(_totalCards);
@@ -259,13 +253,6 @@ namespace AccessibleArena.Core.Services
             // Handle custom input first (F1 help, etc.)
             if (HandleCustomInput()) return;
 
-            // Popup mode: route all input through PopupHandler
-            if (_isPopupActive)
-            {
-                _popupHandler.HandleInput();
-                return;
-            }
-
             // F11: Dump current card details for debugging
             if (Input.GetKeyDown(KeyCode.F11))
             {
@@ -426,13 +413,6 @@ namespace AccessibleArena.Core.Services
 
         public override void Update()
         {
-            // Check if popup is still valid
-            if (_isPopupActive && !_popupHandler.ValidatePopup())
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Popup became invalid, returning to navigation");
-                ClearPopupState();
-            }
-
             // Initial rescan after activation (~1.5 seconds for cards to load)
             if (_isActive && !_initialRescanDone)
             {
@@ -476,7 +456,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Deactivation check: if 0 cards and no popup for extended time, re-check screen
-            if (_isActive && !_isPopupActive && _initialRescanDone && !_rescanPending && _totalCards == 0)
+            if (_isActive && !IsInPopupMode && _initialRescanDone && !_rescanPending && _totalCards == 0)
             {
                 _emptyCardCounter++;
                 if (_emptyCardCounter >= EmptyCardDeactivateFrames)
@@ -532,60 +512,25 @@ namespace AccessibleArena.Core.Services
             _closeTriggered = false;
             _closeRescanCounter = 0;
             _emptyCardCounter = 0;
-            ClearPopupState();
-
-            // Subscribe to panel changes for popup detection
-            if (PanelStateManager.Instance != null)
-                PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
+            EnablePopupDetection();
         }
 
         protected override void OnDeactivating()
         {
-            ClearPopupState();
+            DisablePopupDetection();
+        }
 
-            // Unsubscribe from panel changes
-            if (PanelStateManager.Instance != null)
-                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
+        protected override void OnPopupClosed()
+        {
+            // Rescan to see what's on screen now
+            _rescanPending = true;
+            _rescanFrameCounter = 0;
         }
 
         private void TriggerCloseRescan()
         {
             _closeTriggered = true;
             _closeRescanCounter = 0;
-        }
-
-        #endregion
-
-        #region Popup handling
-
-        /// <summary>
-        /// Handle panel changes from PanelStateManager - detect popups appearing on top of draft.
-        /// </summary>
-        private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
-        {
-            if (!_isActive) return;
-
-            if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
-                _isPopupActive = true;
-                _popupHandler.OnPopupDetected(newPanel.GameObject);
-            }
-            else if (_isPopupActive && newPanel == null)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Popup closed, returning to navigation");
-                ClearPopupState();
-            }
-        }
-
-        private void ClearPopupState()
-        {
-            _isPopupActive = false;
-            _popupHandler.Clear();
-
-            // Rescan to see what's on screen now
-            _rescanPending = true;
-            _rescanFrameCounter = 0;
         }
 
         #endregion

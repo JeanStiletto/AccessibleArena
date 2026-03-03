@@ -10,7 +10,7 @@ using System;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
-    /// Shared input field editing logic used by BaseNavigator and PopupHandler.
+    /// Shared input field editing logic used by BaseNavigator popup mode.
     /// Handles edit mode state, key navigation, character announcements, and field reactivation.
     /// Supports both TMP_InputField and legacy InputField.
     /// </summary>

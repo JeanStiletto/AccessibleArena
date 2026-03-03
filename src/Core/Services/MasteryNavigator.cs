@@ -47,10 +47,6 @@ namespace AccessibleArena.Core.Services
         private int _currentLevelIndex;    // Index into _levelData list (0 = status item, 1+ = levels)
         private int _currentTierIndex;     // Which reward tier within level (0=Free, 1=Premium, 2=Renewal)
 
-        // Popup overlay handling
-        private readonly PopupHandler _popupHandler;
-        private bool _isPopupActive;
-
         // PrizeWall state
         private MonoBehaviour _prizeWallController;
         private GameObject _prizeWallGameObject;
@@ -184,7 +180,6 @@ namespace AccessibleArena.Core.Services
 
         public MasteryNavigator(IAnnouncementService announcer) : base(announcer)
         {
-            _popupHandler = new PopupHandler("Mastery", announcer);
         }
 
         #endregion
@@ -290,36 +285,10 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Handle panel changes - detect popups appearing on top of mastery.
-        /// </summary>
-        private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
-        {
-            if (!_isActive) return;
-
-            if (newPanel != null && !IsPopupExcluded(newPanel) && PopupHandler.IsPopupPanel(newPanel))
-            {
-                MelonLogger.Msg($"[Mastery] Popup detected: {newPanel.Name}");
-                _isPopupActive = true;
-                _popupHandler.OnPopupDetected(newPanel.GameObject);
-            }
-            else if (_isPopupActive && newPanel == null)
-            {
-                MelonLogger.Msg("[Mastery] Popup closed, returning to navigation");
-                _isPopupActive = false;
-                _popupHandler.Clear();
-                // Re-announce current position based on mode
-                if (_mode == MasteryMode.PrizeWall)
-                    AnnouncePrizeWallItem();
-                else
-                    AnnounceCurrentLevel();
-            }
-        }
-
-        /// <summary>
         /// Check if a panel should be excluded from popup handling.
         /// These are benign game overlays that aren't real popups.
         /// </summary>
-        private static bool IsPopupExcluded(PanelInfo panel)
+        protected override bool IsPopupExcluded(PanelInfo panel)
         {
             if (panel == null) return false;
             string name = panel.Name;
@@ -328,6 +297,15 @@ namespace AccessibleArena.Core.Services
             // RewardPopup3DIcon: 3D reward preview shown on level hover (card art decoration)
             return name.Contains("ObjectivePopup") || name.Contains("FullscreenZFBrowser") ||
                    name.Contains("RewardPopup3DIcon");
+        }
+
+        protected override void OnPopupClosed()
+        {
+            // Re-announce current position based on mode
+            if (_mode == MasteryMode.PrizeWall)
+                AnnouncePrizeWallItem();
+            else
+                AnnounceCurrentLevel();
         }
 
         #endregion
@@ -1135,23 +1113,16 @@ namespace AccessibleArena.Core.Services
                 _currentLevelIndex = _currentPlayerLevel >= 0 ? _currentPlayerLevel : 0;
             }
 
-            // Subscribe to panel changes for popup detection
-            if (PanelStateManager.Instance != null)
-                PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
+            EnablePopupDetection();
         }
 
         protected override void OnDeactivating()
         {
+            DisablePopupDetection();
             _levelData.Clear();
             _actionButtons.Clear();
-            _isPopupActive = false;
-            _popupHandler.Clear();
             _prizeWallItems.Clear();
             _confirmationModalGameObject = null;
-
-            // Unsubscribe from panel changes
-            if (PanelStateManager.Instance != null)
-                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
         }
 
         public override void OnSceneChanged(string sceneName)
@@ -1430,26 +1401,13 @@ namespace AccessibleArena.Core.Services
 
             // Poll for confirmation modal in PrizeWall mode (modal is reused, not re-instantiated,
             // so PanelStateManager doesn't fire events after the first time)
-            if (_mode == MasteryMode.PrizeWall && !_isPopupActive && _confirmationModalGameObject != null)
+            if (_mode == MasteryMode.PrizeWall && !IsInPopupMode && _confirmationModalGameObject != null)
             {
                 if (_confirmationModalGameObject.activeInHierarchy)
                 {
                     MelonLogger.Msg("[Mastery] Confirmation modal detected via polling");
-                    _isPopupActive = true;
-                    _popupHandler.OnPopupDetected(_confirmationModalGameObject);
+                    EnterPopupMode(_confirmationModalGameObject);
                 }
-            }
-
-            // Check if popup is still valid
-            if (_isPopupActive && !_popupHandler.ValidatePopup())
-            {
-                MelonLogger.Msg("[Mastery] Popup became invalid, returning to navigation");
-                _isPopupActive = false;
-                // Re-announce current position based on mode
-                if (_mode == MasteryMode.PrizeWall)
-                    AnnouncePrizeWallItem();
-                else
-                    AnnounceCurrentLevel();
             }
 
             HandleMasteryInput();
@@ -1469,12 +1427,9 @@ namespace AccessibleArena.Core.Services
 
         private void HandleMasteryInput()
         {
-            // Handle popup input when popup is active
-            if (_isPopupActive)
-            {
-                HandlePopupInput();
+            // Popup input is handled by base popup mode infrastructure
+            if (IsInPopupMode)
                 return;
-            }
 
             if (_mode == MasteryMode.PrizeWall)
             {
@@ -1786,15 +1741,6 @@ namespace AccessibleArena.Core.Services
                 _announcer.AnnounceInterrupt(Strings.Activating(item.label));
                 UIActivator.Activate(item.obj);
             }
-        }
-
-        #endregion
-
-        #region Popup Handling
-
-        private void HandlePopupInput()
-        {
-            _popupHandler.HandleInput();
         }
 
         #endregion

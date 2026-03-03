@@ -37,10 +37,6 @@ namespace AccessibleArena.Core.Services
         private string _lastPanelName;
         private float _rescanDelay;
 
-        // Popup overlay handling
-        private readonly PopupHandler _popupHandler;
-        private bool _isPopupActive;
-
         #endregion
 
         public override string NavigatorId => "SettingsMenu";
@@ -51,7 +47,6 @@ namespace AccessibleArena.Core.Services
 
         public SettingsMenuNavigator(IAnnouncementService announcer) : base(announcer)
         {
-            _popupHandler = new PopupHandler("SettingsMenu", announcer);
         }
 
         #region Screen Detection
@@ -93,7 +88,7 @@ namespace AccessibleArena.Core.Services
         private string GetSettingsScreenName()
         {
             // If popup is active, return popup name
-            if (_isPopupActive && _popupHandler.IsActive)
+            if (IsInPopupMode)
             {
                 return Models.Strings.ScreenConfirmation;
             }
@@ -203,53 +198,22 @@ namespace AccessibleArena.Core.Services
         {
             base.OnActivated();
             _lastPanelName = _settingsContentPanel?.name;
-
-            // Subscribe to panel changes to detect popups appearing/closing
-            if (PanelStateManager.Instance != null)
-            {
-                PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
-            }
+            EnablePopupDetection();
         }
 
         protected override void OnDeactivating()
         {
             base.OnDeactivating();
-
-            // Unsubscribe from panel changes
-            if (PanelStateManager.Instance != null)
-            {
-                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
-            }
+            DisablePopupDetection();
 
             _settingsContentPanel = null;
             _settingsMenuObject = null;
             _lastPanelName = null;
-            _isPopupActive = false;
-            _popupHandler.Clear();
         }
 
-        /// <summary>
-        /// Handle panel changes - detect popups appearing on top of settings.
-        /// </summary>
-        private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
+        protected override void OnPopupClosed()
         {
-            if (!_isActive) return;
-
-            // Check if a popup appeared on top of settings
-            if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Popup detected on top of settings: {newPanel.Name}");
-                _isPopupActive = true;
-                _popupHandler.OnPopupDetected(newPanel.GameObject);
-            }
-            // Check if popup closed and we're back to settings
-            else if (_isPopupActive && (newPanel == null || newPanel.Name == "SettingsMenu"))
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Popup closed, returning to settings");
-                _isPopupActive = false;
-                _popupHandler.Clear();
-                TriggerRescan();
-            }
+            TriggerRescan();
         }
 
         #endregion
@@ -259,8 +223,7 @@ namespace AccessibleArena.Core.Services
         protected override void DiscoverElements()
         {
             // If popup is active, don't discover settings elements
-            // (popup is handled by PopupHandler, not BaseNavigator elements)
-            if (_isPopupActive)
+            if (IsInPopupMode)
                 return;
 
             // Use content panel if available, otherwise fall back to SettingsMenu object
@@ -495,22 +458,6 @@ namespace AccessibleArena.Core.Services
 
         #region Input Handling
 
-        protected override bool HandleEarlyInput()
-        {
-            if (_isPopupActive)
-            {
-                if (!_popupHandler.ValidatePopup())
-                {
-                    _isPopupActive = false;
-                    _popupHandler.Clear();
-                    return false;
-                }
-                _popupHandler.HandleInput();
-                return true; // Consume all input while popup is active
-            }
-            return false;
-        }
-
         protected override bool HandleCustomInput()
         {
             // Backspace: Navigate back in settings or close settings
@@ -531,13 +478,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HandleSettingsBack()
         {
-            // If popup is active, dismiss it first
-            if (_isPopupActive && _popupHandler.IsActive)
+            // If popup is active, dismiss it first (handled by base popup mode via Backspace)
+            if (IsInPopupMode)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Dismissing popup via backspace");
-                _popupHandler.DismissPopup();
-                _isPopupActive = false;
-                TriggerRescan();
+                DismissPopup();
                 return true;
             }
 
@@ -724,7 +668,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Announce the change (only if not in popup mode - popup has its own announcements)
-            if (!_isPopupActive)
+            if (!IsInPopupMode)
             {
                 string announcement = GetActivationAnnouncement();
                 _announcer.Announce(announcement, Models.AnnouncementPriority.High);

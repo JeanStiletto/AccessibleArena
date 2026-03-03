@@ -114,6 +114,7 @@ namespace AccessibleArena.Core.Services
             Navigation,
             Scrollbar,
             Card,
+            TextBlock, // Read-only text block (popup text content, null GameObject)
             Internal,  // Hidden/internal elements that shouldn't be announced
             Unknown
         }

@@ -7,7 +7,7 @@ using System;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
-    /// Shared dropdown editing logic used by PopupHandler (and potentially other non-BaseNavigator contexts).
+    /// Shared dropdown editing logic used by BaseNavigator popup mode and other contexts.
     /// Thin wrapper: manages edit state and routes keys to BaseNavigator's static dropdown methods.
     /// Follows the same pattern as InputFieldEditHelper.
     /// </summary>
@@ -74,7 +74,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Backspace: close dropdown, consume so PopupHandler doesn't dismiss the popup
+            // Backspace: close dropdown, consume so popup mode doesn't dismiss the popup
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);

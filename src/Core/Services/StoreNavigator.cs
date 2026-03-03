@@ -50,10 +50,9 @@ namespace AccessibleArena.Core.Services
         private bool _waitingForTabLoad;
         private float _loadCheckTimer;
 
-        // Popup overlay handling
-        private readonly PopupHandler _popupHandler;
-        private bool _isPopupActive;
+        // Confirmation modal handling (custom element list, not base popup mode)
         private bool _wasConfirmationModalOpen; // Track modal transitions for confirmation modal
+        private bool _isConfirmationModalActive; // Active state for custom modal input
         private MonoBehaviour _confirmationModalMb; // Reference for calling Close()
         // Confirmation modal uses its own element list (special handling with purchase buttons)
         private List<(GameObject obj, string label)> _modalElements = new List<(GameObject, string)>();
@@ -216,7 +215,6 @@ namespace AccessibleArena.Core.Services
 
         public StoreNavigator(IAnnouncementService announcer) : base(announcer)
         {
-            _popupHandler = new PopupHandler("Store", announcer);
         }
 
         #endregion
@@ -328,8 +326,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Handle panel changes - detect popups appearing on top of store.
-        /// Follows the SettingsMenuNavigator pattern: subscribe to PanelStateManager events.
+        /// Handle panel changes - detect web browser panels appearing on top of store.
+        /// Generic popups are handled by base popup mode infrastructure.
         /// </summary>
         private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
         {
@@ -341,33 +339,35 @@ namespace AccessibleArena.Core.Services
                 _isWebBrowserActive = true;
                 _webBrowser.Activate(newPanel.GameObject, _announcer);
             }
-            else if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
+            else if (_isWebBrowserActive && newPanel == null)
             {
-                MelonLogger.Msg($"[Store] Popup detected on top of store: {newPanel.Name}");
-                _isPopupActive = true;
-                _popupHandler.OnPopupDetected(newPanel.GameObject);
+                MelonLogger.Msg("[Store] Web browser closed, returning to store");
+                _webBrowser.Deactivate();
+                _isWebBrowserActive = false;
+                ReannounceStorePosition();
             }
-            else if ((_isPopupActive || _isWebBrowserActive) && newPanel == null)
-            {
-                if (_isWebBrowserActive)
-                {
-                    MelonLogger.Msg("[Store] Web browser closed, returning to store");
-                    _webBrowser.Deactivate();
-                    _isWebBrowserActive = false;
-                }
-                if (_isPopupActive)
-                {
-                    MelonLogger.Msg("[Store] Popup closed, returning to store");
-                    _isPopupActive = false;
-                    _popupHandler.Clear();
-                    _modalElements.Clear();
-                }
-                // Re-announce current position
-                if (_navLevel == NavigationLevel.Items && _items.Count > 0)
-                    AnnounceCurrentItem();
-                else if (_navLevel == NavigationLevel.Tabs && _tabs.Count > 0)
-                    AnnounceCurrentTab();
-            }
+        }
+
+        /// <summary>
+        /// Exclude web browser panels from base popup handling (they use WebBrowserAccessibility instead).
+        /// </summary>
+        protected override bool IsPopupExcluded(PanelInfo panel)
+        {
+            return IsWebBrowserPanel(panel);
+        }
+
+        protected override void OnPopupClosed()
+        {
+            _modalElements.Clear();
+            ReannounceStorePosition();
+        }
+
+        private void ReannounceStorePosition()
+        {
+            if (_navLevel == NavigationLevel.Items && _items.Count > 0)
+                AnnounceCurrentItem();
+            else if (_navLevel == NavigationLevel.Tabs && _tabs.Count > 0)
+                AnnounceCurrentTab();
         }
 
         private static bool IsWebBrowserPanel(PanelInfo panel)
@@ -928,15 +928,18 @@ namespace AccessibleArena.Core.Services
             _currentPurchaseOptionIndex = 0;
             _wasConfirmationModalOpen = false;
 
-            // Subscribe to panel changes to detect popups (follows SettingsMenuNavigator pattern)
+            // Subscribe to panel changes for popup detection + web browser detection
+            EnablePopupDetection();
             if (PanelStateManager.Instance != null)
-            {
                 PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
-            }
         }
 
         protected override void OnDeactivating()
         {
+            DisablePopupDetection();
+            if (PanelStateManager.Instance != null)
+                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
+
             _tabs.Clear();
             _items.Clear();
             _waitingForTabLoad = false;
@@ -944,22 +947,15 @@ namespace AccessibleArena.Core.Services
             _detailsCards.Clear();
             _detailsCardBlocks.Clear();
             _detailsDescription = null;
-            _isPopupActive = false;
-            _popupHandler.Clear();
             _modalElements.Clear();
             _wasConfirmationModalOpen = false;
+            _isConfirmationModalActive = false;
             _confirmationModalMb = null;
 
             if (_isWebBrowserActive)
             {
                 _webBrowser.Deactivate();
                 _isWebBrowserActive = false;
-            }
-
-            // Unsubscribe from panel changes
-            if (PanelStateManager.Instance != null)
-            {
-                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
             }
         }
 
@@ -1122,17 +1118,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if confirmation modal opened - handle as popup instead of deactivating
+            // Check if confirmation modal opened - handle with custom element list
             bool modalOpen = IsConfirmationModalOpen(_controller);
             if (modalOpen && !_wasConfirmationModalOpen)
             {
-                // Modal just opened - treat it as a popup
+                // Modal just opened
                 _wasConfirmationModalOpen = true;
                 var modalObj = GetConfirmationModalGameObject();
                 if (modalObj != null)
                 {
-                    MelonLogger.Msg($"[Store] Confirmation modal opened, handling as popup");
-                    _isPopupActive = true;
+                    MelonLogger.Msg($"[Store] Confirmation modal opened, handling with custom elements");
+                    _isConfirmationModalActive = true;
                     _confirmationModalMb = GetConfirmationModalMb();
                     DiscoverConfirmationModalElements();
                     AnnounceConfirmationModal();
@@ -1143,18 +1139,13 @@ namespace AccessibleArena.Core.Services
             {
                 // Modal just closed - return to store
                 _wasConfirmationModalOpen = false;
-                if (_isPopupActive)
+                if (_isConfirmationModalActive)
                 {
                     MelonLogger.Msg("[Store] Confirmation modal closed, returning to store");
-                    _isPopupActive = false;
-                    _popupHandler.Clear();
+                    _isConfirmationModalActive = false;
                     _modalElements.Clear();
                     _confirmationModalMb = null;
-                    // Re-announce current position
-                    if (_navLevel == NavigationLevel.Items && _items.Count > 0)
-                        AnnounceCurrentItem();
-                    else if (_navLevel == NavigationLevel.Tabs && _tabs.Count > 0)
-                        AnnounceCurrentTab();
+                    ReannounceStorePosition();
                 }
             }
 
@@ -1167,13 +1158,6 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Msg("[Store] Web browser became inactive, returning to store");
                     _isWebBrowserActive = false;
                 }
-            }
-
-            // Check if generic popup is still valid
-            if (_isPopupActive && !_wasConfirmationModalOpen && !_popupHandler.ValidatePopup())
-            {
-                MelonLogger.Msg("[Store] Popup became invalid, returning to store");
-                _isPopupActive = false;
             }
 
             // Handle loading state
@@ -1220,15 +1204,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // If popup is active, route input
-            if (_isPopupActive)
+            // If confirmation modal is active, route to custom handler
+            // (generic popups are handled by base popup mode infrastructure)
+            if (_isConfirmationModalActive)
             {
-                if (_wasConfirmationModalOpen)
-                    HandleConfirmationModalInput();
-                else
-                    _popupHandler.HandleInput();
+                HandleConfirmationModalInput();
                 return;
             }
+
+            // If base popup mode is active, input is handled by base
+            if (IsInPopupMode)
+                return;
 
             switch (_navLevel)
             {
@@ -2295,7 +2281,7 @@ namespace AccessibleArena.Core.Services
 
             // Fallback to generic text extraction
             if (string.IsNullOrEmpty(labelText))
-                labelText = UITextExtractor.GetText(_popupHandler.ActivePopup ?? _confirmationModalMb?.gameObject);
+                labelText = UITextExtractor.GetText(PopupGameObject ?? _confirmationModalMb?.gameObject);
 
             string announcement = "Confirm purchase";
             if (!string.IsNullOrEmpty(labelText))
@@ -2315,7 +2301,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle input for the confirmation modal (special case with purchase buttons).
-        /// Generic popups route through PopupHandler.HandleInput() instead.
+        /// Generic popups are handled by the base popup mode infrastructure.
         /// </summary>
         private void HandleConfirmationModalInput()
         {

@@ -1,12 +1,15 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Services.PanelDetection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace AccessibleArena.Core.Services
 {
@@ -97,6 +100,18 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Popup Mode Fields
+
+        private bool _isInPopupMode;
+        private GameObject _popupGameObject;
+        private List<NavigableElement> _savedElements;
+        private int _savedIndex;
+        private InputFieldEditHelper _popupInputHelper;
+        private DropdownEditHelper _popupDropdownHelper;
+        protected bool _shouldAutoDismissPopup;
+
+        #endregion
+
         #region Abstract Members (subclasses must implement)
 
         /// <summary>Unique ID for logging</summary>
@@ -143,6 +158,22 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>Called before a collection card is activated. Return true to intercept (e.g., show craft confirmation).</summary>
         protected virtual bool OnCollectionCardActivating(GameObject element) => false;
+
+        /// <summary>Called when a popup is detected via PanelStateManager. Override for custom filtering or behavior.</summary>
+        protected virtual void OnPopupDetected(PanelInfo panel)
+        {
+            if (panel?.GameObject != null)
+                EnterPopupMode(panel.GameObject);
+        }
+
+        /// <summary>Called when a popup closes. Override for custom cleanup or re-announcement.</summary>
+        protected virtual void OnPopupClosed() { }
+
+        /// <summary>
+        /// Check if a panel should be excluded from popup handling.
+        /// Override to filter benign overlays that aren't real popups.
+        /// </summary>
+        protected virtual bool IsPopupExcluded(PanelInfo panel) => false;
 
         /// <summary>Build the initial screen announcement</summary>
         protected virtual string GetActivationAnnouncement()
@@ -513,8 +544,20 @@ namespace AccessibleArena.Core.Services
 
         protected virtual bool ValidateElements()
         {
+            // In popup mode, validate the popup GameObject instead of elements
+            if (_isInPopupMode)
+                return _popupGameObject != null && _popupGameObject.activeInHierarchy;
+
             // Check if first element still exists (quick validation)
-            return _elements.Count > 0 && _elements[0].GameObject != null;
+            // Allow null GameObjects (TextBlock elements) - find first non-null
+            if (_elements.Count == 0) return false;
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].GameObject != null)
+                    return true;
+            }
+            // All elements have null GameObjects (all text blocks) - still valid
+            return _elements.Count > 0;
         }
 
         public virtual void Deactivate()
@@ -522,6 +565,12 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return;
 
             MelonLogger.Msg($"[{NavigatorId}] Deactivating");
+
+            // Clean up popup mode if active
+            if (_isInPopupMode)
+                ClearPopupModeState();
+
+            DisablePopupDetection();
 
             OnDeactivating();
 
@@ -1038,13 +1087,33 @@ namespace AccessibleArena.Core.Services
         /// Early input hook called before any BaseNavigator input processing.
         /// Override to intercept input before auto-focus and navigation logic.
         /// Return true to consume input (skip all BaseNavigator handling).
-        /// Used by navigators with PopupHandler to route popup input first.
         /// </summary>
         protected virtual bool HandleEarlyInput() => false;
 
         protected virtual void HandleInput()
         {
-            // Early input hook - lets subclasses (e.g. popup handling) intercept before auto-focus logic
+            // Auto-dismiss popup if flagged (one-frame delay from detection, e.g. craft popup)
+            if (_isInPopupMode && _shouldAutoDismissPopup)
+            {
+                _shouldAutoDismissPopup = false;
+                DismissPopup();
+                return;
+            }
+
+            // Popup mode: route all input through popup navigation
+            if (_isInPopupMode)
+            {
+                if (!ValidatePopup())
+                {
+                    ExitPopupMode();
+                    OnPopupClosed();
+                    return;
+                }
+                HandlePopupInput();
+                return;
+            }
+
+            // Early input hook - lets subclasses intercept before auto-focus logic
             if (HandleEarlyInput()) return;
 
             // Check if we're in explicit edit mode (user activated field or game focused it)
@@ -1772,7 +1841,16 @@ namespace AccessibleArena.Core.Services
 
             var navElement = _elements[_currentIndex];
             var element = navElement.GameObject;
-            if (element == null) return;
+
+            // TextBlock: re-announce the label instead of activating
+            if (element == null)
+            {
+                if (navElement.Role == UIElementClassifier.ElementRole.TextBlock)
+                {
+                    _announcer?.Announce(navElement.Label, AnnouncementPriority.Normal);
+                }
+                return;
+            }
 
             // Check if we're on an attached action (not the element itself)
             if (_currentActionIndex > 0 && navElement.AttachedActions != null &&
@@ -1909,6 +1987,908 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Popup Mode
+
+        /// <summary>Whether popup mode is currently active</summary>
+        protected bool IsInPopupMode => _isInPopupMode;
+
+        /// <summary>The current popup's GameObject</summary>
+        protected GameObject PopupGameObject => _popupGameObject;
+
+        /// <summary>
+        /// Subscribe to PanelStateManager for popup detection.
+        /// Call in OnActivated(). Automatically unsubscribed on deactivation.
+        /// </summary>
+        protected void EnablePopupDetection()
+        {
+            if (PanelStateManager.Instance != null)
+                PanelStateManager.Instance.OnPanelChanged += OnPopupPanelChanged;
+        }
+
+        /// <summary>
+        /// Unsubscribe from PanelStateManager popup detection.
+        /// </summary>
+        protected void DisablePopupDetection()
+        {
+            if (PanelStateManager.Instance != null)
+                PanelStateManager.Instance.OnPanelChanged -= OnPopupPanelChanged;
+        }
+
+        /// <summary>
+        /// PanelStateManager callback for popup detection.
+        /// </summary>
+        private void OnPopupPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
+        {
+            if (!_isActive) return;
+
+            if (newPanel != null && !IsPopupExcluded(newPanel) && IsPopupPanel(newPanel))
+            {
+                if (!_isInPopupMode)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
+                    OnPopupDetected(newPanel);
+                }
+            }
+            else if (_isInPopupMode && newPanel == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup closed");
+                ExitPopupMode();
+                OnPopupClosed();
+            }
+        }
+
+        /// <summary>
+        /// Check if a panel is a popup/dialog that should be handled.
+        /// </summary>
+        public static bool IsPopupPanel(PanelInfo panel)
+        {
+            if (panel == null) return false;
+            if (panel.Type == PanelType.Popup) return true;
+            string name = panel.Name;
+            return name.Contains("SystemMessageView") ||
+                   name.Contains("Popup") ||
+                   name.Contains("Dialog") ||
+                   name.Contains("Modal") ||
+                   name.Contains("ChallengeInvite");
+        }
+
+        /// <summary>
+        /// Enter popup mode: save current elements, discover popup elements, announce.
+        /// </summary>
+        protected void EnterPopupMode(GameObject popup)
+        {
+            if (popup == null) return;
+
+            MelonLogger.Msg($"[{NavigatorId}] Entering popup mode: {popup.name}");
+
+            // Deactivate card info navigator so Up/Down navigates popup items, not card blocks
+            AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
+
+            // Save current state
+            _savedElements = new List<NavigableElement>(_elements);
+            _savedIndex = _currentIndex;
+
+            // Switch to popup mode
+            _isInPopupMode = true;
+            _popupGameObject = popup;
+            _elements.Clear();
+            _currentIndex = -1;
+
+            // Create helpers for popup input fields and dropdowns
+            _popupInputHelper = new InputFieldEditHelper(_announcer);
+            _popupDropdownHelper = new DropdownEditHelper(_announcer, NavigatorId);
+
+            // Discover popup elements
+            DiscoverPopupElements(popup);
+
+            MelonLogger.Msg($"[{NavigatorId}] Popup mode: {_elements.Count} items discovered");
+
+            // Auto-focus first actionable item (input field, dropdown, or button), otherwise first item
+            int firstActionable = _elements.FindIndex(e =>
+                e.Role == UIElementClassifier.ElementRole.Button ||
+                e.Role == UIElementClassifier.ElementRole.TextField ||
+                e.Role == UIElementClassifier.ElementRole.Dropdown);
+            _currentIndex = firstActionable >= 0 ? firstActionable : (_elements.Count > 0 ? 0 : -1);
+
+            AnnouncePopupOpen();
+        }
+
+        /// <summary>
+        /// Exit popup mode: restore saved elements and index.
+        /// </summary>
+        protected void ExitPopupMode()
+        {
+            if (!_isInPopupMode) return;
+
+            MelonLogger.Msg($"[{NavigatorId}] Exiting popup mode");
+            ClearPopupModeState();
+        }
+
+        /// <summary>
+        /// Clear all popup mode state and restore saved elements.
+        /// </summary>
+        private void ClearPopupModeState()
+        {
+            _popupInputHelper?.Clear();
+            _popupDropdownHelper?.Clear();
+            _popupInputHelper = null;
+            _popupDropdownHelper = null;
+
+            _isInPopupMode = false;
+            _shouldAutoDismissPopup = false;
+
+            // Restore saved elements
+            if (_savedElements != null)
+            {
+                _elements.Clear();
+                _elements.AddRange(_savedElements);
+                _currentIndex = _savedIndex;
+                _savedElements = null;
+            }
+
+            _popupGameObject = null;
+        }
+
+        /// <summary>
+        /// Validate that the popup is still active.
+        /// </summary>
+        private bool ValidatePopup()
+        {
+            return _popupGameObject != null && _popupGameObject.activeInHierarchy;
+        }
+
+        /// <summary>
+        /// Dismiss the popup using a 3-level chain:
+        /// 1. Find cancel button by pattern
+        /// 2. SystemMessageView.OnBack(null) via reflection
+        /// 3. SetActive(false) as last resort
+        /// </summary>
+        protected void DismissPopup()
+        {
+            if (!_isInPopupMode || _popupGameObject == null) return;
+
+            // Level 1: Find cancel button
+            var cancelButton = FindPopupCancelButton(_popupGameObject);
+            if (cancelButton != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup: clicking cancel button: {cancelButton.name}");
+                _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
+                UIActivator.Activate(cancelButton);
+                return;
+            }
+
+            // Level 2: SystemMessageView.OnBack(null)
+            MelonLogger.Msg($"[{NavigatorId}] Popup: no cancel button found, trying OnBack()");
+            var systemMessageView = FindSystemMessageViewInPopup(_popupGameObject);
+            if (systemMessageView != null && TryInvokeOnBack(systemMessageView))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup: dismissed via OnBack()");
+                _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
+                ExitPopupMode();
+                OnPopupClosed();
+                return;
+            }
+
+            // Level 3: SetActive(false) fallback
+            MelonLogger.Warning($"[{NavigatorId}] Popup: using SetActive(false) fallback");
+            _popupGameObject.SetActive(false);
+            _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
+            ExitPopupMode();
+            OnPopupClosed();
+        }
+
+        /// <summary>
+        /// Handle input while in popup mode.
+        /// Up/Down: navigate, Enter: activate, Backspace: dismiss.
+        /// </summary>
+        private void HandlePopupInput()
+        {
+            // Dropdown edit mode intercepts all keys first
+            if (_popupDropdownHelper != null && _popupDropdownHelper.IsEditing)
+            {
+                _popupDropdownHelper.HandleEditing(dir => NavigatePopupItem(dir));
+                return;
+            }
+
+            // Input field edit mode intercepts all keys first
+            if (_popupInputHelper != null && _popupInputHelper.IsEditing)
+            {
+                _popupInputHelper.HandleEditing(dir => NavigatePopupItem(dir));
+                _popupInputHelper.TrackState();
+                return;
+            }
+
+            // Up/W/Shift+Tab: previous item
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) ||
+                (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))))
+            {
+                NavigatePopupItem(-1);
+                return;
+            }
+
+            // Down/S/Tab: next item
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) ||
+                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
+            {
+                NavigatePopupItem(1);
+                return;
+            }
+
+            // Enter/Space: activate current item
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
+                Input.GetKeyDown(KeyCode.Space))
+            {
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                ActivatePopupItem();
+                return;
+            }
+
+            // Backspace: dismiss popup
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                InputManager.ConsumeKey(KeyCode.Backspace);
+                DismissPopup();
+                return;
+            }
+        }
+
+        private void NavigatePopupItem(int direction)
+        {
+            if (_elements.Count == 0) return;
+
+            int newIndex = _currentIndex + direction;
+
+            if (newIndex < 0)
+            {
+                _announcer?.AnnounceInterruptVerbose(Strings.BeginningOfList);
+                return;
+            }
+            if (newIndex >= _elements.Count)
+            {
+                _announcer?.AnnounceInterruptVerbose(Strings.EndOfList);
+                return;
+            }
+
+            _currentIndex = newIndex;
+            AnnouncePopupCurrentItem();
+        }
+
+        private void ActivatePopupItem()
+        {
+            if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
+
+            var elem = _elements[_currentIndex];
+
+            if (elem.Role == UIElementClassifier.ElementRole.TextBlock)
+            {
+                // Re-read text block
+                AnnouncePopupCurrentItem();
+                return;
+            }
+
+            if (elem.Role == UIElementClassifier.ElementRole.TextField && elem.GameObject != null)
+            {
+                _popupInputHelper?.EnterEditMode(elem.GameObject);
+                return;
+            }
+
+            if (elem.Role == UIElementClassifier.ElementRole.Dropdown && elem.GameObject != null)
+            {
+                _popupDropdownHelper?.EnterEditMode(elem.GameObject);
+                return;
+            }
+
+            if (elem.GameObject != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup: activating: {elem.Label}");
+                _announcer?.AnnounceInterrupt(Strings.Activating(elem.Label));
+                UIActivator.Activate(elem.GameObject);
+            }
+        }
+
+        #region Popup Announcements
+
+        private void AnnouncePopupOpen()
+        {
+            string title = ExtractPopupTitle(_popupGameObject);
+
+            // Fall back to first text block
+            if (string.IsNullOrEmpty(title))
+            {
+                foreach (var elem in _elements)
+                {
+                    if (elem.Role == UIElementClassifier.ElementRole.TextBlock)
+                    {
+                        title = elem.Label;
+                        break;
+                    }
+                }
+            }
+
+            string announcement = !string.IsNullOrEmpty(title)
+                ? $"Popup: {title}. {_elements.Count} items."
+                : $"Popup. {_elements.Count} items.";
+
+            _announcer?.AnnounceInterrupt(announcement);
+
+            // Auto-announce focused item
+            if (_currentIndex >= 0 && _currentIndex < _elements.Count)
+                AnnouncePopupCurrentItem();
+        }
+
+        private void AnnouncePopupCurrentItem()
+        {
+            if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
+
+            var elem = _elements[_currentIndex];
+            string label = elem.Label;
+
+            // Refresh dynamic labels
+            if (elem.Role == UIElementClassifier.ElementRole.TextField && elem.GameObject != null)
+            {
+                label = RefreshElementLabel(elem.GameObject, label, UIElementClassifier.ElementRole.TextField);
+            }
+            else if (elem.Role == UIElementClassifier.ElementRole.Dropdown && elem.GameObject != null)
+            {
+                string currentValue = GetDropdownDisplayValue(elem.GameObject);
+                if (!string.IsNullOrEmpty(currentValue))
+                    label = $"{currentValue}, {Strings.RoleDropdown}";
+            }
+            else if (elem.Role == UIElementClassifier.ElementRole.Button)
+            {
+                label = BuildLabel(label, Strings.RoleButton, UIElementClassifier.ElementRole.Button);
+            }
+
+            _announcer?.Announce(
+                $"{label}, {_currentIndex + 1} of {_elements.Count}",
+                AnnouncementPriority.Normal);
+        }
+
+        #endregion
+
+        #region Popup Element Discovery
+
+        /// <summary>
+        /// Discover navigable elements in a popup.
+        /// Override for custom discovery logic.
+        /// </summary>
+        protected virtual void DiscoverPopupElements(GameObject popup)
+        {
+            if (popup == null) return;
+
+            var addedObjects = new HashSet<GameObject>();
+
+            // Check for DeckCostsDetails for structured deck info
+            bool hasDeckCosts = HasComponentInChildren(popup, "DeckCostsDetails");
+
+            var skipTransforms = new List<Transform>();
+            if (hasDeckCosts)
+            {
+                CollectWidgetContentTransforms(popup, "DeckTypesDetails", "ItemParent", skipTransforms);
+                CollectWidgetContentTransforms(popup, "DeckColorsDetails", null, skipTransforms);
+                CollectWidgetContentTransforms(popup, "CosmeticSelectorController", null, skipTransforms);
+            }
+
+            // Phase 1: Discover text blocks
+            DiscoverPopupTextBlocks(popup, hasDeckCosts, skipTransforms);
+
+            // Phase 2: Discover input fields
+            DiscoverPopupInputFields(popup, addedObjects);
+
+            // Phase 3: Discover dropdowns
+            DiscoverPopupDropdowns(popup, addedObjects);
+
+            // Phase 4: Discover buttons
+            DiscoverPopupButtons(popup, addedObjects);
+
+            // Phase 5: Remove text blocks duplicating button labels
+            DeduplicateTextBlocksAgainstButtons();
+        }
+
+        private void DiscoverPopupTextBlocks(GameObject popup, bool hasDeckCosts, List<Transform> skipTransforms)
+        {
+            var seenTexts = new HashSet<string>();
+
+            foreach (var tmp in popup.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+
+                if (IsInsideButton(tmp.transform, popup.transform)) continue;
+                if (IsInsideInputField(tmp.transform, popup.transform)) continue;
+                if (IsInsideDropdown(tmp.transform, popup.transform)) continue;
+                if (IsInsideTitleContainer(tmp.transform, popup.transform)) continue;
+
+                if (hasDeckCosts && IsInsideComponentByName(tmp.transform, popup.transform, "DeckCostsDetails"))
+                    continue;
+                if (skipTransforms.Count > 0 && IsChildOfAny(tmp.transform, skipTransforms))
+                    continue;
+
+                string text = UITextExtractor.CleanText(tmp.text);
+                if (string.IsNullOrWhiteSpace(text) || text.Length < 3) continue;
+
+                var lines = text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string line in lines)
+                {
+                    string trimmed = line.Trim();
+                    if (trimmed.Length < 3) continue;
+                    if (seenTexts.Contains(trimmed)) continue;
+
+                    seenTexts.Add(trimmed);
+                    AddTextBlock(trimmed);
+                    MelonLogger.Msg($"[{NavigatorId}] Popup: text block: {trimmed}");
+                }
+            }
+
+            // Inject structured deck info if applicable
+            if (hasDeckCosts)
+            {
+                var deckInfo = DeckInfoProvider.GetDeckInfoElements();
+                if (deckInfo != null)
+                {
+                    foreach (var (label, text) in deckInfo)
+                    {
+                        string combined = $"{label}: {text}";
+                        AddTextBlock(combined);
+                        MelonLogger.Msg($"[{NavigatorId}] Popup: deck info: {combined}");
+                    }
+                }
+            }
+        }
+
+        private void DiscoverPopupInputFields(GameObject popup, HashSet<GameObject> addedObjects)
+        {
+            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+
+            foreach (var field in popup.GetComponentsInChildren<TMP_InputField>(true))
+            {
+                if (field == null || !field.gameObject.activeInHierarchy || !field.interactable) continue;
+                if (addedObjects.Contains(field.gameObject)) continue;
+
+                string label = UITextExtractor.GetInputFieldLabel(field.gameObject);
+                var pos = field.gameObject.transform.position;
+                discovered.Add((field.gameObject, label, -pos.y * 1000 + pos.x));
+                addedObjects.Add(field.gameObject);
+            }
+
+            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+            {
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = obj,
+                    Label = label,
+                    Role = UIElementClassifier.ElementRole.TextField
+                });
+                MelonLogger.Msg($"[{NavigatorId}] Popup: input field: {label}");
+            }
+        }
+
+        private void DiscoverPopupDropdowns(GameObject popup, HashSet<GameObject> addedObjects)
+        {
+            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (addedObjects.Contains(mb.gameObject)) continue;
+
+                string typeName = mb.GetType().Name;
+                bool isDropdown = typeName == "cTMP_Dropdown" ||
+                                  mb is TMP_Dropdown ||
+                                  mb is Dropdown;
+                if (!isDropdown) continue;
+
+                string displayValue = GetDropdownDisplayValue(mb.gameObject);
+                string label = !string.IsNullOrEmpty(displayValue)
+                    ? $"{displayValue}, {Strings.RoleDropdown}"
+                    : $"{mb.gameObject.name}, {Strings.RoleDropdown}";
+
+                var pos = mb.gameObject.transform.position;
+                discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
+                addedObjects.Add(mb.gameObject);
+            }
+
+            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+            {
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = obj,
+                    Label = label,
+                    Role = UIElementClassifier.ElementRole.Dropdown
+                });
+                MelonLogger.Msg($"[{NavigatorId}] Popup: dropdown: {label}");
+            }
+        }
+
+        private void DiscoverPopupButtons(GameObject popup, HashSet<GameObject> addedObjects)
+        {
+            var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+
+            // Pass 1: SystemMessageButtonView
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (addedObjects.Contains(mb.gameObject)) continue;
+                if (IsInsideInputField(mb.transform, popup.transform)) continue;
+                if (IsInsideDropdown(mb.transform, popup.transform)) continue;
+
+                if (mb.GetType().Name == "SystemMessageButtonView")
+                {
+                    string label = UITextExtractor.GetText(mb.gameObject);
+                    if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
+                    var pos = mb.gameObject.transform.position;
+                    discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
+                    addedObjects.Add(mb.gameObject);
+                }
+            }
+
+            // Pass 2: CustomButton / CustomButtonWithTooltip
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (addedObjects.Contains(mb.gameObject)) continue;
+                if (IsInsideInputField(mb.transform, popup.transform)) continue;
+                if (IsInsideDropdown(mb.transform, popup.transform)) continue;
+                if (IsInsideButton(mb.transform, popup.transform)) continue;
+
+                string typeName = mb.GetType().Name;
+                if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                {
+                    string label = UITextExtractor.GetText(mb.gameObject);
+                    if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
+                    var pos = mb.gameObject.transform.position;
+                    discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
+                    addedObjects.Add(mb.gameObject);
+                }
+            }
+
+            // Pass 3: Standard Unity Buttons
+            foreach (var button in popup.GetComponentsInChildren<Button>(true))
+            {
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
+                if (addedObjects.Contains(button.gameObject)) continue;
+                if (IsInsideInputField(button.transform, popup.transform)) continue;
+                if (IsInsideDropdown(button.transform, popup.transform)) continue;
+                if (IsInsideButton(button.transform, popup.transform)) continue;
+
+                string label = UITextExtractor.GetText(button.gameObject);
+                if (string.IsNullOrEmpty(label)) label = button.gameObject.name;
+                var pos = button.gameObject.transform.position;
+                discovered.Add((button.gameObject, label, -pos.y * 1000 + pos.x));
+                addedObjects.Add(button.gameObject);
+            }
+
+            // Sort, filter dismiss overlays, deduplicate
+            var seenLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+            {
+                if (IsDismissOverlay(obj))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup: skipping dismiss overlay: {obj.name}");
+                    continue;
+                }
+                if (!seenLabels.Add(label))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup: skipping duplicate button: {label}");
+                    continue;
+                }
+
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = obj,
+                    Label = label,
+                    Role = UIElementClassifier.ElementRole.Button
+                });
+                MelonLogger.Msg($"[{NavigatorId}] Popup: button: {label}");
+            }
+        }
+
+        private void DeduplicateTextBlocksAgainstButtons()
+        {
+            var buttonLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var elem in _elements)
+            {
+                if (elem.Role == UIElementClassifier.ElementRole.Button)
+                    buttonLabels.Add(elem.Label);
+            }
+            if (buttonLabels.Count == 0) return;
+
+            int removed = _elements.RemoveAll(e =>
+                e.Role == UIElementClassifier.ElementRole.TextBlock && buttonLabels.Contains(e.Label));
+            if (removed > 0)
+                MelonLogger.Msg($"[{NavigatorId}] Popup: removed {removed} text blocks duplicating button labels");
+        }
+
+        #endregion
+
+        #region Popup Helpers
+
+        private string ExtractPopupTitle(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            foreach (var tmp in popup.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+                if (!IsInsideTitleContainer(tmp.transform, popup.transform)) continue;
+
+                string text = UITextExtractor.CleanText(tmp.text);
+                if (!string.IsNullOrWhiteSpace(text) && text.Length >= 3)
+                    return text.Trim();
+            }
+            return null;
+        }
+
+        private static bool IsInsideTitleContainer(Transform child, Transform stopAt)
+        {
+            Transform current = child;
+            while (current != null && current != stopAt)
+            {
+                string name = current.name;
+                if (name.IndexOf("Title", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    name.IndexOf("Header", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
+        private static bool IsInsideButton(Transform child, Transform stopAt)
+        {
+            Transform current = child.parent;
+            while (current != null && current != stopAt)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null)
+                    {
+                        string typeName = mb.GetType().Name;
+                        if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip" ||
+                            typeName == "SystemMessageButtonView")
+                            return true;
+                    }
+                }
+                if (current.GetComponent<Button>() != null)
+                    return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
+        private static bool IsInsideDropdown(Transform child, Transform stopAt)
+        {
+            Transform current = child.parent;
+            while (current != null && current != stopAt)
+            {
+                if (UIFocusTracker.IsDropdown(current.gameObject))
+                    return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
+        private static bool IsInsideInputField(Transform child, Transform stopAt)
+        {
+            Transform current = child.parent;
+            while (current != null && current != stopAt)
+            {
+                if (current.GetComponent<TMP_InputField>() != null)
+                    return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
+        private static bool IsInsideComponentByName(Transform child, Transform stopAt, string typeName)
+        {
+            Transform current = child;
+            while (current != null && current != stopAt)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == typeName)
+                        return true;
+                }
+                current = current.parent;
+            }
+            return false;
+        }
+
+        private static bool HasComponentInChildren(GameObject go, string typeName)
+        {
+            if (go == null) return false;
+            foreach (var mb in go.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == typeName)
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsDismissOverlay(GameObject obj)
+        {
+            string name = obj.name.ToLower();
+            return name.Contains("background") || name.Contains("overlay") ||
+                   name.Contains("backdrop") || name.Contains("dismiss");
+        }
+
+        private static bool IsChildOfAny(Transform child, List<Transform> parents)
+        {
+            foreach (var parent in parents)
+            {
+                if (child.IsChildOf(parent))
+                    return true;
+            }
+            return false;
+        }
+
+        private static void CollectWidgetContentTransforms(GameObject popup, string componentTypeName,
+            string fieldName, List<Transform> skipTransforms)
+        {
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || mb.GetType().Name != componentTypeName) continue;
+
+                if (fieldName != null)
+                {
+                    var field = mb.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
+                    if (field != null)
+                    {
+                        var transform = field.GetValue(mb) as Transform;
+                        if (transform != null)
+                            skipTransforms.Add(transform);
+                    }
+                }
+                else
+                {
+                    skipTransforms.Add(mb.transform);
+                }
+                break;
+            }
+        }
+
+        /// <summary>
+        /// Find the cancel/close/no button in a popup using pattern matching + reflection fallback.
+        /// </summary>
+        private GameObject FindPopupCancelButton(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            string[] cancelPatterns = { "cancel", "close", "back", "no", "abbrechen", "nein", "zurück" };
+
+            // Pass 1: SystemMessageButtonView
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == "SystemMessageButtonView" && MatchesCancelPattern(mb.gameObject, cancelPatterns))
+                    return mb.gameObject;
+            }
+
+            // Pass 2: CustomButton / CustomButtonWithTooltip
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                string typeName = mb.GetType().Name;
+                if ((typeName == "CustomButton" || typeName == "CustomButtonWithTooltip") &&
+                    MatchesCancelPattern(mb.gameObject, cancelPatterns))
+                    return mb.gameObject;
+            }
+
+            // Pass 3: Standard Unity Buttons
+            foreach (var button in popup.GetComponentsInChildren<Button>(true))
+            {
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
+                if (MatchesCancelPattern(button.gameObject, cancelPatterns))
+                    return button.gameObject;
+            }
+
+            // Pass 4: _cancelButton via reflection
+            foreach (var mb in popup.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var field = mb.GetType().GetField("_cancelButton",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field == null) continue;
+
+                if (field.GetValue(mb) is MonoBehaviour cancelMb && cancelMb != null && cancelMb.gameObject != null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup: found _cancelButton via reflection on {mb.GetType().Name}");
+                    return cancelMb.gameObject;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool MatchesCancelPattern(GameObject obj, string[] patterns)
+        {
+            string buttonText = UITextExtractor.GetText(obj)?.ToLower() ?? "";
+            string buttonName = obj.name.ToLower();
+
+            foreach (var pattern in patterns)
+            {
+                if (ContainsCancelWord(buttonText, pattern) || ContainsCancelWord(buttonName, pattern))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool ContainsCancelWord(string text, string word)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            int idx = 0;
+            while ((idx = text.IndexOf(word, idx, StringComparison.Ordinal)) >= 0)
+            {
+                bool startOk = idx == 0 || !char.IsLetterOrDigit(text[idx - 1]);
+                bool endOk = idx + word.Length >= text.Length || !char.IsLetterOrDigit(text[idx + word.Length]);
+                if (startOk && endOk) return true;
+                idx += word.Length;
+            }
+            return false;
+        }
+
+        private MonoBehaviour FindSystemMessageViewInPopup(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            // Search children
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView")
+                    return mb;
+            }
+
+            // Search up hierarchy
+            var current = popup.transform.parent;
+            while (current != null)
+            {
+                foreach (var mb in current.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "SystemMessageView")
+                        return mb;
+                }
+                current = current.parent;
+            }
+
+            // Scene-wide fallback
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "SystemMessageView" && mb.gameObject.activeInHierarchy)
+                    return mb;
+            }
+
+            return null;
+        }
+
+        private bool TryInvokeOnBack(MonoBehaviour component)
+        {
+            if (component == null) return false;
+
+            var type = component.GetType();
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                if (method.Name == "OnBack" && method.GetParameters().Length == 1)
+                {
+                    try
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Popup: invoking {type.Name}.OnBack(null)");
+                        method.Invoke(component, new object[] { null });
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[{NavigatorId}] Popup: OnBack error: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        #endregion
+
+        #endregion
+
         #region Element Discovery Helpers
 
         /// <summary>Add an element with a label (prevents duplicates)</summary>
@@ -1955,6 +2935,18 @@ namespace AccessibleArena.Core.Services
             string altInfo = alternateAction != null ? $" [Alt: {alternateAction.name}]" : "";
             string actionsInfo = attachedActions != null && attachedActions.Count > 0 ? $" [Actions: {attachedActions.Count}]" : "";
             MelonLogger.Msg($"[{NavigatorId}] Added (ID:{instanceId}): {label}{altInfo}{actionsInfo}");
+        }
+
+        /// <summary>Add a read-only text block (null GameObject, TextBlock role)</summary>
+        protected void AddTextBlock(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+            _elements.Add(new NavigableElement
+            {
+                GameObject = null,
+                Label = text,
+                Role = UIElementClassifier.ElementRole.TextBlock
+            });
         }
 
         /// <summary>Add a button, auto-extracting label from text</summary>

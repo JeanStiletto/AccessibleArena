@@ -9,7 +9,7 @@ namespace AccessibleArena.Core.Services
     /// <summary>
     /// A reusable confirmation popup for crafting cards with wildcards.
     /// Creates a Unity UI overlay with body text, OK, and Cancel buttons.
-    /// PopupHandler discovers the buttons via GetComponentsInChildren&lt;Button&gt;()
+    /// Base popup mode discovers the buttons via GetComponentsInChildren&lt;Button&gt;()
     /// and the body text via TMP_Text, so standard popup navigation works out of the box.
     /// </summary>
     public class CraftConfirmationPopup
@@ -22,7 +22,7 @@ namespace AccessibleArena.Core.Services
         private Action _onConfirm;
         private Action _onCancel;
 
-        /// <summary>Root GameObject for PopupHandler integration.</summary>
+        /// <summary>Root GameObject for popup mode integration.</summary>
         public GameObject GameObject => _root;
 
         /// <summary>Whether the popup is currently visible.</summary>

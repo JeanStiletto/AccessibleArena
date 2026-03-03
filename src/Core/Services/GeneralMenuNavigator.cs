@@ -190,11 +190,6 @@ namespace AccessibleArena.Core.Services
         private List<CardInfoBlock> _packetBlocks;
         private int _packetBlockIndex;
 
-        // Popup overlay tracking
-        private GameObject _activePopup;
-        private bool _isPopupActive;
-        private readonly PopupHandler _popupHandler;
-
         // Craft confirmation popup
         private CraftConfirmationPopup _craftPopup;
         private GameObject _pendingCraftElement;
@@ -331,9 +326,8 @@ namespace AccessibleArena.Core.Services
             _groupedNavigator = new GroupedNavigator(announcer, _groupAssigner);
             _playBladeHelper = new PlayBladeNavigationHelper(_groupedNavigator);
             _challengeHelper = new ChallengeNavigationHelper(_groupedNavigator, announcer);
-            _popupHandler = new PopupHandler(NavigatorId, announcer);
-
-            // Subscribe to PanelStateManager for rescan triggers
+            // Subscribe to PanelStateManager for rescan triggers + popup detection
+            EnablePopupDetection();
             if (PanelStateManager.Instance != null)
             {
                 PanelStateManager.Instance.OnPanelChanged += OnPanelStateManagerActiveChanged;
@@ -342,6 +336,23 @@ namespace AccessibleArena.Core.Services
 
             // Subscribe to mail letter selection events
             PanelStatePatch.OnMailLetterSelected += OnMailLetterSelected;
+        }
+
+        protected override void OnPopupDetected(PanelInfo panel)
+        {
+            base.OnPopupDetected(panel);
+
+            // Auto-dismiss craft confirmation popup (CardViewerPopup) on next frame
+            if (_expectingCraftPopup && panel?.Name?.Contains("CardViewerPopup") == true)
+            {
+                _expectingCraftPopup = false;
+                _shouldAutoDismissPopup = true;
+            }
+        }
+
+        protected override void OnPopupClosed()
+        {
+            HandleCraftConfirmationResult();
         }
 
         /// <summary>
@@ -371,32 +382,8 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Detect popup transitions
-            if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
-            {
-                if (!_isPopupActive)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
-                    _isPopupActive = true;
-                    _activePopup = newPanel.GameObject;
-                    _popupHandler.OnPopupDetected(newPanel.GameObject);
-
-                    // Auto-dismiss the game's CardViewerPopup after our craft confirmation
-                    if (_expectingCraftPopup && newPanel.Name != null && newPanel.Name.Contains("CardViewerPopup"))
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] Auto-dismissing game's CardViewerPopup after craft");
-                        _expectingCraftPopup = false;
-                        _popupHandler.DismissPopup();
-                        AnnounceWildcardChange();
-                        return;
-                    }
-                }
-            }
-            else if (_isPopupActive)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Popup closed, was: {_activePopup?.name}");
-                ClearPopupState();
-            }
+            // Popup transitions are handled by base popup mode infrastructure
+            // (via EnablePopupDetection + OnPopupDetected/OnPopupClosed overrides)
 
             // Reset mail detail view state when mailbox closes
             if (oldPanel?.Name?.Contains("Mailbox") == true && newPanel?.Name?.Contains("Mailbox") != true)
@@ -949,8 +936,7 @@ namespace AccessibleArena.Core.Services
         protected override void OnDeactivating()
         {
             base.OnDeactivating();
-
-            ClearPopupState();
+            DisablePopupDetection();
 
             _screenDetector.Reset();
 
@@ -1152,27 +1138,6 @@ namespace AccessibleArena.Core.Services
 
             // Panel detection handled by PanelDetectorManager via events (OnPanelChanged/OnAnyPanelOpened)
             base.Update();
-        }
-
-        /// <summary>
-        /// Early input hook: route popup input before BaseNavigator's auto-focus logic.
-        /// Without this, MTGA's auto-focused input fields in popups would be intercepted
-        /// by BaseNavigator's arrow key handling before PopupHandler gets a chance to run.
-        /// </summary>
-        protected override bool HandleEarlyInput()
-        {
-            if (_isPopupActive)
-            {
-                if (!_popupHandler.ValidatePopup())
-                {
-                    ClearPopupState();
-                    HandleCraftConfirmationResult();
-                    return false;
-                }
-                _popupHandler.HandleInput();
-                return true; // Consume all input while popup is active
-            }
-            return false;
         }
 
         /// <summary>
@@ -1628,7 +1593,7 @@ namespace AccessibleArena.Core.Services
 
                 return activeOverlay switch
                 {
-                    ElementGroup.Popup => false, // Handled by PopupHandler
+                    ElementGroup.Popup => false, // Handled by base popup mode
                     ElementGroup.MailboxContent => CloseMailDetailView(), // Close mail, return to list
                     ElementGroup.MailboxList => CloseMailbox(), // Close mailbox entirely
                     // RewardsPopup handled by RewardPopupNavigator
@@ -1790,16 +1755,6 @@ namespace AccessibleArena.Core.Services
 
             LogDebug($"[{NavigatorId}] At top level, no back action");
             return false;
-        }
-
-        /// <summary>
-        /// Clear popup tracking state.
-        /// </summary>
-        private void ClearPopupState()
-        {
-            _isPopupActive = false;
-            _activePopup = null;
-            _popupHandler.Clear();
         }
 
         /// <summary>
@@ -2994,8 +2949,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void PerformRescan()
         {
-            // Skip rescan while popup is active - PopupHandler owns discovery
-            if (_isPopupActive)
+            // Skip rescan while popup is active - base popup mode owns discovery
+            if (IsInPopupMode)
             {
                 LogDebug($"[{NavigatorId}] Skipping rescan - popup active");
                 return;
@@ -5136,9 +5091,7 @@ namespace AccessibleArena.Core.Services
                     _announcer.AnnounceInterrupt(Models.Strings.Cancelled);
                 });
 
-            _isPopupActive = true;
-            _activePopup = _craftPopup.GameObject;
-            _popupHandler.OnPopupDetected(_craftPopup.GameObject);
+            EnterPopupMode(_craftPopup.GameObject);
 
             MelonLogger.Msg($"[{NavigatorId}] Craft confirmation shown for: {cardName} ({rarity})");
             return true;
