@@ -76,15 +76,15 @@ namespace AccessibleArena.Core.Services
             _bodyText.color = Color.white;
             _bodyText.text = "";
 
-            // OK button
-            _okButton = CreateButton(content, "ButtonOK", Models.Strings.CraftConfirmOK,
-                new Vector2(0.15f, 0.08f), new Vector2(0.45f, 0.35f));
-            _okButton.onClick.AddListener((UnityEngine.Events.UnityAction)OnOKClicked);
-
-            // Cancel button
+            // Cancel button (left, matching game popup layout)
             _cancelButton = CreateButton(content, "ButtonCancel", Models.Strings.CraftConfirmCancel,
-                new Vector2(0.55f, 0.08f), new Vector2(0.85f, 0.35f));
+                new Vector2(0.15f, 0.08f), new Vector2(0.45f, 0.35f));
             _cancelButton.onClick.AddListener((UnityEngine.Events.UnityAction)OnCancelClicked);
+
+            // OK button (right, matching game popup layout)
+            _okButton = CreateButton(content, "ButtonOK", Models.Strings.CraftConfirmOK,
+                new Vector2(0.55f, 0.08f), new Vector2(0.85f, 0.35f));
+            _okButton.onClick.AddListener((UnityEngine.Events.UnityAction)OnOKClicked);
 
             _root.SetActive(false);
 

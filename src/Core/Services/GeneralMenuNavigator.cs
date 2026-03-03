@@ -200,6 +200,7 @@ namespace AccessibleArena.Core.Services
         private GameObject _pendingCraftElement;
         private bool _craftConfirmPending;
         private bool _expectingCraftPopup;
+        private string _wildcardTextBeforeCraft;
 
         #endregion
 
@@ -373,21 +374,22 @@ namespace AccessibleArena.Core.Services
             // Detect popup transitions
             if (newPanel != null && PopupHandler.IsPopupPanel(newPanel))
             {
-                // Auto-dismiss the game's CardViewerPopup after our craft confirmation
-                if (_expectingCraftPopup && newPanel.Name != null && newPanel.Name.Contains("CardViewerPopup"))
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Auto-dismissing game's CardViewerPopup after craft");
-                    _expectingCraftPopup = false;
-                    AutoDismissPopup(newPanel.GameObject);
-                    return;
-                }
-
                 if (!_isPopupActive)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
                     _isPopupActive = true;
                     _activePopup = newPanel.GameObject;
                     _popupHandler.OnPopupDetected(newPanel.GameObject);
+
+                    // Auto-dismiss the game's CardViewerPopup after our craft confirmation
+                    if (_expectingCraftPopup && newPanel.Name != null && newPanel.Name.Contains("CardViewerPopup"))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Auto-dismissing game's CardViewerPopup after craft");
+                        _expectingCraftPopup = false;
+                        _popupHandler.DismissPopup();
+                        AnnounceWildcardChange();
+                        return;
+                    }
                 }
             }
             else if (_isPopupActive)
@@ -917,6 +919,7 @@ namespace AccessibleArena.Core.Services
             _activationDelay = ActivationDelaySeconds;
             _isDeckBuilderReadOnly = false;
             _expectingCraftPopup = false;
+            _wildcardTextBeforeCraft = null;
 
             // Reset NPE button tracking for new scene
             _npeButtonCheckTimer = NPEButtonCheckInterval;
@@ -5137,9 +5140,6 @@ namespace AccessibleArena.Core.Services
             _activePopup = _craftPopup.GameObject;
             _popupHandler.OnPopupDetected(_craftPopup.GameObject);
 
-            // Deactivate card info navigator so Up/Down goes to popup, not card blocks
-            AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
-
             MelonLogger.Msg($"[{NavigatorId}] Craft confirmation shown for: {cardName} ({rarity})");
             return true;
         }
@@ -5154,6 +5154,7 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Craft confirmed - activating card");
                 _expectingCraftPopup = true;
+                _wildcardTextBeforeCraft = GetWildcardText();
                 var result = UIActivator.Activate(_pendingCraftElement);
                 _announcer.Announce(result.Message, AnnouncementPriority.Normal);
                 OnDeckBuilderCardActivated();
@@ -5164,35 +5165,49 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Auto-dismiss a game popup by finding a close/cancel button or deactivating it.
-        /// Used to dismiss the game's CardViewerPopup after craft confirmation.
+        /// Reads the current wildcard tooltip text from the Nav_WildCard navbar element.
+        /// Returns the per-rarity text (e.g., "33 x häufig, 32 x nicht ganz so häufig, ...").
         /// </summary>
-        private void AutoDismissPopup(GameObject popup)
+        private string GetWildcardText()
         {
-            if (popup == null) return;
+            var navWildcard = GameObject.Find("Nav_WildCard");
+            if (navWildcard == null) return null;
+            return UITextExtractor.GetText(navWildcard);
+        }
 
-            // Try to find a close/cancel/dismiss button
-            foreach (var child in popup.GetComponentsInChildren<Transform>(true))
+        /// <summary>
+        /// Compares wildcard text before and after craft, announces changed entries.
+        /// </summary>
+        private void AnnounceWildcardChange()
+        {
+            if (string.IsNullOrEmpty(_wildcardTextBeforeCraft)) return;
+
+            string after = GetWildcardText();
+            if (string.IsNullOrEmpty(after) || after == _wildcardTextBeforeCraft)
             {
-                if (!child.gameObject.activeInHierarchy) continue;
-                string name = child.name;
-                if (name.Contains("Close") || name.Contains("Dismiss") || name.Contains("Back") ||
-                    name.Contains("Cancel") || name.Contains("Background_ClickBlocker"))
-                {
-                    // Check if it has a clickable component
-                    if (child.GetComponent<Button>() != null ||
-                        child.GetComponent<UnityEngine.EventSystems.IPointerClickHandler>() != null)
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] Auto-dismiss: clicking '{name}'");
-                        UIActivator.Activate(child.gameObject);
-                        return;
-                    }
-                }
+                _wildcardTextBeforeCraft = null;
+                return;
             }
 
-            // Fallback: deactivate the popup
-            MelonLogger.Warning($"[{NavigatorId}] Auto-dismiss: no button found, using SetActive(false)");
-            popup.SetActive(false);
+            // Split into segments and find what changed
+            var beforeParts = _wildcardTextBeforeCraft.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+            var afterParts = after.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+
+            var changed = new List<string>();
+            for (int i = 0; i < afterParts.Length && i < beforeParts.Length; i++)
+            {
+                if (afterParts[i] != beforeParts[i])
+                    changed.Add(afterParts[i]);
+            }
+
+            if (changed.Count > 0)
+            {
+                string announcement = string.Join(", ", changed);
+                MelonLogger.Msg($"[{NavigatorId}] Wildcard change: {announcement}");
+                _announcer.Announce(announcement, AnnouncementPriority.High);
+            }
+
+            _wildcardTextBeforeCraft = null;
         }
 
         /// <summary>
