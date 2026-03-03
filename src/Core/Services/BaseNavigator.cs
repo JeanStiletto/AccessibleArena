@@ -96,6 +96,12 @@ namespace AccessibleArena.Core.Services
             /// Used for Popout hover buttons that open submenus on click.
             /// </summary>
             public bool UseHoverActivation { get; set; }
+            /// <summary>Action-based stepper: called on Right arrow (increment)</summary>
+            public Action OnIncrement { get; set; }
+            /// <summary>Action-based stepper: called on Left arrow (decrement)</summary>
+            public Action OnDecrement { get; set; }
+            /// <summary>Re-reads current value label after stepper change</summary>
+            public Func<string> ReadLabel { get; set; }
         }
 
         #endregion
@@ -108,8 +114,6 @@ namespace AccessibleArena.Core.Services
         private int _savedIndex;
         private InputFieldEditHelper _popupInputHelper;
         private DropdownEditHelper _popupDropdownHelper;
-        protected float _autoActionTimer;
-        private Action _autoActionCallback;
 
         #endregion
 
@@ -156,9 +160,6 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>Called after a deck builder card (collection or deck list) is activated. Subclasses can trigger rescan.</summary>
         protected virtual void OnDeckBuilderCardActivated() { }
-
-        /// <summary>Called before a collection card is activated. Return true to intercept (e.g., show craft confirmation).</summary>
-        protected virtual bool OnCollectionCardActivating(GameObject element) => false;
 
         /// <summary>Called when a popup is detected via PanelStateManager. Override for custom filtering or behavior.</summary>
         protected virtual void OnPopupDetected(PanelInfo panel)
@@ -1100,20 +1101,7 @@ namespace AccessibleArena.Core.Services
 
         protected virtual void HandleInput()
         {
-            // Auto-action on popup after a delay (e.g. auto-craft on CardViewerPopup)
-            if (_isInPopupMode && _autoActionTimer > 0)
-            {
-                _autoActionTimer -= Time.deltaTime;
-                if (_autoActionTimer <= 0)
-                {
-                    _autoActionTimer = 0;
-                    var callback = _autoActionCallback;
-                    _autoActionCallback = null;
-                    MelonLogger.Msg($"[{NavigatorId}] Auto-action timer expired");
-                    callback?.Invoke();
-                }
-                return;
-            }
+
 
             // Popup mode: route all input through popup navigation
             if (_isInPopupMode)
@@ -1381,6 +1369,18 @@ namespace AccessibleArena.Core.Services
                 return HandleSliderArrow(info.SliderComponent, isNext);
             }
 
+            // Handle action-based steppers (e.g., popup craft count via reflection)
+            if (info.OnIncrement != null || info.OnDecrement != null)
+            {
+                var action = isNext ? info.OnIncrement : info.OnDecrement;
+                if (action != null)
+                {
+                    action();
+                    _stepperAnnounceDelay = StepperAnnounceDelaySeconds;
+                }
+                return true;
+            }
+
             // Handle carousel/stepper elements via control buttons
             GameObject control = isNext ? info.NextControl : info.PreviousControl;
             if (control == null || !control.activeInHierarchy)
@@ -1528,6 +1528,22 @@ namespace AccessibleArena.Core.Services
         {
             if (!IsValidIndex)
                 return;
+
+            // For elements with ReadLabel (e.g., popup craft count), re-read directly
+            var carousel = _elements[_currentIndex].Carousel;
+            if (carousel.ReadLabel != null)
+            {
+                string newLabel = carousel.ReadLabel();
+                if (!string.IsNullOrEmpty(newLabel))
+                {
+                    var updated = _elements[_currentIndex];
+                    updated.Label = newLabel;
+                    _elements[_currentIndex] = updated;
+                    MelonLogger.Msg($"[{NavigatorId}] Stepper value (ReadLabel): {newLabel}");
+                    _announcer.AnnounceInterrupt(newLabel);
+                }
+                return;
+            }
 
             var currentElement = _elements[_currentIndex].GameObject;
             if (currentElement != null)
@@ -1905,10 +1921,6 @@ namespace AccessibleArena.Core.Services
             // Collection cards should NOT go to CardInfoNavigator on Enter - they should be added to deck
             if (UIActivator.IsCollectionCard(element))
             {
-                // Allow subclass to intercept (e.g., craft confirmation)
-                if (OnCollectionCardActivating(element))
-                    return;
-
                 MelonLogger.Msg($"[{NavigatorId}] Collection card detected - activating to add to deck");
                 var collectionResult = UIActivator.Activate(element);
                 _announcer.Announce(collectionResult.Message, AnnouncementPriority.Normal);
@@ -2136,8 +2148,6 @@ namespace AccessibleArena.Core.Services
             _popupDropdownHelper = null;
 
             _isInPopupMode = false;
-            _autoActionTimer = 0;
-            _autoActionCallback = null;
 
             // Restore saved elements
             if (_savedElements != null)
@@ -2269,6 +2279,18 @@ namespace AccessibleArena.Core.Services
             {
                 InputManager.ConsumeKey(KeyCode.Space);
                 ActivatePopupItem();
+                return;
+            }
+
+            // Left/Right: stepper (e.g., craft count)
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
+            {
+                HandleCarouselArrow(false);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
+            {
+                HandleCarouselArrow(true);
                 return;
             }
 
@@ -2432,6 +2454,9 @@ namespace AccessibleArena.Core.Services
 
             // Phase 5: Remove text blocks duplicating button labels
             DeduplicateTextBlocksAgainstButtons();
+
+            // Phase 6: Detect stepper elements (e.g., craft quantity in CardViewerPopup)
+            DiscoverPopupSteppers(popup);
         }
 
         private void DiscoverPopupTextBlocks(GameObject popup, bool hasDeckCosts, List<Transform> skipTransforms)
@@ -2647,6 +2672,95 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Popup: removed {removed} text blocks duplicating button labels");
         }
 
+        /// <summary>
+        /// Detect stepper elements in the popup via reflection (e.g., craft quantity in CardViewerPopup).
+        /// Finds controllers with known increment/decrement methods and a count label.
+        /// </summary>
+        private void DiscoverPopupSteppers(GameObject popup)
+        {
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+                if (type.Name != "CardViewerController") continue;
+
+                // Find the craft count label
+                var countLabelField = type.GetField("_craftCountLabel",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (countLabelField == null) continue;
+
+                var countLabel = countLabelField.GetValue(mb) as TMP_Text;
+                if (countLabel == null || !countLabel.gameObject.activeInHierarchy) continue;
+
+                // Find increment/decrement methods
+                var increaseMethod = type.GetMethod("Unity_OnCraftIncrease",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                var decreaseMethod = type.GetMethod("Unity_OnCraftDecrease",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (increaseMethod == null || decreaseMethod == null) continue;
+
+                string countText = UITextExtractor.CleanText(countLabel.text);
+                if (string.IsNullOrEmpty(countText)) countText = "0";
+
+                // Remove any text block that duplicates the count label
+                _elements.RemoveAll(e =>
+                    e.Role == UIElementClassifier.ElementRole.TextBlock &&
+                    e.Label == countText);
+
+                // Remove craft pip buttons — redundant with the stepper
+                var pipsField = type.GetField("_CraftPips",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (pipsField != null)
+                {
+                    var pips = pipsField.GetValue(mb) as System.Collections.IList;
+                    if (pips != null)
+                    {
+                        var pipObjects = new HashSet<GameObject>();
+                        foreach (var pip in pips)
+                        {
+                            var pipMb = pip as MonoBehaviour;
+                            if (pipMb != null) pipObjects.Add(pipMb.gameObject);
+                        }
+                        int removedPips = _elements.RemoveAll(e =>
+                            e.GameObject != null && pipObjects.Contains(e.GameObject));
+                        if (removedPips > 0)
+                            MelonLogger.Msg($"[{NavigatorId}] Popup: removed {removedPips} craft pips (redundant with stepper)");
+                    }
+                }
+
+                string label = $"{countText}, {Models.Strings.RoleStepperHint}";
+
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = countLabel.gameObject,
+                    Label = label,
+                    Role = UIElementClassifier.ElementRole.Stepper,
+                    Carousel = new CarouselInfo
+                    {
+                        HasArrowNavigation = true,
+                        OnIncrement = () =>
+                        {
+                            try { increaseMethod.Invoke(mb, null); }
+                            catch (Exception ex) { MelonLogger.Warning($"[{NavigatorId}] Craft increment failed: {ex.Message}"); }
+                        },
+                        OnDecrement = () =>
+                        {
+                            try { decreaseMethod.Invoke(mb, null); }
+                            catch (Exception ex) { MelonLogger.Warning($"[{NavigatorId}] Craft decrement failed: {ex.Message}"); }
+                        },
+                        ReadLabel = () =>
+                        {
+                            try { return UITextExtractor.CleanText(countLabel.text); }
+                            catch { return null; }
+                        }
+                    }
+                });
+
+                MelonLogger.Msg($"[{NavigatorId}] Popup: craft stepper: {countText}");
+                break;
+            }
+        }
+
         #endregion
 
         #region Popup Helpers
@@ -2846,16 +2960,6 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// Schedule an action to run after a delay while in popup mode.
-        /// Used for auto-crafting on CardViewerPopup after the opening animation completes.
-        /// </summary>
-        protected void ScheduleAutoAction(float delay, Action callback)
-        {
-            _autoActionTimer = delay;
-            _autoActionCallback = callback;
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} 시작되었습니다",
   "Back": "뒤로",
   "NoSelection": "선택 없음",
@@ -796,11 +796,6 @@
   "CodexCollapsed_Format": "{0}, 접힘",
   "CodexSection": "섹션",
   "CodexNoContent": "콘텐츠 없음",
-
-  "CraftConfirm_Title": "카드 제작",
-  "CraftConfirm_Body_Format": "{1} 와일드카드를 사용하여 {0}을(를) 제작하시겠습니까?",
-  "CraftConfirm_OK": "확인",
-  "CraftConfirm_Cancel": "취소",
 
   "Bo3Toggle": "3전 2선승",
   "CardInfoSetAndArtist": "세트 및 아티스트",

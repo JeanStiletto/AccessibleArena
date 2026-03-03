@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} avviato",
   "Back": "Indietro",
   "NoSelection": "Nessuna selezione",
@@ -797,11 +797,6 @@
   "CodexCollapsed_Format": "{0}, compresso",
   "CodexSection": "sezione",
   "CodexNoContent": "Nessun contenuto disponibile",
-
-  "CraftConfirm_Title": "Crea carta",
-  "CraftConfirm_Body_Format": "Creare {0} usando una wildcard {1}?",
-  "CraftConfirm_OK": "OK",
-  "CraftConfirm_Cancel": "Annulla",
 
   "Bo3Toggle": "Migliore di 3",
   "CardInfoSetAndArtist": "Set e artista",

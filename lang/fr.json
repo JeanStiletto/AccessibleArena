@@ -818,11 +818,6 @@
   "CodexSection": "section",
   "CodexNoContent": "Aucun contenu disponible",
 
-  "CraftConfirm_Title": "Fabriquer une carte",
-  "CraftConfirm_Body_Format": "Fabriquer {0} avec un joker {1} ?",
-  "CraftConfirm_OK": "OK",
-  "CraftConfirm_Cancel": "Annuler",
-
   "Bo3Toggle": "Meilleur de 3",
   "CardInfoSetAndArtist": "Set et artiste",
   "EventInfoLabel": "Info",

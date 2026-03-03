@@ -847,11 +847,6 @@
   "CodexSection": "Kategorie",
   "CodexNoContent": "Kein Inhalt verfügbar",
 
-  "CraftConfirm_Title": "Karte herstellen",
-  "CraftConfirm_Body_Format": "{0} mit einer {1}-Wildcard herstellen?",
-  "CraftConfirm_OK": "OK",
-  "CraftConfirm_Cancel": "Abbrechen",
-
   "Duel_NoCounters": "Keine Marken",
   "Duel_CounterEntry_Format": "{0} {1}-Marke",
   "Duel_CounterEntryPlural_Format": "{0} {1}-Marken",

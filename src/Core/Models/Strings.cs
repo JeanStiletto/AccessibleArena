@@ -1169,15 +1169,6 @@ namespace AccessibleArena.Core.Models
         public static string CodexNoContent => L.Get("CodexNoContent");
 
         // ===========================================
-        // CRAFT CONFIRMATION
-        // ===========================================
-        public static string CraftConfirmTitle => L.Get("CraftConfirm_Title");
-        public static string CraftConfirmBody(string cardName, string rarity) =>
-            L.Format("CraftConfirm_Body_Format", cardName, rarity);
-        public static string CraftConfirmOK => L.Get("CraftConfirm_OK");
-        public static string CraftConfirmCancel => L.Get("CraftConfirm_Cancel");
-
-        // ===========================================
         // FRIEND ACTIONS
         // ===========================================
         public static string FriendActionChat => L.Get("FriendActionChat");

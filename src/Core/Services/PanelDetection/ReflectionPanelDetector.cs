@@ -202,6 +202,12 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 if (ExcludedTypeNames.Contains(typeName))
                     continue;
 
+                // Skip panels owned by AlphaDetector (e.g. CardViewerPopup)
+                // AlphaDetector catches these when fully visible (alpha=1), avoiding
+                // premature discovery before the popup's Setup() populates its elements.
+                if (!HandlesPanel(mb.gameObject.name))
+                    continue;
+
                 // Check IsOpen state
                 if (CheckIsOpen(mb, type))
                 {

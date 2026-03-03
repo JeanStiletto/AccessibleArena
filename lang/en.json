@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} launched",
   "Back": "Back",
   "NoSelection": "No selection",
@@ -861,11 +861,6 @@
   "CodexCollapsed_Format": "{0}, collapsed",
   "CodexSection": "section",
   "CodexNoContent": "No content available",
-
-  "CraftConfirm_Title": "Craft Card",
-  "CraftConfirm_Body_Format": "Craft {0} using a {1} wildcard?",
-  "CraftConfirm_OK": "OK",
-  "CraftConfirm_Cancel": "Cancel",
 
   "Duel_NoCounters": "No counters",
   "Duel_CounterEntry_Format": "{0} {1} counter",

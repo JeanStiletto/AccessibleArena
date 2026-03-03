@@ -190,13 +190,6 @@ namespace AccessibleArena.Core.Services
         private List<CardInfoBlock> _packetBlocks;
         private int _packetBlockIndex;
 
-        // Craft confirmation popup
-        private CraftConfirmationPopup _craftPopup;
-        private GameObject _pendingCraftElement;
-        private bool _craftConfirmPending;
-        private bool _expectingCraftPopup;
-        private string _wildcardTextBeforeCraft;
-
         #endregion
 
         #region Helper Methods
@@ -336,33 +329,6 @@ namespace AccessibleArena.Core.Services
 
             // Subscribe to mail letter selection events
             PanelStatePatch.OnMailLetterSelected += OnMailLetterSelected;
-        }
-
-        protected override void OnPopupDetected(PanelInfo panel)
-        {
-            base.OnPopupDetected(panel);
-
-            // Auto-craft on CardViewerPopup: click _craftButton after opening animation
-            // The user already confirmed via our mod popup, so we just forward to the game's craft
-            if (_expectingCraftPopup && panel?.Name?.Contains("CardViewerPopup") == true)
-            {
-                _expectingCraftPopup = false;
-                MelonLogger.Msg($"[{NavigatorId}] Scheduling auto-craft on CardViewerPopup (1.0s delay)");
-                ScheduleAutoAction(1.0f, () =>
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Auto-craft: clicking _craftButton");
-                    if (!TryInvokePopupButtonByFieldName("_craftButton"))
-                    {
-                        MelonLogger.Warning($"[{NavigatorId}] Auto-craft: _craftButton not found, dismissing instead");
-                        DismissPopup();
-                    }
-                });
-            }
-        }
-
-        protected override void OnPopupClosed()
-        {
-            HandleCraftConfirmationResult();
         }
 
         /// <summary>
@@ -770,6 +736,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override bool HandleCarouselArrow(bool isNext)
         {
+            // In popup mode, elements are in _elements directly (not via GroupedNavigator)
+            if (IsInPopupMode)
+                return base.HandleCarouselArrow(isNext);
+
             // When grouped navigation is active, sync _currentIndex with GroupedNavigator
             // so base.HandleCarouselArrow reads the correct element's carousel info
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
@@ -918,8 +888,6 @@ namespace AccessibleArena.Core.Services
             _hasLoggedUIOnce = false;
             _activationDelay = ActivationDelaySeconds;
             _isDeckBuilderReadOnly = false;
-            _expectingCraftPopup = false;
-            _wildcardTextBeforeCraft = null;
 
             // Reset NPE button tracking for new scene
             _npeButtonCheckTimer = NPEButtonCheckInterval;
@@ -5071,115 +5039,6 @@ namespace AccessibleArena.Core.Services
                 // Invalidate cached card info so Owned/InDeck/Quantity updates on next arrow press
                 AccessibleArenaMod.Instance?.CardNavigator?.InvalidateBlocks();
             }
-        }
-
-        /// <summary>
-        /// Intercept collection card activation on the collection screen.
-        /// Shows a confirmation popup instead of immediately crafting.
-        /// </summary>
-        protected override bool OnCollectionCardActivating(GameObject element)
-        {
-            if (_activeContentController != "WrapperDeckBuilder")
-                return false;
-
-            var cardInfo = CardModelProvider.ExtractCardInfoFromModel(element);
-            string cardName = cardInfo.HasValue && cardInfo.Value.IsValid && !string.IsNullOrEmpty(cardInfo.Value.Name)
-                ? cardInfo.Value.Name
-                : "Unknown";
-            string rarity = cardInfo.HasValue && !string.IsNullOrEmpty(cardInfo.Value.Rarity)
-                ? cardInfo.Value.Rarity
-                : "Unknown";
-
-            string bodyText = Models.Strings.CraftConfirmBody(cardName, rarity);
-
-            _pendingCraftElement = element;
-            _craftConfirmPending = false;
-
-            if (_craftPopup == null)
-            {
-                _craftPopup = new CraftConfirmationPopup();
-                _craftPopup.Initialize();
-            }
-
-            _craftPopup.Show(bodyText,
-                onConfirm: () => { _craftConfirmPending = true; },
-                onCancel: () =>
-                {
-                    _craftConfirmPending = false;
-                    _pendingCraftElement = null;
-                    _announcer.AnnounceInterrupt(Models.Strings.Cancelled);
-                });
-
-            EnterPopupMode(_craftPopup.GameObject);
-
-            MelonLogger.Msg($"[{NavigatorId}] Craft confirmation shown for: {cardName} ({rarity})");
-            return true;
-        }
-
-        /// <summary>
-        /// After the craft confirmation popup closes, check if user confirmed.
-        /// If so, activate the card (perform the craft) and trigger rescan.
-        /// </summary>
-        private void HandleCraftConfirmationResult()
-        {
-            if (_craftConfirmPending && _pendingCraftElement != null && _pendingCraftElement.activeInHierarchy)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Craft confirmed - activating card");
-                _expectingCraftPopup = true;
-                _wildcardTextBeforeCraft = GetWildcardText();
-                var result = UIActivator.Activate(_pendingCraftElement);
-                _announcer.Announce(result.Message, AnnouncementPriority.Normal);
-                OnDeckBuilderCardActivated();
-            }
-
-            _craftConfirmPending = false;
-            _pendingCraftElement = null;
-        }
-
-        /// <summary>
-        /// Reads the current wildcard tooltip text from the Nav_WildCard navbar element.
-        /// Returns the per-rarity text (e.g., "33 x häufig, 32 x nicht ganz so häufig, ...").
-        /// </summary>
-        private string GetWildcardText()
-        {
-            var navWildcard = GameObject.Find("Nav_WildCard");
-            if (navWildcard == null) return null;
-            return UITextExtractor.GetText(navWildcard);
-        }
-
-        /// <summary>
-        /// Compares wildcard text before and after craft, announces changed entries.
-        /// </summary>
-        private void AnnounceWildcardChange()
-        {
-            if (string.IsNullOrEmpty(_wildcardTextBeforeCraft)) return;
-
-            string after = GetWildcardText();
-            if (string.IsNullOrEmpty(after) || after == _wildcardTextBeforeCraft)
-            {
-                _wildcardTextBeforeCraft = null;
-                return;
-            }
-
-            // Split into segments and find what changed
-            var beforeParts = _wildcardTextBeforeCraft.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
-            var afterParts = after.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
-
-            var changed = new List<string>();
-            for (int i = 0; i < afterParts.Length && i < beforeParts.Length; i++)
-            {
-                if (afterParts[i] != beforeParts[i])
-                    changed.Add(afterParts[i]);
-            }
-
-            if (changed.Count > 0)
-            {
-                string announcement = string.Join(", ", changed);
-                MelonLogger.Msg($"[{NavigatorId}] Wildcard change: {announcement}");
-                _announcer.Announce(announcement, AnnouncementPriority.High);
-            }
-
-            _wildcardTextBeforeCraft = null;
         }
 
         /// <summary>

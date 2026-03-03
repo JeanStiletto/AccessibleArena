@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} uruchomiony",
   "Back": "Wstecz",
   "NoSelection": "Brak wyboru",
@@ -811,11 +811,6 @@
   "CodexCollapsed_Format": "{0}, zwinięte",
   "CodexSection": "sekcja",
   "CodexNoContent": "Brak dostępnej treści",
-
-  "CraftConfirm_Title": "Stwórz kartę",
-  "CraftConfirm_Body_Format": "Stworzyć {0} używając dzikiej karty {1}?",
-  "CraftConfirm_OK": "OK",
-  "CraftConfirm_Cancel": "Anuluj",
 
   "Bo3Toggle": "Najlepszy z 3",
   "CardInfoSetAndArtist": "Zestaw i artysta",

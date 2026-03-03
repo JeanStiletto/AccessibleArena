@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} 已啟動",
   "Back": "返回",
   "NoSelection": "未選取",
@@ -797,11 +797,6 @@
   "CodexCollapsed_Format": "{0}，已摺疊",
   "CodexSection": "分類",
   "CodexNoContent": "無可用內容",
-
-  "CraftConfirm_Title": "合成卡牌",
-  "CraftConfirm_Body_Format": "使用{1}萬能牌合成{0}？",
-  "CraftConfirm_OK": "確定",
-  "CraftConfirm_Cancel": "取消",
 
   "Bo3Toggle": "三戰兩勝",
   "CardInfoSetAndArtist": "系列和畫師",

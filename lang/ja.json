@@ -1,4 +1,4 @@
-{
+﻿{
   "ModLoaded_Format": "Accessible Arena v{0} 起動しました",
   "Back": "戻る",
   "NoSelection": "選択なし",
@@ -796,11 +796,6 @@
   "CodexCollapsed_Format": "{0}、折りたたみ済み",
   "CodexSection": "セクション",
   "CodexNoContent": "コンテンツがありません",
-
-  "CraftConfirm_Title": "カード作成",
-  "CraftConfirm_Body_Format": "{1}ワイルドカードを使用して{0}を作成しますか？",
-  "CraftConfirm_OK": "OK",
-  "CraftConfirm_Cancel": "キャンセル",
 
   "Bo3Toggle": "3本勝負",
   "CardInfoSetAndArtist": "セットとアーティスト",
