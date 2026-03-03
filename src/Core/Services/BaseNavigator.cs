@@ -2125,6 +2125,23 @@ namespace AccessibleArena.Core.Services
                 _elements.AddRange(_savedElements);
                 _currentIndex = _savedIndex;
                 _savedElements = null;
+
+                // Refresh labels to pick up changes made while popup was open
+                // (e.g., deck name edited in DeckDetailsPopup).
+                // RefreshElementLabel re-reads live input field text, toggle state, dropdown values.
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    var elem = _elements[i];
+                    if (elem.GameObject != null)
+                    {
+                        string refreshed = RefreshElementLabel(elem.GameObject, elem.Label, elem.Role);
+                        if (refreshed != elem.Label)
+                        {
+                            elem.Label = refreshed;
+                            _elements[i] = elem;
+                        }
+                    }
+                }
             }
 
             _popupGameObject = null;
