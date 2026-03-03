@@ -75,6 +75,12 @@ All notable changes to Accessible Arena.
 - Project references updated to use game install path via MtgaPath/MtgaManagedPath/MelonLoaderPath properties
 - Files: .gitignore, AccessibleArena.csproj
 
+### Improved: Prompt Button Announcements & Counter Cleanup
+- Meaningful prompt button choices (e.g., "Automatisch bezahlen", sacrifice/pay-life prompts) are now automatically announced when they appear, so you know a custom action is available
+- Combat prompt buttons (attack/block) are suppressed via a short phase-change cooldown to avoid redundant announcements
+- +1/+1 counters no longer announced in P/T block (already reflected in power/toughness values); all counters still available via K key
+- Files: HotHighlightNavigator.cs, DuelNavigator.cs, DuelAnnouncer.cs, CardModelProvider.cs
+
 ### New: Planeswalker Loyalty & Counter Accessibility
 - Planeswalker abilities now prefixed with loyalty cost in rules text (e.g., "+2: Search your library...", "-3: Koth deals...")
 - Power/Toughness info block expanded: planeswalkers show "Loyalty 4", creatures with counters show "2/3, 3 +1/+1"

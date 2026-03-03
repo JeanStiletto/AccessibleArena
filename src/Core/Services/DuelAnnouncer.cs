@@ -66,6 +66,10 @@ namespace AccessibleArena.Core.Services
         private float _phaseDebounceTimer;
         private const float PHASE_DEBOUNCE_SECONDS = 0.1f;
 
+        // Track time of last phase change for external consumers
+        private float _lastPhaseChangeTime;
+        public float TimeSinceLastPhaseChange => UnityEngine.Time.time - _lastPhaseChangeTime;
+
         /// <summary>
         /// Returns true if currently in Declare Attackers phase.
         /// </summary>
@@ -911,6 +915,7 @@ namespace AccessibleArena.Core.Services
                 // Track current phase/step for combat navigation
                 _currentPhase = phase;
                 _currentStep = step;
+                _lastPhaseChangeTime = UnityEngine.Time.time;
                 DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Phase change: {phase}/{step}");
 
                 string phaseAnnouncement = null;

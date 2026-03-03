@@ -375,6 +375,9 @@ namespace AccessibleArena.Core.Services
             // Flush debounced phase announcements
             _duelAnnouncer.Update();
 
+            // Monitor prompt buttons for meaningful choice announcements
+            _hotHighlightNavigator.MonitorPromptButtons(_duelAnnouncer.TimeSinceLastPhaseChange);
+
             // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
 

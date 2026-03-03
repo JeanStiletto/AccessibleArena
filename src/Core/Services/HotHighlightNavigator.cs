@@ -43,6 +43,9 @@ namespace AccessibleArena.Core.Services
         // Track last zone/row to detect zone changes on Tab
         private string _lastItemZone;
 
+        // Track prompt button text to announce when meaningful choices appear
+        private string _lastPromptButtonText;
+
         // Selection mode detection (discard, choose cards to exile, etc.)
         // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
         private static readonly Regex ButtonNumberPattern = new Regex(@"(\d+)", RegexOptions.IgnoreCase);
@@ -110,6 +113,7 @@ namespace AccessibleArena.Core.Services
             _currentIndex = -1;
             _opponentIndex = -1;
             _lastItemZone = null;
+            _lastPromptButtonText = null;
             _cachedAvatarViews.Clear();
             MelonLogger.Msg("[HotHighlightNavigator] Deactivated");
         }
@@ -905,6 +909,40 @@ namespace AccessibleArena.Core.Services
             });
 
             MelonLogger.Msg($"[HotHighlightNavigator] Added prompt buttons: '{primaryText}' and '{secondaryText}'");
+        }
+
+        /// <summary>
+        /// Polls prompt button state each frame. Announces the primary button text
+        /// when meaningful choices first appear (both buttons visible with real text).
+        /// Suppressed briefly after phase changes to avoid announcing combat buttons
+        /// that the CombatNavigator already handles.
+        /// Called from DuelNavigator's HandleCustomInput.
+        /// </summary>
+        public void MonitorPromptButtons(float timeSincePhaseChange)
+        {
+            if (!_isActive) return;
+
+            string currentText = null;
+
+            var primaryButton = FindPrimaryButton();
+            var secondaryButton = FindSecondaryButton();
+            string primaryText = GetButtonText(primaryButton);
+            string secondaryText = GetButtonText(secondaryButton);
+
+            if (IsMeaningfulButtonText(primaryText) && IsMeaningfulButtonText(secondaryText)
+                && IsButtonVisible(primaryButton) && IsButtonVisible(secondaryButton))
+            {
+                currentText = primaryText;
+            }
+
+            if (currentText != _lastPromptButtonText)
+            {
+                // Announce unless this is a phase-transition button (combat buttons appear
+                // immediately after phase change; real choices like pay-life come later)
+                if (currentText != null && timeSincePhaseChange > 0.3f)
+                    _announcer.Announce(currentText, AnnouncementPriority.High);
+                _lastPromptButtonText = currentText;
+            }
         }
 
         #region Selection Mode (Discard, etc.)

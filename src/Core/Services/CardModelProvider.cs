@@ -2229,8 +2229,9 @@ namespace AccessibleArena.Core.Services
                                 var key = keyProp.GetValue(entry);
                                 var value = valueProp.GetValue(entry);
                                 if (key == null || value == null) continue;
-                                // Skip Loyalty counters - already handled via Loyalty property above
-                                if (key.ToString() == "Loyalty") continue;
+                                // Skip counters already reflected in displayed values
+                                var keyStr = key.ToString();
+                                if (keyStr == "Loyalty" || keyStr == "P1P1") continue;
                                 int count = 0;
                                 if (value is int ci) count = ci;
                                 else if (int.TryParse(value.ToString(), out int parsed)) count = parsed;
