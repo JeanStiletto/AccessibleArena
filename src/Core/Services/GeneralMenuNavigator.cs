@@ -326,8 +326,8 @@ namespace AccessibleArena.Core.Services
             _groupedNavigator = new GroupedNavigator(announcer, _groupAssigner);
             _playBladeHelper = new PlayBladeNavigationHelper(_groupedNavigator);
             _challengeHelper = new ChallengeNavigationHelper(_groupedNavigator, announcer);
-            // Subscribe to PanelStateManager for rescan triggers + popup detection
-            EnablePopupDetection();
+            // Subscribe to PanelStateManager for rescan triggers
+            // (popup detection is enabled/disabled in OnActivated/OnDeactivating)
             if (PanelStateManager.Instance != null)
             {
                 PanelStateManager.Instance.OnPanelChanged += OnPanelStateManagerActiveChanged;
@@ -384,6 +384,9 @@ namespace AccessibleArena.Core.Services
 
             // Popup transitions are handled by base popup mode infrastructure
             // (via EnablePopupDetection + OnPopupDetected/OnPopupClosed overrides)
+            // Skip rescan when a popup is active or just opened - base popup mode owns navigation
+            if (IsInPopupMode || (newPanel != null && IsPopupPanel(newPanel)))
+                return;
 
             // Reset mail detail view state when mailbox closes
             if (oldPanel?.Name?.Contains("Mailbox") == true && newPanel?.Name?.Contains("Mailbox") != true)
@@ -933,6 +936,12 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Called when navigator is deactivating - clean up panel state
         /// </summary>
+        protected override void OnActivated()
+        {
+            base.OnActivated();
+            EnablePopupDetection();
+        }
+
         protected override void OnDeactivating()
         {
             base.OnDeactivating();
