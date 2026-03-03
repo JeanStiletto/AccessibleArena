@@ -104,6 +104,9 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[{_navigatorId}] PopupHandler: popup detected: {popup.name}");
 
+            // Deactivate card info navigator so Up/Down navigates popup items, not card blocks
+            AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
+
             DiscoverItems();
 
             MelonLogger.Msg($"[{_navigatorId}] PopupHandler: {CountTextBlocks()} text blocks, {CountInputFields()} input fields, {CountDropdowns()} dropdowns, {CountButtons()} buttons");
@@ -814,6 +817,24 @@ namespace AccessibleArena.Core.Services
                 if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
                 if (MatchesCancelPattern(button.gameObject, cancelPatterns))
                     return button.gameObject;
+            }
+
+            // Pass 4: Find _cancelButton field via reflection on popup controllers
+            // Handles popups like CardViewerController where the X/close button has no
+            // discoverable text and isn't found by pattern matching.
+            foreach (var mb in popup.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var field = mb.GetType().GetField("_cancelButton",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field == null) continue;
+
+                if (field.GetValue(mb) is MonoBehaviour cancelMb && cancelMb != null
+                    && cancelMb.gameObject != null)
+                {
+                    MelonLogger.Msg($"[{_navigatorId}] PopupHandler: found _cancelButton via reflection on {mb.GetType().Name}");
+                    return cancelMb.gameObject;
+                }
             }
 
             return null;
