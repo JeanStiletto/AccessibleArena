@@ -9,10 +9,10 @@ Magic: The Gathering Arena
 ## Prompts Completed
 - [x] sanity-checks-setup.md
 - [x] information-gathering-and-checking.md
+- [x] code-directory-construction.md
 
 ## Prompts Remaining
-- [ ] code-directory-construction.md
-- [ ] large-file-handling.md
+- [ ] large-file-handling.md (needed — 5 files over 2000 lines)
 - [ ] input-handling.md
 - [ ] string-builder.md
 - [ ] high-level-cleanup.md
@@ -21,10 +21,10 @@ Magic: The Gathering Arena
 
 ## Scratchpad Files
 - `current_status.md` — this file
+- `code-index/` — 95 index files covering all 91 source files (declarations + line numbers)
 
-## Key Findings from Information Gathering
+## Key Findings
 - 91 source files, ~55,635 lines of code
-- Largest files: GeneralMenuNavigator (4,766), CardModelProvider (4,626), BaseNavigator (2,928)
+- Files over 2000 lines: GeneralMenuNavigator (4,766), CardModelProvider (4,626), BaseNavigator (2,928), DuelAnnouncer (2,294), UIActivator (2,196), BrowserNavigator (2,177), StoreNavigator (2,042), UITextExtractor (1,976)
 - CLAUDE.md was 95%+ accurate; fixed BrowserTypeScry reference, added Game & Framework section
 - Created llm-docs/ with architecture overview, source inventory, and framework reference
-- Existing docs/ directory is comprehensive (~70% coverage of major components)
