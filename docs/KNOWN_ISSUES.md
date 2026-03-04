@@ -87,15 +87,19 @@ When clicking a non-attacking token during declare attackers, the game always se
 
 ### Auto-Craft on Collection Card Activation
 
-**Status:** Root cause identified. Fix pending.
+**Status:** Fixed (two-part fix).
 
-**Symptom:** Pressing Enter on an unowned collection card opens the craft popup but also immediately crafts 1 copy.
+**Symptom:** Pressing Enter on a collection card in the deck builder opened the craft popup AND immediately crafted 1 copy.
 
-**Root cause:** Our click simulation uses `button = Left`. In the deck builder, `DeckBuilderActionsHandler.OnCardClicked` (left click) calls `AddCardToDeckPile()` which adds the card directly and triggers craft if unowned. `CardRightClicked` (right click) calls `OpenCardViewer()` which opens the craft popup without adding to deck. Sighted users right-click to view/craft cards safely.
+**Root cause (two issues):**
+1. All click simulation paths (OnAddClicked, CustomButton, pointer click) called `DeckBuilderActionsHandler.OpenCardViewer()` with default `quantityToCraft=1`
+2. The game's `PopupManager.HandleKeyUp(Return)` calls `_activePopup.OnEnter()` on the CardViewerController, which auto-calls `OnCraftClicked()` if the craft button is interactable. Our mod activates on KeyDown, popup opens, then the same Enter's KeyUp triggers OnEnter → craft.
 
-**Fix:** In `UIActivator.TryActivateCollectionCard`, set `button = Right` on the PointerEventData for collection cards so Enter opens the card viewer popup instead of adding to deck.
+**Fix:**
+1. `UIActivator.TryActivateCollectionCard` calls `OpenCardViewer` directly via reflection with `quantityToCraft=0`, bypassing all click simulation
+2. `InputManager.BlockNextEnterKeyUp` flag blocks the Enter KeyUp from reaching PopupManager after opening the popup
 
-**Files:** `UIActivator.cs`
+**Files:** `UIActivator.cs`, `InputManager.cs`, `KeyboardManagerPatch.cs`
 
 ---
 

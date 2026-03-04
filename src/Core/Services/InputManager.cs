@@ -27,6 +27,15 @@ namespace AccessibleArena.Core.Services
         public static bool ModMenuActive { get; set; }
 
         /// <summary>
+        /// When true, the next Enter KeyUp event will be blocked from reaching the game.
+        /// Used when our mod opens a popup via KeyDown (e.g., collection card → card viewer),
+        /// to prevent the game's PopupManager.HandleKeyUp from calling OnEnter() on the
+        /// newly opened popup, which would auto-trigger the craft button.
+        /// Automatically resets after blocking one KeyUp.
+        /// </summary>
+        public static bool BlockNextEnterKeyUp { get; set; }
+
+        /// <summary>
         /// When true, EventSystemPatch blocks Unity's Submit events for toggles.
         /// Set by navigators when the current element is a toggle, cleared when moving away.
         /// This persistent flag works around the timing issue where EventSystem.Update()

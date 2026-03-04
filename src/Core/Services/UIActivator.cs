@@ -2022,93 +2022,20 @@ namespace AccessibleArena.Core.Services
 
             Log($"Attempting collection card activation for: {cardElement.name}");
 
-            // Strategy 1: Find PagesMetaCardView and invoke OnAddClicked action
-            // The OnAddClicked property is an Action<MetaCardView> that adds the card to deck
-            foreach (var mb in cardElement.GetComponents<MonoBehaviour>())
+            // Open card viewer directly via DeckBuilderActionsHandler.OpenCardViewer with
+            // quantityToCraft=0 to prevent auto-crafting. All other activation paths
+            // (OnAddClicked, CustomButton click, pointer simulation) end up calling
+            // OpenCardViewer with default quantityToCraft=1, which queues a craft on open.
+            var metaCardView = FindMetaCardView(cardElement);
+            if (metaCardView != null && TryOpenCardViewerDirectly(metaCardView))
             {
-                if (mb == null) continue;
-                string typeName = mb.GetType().Name;
-                if (typeName == "PagesMetaCardView" || typeName == "MetaCardView")
-                {
-                    Log($"Found {typeName} component, looking for OnAddClicked action");
-
-                    // Get the OnAddClicked property which is Action<MetaCardView>
-                    var onAddClickedProp = mb.GetType().GetProperty("OnAddClicked",
-                        System.Reflection.BindingFlags.Public |
-                        System.Reflection.BindingFlags.NonPublic |
-                        System.Reflection.BindingFlags.Instance);
-
-                    if (onAddClickedProp != null)
-                    {
-                        try
-                        {
-                            var onAddClicked = onAddClickedProp.GetValue(mb);
-                            if (onAddClicked != null)
-                            {
-                                Log($"Found OnAddClicked action, invoking...");
-                                // It's an Action<MetaCardView>, invoke with the component itself
-                                var invokeMethod = onAddClicked.GetType().GetMethod("Invoke");
-                                if (invokeMethod != null)
-                                {
-                                    invokeMethod.Invoke(onAddClicked, new object[] { mb });
-                                    Log($"OnAddClicked invoked successfully");
-                                    return new ActivationResult(true, "Card Added", ActivationType.Button);
-                                }
-                            }
-                            else
-                            {
-                                Log($"OnAddClicked property is null");
-                            }
-                        }
-                        catch (System.Exception ex)
-                        {
-                            Log($"Error invoking OnAddClicked: {ex.Message}");
-                        }
-                    }
-                    else
-                    {
-                        Log($"OnAddClicked property not found on {typeName}");
-                    }
-
-                    // Fallback: Try OnRemoveClicked (in case card is already in deck and needs toggling)
-                    var onRemoveClickedProp = mb.GetType().GetProperty("OnRemoveClicked",
-                        System.Reflection.BindingFlags.Public |
-                        System.Reflection.BindingFlags.NonPublic |
-                        System.Reflection.BindingFlags.Instance);
-
-                    if (onRemoveClickedProp != null)
-                    {
-                        Log($"Also found OnRemoveClicked - card may support add/remove toggle");
-                    }
-                }
+                // Block the Enter KeyUp from reaching PopupManager, which would call
+                // CardViewerController.OnEnter() and auto-trigger OnCraftClicked()
+                InputManager.BlockNextEnterKeyUp = true;
+                return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
             }
 
-            // Strategy 2: Find a CustomButton child element (e.g., the card's click area)
-            var customButtonChild = FindCustomButtonInHierarchy(cardElement);
-            if (customButtonChild != null)
-            {
-                Log($"Found CustomButton child: {customButtonChild.name}");
-                var result = SimulatePointerClick(customButtonChild);
-                TryInvokeCustomButtonOnClick(customButtonChild);
-                return result;
-            }
-
-            // Strategy 3: Open card viewer directly via DeckBuilderActionsHandler.OpenCardViewer
-            // with quantityToCraft=0 to prevent auto-crafting. Both left and right click paths
-            // in the game call OpenCardViewer with default quantityToCraft=1, which queues a
-            // craft on popup open. By calling it directly with 0, the popup opens without crafting.
-            {
-                var metaCardView = FindMetaCardView(cardElement);
-                if (metaCardView != null && TryOpenCardViewerDirectly(metaCardView))
-                {
-                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
-                }
-            }
-
-            // Strategy 4: Disabled — full pointer simulation on collection cards triggers
-            // auto-craft via OnCardClicked/OpenCardViewer(quantityToCraft=1). Better to
-            // fail silently than craft cards the user didn't intend to craft.
-            Log("All collection card strategies exhausted — no fallback to prevent auto-craft");
+            Log("Collection card activation failed — MetaCardView not found or OpenCardViewer unavailable");
             return new ActivationResult(false, null, ActivationType.Unknown);
         }
 

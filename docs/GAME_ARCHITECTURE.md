@@ -357,11 +357,19 @@ For classes without post-animation events, use alpha detection to confirm visual
 
 **Alternative**: Use fixed delay after event (less reliable, animation durations vary).
 
-### PopupManager (Potential Alternative Hook)
+### PopupManager (Core.Meta.MainNavigation.PopUps)
+
+**Class:** `Core.Meta.MainNavigation.PopUps.PopupManager` (Core.dll)
 
 The game has a `PopupManager` singleton:
-- `RegisterPopup(PopupBase popup)` - Called when popup registers
-- `UnregisterPopup(PopupBase popup)` - Called when popup unregisters
+- `RegisterPopup(PopupBase popup)` - Called from `PopupBase.Show()`
+- `UnregisterPopup(PopupBase popup)` - Called from `PopupBase.Hide()`
+- `HandleKeyDown(KeyCode, Modifiers)` - Escape → `_activePopup.OnEscape()`
+- `HandleKeyUp(KeyCode, Modifiers)` - **Enter/Return → `_activePopup.OnEnter()`**
+
+**CRITICAL:** `OnEnter()` fires on **KeyUp**, not KeyDown. When our mod opens a popup via Enter KeyDown (e.g., collection card → card viewer), the KeyUp of the same press reaches PopupManager and calls `OnEnter()` on the newly opened popup. This caused auto-crafting because `CardViewerController.OnEnter()` calls `OnCraftClicked()`.
+
+**Fix:** `InputManager.BlockNextEnterKeyUp` flag, checked in `KeyboardManagerPatch.PublishKeyUp_Prefix`. Set in `UIActivator.TryActivateCollectionCard` after opening card viewer. Auto-resets after blocking one KeyUp.
 
 These could be patched for popup lifecycle, but timing relative to animation is unknown.
 
@@ -493,7 +501,7 @@ Both handlers delegate to `DeckBuilderActionsHandler` (via `Pantry.Get<DeckBuild
 - If `CanCraft`: opens card viewer popup (no add-to-deck, no craft)
 - Otherwise: triggers rollover zoom right-click behavior
 
-**Key insight:** In normal deck editing mode, left click ADDS the card to the deck (auto-crafting if unowned). Right click opens the card viewer popup without adding to deck, letting the user use the popup's own Craft/Cancel buttons. For keyboard accessibility, collection card activation should simulate a right click to open the viewer popup instead of auto-adding to deck.
+**Key insight:** Both left and right click paths call `OpenCardViewer(cardView, zoomHandler)` with default `quantityToCraft=1`. The `quantityToCraft` parameter does NOT auto-craft — it sets the initial stepper value in the popup. The actual craft only happens when the user clicks the Craft button (or `OnEnter()` is called by PopupManager on Enter KeyUp). For keyboard accessibility, we call `OpenCardViewer` directly via reflection with `quantityToCraft=0` and block the Enter KeyUp to prevent `OnEnter()` from auto-triggering craft.
 
 ### CardViewerController (Craft Popup)
 
@@ -504,12 +512,24 @@ Both handlers delegate to `DeckBuilderActionsHandler` (via `Pantry.Get<DeckBuild
 - `_cancelButton` (CustomButton) — Cancel/close button
 - `_CraftPips` (CustomButton[4]) — Visual craft quantity pips
 - `_craftCountLabel` (TMP_Text) — Shows craft count (e.g., "x1")
+- `_quantityToCraft` (int) — Set from `Setup()` parameter, used in `OpenCraftMode()`
+- `_requestedQuantity` (int) — Computed as `ownedCount + _quantityToCraft` in `OpenCraftMode()`
 
 **Key Methods:**
+- `Setup(bool craftMode, uint grpid, string craftSkin, int quantityToCraft, ...)` — Initializes popup. Calls `OpenCraftMode()` when `craftSkin == null`.
+- `OpenCraftMode()` — Sets `_requestedQuantity = ownedTitleCount + _quantityToCraft`, refreshes pips/labels
+- `OnEnter()` — **Override from PopupBase. If craft button is active and interactable, calls `OnCraftClicked()` immediately.** This is what auto-crafts when Enter KeyUp reaches the popup.
+- `OnCraftClicked()` — Computes quantity to craft, sends `Inv.Coroutine_RedeemWildcards()` to server. Special case: if `num==0 && _collectedQuantity==0 && value>=MaxCollected`, forces `num=1`.
 - `Unity_OnCraftIncrease()` — Increment craft quantity
 - `Unity_OnCraftDecrease()` — Decrement craft quantity
-- `SetRequestedQuantity()` — Apply quantity change
-- `OpenCraftMode()` — Populates craft UI elements (called AFTER popup opens)
+
+**Opening the popup without crafting (mod approach):**
+Call `DeckBuilderActionsHandler.OpenCardViewer(metaCardView, zoomHandler, 0)` via reflection with `quantityToCraft=0`. This opens the popup with 0 pending crafts. Must also block Enter KeyUp via `InputManager.BlockNextEnterKeyUp` to prevent `PopupManager.HandleKeyUp` → `OnEnter()` → `OnCraftClicked()`.
+
+**Reflection lookup for future reference:**
+- `Wizards.Mtga.Pantry` — Service locator. `Pantry.Get<T>()` (public static generic method)
+- `Core.Code.Decks.DeckBuilderActionsHandler` — Has `OpenCardViewer` method
+- `Wotc.Mtga.ICardRolloverZoom` — Interface, second parameter to `OpenCardViewer`
 
 **Timing:** `Setup()` and `OpenCraftMode()` populate elements AFTER the popup is detected by ReflectionDetector. Use AlphaDetector (alpha=1) for fully-loaded discovery.
 
@@ -551,9 +571,15 @@ MTGA uses Unity's Input System with `Core.Code.Input.Generated.MTGAInput` class.
 ### Input System Architecture
 
 Key handling goes through `MTGA.KeyboardManager.KeyboardManager`:
-- `PublishKeyUp(KeyCode key)`
-- `PublishKeyDown(KeyCode key)`
+- `PublishKeyDown(KeyCode key)` — Subscribers receive via `IKeybindingWorkflow.OnKeyDown()`. PopupManager handles Escape here.
+- `PublishKeyUp(KeyCode key)` — **PopupManager handles Enter here** (calls `_activePopup.OnEnter()`). This is why Enter KeyUp must be blocked after opening a popup from KeyDown.
 - `PublishKeyHeld(KeyCode key, Single holdDuration)`
+
+**Mod key blocking** (`KeyboardManagerPatch.cs`):
+- `PublishKeyDown_Prefix` — Blocks keys via `ShouldBlockKey()` (per-frame consumption, scene-based rules)
+- `PublishKeyUp_Prefix` — Same blocking, plus `InputManager.BlockNextEnterKeyUp` for cross-frame Enter blocking
+- `InputManager.ConsumeKey()` — Per-frame blocking (cleared each new frame, doesn't persist to KeyUp)
+- `InputManager.BlockNextEnterKeyUp` — Cross-frame blocking, auto-resets after one KeyUp. Used when mod opens a popup on KeyDown.
 
 ### Native Keys
 
