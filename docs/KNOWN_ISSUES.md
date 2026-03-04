@@ -89,11 +89,11 @@ When clicking a non-attacking token during declare attackers, the game always se
 
 **Status:** Root cause identified. Fix pending.
 
-**Symptom:** Pressing Enter on an unowned collection card opens the craft popup but also immediately crafts 1 copy. Sighted users don't experience this — their left click opens the popup without crafting.
+**Symptom:** Pressing Enter on an unowned collection card opens the craft popup but also immediately crafts 1 copy.
 
-**Root cause:** `MetaCardView.OnPointerClick` has a `clickCount % 2 == 0` double-click gate. Unity's default `clickCount` is 0. Our synthetic `PointerEventData` has `clickCount = 0`, which passes the double-click check (`0 % 2 == 0`), causing the card to be added to the deck (triggering a craft). A real mouse click has `clickCount = 1`, which fails the double-click check (`1 % 2 != 0`), so only the popup opens.
+**Root cause:** Our click simulation uses `button = Left`. In the deck builder, `DeckBuilderActionsHandler.OnCardClicked` (left click) calls `AddCardToDeckPile()` which adds the card directly and triggers craft if unowned. `CardRightClicked` (right click) calls `OpenCardViewer()` which opens the craft popup without adding to deck. Sighted users right-click to view/craft cards safely.
 
-**Fix:** Set `clickCount = 1` in `UIActivator.CreatePointerEventData()`.
+**Fix:** In `UIActivator.TryActivateCollectionCard`, set `button = Right` on the PointerEventData for collection cards so Enter opens the card viewer popup instead of adding to deck.
 
 **Files:** `UIActivator.cs`
 

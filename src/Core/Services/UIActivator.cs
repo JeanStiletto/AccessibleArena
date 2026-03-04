@@ -1523,6 +1523,7 @@ namespace AccessibleArena.Core.Services
             return new PointerEventData(EventSystem.current)
             {
                 button = PointerEventData.InputButton.Left,
+                clickCount = 1,
                 pointerPress = element,
                 pointerEnter = element,
                 position = screenPos,
@@ -1539,6 +1540,7 @@ namespace AccessibleArena.Core.Services
             return new PointerEventData(EventSystem.current)
             {
                 button = PointerEventData.InputButton.Left,
+                clickCount = 1,
                 pointerPress = element,
                 pointerEnter = element,
                 position = screenPosition,
@@ -2091,22 +2093,143 @@ namespace AccessibleArena.Core.Services
                 return result;
             }
 
-            // Strategy 3: Try IPointerClickHandler interface on the MetaCardView
-            foreach (var mb in cardElement.GetComponents<MonoBehaviour>())
+            // Strategy 3: Open card viewer directly via DeckBuilderActionsHandler.OpenCardViewer
+            // with quantityToCraft=0 to prevent auto-crafting. Both left and right click paths
+            // in the game call OpenCardViewer with default quantityToCraft=1, which queues a
+            // craft on popup open. By calling it directly with 0, the popup opens without crafting.
             {
-                if (mb == null) continue;
-                if (mb is IPointerClickHandler clickHandler)
+                var metaCardView = FindMetaCardView(cardElement);
+                if (metaCardView != null && TryOpenCardViewerDirectly(metaCardView))
                 {
-                    Log($"Invoking IPointerClickHandler.OnPointerClick on {mb.GetType().Name}");
-                    var pointer = CreatePointerEventData(cardElement);
-                    clickHandler.OnPointerClick(pointer);
                     return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
                 }
             }
 
-            // Strategy 4: Full pointer simulation on the card view itself
-            Log("Fallback: Full pointer simulation on card view");
-            return SimulatePointerClick(cardElement);
+            // Strategy 4: Disabled — full pointer simulation on collection cards triggers
+            // auto-craft via OnCardClicked/OpenCardViewer(quantityToCraft=1). Better to
+            // fail silently than craft cards the user didn't intend to craft.
+            Log("All collection card strategies exhausted — no fallback to prevent auto-craft");
+            return new ActivationResult(false, null, ActivationType.Unknown);
+        }
+
+        /// <summary>
+        /// Finds a MetaCardView component on a card element.
+        /// </summary>
+        private static MonoBehaviour FindMetaCardView(GameObject cardElement)
+        {
+            foreach (var mb in cardElement.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var type = mb.GetType();
+                while (type != null)
+                {
+                    if (type.Name == "MetaCardView")
+                        return mb;
+                    type = type.BaseType;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Opens the card viewer popup via DeckBuilderActionsHandler.OpenCardViewer with
+        /// quantityToCraft=0, preventing auto-craft on activation.
+        /// </summary>
+        private static bool TryOpenCardViewerDirectly(MonoBehaviour metaCardView)
+        {
+            try
+            {
+                // Find types by scanning loaded assemblies
+                System.Type pantryType = null;
+                System.Type actionsHandlerType = null;
+                System.Type zoomType = null;
+
+                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (pantryType != null && actionsHandlerType != null && zoomType != null)
+                        break;
+
+                    try
+                    {
+                        if (pantryType == null)
+                        {
+                            var t = assembly.GetType("Wizards.Mtga.Pantry");
+                            if (t != null) pantryType = t;
+                        }
+                        if (actionsHandlerType == null)
+                        {
+                            var t = assembly.GetType("Core.Code.Decks.DeckBuilderActionsHandler");
+                            if (t != null) actionsHandlerType = t;
+                        }
+                        if (zoomType == null)
+                        {
+                            var t = assembly.GetType("Wotc.Mtga.ICardRolloverZoom");
+                            if (t != null) zoomType = t;
+                        }
+                    }
+                    catch { /* ReflectionTypeLoadException on some assemblies */ }
+                }
+
+                if (pantryType == null)
+                {
+                    Log("TryOpenCardViewerDirectly: Pantry type not found");
+                    return false;
+                }
+
+                // Get Pantry.Get<T>() generic method
+                var getMethod = pantryType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    .Where(m => m.Name == "Get" && m.IsGenericMethod)
+                    .FirstOrDefault();
+
+                if (getMethod == null)
+                {
+                    Log("TryOpenCardViewerDirectly: Pantry.Get method not found");
+                    return false;
+                }
+
+                if (actionsHandlerType == null)
+                {
+                    Log("TryOpenCardViewerDirectly: DeckBuilderActionsHandler type not found");
+                    return false;
+                }
+
+                var genericGet = getMethod.MakeGenericMethod(actionsHandlerType);
+                var actionsHandler = genericGet.Invoke(null, null);
+
+                if (actionsHandler == null)
+                {
+                    Log("TryOpenCardViewerDirectly: DeckBuilderActionsHandler instance is null");
+                    return false;
+                }
+
+                if (zoomType == null)
+                {
+                    Log("TryOpenCardViewerDirectly: ICardRolloverZoom type not found");
+                    return false;
+                }
+
+                var genericGetZoom = getMethod.MakeGenericMethod(zoomType);
+                var zoomHandler = genericGetZoom.Invoke(null, null);
+
+                // Find OpenCardViewer method with 3 params (MetaCardView, ICardRolloverZoom, int)
+                var openMethod = actionsHandlerType.GetMethod("OpenCardViewer",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+                if (openMethod == null)
+                {
+                    Log("TryOpenCardViewerDirectly: OpenCardViewer method not found");
+                    return false;
+                }
+
+                Log($"Opening card viewer directly with quantityToCraft=0");
+                openMethod.Invoke(actionsHandler, new object[] { metaCardView, zoomHandler, 0 });
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                Log($"TryOpenCardViewerDirectly failed: {ex.InnerException?.Message ?? ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>

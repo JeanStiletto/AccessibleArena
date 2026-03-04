@@ -468,9 +468,36 @@ public virtual void OnPointerUp(PointerEventData eventData)
 }
 ```
 
+### CardPoolHolder Click Mode
+
+**Class:** `CardPoolHolder` extends `MetaCardHolder` (Core.dll). Manages the collection card grid in deck builder.
+
+On activation, sets:
+```csharp
+CanSingleClickCards = (MetaCardView _) => true;   // single click always enabled
+OnCardClicked = OnCardClickedImpl;                 // left click handler
+OnCardRightClicked = OnCardRightClickedImpl;       // right click handler
+```
+
+Both handlers delegate to `DeckBuilderActionsHandler` (via `Pantry.Get<DeckBuilderActionsHandler>()`).
+
+### DeckBuilderActionsHandler (Core.Code.Decks)
+
+**`OnCardClicked` (left click):**
+- If `CanCraft` AND not in normal deck editing mode: opens card viewer (popup only, no craft)
+- If editing deck with commander filter: adds as commander/partner
+- If companion-eligible: shows companion dialog
+- **Otherwise (normal editing): calls `AddCardToDeckPile()` — adds card to deck directly, which triggers craft if unowned**
+
+**`CardRightClicked` (right click):**
+- If `CanCraft`: opens card viewer popup (no add-to-deck, no craft)
+- Otherwise: triggers rollover zoom right-click behavior
+
+**Key insight:** In normal deck editing mode, left click ADDS the card to the deck (auto-crafting if unowned). Right click opens the card viewer popup without adding to deck, letting the user use the popup's own Craft/Cancel buttons. For keyboard accessibility, collection card activation should simulate a right click to open the viewer popup instead of auto-adding to deck.
+
 ### CardViewerController (Craft Popup)
 
-**Class:** Extends `PopupBase` (Core.dll). Opens when clicking an unowned collection card.
+**Class:** Extends `PopupBase` (Core.dll). Opens when right-clicking a collection card or left-clicking outside normal editing mode.
 
 **Key Fields (SerializeField):**
 - `_craftButton` (CustomButton) — Craft confirmation button
