@@ -5,6 +5,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -459,9 +460,9 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null) continue;
                 string typeName = mb.GetType().Name;
-                if (typeName == "BoosterMetaCardView" ||
-                    typeName == "MetaCardView" ||
-                    typeName == "Meta_CDC")
+                if (typeName == T.BoosterMetaCardView ||
+                    typeName == T.MetaCardView ||
+                    typeName == T.MetaCDC)
                 {
                     return mb.gameObject;
                 }
@@ -552,7 +553,7 @@ namespace AccessibleArena.Core.Services
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
 
                 string typeName = mb.GetType().Name;
-                if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                if (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip)
                 {
                     // Only return buttons in the booster chamber area
                     if (IsInBoosterChamber(mb.gameObject))
@@ -592,7 +593,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in cardObj.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null) continue;
-                if (mb.GetType().Name == "Meta_CDC")
+                if (mb.GetType().Name == T.MetaCDC)
                 {
                     // Try to get GrpId field/property
                     var grpIdField = mb.GetType().GetField("GrpId",
@@ -809,7 +810,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "CustomButton" && mb.gameObject.name.Contains("Dismiss_MainButton"))
+                if (mb.GetType().Name == T.CustomButton && mb.gameObject.name.Contains("Dismiss_MainButton"))
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Delayed click on Dismiss_MainButton: {mb.gameObject.name}");
                     UIActivator.Activate(mb.gameObject);

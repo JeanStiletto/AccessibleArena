@@ -8,7 +8,9 @@ using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using static AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -144,7 +146,7 @@ namespace AccessibleArena.Core.Services
 
         public override void OnSceneChanged(string sceneName)
         {
-            if (sceneName != "DuelScene")
+            if (sceneName != DuelScene)
             {
                 _isWatching = false;
                 _hasCenteredMouse = false; // Reset for next duel
@@ -270,7 +272,7 @@ namespace AccessibleArena.Core.Services
                 if (mb == null || !mb.gameObject.activeInHierarchy)
                     continue;
 
-                if (mb.GetType().Name != "CustomButton")
+                if (mb.GetType().Name != T.CustomButton)
                     continue;
 
                 if (addedObjects.Contains(mb.gameObject))
@@ -356,7 +358,7 @@ namespace AccessibleArena.Core.Services
             string name = element.name;
 
             if (name.Contains("PromptButton") || name.Contains("Styled") ||
-                HasComponent(element, "CustomButton") || HasComponent(element, "StyledButton"))
+                HasComponent(element, T.CustomButton) || HasComponent(element, "StyledButton"))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Using pointer click for: {name}");
                 UIActivator.SimulatePointerClick(element);
@@ -678,7 +680,7 @@ namespace AccessibleArena.Core.Services
                     continue;
 
                 string typeName = mb.GetType().Name;
-                if (typeName == "MatchTimer")
+                if (typeName == T.MatchTimer)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] [Portrait] Found MatchTimer: {mb.gameObject.name}");
 
@@ -800,7 +802,7 @@ namespace AccessibleArena.Core.Services
                 var type = mb.GetType();
                 string typeName = type.Name;
 
-                if (typeName == "GameManager")
+                if (typeName == T.GameManager)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] [Life] Found GameManager: {mb.gameObject.name}");
 

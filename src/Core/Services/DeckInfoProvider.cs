@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using AccessibleArena.Core.Models;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -496,7 +497,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in titlePanelGo.GetComponents<MonoBehaviour>())
             {
                 if (mb == null) continue;
-                if (mb.GetType().Name == "DeckMainTitlePanel")
+                if (mb.GetType().Name == T.DeckMainTitlePanel)
                 {
                     _cachedTitlePanel = mb;
                     if (!_titlePanelReflectionInit)
@@ -526,7 +527,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in wrapper.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null) continue;
-                if (mb.GetType().Name == "DeckCostsDetails")
+                if (mb.GetType().Name == T.DeckCostsDetails)
                 {
                     _cachedCostsDetails = mb;
                     if (!_costsDetailsReflectionInit)
@@ -595,7 +596,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in wrapper.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null) continue;
-                if (mb.GetType().Name == "DeckTypesDetails")
+                if (mb.GetType().Name == T.DeckTypesDetails)
                 {
                     _cachedTypesDetails = mb;
                     if (!_typesDetailsReflectionInit)

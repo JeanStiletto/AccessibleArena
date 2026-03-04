@@ -13,6 +13,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using static AccessibleArena.Core.Constants.SceneNames;
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -31,7 +34,7 @@ namespace AccessibleArena.Core.Services
         // Scenes where this navigator should NOT activate (handled by other navigators)
         private static readonly HashSet<string> ExcludedScenes = new HashSet<string>
         {
-            "Bootstrap", "AssetPrep", "DuelScene", "DraftScene", "SealedScene", "MatchEndScene", "PreGameScene"
+            SceneNames.Bootstrap, AssetPrep, DuelScene, DraftScene, SealedScene, SceneNames.MatchEndScene, SceneNames.PreGameScene
         };
 
         // Minimum CustomButtons needed to consider this a menu
@@ -2331,7 +2334,7 @@ namespace AccessibleArena.Core.Services
             Component widget = null;
             foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
             {
-                if (mb != null && mb.GetType().Name == "FriendsWidget")
+                if (mb != null && mb.GetType().Name == T.FriendsWidget)
                 {
                     widget = mb;
                     break;
@@ -3621,7 +3624,7 @@ namespace AccessibleArena.Core.Services
                         name.Contains("CardReward") ||
                         name.Contains("CardAnchor") ||
                         name.Contains("RewardCard") ||
-                        name.Contains("MetaCardView") ||
+                        name.Contains(T.MetaCardView) ||
                         name.Contains("CDC"))
                     {
                         LogDebug($"[{NavigatorId}] Found potential NPE card element: {name} at {path}");
@@ -3807,7 +3810,7 @@ namespace AccessibleArena.Core.Services
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
 
                 string typeName = mb.GetType().Name;
-                if (typeName == "PagesMetaCardView" || typeName == "MetaCardView")
+                if (typeName == T.PagesMetaCardView || typeName == T.MetaCardView)
                 {
                     var cardObj = mb.gameObject;
                     if (!addedObjects.Contains(cardObj))

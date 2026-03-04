@@ -5,6 +5,7 @@ using System.Collections;
 using System.Reflection;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -296,7 +297,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "EventPageContentController")
+                if (mb.GetType().Name == T.EventPageContentController)
                 {
                     _cachedEventPageController = mb;
 
@@ -813,7 +814,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "PacketSelectContentController")
+                if (mb.GetType().Name == T.PacketSelectContentController)
                 {
                     _cachedPacketController = mb;
 

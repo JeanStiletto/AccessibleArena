@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using MelonLoader;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -170,20 +171,20 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Checks if the cached browser is still valid.
         /// For scaffold browsers: checks if scaffold is still active.
-        /// For CardBrowserCardHolder: checks if DEFAULT holder has cards.
+        /// For T.CardBrowserCardHolder: checks if DEFAULT holder has cards.
         /// </summary>
         private static bool IsBrowserStillValid()
         {
             if (_cachedBrowserInfo == null) return false;
 
             // For scaffold-based browsers (Scry, YesNo, etc.), the scaffold must still be present
-            if (_cachedBrowserInfo.BrowserType != "CardBrowserCardHolder")
+            if (_cachedBrowserInfo.BrowserType != T.CardBrowserCardHolder)
             {
                 // Scaffold browsers validated by BrowserGameObject.activeInHierarchy check already
                 return true;
             }
 
-            // For CardBrowserCardHolder browsers, only check DEFAULT holder
+            // For T.CardBrowserCardHolder browsers, only check DEFAULT holder
             // ViewDismiss only makes sense with a scaffold (it's the "put on bottom" zone)
             // Cards in ViewDismiss without a scaffold are just animation remnants
             var defaultHolder = FindActiveGameObject(HolderDefault);
@@ -309,13 +310,13 @@ namespace AccessibleArena.Core.Services
                     scaffoldType = ExtractBrowserTypeFromScaffold(goName);
                 }
 
-                // Priority 2: CardBrowserCardHolder component (fallback) - only from DEFAULT holder
+                // Priority 2: T.CardBrowserCardHolder component (fallback) - only from DEFAULT holder
                 // ViewDismiss holder only makes sense with a scaffold present
                 if (cardHolderCandidate == null && goName == HolderDefault)
                 {
                     foreach (var comp in go.GetComponents<Component>())
                     {
-                        if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                        if (comp != null && comp.GetType().Name == T.CardBrowserCardHolder)
                         {
                             int cardCount = CountCardsInContainer(go);
                             if (cardCount > 0)
@@ -357,20 +358,20 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Priority 2: CardBrowserCardHolder (skip if looks like mulligan without buttons)
+            // Priority 2: T.CardBrowserCardHolder (skip if looks like mulligan without buttons)
             if (cardHolderCandidate != null)
             {
                 if (cardHolderCardCount < 5 || hasMulliganButtons)
                 {
-                    if (!_loggedBrowserTypes.Contains("CardBrowserCardHolder"))
+                    if (!_loggedBrowserTypes.Contains(T.CardBrowserCardHolder))
                     {
-                        _loggedBrowserTypes.Add("CardBrowserCardHolder");
-                        MelonLogger.Msg($"[BrowserDetector] Found CardBrowserCardHolder: {cardHolderCandidate.name} with {cardHolderCardCount} cards");
+                        _loggedBrowserTypes.Add(T.CardBrowserCardHolder);
+                        MelonLogger.Msg($"[BrowserDetector] Found T.CardBrowserCardHolder: {cardHolderCandidate.name} with {cardHolderCardCount} cards");
                     }
                     return new BrowserInfo
                     {
                         IsActive = true,
-                        BrowserType = "CardBrowserCardHolder",
+                        BrowserType = T.CardBrowserCardHolder,
                         BrowserGameObject = cardHolderCandidate,
                         IsScryLike = false,
                         IsLondon = false,

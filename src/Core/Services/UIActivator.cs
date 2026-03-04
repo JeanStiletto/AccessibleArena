@@ -7,6 +7,7 @@ using System.Collections;
 using System.Linq;
 using System.Text.RegularExpressions;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
@@ -1941,7 +1942,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null) continue;
                 string typeName = mb.GetType().Name;
-                if (typeName == "PagesMetaCardView" || typeName == "MetaCardView")
+                if (typeName == T.PagesMetaCardView || typeName == T.MetaCardView)
                 {
                     // Verify it's in PoolHolder (collection area) not deck area
                     Transform current = element.transform;
@@ -1955,7 +1956,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Also check by element name for cases where we navigate the view directly
-            if (element.name.Contains("PagesMetaCardView") || element.name.Contains("MetaCardView"))
+            if (element.name.Contains(T.PagesMetaCardView) || element.name.Contains(T.MetaCardView))
             {
                 Transform current = element.transform;
                 while (current != null)
@@ -2023,7 +2024,7 @@ namespace AccessibleArena.Core.Services
                 var type = mb.GetType();
                 while (type != null)
                 {
-                    if (type.Name == "MetaCardView")
+                    if (type.Name == T.MetaCardView)
                         return mb;
                     type = type.BaseType;
                 }

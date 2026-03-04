@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using AccessibleArena.Core.Models;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -76,7 +77,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (component == null) continue;
                 string typeName = component.GetType().Name;
-                if (typeName == "DuelScene_CDC" || typeName == "Meta_CDC")
+                if (typeName == T.DuelSceneCDC || typeName == T.MetaCDC)
                 {
                     return component;
                 }
@@ -88,7 +89,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (component == null) continue;
                 string typeName = component.GetType().Name;
-                if (typeName == "Meta_CDC")
+                if (typeName == T.MetaCDC)
                 {
                     return component;
                 }
@@ -113,10 +114,10 @@ namespace AccessibleArena.Core.Services
                 if (component == null) continue;
                 string typeName = component.GetType().Name;
                 // Use Contains for ListMetaCardView to also match ListMetaCardView_Expanding (deck list cards)
-                if (typeName == "PagesMetaCardView" ||
-                    typeName == "MetaCardView" ||
-                    typeName == "BoosterMetaCardView" ||
-                    typeName == "DraftPackCardView" ||
+                if (typeName == T.PagesMetaCardView ||
+                    typeName == T.MetaCardView ||
+                    typeName == T.BoosterMetaCardView ||
+                    typeName == T.DraftPackCardView ||
                     typeName.Contains("ListMetaCardView"))
                 {
                     // Log once when we find a MetaCardView
@@ -1232,7 +1233,7 @@ namespace AccessibleArena.Core.Services
             if (metaCardView == null) return;
 
             // Only applies to PagesMetaCardView (collection grid cards)
-            if (metaCardView.GetType().Name != "PagesMetaCardView") return;
+            if (metaCardView.GetType().Name != T.PagesMetaCardView) return;
 
             try
             {

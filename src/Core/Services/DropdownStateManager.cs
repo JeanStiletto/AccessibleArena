@@ -3,6 +3,7 @@ using MelonLoader;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -323,7 +324,7 @@ namespace AccessibleArena.Core.Services
             // Try cTMP_Dropdown (MTGA's custom dropdown - most common)
             foreach (var component in dropdownObj.GetComponents<Component>())
             {
-                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
                 {
                     var type = component.GetType();
                     var field = GetOnValueChangedField(type);
@@ -384,7 +385,7 @@ namespace AccessibleArena.Core.Services
 
                 var typeName = _suppressedDropdownComponent.GetType().Name;
 
-                if (typeName == "cTMP_Dropdown")
+                if (typeName == T.CustomTMPDropdown)
                 {
                     var field = GetOnValueChangedField(_suppressedDropdownComponent.GetType());
                     if (field != null)
@@ -426,7 +427,7 @@ namespace AccessibleArena.Core.Services
 
                 var typeName = dropdownComponent.GetType().Name;
 
-                if (typeName == "cTMP_Dropdown")
+                if (typeName == T.CustomTMPDropdown)
                 {
                     var field = GetOnValueChangedField(dropdownComponent.GetType());
                     if (field != null)

@@ -9,6 +9,8 @@ using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
 using System.Linq;
+using static AccessibleArena.Core.Constants.SceneNames;
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -121,7 +123,7 @@ namespace AccessibleArena.Core.Services
             // Check all loaded scenes for MatchEndScene (loaded additively)
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
-                if (SceneManager.GetSceneAt(i).name == "MatchEndScene")
+                if (SceneManager.GetSceneAt(i).name == SceneNames.MatchEndScene)
                     return true;
             }
             return false;
@@ -131,7 +133,7 @@ namespace AccessibleArena.Core.Services
         {
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
-                if (SceneManager.GetSceneAt(i).name == "PreGameScene")
+                if (SceneManager.GetSceneAt(i).name == SceneNames.PreGameScene)
                     return true;
             }
             return false;
@@ -140,7 +142,7 @@ namespace AccessibleArena.Core.Services
         private bool DetectGameLoading()
         {
             var scene = SceneManager.GetActiveScene();
-            return scene.name == "AssetPrep";
+            return scene.name == AssetPrep;
         }
 
         private bool DetectMatchmaking()
@@ -186,7 +188,7 @@ namespace AccessibleArena.Core.Services
             Log("=== Discovering MatchEnd elements ===");
 
             // Get MatchEndScene root objects - only search within this scene
-            var matchEndScene = SceneManager.GetSceneByName("MatchEndScene");
+            var matchEndScene = SceneManager.GetSceneByName(SceneNames.MatchEndScene);
             if (!matchEndScene.IsValid() || !matchEndScene.isLoaded)
             {
                 Log("MatchEndScene not valid/loaded");
@@ -348,7 +350,7 @@ namespace AccessibleArena.Core.Services
         {
             Log("=== Discovering PreGame elements ===");
 
-            var preGameScene = SceneManager.GetSceneByName("PreGameScene");
+            var preGameScene = SceneManager.GetSceneByName(SceneNames.PreGameScene);
             if (!preGameScene.IsValid() || !preGameScene.isLoaded)
             {
                 Log("PreGameScene not valid/loaded");

@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -67,7 +68,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null) continue;
                 string typeName = mb.GetType().Name;
-                if (typeName == "CardPoolHolder" || typeName == "ScrollCardPoolHolder")
+                if (typeName == T.CardPoolHolder || typeName == T.ScrollCardPoolHolder)
                 {
                     _cachedPoolHolder = mb;
 
@@ -88,7 +89,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (mb == null) continue;
                     string typeName = mb.GetType().Name;
-                    if (typeName == "CardPoolHolder" || typeName == "ScrollCardPoolHolder")
+                    if (typeName == T.CardPoolHolder || typeName == T.ScrollCardPoolHolder)
                     {
                         _cachedPoolHolder = mb;
 

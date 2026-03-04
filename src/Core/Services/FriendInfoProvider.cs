@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using MelonLoader;
 using TMPro;
 using AccessibleArena.Core.Models;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -35,10 +36,10 @@ namespace AccessibleArena.Core.Services
         // Known social tile component type names
         private static readonly string[] SocialTileTypeNames = new[]
         {
-            "FriendTile",
-            "InviteOutgoingTile",
-            "InviteIncomingTile",
-            "BlockTile"
+            T.FriendTile,
+            T.InviteOutgoingTile,
+            T.InviteIncomingTile,
+            T.BlockTile
         };
 
         // Cached reflection per tile type (keyed by type to handle multiple tile types)
@@ -103,7 +104,7 @@ namespace AccessibleArena.Core.Services
             var cache = GetCache(tile);
             string typeName = tile.GetType().Name;
 
-            if (typeName == "FriendTile")
+            if (typeName == T.FriendTile)
             {
                 // Check Friend.IsOnline and Friend.HasChatHistory via reflection
                 bool isOnline = false;
@@ -143,17 +144,17 @@ namespace AccessibleArena.Core.Services
                 actions.Add((Strings.FriendActionUnfriend, ActionUnfriend));
                 actions.Add((Strings.FriendActionBlock, ActionBlock));
             }
-            else if (typeName == "InviteOutgoingTile")
+            else if (typeName == T.InviteOutgoingTile)
             {
                 actions.Add((Strings.FriendActionRevoke, ActionRevoke));
             }
-            else if (typeName == "InviteIncomingTile")
+            else if (typeName == T.InviteIncomingTile)
             {
                 actions.Add((Strings.FriendActionAccept, ActionAccept));
                 actions.Add((Strings.FriendActionDecline, ActionDecline));
                 actions.Add((Strings.FriendActionBlock, ActionBlock));
             }
-            else if (typeName == "BlockTile")
+            else if (typeName == T.BlockTile)
             {
                 actions.Add((Strings.FriendActionUnblock, ActionUnblock));
             }
@@ -238,7 +239,7 @@ namespace AccessibleArena.Core.Services
                 Component widget = null;
                 foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
                 {
-                    if (mb != null && mb.GetType().Name == "FriendsWidget")
+                    if (mb != null && mb.GetType().Name == T.FriendsWidget)
                     {
                         widget = mb;
                         break;
@@ -292,7 +293,7 @@ namespace AccessibleArena.Core.Services
             {
                 foreach (var mb in socialPanel.GetComponentsInChildren<MonoBehaviour>(true))
                 {
-                    if (mb != null && mb.GetType().Name == "FriendsWidget")
+                    if (mb != null && mb.GetType().Name == T.FriendsWidget)
                     {
                         var flags = AllInstanceFlags;
                         var statusField = mb.GetType().GetField("StatusButton", flags);

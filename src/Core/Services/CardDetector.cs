@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -74,14 +75,14 @@ namespace AccessibleArena.Core.Services
                 if (component == null) continue;
                 string typeName = component.GetType().Name;
 
-                if (typeName == "BoosterMetaCardView" ||
-                    typeName == "RewardDisplayCard" ||
-                    typeName == "PagesMetaCardView" ||  // Used by deck builder collection cards
-                    typeName == "MetaCardView" ||       // Generic card view component
-                    typeName == "Meta_CDC" ||
-                    typeName == "CardView" ||
-                    typeName == "DuelCardView" ||
-                    typeName == "CardRolloverZoomHandler")
+                if (typeName == T.BoosterMetaCardView ||
+                    typeName == T.RewardDisplayCard ||
+                    typeName == T.PagesMetaCardView ||  // Used by deck builder collection cards
+                    typeName == T.MetaCardView ||       // Generic card view component
+                    typeName == T.MetaCDC ||
+                    typeName == T.CardView ||
+                    typeName == T.DuelCardView ||
+                    typeName == T.CardRolloverZoomHandler)
                 {
                     return true;
                 }

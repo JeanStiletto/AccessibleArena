@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using AccessibleArena.Core.Models;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -116,7 +117,7 @@ namespace AccessibleArena.Core.Services
                 MonoBehaviour holderComponent = null;
                 foreach (var mb in deckHolder.GetComponents<MonoBehaviour>())
                 {
-                    if (mb != null && mb.GetType().Name.Contains("ListMetaCardHolder"))
+                    if (mb != null && mb.GetType().Name.Contains(T.ListMetaCardHolder))
                     {
                         holderComponent = mb;
                         break;
@@ -286,7 +287,7 @@ namespace AccessibleArena.Core.Services
                     MonoBehaviour holderComponent = null;
                     foreach (var mb in child.GetComponents<MonoBehaviour>())
                     {
-                        if (mb != null && mb.GetType().Name.Contains("ListMetaCardHolder"))
+                        if (mb != null && mb.GetType().Name.Contains(T.ListMetaCardHolder))
                         {
                             holderComponent = mb;
                             break;
@@ -637,7 +638,7 @@ namespace AccessibleArena.Core.Services
                 var holders = new List<MonoBehaviour>();
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>(true))
                 {
-                    if (mb != null && mb.GetType().Name == "StaticColumnMetaCardHolder")
+                    if (mb != null && mb.GetType().Name == T.StaticColumnMetaCardHolder)
                         holders.Add(mb);
                 }
 

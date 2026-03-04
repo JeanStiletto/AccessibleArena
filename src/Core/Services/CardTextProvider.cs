@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -189,7 +190,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 var type = mb.GetType();
-                if (type.Name == "GameManager")
+                if (type.Name == T.GameManager)
                 {
                     var cardDbProp = type.GetProperty("CardDatabase");
                     if (cardDbProp != null)
@@ -302,7 +303,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 var type = mb.GetType();
-                if (type.Name == "GameManager")
+                if (type.Name == T.GameManager)
                 {
                     DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Found GameManager, looking for CardDatabase...");
                     var cardDbProp = type.GetProperty("CardDatabase");
@@ -468,7 +469,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 var type = mb.GetType();
-                if (type.Name == "GameManager")
+                if (type.Name == T.GameManager)
                 {
                     var cardDbProp = type.GetProperty("CardDatabase");
                     if (cardDbProp != null)

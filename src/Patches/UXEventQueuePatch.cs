@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Patches
 {
@@ -30,8 +31,8 @@ namespace AccessibleArena.Patches
             try
             {
                 // Find the UXEventQueue type
-                var uxEventQueueType = FindType("Wotc.Mtga.DuelScene.UXEvents.UXEventQueue");
-                var uxEventType = FindType("Wotc.Mtga.DuelScene.UXEvents.UXEvent");
+                var uxEventQueueType = FindType(T.UXEventQueueFQ);
+                var uxEventType = FindType(T.UXEventFQ);
 
                 if (uxEventQueueType == null)
                 {

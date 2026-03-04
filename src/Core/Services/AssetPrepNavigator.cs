@@ -6,6 +6,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
 using TMPro;
+using static AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -21,7 +22,6 @@ namespace AccessibleArena.Core.Services
     public class AssetPrepNavigator : BaseNavigator
     {
         // Screen detection
-        private const string SCENE_NAME = "AssetPrep";
         private GameObject _assetPrepScreen;
         private Component _assetPrepScreenComponent;
 
@@ -54,7 +54,7 @@ namespace AccessibleArena.Core.Services
             {
                 // Only active in AssetPrep scene
                 var scene = SceneManager.GetActiveScene();
-                if (scene.name != SCENE_NAME)
+                if (scene.name != AssetPrep)
                     return false;
 
                 // Try to find the AssetPrepScreen component
@@ -226,7 +226,7 @@ namespace AccessibleArena.Core.Services
             {
                 // Still in AssetPrep scene?
                 var scene = SceneManager.GetActiveScene();
-                if (scene.name != SCENE_NAME)
+                if (scene.name != AssetPrep)
                     return false;
 
                 // Re-scan for buttons that may have become active
@@ -380,7 +380,7 @@ namespace AccessibleArena.Core.Services
         public override void OnSceneChanged(string sceneName)
         {
             // Deactivate when leaving AssetPrep scene
-            if (_isActive && sceneName != SCENE_NAME)
+            if (_isActive && sceneName != AssetPrep)
             {
                 MelonLogger.Msg($"[{NavigatorId}] Scene changed to {sceneName}, deactivating");
                 Deactivate();

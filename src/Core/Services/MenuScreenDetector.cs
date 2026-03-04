@@ -4,6 +4,7 @@ using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -18,20 +19,20 @@ namespace AccessibleArena.Core.Services
         // Content controller types for screen detection
         private static readonly string[] ContentControllerTypes = new[]
         {
-            "HomePageContentController",
-            "DeckManagerController",
+            T.HomePageContentController,
+            T.DeckManagerController,
             "ProfileContentController",
             "ContentController_StoreCarousel",
             "MasteryContentController",
             "AchievementsContentController",
-            "LearnToPlayControllerV2",
+            T.LearnToPlayControllerV2,
             "PackOpeningController",
             "CampaignGraphContentController",
             "WrapperDeckBuilder",
             "ConstructedDeckSelectController",
-            "EventPageContentController",
+            T.EventPageContentController,
             "ProgressionTracksContentController",
-            "PacketSelectContentController",
+            T.PacketSelectContentController,
             "DraftContentController"
         };
 
@@ -312,19 +313,19 @@ namespace AccessibleArena.Core.Services
         {
             return controllerTypeName switch
             {
-                "HomePageContentController" => Strings.ScreenHome,
-                "DeckManagerController" => Strings.ScreenDecks,
+                T.HomePageContentController => Strings.ScreenHome,
+                T.DeckManagerController => Strings.ScreenDecks,
                 "ProfileContentController" => Strings.ScreenProfile,
                 "ContentController_StoreCarousel" => Strings.ScreenStore,
                 "MasteryContentController" => Strings.ScreenMastery,
                 "AchievementsContentController" => Strings.ScreenAchievements,
-                "LearnToPlayControllerV2" => Strings.ScreenCodex,
+                T.LearnToPlayControllerV2 => Strings.ScreenCodex,
                 "PackOpeningController" => Strings.ScreenPackOpening,
                 "CampaignGraphContentController" => Strings.ScreenColorChallenge,
                 "WrapperDeckBuilder" => Strings.ScreenDeckBuilder,
                 "ConstructedDeckSelectController" => Strings.ScreenDeckSelection,
-                "EventPageContentController" => Strings.ScreenEvent,
-                "PacketSelectContentController" => Strings.ScreenPacketSelect,
+                T.EventPageContentController => Strings.ScreenEvent,
+                T.PacketSelectContentController => Strings.ScreenPacketSelect,
                 "DraftContentController" => Strings.ScreenDraft,
                 "RewardsOverlay" => Strings.ScreenRewards,
                 "BoosterChamber" => Strings.ScreenPacks,

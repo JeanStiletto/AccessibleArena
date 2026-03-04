@@ -6,6 +6,7 @@ using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.ElementGrouping;
 using System.Collections.Generic;
 using System.Linq;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -261,7 +262,7 @@ namespace AccessibleArena.Core.Services
                 if (addedObjects.Contains(mb.gameObject)) continue;
 
                 string typeName = mb.GetType().Name;
-                if (typeName != "CustomButton" && typeName != "CustomButtonWithTooltip") continue;
+                if (typeName != T.CustomButton && typeName != T.CustomButtonWithTooltip) continue;
 
                 string label = GetButtonLabel(mb.gameObject);
                 MelonLogger.Msg($"[{NavigatorId}] Adding button: {label} ({mb.gameObject.name})");
@@ -559,13 +560,13 @@ namespace AccessibleArena.Core.Services
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
 
                 string typeName = mb.GetType().Name;
-                if (typeName == "BoosterMetaCardView" ||
-                    typeName == "RewardDisplayCard" ||
-                    typeName == "PagesMetaCardView" ||
-                    typeName == "MetaCardView" ||
-                    typeName == "Meta_CDC" ||
-                    typeName == "CardView" ||
-                    typeName == "DuelCardView")
+                if (typeName == T.BoosterMetaCardView ||
+                    typeName == T.RewardDisplayCard ||
+                    typeName == T.PagesMetaCardView ||
+                    typeName == T.MetaCardView ||
+                    typeName == T.MetaCDC ||
+                    typeName == T.CardView ||
+                    typeName == T.DuelCardView)
                 {
                     return mb.gameObject;
                 }
@@ -607,7 +608,7 @@ namespace AccessibleArena.Core.Services
                     foreach (var mb in child.GetComponents<MonoBehaviour>())
                     {
                         string typeName = mb?.GetType().Name;
-                        if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                        if (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip)
                             return child.gameObject;
                     }
                 }
@@ -617,7 +618,7 @@ namespace AccessibleArena.Core.Services
             {
                 string typeName = mb?.GetType().Name;
                 if (mb != null && mb.gameObject.activeInHierarchy &&
-                    (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip"))
+                    (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip))
                     return mb.gameObject;
             }
 
@@ -628,7 +629,7 @@ namespace AccessibleArena.Core.Services
                 {
                     string typeName = mb?.GetType().Name;
                     if (mb != null && mb.gameObject.activeInHierarchy &&
-                        (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip"))
+                        (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip))
                         return mb.gameObject;
                 }
             }

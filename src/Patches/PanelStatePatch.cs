@@ -6,6 +6,7 @@ using System.Reflection;
 using AccessibleArena.Core.Services;
 using AccessibleArena.Core.Services.ElementGrouping;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Patches
 {
@@ -85,11 +86,11 @@ namespace AccessibleArena.Patches
 
         private static void PatchNavContentController(HarmonyLib.Harmony harmony)
         {
-            var controllerType = FindType("Wotc.Mtga.Wrapper.NavContentController");
+            var controllerType = FindType(T.NavContentControllerFQ);
             if (controllerType == null)
             {
                 // Try alternative names
-                controllerType = FindType("NavContentController");
+                controllerType = FindType(T.NavContentController);
             }
 
             if (controllerType == null)
@@ -229,10 +230,10 @@ namespace AccessibleArena.Patches
 
         private static void PatchSettingsMenu(HarmonyLib.Harmony harmony)
         {
-            var settingsType = FindType("Wotc.Mtga.Wrapper.SettingsMenu");
+            var settingsType = FindType(T.SettingsMenuFQ);
             if (settingsType == null)
             {
-                settingsType = FindType("SettingsMenu");
+                settingsType = FindType(T.SettingsMenu);
             }
 
             if (settingsType == null)
@@ -325,7 +326,7 @@ namespace AccessibleArena.Patches
         private static void PatchDeckSelectController(HarmonyLib.Harmony harmony)
         {
             // DeckSelectBlade has Show/Hide methods which are called when deck selection opens/closes
-            var deckBladeType = FindType("DeckSelectBlade");
+            var deckBladeType = FindType(T.DeckSelectBlade);
             if (deckBladeType == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find DeckSelectBlade type");
@@ -402,7 +403,7 @@ namespace AccessibleArena.Patches
 
         private static void PatchPlayBladeController(HarmonyLib.Harmony harmony)
         {
-            var playBladeType = FindType("PlayBladeController");
+            var playBladeType = FindType(T.PlayBladeController);
             if (playBladeType == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find PlayBladeController type");
@@ -440,7 +441,7 @@ namespace AccessibleArena.Patches
 
         private static void PatchHomePageBladeStates(HarmonyLib.Harmony harmony)
         {
-            var homePageType = FindType("HomePageContentController");
+            var homePageType = FindType(T.HomePageContentController);
             if (homePageType == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController type");
@@ -498,7 +499,7 @@ namespace AccessibleArena.Patches
 
         private static void PatchJoinMatchMaking(HarmonyLib.Harmony harmony)
         {
-            var homePageType = FindType("HomePageContentController");
+            var homePageType = FindType(T.HomePageContentController);
             if (homePageType == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController for JoinMatchMaking patch");
@@ -545,10 +546,10 @@ namespace AccessibleArena.Patches
         private static void PatchBladeContentView(HarmonyLib.Harmony harmony)
         {
             // Try to patch the base BladeContentView class for Show/Hide
-            var bladeContentViewType = FindType("Wizards.Mtga.PlayBlade.BladeContentView");
+            var bladeContentViewType = FindType(T.BladeContentViewFQ);
             if (bladeContentViewType == null)
             {
-                bladeContentViewType = FindType("BladeContentView");
+                bladeContentViewType = FindType(T.BladeContentView);
             }
 
             if (bladeContentViewType != null)
@@ -597,10 +598,10 @@ namespace AccessibleArena.Patches
             }
 
             // Also try to patch EventBladeContentView directly (has Show/Hide)
-            var eventBladeType = FindType("Wizards.Mtga.PlayBlade.EventBladeContentView");
+            var eventBladeType = FindType(T.EventBladeContentViewFQ);
             if (eventBladeType == null)
             {
-                eventBladeType = FindType("EventBladeContentView");
+                eventBladeType = FindType(T.EventBladeContentView);
             }
 
             if (eventBladeType != null)
@@ -651,7 +652,7 @@ namespace AccessibleArena.Patches
 
         private static void PatchSocialUI(HarmonyLib.Harmony harmony)
         {
-            var socialUIType = FindType("SocialUI");
+            var socialUIType = FindType(T.SocialUI);
             if (socialUIType == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find SocialUI type");
@@ -771,7 +772,7 @@ namespace AccessibleArena.Patches
         {
             // Mailbox is controlled by NavBarController, not a dedicated content controller
             // NavBarController has MailboxButton_OnClick() to open and HideInboxIfActive() to close
-            var navBarType = FindType("NavBarController");
+            var navBarType = FindType(T.NavBarController);
             if (navBarType == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find NavBarController type for mailbox patching");
@@ -830,7 +831,7 @@ namespace AccessibleArena.Patches
 
         private static void PatchMailLetterSelected(HarmonyLib.Harmony harmony)
         {
-            var inboxType = FindType("Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox");
+            var inboxType = FindType(T.ContentControllerPlayerInboxFQ);
             if (inboxType == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find ContentControllerPlayerInbox type");

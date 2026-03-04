@@ -8,6 +8,7 @@ using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -234,7 +235,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null) continue;
                 var type = mb.GetType();
-                if (type.Name == "cTMP_Dropdown")
+                if (type.Name == T.CustomTMPDropdown)
                 {
                     bool isExpanded = GetIsExpandedProperty(mb);
                     if (isExpanded)
@@ -337,7 +338,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null) continue;
                 var type = mb.GetType();
-                if (type.Name == "cTMP_Dropdown")
+                if (type.Name == T.CustomTMPDropdown)
                 {
                     if (GetIsExpandedProperty(mb))
                     {
@@ -407,7 +408,7 @@ namespace AccessibleArena.Core.Services
             // Check for game's custom cTMP_Dropdown
             foreach (var component in obj.GetComponents<Component>())
             {
-                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
                     return true;
             }
             return false;

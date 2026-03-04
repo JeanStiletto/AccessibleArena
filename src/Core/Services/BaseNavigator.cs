@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -858,7 +859,7 @@ namespace AccessibleArena.Core.Services
             // Try cTMP_Dropdown via reflection (no SetValueWithoutNotify available)
             foreach (var component in dropdownObj.GetComponents<Component>())
             {
-                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
                 {
                     var type = component.GetType();
 
@@ -910,7 +911,7 @@ namespace AccessibleArena.Core.Services
             // Try cTMP_Dropdown via reflection
             foreach (var component in dropdownObj.GetComponents<Component>())
             {
-                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
                 {
                     var type = component.GetType();
                     // Read m_CaptionText field (TMP_Text reference)
@@ -957,7 +958,7 @@ namespace AccessibleArena.Core.Services
             // cTMP_Dropdown via reflection
             foreach (var component in dropdownObj.GetComponents<Component>())
             {
-                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
                 {
                     var type = component.GetType();
                     var valueProp = type.GetProperty("value",
@@ -1057,7 +1058,7 @@ namespace AccessibleArena.Core.Services
                 // Check for game's custom cTMP_Dropdown
                 foreach (var component in transform.GetComponents<Component>())
                 {
-                    if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                    if (component != null && component.GetType().Name == T.CustomTMPDropdown)
                     {
                         // Try to call Hide() via reflection
                         var hideMethod = component.GetType().GetMethod("Hide",
@@ -1809,7 +1810,7 @@ namespace AccessibleArena.Core.Services
             {
                 foreach (var component in element.GetComponents<Component>())
                 {
-                    if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                    if (component != null && component.GetType().Name == T.CustomTMPDropdown)
                     {
                         var hideMethod = component.GetType().GetMethod("Hide",
                             PublicInstance);
@@ -2590,7 +2591,7 @@ namespace AccessibleArena.Core.Services
                 if (IsInsideInputField(mb.transform, popup.transform)) continue;
 
                 string typeName = mb.GetType().Name;
-                bool isDropdown = typeName == "cTMP_Dropdown" ||
+                bool isDropdown = typeName == T.CustomTMPDropdown ||
                                   mb is TMP_Dropdown ||
                                   mb is Dropdown;
                 if (!isDropdown) continue;
@@ -2629,7 +2630,7 @@ namespace AccessibleArena.Core.Services
                 if (IsInsideInputField(mb.transform, popup.transform)) continue;
                 if (IsInsideDropdown(mb.transform, popup.transform)) continue;
 
-                if (mb.GetType().Name == "SystemMessageButtonView")
+                if (mb.GetType().Name == T.SystemMessageButtonView)
                 {
                     string label = UITextExtractor.GetText(mb.gameObject);
                     if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
@@ -2649,7 +2650,7 @@ namespace AccessibleArena.Core.Services
                 if (IsInsideButton(mb.transform, popup.transform)) continue;
 
                 string typeName = mb.GetType().Name;
-                if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip")
+                if (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip)
                 {
                     string label = UITextExtractor.GetText(mb.gameObject);
                     if (string.IsNullOrEmpty(label)) label = mb.gameObject.name;
@@ -2905,8 +2906,8 @@ namespace AccessibleArena.Core.Services
                     if (mb != null)
                     {
                         string typeName = mb.GetType().Name;
-                        if (typeName == "CustomButton" || typeName == "CustomButtonWithTooltip" ||
-                            typeName == "SystemMessageButtonView")
+                        if (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip ||
+                            typeName == T.SystemMessageButtonView)
                             return true;
                     }
                 }
@@ -3022,7 +3023,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "SystemMessageButtonView" && MatchesCancelPattern(mb.gameObject, cancelPatterns))
+                if (mb.GetType().Name == T.SystemMessageButtonView && MatchesCancelPattern(mb.gameObject, cancelPatterns))
                     return mb.gameObject;
             }
 
@@ -3031,7 +3032,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                 string typeName = mb.GetType().Name;
-                if ((typeName == "CustomButton" || typeName == "CustomButtonWithTooltip") &&
+                if ((typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip) &&
                     MatchesCancelPattern(mb.gameObject, cancelPatterns))
                     return mb.gameObject;
             }
@@ -3101,7 +3102,7 @@ namespace AccessibleArena.Core.Services
 
             foreach (var mb in buttonObj.GetComponents<MonoBehaviour>())
             {
-                if (mb == null || mb.GetType().Name != "CustomButton") continue;
+                if (mb == null || mb.GetType().Name != T.CustomButton) continue;
 
                 // CustomButton.OnClick is a public property returning a UnityEvent-like type
                 var onClickProp = mb.GetType().GetProperty("OnClick",

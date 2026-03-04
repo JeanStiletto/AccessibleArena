@@ -6,6 +6,7 @@ using AccessibleArena.Core.Models;
 using System.Linq;
 using System.Reflection;
 using TMPro;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -495,7 +496,7 @@ namespace AccessibleArena.Core.Services
                 MonoBehaviour gameManager = null;
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
-                    if (mb != null && mb.GetType().Name == "GameManager")
+                    if (mb != null && mb.GetType().Name == T.GameManager)
                     {
                         gameManager = mb;
                         break;
@@ -828,7 +829,7 @@ namespace AccessibleArena.Core.Services
                     continue;
 
                 string typeName = mb.GetType().Name;
-                if (typeName == "MatchTimer")
+                if (typeName == T.MatchTimer)
                 {
                     string objName = mb.gameObject.name;
                     if (objName.Contains("LocalPlayer"))
@@ -896,7 +897,7 @@ namespace AccessibleArena.Core.Services
                 MonoBehaviour gameManager = null;
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
-                    if (mb != null && mb.GetType().Name == "GameManager")
+                    if (mb != null && mb.GetType().Name == T.GameManager)
                     {
                         gameManager = mb;
                         break;

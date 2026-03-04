@@ -6,6 +6,7 @@ using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services;
 using AccessibleArena.Core.Services.PanelDetection;
 using AccessibleArena.Patches;
+using static AccessibleArena.Core.Constants.SceneNames;
 
 [assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", VersionInfo.Value, "Accessible Arena Team")]
 [assembly: MelonGame("Wizards Of The Coast", "MTGA")]
@@ -252,7 +253,7 @@ namespace AccessibleArena
             _navigatorManager?.OnSceneChanged(sceneName);
 
             // DuelNavigator activates on DuelScene - game auto-transitions to duel
-            if (sceneName == "DuelScene")
+            if (sceneName == DuelScene)
             {
                 var duelNav = _navigatorManager?.GetNavigator<DuelNavigator>();
                 duelNav?.OnDuelSceneLoaded();

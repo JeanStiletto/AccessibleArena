@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using MelonLoader;
 using AccessibleArena.Core.Services;
+using static AccessibleArena.Core.Constants.SceneNames;
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Patches
 {
@@ -44,7 +46,7 @@ namespace AccessibleArena.Patches
                 _cachedSceneName = SceneManager.GetActiveScene().name;
                 _lastSceneCheck = currentFrame;
             }
-            return _cachedSceneName == "DuelScene";
+            return _cachedSceneName == DuelScene;
         }
 
         /// <summary>
@@ -59,11 +61,11 @@ namespace AccessibleArena.Patches
                 _lastSceneCheck = currentFrame;
             }
             // Menu scenes: MainNavigation, NavBar, or any scene that's not Duel/Draft/Sealed/Bootstrap/AssetPrep
-            return _cachedSceneName != "DuelScene" &&
-                   _cachedSceneName != "DraftScene" &&
-                   _cachedSceneName != "SealedScene" &&
-                   _cachedSceneName != "Bootstrap" &&
-                   _cachedSceneName != "AssetPrep";
+            return _cachedSceneName != DuelScene &&
+                   _cachedSceneName != DraftScene &&
+                   _cachedSceneName != SealedScene &&
+                   _cachedSceneName != SceneNames.Bootstrap &&
+                   _cachedSceneName != AssetPrep;
         }
 
         /// <summary>

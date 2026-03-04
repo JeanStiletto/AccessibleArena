@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using static AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -42,7 +43,7 @@ namespace AccessibleArena.Core.Services
         public override void OnSceneChanged(string sceneName)
         {
             // Stop watching when we leave DuelScene
-            if (sceneName != "DuelScene")
+            if (sceneName != DuelScene)
             {
                 _isWatching = false;
             }
