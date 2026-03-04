@@ -1917,15 +1917,14 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if this is a collection card in deck builder - activate it (add to deck)
-            // Collection cards should NOT go to CardInfoNavigator on Enter - they should be added to deck
+            // Check if this is a collection card in deck builder - open card viewer popup
             if (UIActivator.IsCollectionCard(element))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Collection card detected - activating to add to deck");
+                MelonLogger.Msg($"[{NavigatorId}] Collection card detected - opening card viewer");
                 var collectionResult = UIActivator.Activate(element);
                 _announcer.Announce(collectionResult.Message, AnnouncementPriority.Normal);
-                // Notify subclass to trigger rescan (deck list needs to update)
-                OnDeckBuilderCardActivated();
+                // Don't trigger rescan - we're opening a popup, not modifying the deck.
+                // The popup will be detected by AlphaDetector → PanelStateManager → popup mode.
                 return;
             }
 

@@ -85,6 +85,28 @@ namespace AccessibleArena.Core.Services.PanelDetection
             MelonLogger.Msg($"[{DetectorId}] Reset");
         }
 
+        /// <summary>
+        /// Reset tracking state for a specific panel by name.
+        /// Called by PanelStateManager when it removes an alpha-owned panel as invalid.
+        /// This allows re-detection if the popup is still visible (alpha=1).
+        /// </summary>
+        public void ResetPanel(string panelName)
+        {
+            if (string.IsNullOrEmpty(panelName))
+                return;
+
+            _announcedPanels.Remove(panelName);
+
+            foreach (var kvp in _knownPanels)
+            {
+                if (kvp.Value.Name == panelName && kvp.Value.WasVisible)
+                {
+                    kvp.Value.WasVisible = false;
+                    MelonLogger.Msg($"[{DetectorId}] Reset tracking for: {panelName}");
+                }
+            }
+        }
+
         #region Panel Ownership (Stage 5.3)
 
         /// <summary>

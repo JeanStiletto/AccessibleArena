@@ -477,7 +477,13 @@ namespace AccessibleArena.Core.Services.PanelDetection
             {
                 if (!_panelStack[i].IsValid)
                 {
-                    MelonLogger.Msg($"[PanelStateManager] Removing invalid panel: {_panelStack[i].Name}");
+                    var removed = _panelStack[i];
+                    MelonLogger.Msg($"[PanelStateManager] Removing invalid panel: {removed.Name}");
+
+                    // Reset AlphaDetector tracking so it can re-detect if still visible
+                    if (removed.DetectedBy == PanelDetectionMethod.Alpha)
+                        _alphaDetector?.ResetPanel(removed.Name);
+
                     _panelStack.RemoveAt(i);
                     anyRemoved = true;
                 }
