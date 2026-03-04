@@ -4,6 +4,14 @@ All notable changes to Accessible Arena.
 
 ## v0.7.4-dev
 
+### Fix: Friend Select Dropdown in Invite Opponent Popup
+- Friend-picker dropdown in the invite opponent popup now works correctly
+- Was misidentified because it is a sibling of the input field (not a child) with `value=-1` and empty caption
+- `GetDropdownDisplayValue` fallback reads `options[0].text` when caption is empty and value is -1
+- Single-item dropdown (one friend online) handles arrow keys gracefully: consumed and re-announced instead of going silent
+- Focus re-set on dropdown before Enter selection to ensure correct click target
+- Files: BaseNavigator.cs, DropdownStateManager.cs
+
 ### Fix: Deck Count Not Announced on No-Op Card Activation
 - Pressing Enter on an unowned collection card in deck builder no longer announces "60/60 Karten" when nothing changed
 - Root cause: `_announceDeckCountOnRescan` flag always triggered card count announcement after rescan, even when the count didn't change

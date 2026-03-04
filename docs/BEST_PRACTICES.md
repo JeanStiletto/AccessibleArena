@@ -175,6 +175,12 @@ if (DropdownStateManager.ShouldBlockEnterFromGame) // Used by Harmony patches
 - `UIFocusTracker` - Delegates dropdown state to DropdownStateManager
 - `GeneralMenuNavigator` - Uses DropdownStateManager for overlay filtering
 
+**Single-Item Dropdown Edge Case:**
+When a dropdown has only one option (e.g., friend picker with one friend online), Unity's Up/Down keys do nothing because there is nowhere to move. The mod detects this case (`options.Count == 1`) and consumes the arrow keys, re-announcing the current value to provide feedback. Before Enter selection, the mod re-sets EventSystem focus on the dropdown GameObject to ensure the pointer click targets the correct element (focus can drift to the input field sibling).
+
+**Friend-Picker Dropdowns (cTMP_Dropdown):**
+Some popups (e.g., invite opponent) use `cTMP_Dropdown` as a friend picker with `value = -1` and empty caption text. These dropdowns are siblings of the input field under a common parent (e.g., `Invitee_InputField`), not children of it. `GetDropdownDisplayValue` handles this by falling back to `options[0].text` when the caption is empty and `value == -1`.
+
 **See Also:** [DROPDOWN_HANDLING.md](DROPDOWN_HANDLING.md) for detailed architecture and state machine documentation.
 
 ### CustomButton Pattern

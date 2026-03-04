@@ -189,10 +189,18 @@
   - [x] Popup detection and automatic rescan
   - [x] Popup name announcements ("Invite Friend opened.")
   - [x] Input field support for friend invite
+  - [x] Friend select dropdown in invite popup (reads friend name correctly)
   - [x] Backspace closes Friends panel
   - [ ] Full input field change detection (partial)
   - [ ] Friend list navigation
   - [ ] Friend status announcements
+
+**Friend-Picker Dropdown (Invite Opponent Popup):**
+The invite opponent popup contains a `cTMP_Dropdown` used as a friend picker. This dropdown has unusual characteristics:
+- **Sibling of input field, not child**: Found under the same parent (e.g., `Invitee_InputField`) as the input field, not nested inside it
+- **Initial state**: `value = -1`, caption text is empty, options list contains friend names
+- **`GetDropdownDisplayValue` fallback**: When caption is empty and `value == -1`, reads `options[0].text` to show the first friend name instead of blank
+- **Single-item handling**: When the dropdown has only one option (one friend online), arrow keys are consumed and the current value is re-announced (Unity's Up/Down does nothing with a single item). Focus is re-set on the dropdown before Enter selection to ensure the click targets the correct element.
 
 ### UI Utilities
 - [x] UIElementClassifier - Element role detection and filtering

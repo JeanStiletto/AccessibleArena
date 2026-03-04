@@ -935,6 +935,49 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Fallback: if caption is empty and value=-1, show first option
+            return GetDropdownFirstOptionFallback(dropdownObj);
+        }
+
+        /// <summary>
+        /// Fallback for dropdowns with value=-1 and empty caption: return options[0].text if available.
+        /// </summary>
+        private static string GetDropdownFirstOptionFallback(GameObject dropdownObj)
+        {
+            // TMP_Dropdown
+            var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
+            if (tmpDropdown != null && tmpDropdown.value < 0 && tmpDropdown.options != null && tmpDropdown.options.Count > 0)
+                return tmpDropdown.options[0].text;
+
+            // Legacy Dropdown
+            var legacyDropdown = dropdownObj.GetComponent<Dropdown>();
+            if (legacyDropdown != null && legacyDropdown.value < 0 && legacyDropdown.options != null && legacyDropdown.options.Count > 0)
+                return legacyDropdown.options[0].text;
+
+            // cTMP_Dropdown via reflection
+            foreach (var component in dropdownObj.GetComponents<Component>())
+            {
+                if (component != null && component.GetType().Name == "cTMP_Dropdown")
+                {
+                    var type = component.GetType();
+                    var valueProp = type.GetProperty("value",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    int value = valueProp != null ? (int)valueProp.GetValue(component) : 0;
+                    if (value >= 0) break;
+
+                    var optionsProp = type.GetProperty("options",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    var options = optionsProp?.GetValue(component) as System.Collections.IList;
+                    if (options != null && options.Count > 0)
+                    {
+                        var textProp = options[0]?.GetType().GetProperty("text",
+                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        return textProp?.GetValue(options[0]) as string;
+                    }
+                    break;
+                }
+            }
+
             return null;
         }
 
@@ -2544,6 +2587,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                 if (addedObjects.Contains(mb.gameObject)) continue;
+                if (IsInsideInputField(mb.transform, popup.transform)) continue;
 
                 string typeName = mb.GetType().Name;
                 bool isDropdown = typeName == "cTMP_Dropdown" ||
