@@ -42,6 +42,12 @@ Pressing Enter on specific Progress items for certain modes opens the correspond
 
 ---
 
+### Workflow Browser Cannot Cancel Mana-Costing Activated Abilities
+
+When activating a mana-costing ability on a battlefield card, the workflow browser opens but Backspace does not cancel it.
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Resolution Dropdown Shows Native Display Resolution Until Changed
@@ -79,44 +85,17 @@ When clicking a non-attacking token during declare attackers, the game always se
 
 ## Under Investigation
 
-### Craft Confirmation Popup - Needs Testing
+### Auto-Craft on Collection Card Activation
 
-**Status:** Craft confirmation triggers on all collection card activations when on the collection screen (`WrapperDeckBuilder`). Game's CardViewerPopup is auto-dismissed after craft confirmation.
+**Status:** Root cause identified. Fix pending.
 
-**Goal:** Show a confirmation popup before spending a wildcard to craft a card.
+**Symptom:** Pressing Enter on an unowned collection card opens the craft popup but also immediately crafts 1 copy. Sighted users don't experience this — their left click opens the popup without crafting.
 
-**Current implementation:**
-- `CraftConfirmationPopup.cs`: Custom Unity UI popup with body text, OK, and Cancel buttons
-- `BaseNavigator.cs`: Virtual hook `OnCollectionCardActivating()` called before collection card activation
-- `GeneralMenuNavigator.cs`: Overrides hook, checks for `WrapperDeckBuilder` controller, shows popup, defers activation until user confirms
-- After confirmation and activation, sets `_expectingCraftPopup` flag
-- `OnPanelStateManagerActiveChanged` auto-dismisses game's `CardViewerPopup_Desktop_16x9(Clone)` when flag is set
-- Localized strings in all `lang/*.json` files
+**Root cause:** `MetaCardView.OnPointerClick` has a `clickCount % 2 == 0` double-click gate. Unity's default `clickCount` is 0. Our synthetic `PointerEventData` has `clickCount = 0`, which passes the double-click check (`0 % 2 == 0`), causing the card to be added to the deck (triggering a craft). A real mouse click has `clickCount = 1`, which fails the double-click check (`1 % 2 != 0`), so only the popup opens.
 
-**Resolved - Problem 1 (craft toggle check):**
-Replaced `IsCraftModeActive()` (which checked `filterButton_Craft` toggle) with `_activeContentController == "WrapperDeckBuilder"`. Now intercepts ALL collection card activations on the collection screen, regardless of craft toggle state.
+**Fix:** Set `clickCount = 1` in `UIActivator.CreatePointerEventData()`.
 
-**Resolved - Problem 2 (game's CardViewerPopup):**
-After craft confirmation activates the card, the game opens `CardViewerPopup_Desktop_16x9(Clone)`. This is now auto-dismissed via BaseNavigator's `_shouldAutoDismissPopup` flag: when the popup is detected via PanelStateManager, `DismissPopup()` is called on the next frame, which looks for Close/Dismiss/Back/Cancel/Background_ClickBlocker buttons, falling back to `SetActive(false)`.
-
-**Remaining - Problem 3 - Unclear if crafting is caused by our activation or game behavior:**
-Our activation path for collection cards:
-1. `UIActivator.TryActivateCollectionCard()` tries `OnAddClicked` property (Strategy 1) - returns null
-2. Falls through to `IPointerClickHandler.OnPointerClick` (Strategy 3) - this is what fires
-3. Single activation, no double-activation bug confirmed
-
-After `OnPointerClick`, the game both crafts the card AND opens the CardViewerPopup. Wildcard count drops immediately (observed: 35 -> 34 -> 33 in log). It's unclear whether:
-- The game's `OnPointerClick` always crafts (even for owned cards with spare copies), OR
-- Our `OnPointerClick` invocation behaves differently than a real mouse click, OR
-- The game has a separate confirmation flow that we're bypassing
-
-**Next steps (after testing):**
-1. Determine if OnPointerClick is the correct activation method or if we should use a different API
-2. Detect whether a card actually needs crafting (compare OwnedCount vs available copies)
-3. Verify auto-dismiss works correctly for the CardViewerPopup
-4. Fix CardInfoNavigator not deactivating when popup opens (fix already committed but untested)
-
-**Files:** `CraftConfirmationPopup.cs`, `BaseNavigator.cs`, `GeneralMenuNavigator.cs`, `Strings.cs`, `UIActivator.cs`
+**Files:** `UIActivator.cs`
 
 ---
 
@@ -180,6 +159,12 @@ Opening the settings menu (F2) during the declare attackers phase causes issues.
 ### Adding Cards to Deck Exits Collection Group
 
 Adding cards to a deck reportedly moves the user out of the Collection group to the upper group level. Exact reproduction steps unknown.
+
+---
+
+### New Deck Button Not Visible in Deck Builder
+
+The "New Deck" button in the deck builder sometimes isn't visible if certain other groups (e.g., Progress group) were used before navigating to the deck builder. Exact reproduction steps unknown.
 
 ---
 

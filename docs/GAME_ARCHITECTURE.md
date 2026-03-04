@@ -390,6 +390,102 @@ DeckView_Base(Clone)
 **EventTrigger** - Special interactive elements (including "Return to Arena")
 **StyledButton** - Prompt buttons in duel screens (Continue, Cancel)
 
+## Collection Card Click Handling (MetaCardView)
+
+Collection cards in the deck builder use a class hierarchy for pointer events:
+`PagesMetaCardView` → `CDCMetaCardView` → `MetaCardView` (MonoBehaviour)
+
+### MetaCardView Pointer Interfaces
+
+`MetaCardView` implements: `IPointerClickHandler`, `IPointerEnterHandler`, `IPointerExitHandler`, `IPointerDownHandler`, `IPointerUpHandler`, `IBeginDragHandler`, `IDragHandler`, `IEndDragHandler`, `IScrollHandler`
+
+### OnPointerClick Logic
+
+```csharp
+public void OnPointerClick(PointerEventData eventData)
+{
+    if (!_isClickable) { eventData.PassEventToNextClickableItem(...); return; }
+    if (!IsCardViewEnabled() || eventData.dragging) return;
+
+    OnClicked?.Invoke(this);  // General "card clicked" event (fires FIRST, before left/right check)
+
+    if (Holder == null) return;
+
+    // Left vs Right click differentiation:
+    if (Holder.OnCardClicked != null && eventData.ConfirmOnlyButtonPressed(Left))
+        action = Holder.OnCardClicked;       // LEFT click action
+    else if (Holder.OnCardRightClicked != null && eventData.ConfirmOnlyButtonPressed(Right))
+        action = Holder.OnCardRightClicked;  // RIGHT click action
+    else
+        return;  // Neither matches → no action
+
+    // Single/double click gate:
+    if (Holder.CanSingleClickCards(this) || (Holder.CanDoubleClickCards(this) && eventData.clickCount % 2 == 0))
+        action(this);  // Execute the action
+}
+```
+
+### ConfirmOnlyButtonPressed Extension
+
+**Class:** `Wotc.Mtga.Extensions.PointerEventDataExtensions` (Core.dll)
+
+```csharp
+public static bool ConfirmOnlyButtonPressed(this PointerEventData eventData, InputButton button)
+{
+    if (CustomInputModule.IsUsingNewInputSystem())
+        return eventData.button == button;
+    // Legacy: also checks pointer is primary (mouse, not touch)
+    return eventData.button == button && eventData.pointerId <= 0;
+}
+```
+
+### clickCount Behavior
+
+Unity's `PointerEventData` default `clickCount` is 0. A real mouse click gets `clickCount = 1` (first click), `2` (double click), etc. The `clickCount % 2 == 0` gate means:
+- `clickCount = 0` (default/synthetic): passes double-click check (0 % 2 == 0) — **unintended**
+- `clickCount = 1` (real single click): fails double-click check (1 % 2 != 0) — correct
+- `clickCount = 2` (real double click): passes (2 % 2 == 0) — correct
+
+**Important:** When creating synthetic `PointerEventData`, always set `clickCount = 1` to match a real single click and avoid accidentally passing double-click gates.
+
+### OnPointerDown / OnPointerUp
+
+```csharp
+public virtual void OnPointerDown(PointerEventData eventData)
+{
+    IsMouseDown = true;
+    IsDragDetected = false;
+    Holder?.RolloverZoomView?.CardPointerDown(eventData.button, VisualCard, this, HangerSituation);
+    eventData.Use();
+}
+
+public virtual void OnPointerUp(PointerEventData eventData)
+{
+    IsMouseDown = false;
+    IsDragDetected = false;
+    Holder?.RolloverZoomView?.CardPointerUp(eventData.button, VisualCard, this);
+    eventData.Use();
+}
+```
+
+### CardViewerController (Craft Popup)
+
+**Class:** Extends `PopupBase` (Core.dll). Opens when clicking an unowned collection card.
+
+**Key Fields (SerializeField):**
+- `_craftButton` (CustomButton) — Craft confirmation button
+- `_cancelButton` (CustomButton) — Cancel/close button
+- `_CraftPips` (CustomButton[4]) — Visual craft quantity pips
+- `_craftCountLabel` (TMP_Text) — Shows craft count (e.g., "x1")
+
+**Key Methods:**
+- `Unity_OnCraftIncrease()` — Increment craft quantity
+- `Unity_OnCraftDecrease()` — Decrement craft quantity
+- `SetRequestedQuantity()` — Apply quantity change
+- `OpenCraftMode()` — Populates craft UI elements (called AFTER popup opens)
+
+**Timing:** `Setup()` and `OpenCraftMode()` populate elements AFTER the popup is detected by ReflectionDetector. Use AlphaDetector (alpha=1) for fully-loaded discovery.
+
 ## TooltipTrigger Component
 
 Many UI elements have a `TooltipTrigger` component that displays hover tooltips.
