@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v0.7.4-dev
 
+### Fix: Wrong Card Played After Tab Then Arrow Navigation
+- Pressing Enter after Tab → Left/Right played the card from the Tab highlight, not the one the user arrow-navigated to
+- Root cause: Arrow navigation in ZoneNavigator didn't reclaim zone ownership from HotHighlightNavigator, so Enter activated its stale index
+- Fix: ZoneNavigator reclaims ownership on Left/Right/Home/End, letting it handle Enter with the correct card
+- Files: ZoneNavigator.cs
+
 ### Fix: Friend Select Dropdown in Invite Opponent Popup
 - Friend-picker dropdown in the invite opponent popup now works correctly
 - Was misidentified because it is a sibling of the input field (not a child) with `value=-1` and empty caption

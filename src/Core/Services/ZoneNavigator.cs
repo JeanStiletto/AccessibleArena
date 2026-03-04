@@ -181,6 +181,17 @@ namespace AccessibleArena.Core.Services
             return ZoneOwner.None;
         }
 
+        /// <summary>
+        /// Reclaims zone ownership when the user navigates with arrows/Home/End.
+        /// Prevents HotHighlightNavigator from activating a stale card on Enter
+        /// after the user navigated away from the Tab-highlighted card.
+        /// </summary>
+        private void ReclaimZoneOwnership()
+        {
+            if (_zoneOwner == ZoneOwner.HighlightNavigator)
+                _zoneOwner = ZoneOwner.ZoneNavigator;
+        }
+
         // DEPRECATED: TargetNavigator was used to enter targeting mode after playing cards
         // Now HotHighlightNavigator handles targeting via game's HotHighlight system
         // private TargetNavigator _targetNavigator;
@@ -328,6 +339,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (Input.GetKeyDown(KeyCode.LeftArrow))
                 {
+                    ReclaimZoneOwnership();
                     RefreshIfDirty();
                     ClearEventSystemSelection();
                     if (HasCardsInCurrentZone())
@@ -344,6 +356,7 @@ namespace AccessibleArena.Core.Services
 
                 if (Input.GetKeyDown(KeyCode.RightArrow))
                 {
+                    ReclaimZoneOwnership();
                     RefreshIfDirty();
                     ClearEventSystemSelection();
                     if (HasCardsInCurrentZone())
@@ -384,6 +397,7 @@ namespace AccessibleArena.Core.Services
             // Home/End for jumping to first/last card in zone
             if (Input.GetKeyDown(KeyCode.Home))
             {
+                ReclaimZoneOwnership();
                 RefreshIfDirty();
                 ClearEventSystemSelection();
                 if (HasCardsInCurrentZone())
@@ -399,6 +413,7 @@ namespace AccessibleArena.Core.Services
 
             if (Input.GetKeyDown(KeyCode.End))
             {
+                ReclaimZoneOwnership();
                 RefreshIfDirty();
                 ClearEventSystemSelection();
                 if (HasCardsInCurrentZone())
