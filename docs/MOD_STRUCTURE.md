@@ -14,6 +14,13 @@
         IScreenNavigator.cs      - Screen navigator interface
         ...
 
+      Constants\
+        GameTypeNames.cs         - Centralized game type name strings (CDC, UI, panel, social types)
+        SceneNames.cs            - Scene name constants (DuelScene, Bootstrap, etc.)
+
+      Utils\
+        ReflectionUtils.cs       - BindingFlags constants (PrivateInstance, PublicInstance, AllInstanceFlags) + FindType()
+
       Models\                    - AnnouncementPriority, Strings (localization), etc.
 
       Models\

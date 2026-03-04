@@ -394,6 +394,73 @@ if (!result.Success)
 
 These utilities are used throughout the mod for UI interaction, text extraction, and card detection.
 
+### ReflectionUtils (Always Use for Reflection)
+
+Centralized reflection constants and type lookup. Import via `using static`:
+```csharp
+using static AccessibleArena.Core.Utils.ReflectionUtils;
+```
+
+**BindingFlags constants** (use instead of inline `BindingFlags.NonPublic | BindingFlags.Instance`):
+```csharp
+// Private fields, methods, properties
+var field = type.GetField("_myField", PrivateInstance);
+var method = type.GetMethod("MyMethod", PrivateInstance);
+
+// Public members
+var prop = type.GetProperty("MyProp", PublicInstance);
+
+// Both public and private (when you don't know the visibility)
+var member = type.GetField("_field", AllInstanceFlags);
+```
+
+**Extra flags** — append when needed (these are NOT covered by the constants):
+```csharp
+// Protected members on base classes
+type.GetField("_protectedField", PrivateInstance | BindingFlags.FlattenHierarchy);
+
+// Static members
+type.GetField("s_instance", BindingFlags.NonPublic | BindingFlags.Static);
+
+// Only declared on this type (not inherited)
+type.GetMethod("Method", PrivateInstance | BindingFlags.DeclaredOnly);
+```
+
+**FindType()** — finds a type by full name across all loaded assemblies with name-only fallback:
+```csharp
+Type cardDataType = FindType("GreClient.CardData.CardData");
+Type holderType = FindType("Wotc.Mtga.CardParts.CardHolderType");
+```
+
+### GameTypeNames & SceneNames (Always Use for Game Strings)
+
+Centralized string constants for game type names and scene names. Prevents typos and enables rename-refactoring.
+
+**GameTypeNames** — import with alias (NOT `using static`, to avoid collisions with game types):
+```csharp
+using T = AccessibleArena.Core.Constants.GameTypeNames;
+
+// Use with T. prefix
+if (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip) { ... }
+if (typeName == T.DuelSceneCDC) { ... }
+if (typeName == T.CardPoolHolder) { ... }
+
+// Fully-qualified names for FindType() calls
+Type navType = FindType(T.NavContentControllerFQ);
+```
+
+**SceneNames** — import with alias:
+```csharp
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+
+if (sceneName == SceneNames.DuelScene) { ... }
+if (sceneName == SceneNames.Bootstrap) { ... }
+```
+
+**Why aliases, not `using static`:** Constants like `CustomButton`, `GameManager`, `Bootstrap` collide with actual C# types from Core.dll and Assembly-CSharp.dll. The `T.` / `SceneNames.` prefix avoids ambiguity.
+
+**Adding new constants:** When you encounter a new hardcoded game type or scene name, add it to the appropriate constants file instead of using the string inline.
+
 ### UIActivator (Always Use for Activation)
 Handles all element types automatically:
 ```csharp
