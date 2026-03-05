@@ -13,10 +13,10 @@ Magic: The Gathering Arena
 - [x] large-file-handling.md
 
 ## Prompts Remaining
-- [ ] input-handling.md
-- [ ] string-builder.md
+- [x] input-handling.md
+- [x] string-builder.md
 - [x] high-level-cleanup.md
-- [ ] low-level-cleanup.md
+- [x] low-level-cleanup.md
 - [ ] finalization.md
 
 ## Scratchpad Files
