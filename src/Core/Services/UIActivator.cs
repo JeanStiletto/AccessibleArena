@@ -1156,23 +1156,7 @@ namespace AccessibleArena.Core.Services
         private static bool TryDismissViaSystemMessageManager()
         {
             // Find SystemMessageManager type in loaded assemblies
-            System.Type managerType = null;
-            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
-            {
-                try
-                {
-                    foreach (var t in assembly.GetTypes())
-                    {
-                        if (t.Name == "SystemMessageManager" && !t.Name.Contains("+"))
-                        {
-                            managerType = t;
-                            break;
-                        }
-                    }
-                }
-                catch { /* Some assemblies may throw on GetTypes() */ }
-                if (managerType != null) break;
-            }
+            System.Type managerType = FindType("SystemMessageManager");
 
             if (managerType == null) return false;
 
@@ -1210,28 +1194,8 @@ namespace AccessibleArena.Core.Services
         private static bool TryCloseViaPopupManager()
         {
             // Try to find PopupManager singleton
-            var popupManagerType = System.Type.GetType("Core.Meta.MainNavigation.PopUps.PopupManager, Core");
-            if (popupManagerType == null)
-            {
-                // Try to find it by searching all types
-                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    try
-                    {
-                        foreach (var t in assembly.GetTypes())
-                        {
-                            if (t.Name == "PopupManager")
-                            {
-                                popupManagerType = t;
-                                Log($"Found PopupManager type in {assembly.GetName().Name}");
-                                break;
-                            }
-                        }
-                    }
-                    catch { /* Some assemblies may throw on GetTypes() */ }
-                    if (popupManagerType != null) break;
-                }
-            }
+            var popupManagerType = FindType("Core.Meta.MainNavigation.PopUps.PopupManager")
+                                ?? FindType("PopupManager");
 
             if (popupManagerType == null)
             {
@@ -2041,35 +2005,9 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Find types by scanning loaded assemblies
-                System.Type pantryType = null;
-                System.Type actionsHandlerType = null;
-                System.Type zoomType = null;
-
-                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    if (pantryType != null && actionsHandlerType != null && zoomType != null)
-                        break;
-
-                    try
-                    {
-                        if (pantryType == null)
-                        {
-                            var t = assembly.GetType("Wizards.Mtga.Pantry");
-                            if (t != null) pantryType = t;
-                        }
-                        if (actionsHandlerType == null)
-                        {
-                            var t = assembly.GetType("Core.Code.Decks.DeckBuilderActionsHandler");
-                            if (t != null) actionsHandlerType = t;
-                        }
-                        if (zoomType == null)
-                        {
-                            var t = assembly.GetType("Wotc.Mtga.ICardRolloverZoom");
-                            if (t != null) zoomType = t;
-                        }
-                    }
-                    catch { /* ReflectionTypeLoadException on some assemblies */ }
-                }
+                System.Type pantryType = FindType("Wizards.Mtga.Pantry");
+                System.Type actionsHandlerType = FindType("Core.Code.Decks.DeckBuilderActionsHandler");
+                System.Type zoomType = FindType("Wotc.Mtga.ICardRolloverZoom");
 
                 if (pantryType == null)
                 {

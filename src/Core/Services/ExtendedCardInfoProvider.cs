@@ -616,16 +616,7 @@ namespace AccessibleArena.Core.Services
         private static void FindAbilityHangerProvider()
         {
             // Find the AbilityHangerBase type in loaded assemblies
-            Type ahbType = null;
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                try
-                {
-                    ahbType = asm.GetType("AbilityHangerBase");
-                    if (ahbType != null) break;
-                }
-                catch { /* Some assemblies may throw on type lookup */ }
-            }
+            Type ahbType = FindType("AbilityHangerBase");
 
             UnityEngine.Object[] instances = null;
 
@@ -695,16 +686,7 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Find CDCViewMetadata type
-                Type metadataType = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    try
-                    {
-                        metadataType = asm.GetType("Wotc.Mtga.CardParts.CDCViewMetadata");
-                        if (metadataType != null) break;
-                    }
-                    catch { /* Some assemblies may throw on type lookup */ }
-                }
+                Type metadataType = FindType("Wotc.Mtga.CardParts.CDCViewMetadata");
                 if (metadataType == null) return null;
 
                 // Try constructor that takes BASE_CDC (or any base type of cdc)

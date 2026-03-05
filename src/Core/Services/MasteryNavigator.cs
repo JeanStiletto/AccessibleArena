@@ -365,25 +365,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Find types from assemblies
-            _trackLevelType = null;
-            _clientLevelInfoType = null;
-            _rewardDisplayType = null;
-            _mtgaLocStringType = null;
-            _languagesType = null;
-
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (_trackLevelType == null)
-                    _trackLevelType = asm.GetType("Core.MainNavigation.RewardTrack.ProgressionTrackLevel");
-                if (_clientLevelInfoType == null)
-                    _clientLevelInfoType = asm.GetType("Core.MainNavigation.RewardTrack.ClientTrackLevelInfo");
-                if (_rewardDisplayType == null)
-                    _rewardDisplayType = asm.GetType("RewardDisplayData");
-                if (_mtgaLocStringType == null)
-                    _mtgaLocStringType = asm.GetType("MTGALocalizedString");
-                if (_languagesType == null)
-                    _languagesType = asm.GetType("Wotc.Mtga.Loc.Languages");
-            }
+            _trackLevelType = FindType("Core.MainNavigation.RewardTrack.ProgressionTrackLevel");
+            _clientLevelInfoType = FindType("Core.MainNavigation.RewardTrack.ClientTrackLevelInfo");
+            _rewardDisplayType = FindType("RewardDisplayData");
+            _mtgaLocStringType = FindType("MTGALocalizedString");
+            _languagesType = FindType("Wotc.Mtga.Loc.Languages");
 
             // ProgressionTrackLevel fields
             if (_trackLevelType != null)

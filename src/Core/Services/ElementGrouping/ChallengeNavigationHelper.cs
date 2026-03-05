@@ -620,11 +620,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 if (_playBladeControllerType == null)
                 {
-                    foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                    {
-                        _playBladeControllerType = asm.GetType("PlayBladeController");
-                        if (_playBladeControllerType != null) break;
-                    }
+                    _playBladeControllerType = FindType("PlayBladeController");
                     if (_playBladeControllerType == null) return;
                 }
 
@@ -726,17 +722,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             var flags = PrivateInstance;
 
             // Find types
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (_challengeDisplayType == null)
-                    _challengeDisplayType = asm.GetType("UnifiedChallengeDisplay");
-                if (_playerDisplayType == null)
-                    _playerDisplayType = asm.GetType("Wizards.Mtga.PrivateGame.ChallengePlayerDisplay");
-                if (_bladeWidgetType == null)
-                    _bladeWidgetType = asm.GetType("UnifiedChallengeBladeWidget");
-                if (_challengeDisplayType != null && _playerDisplayType != null && _bladeWidgetType != null)
-                    break;
-            }
+            _challengeDisplayType = FindType("UnifiedChallengeDisplay");
+            _playerDisplayType = FindType("Wizards.Mtga.PrivateGame.ChallengePlayerDisplay");
+            _bladeWidgetType = FindType("UnifiedChallengeBladeWidget");
 
             if (_challengeDisplayType != null)
             {

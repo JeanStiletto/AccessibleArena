@@ -205,15 +205,8 @@ namespace AccessibleArena.Core.Services
             _creditsDisplayField = controllerType.GetField("_creditsDisplay", flags);
 
             // Find TableOfContentsSection type by scanning assemblies
-            _tocSectionType = null;
-            _learnMoreSectionType = null;
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (_tocSectionType == null)
-                    _tocSectionType = asm.GetType("Core.MainNavigation.LearnToPlay.TableOfContentsSection");
-                if (_learnMoreSectionType == null)
-                    _learnMoreSectionType = asm.GetType("Core.MainNavigation.LearnToPlay.LearnMoreSection");
-            }
+            _tocSectionType = FindType("Core.MainNavigation.LearnToPlay.TableOfContentsSection");
+            _learnMoreSectionType = FindType("Core.MainNavigation.LearnToPlay.LearnMoreSection");
 
             // TableOfContentsSection fields
             if (_tocSectionType != null)

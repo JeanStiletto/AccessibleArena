@@ -289,9 +289,7 @@ namespace AccessibleArena.Core.Services
             if (!_loadingPanelReflectionResolved)
             {
                 _loadingPanelReflectionResolved = true;
-                var type = AppDomain.CurrentDomain.GetAssemblies()
-                    .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
-                    .FirstOrDefault(t => t.FullName == "MTGA.LoadingPanelShowing");
+                var type = FindType("MTGA.LoadingPanelShowing");
                 if (type != null)
                     _loadingPanelIsShowingProp = type.GetProperty("IsShowing", BindingFlags.Public | BindingFlags.Static);
             }

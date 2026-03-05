@@ -892,12 +892,7 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Find Pantry type
-                Type pantryType = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    pantryType = asm.GetType("Wizards.Mtga.Pantry");
-                    if (pantryType != null) break;
-                }
+                Type pantryType = FindType("Wizards.Mtga.Pantry");
                 if (pantryType == null)
                 {
                     MelonLogger.Warning("[DeckInfoProvider] Could not find Pantry type");
@@ -905,12 +900,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Find DeckBuilderModelProvider type
-                Type modelProviderType = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    modelProviderType = asm.GetType("Core.Code.Decks.DeckBuilderModelProvider");
-                    if (modelProviderType != null) break;
-                }
+                Type modelProviderType = FindType("Core.Code.Decks.DeckBuilderModelProvider");
                 if (modelProviderType == null)
                 {
                     MelonLogger.Warning("[DeckInfoProvider] Could not find DeckBuilderModelProvider type");
@@ -999,12 +989,7 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Find Pantry type (may already have it from InitializePantryReflection)
-                Type pantryType = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    pantryType = asm.GetType("Wizards.Mtga.Pantry");
-                    if (pantryType != null) break;
-                }
+                Type pantryType = FindType("Wizards.Mtga.Pantry");
                 if (pantryType == null)
                 {
                     MelonLogger.Warning("[DeckInfoProvider] Could not find Pantry type for CardDatabase");
@@ -1012,12 +997,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Find CardDatabase type (namespace: Wotc.Mtga.Cards.Database)
-                Type cardDatabaseType = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    cardDatabaseType = asm.GetType("Wotc.Mtga.Cards.Database.CardDatabase");
-                    if (cardDatabaseType != null) break;
-                }
+                Type cardDatabaseType = FindType("Wotc.Mtga.Cards.Database.CardDatabase");
                 if (cardDatabaseType == null)
                 {
                     MelonLogger.Warning("[DeckInfoProvider] Could not find CardDatabase type");

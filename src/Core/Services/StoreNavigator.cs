@@ -424,12 +424,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // StoreItemBase type
-            _storeItemBaseType = null;
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                _storeItemBaseType = asm.GetType("StoreItemBase");
-                if (_storeItemBaseType != null) break;
-            }
+            _storeItemBaseType = FindType("StoreItemBase");
 
             if (_storeItemBaseType != null)
             {
@@ -458,12 +453,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // StoreConfirmationModal type
-            _confirmationModalType = null;
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                _confirmationModalType = asm.GetType("StoreConfirmationModal");
-                if (_confirmationModalType != null) break;
-            }
+            _confirmationModalType = FindType("StoreConfirmationModal");
             if (_confirmationModalType != null)
             {
                 _modalButtonFields = new FieldInfo[ModalPurchaseButtonFields.Length];
@@ -483,28 +473,12 @@ namespace AccessibleArena.Core.Services
             }
 
             // Store display types for details view
-            _storeItemDisplayType = null;
-            _storeDisplayPreconDeckType = null;
-            _storeDisplayCardViewBundleType = null;
-            _cardDataForTileType = null;
-            _cardDataType = null;
-            _localizedStringType = null;
-
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (_storeItemDisplayType == null)
-                    _storeItemDisplayType = asm.GetType("StoreItemDisplay");
-                if (_storeDisplayPreconDeckType == null)
-                    _storeDisplayPreconDeckType = asm.GetType("Core.Meta.MainNavigation.Store.StoreDisplayPreconDeck");
-                if (_storeDisplayCardViewBundleType == null)
-                    _storeDisplayCardViewBundleType = asm.GetType("StoreDisplayCardViewBundle");
-                if (_cardDataForTileType == null)
-                    _cardDataForTileType = asm.GetType("Wizards.MDN.Store.CardDataForTile");
-                if (_cardDataType == null)
-                    _cardDataType = asm.GetType("GreClient.CardData.CardData");
-                if (_localizedStringType == null)
-                    _localizedStringType = asm.GetType("Wotc.Mtga.Loc.LocalizedString");
-            }
+            _storeItemDisplayType = FindType("StoreItemDisplay");
+            _storeDisplayPreconDeckType = FindType("Core.Meta.MainNavigation.Store.StoreDisplayPreconDeck");
+            _storeDisplayCardViewBundleType = FindType("StoreDisplayCardViewBundle");
+            _cardDataForTileType = FindType("Wizards.MDN.Store.CardDataForTile");
+            _cardDataType = FindType("GreClient.CardData.CardData");
+            _localizedStringType = FindType("Wotc.Mtga.Loc.LocalizedString");
 
             if (_storeItemBaseType != null)
             {

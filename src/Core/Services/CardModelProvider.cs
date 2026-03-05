@@ -597,37 +597,33 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Approach 3: Try WrapperController.Instance
-                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                var wrapperType = FindType("WrapperController");
+                if (wrapperType != null)
                 {
-                    var wrapperType = assembly.GetType("WrapperController");
-                    if (wrapperType != null)
+                    var instanceProp = wrapperType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                    if (instanceProp != null)
                     {
-                        var instanceProp = wrapperType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                        if (instanceProp != null)
+                        var instance = instanceProp.GetValue(null);
+                        if (instance != null)
                         {
-                            var instance = instanceProp.GetValue(null);
-                            if (instance != null)
+                            var cardDbProp = wrapperType.GetProperty("CardDatabase");
+                            if (cardDbProp != null)
                             {
-                                var cardDbProp = wrapperType.GetProperty("CardDatabase");
-                                if (cardDbProp != null)
+                                var cardDb = cardDbProp.GetValue(instance);
+                                if (cardDb != null)
                                 {
-                                    var cardDb = cardDbProp.GetValue(instance);
-                                    if (cardDb != null)
+                                    var cardDbType = cardDb.GetType();
+                                    var getNameMethod = cardDbType.GetMethod("GetName", new[] { typeof(uint), typeof(bool) });
+                                    if (getNameMethod != null)
                                     {
-                                        var cardDbType = cardDb.GetType();
-                                        var getNameMethod = cardDbType.GetMethod("GetName", new[] { typeof(uint), typeof(bool) });
-                                        if (getNameMethod != null)
-                                        {
-                                            _idNameProvider = cardDb;
-                                            _getNameMethod = getNameMethod;
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found WrapperController.CardDatabase for name lookup");
-                                            return;
-                                        }
+                                        _idNameProvider = cardDb;
+                                        _getNameMethod = getNameMethod;
+                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found WrapperController.CardDatabase for name lookup");
+                                        return;
                                     }
                                 }
                             }
                         }
-                        break;
                     }
                 }
 

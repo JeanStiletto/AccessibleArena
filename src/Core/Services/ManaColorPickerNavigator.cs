@@ -417,32 +417,7 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Find ManaColorSelector type from loaded assemblies
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    if (_selectorType != null)
-                        break;
-
-                    try
-                    {
-                        _selectorType = asm.GetType("ManaColorSelector");
-                        if (_selectorType == null)
-                        {
-                            // Try with namespace variations
-                            foreach (var type in asm.GetTypes())
-                            {
-                                if (type.Name == "ManaColorSelector")
-                                {
-                                    _selectorType = type;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Some assemblies may throw on GetTypes()
-                    }
-                }
+                _selectorType = FindType("ManaColorSelector");
 
                 if (_selectorType == null)
                 {
