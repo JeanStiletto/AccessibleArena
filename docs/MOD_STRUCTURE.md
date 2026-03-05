@@ -654,10 +654,19 @@ Dedicated navigator for the Store screen. Uses a three-level navigation model (T
 
 **Navigation Model:**
 - **Tab level (Up/Down)**: Navigate store tabs (Featured, Packs, Decks, etc.)
-- **Item level (Up/Down)**: Navigate items within current tab
+- **Set filter level (Left/Right)**: In Packs tab, navigate between expansion sets (e.g., Foundations, Duskmourn)
+- **Item level (Up/Down)**: Navigate items within current tab/set
 - **Purchase options (Left/Right)**: Cycle between Details, Gems, Gold purchase options
 - **Enter/Space**: Activate current purchase option or open details view
 - **Backspace**: Go back one level (Items → Tabs → Exit store)
+
+**Set Filter Navigation (Packs Tab):**
+- Set filters discovered from `StoreSetFilterToggles._setFilters` list via reflection
+- Left/Right arrows cycle through sets, triggering `OnValueSelected()` to load set items
+- Set names resolved via game's localization system: `Languages.ActiveLocProvider.GetLocalizedText("General/Sets/" + setCode)`
+- `ActiveLocProvider` is a public static **field** (not property) on `Wotc.Mtga.Loc.Languages`
+- `GetLocalizedText` signature: `(string key, params ValueTuple<string,string>[] locParams)` — requires empty array for second param
+- Falls back to raw set code if localization unavailable
 
 **Details View (Card List):**
 Store items that contain decks or bundles offer a "Details" option as the first purchase option. When activated:

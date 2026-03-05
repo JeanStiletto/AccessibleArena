@@ -567,8 +567,8 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
-        // Cached reflection for Languages.ActiveLocProvider.GetLocalizedText(string)
-        private static PropertyInfo _activeLocProviderProp;
+        // Cached reflection for Languages.ActiveLocProvider.GetLocalizedText(string, params (string,string)[])
+        private static FieldInfo _activeLocProviderField;
         private static MethodInfo _getLocalizedTextMethod;
         private static bool _locReflectionInitialized;
 
@@ -582,13 +582,15 @@ namespace AccessibleArena.Core.Services
                 var languagesType = FindType("Wotc.Mtga.Loc.Languages");
                 if (languagesType == null) return;
 
-                _activeLocProviderProp = languagesType.GetProperty("ActiveLocProvider",
+                // ActiveLocProvider is a public static FIELD, not a property
+                _activeLocProviderField = languagesType.GetField("ActiveLocProvider",
                     BindingFlags.Public | BindingFlags.Static);
-                if (_activeLocProviderProp != null)
+                if (_activeLocProviderField != null)
                 {
-                    var locProviderType = _activeLocProviderProp.PropertyType;
+                    var locProviderType = _activeLocProviderField.FieldType;
+                    // Method signature: GetLocalizedText(string, params (string,string)[])
                     _getLocalizedTextMethod = locProviderType.GetMethod("GetLocalizedText",
-                        new[] { typeof(string) });
+                        new[] { typeof(string), typeof(ValueTuple<string, string>[]) });
                 }
             }
             catch { /* Reflection may fail on different game versions */ }
@@ -601,15 +603,15 @@ namespace AccessibleArena.Core.Services
         private static string GetLocalizedSetName(string setCode)
         {
             EnsureLocReflectionCached();
-            if (_activeLocProviderProp == null || _getLocalizedTextMethod == null) return null;
+            if (_activeLocProviderField == null || _getLocalizedTextMethod == null) return null;
 
             try
             {
-                var locProvider = _activeLocProviderProp.GetValue(null);
+                var locProvider = _activeLocProviderField.GetValue(null);
                 if (locProvider == null) return null;
 
                 string result = _getLocalizedTextMethod.Invoke(locProvider,
-                    new object[] { "General/Sets/" + setCode }) as string;
+                    new object[] { "General/Sets/" + setCode, Array.Empty<ValueTuple<string, string>>() }) as string;
 
                 // Localization returns the key itself or empty if not found
                 if (string.IsNullOrEmpty(result) || result.StartsWith("General/Sets/"))

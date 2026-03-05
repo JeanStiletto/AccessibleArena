@@ -7,6 +7,15 @@ All notable changes to Accessible Arena.
 ### Massive Internal Refactoring
 - Major codebase cleanup and restructuring for long-term maintainability
 
+### New: Store Pack Selection by Set
+- Navigate between sets in the Store Packs tab with arrow keys (48 sets)
+- Set name announced on selection change with item count
+
+### New: Localized Set Names
+- Set names in store pack selection now use the game's localization system instead of 3-letter codes
+- Dynamically resolves via `Languages.ActiveLocProvider.GetLocalizedText("General/Sets/" + setCode)`
+- Works in all languages the game supports, automatically covers new sets
+
 ### Bug Fixes
 - Fixed reward popups not closing
 - Fixed card count not announced when adding or removing cards in deck builder
