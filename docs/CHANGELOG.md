@@ -2,6 +2,16 @@
 
 All notable changes to Accessible Arena.
 
+## v0.8
+
+### Massive Internal Refactoring
+- Major codebase cleanup and restructuring for long-term maintainability
+
+### Bug Fixes
+- Fixed reward popups not closing
+- Fixed card count not announced when adding or removing cards in deck builder
+- Fixed various dropdown navigation issues
+
 ## v0.7.4-dev
 
 ### Fix: Wrong Card Played After Tab Then Arrow Navigation
