@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using MelonLoader;
@@ -198,12 +197,6 @@ namespace AccessibleArena.Core.Services
             KeyCode.R,  // Ctrl+R for repeat
         };
 
-        public event Action<KeyCode> OnKeyPressed;
-        public event Action OnNavigateNext;
-        public event Action OnNavigatePrevious;
-        public event Action OnAccept;
-        public event Action OnCancel;
-
         public InputManager(IShortcutRegistry shortcuts, IAnnouncementService announcer)
         {
             _shortcuts = shortcuts;
@@ -234,36 +227,8 @@ namespace AccessibleArena.Core.Services
             if (alt && key != KeyCode.F4) // Allow Alt+F4
                 return;
 
-            // Process through shortcut registry
-            if (_shortcuts.ProcessKey(key, shift, ctrl, alt))
-            {
-                OnKeyPressed?.Invoke(key);
-            }
+            _shortcuts.ProcessKey(key, shift, ctrl, alt);
         }
 
-        /// <summary>
-        /// Called by Harmony patches when game navigation occurs.
-        /// This allows us to announce what the game did.
-        /// </summary>
-        public void OnGameNavigateNext()
-        {
-            OnNavigateNext?.Invoke();
-        }
-
-        public void OnGameNavigatePrevious()
-        {
-            OnNavigatePrevious?.Invoke();
-        }
-
-        public void OnGameAccept()
-        {
-            OnAccept?.Invoke();
-        }
-
-        public void OnGameCancel()
-        {
-            OnCancel?.Invoke();
-            _announcer.Silence();
-        }
     }
 }
