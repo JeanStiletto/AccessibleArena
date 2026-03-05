@@ -160,6 +160,9 @@ namespace AccessibleArena.Core.Services
         /// <summary>Called after element is activated. Return true to suppress default behavior.</summary>
         protected virtual bool OnElementActivated(int index, GameObject element) => false;
 
+        /// <summary>Called before a collection card click to capture deck count pre-activation.</summary>
+        protected virtual void OnDeckBuilderCardCountCapture() { }
+
         /// <summary>Called after a deck builder card (collection or deck list) is activated. Subclasses can trigger rescan.</summary>
         protected virtual void OnDeckBuilderCardActivated() { }
 
@@ -1915,6 +1918,10 @@ namespace AccessibleArena.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] Activating: {element.name} (ID:{element.GetInstanceID()}, Label:{navElement.Label})");
+
+            // Capture deck count BEFORE any activation path clicks the element.
+            // Game updates count synchronously during click, so this must happen first.
+            OnDeckBuilderCardCountCapture();
 
             // Check if this is an input field - enter edit mode
             if (UIFocusTracker.IsInputField(element))

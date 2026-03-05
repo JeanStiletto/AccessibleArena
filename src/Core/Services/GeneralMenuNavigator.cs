@@ -175,6 +175,9 @@ namespace AccessibleArena.Core.Services
         // Deck builder card count announcement - when true, PerformRescan announces just the card count
         // instead of the full rescan announcement (set when adding/removing a card)
         private bool _announceDeckCountOnRescan;
+        // Card count captured BEFORE activation (before game processes add/remove)
+        // so we can detect actual changes in PerformRescan
+        private string _deckCountBeforeActivation;
 
         // ReadOnly deck builder mode (starter/precon decks)
         private bool _isDeckBuilderReadOnly;
@@ -2959,8 +2962,8 @@ namespace AccessibleArena.Core.Services
             // Store previous controller to detect screen transitions
             var previousController = _activeContentController;
 
-            // Capture card count BEFORE rescan so we can detect actual changes
-            string previousCardCount = _announceDeckCountOnRescan ? DeckInfoProvider.GetCardCountText() : null;
+            // Use the card count captured before activation (before game processed add/remove)
+            string previousCardCount = _deckCountBeforeActivation;
 
             // Detect active controller BEFORE discovering elements so filtering works correctly
             DetectActiveContentController();
@@ -3018,13 +3021,15 @@ namespace AccessibleArena.Core.Services
             if (_announceDeckCountOnRescan && _activeContentController == "WrapperDeckBuilder")
             {
                 _announceDeckCountOnRescan = false;
+                _deckCountBeforeActivation = null;
                 string cardCount = DeckInfoProvider.GetCardCountText();
                 if (!string.IsNullOrEmpty(cardCount) && cardCount != previousCardCount)
                 {
                     _announcer.AnnounceInterrupt(cardCount);
-                    return;
                 }
-                // Card count didn't change (e.g., unowned card) - skip announcement entirely
+                // Re-prepare card navigation after rescan so card detail
+                // navigation works immediately (e.g., after popup close)
+                UpdateCardNavigationForGroupedElement();
                 return;
             }
 
@@ -4922,6 +4927,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Use UIActivator for CustomButtons
+            // Note: deck card count is already captured by OnDeckBuilderCardCountCapture()
+            // which runs at the top of ActivateCurrentElement() before any click path.
             var result = UIActivator.Activate(element);
             _announcer.Announce(result.Message, Models.AnnouncementPriority.Normal);
 
@@ -4971,6 +4978,7 @@ namespace AccessibleArena.Core.Services
             if (elementGroup == ElementGroup.DeckBuilderDeckList)
             {
                 LogDebug($"[{NavigatorId}] Deck list card activated - scheduling rescan to update lists");
+                // _deckCountBeforeActivation already captured before UIActivator.Activate above
                 _announceDeckCountOnRescan = true;
                 TriggerRescan();
                 AccessibleArenaMod.Instance?.CardNavigator?.InvalidateBlocks();
@@ -5046,6 +5054,18 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Captures deck card count before a collection card click.
+        /// Called before UIActivator.Activate so the count reflects pre-click state.
+        /// </summary>
+        protected override void OnDeckBuilderCardCountCapture()
+        {
+            if (_activeContentController == "WrapperDeckBuilder")
+            {
+                _deckCountBeforeActivation = DeckInfoProvider.GetCardCountText();
+            }
+        }
+
+        /// <summary>
         /// Called after a deck builder card is activated (collection or deck list).
         /// Triggers rescan to update the deck/collection display.
         /// </summary>
@@ -5054,6 +5074,7 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController == "WrapperDeckBuilder")
             {
                 LogDebug($"[{NavigatorId}] Deck builder card activated - scheduling rescan to update lists");
+                // _deckCountBeforeActivation already captured by OnDeckBuilderCardCountCapture
                 _announceDeckCountOnRescan = true;
                 TriggerRescan();
 
