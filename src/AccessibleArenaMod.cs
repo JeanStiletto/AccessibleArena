@@ -27,7 +27,6 @@ namespace AccessibleArena
         private ModSettingsNavigator _settingsNavigator;
         private ExtendedInfoNavigator _extendedInfoNavigator;
         private ModSettings _settings;
-        private PanelAnimationDiagnostic _panelDiagnostic;
         private PanelStateManager _panelStateManager;
 
         private bool _initialized;
@@ -96,8 +95,6 @@ namespace AccessibleArena
 
             // Rebuild help items when language changes
             _settings.OnLanguageChanged += () => _helpNavigator.RebuildItems();
-            _panelDiagnostic = new PanelAnimationDiagnostic();
-
             // Initialize panel state manager (single source of truth for panel state)
             // PanelStateManager now owns all detectors directly (simplified from plugin system)
             _panelStateManager = new PanelStateManager();
@@ -266,24 +263,6 @@ namespace AccessibleArena
         {
             if (!_initialized)
                 return;
-
-            // F11: Panel animation diagnostic (for development)
-            if (Input.GetKeyDown(KeyCode.F11))
-            {
-                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
-                {
-                    // Shift+F11: One-time dump of panel analysis
-                    _panelDiagnostic?.DumpPanelAnalysis();
-                }
-                else
-                {
-                    // F11: Toggle animation tracking
-                    _panelDiagnostic?.ToggleTracking();
-                }
-            }
-
-            // Update diagnostic tracking if active
-            _panelDiagnostic?.Update();
 
             // Tell KeyboardManagerPatch to block Escape from reaching the game
             // when a mod menu is open (persistent flag avoids timing issues with per-frame consume)
