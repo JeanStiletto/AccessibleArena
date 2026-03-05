@@ -162,56 +162,23 @@ namespace AccessibleArena.Core.Services
             return hasBlockerFrame && hasSelectedHighlight;
         }
 
-        /// <summary>
-        /// Finds all creatures currently selected as blockers.
-        /// Returns a list of card GameObjects that have both blocker frame and selection highlight.
-        /// </summary>
-        private List<GameObject> FindSelectedBlockers()
-        {
-            var selectedBlockers = new List<GameObject>();
-
-            // Find all CDC objects (cards) on the battlefield
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                // Only check CDC (card) objects
-                if (!go.name.StartsWith("CDC "))
-                    continue;
-
-                if (IsCreatureSelectedAsBlocker(go))
-                {
-                    selectedBlockers.Add(go);
-                }
-            }
-
-            return selectedBlockers;
-        }
+        private List<GameObject> FindSelectedBlockers() => FindCardsByPredicate(IsCreatureSelectedAsBlocker);
+        private List<GameObject> FindAssignedBlockers() => FindCardsByPredicate(IsCreatureBlocking);
 
         /// <summary>
-        /// Finds all creatures currently assigned as blockers.
-        /// Returns a list of card GameObjects that have the IsBlocking indicator present.
+        /// Finds all CDC (card) GameObjects on the battlefield matching a predicate.
         /// </summary>
-        private List<GameObject> FindAssignedBlockers()
+        private List<GameObject> FindCardsByPredicate(System.Func<GameObject, bool> predicate)
         {
-            var assignedBlockers = new List<GameObject>();
-
+            var results = new List<GameObject>();
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
-                if (go == null || !go.activeInHierarchy)
+                if (go == null || !go.activeInHierarchy || !go.name.StartsWith("CDC "))
                     continue;
-
-                if (!go.name.StartsWith("CDC "))
-                    continue;
-
-                if (IsCreatureBlocking(go))
-                {
-                    assignedBlockers.Add(go);
-                }
+                if (predicate(go))
+                    results.Add(go);
             }
-
-            return assignedBlockers;
+            return results;
         }
 
         /// <summary>
@@ -477,42 +444,20 @@ namespace AccessibleArena.Core.Services
             return ", " + string.Join(", ", states);
         }
 
-        /// <summary>
-        /// Resolves BlockingIds to card names for a blocker card.
-        /// Returns e.g. "blocking Angel" or "blocking Angel and Dragon".
-        /// </summary>
         private string GetBlockingText(GameObject card)
-        {
-            try
-            {
-                var cdc = CardModelProvider.GetDuelSceneCDC(card);
-                if (cdc == null) return null;
-                var model = CardModelProvider.GetCardModel(cdc);
-                if (model == null) return null;
+            => GetCombatRelationText(card, CardStateProvider.GetBlockingIds, Models.Strings.Combat_Blocking);
 
-                var blockingIds = CardStateProvider.GetBlockingIds(model);
-                if (blockingIds.Count == 0) return null;
-
-                var names = new List<string>();
-                foreach (var id in blockingIds)
-                {
-                    string name = CardStateProvider.ResolveInstanceIdToName(id);
-                    if (!string.IsNullOrEmpty(name))
-                        names.Add(name);
-                }
-
-                if (names.Count == 0) return null;
-                return Models.Strings.Combat_Blocking(string.Join(" and ", names));
-            }
-            catch { /* Combat state reflection may fail if card model changed */ }
-            return null;
-        }
+        private string GetBlockedByText(GameObject card)
+            => GetCombatRelationText(card, CardStateProvider.GetBlockedByIds, Models.Strings.Combat_BlockedBy);
 
         /// <summary>
-        /// Resolves BlockedByIds to card names for an attacker card.
-        /// Returns e.g. "blocked by Cat" or "blocked by Cat and Bear".
+        /// Resolves combat relationship IDs (blocking/blocked-by) to card names.
+        /// Returns formatted text like "blocking Angel" or "blocked by Cat and Bear".
         /// </summary>
-        private string GetBlockedByText(GameObject card)
+        private string GetCombatRelationText(
+            GameObject card,
+            System.Func<object, List<uint>> getIds,
+            System.Func<string, string> formatText)
         {
             try
             {
@@ -521,11 +466,11 @@ namespace AccessibleArena.Core.Services
                 var model = CardModelProvider.GetCardModel(cdc);
                 if (model == null) return null;
 
-                var blockedByIds = CardStateProvider.GetBlockedByIds(model);
-                if (blockedByIds.Count == 0) return null;
+                var ids = getIds(model);
+                if (ids.Count == 0) return null;
 
                 var names = new List<string>();
-                foreach (var id in blockedByIds)
+                foreach (var id in ids)
                 {
                     string name = CardStateProvider.ResolveInstanceIdToName(id);
                     if (!string.IsNullOrEmpty(name))
@@ -533,7 +478,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 if (names.Count == 0) return null;
-                return Models.Strings.Combat_BlockedBy(string.Join(" and ", names));
+                return formatText(string.Join(" and ", names));
             }
             catch { /* Combat state reflection may fail if card model changed */ }
             return null;
@@ -587,22 +532,25 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
+        private bool TryClickPrimaryButton() => TryClickPromptButton(isPrimary: true);
+        private bool TryClickSecondaryButton() => TryClickPromptButton(isPrimary: false);
+
         /// <summary>
-        /// Finds and clicks the primary prompt button.
+        /// Finds and clicks a prompt button (primary or secondary).
         /// Language-agnostic: identifies button by GameObject name, announces localized text.
-        /// Returns true if button was found and clicked.
         /// </summary>
-        private bool TryClickPrimaryButton()
+        private bool TryClickPromptButton(bool isPrimary)
         {
-            var button = FindPromptButton(isPrimary: true);
+            string kind = isPrimary ? "primary" : "secondary";
+            var button = FindPromptButton(isPrimary);
             if (button == null)
             {
-                MelonLogger.Msg("[CombatNavigator] No primary button found");
+                MelonLogger.Msg($"[CombatNavigator] No {kind} button found");
                 return false;
             }
 
             string buttonText = UITextExtractor.GetButtonText(button);
-            MelonLogger.Msg($"[CombatNavigator] Clicking primary button: {buttonText}");
+            MelonLogger.Msg($"[CombatNavigator] Clicking {kind} button: {buttonText}");
 
             var result = UIActivator.SimulatePointerClick(button);
             if (result.Success)
@@ -610,41 +558,9 @@ namespace AccessibleArena.Core.Services
                 _announcer.Announce(buttonText, AnnouncementPriority.Normal);
                 return true;
             }
-            else
-            {
-                MelonLogger.Msg("[CombatNavigator] Primary button click failed");
-                return false;
-            }
-        }
 
-        /// <summary>
-        /// Finds and clicks the secondary prompt button.
-        /// Language-agnostic: identifies button by GameObject name, announces localized text.
-        /// Returns true if button was found and clicked.
-        /// </summary>
-        private bool TryClickSecondaryButton()
-        {
-            var button = FindPromptButton(isPrimary: false);
-            if (button == null)
-            {
-                MelonLogger.Msg("[CombatNavigator] No secondary button found");
-                return false;
-            }
-
-            string buttonText = UITextExtractor.GetButtonText(button);
-            MelonLogger.Msg($"[CombatNavigator] Clicking secondary button: {buttonText}");
-
-            var result = UIActivator.SimulatePointerClick(button);
-            if (result.Success)
-            {
-                _announcer.Announce(buttonText, AnnouncementPriority.Normal);
-                return true;
-            }
-            else
-            {
-                MelonLogger.Msg("[CombatNavigator] Secondary button click failed");
-                return false;
-            }
+            MelonLogger.Msg($"[CombatNavigator] {kind} button click failed");
+            return false;
         }
 
         /// <summary>

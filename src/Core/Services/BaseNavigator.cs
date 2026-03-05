@@ -852,6 +852,64 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        #region Dropdown Dispatch Helper
+
+        /// <summary>
+        /// Identifies what kind of dropdown component is on a GameObject.
+        /// </summary>
+        private enum DropdownKind { None, TMP, Legacy, Custom }
+
+        /// <summary>
+        /// Resolves the dropdown type and component on a GameObject.
+        /// Returns the kind and the component (which may be TMP_Dropdown, Dropdown, or cTMP_Dropdown).
+        /// </summary>
+        private static (DropdownKind kind, Component component) ResolveDropdown(GameObject obj)
+        {
+            if (obj == null) return (DropdownKind.None, null);
+
+            var tmp = obj.GetComponent<TMPro.TMP_Dropdown>();
+            if (tmp != null) return (DropdownKind.TMP, tmp);
+
+            var legacy = obj.GetComponent<Dropdown>();
+            if (legacy != null) return (DropdownKind.Legacy, legacy);
+
+            foreach (var c in obj.GetComponents<Component>())
+            {
+                if (c != null && c.GetType().Name == T.CustomTMPDropdown)
+                    return (DropdownKind.Custom, c);
+            }
+
+            return (DropdownKind.None, null);
+        }
+
+        /// <summary>
+        /// Calls Hide() on a resolved dropdown component.
+        /// </summary>
+        private static bool HideDropdownComponent(DropdownKind kind, Component component)
+        {
+            switch (kind)
+            {
+                case DropdownKind.TMP:
+                    ((TMPro.TMP_Dropdown)component).Hide();
+                    return true;
+                case DropdownKind.Legacy:
+                    ((Dropdown)component).Hide();
+                    return true;
+                case DropdownKind.Custom:
+                    var hideMethod = component.GetType().GetMethod("Hide", PublicInstance);
+                    if (hideMethod != null)
+                    {
+                        hideMethod.Invoke(component, null);
+                        return true;
+                    }
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// Set a dropdown's value without triggering onValueChanged callback.
         /// For TMP_Dropdown: uses SetValueWithoutNotify.
@@ -859,103 +917,67 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static bool SetDropdownValueSilent(GameObject dropdownObj, int itemIndex)
         {
-            // Try standard TMP_Dropdown
-            var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
-            if (tmpDropdown != null)
+            var (kind, component) = ResolveDropdown(dropdownObj);
+            switch (kind)
             {
-                tmpDropdown.SetValueWithoutNotify(itemIndex);
-                return true;
-            }
-
-            // Try legacy Dropdown
-            var legacyDropdown = dropdownObj.GetComponent<Dropdown>();
-            if (legacyDropdown != null)
-            {
-                legacyDropdown.SetValueWithoutNotify(itemIndex);
-                return true;
-            }
-
-            // Try cTMP_Dropdown via reflection (no SetValueWithoutNotify available)
-            foreach (var component in dropdownObj.GetComponents<Component>())
-            {
-                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
-                {
-                    var type = component.GetType();
-
-                    // Set m_Value field directly (bypasses onValueChanged)
-                    var valueField = type.GetField("m_Value",
-                        PrivateInstance);
-                    if (valueField != null)
-                    {
-                        valueField.SetValue(component, itemIndex);
-                    }
-
-                    // Update the displayed text
-                    var refreshMethod = type.GetMethod("RefreshShownValue",
-                        AllInstanceFlags);
-                    if (refreshMethod != null)
-                    {
-                        refreshMethod.Invoke(component, null);
-                    }
-
+                case DropdownKind.TMP:
+                    ((TMPro.TMP_Dropdown)component).SetValueWithoutNotify(itemIndex);
                     return true;
-                }
+                case DropdownKind.Legacy:
+                    ((Dropdown)component).SetValueWithoutNotify(itemIndex);
+                    return true;
+                case DropdownKind.Custom:
+                    var type = component.GetType();
+                    type.GetField("m_Value", PrivateInstance)?.SetValue(component, itemIndex);
+                    type.GetMethod("RefreshShownValue", AllInstanceFlags)?.Invoke(component, null);
+                    return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
-
-
 
         /// <summary>
         /// Get the currently displayed text value of a dropdown (works for TMP_Dropdown, Dropdown, and cTMP_Dropdown).
         /// Reads the caption text child component which shows the localized display value.
+        /// Do NOT call RefreshShownValue() as it overwrites captionText from m_Value,
+        /// which may be stale (game may set captionText directly without updating m_Value).
         /// </summary>
         public static string GetDropdownDisplayValue(GameObject dropdownObj)
         {
-            // Read captionText directly - this is what sighted users see.
-            // Do NOT call RefreshShownValue() as it overwrites captionText from m_Value,
-            // which may be stale (game may set captionText directly without updating m_Value).
-
-            // Try standard TMP_Dropdown
-            var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
-            if (tmpDropdown != null && tmpDropdown.captionText != null)
-                return tmpDropdown.captionText.text;
-
-            // Try legacy Dropdown
-            var legacyDropdown = dropdownObj.GetComponent<Dropdown>();
-            if (legacyDropdown != null && legacyDropdown.captionText != null)
-                return legacyDropdown.captionText.text;
-
-            // Try cTMP_Dropdown via reflection
-            foreach (var component in dropdownObj.GetComponents<Component>())
+            var (kind, component) = ResolveDropdown(dropdownObj);
+            switch (kind)
             {
-                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
+                case DropdownKind.TMP:
+                {
+                    var tmp = (TMPro.TMP_Dropdown)component;
+                    if (tmp.captionText != null) return tmp.captionText.text;
+                    break;
+                }
+                case DropdownKind.Legacy:
+                {
+                    var legacy = (Dropdown)component;
+                    if (legacy.captionText != null) return legacy.captionText.text;
+                    break;
+                }
+                case DropdownKind.Custom:
                 {
                     var type = component.GetType();
-                    // Read m_CaptionText field (TMP_Text reference)
-                    var captionField = type.GetField("m_CaptionText",
-                        PrivateInstance);
+                    var captionField = type.GetField("m_CaptionText", PrivateInstance);
                     if (captionField != null)
                     {
                         var captionText = captionField.GetValue(component) as TMPro.TMP_Text;
-                        if (captionText != null)
-                            return captionText.text;
+                        if (captionText != null) return captionText.text;
                     }
-                    // Fallback: try captionText property
-                    var captionProp = type.GetProperty("captionText",
-                        PublicInstance);
+                    var captionProp = type.GetProperty("captionText", PublicInstance);
                     if (captionProp != null)
                     {
                         var captionText = captionProp.GetValue(component) as TMPro.TMP_Text;
-                        if (captionText != null)
-                            return captionText.text;
+                        if (captionText != null) return captionText.text;
                     }
                     break;
                 }
             }
 
-            // Fallback: if caption is empty and value=-1, show first option
             return GetDropdownFirstOptionFallback(dropdownObj);
         }
 
@@ -964,34 +986,32 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static string GetDropdownFirstOptionFallback(GameObject dropdownObj)
         {
-            // TMP_Dropdown
-            var tmpDropdown = dropdownObj.GetComponent<TMPro.TMP_Dropdown>();
-            if (tmpDropdown != null && tmpDropdown.value < 0 && tmpDropdown.options != null && tmpDropdown.options.Count > 0)
-                return tmpDropdown.options[0].text;
-
-            // Legacy Dropdown
-            var legacyDropdown = dropdownObj.GetComponent<Dropdown>();
-            if (legacyDropdown != null && legacyDropdown.value < 0 && legacyDropdown.options != null && legacyDropdown.options.Count > 0)
-                return legacyDropdown.options[0].text;
-
-            // cTMP_Dropdown via reflection
-            foreach (var component in dropdownObj.GetComponents<Component>())
+            var (kind, component) = ResolveDropdown(dropdownObj);
+            switch (kind)
             {
-                if (component != null && component.GetType().Name == T.CustomTMPDropdown)
+                case DropdownKind.TMP:
+                {
+                    var tmp = (TMPro.TMP_Dropdown)component;
+                    if (tmp.value < 0 && tmp.options?.Count > 0) return tmp.options[0].text;
+                    break;
+                }
+                case DropdownKind.Legacy:
+                {
+                    var legacy = (Dropdown)component;
+                    if (legacy.value < 0 && legacy.options?.Count > 0) return legacy.options[0].text;
+                    break;
+                }
+                case DropdownKind.Custom:
                 {
                     var type = component.GetType();
-                    var valueProp = type.GetProperty("value",
-                        PublicInstance);
+                    var valueProp = type.GetProperty("value", PublicInstance);
                     int value = valueProp != null ? (int)valueProp.GetValue(component) : 0;
                     if (value >= 0) break;
-
-                    var optionsProp = type.GetProperty("options",
-                        PublicInstance);
+                    var optionsProp = type.GetProperty("options", PublicInstance);
                     var options = optionsProp?.GetValue(component) as System.Collections.IList;
-                    if (options != null && options.Count > 0)
+                    if (options?.Count > 0)
                     {
-                        var textProp = options[0]?.GetType().GetProperty("text",
-                            PublicInstance);
+                        var textProp = options[0]?.GetType().GetProperty("text", PublicInstance);
                         return textProp?.GetValue(options[0]) as string;
                     }
                     break;
@@ -1027,72 +1047,28 @@ namespace AccessibleArena.Core.Services
             var activeDropdown = DropdownStateManager.ActiveDropdown;
             if (activeDropdown != null)
             {
-                var tmpDropdown = activeDropdown.GetComponent<TMPro.TMP_Dropdown>();
-                if (tmpDropdown != null)
+                var (kind, comp) = ResolveDropdown(activeDropdown);
+                if (kind != DropdownKind.None && HideDropdownComponent(kind, comp))
                 {
-                    MelonLogger.Msg($"[{callerId}] Closing TMP_Dropdown via ActiveDropdown reference");
-                    tmpDropdown.Hide();
-                    DropdownStateManager.OnDropdownClosed();
-                    if (!silent) announcer?.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
-                    return;
-                }
-
-                var legacyDropdown = activeDropdown.GetComponent<Dropdown>();
-                if (legacyDropdown != null)
-                {
-                    MelonLogger.Msg($"[{callerId}] Closing legacy Dropdown via ActiveDropdown reference");
-                    legacyDropdown.Hide();
+                    MelonLogger.Msg($"[{callerId}] Closing {kind} dropdown via ActiveDropdown reference");
                     DropdownStateManager.OnDropdownClosed();
                     if (!silent) announcer?.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
             }
 
-            // Fallback: Find the TMP_Dropdown in parent hierarchy of current selection
+            // Fallback: Find dropdown in parent hierarchy of current selection
             var transform = currentItem.transform;
             while (transform != null)
             {
-                // Check for standard TMP_Dropdown
-                var tmpDropdown = transform.GetComponent<TMPro.TMP_Dropdown>();
-                if (tmpDropdown != null)
+                var (kind, comp) = ResolveDropdown(transform.gameObject);
+                if (kind != DropdownKind.None && HideDropdownComponent(kind, comp))
                 {
-                    MelonLogger.Msg($"[{callerId}] Closing TMP_Dropdown via Escape/Backspace");
-                    tmpDropdown.Hide();
+                    MelonLogger.Msg($"[{callerId}] Closing {kind} dropdown via hierarchy walk");
                     DropdownStateManager.OnDropdownClosed();
                     if (!silent) announcer?.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
                 }
-
-                // Check for Unity legacy Dropdown
-                var legacyDropdown = transform.GetComponent<Dropdown>();
-                if (legacyDropdown != null)
-                {
-                    MelonLogger.Msg($"[{callerId}] Closing legacy Dropdown via Escape/Backspace");
-                    legacyDropdown.Hide();
-                    DropdownStateManager.OnDropdownClosed();
-                    if (!silent) announcer?.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
-                    return;
-                }
-
-                // Check for game's custom cTMP_Dropdown
-                foreach (var component in transform.GetComponents<Component>())
-                {
-                    if (component != null && component.GetType().Name == T.CustomTMPDropdown)
-                    {
-                        // Try to call Hide() via reflection
-                        var hideMethod = component.GetType().GetMethod("Hide",
-                            PublicInstance);
-                        if (hideMethod != null)
-                        {
-                            MelonLogger.Msg($"[{callerId}] Closing cTMP_Dropdown via Escape/Backspace");
-                            hideMethod.Invoke(component, null);
-                            DropdownStateManager.OnDropdownClosed();
-                            if (!silent) announcer?.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
-                            return;
-                        }
-                    }
-                }
-
                 transform = transform.parent;
             }
 
@@ -1803,54 +1779,16 @@ namespace AccessibleArena.Core.Services
         {
             if (element == null) return;
 
-            bool closed = false;
+            var (kind, component) = ResolveDropdown(element);
+            if (kind == DropdownKind.None) return;
 
-            // Try TMP_Dropdown
-            var tmpDropdown = element.GetComponent<TMPro.TMP_Dropdown>();
-            if (tmpDropdown != null)
-            {
-                tmpDropdown.Hide();
-                MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened TMP_Dropdown: {element.name}");
-                closed = true;
-            }
-
-            // Try legacy Dropdown
-            if (!closed)
-            {
-                var legacyDropdown = element.GetComponent<Dropdown>();
-                if (legacyDropdown != null)
-                {
-                    legacyDropdown.Hide();
-                    MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened legacy Dropdown: {element.name}");
-                    closed = true;
-                }
-            }
-
-            // Try cTMP_Dropdown via reflection
-            if (!closed)
-            {
-                foreach (var component in element.GetComponents<Component>())
-                {
-                    if (component != null && component.GetType().Name == T.CustomTMPDropdown)
-                    {
-                        var hideMethod = component.GetType().GetMethod("Hide",
-                            PublicInstance);
-                        if (hideMethod != null)
-                        {
-                            hideMethod.Invoke(component, null);
-                            MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened cTMP_Dropdown: {element.name}");
-                            closed = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Suppress dropdown re-entry - the dropdown's IsExpanded property may not
-            // update immediately after Hide(), so DropdownStateManager prevents re-entry
-            // until the dropdown actually closes.
+            bool closed = HideDropdownComponent(kind, component);
             if (closed)
             {
+                MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened {kind} dropdown: {element.name}");
+                // Suppress dropdown re-entry - the dropdown's IsExpanded property may not
+                // update immediately after Hide(), so DropdownStateManager prevents re-entry
+                // until the dropdown actually closes.
                 DropdownStateManager.SuppressReentry();
             }
         }
