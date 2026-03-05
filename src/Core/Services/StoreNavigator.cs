@@ -1794,10 +1794,7 @@ namespace AccessibleArena.Core.Services
                     _onValueSelectedMethod.Invoke(_setFilterTogglesComponent,
                         new object[] { _setFilterModels[_currentSetFilterIndex] });
 
-                    string setName = GetSetFilterName(_currentSetFilterIndex);
-                    _announcer.AnnounceInterrupt(Strings.Loading(setName));
-
-                    // Wait for the set change to reload items
+                    // Wait for the set change to reload items (result announced in OnTabLoadComplete)
                     _waitingForTabLoad = true;
                     _waitingForSetChange = true;
                     _loadCheckTimer = TabLoadCheckInterval;
@@ -1833,8 +1830,6 @@ namespace AccessibleArena.Core.Services
             {
                 _currentItemIndex = 0;
                 _currentPurchaseOptionIndex = 0;
-                string setName = GetSetFilterName(_currentSetFilterIndex);
-                _announcer.AnnounceInterrupt(Strings.StoreSetFilterEnterItems(setName, _items.Count));
                 AnnounceCurrentItem();
             }
             else

@@ -23,6 +23,10 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | StoreDisplayCardViewBundle | StoreDisplayCardViewBundle | Core |
 | StoreSetFilterToggles | Core.Meta.MainNavigation.Store.StoreSetFilterToggles | Core |
 | StoreSetFilterModel | Core.Meta.MainNavigation.Store.Data.StoreSetFilterModel | Core |
+| StoreSetFilterToggle | Core.Meta.MainNavigation.Store.StoreSetFilterToggle | Core |
+| StoreSetFilterDropdown | StoreSetFilterDropdown | Core |
+| StoreSetFilterDropdownItem | StoreSetFilterDropdownItem | Core |
+| StoreSetUtils | Core.Meta.MainNavigation.Store.Utils.StoreSetUtils | Core |
 | CardDataForTile | Wizards.MDN.Store.CardDataForTile | Gre |
 
 ## Card Data & Display Types
@@ -181,6 +185,18 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | StopType | (check Gre) | Gre |
 | SettingStatus | (check Gre) | Gre |
 
+## Set Metadata
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| ISetMetadataProvider | SharedClientCore.SharedClientCore.Code.Providers.ISetMetadataProvider | Shared |
+| SetMetadataProvider | Core.Shared.Code.CardFilters.SetMetadataProvider | Core |
+| SetMetadataCollection | (referenced by ISetMetadataProvider.LoadData, not yet decompiled) | Shared |
+| ClientSetMetadata | Core.Code.Collations.ClientSetMetadata | Shared |
+| ClientSetCollation | Core.Code.Collations.ClientSetCollation | Shared |
+| CollationMapping | Wotc.Mtga.Wrapper.CollationMapping | Shared |
+| CollationMappingExtensions | Wotc.Mtga.Wrapper.CollationMappingExtensions | Shared |
+
 ## Provider / Utility Types
 
 | Short Name | Full Namespace | DLL |
@@ -197,5 +213,11 @@ Some types have members that are fields (not properties) - reflection with `GetP
 - **MtgCardInstance**: `AttachedToId` (uint field), `IsTapped` (bool field), `HasSummoningSickness` (bool field)
 - **EventContext**: `PlayerEvent` (IPlayerEvent field)
 - **TooltipTrigger**: `TooltipData` (public field), but `TooltipData.Text` IS a property
-- **StoreSetFilterModel**: `SetSymbol` (string field), `Availability` (field)
+- **StoreSetFilterModel**: `SetSymbol` (string field), `Availability` (field), `Sets` (List\<CollationMapping\>)
+- **StoreSetFilterToggle**: UI is icon-only (Image `_symbol`), no text — set names must come from elsewhere
+- **CollationMappingExtensions.GetName()**: just returns `.ToString()` (the 3-letter code), NOT a localized name
+- **ClientSetCollation**: has `FlavorId` (string) — EMPTY at runtime, not populated by game data
+- **StoreSetFilterDropdownItem**: only `Image _symbol` + `RawImage _logo` (no text) — set names are image textures
+- **ClientSetMetadata**: has `SetCode` (string), no display name field
+- **Set name localization**: Use `Languages.ActiveLocProvider.GetLocalizedText("General/Sets/" + setCode)` — see `docs/SET_NAME_LOCALIZATION.md`
 - **cTMP_Dropdown**: extends `Selectable`, NOT `TMP_Dropdown` - use type name reflection

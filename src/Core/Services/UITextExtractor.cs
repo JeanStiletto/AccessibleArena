@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
@@ -565,82 +567,75 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
-        // Common MTGA set codes to human-readable names
-        private static readonly Dictionary<string, string> SetCodeMap =
-            new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+        // Cached reflection for Languages.ActiveLocProvider.GetLocalizedText(string)
+        private static PropertyInfo _activeLocProviderProp;
+        private static MethodInfo _getLocalizedTextMethod;
+        private static bool _locReflectionInitialized;
+
+        private static void EnsureLocReflectionCached()
         {
-                // Standard sets
-                { "MKM", "Murders at Karlov Manor" },
-                { "LCI", "The Lost Caverns of Ixalan" },
-                { "WOE", "Wilds of Eldraine" },
-                { "MOM", "March of the Machine" },
-                { "ONE", "Phyrexia: All Will Be One" },
-                { "BRO", "The Brothers' War" },
-                { "DMU", "Dominaria United" },
-                { "SNC", "Streets of New Capenna" },
-                { "NEO", "Kamigawa: Neon Dynasty" },
-                { "VOW", "Innistrad: Crimson Vow" },
-                { "MID", "Innistrad: Midnight Hunt" },
-                { "AFR", "Adventures in the Forgotten Realms" },
-                { "STX", "Strixhaven" },
-                { "KHM", "Kaldheim" },
-                { "ZNR", "Zendikar Rising" },
-                { "M21", "Core Set 2021" },
-                { "IKO", "Ikoria" },
-                { "THB", "Theros Beyond Death" },
-                { "ELD", "Throne of Eldraine" },
-                { "M20", "Core Set 2020" },
-                { "WAR", "War of the Spark" },
-                { "RNA", "Ravnica Allegiance" },
-                { "GRN", "Guilds of Ravnica" },
-                // Alchemy sets
-                { "YMKM", "Alchemy: Karlov Manor" },
-                { "YLCI", "Alchemy: Ixalan" },
-                { "YWOE", "Alchemy: Eldraine" },
-                { "YMOM", "Alchemy: March of the Machine" },
-                { "YONE", "Alchemy: Phyrexia" },
-                { "YBRO", "Alchemy: The Brothers' War" },
-                { "YDMU", "Alchemy: Dominaria" },
-                // Recent/upcoming sets
-                { "OTJ", "Outlaws of Thunder Junction" },
-                { "BLB", "Bloomburrow" },
-                { "DSK", "Duskmourn" },
-                { "FDN", "Foundations" },
-                { "ACR", "Aetherdrift" },
-                // Y26 (Year 2026) Alchemy sets - prefixed format
-                { "Y26-FDN", "Y26: Foundations" },
-                { "Y26-DSK", "Y26: Duskmourn" },
-                { "Y26-BLB", "Y26: Bloomburrow" },
-                { "Y26-OTJ", "Y26: Thunder Junction" },
-                { "Y26-MKM", "Y26: Karlov Manor" },
-                { "Y26-LCI", "Y26: Ixalan" },
-                { "Y26-WOE", "Y26: Eldraine" },
-                { "Y26-MOM", "Y26: March of the Machine" },
-                { "Y26-ONE", "Y26: Phyrexia" },
-                { "Y26-BRO", "Y26: Brothers' War" },
-                { "Y26-DMU", "Y26: Dominaria" },
-                { "Y26-SNC", "Y26: New Capenna" },
-                { "Y26-NEO", "Y26: Neon Dynasty" },
-                { "Y26-ACR", "Y26: Aetherdrift" },
-                // Masters/Special sets
-                { "SIR", "Shadows over Innistrad Remastered" },
-                { "KTK", "Khans of Tarkir" },
-                { "AKR", "Amonkhet Remastered" },
-                { "KLR", "Kaladesh Remastered" },
-            };
+            if (_locReflectionInitialized) return;
+            _locReflectionInitialized = true;
+
+            try
+            {
+                var languagesType = FindType("Wotc.Mtga.Loc.Languages");
+                if (languagesType == null) return;
+
+                _activeLocProviderProp = languagesType.GetProperty("ActiveLocProvider",
+                    BindingFlags.Public | BindingFlags.Static);
+                if (_activeLocProviderProp != null)
+                {
+                    var locProviderType = _activeLocProviderProp.PropertyType;
+                    _getLocalizedTextMethod = locProviderType.GetMethod("GetLocalizedText",
+                        new[] { typeof(string) });
+                }
+            }
+            catch { /* Reflection may fail on different game versions */ }
+        }
+
+        /// <summary>
+        /// Gets a localized set name from the game's localization system.
+        /// Uses the key pattern "General/Sets/{setCode}".
+        /// </summary>
+        private static string GetLocalizedSetName(string setCode)
+        {
+            EnsureLocReflectionCached();
+            if (_activeLocProviderProp == null || _getLocalizedTextMethod == null) return null;
+
+            try
+            {
+                var locProvider = _activeLocProviderProp.GetValue(null);
+                if (locProvider == null) return null;
+
+                string result = _getLocalizedTextMethod.Invoke(locProvider,
+                    new object[] { "General/Sets/" + setCode }) as string;
+
+                // Localization returns the key itself or empty if not found
+                if (string.IsNullOrEmpty(result) || result.StartsWith("General/Sets/"))
+                    return null;
+
+                return result;
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         /// <summary>
         /// Maps a set code to a human-readable set name.
-        /// Falls back to the set code if no mapping is found.
+        /// Tries the game's localization system first (supports all languages),
+        /// then falls back to the set code itself.
         /// </summary>
         public static string MapSetCodeToName(string setCode)
         {
-            if (SetCodeMap.TryGetValue(setCode, out string name))
-            {
-                return name;
-            }
+            // Try the game's localization system: "General/Sets/{setCode}"
+            var localized = GetLocalizedSetName(setCode);
+            if (localized != null)
+                return localized;
 
-            // If no mapping found, return the set code itself
+            // If no localization found, return the set code itself
             return setCode;
         }
 
