@@ -159,7 +159,7 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg("[HelpNavigator] Opened");
 
             // Announce title and instructions
-            string core = $"{Strings.HelpMenuTitle}. {_helpItems.Count} items";
+            string core = $"{Strings.HelpMenuTitle}. {Strings.ItemCount(_helpItems.Count)}";
             _announcer.AnnounceInterrupt(Strings.WithHint(core, "HelpMenuInstructions"));
         }
 
