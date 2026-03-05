@@ -16,6 +16,11 @@ All notable changes to Accessible Arena.
 - Dynamically resolves via `Languages.ActiveLocProvider.GetLocalizedText("General/Sets/" + setCode)`
 - Works in all languages the game supports, automatically covers new sets
 
+### New: Localized Pack Names in Reward Popups
+- Reward popups now announce pack set names (e.g., "Lorwyns Finsternis Pack") instead of generic "Booster Pack"
+- Reads pack data from ContentControllerRewards before the game consumes it
+- Converts CollationId to set code via CollationMapping enum, then resolves localized name
+
 ### Bug Fixes
 - Fixed reward popups not closing
 - Fixed card count not announced when adding or removing cards in deck builder

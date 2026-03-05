@@ -153,7 +153,7 @@
 - [x] Code of Conduct - Default navigation works correctly
 - [x] LoadingScreenNavigator - Transitional screens: game loading (startup), match end (victory/defeat), PreGame (matchmaking queue)
 - [x] BoosterOpenNavigator - Pack contents after opening packs
-- [x] RewardPopupNavigator - Rewards popup from mail/store (cards, packs, currency)
+- [x] RewardPopupNavigator - Rewards popup from mail/store (cards, packs, currency, localized pack names)
 - [x] AdvancedFiltersNavigator - Advanced Filters popup in Collection/Deck Builder (grid navigation)
 - [x] DuelNavigator - Duel gameplay (zone navigation, combat, targeting)
 - [~] OverlayNavigator - Modal overlays (What's New carousel) - basic implementation
@@ -691,6 +691,29 @@ StoreNavigator uses BaseNavigator's built-in popup mode with dual detection:
 
 **Files:**
 - `src/Core/Services/StoreNavigator.cs` - Main navigator implementation
+
+---
+
+### Reward Popup Navigator - Pack Name Resolution
+
+The reward popup (`ContentController - Rewards_Desktop_16x9`) shows rewards from mail claims, store purchases, etc. Pack rewards are purely visual (`NotificationPopupReward` has only MeshRenderers and count text, no reward data fields). Pack set names are extracted from the controller's data before the game consumes it.
+
+**Pack Name Extraction Flow:**
+1. `ExtractPackSetNames()` finds `ContentControllerRewards` component on the popup
+2. Reads `_packReward` (private field) → `PackReward : ItemReward<InventoryBooster, NotificationPopupReward>`
+3. Reads `ToAdd` (public `Queue<InventoryBooster>` field) — contains pending pack data
+4. Extracts `CollationId` (int field) from each `InventoryBooster`, sorts by CollationId
+5. Converts CollationId → set code via `CollationMapping` enum `.ToString()` (e.g., 100058 → "ECL")
+6. Resolves localized name via `UITextExtractor.MapSetCodeToName()` (e.g., "ECL" → "Lorwyns Finsternis")
+7. Names stored in a `List<string>` with consumption index, consumed in order during reward label generation
+
+**Why List+index instead of Queue:**
+The game's `ToAdd` queue gets consumed (Dequeued) after the first display pass. When the reward popup triggers a rescan (reward prefabs load slightly after popup appears), re-reading `ToAdd` finds it empty. The List preserves extracted names across rescans, and the consumption index resets on each discovery pass.
+
+**Timing:**
+- First discovery: `ExtractPackSetNames()` succeeds, but reward prefabs may not be visible yet (0 rewards found)
+- Rescan (~500ms later): Reward prefabs are now visible, names already cached from first extraction
+- Names are cleared on scene change or navigator deactivation
 
 ---
 

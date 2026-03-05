@@ -4,8 +4,11 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.ElementGrouping;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
@@ -23,6 +26,12 @@ namespace AccessibleArena.Core.Services
 
         private GameObject _activePopup;
         private int _rewardCount;
+
+        // Pre-extracted pack set names from ContentControllerRewards._packReward data
+        // Uses List+index instead of Queue because rescans re-discover elements but
+        // the game's ToAdd queue gets consumed after first display
+        private List<string> _packSetNames = new List<string>();
+        private int _packSetNameIndex;
 
         // Cache to avoid logging spam
         private bool _lastRewardsPopupState = false;
@@ -156,6 +165,9 @@ namespace AccessibleArena.Core.Services
             _rewardCount = 0;
             var addedObjects = new HashSet<GameObject>();
 
+            // Pre-extract pack set names from controller data before discovering UI elements
+            ExtractPackSetNames();
+
             // Discover reward elements
             DiscoverRewardElements(addedObjects);
 
@@ -246,6 +258,88 @@ namespace AccessibleArena.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardElements: Added {_rewardCount} rewards");
+        }
+
+        /// <summary>
+        /// Pre-extract pack set names from ContentControllerRewards._packReward.ToAdd data.
+        /// Pack rewards display in CollationId order, so we queue names in the same order.
+        /// </summary>
+        private void ExtractPackSetNames()
+        {
+            // Reset consumption index for each discovery pass
+            _packSetNameIndex = 0;
+
+            // Only extract once - the game's ToAdd queue gets consumed after display,
+            // so re-extraction on rescan would find an empty queue
+            if (_packSetNames.Count > 0) return;
+
+            if (_activePopup == null) return;
+
+            try
+            {
+                // Find ContentControllerRewards component on the popup
+                MonoBehaviour rewardsController = null;
+                foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "ContentControllerRewards")
+                    {
+                        rewardsController = mb;
+                        break;
+                    }
+                }
+                if (rewardsController == null) return;
+
+                // Get _packReward field
+                var packRewardField = rewardsController.GetType().GetField("_packReward", PrivateInstance);
+                if (packRewardField == null) return;
+                var packReward = packRewardField.GetValue(rewardsController);
+                if (packReward == null) return;
+
+                // Get ToAdd field (public Queue<InventoryBooster> on ItemReward<T, P>)
+                var toAddField = packReward.GetType().GetField("ToAdd", PublicInstance);
+                if (toAddField == null) return;
+                var toAdd = toAddField.GetValue(packReward) as IEnumerable;
+                if (toAdd == null) return;
+
+                // Extract CollationId from each InventoryBooster, sorted by CollationId (matching display order)
+                var collationIds = new List<int>();
+                FieldInfo collationIdField = null;
+
+                foreach (var booster in toAdd)
+                {
+                    if (booster == null) continue;
+                    if (collationIdField == null)
+                        collationIdField = booster.GetType().GetField("CollationId", PublicInstance);
+                    if (collationIdField == null) break;
+
+                    int collationId = (int)collationIdField.GetValue(booster);
+                    collationIds.Add(collationId);
+                }
+
+                // Sort by CollationId (same order as PackReward.DisplayRewards)
+                collationIds.Sort();
+
+                // Convert CollationId to set code via CollationMapping enum ToString()
+                var collationMappingType = FindType("Wotc.Mtga.Wrapper.CollationMapping");
+
+                foreach (int collationId in collationIds)
+                {
+                    string setCode = null;
+                    if (collationMappingType != null && Enum.IsDefined(collationMappingType, collationId))
+                        setCode = Enum.ToObject(collationMappingType, collationId).ToString();
+
+                    string setName = !string.IsNullOrEmpty(setCode)
+                        ? UITextExtractor.MapSetCodeToName(setCode)
+                        : null;
+
+                    _packSetNames.Add(setName ?? $"Pack #{collationId}");
+                    MelonLogger.Msg($"[{NavigatorId}] Pack set name: CollationId={collationId}, SetCode={setCode}, Name={setName}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] ExtractPackSetNames failed: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -388,21 +482,26 @@ namespace AccessibleArena.Core.Services
                     return $"Card {index}";
 
                 case "Pack":
-                    // Try to get set name from NotificationPopupReward component
-                    string packName = TryGetPackNameFromReward(rewardPrefab);
-                    if (!string.IsNullOrEmpty(packName))
-                        return packName;
-
-                    // Fallback: look for active text
-                    var packTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
-                    foreach (var text in packTexts)
+                    // Use pre-extracted set name from controller data
+                    if (_packSetNameIndex < _packSetNames.Count)
                     {
-                        if (text != null && text.gameObject.activeInHierarchy)
+                        string setName = _packSetNames[_packSetNameIndex++];
+                        // Check for count text (e.g., "x3")
+                        string countText = null;
+                        var packTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                        foreach (var text in packTexts)
                         {
-                            string content = text.text?.Trim();
-                            if (!string.IsNullOrEmpty(content) && content != "x0" && !content.StartsWith("x"))
-                                return $"Pack: {content}";
+                            if (text != null && text.gameObject.activeInHierarchy)
+                            {
+                                string content = text.text?.Trim();
+                                if (!string.IsNullOrEmpty(content) && content.StartsWith("x"))
+                                {
+                                    countText = content;
+                                    break;
+                                }
+                            }
                         }
+                        return countText != null ? $"{setName} Pack {countText}" : $"{setName} Pack";
                     }
                     return "Booster Pack";
 
@@ -479,75 +578,9 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        /// <summary>
-        /// Try to extract the pack/set name from a reward prefab's NotificationPopupReward component.
-        /// Uses reflection to access reward data and map set codes to readable names.
-        /// </summary>
-        private string TryGetPackNameFromReward(GameObject rewardPrefab)
-        {
-            var flags = AllInstanceFlags;
-
-            foreach (var mb in rewardPrefab.GetComponents<MonoBehaviour>())
-            {
-                if (mb == null) continue;
-                string typeName = mb.GetType().Name;
-
-                if (typeName == "NotificationPopupReward")
-                {
-                    var mbType = mb.GetType();
-
-                    // Try to get _reward field which should contain the reward data
-                    var rewardField = mbType.GetField("_reward", flags);
-                    if (rewardField != null)
-                    {
-                        var reward = rewardField.GetValue(mb);
-                        if (reward != null)
-                        {
-                            var rewardType = reward.GetType();
-
-                            // Try ProductId or SetCode
-                            var productIdProp = rewardType.GetProperty("ProductId", flags);
-                            if (productIdProp != null)
-                            {
-                                var productId = productIdProp.GetValue(reward)?.ToString();
-                                if (!string.IsNullOrEmpty(productId))
-                                {
-                                    // ProductId might be a set code like "FDN", "DSK", etc.
-                                    string setName = UITextExtractor.MapSetCodeToName(productId);
-                                    if (setName != productId) // Found a mapping
-                                        return $"{setName} Pack";
-                                }
-                            }
-
-                            // Try SetCode field
-                            var setCodeField = rewardType.GetField("SetCode", flags) ?? rewardType.GetField("_setCode", flags);
-                            if (setCodeField != null)
-                            {
-                                var setCode = setCodeField.GetValue(reward) as string;
-                                if (!string.IsNullOrEmpty(setCode))
-                                {
-                                    string setName = UITextExtractor.MapSetCodeToName(setCode);
-                                    return $"{setName} Pack";
-                                }
-                            }
-
-                            // Try DisplayName or Name
-                            var displayNameProp = rewardType.GetProperty("DisplayName", flags) ?? rewardType.GetProperty("Name", flags);
-                            if (displayNameProp != null)
-                            {
-                                var displayName = displayNameProp.GetValue(reward) as string;
-                                if (!string.IsNullOrEmpty(displayName))
-                                    return displayName;
-                            }
-                        }
-                    }
-
-                    break;
-                }
-            }
-
-            return null;
-        }
+        // TryGetPackNameFromReward removed - NotificationPopupReward has no reward data fields.
+        // Pack names are now pre-extracted from ContentControllerRewards._packReward.ToAdd
+        // via ExtractPackSetNames() during discovery.
 
         /// <summary>
         /// Find the actual card object inside a reward prefab.
@@ -833,6 +866,8 @@ namespace AccessibleArena.Core.Services
                 Deactivate();
             }
             _activePopup = null;
+            _packSetNames.Clear();
+            _packSetNameIndex = 0;
         }
 
         #endregion
