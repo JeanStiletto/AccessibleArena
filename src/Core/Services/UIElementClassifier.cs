@@ -711,155 +711,44 @@ namespace AccessibleArena.Core.Services
         /// because they ARE the clickable friend list items.
         /// </summary>
         private static bool IsInsideFriendsWidget(GameObject obj)
-        {
-            if (obj == null) return false;
+            => IsInsideParent(obj, MaxFriendsWidgetSearchDepth, "FriendsWidget");
 
-            Transform current = obj.transform;
-            int levels = 0;
-
-            while (current != null && levels < MaxFriendsWidgetSearchDepth)
-            {
-                string name = current.name;
-                if (ContainsIgnoreCase(name, "FriendsWidget"))
-                    return true;
-                current = current.parent;
-                levels++;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check if element is inside a BoosterCarousel (pack opening screen).
-        /// Elements inside the carousel are the clickable pack items.
-        /// </summary>
         private static bool IsInsideBoosterCarousel(GameObject obj)
-        {
-            if (obj == null) return false;
+            => IsInsideParent(obj, MaxFriendsWidgetSearchDepth, "CarouselBooster", "BoosterChamber");
 
-            Transform current = obj.transform;
-            int levels = 0;
-
-            while (current != null && levels < MaxFriendsWidgetSearchDepth)
-            {
-                string name = current.name;
-                if (ContainsIgnoreCase(name, "CarouselBooster") || ContainsIgnoreCase(name, "BoosterChamber"))
-                    return true;
-                current = current.parent;
-                levels++;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check if element is inside an EventTile (PlayBlade event selection).
-        /// EventTile hitboxes are the clickable game mode tiles (Color Challenge, Ranked, etc.).
-        /// </summary>
         private static bool IsInsideEventTile(GameObject obj)
-        {
-            if (obj == null) return false;
+            => IsInsideParent(obj, MaxParentSearchDepth, "EventTile");
 
-            Transform current = obj.transform;
-            int levels = 0;
-
-            while (current != null && levels < MaxParentSearchDepth)
-            {
-                string name = current.name;
-                if (ContainsIgnoreCase(name, "EventTile"))
-                    return true;
-                current = current.parent;
-                levels++;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check if element is inside a TAG_PreferredPrinting (card style selector in collection view).
-        /// These expand buttons should be filtered as they flood the navigation.
-        /// </summary>
         private static bool IsInsidePreferredPrintingTag(GameObject obj)
-        {
-            if (obj == null) return false;
+            => IsInsideParent(obj, MaxParentSearchDepth, "PreferredPrinting", "TAG_Preferred");
 
-            Transform current = obj.transform;
-            int levels = 0;
-
-            while (current != null && levels < MaxParentSearchDepth)
-            {
-                string name = current.name;
-                if (ContainsIgnoreCase(name, "PreferredPrinting") || ContainsIgnoreCase(name, "TAG_Preferred"))
-                    return true;
-                current = current.parent;
-                levels++;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check if element is inside a VS_screen (NPE/pre-game screen).
-        /// These contain decorative elements like NPC portraits that shouldn't be navigable.
-        /// </summary>
         private static bool IsInsideVSScreen(GameObject obj)
-        {
-            if (obj == null) return false;
+            => IsInsideParent(obj, MaxParentSearchDepth, "VS_screen");
 
-            Transform current = obj.transform;
-            int levels = 0;
-
-            while (current != null && levels < MaxParentSearchDepth)
-            {
-                string name = current.name;
-                if (ContainsIgnoreCase(name, "VS_screen"))
-                    return true;
-                current = current.parent;
-                levels++;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check if element is inside the NavBar RightSideContainer.
-        /// These are functional icon buttons (Learn, Mail, Settings, DirectChallenge) that should not be filtered.
-        /// </summary>
         private static bool IsInsideNavBarRightSide(GameObject obj)
-        {
-            if (obj == null) return false;
+            => IsInsideParent(obj, MaxParentSearchDepth, "RightSideContainer");
 
-            Transform current = obj.transform;
-            int levels = 0;
-
-            while (current != null && levels < MaxParentSearchDepth)
-            {
-                string name = current.name;
-                if (ContainsIgnoreCase(name, "RightSideContainer"))
-                    return true;
-                current = current.parent;
-                levels++;
-            }
-
-            return false;
-        }
+        private static bool IsInsideBladeListItem(GameObject obj)
+            => IsInsideParent(obj, MaxParentSearchDepth, "Blade_ListItem");
 
         /// <summary>
-        /// Check if element is inside a Blade_ListItem (play mode options like Bot Match, Standard).
-        /// These elements should always be navigable even if they have unusual CustomButton/CanvasGroup states.
+        /// Walks up the transform hierarchy checking if any ancestor name matches one of the patterns.
         /// </summary>
-        private static bool IsInsideBladeListItem(GameObject obj)
+        private static bool IsInsideParent(GameObject obj, int maxDepth, params string[] patterns)
         {
             if (obj == null) return false;
 
             Transform current = obj.transform;
             int levels = 0;
 
-            while (current != null && levels < MaxParentSearchDepth)
+            while (current != null && levels < maxDepth)
             {
                 string name = current.name;
-                if (ContainsIgnoreCase(name, "Blade_ListItem"))
-                    return true;
+                foreach (var pattern in patterns)
+                {
+                    if (ContainsIgnoreCase(name, pattern))
+                        return true;
+                }
                 current = current.parent;
                 levels++;
             }

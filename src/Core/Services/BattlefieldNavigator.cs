@@ -406,18 +406,20 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
+        private void NextRow() => MoveRow(1);
+        private void PreviousRow() => MoveRow(-1);
+
         /// <summary>
-        /// Moves to the next row (towards player side / Shift+Down).
-        /// Skips empty rows.
+        /// Moves to the next/previous non-empty row.
+        /// direction=1 towards player side (Shift+Down), -1 towards enemy side (Shift+Up).
         /// </summary>
-        private void NextRow()
+        private void MoveRow(int direction)
         {
             DiscoverAndCategorizeCards();
 
             int currentIdx = Array.IndexOf(RowOrder, _currentRow);
 
-            // Find next non-empty row
-            for (int i = currentIdx + 1; i < RowOrder.Length; i++)
+            for (int i = currentIdx + direction; i >= 0 && i < RowOrder.Length; i += direction)
             {
                 if (_rows[RowOrder[i]].Count > 0)
                 {
@@ -428,32 +430,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            _announcer.AnnounceInterruptVerbose(Strings.EndOfBattlefield);
-        }
-
-        /// <summary>
-        /// Moves to the previous row (towards enemy side / Shift+Up).
-        /// Skips empty rows.
-        /// </summary>
-        private void PreviousRow()
-        {
-            DiscoverAndCategorizeCards();
-
-            int currentIdx = Array.IndexOf(RowOrder, _currentRow);
-
-            // Find previous non-empty row
-            for (int i = currentIdx - 1; i >= 0; i--)
-            {
-                if (_rows[RowOrder[i]].Count > 0)
-                {
-                    _currentRow = RowOrder[i];
-                    _currentIndex = 0;
-                    AnnounceCurrentCard(includeRowName: true);
-                    return;
-                }
-            }
-
-            _announcer.AnnounceInterruptVerbose(Strings.BeginningOfBattlefield);
+            _announcer.AnnounceInterruptVerbose(direction > 0 ? Strings.EndOfBattlefield : Strings.BeginningOfBattlefield);
         }
 
         /// <summary>
