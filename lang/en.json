@@ -36,6 +36,14 @@
   "DeckInfoManaCurve": "Mana Curve",
   "DeckInfoTypeBreakdown": "Types",
 
+  "DeckSelected": "selected",
+  "DeckStatus_Unavailable": "unavailable",
+  "DeckStatus_Invalid": "invalid deck",
+  "DeckStatus_InvalidCards_Format": "{0} invalid cards",
+  "DeckStatus_MissingCards": "missing cards",
+  "DeckStatus_MissingCardsCraftable": "missing cards, craftable",
+  "DeckStatus_InvalidCompanion": "invalid companion",
+
   "BirthYearField": "Birth year field. Use arrow keys to select year.",
   "BirthMonthField": "Birth month field. Use arrow keys to select month.",
   "BirthDayField": "Birth day field. Use arrow keys to select day.",

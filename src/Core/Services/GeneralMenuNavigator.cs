@@ -3493,7 +3493,7 @@ namespace AccessibleArena.Core.Services
                     // Check if deck is selected and add to announcement
                     if (UIActivator.IsDeckSelected(obj))
                     {
-                        announcement += ", selected";
+                        announcement += $", {Models.Strings.DeckSelected}";
                     }
 
                     // Append short invalid status (Level 1)

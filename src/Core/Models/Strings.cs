@@ -505,6 +505,15 @@ namespace AccessibleArena.Core.Models
         public static string CardQuantityMissing(int qty) => L.Format("CardQuantityMissing_Format", qty);
         public static string CardOwned(int count) => L.Format("CardOwned_Format", count);
         public static string CardOwnedInDeck(int owned, int inDeck) => L.Format("CardOwnedInDeck_Format", owned, inDeck);
+
+        // Deck status (displayed on deck tiles)
+        public static string DeckSelected => L.Get("DeckSelected");
+        public static string DeckStatusUnavailable => L.Get("DeckStatus_Unavailable");
+        public static string DeckStatusInvalid => L.Get("DeckStatus_Invalid");
+        public static string DeckStatusInvalidCards(int count) => L.Format("DeckStatus_InvalidCards_Format", count);
+        public static string DeckStatusMissingCards => L.Get("DeckStatus_MissingCards");
+        public static string DeckStatusMissingCardsCraftable => L.Get("DeckStatus_MissingCardsCraftable");
+        public static string DeckStatusInvalidCompanion => L.Get("DeckStatus_InvalidCompanion");
         public static string CardInfoPowerToughness => L.Get("CardInfoPowerToughness");
         public static string CardInfoType => L.Get("CardInfoType");
         public static string CardInfoRules => L.Get("CardInfoRules");

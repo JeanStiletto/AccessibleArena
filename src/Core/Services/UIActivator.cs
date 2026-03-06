@@ -2246,12 +2246,12 @@ namespace AccessibleArena.Core.Services
             bool invalidCompanion = GetFieldValue<bool>(type, deckView, "_animateInvalidCompanion", flags);
             bool unavailable = GetFieldValue<bool>(type, deckView, "_animateUnavailable", flags);
 
-            if (unavailable) return "unavailable";
-            if (animateInvalid) return "invalid deck";
-            if (invalidCardCount > 0) return $"{invalidCardCount} invalid cards";
-            if (uncraftable) return "missing cards";
-            if (craftable) return "missing cards, craftable";
-            if (invalidCompanion) return "invalid companion";
+            if (unavailable) return Models.Strings.DeckStatusUnavailable;
+            if (animateInvalid) return Models.Strings.DeckStatusInvalid;
+            if (invalidCardCount > 0) return Models.Strings.DeckStatusInvalidCards(invalidCardCount);
+            if (uncraftable) return Models.Strings.DeckStatusMissingCards;
+            if (craftable) return Models.Strings.DeckStatusMissingCardsCraftable;
+            if (invalidCompanion) return Models.Strings.DeckStatusInvalidCompanion;
 
             return null;
         }

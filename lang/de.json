@@ -6,13 +6,11 @@
   "NoNextItem": "Kein nächstes Element",
   "NoPreviousItem": "Kein vorheriges Element",
   "ItemDisabled": "Element ist deaktiviert",
-
   "Activating_Format": "{0} wird aktiviert",
   "CannotActivate_Format": "{0} kann nicht aktiviert werden",
   "CouldNotPlay_Format": "{0} konnte nicht gespielt werden",
   "NoAbilityAvailable_Format": "{0} hat keine aktivierbare Fähigkeit",
   "NoCardSelected": "Keine Karte ausgewählt",
-
   "NavigateWithArrows": "Pfeiltasten zum Navigieren",
   "BeginningOfList": "Anfang der Liste",
   "EndOfList": "Ende der Liste",
@@ -31,11 +29,16 @@
   "ClosingSettings": "Einstellungen werden geschlossen",
   "ClosingPlayBlade": "Spielmenü wird geschlossen",
   "ExitingDeckBuilder": "Deck-Editor wird verlassen",
-
   "DeckInfoCardCount": "Kartenanzahl",
   "DeckInfoManaCurve": "Manakurve",
   "DeckInfoTypeBreakdown": "Typen",
-
+  "DeckSelected": "ausgewählt",
+  "DeckStatus_Unavailable": "nicht verfügbar",
+  "DeckStatus_Invalid": "ungültiges Deck",
+  "DeckStatus_InvalidCards_Format": "{0} ungültige Karten",
+  "DeckStatus_MissingCards": "fehlende Karten",
+  "DeckStatus_MissingCardsCraftable": "fehlende Karten, herstellbar",
+  "DeckStatus_InvalidCompanion": "ungültiger Begleiter",
   "BirthYearField": "Geburtsjahr-Feld. Pfeiltasten zum Auswählen des Jahres.",
   "BirthMonthField": "Geburtsmonat-Feld. Pfeiltasten zum Auswählen des Monats.",
   "BirthDayField": "Geburtstag-Feld. Pfeiltasten zum Auswählen des Tages.",
@@ -50,7 +53,6 @@
   "CheckingQueuePosition": "Warteposition wird überprüft...",
   "OpeningSupportWebsite": "Support-Website wird geöffnet...",
   "NoTermsContentFound": "Keine Nutzungsbedingungen gefunden",
-
   "EndOfBattlefield": "Ende des Schlachtfelds",
   "BeginningOfBattlefield": "Anfang des Schlachtfelds",
   "EndOfRow": "Ende der Reihe",
@@ -59,31 +61,32 @@
   "RowWithCount_One": "{0}, 1 Karte",
   "RowWithCount_Format": "{0}, {1} Karten",
   "RowEmptyShort_Format": "{0}, leer",
-
+  "LandSummary_Empty_Format": "{0}, keine Länder",
+  "LandSummary_Total_One": "1 Land",
+  "LandSummary_Total_Format": "{0} Länder",
+  "LandSummary_AllTapped_Format": "{0}, alle getappt",
+  "LandSummary_AllUntapped_Format": "{0}, {1} ungetappt",
+  "LandSummary_Mixed_Format": "{0}, {1} ungetappt",
   "EndOfZone": "Ende der Zone",
   "BeginningOfZone": "Anfang der Zone",
   "ZoneNotFound_Format": "{0} nicht gefunden",
   "ZoneEmpty_Format": "{0}, leer",
   "ZoneWithCount_One": "{0}, 1 Karte",
   "ZoneWithCount_Format": "{0}, {1} Karten",
-
   "NoValidTargets": "Keine gültigen Ziele",
   "NoTargetSelected": "Kein Ziel ausgewählt",
   "TargetingCancelled": "Zielauswahl abgebrochen",
   "SelectTargetNoValid": "Wähle ein Ziel. Keine gültigen Ziele gefunden.",
   "Targeted_Format": "{0} als Ziel gewählt",
   "CouldNotTarget_Format": "{0} konnte nicht als Ziel gewählt werden",
-
   "NoPlayableCards": "Keine spielbaren Karten",
   "SpellCast": "Zauber gewirkt",
   "SpellCastPrefix": "Gewirkt",
   "SpellUnknown": "unbekannter Zauber",
   "ResolveStackFirst": "Stapel zuerst auflösen. Leertaste zum Auflösen oder Tab zum Ziel wählen.",
-
   "AbilityTriggered": "ausgelöst",
   "AbilityActivated": "aktiviert",
   "AbilityUnknown": "Fähigkeit",
-
   "NoSubmitButtonFound": "Keine Bestätigungsschaltfläche gefunden",
   "CouldNotSubmitDiscard": "Abwerfen konnte nicht bestätigt werden",
   "DiscardCount_One": "1 Karte abwerfen",
@@ -94,10 +97,8 @@
   "NeedHaveSelected_Format": "{0} benötigt, {1} ausgewählt",
   "SubmittingDiscard_Format": "{0} Karten zum Abwerfen eingereicht",
   "CouldNotSelect_Format": "{0} konnte nicht ausgewählt werden",
-
   "EndOfCard": "Ende der Karte",
   "BeginningOfCard": "Anfang der Karte",
-
   "CardInfoName": "Name",
   "CardInfoQuantity": "Anzahl",
   "CardInfoCollection": "Sammlung",
@@ -109,12 +110,10 @@
   "CardInfoRarity": "Seltenheit",
   "CardInfoArtist": "Künstler",
   "CardInfoSetAndArtist": "Set und Künstler",
-  "CardQuantityMissing_Format": "{0}, missing",
-  "CardOwned_Format": "Owned {0}",
-  "CardOwnedInDeck_Format": "Owned {0}, In Deck {1}",
-
+  "CardQuantityMissing_Format": "{0}, fehlt",
+  "CardOwned_Format": "Besitzt {0}",
+  "CardOwnedInDeck_Format": "Besitzt {0}, im Deck {1}",
   "CardPosition_Format": "{0}{1}, {2} von {3}",
-
   "LibraryCount_One": "Bibliothek, 1 Karte",
   "LibraryCount_Format": "Bibliothek, {0} Karten",
   "OpponentLibraryCount_One": "Gegnerische Bibliothek, 1 Karte",
@@ -124,13 +123,11 @@
   "LibraryCountNotAvailable": "Bibliotheksanzahl nicht verfügbar",
   "OpponentLibraryCountNotAvailable": "Gegnerische Bibliotheksanzahl nicht verfügbar",
   "OpponentHandCountNotAvailable": "Gegnerische Handkartenanzahl nicht verfügbar",
-
   "PlayerInfo": "Spielerinfo",
   "You": "Du",
   "Opponent": "Gegner",
   "EndOfProperties": "Ende der Eigenschaften",
   "PlayerType": "Spieler",
-
   "Life_Format": "{0} Leben",
   "LifeNotAvailable": "Leben nicht verfügbar",
   "TimerNotAvailable": "Timer nicht verfügbar",
@@ -140,11 +137,9 @@
   "GamesWon_Format": "{0} Spiele gewonnen",
   "WinsNotAvailable": "Siege nicht verfügbar",
   "RankNotAvailable": "Rang nicht verfügbar",
-
   "Emotes": "Emotes",
   "EmoteSent_Format": "{0} gesendet",
   "EmotesNotAvailable": "Emotes nicht verfügbar",
-
   "InputFieldEmpty": "leer",
   "InputFieldStart": "Anfang",
   "InputFieldEnd": "Ende",
@@ -155,7 +150,6 @@
   "InputFieldEmptyWithLabel_Format": "{0}, leer",
   "InputFieldPasswordWithCount_Format": "{0}, {1} Zeichen",
   "InputFieldHint": "Enter drücken zum Bearbeiten",
-
   "CharSpace": "Leerzeichen",
   "CharDot": "Punkt",
   "CharComma": "Komma",
@@ -189,7 +183,6 @@
   "CharTilde": "Tilde",
   "CharBacktick": "Gravis",
   "CharCaret": "Zirkumflex",
-
   "ManaTap": "Tappen",
   "ManaUntap": "Enttappen",
   "ManaWhite": "Weiß",
@@ -205,7 +198,6 @@
   "ManaPhyrexian": "Phyrexianisch",
   "ManaPhyrexian_Format": "Phyrexianisches {0}",
   "ManaHybrid_Format": "{0} oder {1}",
-
   "ManaColorPicker_Format": "Manafarbe wählen: {0}",
   "ManaColorPicker_Option_Format": "{0} {1}",
   "ManaColorPicker_Selected_Format": "{0} gewählt. Auswahl {1} von {2}",
@@ -213,7 +205,6 @@
   "ManaColorPicker_Done_Format": "{0} gewählt",
   "ManaColorPicker_Cancelled": "Manafarbenwahl abgebrochen",
   "ManaColorPicker_InvalidKey": "Ungültige Auswahl",
-
   "SettingsMenuTitle": "Mod-Einstellungen",
   "SettingsMenuInstructions": "Pfeil hoch und runter zum Navigieren, Enter zum Ändern, Rücktaste oder F2 zum Schließen",
   "SettingsMenuClosed": "Mod-Einstellungen geschlossen",
@@ -225,12 +216,10 @@
   "SettingOff": "Aus",
   "SettingChanged_Format": "{0} auf {1} gesetzt",
   "SettingItemPosition_Format": "{0} von {1}: {2}",
-
   "HelpMenuTitle": "Hilfemenü",
   "HelpMenuInstructions": "Pfeil hoch und runter zum Navigieren, Rücktaste oder F1 zum Schließen",
   "HelpItemPosition_Format": "{2}, {0} von {1}",
   "HelpMenuClosed": "Hilfe geschlossen",
-
   "HelpCategoryGlobal": "Globale Tastenkürzel",
   "HelpCategoryMenuNavigation": "Menünavigation",
   "HelpCategoryDuelZones": "Zonen im Duell",
@@ -239,13 +228,11 @@
   "HelpCategoryCardDetails": "Kartendetails",
   "HelpCategoryCombat": "Kampf",
   "HelpCategoryBrowser": "Browser (Hellsicht, Erkunden, Mulligan)",
-
   "HelpF1Help": "F1: Hilfemenü",
   "HelpF2Settings": "F2: Einstellungsmenü",
   "HelpF3Context": "F3: Aktueller Bildschirm",
   "HelpCtrlRRepeat": "Strg plus R: Letzte Ansage wiederholen",
   "HelpBackspace": "Rücktaste: Zurück, Verwerfen oder Abbrechen",
-
   "HelpArrowUpDown": "Pfeil hoch oder runter: Menüeinträge navigieren",
   "HelpTabNavigation": "Tab oder Umschalt plus Tab: Menüeinträge navigieren oder Gruppen in der Sammlung wechseln",
   "HelpArrowLeftRight": "Pfeil links oder rechts: Karussell- und Schrittsteuerung",
@@ -253,14 +240,12 @@
   "HelpPageUpDown": "Bild hoch oder Bild runter: Vorherige oder nächste Seite in der Sammlung",
   "HelpNumberKeysFilters": "Zifferntasten 1 bis 0: Filter 1 bis 10 in der Sammlung aktivieren",
   "HelpEnterSpace": "Enter oder Leertaste: Aktivieren",
-
   "HelpCategoryInputFields": "Eingabefelder",
   "HelpEnterEditField": "Enter: Textfeld bearbeiten",
   "HelpEscapeExitField": "Escape: Bearbeitung beenden, auf Feld bleiben",
   "HelpTabNextField": "Tab: Bearbeitung beenden und zum nächsten Element wechseln",
   "HelpShiftTabPrevField": "Umschalt plus Tab: Bearbeitung beenden und zum vorherigen Element wechseln",
   "HelpArrowsInField": "Pfeiltasten im Feld: Links oder Rechts liest Zeichen, Hoch oder Runter liest Inhalt",
-
   "HelpCHand": "C: Deine Hand, Umschalt plus C: Gegnerische Handkartenanzahl",
   "HelpBBattlefield": "B: Deine Kreaturen, Umschalt plus B: Gegnerische Kreaturen",
   "HelpALands": "A: Deine Länder, Umschalt plus A: Gegnerische Länder",
@@ -269,38 +254,31 @@
   "HelpXExile": "X: Dein Exil, Umschalt plus X: Gegnerisches Exil",
   "HelpSStack": "S: Stapel",
   "HelpDLibrary": "D: Deine Bibliothek, Umschalt plus D: Gegnerische Bibliothek",
-
   "HelpLLifeTotals": "L: Leben",
   "HelpTTurnPhase": "T: Runde und Phase",
   "HelpVPlayerInfo": "V: Spielerinfo-Zone",
-
+  "HelpMLandSummary": "M: Deine Länderzusammenfassung, Umschalt plus M: Gegnerische Länderzusammenfassung",
   "HelpLeftRightCards": "Pfeil links oder rechts: Vorherige oder nächste Karte",
   "HelpHomeEndCards": "Pos1 oder Ende: Erste oder letzte Karte",
   "HelpEnterPlay": "Enter: Karte spielen oder aktivieren",
   "HelpTabTargets": "Tab: Ziele oder spielbare Karten durchblättern",
-
   "HelpUpDownDetails": "Pfeil hoch oder runter: Kartendetails navigieren",
-
   "HelpCategoryDuelGeneral": "Allgemeine Duellbefehle",
   "HelpSpaceAdvance": "Leertaste: Bestätigen oder Phase fortsetzen",
   "HelpBackspaceCancel": "Rücktaste: Abbrechen",
   "HelpEnterSelect": "Eingabetaste: Auswählen",
   "HelpYUndo": "Y: Rückgängig",
   "HelpQQFloatMana": "Q doppelt drücken: Alle Länder für Mana tappen",
-
   "HelpSpaceCombat": "Leertaste: Angreifer oder Blocker bestätigen",
   "HelpBackspaceCombat": "Rücktaste: Keine Angriffe oder Blocker abbrechen",
-
   "HelpTabBrowser": "Tab: Alle Karten navigieren",
   "HelpCDZones": "C oder D: Zur Behalten- oder Unten-Zone springen",
   "HelpEnterToggle": "Enter: Karte zwischen Zonen umschalten",
   "HelpSpaceConfirm": "Leertaste: Auswahl bestätigen",
-
   "HelpCategoryDebug": "Debug-Tasten (Entwickler)",
   "HelpF4Refresh": "F4: Aktuellen Navigator aktualisieren",
   "HelpF11CardDump": "F11: Kartendetails ins Protokoll schreiben (Packungsöffnung)",
   "HelpF12UIDump": "F12: UI-Hierarchie ins Protokoll schreiben",
-
   "NoCards": "Keine Karten",
   "NoButtonSelected": "Keine Schaltfläche ausgewählt",
   "NoButtonsAvailable": "Keine Schaltflächen verfügbar",
@@ -319,7 +297,6 @@
   "BrowserCards_One": "{0}. 1 Karte. Tab zum Navigieren, Enter zum Auswählen",
   "BrowserOptions_Format": "{0}. Tab zum Navigieren der Optionen",
   "ZoneChange": "Zone",
-
   "MasteryActivation_Format": "{0}. Stufe {1} von {2}, {3}. Pfeiltasten zum Navigieren der Stufen.",
   "MasteryLevel_Format": "Stufe {0}: {1}",
   "MasteryLevelWithStatus_Format": "Stufe {0}: {1}. {2}",
@@ -338,18 +315,15 @@
   "MasteryStatus": "Status",
   "MasteryStatusInfo_Format": "Stufe {0} von {1}",
   "MasteryStatusInfoWithXP_Format": "Stufe {0} von {1}, {2}",
-
   "PrizeWallActivation_Format": "Preiswand. {0} Gegenstände. {1} Sphären verfügbar. Pfeiltasten zum Navigieren.",
   "PrizeWallItem_Format": "{0} von {1}: {2}",
   "PrizeWallSphereStatus_Format": "{0} Sphären verfügbar",
   "PopupCancel": "Abbrechen",
-
   "NavigateHint": "Pfeiltasten zum Navigieren, Enter zum Auswählen",
   "DuelKeybindingsHint": "Tab durchläuft spielbare Karten. C für Hand. B für deine Kreaturen, A für deine Länder, R für deine Nicht-Kreaturen. Umschalt plus B, A, R für Gegner. G für Friedhof, X für Exil, S für Stapel. V für Spielerinfo. P für volle Kontrolle, Umschalt plus P zum Sperren. Ziffertasten 1 bis 0 für Phasenstopps",
   "ItemsCount_One": "1 Gegenstand",
   "ItemsCount_Format": "{0} Gegenstände",
   "ActivationWithItems_Format": "{0}. {1}. {2}",
-
   "SearchResults_Format": "Suchergebnisse: {0} Karten",
   "SearchResultsItems_Format": "Suchergebnisse: {0} Gegenstände",
   "ExitedEditMode": "Bearbeitungsmodus verlassen",
@@ -414,7 +388,7 @@
   "CouldNotFindPackParent": "Paket-Elternelement nicht gefunden.",
   "PackDetailsDumped": "Paketdetails ins Protokoll geschrieben.",
   "WaitingForPlayable": "Warte auf spielbare Karten...",
-
+  "NoSearchResults": "Keine Suchergebnisse",
   "BrowserHint": "Tab zum Ansehen, Enter zum Oben behalten",
   "EnterToSelect": "Enter zum Auswählen",
   "TabToNavigate": "Tab zum Navigieren",
@@ -422,7 +396,6 @@
   "HasCharacters_Format": "hat {0} Zeichen",
   "PositionOf_Format": "{0} von {1}",
   "LabelValue_Format": "{0}: {1}",
-
   "GroupPrimaryActions": "Hauptaktionen",
   "GroupPlay": "Spielen",
   "GroupProgress": "Fortschritt",
@@ -454,7 +427,7 @@
   "GroupFriendSectionOutgoing": "Anfragen gesendet",
   "GroupFriendSectionBlocked": "Blockiert",
   "GroupFriendsPanelProfile": "Dein Profil",
-  "GroupChallengeMain": "Challenge Settings",
+  "GroupChallengeMain": "Herausforderungseinstellungen",
   "ChallengeYou": "Du",
   "ChallengeOpponent": "Gegner",
   "ChallengeNotInvited": "Nicht eingeladen",
@@ -469,7 +442,6 @@
   "ChallengeBlockOpponent": "Gegner blockieren",
   "ChallengeAddFriend": "Freund hinzufügen",
   "GroupOther": "Sonstiges",
-
   "NoItemsFound": "Keine Elemente gefunden.",
   "NoNavigableItemsFound": "Keine navigierbaren Elemente gefunden.",
   "GroupCount_Format": "{0} Gruppen",
@@ -480,7 +452,6 @@
   "ScreenGroupsSummary_Format": "{0}. {2}. {1}",
   "ScreenItemsSummary_Format": "{0}. {2}. {1}",
   "ObjectivesEntry_Format": "Aufgaben, {0}",
-
   "LangEnglish": "Englisch",
   "LangGerman": "Deutsch",
   "LangFrench": "Französisch",
@@ -493,7 +464,6 @@
   "LangPolish": "Polnisch",
   "LangChineseSimplified": "Chinesisch vereinfacht",
   "LangChineseTraditional": "Chinesisch traditionell",
-
   "ScreenHome": "Startseite",
   "ScreenDecks": "Decks",
   "ScreenProfile": "Profil",
@@ -504,8 +474,8 @@
   "ScreenPackOpening": "Packung öffnen",
   "ScreenColorChallenge": "Farb-Herausforderung",
   "ScreenDeckBuilder": "Deckbau",
-  "ScreenDeckBuilderReadOnly": "Deck Builder, Read Only",
-  "ReadOnlyDeckWarning": "This deck is read only. To edit, open it from My Decks.",
+  "ScreenDeckBuilderReadOnly": "Deck-Editor, Nur Lesen",
+  "ReadOnlyDeckWarning": "Dieses Deck ist schreibgeschützt. Zum Bearbeiten öffne es aus Meine Decks.",
   "ScreenDeckSelection": "Deckauswahl",
   "ScreenEvent": "Event",
   "ScreenRewards": "Belohnungen",
@@ -559,7 +529,6 @@
   "ScreenRewardPopup": "Belohnungs-Popup",
   "ScreenOverlay": "Overlay",
   "WaitingForServer": "Warte auf Server",
-
   "Zone_Hand": "Deine Hand",
   "Zone_Battlefield": "Schlachtfeld",
   "Zone_Graveyard": "Dein Friedhof",
@@ -572,14 +541,12 @@
   "Zone_OpponentLibrary": "Gegners Bibliothek",
   "Zone_OpponentExile": "Gegners Exil",
   "Zone_OpponentCommand": "Gegners Kommandozone",
-
   "Row_PlayerCreatures": "Deine Kreaturen",
   "Row_PlayerNonCreatures": "Deine Nicht-Kreaturen",
   "Row_PlayerLands": "Deine Länder",
   "Row_EnemyCreatures": "Gegnerische Kreaturen",
   "Row_EnemyNonCreatures": "Gegnerische Nicht-Kreaturen",
   "Row_EnemyLands": "Gegnerische Länder",
-
   "BrowserZone_KeepOnTop": "Oben behalten",
   "BrowserZone_PutOnBottom": "Nach unten legen",
   "BrowserZone_KeepPile": "Behalten-Stapel",
@@ -590,7 +557,6 @@
   "BrowserZone_Entry_Format": "{0}: {1} Karten. {2}, 1 von {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} von {3}",
   "BrowserZone_NoCardSelected": "Keine Karte ausgewählt",
-
   "Browser_Scry": "Hellsicht",
   "Browser_Surveil": "Überwachen",
   "Browser_ReadAhead": "Vorauslesen",
@@ -613,7 +579,10 @@
   "Browser_Information": "Information",
   "Browser_ChooseAction": "Aktion wählen",
   "Browser_Default": "Browser",
-
+  "DamageAssign_Entry_Format": "Schaden zuweisen. {0}, {1} Schaden. {2} Blocker",
+  "DamageAssign_Entry_One_Format": "Schaden zuweisen. {0}, {1} Schaden. 1 Blocker",
+  "DamageAssign_Assigned_Format": "{0} von {1} zugewiesen",
+  "DamageAssign_Lethal": "tödlich",
   "Combat_Attacking": "greift an",
   "Combat_CanAttack": "kann angreifen",
   "Combat_Blocking_Format": "blockt {0}",
@@ -624,10 +593,8 @@
   "Combat_Tapped": "getappt",
   "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "zugewiesen",
-
   "Target_Targeted_Format": "{0} anvisiert",
   "Target_Selected_Format": "{0} ausgewählt",
-
   "Card_EnchantedBy_One_Format": "verzaubert durch {0}",
   "Card_EnchantedBy_Many_Format": "verzaubert durch {0}",
   "Card_AttachedTo_Format": "angelegt an {0}",
@@ -637,9 +604,7 @@
   "Card_TargetedBy_One_Format": "Ziel von {0}",
   "Card_TargetedBy_Two_Format": "Ziel von {0} und {1}",
   "Card_TargetedBy_Many_Format": "Ziel von {0}",
-
   "Duel_Started_Format": "Duell gestartet. {0} Karten auf der Hand",
-
   "Duel_YourTurn_Format": "Zug {0}",
   "Duel_OpponentTurn": "Zug des Gegners",
   "Duel_TurnChanged": "Zugwechsel",
@@ -655,7 +620,6 @@
   "Duel_CardToYourGraveyard": "Karte auf deinen Friedhof gelegt",
   "Duel_CardToOpponentGraveyard": "Karte auf Gegners Friedhof gelegt",
   "Duel_SpellResolved": "Zauber aufgelöst",
-
   "Duel_Phase_FirstMain": "Erste Hauptphase",
   "Duel_Phase_SecondMain": "Zweite Hauptphase",
   "Duel_Phase_DeclareAttackers": "Angreifer deklarieren",
@@ -666,7 +630,6 @@
   "Duel_Phase_Upkeep": "Versorgungsphase",
   "Duel_Phase_Draw": "Ziehen",
   "Duel_Phase_EndStep": "Endschritt",
-
   "Duel_PhaseDesc_FirstMain": "erste Hauptphase",
   "Duel_PhaseDesc_SecondMain": "zweite Hauptphase",
   "Duel_PhaseDesc_DeclareAttackers": "Angreifer deklarieren",
@@ -680,35 +643,29 @@
   "Duel_PhaseDesc_Beginning": "Anfangsphase",
   "Duel_PhaseDesc_Ending": "Endphase",
   "Duel_PhaseDesc_Turn": "Zug",
-
   "Duel_TurnPhase_Format": "{0} {1}, Zug {2}",
   "Duel_TurnPhaseNoCount_Format": "{0} {1}",
   "Duel_Your": "Dein",
   "Duel_Opponents": "Gegners",
   "Duel_You": "Du",
   "Duel_Opponent": "Gegner",
-
   "Duel_LifeGained_Format": "{0}: plus {1} Leben",
   "Duel_LifeLost_Format": "{0}: minus {1} Leben",
-
   "Duel_DamageDeals_Format": "{0} fügt {2} {1} Schaden zu",
   "Duel_DamageAmount_Format": "{0} Schaden an {1}",
   "Duel_DamageToYou": "dir",
   "Duel_DamageToOpponent": "Gegner",
   "Duel_DamageTarget": "Ziel",
   "Duel_CombatDamageSource": "Kampfschaden",
-
   "Duel_Revealed_Format": "{0} aufgedeckt",
   "Duel_CounterGained_Format": "{0} erhält {1} {2}-Marke",
   "Duel_CounterGainedPlural_Format": "{0} erhält {1} {2}-Marken",
   "Duel_CounterLost_Format": "{0} verliert {1} {2}-Marke",
   "Duel_CounterLostPlural_Format": "{0} verliert {1} {2}-Marken",
   "Duel_CounterCreature": "Kreatur",
-
   "Duel_Victory": "Du gewinnst!",
   "Duel_Defeat": "Niederlage",
   "Duel_GameEnded": "Spiel beendet",
-
   "Duel_CombatBegins": "Kampf beginnt",
   "Duel_AttackerDeclared": "Angreifer deklariert",
   "Duel_OpponentAttackerDeclared": "Gegner deklariert Angreifer",
@@ -717,7 +674,6 @@
   "Duel_AttackerRemoved": "Angreifer entfernt",
   "Duel_Attackers_One": "1 Angreifer",
   "Duel_Attackers_Format": "{0} Angreifer",
-
   "Duel_TokenCreated_Format": "{0}-Spielstein erzeugt",
   "Duel_Played_Format": "{0}: {1} gespielt",
   "Duel_Enchanted_Format": "{0} verzaubert {1}",
@@ -728,7 +684,6 @@
   "Duel_ReturnedFromExileEnchanting_Format": "{0} kehrt aus dem Exil zurück und verzaubert {1}",
   "Duel_EntersBattlefieldFromLibrary_Format": "{0} betritt das Schlachtfeld aus der Bibliothek",
   "Duel_EntersBattlefieldFromLibraryEnchanting_Format": "{0} betritt das Schlachtfeld aus der Bibliothek und verzaubert {1}",
-
   "Duel_Died_Format": "{0}{1} stirbt",
   "Duel_Destroyed_Format": "{0}{1} wird zerstört",
   "Duel_Sacrificed_Format": "{0}{1} wird geopfert",
@@ -736,32 +691,25 @@
   "Duel_Discarded_Format": "{0}{1} wird abgeworfen",
   "Duel_Milled_Format": "{0}{1} wird gemillt",
   "Duel_WentToGraveyard_Format": "{0}{1} auf den Friedhof gelegt",
-
   "Duel_Exiled_Format": "{0}{1} wird ins Exil geschickt",
   "Duel_ExiledFromGraveyard_Format": "{0}{1} wird vom Friedhof ins Exil geschickt",
   "Duel_ExiledFromHand_Format": "{0}{1} wird von der Hand ins Exil geschickt",
   "Duel_ExiledFromLibrary_Format": "{0}{1} wird aus der Bibliothek ins Exil geschickt",
   "Duel_CounteredAndExiled_Format": "{0}{1} wird neutralisiert und ins Exil geschickt",
-
   "Duel_ReturnedToHand_Format": "{0}{1} kehrt auf die Hand zurück",
   "Duel_ReturnedToHandFromGraveyard_Format": "{0}{1} kehrt vom Friedhof auf die Hand zurück",
   "Duel_ReturnedToHandFromExile_Format": "{0}{1} kehrt aus dem Exil auf die Hand zurück",
-
   "Duel_DamageTo_Format": "{0} fügt {2} {1} Schaden zu",
   "Duel_DamageAmountTo_Format": "{0} Schaden an {1}",
   "Duel_CreatureDamage_Format": "{0} fügt {2} {1} Schaden zu",
-
   "Duel_ScryHint": "Hellsicht. Tab um Karte zu sehen, Enter um oben zu behalten, Leertaste um nach unten zu legen",
   "Duel_SurveilHint": "Überwachen. Tab um Karte zu sehen, Enter um oben zu behalten, Leertaste um auf den Friedhof zu legen",
   "Duel_EffectHint_Format": "{0}. Tab zum Navigieren, Enter zum Auswählen",
   "Duel_LookAtTopCard": "Oberste Karte ansehen",
-
   "Duel_SelectForBottom_One": "Wähle 1 Karte für unten. {0} Karten. Enter zum Umschalten, Leertaste wenn fertig",
   "Duel_SelectForBottom_Format": "Wähle {0} Karten für unten. {1} Karten. Enter zum Umschalten, Leertaste wenn fertig",
   "Duel_SelectedForBottom_Format": "{0} von {1} für unten ausgewählt",
-
   "Duel_OwnerPrefix_Opponent": "Gegners ",
-
   "CardInfoKeywords": "Schlüsselwörter",
   "NoExtendedCardInfo": "Keine zusätzlichen Informationen",
   "LinkedFace_OtherFace": "Andere Seite",
@@ -769,13 +717,10 @@
   "LinkedFace_Adventure": "Abenteuer",
   "LinkedFace_OtherRoom": "Anderer Raum",
   "HelpIExtendedInfo": "I: Erweiterte Karteninfo (Schlüsselwörter und andere Seiten)",
-
   "ExtendedInfoTitle": "Erweiterte Karteninfo",
   "ExtendedInfoClosed": "Erweiterte Info geschlossen",
   "ExtendedInfoInstructions": "Navigiere mit Hoch und Runter. Schließen mit I oder Rücktaste.",
-
   "Bo3Toggle": "Best of 3",
-
   "FriendActionChat": "Chat",
   "FriendActionChallenge": "Herausfordern",
   "FriendActionUnfriend": "Entfreunden",
@@ -784,7 +729,6 @@
   "FriendActionDecline": "Ablehnen",
   "FriendActionRevoke": "Widerrufen",
   "FriendActionUnblock": "Entblocken",
-
   "ScreenPacketSelect": "Paketauswahl",
   "EventTileRanked": "Gewertet",
   "EventTileBo3": "Best of 3",
@@ -794,14 +738,12 @@
   "EventScreenTitle_Format": "Event: {0}",
   "PacketOf_Format": "Paket {0} von {1}",
   "EventInfoLabel": "Info",
-
   "FullControl_On": "Volle Kontrolle an",
   "FullControl_Off": "Volle Kontrolle aus",
   "FullControl_Locked": "Volle Kontrolle gesperrt",
   "FullControl_Unlocked": "Volle Kontrolle entsperrt",
   "PhaseStop_Set_Format": "Stopp gesetzt: {0}",
   "PhaseStop_Cleared_Format": "Stopp entfernt: {0}",
-
   "PhaseStop_Upkeep": "Versorgungsphase",
   "PhaseStop_Draw": "Ziehen",
   "PhaseStop_FirstMain": "Erste Hauptphase",
@@ -812,16 +754,12 @@
   "PhaseStop_EndCombat": "Kampfende",
   "PhaseStop_SecondMain": "Zweite Hauptphase",
   "PhaseStop_EndStep": "Endschritt",
-
   "HelpPFullControl": "P: Volle Kontrolle, Umschalt plus P: Volle Kontrolle sperren",
   "HelpNumberPhaseStops": "1 bis 0: Phasenstopps umschalten (Versorgungsphase bis Endschritt)",
-
   "CurrencyGold": "Gold",
   "CurrencyGems": "Edelsteine",
   "CurrencyWildcards": "Wildcards",
-
   "NumberWords": "eine=1,einer=1,einem=1,einen=1,ein=1,zwei=2,drei=3,vier=4,fünf=5,sechs=6,sieben=7,acht=8,neun=9,zehn=10",
-
   "RoleButton": "Schalter",
   "RoleLink": "Link",
   "RoleCheckbox": "Kontrollfeld",
@@ -847,37 +785,22 @@
   "CodexCollapsed_Format": "{0}, eingeklappt",
   "CodexSection": "Kategorie",
   "CodexNoContent": "Kein Inhalt verfügbar",
-
   "Duel_NoCounters": "Keine Marken",
   "Duel_CounterEntry_Format": "{0} {1}-Marke",
   "Duel_CounterEntryPlural_Format": "{0} {1}-Marken",
   "Duel_Loyalty_Format": "Loyalität {0}",
-
   "HelpKCounters": "K: Markeninformation auf fokussierter Karte",
-
-  "NoSearchResults": "Keine Suchergebnisse",
-
-  "HelpMLandSummary": "M: Deine Länderzusammenfassung, Umschalt plus M: Gegnerische Länderzusammenfassung",
-
-  "LandSummary_Empty_Format": "{0}, keine Länder",
-  "LandSummary_Total_One": "1 Land",
-  "LandSummary_Total_Format": "{0} Länder",
-  "LandSummary_AllTapped_Format": "{0}, alle getappt",
-  "LandSummary_AllUntapped_Format": "{0}, {1} ungetappt",
-  "LandSummary_Mixed_Format": "{0}, {1} ungetappt",
-
-  "DamageAssign_Entry_Format": "Schaden zuweisen. {0}, {1} Schaden. {2} Blocker",
-  "DamageAssign_Entry_One_Format": "Schaden zuweisen. {0}, {1} Schaden. 1 Blocker",
-  "DamageAssign_Assigned_Format": "{0} von {1} zugewiesen",
-  "DamageAssign_Lethal": "tödlich",
-
+  "StoreSetFilter_Position_Format": "{0}, {1} von {2} Sets",
+  "StoreSetFilter_Items_Format": "{0}. {1} Artikel.",
+  "StoreSetFilter_Items_One": "{0}. 1 Artikel.",
+  "StoreSetFilter_EnterItems_Format": "Packungen: {0}. {1} Artikel.",
+  "StoreSetFilter_EnterItems_One": "Packungen: {0}. 1 Artikel.",
   "ChooseX_Entry_Format": "Wert wählen. Aktuell: {0}. Hoch/Runter zum Anpassen, Eingabe zum Bestätigen, Rücktaste zum Abbrechen",
   "ChooseX_Confirmed_Format": "Bestätigt: {0}",
   "ChooseX_Cancelled": "Auswahl abgebrochen",
   "ChooseX_AtMax": "Maximum erreicht",
   "ChooseX_AtMin": "Minimum erreicht",
   "ChooseX_CannotSubmit": "Aktueller Wert kann nicht bestätigt werden",
-
   "KeywordSelection_Entry_Format": "Schlüsselwort wählen. {0} Optionen. Tab zum Navigieren, Enter zum Auswählen, Leertaste zum Bestätigen",
   "KeywordSelection_Selected": "ausgewählt",
   "KeywordSelection_Toggled_Format": "{0}, {1}"
