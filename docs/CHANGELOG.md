@@ -2,6 +2,19 @@
 
 All notable changes to Accessible Arena.
 
+## v0.8.1
+
+### New: Local Release Script
+- Added `installer/release.ps1` for one-command releases (builds, tags, publishes to GitHub)
+- GitHub Actions workflow no longer works since game DLLs are not in the repository
+- Release script reads version from `Directory.Build.props`, extracts changelog notes, and creates GitHub release via `gh` CLI
+
+### Improved: Full Localization Sync
+- All 11 non-English locale files synced with English (missing keys added, untranslated strings translated)
+- Fixed encoding corruption in zh-CN, ja, ko locale files
+- Localized hardcoded deck status strings (missing cards, invalid deck, unavailable, etc.)
+- Updated DuelKeybindingsHint across all languages to match current keybindings
+
 ## v0.8
 
 ### Massive Internal Refactoring

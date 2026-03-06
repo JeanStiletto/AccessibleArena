@@ -33,7 +33,9 @@ Single-file C# WinForms installer that:
 ## Project Structure
 
 ```
-installer/AccessibleArenaInstaller/
+installer/
+├── release.ps1                              # Local release script (builds, tags, publishes)
+└── AccessibleArenaInstaller/
 ├── AccessibleArenaInstaller.csproj   # Project file
 ├── app.manifest                         # UAC admin elevation request
 ├── Program.cs                           # Entry point, CLI args, update check, uninstall logic
@@ -360,25 +362,45 @@ The installer normalizes versions to 4 components before comparing:
 
 This means `v0.5` and `0.5.0.0` compare as equal, which is the desired behavior.
 
-## Automated Releases with GitHub Actions
+## Automated Releases with GitHub Actions (deprecated)
 
-The release workflow extracts the version from the git tag and passes it to `dotnet build` via `-p:ModVersion=...`. This overrides the `<ModVersion>` in `Directory.Build.props`, which flows to both the assembly version and the generated `VersionInfo.Value` constant used by MelonInfo.
+> **Note:** The GitHub Actions workflow (`.github/workflows/release.yml`) no longer works because the game DLLs (`Core.dll`, `Assembly-CSharp.dll`, etc.) are not in the repository. The mod must be built locally against the game DLLs installed on your machine. Use the local release script described below instead.
 
-See `.github/workflows/release.yml` in the repository. The key build step:
+The workflow extracted the version from the git tag and passed it to `dotnet build` via `-p:ModVersion=...`. See `.github/workflows/release.yml` for reference — it remains in the repo but will fail if triggered.
 
-```yaml
-      - name: Build mod (Release)
-        run: dotnet build src/AccessibleArena.csproj -c Release -p:ModVersion=${{ steps.version.outputs.VERSION }}
+## Local Release Script
+
+Since the mod must be built against game DLLs that cannot be uploaded to GitHub, releases are created locally using `tools/release.ps1`.
+
+**Usage:**
+```powershell
+powershell -NoProfile -File installer/release.ps1
 ```
 
-A single `-p:ModVersion=` flag sets everything — no `sed` patching, no separate `-p:Version=` needed.
+No arguments needed. The script reads the version from `src/Directory.Build.props` and performs the full release automatically:
 
-**Release workflow:**
-1. Tag: `git tag v0.6.9`
-2. Push: `git push origin v0.6.9`
-3. GitHub Actions builds with the correct version baked into both the DLL and MelonInfo automatically
+1. Reads `<ModVersion>` from `src/Directory.Build.props`
+2. Pre-flight checks (clean working tree, tag doesn't exist, changelog section exists, tools available)
+3. Builds mod in Release mode with correct version (`dotnet build -c Release -p:ModVersion=...`)
+4. Builds installer in Release mode
+5. Verifies both artifacts exist (`AccessibleArena.dll` + `AccessibleArenaInstaller.exe`)
+6. Extracts release notes from `docs/CHANGELOG.md` for the matching version section
+7. Creates an annotated git tag
+8. Pushes the tag to remote
+9. Creates the GitHub release via `gh` CLI with release notes and both artifacts
 
-Keep `Directory.Build.props` reasonably current for local dev builds (e.g., bump to `0.7.0-dev` after releasing `0.6.9`).
+**Before running the script:**
+1. Update `<ModVersion>` in `src/Directory.Build.props` to the new version
+2. Add a `## vX.Y` section to `docs/CHANGELOG.md` with release notes
+3. Commit both changes
+4. Run the script
+
+**Requirements:**
+- `dotnet`, `git`, and `gh` CLIs must be installed and on PATH
+- `gh` must be authenticated (`gh auth login`)
+- Game must be installed (DLLs referenced during build)
+
+Keep `Directory.Build.props` reasonably current for local dev builds (e.g., bump to `0.8.1-dev` after releasing `0.8`).
 
 ## Localization
 

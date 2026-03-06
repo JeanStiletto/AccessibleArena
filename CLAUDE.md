@@ -80,6 +80,13 @@ dotnet build src/AccessibleArena.csproj
 powershell -NoProfile -Command "Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
 ```
 
+### Release
+```bash
+# Create a release (builds, tags, publishes to GitHub)
+powershell -NoProfile -File installer/release.ps1
+```
+Before running: update `ModVersion` in `src/Directory.Build.props` and add a `## vX.Y` section to `docs/CHANGELOG.md`, then commit.
+
 ### MelonLoader Logs
 - Latest: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
 - All logs: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Logs\`
