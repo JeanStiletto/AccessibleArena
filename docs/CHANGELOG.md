@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v0.8.2
+
+### Fixed: New Deck Button Always Visible
+- Removed automatic folder collapsing on Backspace exit — deck folders now stay open
+- New Deck button is no longer hidden when the "My Decks" folder was collapsed
+
 ## v0.8.1
 
 ### New: Local Release Script

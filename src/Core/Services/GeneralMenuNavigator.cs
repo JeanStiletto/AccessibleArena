@@ -4822,21 +4822,9 @@ namespace AccessibleArena.Core.Services
             // Inside a group - exit to group level
             if (_groupedNavigator.Level == NavigationLevel.InsideGroup)
             {
-                // If exiting a folder group, toggle the folder OFF to collapse it
                 var currentGroup = _groupedNavigator.CurrentGroup;
                 bool wasFolderGroup = currentGroup.HasValue && currentGroup.Value.IsFolderGroup;
-                // Capture PlayBlade context BEFORE toggle - UI changes might affect detection
                 bool wasPlayBladeContext = _groupedNavigator.IsPlayBladeContext;
-
-                if (wasFolderGroup && currentGroup.Value.FolderToggle != null)
-                {
-                    var toggle = currentGroup.Value.FolderToggle.GetComponent<Toggle>();
-                    if (toggle != null && toggle.isOn)
-                    {
-                        LogDebug($"[{NavigatorId}] Toggling folder OFF to collapse: {currentGroup.Value.DisplayName}");
-                        UIActivator.Activate(currentGroup.Value.FolderToggle);
-                    }
-                }
 
                 if (_groupedNavigator.ExitGroup())
                 {
@@ -4861,7 +4849,7 @@ namespace AccessibleArena.Core.Services
                             LogDebug($"[{NavigatorId}] PlayBlade folder exit - requesting folders list entry");
                         }
 
-                        // Always rescan after folder collapse to update navigation state
+                        // Always rescan after folder exit to update navigation state
                         TriggerRescan();
                     }
 

@@ -48,6 +48,12 @@ When activating a mana-costing ability on a battlefield card, the workflow brows
 
 ---
 
+### Challenge Cannot Be Accepted
+
+Incoming direct challenges cannot be accepted. The accept button or interaction is not working properly.
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Resolution Dropdown Shows Native Display Resolution Until Changed
@@ -145,12 +151,6 @@ Opening the settings menu (F2) during the declare attackers phase causes issues.
 ### Adding Cards to Deck Exits Collection Group
 
 Adding cards to a deck reportedly moves the user out of the Collection group to the upper group level. Exact reproduction steps unknown.
-
----
-
-### New Deck Button Not Visible in Deck Builder
-
-The "New Deck" button in the deck builder sometimes isn't visible if certain other groups (e.g., Progress group) were used before navigating to the deck builder. Exact reproduction steps unknown.
 
 ---
 
@@ -282,4 +282,5 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 4. Cube and other draft event accessibility - make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event)
 5. Cosmetic handling support - accessible navigation and selection for emotes, avatars, card sleeves, card styles, and companions
 6. Achievement screen - accessible navigation and reading of achievement progress and rewards
+7. Improving deck actions workflow - streamline the deck management actions (rename, delete, duplicate, etc.) for better screen reader accessibility
 

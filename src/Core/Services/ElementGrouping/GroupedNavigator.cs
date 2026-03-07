@@ -1517,11 +1517,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_navigationLevel == NavigationLevel.GroupList)
                 return false;
 
-            // NOTE: We intentionally do NOT deactivate the folder toggle when exiting.
-            // In PlayBlade, collapsing the deck folder (setting toggle.isOn = false)
-            // causes the game to deselect the chosen deck, breaking the play workflow.
-            // Keeping the folder expanded preserves the deck selection state.
-
             _navigationLevel = NavigationLevel.GroupList;
             _currentElementIndex = -1;
             return true;
