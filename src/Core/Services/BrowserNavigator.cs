@@ -2327,6 +2327,10 @@ namespace AccessibleArena.Core.Services
                 _assignDamageBrowserRef = currentBrowser;
                 MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Found browser {currentBrowser.GetType().Name}");
 
+                // Deactivate CardInfoNavigator to prevent Up/Down interference
+                // (it runs before BrowserNavigator in the update loop and would intercept spinner keys)
+                AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
+
                 // Cache _idToSpinnerMap
                 var spinnerField = currentBrowser.GetType().GetField("_idToSpinnerMap", ReflFlags);
                 if (spinnerField != null)
