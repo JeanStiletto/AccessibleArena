@@ -65,6 +65,9 @@ namespace AccessibleArena.Core.Services
         private Dictionary<GameObject, (int pile, int indexInPile, int pileTotal)> _selectGroupCardMap
             = new Dictionary<GameObject, (int, int, int)>();
 
+        // Choice-list browser state (LargeScrollList/SelectNCounters with text choices)
+        private bool _isChoiceList;
+
         // KeywordSelection browser state (creature type picker)
         private bool _isKeywordSelection;
         private MonoBehaviour _keywordFilterRef;
@@ -273,6 +276,9 @@ namespace AccessibleArena.Core.Services
             _pile1CDCs.Clear();
             _pile2CDCs.Clear();
             _selectGroupCardMap.Clear();
+
+            // Clear choice-list state
+            _isChoiceList = false;
 
             // Clear KeywordSelection state
             _isKeywordSelection = false;
@@ -939,6 +945,18 @@ namespace AccessibleArena.Core.Services
                 if (_browserButtons.Contains(child.gameObject)) continue;
                 if (BrowserDetector.MatchesButtonPattern(child.name, BrowserDetector.ButtonPatterns)) continue;
 
+                // Skip ViewBattlefield descendants (not a real choice)
+                bool isViewBattlefield = false;
+                for (var ancestor = child.parent; ancestor != null; ancestor = ancestor.parent)
+                {
+                    if (ancestor.name.StartsWith("ViewBattlefield", StringComparison.Ordinal))
+                    {
+                        isViewBattlefield = true;
+                        break;
+                    }
+                }
+                if (isViewBattlefield) continue;
+
                 string choiceText = UITextExtractor.GetButtonText(child.gameObject, child.name);
 
                 // Skip internal UI elements (e.g. Primary_Base(Clone))
@@ -958,6 +976,7 @@ namespace AccessibleArena.Core.Services
                 // Replace scaffold buttons entirely - choices are the only navigable items
                 _browserButtons.Clear();
                 _browserButtons.AddRange(choiceButtons);
+                _isChoiceList = true;
                 MelonLogger.Msg($"[BrowserNavigator] LargeScrollList: {choiceButtons.Count} choices");
             }
         }
@@ -1860,10 +1879,19 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Choice-list (LargeScrollList/SelectNCounters): clicking a choice IS the confirmation.
+            // Space activates the current choice (same as Enter).
+            if (_isChoiceList && _browserButtons.Count > 0 && _currentButtonIndex >= 0)
+            {
+                ActivateCurrentButton();
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // Fallback: PromptButton_Primary (scene search)
-            // Skip for OptionalAction — its buttons are choices, not confirm/cancel,
-            // and the global PromptButtons would click unrelated duel phase buttons
-            if (!(_browserInfo?.IsOptionalAction == true) && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
+            // Skip for OptionalAction and choice-list browsers — their buttons are choices,
+            // not confirm/cancel, and the global PromptButtons would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
@@ -1901,8 +1929,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Third priority: PromptButton_Secondary
-            // Skip for OptionalAction — would click unrelated duel phase buttons
-            if (!(_browserInfo?.IsOptionalAction == true) && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
+            // Skip for OptionalAction and choice-list browsers — would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
