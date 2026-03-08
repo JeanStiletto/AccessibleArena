@@ -443,6 +443,11 @@ namespace AccessibleArena.Core.Services
             {
                 RefreshLondonCardLists();
             }
+            else if (BrowserDetector.IsSplitBrowser(_browserType))
+            {
+                // Split: single holder, pile membership tracked in browser's _topSplit/_bottomSplit
+                RefreshSplitCardLists();
+            }
             else if (GetBrowserController() != null)
             {
                 // Surveil: has CardGroupProvider, uses two separate holders
@@ -502,6 +507,56 @@ namespace AccessibleArena.Core.Services
             _bottomCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
             MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed Surveil lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
+        }
+
+        /// <summary>
+        /// Refreshes card lists for SplitGroup browsers by reading the browser's
+        /// _topSplit and _bottomSplit internal lists directly.
+        /// Unlike Surveil (two holders), Split uses a single holder with internal tracking.
+        /// </summary>
+        private void RefreshSplitCardLists()
+        {
+            _topCards.Clear();
+            _bottomCards.Clear();
+
+            var browser = GetBrowserController();
+            if (browser == null)
+            {
+                MelonLogger.Warning("[BrowserZoneNavigator] Browser controller not found for Split refresh");
+                return;
+            }
+
+            var browserType = browser.GetType();
+            var topField = browserType.GetField("_topSplit", PrivateInstance);
+            var bottomField = browserType.GetField("_bottomSplit", PrivateInstance);
+
+            if (topField != null)
+            {
+                var topList = topField.GetValue(browser) as System.Collections.IList;
+                if (topList != null)
+                {
+                    foreach (var item in topList)
+                    {
+                        if (item is Component comp && comp != null && comp.gameObject != null)
+                            _topCards.Add(comp.gameObject);
+                    }
+                }
+            }
+
+            if (bottomField != null)
+            {
+                var bottomList = bottomField.GetValue(browser) as System.Collections.IList;
+                if (bottomList != null)
+                {
+                    foreach (var item in bottomList)
+                    {
+                        if (item is Component comp && comp != null && comp.gameObject != null)
+                            _bottomCards.Add(comp.gameObject);
+                    }
+                }
+            }
+
+            MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed Split lists - Pile1: {_topCards.Count}, Pile2: {_bottomCards.Count}");
         }
 
         /// <summary>
@@ -957,8 +1012,22 @@ namespace AccessibleArena.Core.Services
 
                 Vector3 targetCenter = (Vector3)centerField.GetValue(browser);
 
-                // Convert local-space center to world-space using the card's Root.parent
-                // (same transform chain the game's HandleDrag uses internally)
+                if (BrowserDetector.IsSplitBrowser(_browserType))
+                {
+                    // Split's HandleDrag uses cardHolder.transform.TransformPoint() for distance checks
+                    var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+                    if (defaultHolder != null)
+                    {
+                        Vector3 worldPos = defaultHolder.transform.TransformPoint(targetCenter);
+                        card.transform.position = worldPos;
+                        return true;
+                    }
+                    MelonLogger.Warning("[BrowserZoneNavigator] Default holder not found for Split positioning");
+                    return false;
+                }
+
+                // Surveil: convert local-space center to world-space using the card's Root.parent
+                // (same transform chain SurveilBrowser's HandleDrag uses internally)
                 var rootProp = cardCDC.GetType().GetProperty("Root", PublicInstance);
                 if (rootProp != null)
                 {
@@ -972,10 +1041,10 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Fallback: use the card holder's transform for coordinate conversion
-                var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
-                if (defaultHolder != null)
+                var defaultHolderFallback = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+                if (defaultHolderFallback != null)
                 {
-                    Vector3 worldPos = defaultHolder.transform.TransformPoint(targetCenter);
+                    Vector3 worldPos = defaultHolderFallback.transform.TransformPoint(targetCenter);
                     card.transform.position = worldPos;
                     return true;
                 }
