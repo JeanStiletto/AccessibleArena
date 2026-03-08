@@ -277,6 +277,32 @@ namespace AccessibleArena.Core.Services
             return SimulatePointerClick(element);
         }
 
+        /// <summary>
+        /// Activates a choice button by directly calling CustomButton.Click(),
+        /// which bypasses the _mouseOver state check in OnPointerUp.
+        /// Falls back to SimulatePointerClick if no CustomButton found.
+        /// </summary>
+        public static ActivationResult ActivateViaCustomButtonClick(GameObject element)
+        {
+            if (element == null)
+                return new ActivationResult(false, "Element is null");
+
+            var customButton = FindComponentByName(element, CustomButtonTypeName);
+            if (customButton != null)
+            {
+                Log($"Invoking CustomButton.Click() on: {element.name}");
+                if (TryInvokeMethod(customButton, "Click"))
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
+            }
+
+            // Fallback: try _onClick.Invoke() via reflection
+            var onClickResult = TryInvokeCustomButtonOnClick(element);
+            if (onClickResult.Success) return onClickResult;
+
+            // Final fallback: pointer simulation
+            return SimulatePointerClick(element);
+        }
+
         #endregion
 
         #region Pointer Simulation

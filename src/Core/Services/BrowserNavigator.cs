@@ -938,6 +938,20 @@ namespace AccessibleArena.Core.Services
             var choiceButtons = new List<GameObject>();
             var seenTexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            // Find the localized ViewBattlefield text from the scaffold.
+            // ViewBattlefield is a separate GO branch (with MainButton child) but the scroll
+            // list duplicates it as a choice entry with localized text (e.g. "Spielfeld betrachten").
+            // We match by text to filter it regardless of locale.
+            string viewBattlefieldText = null;
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name.StartsWith("ViewBattlefield", StringComparison.Ordinal))
+                {
+                    viewBattlefieldText = UITextExtractor.GetButtonText(t.gameObject, null);
+                    if (!string.IsNullOrEmpty(viewBattlefieldText)) break;
+                }
+            }
+
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
             {
                 if (!child.gameObject.activeInHierarchy) continue;
@@ -945,22 +959,17 @@ namespace AccessibleArena.Core.Services
                 if (_browserButtons.Contains(child.gameObject)) continue;
                 if (BrowserDetector.MatchesButtonPattern(child.name, BrowserDetector.ButtonPatterns)) continue;
 
-                // Skip ViewBattlefield descendants (not a real choice)
-                bool isViewBattlefield = false;
-                for (var ancestor = child.parent; ancestor != null; ancestor = ancestor.parent)
-                {
-                    if (ancestor.name.StartsWith("ViewBattlefield", StringComparison.Ordinal))
-                    {
-                        isViewBattlefield = true;
-                        break;
-                    }
-                }
-                if (isViewBattlefield) continue;
+                // Use null fallback: choice container GOs are named with their text content
+                // (e.g. "Eine Karte abwerfen") and are the correct click targets with CustomButton.
+                // Internal backing elements (Secondary_Base, Primary_Base) have no TMP_Text
+                // children of their own and return null here.
+                // DFS order ensures parents are found before children, and dedup skips children.
+                string choiceText = UITextExtractor.GetButtonText(child.gameObject, null);
+                if (string.IsNullOrEmpty(choiceText)) continue;
 
-                string choiceText = UITextExtractor.GetButtonText(child.gameObject, child.name);
-
-                // Skip internal UI elements (e.g. Primary_Base(Clone))
-                if (string.IsNullOrEmpty(choiceText) || choiceText == child.name)
+                // Skip ViewBattlefield choice (matches the scaffold's ViewBattlefield text)
+                if (viewBattlefieldText != null &&
+                    string.Equals(choiceText, viewBattlefieldText, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 // Deduplicate by text (parent+child both have clickable components)
@@ -1659,7 +1668,11 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[BrowserNavigator] Activating button: {label}");
 
-            var result = UIActivator.SimulatePointerClick(button);
+            // Choice-list buttons are parent GOs with CustomButton whose Click()
+            // must be called directly (OnPointerUp requires _mouseOver state).
+            var result = _isChoiceList
+                ? UIActivator.ActivateViaCustomButtonClick(button)
+                : UIActivator.SimulatePointerClick(button);
             if (result.Success)
             {
                 _announcer.Announce(label, AnnouncementPriority.Normal);
