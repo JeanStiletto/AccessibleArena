@@ -2,6 +2,13 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+### Fixed: Jump In Packet Order
+- Packet tiles in Jump In now navigate in consistent top-to-bottom, left-to-right grid order
+- Root cause: child elements inside each packet tile had offset positions causing chaotic sort
+- Fix: sort uses the parent `JumpStartPacket` tile's position instead of the child element's position
+
 ## v0.8.1
 
 ### New: Local Release Script

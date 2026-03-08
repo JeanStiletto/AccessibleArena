@@ -3250,6 +3250,20 @@ namespace AccessibleArena.Core.Services
                 {
                     var pos = obj.transform.position;
                     float sortOrder = -pos.y * 1000 + pos.x;
+
+                    // Jump In packet selection: child elements (e.g. MainButton) may have
+                    // positions offset from their tile root, causing chaotic sort order.
+                    // Use the parent JumpStartPacket tile's position for a consistent grid order.
+                    if (_activeContentController == "PacketSelectContentController")
+                    {
+                        var packetRoot = EventAccessor.GetJumpStartPacketRoot(obj);
+                        if (packetRoot != null)
+                        {
+                            var tilePos = packetRoot.transform.position;
+                            sortOrder = -tilePos.y * 1000 + tilePos.x;
+                        }
+                    }
+
                     discoveredElements.Add((obj, classification, sortOrder));
                     addedObjects.Add(obj);
                     if (isBladeListItem)

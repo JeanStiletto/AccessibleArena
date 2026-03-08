@@ -694,6 +694,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Get the JumpStartPacket tile root for a given element.
+        /// Used to sort packet elements by their tile's position rather than the child
+        /// element's offset position, which may not reflect the visual grid order.
+        /// Returns null if not inside a packet.
+        /// </summary>
+        public static GameObject GetJumpStartPacketRoot(GameObject element)
+        {
+            if (element == null) return null;
+            var packet = FindParentComponent(element, "JumpStartPacket");
+            return packet?.gameObject;
+        }
+
+        /// <summary>
         /// Click a packet element by finding the PacketInput on the parent JumpStartPacket
         /// and invoking its OnClick method. UIActivator's pointer simulation doesn't reach
         /// CustomTouchButton on the JumpStartPacket GO because the navigable element is MainButton (child).

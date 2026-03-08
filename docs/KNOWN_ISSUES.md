@@ -93,11 +93,11 @@ Only tested on Windows 11 with NVDA. Other Windows versions (Windows 10) and oth
 
 ---
 
-### Jump In: Packet Order Chaotic
+### ~~Jump In: Packet Order Chaotic~~ (Fixed)
 
-The packet tiles in Jump In appear in a chaotic/unpredictable order during navigation. The navigation order does not match the visual layout consistently.
+~~The packet tiles in Jump In appear in a chaotic/unpredictable order during navigation.~~
 
-**Files:** `GeneralMenuNavigator.cs`, `EventAccessor.cs`
+Fixed: Packet elements now sort by their parent `JumpStartPacket` tile's position, producing a consistent top-to-bottom, left-to-right grid order. Needs in-game verification.
 
 ---
 
