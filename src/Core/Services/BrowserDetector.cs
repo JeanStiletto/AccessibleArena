@@ -63,7 +63,7 @@ namespace AccessibleArena.Core.Services
 
         // Button name patterns for detection
         public static readonly string[] ButtonPatterns = { "Button", "Accept", "Confirm", "Cancel", "Done", "Keep", "Submit", "Yes", "No", "Mulligan" };
-        public static readonly string[] ConfirmPatterns = { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary" };
+        public static readonly string[] ConfirmPatterns = { "Confirm", "Accept", "Done", "Submit", "OK", "Yes", "Keep", "Primary", "Single" };
         public static readonly string[] CancelPatterns = { "Cancel", "No", "Back", "Close", "Dismiss", "Secondary" };
 
         // Friendly browser name mappings now handled by Strings.GetFriendlyBrowserName()
