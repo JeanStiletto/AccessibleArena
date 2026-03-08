@@ -72,6 +72,14 @@ namespace AccessibleArena.Core.Services
                 Log($"Collection card activation failed, trying fallback");
             }
 
+            // Deck list cards (cards in your deck) may open the card viewer popup when
+            // the Craft filter is active. Block the Enter KeyUp to prevent PopupManager.HandleKeyUp
+            // from calling CardViewerController.OnEnter() → OnCraftClicked() (auto-craft).
+            if (IsDeckListCard(element))
+            {
+                InputManager.BlockNextEnterKeyUp = true;
+            }
+
             // Special handling for deck entries - they need direct selection via DeckViewSelector
             // because MTGA's CustomButton onClick on decks doesn't reliably trigger selection
             if (IsDeckEntry(element))
