@@ -1691,12 +1691,28 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle back navigation in Color Challenge (CampaignGraph).
-        /// CampaignGraph has no game-native back-to-PlayBlade mechanism,
-        /// so we navigate Home to exit.
+        /// Two-level back:
+        /// - Blade collapsed (a color is selected, deck shown) → expand blade to return to color list.
+        /// - Blade expanded (color list visible) → navigate Home to exit Color Challenge.
         /// </summary>
         private bool HandleCampaignGraphBack()
         {
-            LogDebug($"[{NavigatorId}] CampaignGraph: navigating Home");
+            // Check if blade is currently collapsed by looking for the expand button
+            var bladeButton = GetActiveCustomButtons()
+                .FirstOrDefault(obj => obj.name.Contains("BladeHoverClosed") || obj.name.Contains("Btn_BladeIsClosed"));
+
+            if (bladeButton != null)
+            {
+                // Blade is collapsed (a color is selected) — re-expand to show color list
+                LogDebug($"[{NavigatorId}] CampaignGraph back: blade collapsed, re-expanding color list");
+                _announcer.Announce(Models.Strings.OpeningColorChallenges, Models.AnnouncementPriority.High);
+                UIActivator.Activate(bladeButton);
+                TriggerRescan();
+                return true;
+            }
+
+            // Blade is expanded (color list visible) — exit Color Challenge
+            LogDebug($"[{NavigatorId}] CampaignGraph back: blade expanded, navigating Home");
             _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
             return NavigateToHome();
         }

@@ -8,6 +8,11 @@ All notable changes to Accessible Arena.
 - Selecting a different color in Color Challenge now triggers a UI rescan
 - The announced deck name updates to reflect the newly selected color's deck
 
+### Fixed: Color Challenge Backspace Navigation
+- Backspace now re-expands the color list when a color is selected (blade collapsed)
+- Backspace from the color list (blade expanded) still navigates Home
+- Previously Backspace always went Home regardless of blade state
+
 ## v0.8.1
 
 ### New: Local Release Script
