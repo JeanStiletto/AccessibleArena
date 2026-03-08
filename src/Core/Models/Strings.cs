@@ -834,6 +834,16 @@ namespace AccessibleArena.Core.Models
         public static string HelpF11CardDump => L.Get("HelpF11CardDump");
         public static string HelpF12UIDump => L.Get("HelpF12UIDump");
 
+        // Tips for new users
+        public static string HelpCategoryTips => L.Get("HelpCategoryTips");
+        public static string HelpTipSpaceAdvance => L.Get("HelpTipSpaceAdvance");
+        public static string HelpTipBackspaceCancel => L.Get("HelpTipBackspaceCancel");
+        public static string HelpTipCombatBlocking => L.Get("HelpTipCombatBlocking");
+        public static string HelpTipExtendedInfo => L.Get("HelpTipExtendedInfo");
+        public static string HelpTipManaColorPicker => L.Get("HelpTipManaColorPicker");
+        public static string HelpTipCommandZone => L.Get("HelpTipCommandZone");
+        public static string HelpTipFullControlPhases => L.Get("HelpTipFullControlPhases");
+
         // ===========================================
         // BROWSER (Scry, Surveil, Mulligan, etc.)
         // ===========================================
