@@ -1196,8 +1196,19 @@ namespace AccessibleArena.Core.Services
             }
 
             // Build announcement
+            // For zone-based browsers during Tab, use per-zone position if available
+            string position = null;
+            if (_browserInfo.IsZoneBased && _zoneNavigator.TryGetCardZonePosition(card, out int zoneIdx, out int zoneTotal) && zoneTotal > 0)
+            {
+                position = zoneTotal > 1 ? $"{zoneIdx} of {zoneTotal}" : null;
+            }
+            else if (_browserCards.Count > 1)
+            {
+                position = $"{_currentCardIndex + 1} of {_browserCards.Count}";
+            }
+
             string announcement;
-            if (_browserCards.Count == 1)
+            if (position == null)
             {
                 announcement = string.IsNullOrEmpty(selectionState)
                     ? $"{cardName}{zoneSuffix}"
@@ -1205,7 +1216,6 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                string position = $"{_currentCardIndex + 1} of {_browserCards.Count}";
                 announcement = string.IsNullOrEmpty(selectionState)
                     ? $"{cardName}{zoneSuffix}, {position}"
                     : $"{cardName}{zoneSuffix}, {selectionState}, {position}";

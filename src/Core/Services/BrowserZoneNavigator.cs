@@ -84,7 +84,24 @@ namespace AccessibleArena.Core.Services
             _topCards.Clear();
             _bottomCards.Clear();
 
+            // Pre-populate card lists so DetectCardZone works immediately
+            // (Split browser starts all cards in _bottomSplit; without this,
+            // fallback parent-hierarchy detection wrongly labels them as Top/Pile1)
+            if (BrowserDetector.IsSplitBrowser(_browserType))
+            {
+                MelonCoroutines.Start(RefreshAfterActivation());
+            }
+
             MelonLogger.Msg($"[BrowserZoneNavigator] Activated for {_browserType}");
+        }
+
+        /// <summary>
+        /// Refreshes card lists shortly after activation so the game has time to populate its internal lists.
+        /// </summary>
+        private IEnumerator RefreshAfterActivation()
+        {
+            yield return new WaitForSeconds(0.1f);
+            RefreshCardLists();
         }
 
         /// <summary>
@@ -1137,6 +1154,32 @@ namespace AccessibleArena.Core.Services
                 return Strings.Duel_SelectForBottom(_mulliganCount, cardCount);
             }
             return null;
+        }
+
+        /// <summary>
+        /// Gets zone-specific position info for a card (1-based index and zone total).
+        /// Returns false if card zone could not be determined or lists are empty.
+        /// </summary>
+        public bool TryGetCardZonePosition(GameObject card, out int indexInZone, out int zoneTotal)
+        {
+            indexInZone = 0;
+            zoneTotal = 0;
+            if (card == null) return false;
+
+            var zone = DetectCardZone(card);
+            if (zone == BrowserZoneType.None) return false;
+
+            var list = zone == BrowserZoneType.Top ? _topCards : _bottomCards;
+            zoneTotal = list.Count;
+            int idx = list.IndexOf(card);
+            if (idx >= 0)
+            {
+                indexInZone = idx + 1;
+                return true;
+            }
+
+            // Card is in this zone but not in our tracked list (e.g. lists not yet refreshed)
+            return false;
         }
 
         /// <summary>
