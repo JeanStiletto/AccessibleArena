@@ -121,6 +121,18 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | InviteOutgoingTile | InviteOutgoingTile | Asm |
 | InviteIncomingTile | InviteIncomingTile | Asm |
 | BlockTile | BlockTile | Asm |
+| ChatWindow | ChatWindow | Core |
+| ChatManager | MTGA.Social.ChatManager | Core |
+| SocialMessagesView | SocialMessagesView | Core |
+| MessageTile | MessageTile | Core |
+| Conversation | MTGA.Social.Conversation | Core |
+| SocialMessage | MTGA.Social.SocialMessage | Core |
+| SocialEntity | MTGA.Social.SocialEntity | Core |
+| ISocialManager | MTGA.Social.ISocialManager | Core |
+| Direction | MTGA.Social.Direction | Core |
+| MessageType | MTGA.Social.MessageType | Core |
+| MessageSeen | MTGA.Social.MessageSeen | Core |
+| PresenceStatus | MTGA.Social.PresenceStatus | Core |
 
 ## Challenge / Private Game
 
