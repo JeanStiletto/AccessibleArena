@@ -833,5 +833,18 @@
   "ColorChallengeMatchPvP": "PvP对战",
   "ColorChallengeMatchAI": "AI对战",
   "ColorChallengeDeckUpgrade": "套牌升级",
-  "ColorChallengeReward_Format": "奖励：{0}"
+  "ColorChallengeReward_Format": "奖励：{0}",
+  "ScreenChat": "聊天",
+  "ChatWith_Format": "与{0}聊天",
+  "ChatMessageIncoming_Format": "{0}: {1}",
+  "ChatMessageOutgoing_Format": "你: {0}",
+  "ChatMessageSent": "消息已发送",
+  "ChatNextConversation": "下一个对话",
+  "ChatPreviousConversation": "上一个对话",
+  "ChatMessages_Format": "{0}条消息",
+  "ChatInputField": "消息",
+  "ChatSendButton": "发送",
+  "ChatClosed": "聊天已关闭",
+  "ChatNoConversation": "无对话",
+  "GroupChatWindow": "聊天"
 }

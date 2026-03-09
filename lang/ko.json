@@ -833,5 +833,18 @@
   "ColorChallengeMatchPvP": "PvP 대전",
   "ColorChallengeMatchAI": "AI 대전",
   "ColorChallengeDeckUpgrade": "덱 강화",
-  "ColorChallengeReward_Format": "보상: {0}"
+  "ColorChallengeReward_Format": "보상: {0}",
+  "ScreenChat": "채팅",
+  "ChatWith_Format": "{0}와 채팅",
+  "ChatMessageIncoming_Format": "{0}: {1}",
+  "ChatMessageOutgoing_Format": "나: {0}",
+  "ChatMessageSent": "메시지 전송됨",
+  "ChatNextConversation": "다음 대화",
+  "ChatPreviousConversation": "이전 대화",
+  "ChatMessages_Format": "메시지 {0}개",
+  "ChatInputField": "메시지",
+  "ChatSendButton": "보내기",
+  "ChatClosed": "채팅 닫힘",
+  "ChatNoConversation": "대화 없음",
+  "GroupChatWindow": "채팅"
 }

@@ -114,6 +114,7 @@ namespace AccessibleArena
                 new LoadingScreenNavigator(_announcer),  // MatchEnd/Matchmaking transitional screens (priority 65)
                 new MasteryNavigator(_announcer),            // Mastery/Rewards screen - levels and rewards (priority 60)
                 new StoreNavigator(_announcer),           // Store screen - tabs and items (priority 55)
+                new ChatNavigator(_announcer),            // Chat window - messages and input (priority 52)
                 new CodexNavigator(_announcer),            // Codex/LearnToPlay screen (priority 50)
                 new GeneralMenuNavigator(_announcer),
                 new AssetPrepNavigator(_announcer)  // Download screen - low priority, fails gracefully

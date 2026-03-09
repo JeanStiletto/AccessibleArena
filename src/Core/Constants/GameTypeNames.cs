@@ -70,6 +70,12 @@ namespace AccessibleArena.Core.Constants
         public const string IncomingChallengeRequestTile = "IncomingChallengeRequestTile";
         public const string CurrentChallengeTile = "CurrentChallengeTile";
         public const string FriendsWidget = "FriendsWidget";
+        public const string ChatWindow = "ChatWindow";
+        public const string ChatManager = "ChatManager";
+        public const string SocialMessagesView = "SocialMessagesView";
+        public const string MessageTile = "MessageTile";
+        public const string Conversation = "Conversation";
+        public const string SocialMessage = "SocialMessage";
 
         // --- Fully-Qualified Type Names (for FindType lookups) ---
         public const string NavContentControllerFQ = "Wotc.Mtga.Wrapper.NavContentController";

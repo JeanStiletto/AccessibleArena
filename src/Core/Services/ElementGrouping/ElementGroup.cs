@@ -199,7 +199,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Friends panel: Local player profile (username#number + status).
         /// Single-element standalone group for sharing your username.
         /// </summary>
-        FriendsPanelProfile
+        FriendsPanelProfile,
+
+        /// <summary>
+        /// Chat window overlay. Messages, input field, and send button.
+        /// </summary>
+        ChatWindow
     }
 
     /// <summary>
@@ -234,7 +239,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.MailboxList
                 || group == ElementGroup.MailboxContent
                 || group == ElementGroup.RewardsPopup
-                || group == ElementGroup.ChallengeMain;
+                || group == ElementGroup.ChallengeMain
+                || group == ElementGroup.ChatWindow;
         }
 
         /// <summary>
@@ -250,7 +256,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.FriendSectionIncoming
                 || group == ElementGroup.FriendSectionOutgoing
                 || group == ElementGroup.FriendSectionBlocked
-                || group == ElementGroup.FriendSectionChallenges;
+                || group == ElementGroup.FriendSectionChallenges
+                || group == ElementGroup.ChatWindow;
         }
 
         /// <summary>

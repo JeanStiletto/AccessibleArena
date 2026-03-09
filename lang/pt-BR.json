@@ -833,5 +833,18 @@
   "ColorChallengeMatchPvP": "Partida PvP",
   "ColorChallengeMatchAI": "Partida contra IA",
   "ColorChallengeDeckUpgrade": "Melhoria do deck",
-  "ColorChallengeReward_Format": "Recompensa: {0}"
+  "ColorChallengeReward_Format": "Recompensa: {0}",
+  "ScreenChat": "Chat",
+  "ChatWith_Format": "Chat com {0}",
+  "ChatMessageIncoming_Format": "{0}: {1}",
+  "ChatMessageOutgoing_Format": "Você: {0}",
+  "ChatMessageSent": "Mensagem enviada",
+  "ChatNextConversation": "Próxima conversa",
+  "ChatPreviousConversation": "Conversa anterior",
+  "ChatMessages_Format": "{0} mensagens",
+  "ChatInputField": "Mensagem",
+  "ChatSendButton": "Enviar",
+  "ChatClosed": "Chat fechado",
+  "ChatNoConversation": "Sem conversa",
+  "GroupChatWindow": "Chat"
 }

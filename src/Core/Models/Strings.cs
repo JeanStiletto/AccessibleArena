@@ -1119,6 +1119,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.FriendSectionChallenges: return L.Get("GroupFriendSectionChallenges");
                 case Services.ElementGrouping.ElementGroup.FriendsPanelProfile: return L.Get("GroupFriendsPanelProfile");
                 case Services.ElementGrouping.ElementGroup.ChallengeMain: return L.Get("GroupChallengeMain");
+                case Services.ElementGrouping.ElementGroup.ChatWindow: return L.Get("GroupChatWindow");
                 default: return L.Get("GroupOther");
             }
         }
@@ -1257,5 +1258,21 @@ namespace AccessibleArena.Core.Models
         public static string FriendActionUnblock => L.Get("FriendActionUnblock");
         public static string FriendActionAddFriend => L.Get("FriendActionAddFriend");
         public static string FriendActionOpenChallenge => L.Get("FriendActionOpenChallenge");
+
+        // ===========================================
+        // CHAT
+        // ===========================================
+        public static string ScreenChat => L.Get("ScreenChat");
+        public static string ChatWith(string name) => L.Format("ChatWith_Format", name);
+        public static string ChatMessageIncoming(string name, string message) => L.Format("ChatMessageIncoming_Format", name, message);
+        public static string ChatMessageOutgoing(string message) => L.Format("ChatMessageOutgoing_Format", message);
+        public static string ChatMessageSent => L.Get("ChatMessageSent");
+        public static string ChatNextConversation => L.Get("ChatNextConversation");
+        public static string ChatPreviousConversation => L.Get("ChatPreviousConversation");
+        public static string ChatMessages(int count) => L.Format("ChatMessages_Format", count);
+        public static string ChatInputField => L.Get("ChatInputField");
+        public static string ChatSendButton => L.Get("ChatSendButton");
+        public static string ChatClosed => L.Get("ChatClosed");
+        public static string ChatNoConversation => L.Get("ChatNoConversation");
     }
 }

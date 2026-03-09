@@ -846,5 +846,18 @@
   "InputFieldCharacterCount_Few": "{0} znaki",
   "BrowserCards_Few": "{0}. {1} karty. Tab do nawigacji, Enter do wyboru",
   "ItemsCount_Few": "{0} przedmioty",
-  "ItemCount_Few": "{0} elementy"
+  "ItemCount_Few": "{0} elementy",
+  "ScreenChat": "Czat",
+  "ChatWith_Format": "Czat z {0}",
+  "ChatMessageIncoming_Format": "{0}: {1}",
+  "ChatMessageOutgoing_Format": "Ty: {0}",
+  "ChatMessageSent": "Wiadomość wysłana",
+  "ChatNextConversation": "Następna rozmowa",
+  "ChatPreviousConversation": "Poprzednia rozmowa",
+  "ChatMessages_Format": "{0} wiadomości",
+  "ChatInputField": "Wiadomość",
+  "ChatSendButton": "Wyślij",
+  "ChatClosed": "Czat zamknięty",
+  "ChatNoConversation": "Brak rozmowy",
+  "GroupChatWindow": "Czat"
 }

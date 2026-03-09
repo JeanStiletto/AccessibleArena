@@ -833,5 +833,18 @@
   "ColorChallengeMatchPvP": "Match JcJ",
   "ColorChallengeMatchAI": "Match contre l'IA",
   "ColorChallengeDeckUpgrade": "Amélioration du deck",
-  "ColorChallengeReward_Format": "Récompense : {0}"
+  "ColorChallengeReward_Format": "Récompense : {0}",
+  "ScreenChat": "Chat",
+  "ChatWith_Format": "Chat avec {0}",
+  "ChatMessageIncoming_Format": "{0}: {1}",
+  "ChatMessageOutgoing_Format": "Vous: {0}",
+  "ChatMessageSent": "Message envoyé",
+  "ChatNextConversation": "Conversation suivante",
+  "ChatPreviousConversation": "Conversation précédente",
+  "ChatMessages_Format": "{0} messages",
+  "ChatInputField": "Message",
+  "ChatSendButton": "Envoyer",
+  "ChatClosed": "Chat fermé",
+  "ChatNoConversation": "Aucune conversation",
+  "GroupChatWindow": "Chat"
 }

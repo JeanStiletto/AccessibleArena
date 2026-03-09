@@ -846,5 +846,18 @@
   "InputFieldCharacterCount_Few": "{0} символа",
   "BrowserCards_Few": "{0}. {1} карты. Tab для навигации, Enter для выбора",
   "ItemsCount_Few": "{0} предмета",
-  "ItemCount_Few": "{0} элемента"
+  "ItemCount_Few": "{0} элемента",
+  "ScreenChat": "Чат",
+  "ChatWith_Format": "Чат с {0}",
+  "ChatMessageIncoming_Format": "{0}: {1}",
+  "ChatMessageOutgoing_Format": "Вы: {0}",
+  "ChatMessageSent": "Сообщение отправлено",
+  "ChatNextConversation": "Следующий разговор",
+  "ChatPreviousConversation": "Предыдущий разговор",
+  "ChatMessages_Format": "{0} сообщений",
+  "ChatInputField": "Сообщение",
+  "ChatSendButton": "Отправить",
+  "ChatClosed": "Чат закрыт",
+  "ChatNoConversation": "Нет разговора",
+  "GroupChatWindow": "Чат"
 }

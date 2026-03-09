@@ -833,5 +833,18 @@
   "ColorChallengeMatchPvP": "PvP対戦",
   "ColorChallengeMatchAI": "AI対戦",
   "ColorChallengeDeckUpgrade": "デッキ強化",
-  "ColorChallengeReward_Format": "報酬：{0}"
+  "ColorChallengeReward_Format": "報酬：{0}",
+  "ScreenChat": "チャット",
+  "ChatWith_Format": "{0}とチャット",
+  "ChatMessageIncoming_Format": "{0}: {1}",
+  "ChatMessageOutgoing_Format": "自分: {0}",
+  "ChatMessageSent": "メッセージ送信済み",
+  "ChatNextConversation": "次の会話",
+  "ChatPreviousConversation": "前の会話",
+  "ChatMessages_Format": "{0}件のメッセージ",
+  "ChatInputField": "メッセージ",
+  "ChatSendButton": "送信",
+  "ChatClosed": "チャットを閉じました",
+  "ChatNoConversation": "会話なし",
+  "GroupChatWindow": "チャット"
 }

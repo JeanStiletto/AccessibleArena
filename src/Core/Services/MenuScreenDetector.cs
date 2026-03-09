@@ -239,6 +239,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Check if the Social/Friends panel is currently open.
+        /// Also returns true when the chat window is open (it's part of the social overlay).
         /// </summary>
         public bool IsSocialPanelOpen()
         {
@@ -254,14 +255,48 @@ namespace AccessibleArena.Core.Services
                 {
                     if (child.name.StartsWith("FriendsWidget") && child.gameObject.activeInHierarchy)
                         return true;
+                    // Chat window is also a social overlay
+                    if (child.GetType().Name == "ChatWindow" || child.name.Contains("ChatWindow"))
+                    {
+                        var chatComp = child.GetComponent<MonoBehaviour>();
+                        if (chatComp != null && chatComp.GetType().Name == "ChatWindow" && child.gameObject.activeInHierarchy)
+                            return true;
+                    }
                 }
             }
+
+            // Check via SocialUI.ChatVisible property
+            if (IsChatWindowOpen()) return true;
 
             // Alternative: check for the top bar dismiss button which appears when panel is open
             var topBarDismiss = socialPanel.GetComponentsInChildren<UnityEngine.UI.Button>(false)
                 .FirstOrDefault(b => b.name.Contains("TopBarDismiss"));
             if (topBarDismiss != null && topBarDismiss.gameObject.activeInHierarchy)
                 return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if the Chat window is currently open (separate from friends list).
+        /// </summary>
+        public bool IsChatWindowOpen()
+        {
+            var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
+            if (socialPanel == null) return false;
+
+            // Check SocialUI.ChatVisible property via reflection
+            var socialUI = socialPanel.GetComponent<MonoBehaviour>();
+            if (socialUI != null && socialUI.GetType().Name == "SocialUI")
+            {
+                var chatVisibleProp = socialUI.GetType().GetProperty("ChatVisible",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (chatVisibleProp != null)
+                {
+                    try { return (bool)chatVisibleProp.GetValue(socialUI); }
+                    catch { }
+                }
+            }
 
             return false;
         }
