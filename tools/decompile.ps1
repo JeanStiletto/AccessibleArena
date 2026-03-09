@@ -24,7 +24,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Paths
-$managedDir = "C:\Program Files\Wizards of the Coast\MTGA\MTGA_Data\Managed"
+$managedDir = "C:\Program Files (x86)\Steam\steamapps\common\MTGA\MTGA_Data\Managed"
 $ilspycmd = "$env:USERPROFILE\.dotnet\tools\ilspycmd.exe"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 

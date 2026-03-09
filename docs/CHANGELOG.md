@@ -2,6 +2,20 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+### New: Color Challenge node info blocks
+- When on the Color Challenge screen, challenge node info is now accessible via Up/Down navigation
+- Each objective node (I through V) shows its status (Completed, Current, Available, Locked)
+- Shows match type for each node (PvP Match or AI Match)
+- Shows reward text from the game's data model when available (e.g., gold, wildcards, card styles)
+- Indicates when a node includes a deck upgrade (new cards added)
+- Reward popup text (title and description) is included when the bubble popup is visible
+- Falls back to track-level summary (e.g., "3 of 5 nodes unlocked") when node display is not active
+- Info blocks refresh automatically when switching between colors
+- Filters out developer placeholder text in reward descriptions
+- Reads directly from the game's CampaignGraphTrackModule, objective bubbles, and strategy node data
+
 ## v0.8.1
 
 ### New: Local Release Script

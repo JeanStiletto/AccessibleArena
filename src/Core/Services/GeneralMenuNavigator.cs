@@ -979,11 +979,9 @@ namespace AccessibleArena.Core.Services
             {
                 InjectEventInfoGroup();
             }
-
-            if (_elements.Count > 0)
+            else if (_activeContentController == "CampaignGraphContentController")
             {
-                _currentIndex = 0;
-                UpdateEventSystemSelection();
+                InjectCampaignGraphInfoGroup();
             }
 
             // After rescan, announce the results
@@ -2999,6 +2997,10 @@ namespace AccessibleArena.Core.Services
             {
                 InjectEventInfoGroup();
             }
+            else if (_activeContentController == "CampaignGraphContentController")
+            {
+                InjectCampaignGraphInfoGroup();
+            }
 
             // Try to find the previously selected object in the new element list
             if (previousSelection != null)
@@ -4932,6 +4934,13 @@ namespace AccessibleArena.Core.Services
             var result = UIActivator.Activate(element);
             _announcer.Announce(result.Message, Models.AnnouncementPriority.Normal);
 
+            // Color Challenge: activating a color button changes the track, so rescan
+            // to refresh info blocks and deck name
+            if (_activeContentController == "CampaignGraphContentController")
+            {
+                TriggerRescan();
+            }
+
             // Note: Mailbox mail item selection is detected via Harmony patch on OnLetterSelected
             // which announces the mail content directly with actual letter data
 
@@ -5406,6 +5415,58 @@ namespace AccessibleArena.Core.Services
                 );
 
                 // Subsequent blocks insert after the last EventInfo
+                insertAfter = ElementGrouping.ElementGroup.EventInfo;
+            }
+        }
+
+        #endregion
+
+        #region Color Challenge Info Virtual Group
+
+        /// <summary>
+        /// Injects Color Challenge node info as virtual elements into the grouped navigator.
+        /// Reads the objective nodes from CampaignGraphTrackModule (via EventAccessor)
+        /// and adds them as navigable info blocks showing each node's status and reward.
+        /// This matches the game's visual display of objective bubbles with their popups.
+        /// </summary>
+        private void InjectCampaignGraphInfoGroup()
+        {
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return;
+
+            var blocks = EventAccessor.GetCampaignGraphInfoBlocks();
+            if (blocks == null || blocks.Count == 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] EventAccessor returned no CampaignGraph info blocks");
+                return;
+            }
+            MelonLogger.Msg($"[{NavigatorId}] Injecting {blocks.Count} CampaignGraph info elements");
+
+            ElementGroup? insertAfter = null;
+            foreach (var block in blocks)
+            {
+                string label = string.IsNullOrEmpty(block.Label)
+                    ? block.Content
+                    : $"{block.Label}: {block.Content}";
+
+                var elements = new List<ElementGrouping.GroupedElement>
+                {
+                    new ElementGrouping.GroupedElement
+                    {
+                        GameObject = null,
+                        Label = label,
+                        Group = ElementGrouping.ElementGroup.EventInfo
+                    }
+                };
+
+                _groupedNavigator.AddVirtualGroup(
+                    ElementGrouping.ElementGroup.EventInfo,
+                    elements,
+                    insertAfter: insertAfter,
+                    isStandalone: true,
+                    displayName: label
+                );
+
                 insertAfter = ElementGrouping.ElementGroup.EventInfo;
             }
         }

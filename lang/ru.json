@@ -738,6 +738,15 @@
   "EventScreenTitle_Format": "Событие: {0}",
   "PacketOf_Format": "Пакет {0} из {1}",
   "EventInfoLabel": "Инфо",
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "Полный контроль включён",
   "FullControl_Off": "Полный контроль выключен",
   "FullControl_Locked": "Полный контроль заблокирован",
@@ -816,5 +825,9 @@
   "InputFieldCharacterCount_Few": "{0} символа",
   "BrowserCards_Few": "{0}. {1} карты. Tab для навигации, Enter для выбора",
   "ItemsCount_Few": "{0} предмета",
-  "ItemCount_Few": "{0} элемента"
+  "ItemCount_Few": "{0} элемента",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }

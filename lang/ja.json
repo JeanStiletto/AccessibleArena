@@ -738,6 +738,15 @@
   "EventScreenTitle_Format": "イベント: {0}",
   "PacketOf_Format": "パケット{0}/{1}",
   "EventInfoLabel": "情報",
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "フルコントロール オン",
   "FullControl_Off": "フルコントロール オフ",
   "FullControl_Locked": "フルコントロール ロック",
@@ -803,5 +812,9 @@
   "ChooseX_CannotSubmit": "現在の値を送信できません",
   "KeywordSelection_Entry_Format": "キーワードを選択。{0}個の選択肢。Tabで移動、Enterで選択、Spaceで確定",
   "KeywordSelection_Selected": "選択済み",
-  "KeywordSelection_Toggled_Format": "{0}、{1}"
+  "KeywordSelection_Toggled_Format": "{0}、{1}",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }

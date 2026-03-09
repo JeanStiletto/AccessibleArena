@@ -738,6 +738,15 @@
   "EventScreenTitle_Format": "이벤트: {0}",
   "PacketOf_Format": "패킷 {0}/{1}",
   "EventInfoLabel": "정보",
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "풀 컨트롤 켜짐",
   "FullControl_Off": "풀 컨트롤 꺼짐",
   "FullControl_Locked": "풀 컨트롤 잠금",
@@ -803,5 +812,9 @@
   "ChooseX_CannotSubmit": "현재 값을 제출할 수 없습니다",
   "KeywordSelection_Entry_Format": "키워드 선택. {0}개 옵션. Tab으로 이동, Enter로 선택, Space로 확인",
   "KeywordSelection_Selected": "선택됨",
-  "KeywordSelection_Toggled_Format": "{0}, {1}"
+  "KeywordSelection_Toggled_Format": "{0}, {1}",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }

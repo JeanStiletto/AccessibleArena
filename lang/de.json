@@ -738,6 +738,15 @@
   "EventScreenTitle_Format": "Event: {0}",
   "PacketOf_Format": "Paket {0} von {1}",
   "EventInfoLabel": "Info",
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "Volle Kontrolle an",
   "FullControl_Off": "Volle Kontrolle aus",
   "FullControl_Locked": "Volle Kontrolle gesperrt",
@@ -803,5 +812,9 @@
   "ChooseX_CannotSubmit": "Aktueller Wert kann nicht bestätigt werden",
   "KeywordSelection_Entry_Format": "Schlüsselwort wählen. {0} Optionen. Tab zum Navigieren, Enter zum Auswählen, Leertaste zum Bestätigen",
   "KeywordSelection_Selected": "ausgewählt",
-  "KeywordSelection_Toggled_Format": "{0}, {1}"
+  "KeywordSelection_Toggled_Format": "{0}, {1}",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }

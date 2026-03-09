@@ -44,9 +44,14 @@ namespace AccessibleArena.Core.Services
         private static bool _jumpStartReflectionInit;
         private static FieldInfo _packTitleField;           // _packTitle (Localize)
 
+        // --- CampaignGraphContentController reflection cache ---
+        private static bool _campaignGraphReflectionInit;
+        private static FieldInfo _campaignGraphStrategyField;   // _strategy (IColorChallengeStrategy)
+
         // Cached component references (invalidated on scene change)
         private static MonoBehaviour _cachedEventPageController;
         private static MonoBehaviour _cachedPacketController;
+        private static MonoBehaviour _cachedCampaignGraphController;
 
         #region Event Tile Enrichment
 
@@ -957,6 +962,428 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Color Challenge
+
+        /// <summary>
+        /// Get info blocks for the Color Challenge screen by reading the objective
+        /// bubbles that the game renders in CampaignGraphTrackModule.
+        /// Each bubble is a challenge node (I, II, III...) with a status (completed,
+        /// next to unlock, locked) and optional reward popup text.
+        /// </summary>
+        public static System.Collections.Generic.List<CardInfoBlock> GetCampaignGraphInfoBlocks()
+        {
+            var blocks = new System.Collections.Generic.List<CardInfoBlock>();
+
+            try
+            {
+                var controller = FindCampaignGraphController();
+                if (controller == null) return blocks;
+
+                // Find CampaignGraphTrackModule in children
+                MonoBehaviour trackModule = null;
+                foreach (var mb in controller.GetComponentsInChildren<MonoBehaviour>(false))
+                {
+                    if (mb != null && mb.GetType().Name == "CampaignGraphTrackModule")
+                    {
+                        trackModule = mb;
+                        break;
+                    }
+                }
+
+                if (trackModule == null)
+                {
+                    // Track module hidden (not in playing mode yet) — read from strategy data instead
+                    return GetCampaignGraphInfoFromStrategy();
+                }
+
+                // Build node dictionary from strategy data for enrichment
+                var nodeMap = BuildNodeMap(controller);
+
+                // Find all CampaignGraphObjectiveBubble children
+                foreach (var mb in trackModule.GetComponentsInChildren<MonoBehaviour>(false))
+                {
+                    if (mb == null || mb.GetType().Name != "CampaignGraphObjectiveBubble")
+                        continue;
+
+                    // Get bubble ID to look up match node data
+                    string bubbleId = mb.GetType().GetProperty("ID", PublicInstance)
+                        ?.GetValue(mb) as string;
+                    object matchNode = null;
+                    if (bubbleId != null)
+                        nodeMap?.TryGetValue(bubbleId, out matchNode);
+
+                    string nodeLabel = ReadBubbleInfo(mb, matchNode);
+                    if (!string.IsNullOrEmpty(nodeLabel))
+                        blocks.Add(new CardInfoBlock(Strings.EventInfoLabel, nodeLabel, isVerbose: false));
+                }
+
+                MelonLogger.Msg($"[EventAccessor] GetCampaignGraphInfoBlocks: {blocks.Count} blocks from track module");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[EventAccessor] GetCampaignGraphInfoBlocks failed: {ex.Message}");
+            }
+
+            return blocks;
+        }
+
+        /// <summary>
+        /// Build a dictionary mapping node ID → Client_ColorChallengeMatchNode
+        /// from the strategy's CurrentTrack.Nodes list.
+        /// </summary>
+        private static System.Collections.Generic.Dictionary<string, object> BuildNodeMap(MonoBehaviour controller)
+        {
+            var map = new System.Collections.Generic.Dictionary<string, object>();
+            try
+            {
+                if (_campaignGraphStrategyField == null) return map;
+                var strategy = _campaignGraphStrategyField.GetValue(controller);
+                if (strategy == null) return map;
+
+                var currentTrack = strategy.GetType()
+                    .GetProperty("CurrentTrack", PublicInstance)?.GetValue(strategy);
+                if (currentTrack == null) return map;
+
+                var nodesList = currentTrack.GetType()
+                    .GetProperty("Nodes", PublicInstance)?.GetValue(currentTrack)
+                    as System.Collections.IList;
+                if (nodesList == null) return map;
+
+                foreach (var node in nodesList)
+                {
+                    if (node == null) continue;
+                    var id = node.GetType().GetField("Id")?.GetValue(node) as string;
+                    if (!string.IsNullOrEmpty(id))
+                        map[id] = node;
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[EventAccessor] BuildNodeMap failed: {ex.Message}");
+            }
+            return map;
+        }
+
+        /// <summary>
+        /// Read a single CampaignGraphObjectiveBubble's display info, optionally enriched
+        /// with data from the matching Client_ColorChallengeMatchNode.
+        /// Returns e.g. "Challenge II: Completed, AI Match, Reward: 100 Gold" or "Challenge III: Locked".
+        /// </summary>
+        private static string ReadBubbleInfo(MonoBehaviour bubble, object matchNode = null)
+        {
+            try
+            {
+                var bubbleType = bubble.GetType();
+
+                // Read roman numeral from _circleText (TextMeshProUGUI)
+                var circleTextField = bubbleType.GetField("_circleText", PrivateInstance);
+                string roman = null;
+                if (circleTextField != null)
+                {
+                    var tmp = circleTextField.GetValue(bubble) as TMPro.TMP_Text;
+                    if (tmp != null)
+                        roman = tmp.text?.Trim();
+                }
+
+                // Read status from Animator bools via reflection (Animator type is
+                // in UnityEngine.AnimationModule which isn't referenced)
+                string status = null;
+                var animatorField = bubbleType.GetField("_animator", PrivateInstance);
+                if (animatorField != null)
+                {
+                    var animator = animatorField.GetValue(bubble);
+                    if (animator != null)
+                    {
+                        var getBool = animator.GetType().GetMethod("GetBool", new[] { typeof(string) });
+                        if (getBool != null)
+                        {
+                            bool locked = (bool)getBool.Invoke(animator, new object[] { "Locked" });
+                            bool completed = (bool)getBool.Invoke(animator, new object[] { "Completed" });
+                            bool selected = (bool)getBool.Invoke(animator, new object[] { "Selected" });
+
+                            if (completed)
+                                status = Strings.ColorChallengeNodeCompleted;
+                            else if (selected)
+                                status = Strings.ColorChallengeNodeCurrent;
+                            else if (locked)
+                                status = Strings.ColorChallengeNodeLocked;
+                            else
+                                status = Strings.ColorChallengeNodeAvailable;
+                        }
+                    }
+                }
+
+                // Read reward popup text if available (from EPPRewardWebHanger on the bubble)
+                string rewardText = null;
+                var popupField = bubbleType.GetField("_notificationPopup", PrivateInstance);
+                if (popupField != null)
+                {
+                    var popup = popupField.GetValue(bubble) as MonoBehaviour;
+                    if (popup != null)
+                    {
+                        var titleField = popup.GetType().GetField("_titleLabel", PrivateInstance);
+                        var descField = popup.GetType().GetField("_descriptionLabel", PrivateInstance);
+
+                        string title = ReadLocalizeText(titleField, popup);
+                        string desc = ReadLocalizeText(descField, popup);
+
+                        if (IsPlaceholderText(desc)) desc = null;
+                        if (IsPlaceholderText(title)) title = null;
+
+                        if (!string.IsNullOrEmpty(title))
+                            rewardText = !string.IsNullOrEmpty(desc) ? $"{title}: {desc}" : title;
+                    }
+                }
+
+                // Enrich from Client_ColorChallengeMatchNode data
+                string matchType = null;
+                string nodeRewardText = null;
+                bool hasDeckUpgrade = false;
+                if (matchNode != null)
+                {
+                    var nodeType = matchNode.GetType();
+
+                    // IsPvpMatch (readonly bool field)
+                    var pvpField = nodeType.GetField("IsPvpMatch");
+                    if (pvpField != null)
+                    {
+                        bool isPvp = (bool)pvpField.GetValue(matchNode);
+                        matchType = isPvp ? Strings.ColorChallengeMatchPvP : Strings.ColorChallengeMatchAI;
+                    }
+
+                    // DeckUpgradeData (readonly field, null if no upgrade)
+                    var upgradeField = nodeType.GetField("DeckUpgradeData");
+                    if (upgradeField != null)
+                    {
+                        var upgradeData = upgradeField.GetValue(matchNode);
+                        if (upgradeData != null)
+                        {
+                            hasDeckUpgrade = true;
+                            var cardsField = upgradeData.GetType().GetProperty("CardsAdded", PublicInstance)
+                                ?? (System.Reflection.MemberInfo)upgradeData.GetType().GetField("CardsAdded");
+                            if (cardsField != null)
+                            {
+                                object cardsList = cardsField is PropertyInfo pi
+                                    ? pi.GetValue(upgradeData)
+                                    : ((FieldInfo)cardsField).GetValue(upgradeData);
+                                if (cardsList is System.Collections.IList cl && cl.Count > 0)
+                                    hasDeckUpgrade = true;
+                            }
+                        }
+                    }
+
+                    // Reward from data model (fallback when popup has no text)
+                    if (string.IsNullOrEmpty(rewardText))
+                    {
+                        var rewardField = nodeType.GetField("Reward");
+                        if (rewardField != null)
+                        {
+                            var reward = rewardField.GetValue(matchNode);
+                            if (reward != null)
+                                nodeRewardText = ReadRewardDisplayText(reward);
+                        }
+                    }
+                }
+
+                // Build final label
+                string challengeLabel = !string.IsNullOrEmpty(roman)
+                    ? Strings.ColorChallengeNode(roman) : Strings.ColorChallengeNode("?");
+
+                var parts = new System.Collections.Generic.List<string>();
+                parts.Add(challengeLabel);
+                if (!string.IsNullOrEmpty(status))
+                    parts.Add(status);
+                if (!string.IsNullOrEmpty(matchType))
+                    parts.Add(matchType);
+                // Popup text already includes its own title (e.g. "Reward: ..."),
+                // so don't wrap it again. Only wrap strategy-sourced text.
+                if (!string.IsNullOrEmpty(rewardText))
+                    parts.Add(rewardText);
+                else if (!string.IsNullOrEmpty(nodeRewardText))
+                    parts.Add(Strings.ColorChallengeReward(nodeRewardText));
+                if (hasDeckUpgrade)
+                    parts.Add(Strings.ColorChallengeDeckUpgrade);
+
+                return string.Join(", ", parts);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[EventAccessor] ReadBubbleInfo failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Read localized text from a RewardDisplayData object.
+        /// Tries MainText first, then RewardText. MTGALocalizedString.ToString()
+        /// resolves through the game's localization system.
+        /// </summary>
+        private static string ReadRewardDisplayText(object reward)
+        {
+            try
+            {
+                var rType = reward.GetType();
+
+                // Try MainText first (primary reward header)
+                var mainTextField = rType.GetField("MainText");
+                if (mainTextField != null)
+                {
+                    var mainText = mainTextField.GetValue(reward);
+                    if (mainText != null)
+                    {
+                        string text = mainText.ToString();
+                        if (!string.IsNullOrEmpty(text) && !IsPlaceholderText(text))
+                            return UITextExtractor.CleanText(text);
+                    }
+                }
+
+                // Fallback to RewardText
+                var rewardTextField = rType.GetField("RewardText");
+                if (rewardTextField != null)
+                {
+                    var rewardText = rewardTextField.GetValue(reward);
+                    if (rewardText != null)
+                    {
+                        string text = rewardText.ToString();
+                        if (!string.IsNullOrEmpty(text) && !IsPlaceholderText(text))
+                            return UITextExtractor.CleanText(text);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[EventAccessor] ReadRewardDisplayText failed: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Read text from a Localize component field (gets its TMP_Text child).
+        /// </summary>
+        private static string ReadLocalizeText(FieldInfo field, MonoBehaviour owner)
+        {
+            if (field == null) return null;
+            var localizeComp = field.GetValue(owner) as MonoBehaviour;
+            if (localizeComp == null) return null;
+            var tmp = localizeComp.GetComponentInChildren<TMPro.TMP_Text>();
+            if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+                return UITextExtractor.CleanText(tmp.text);
+            return null;
+        }
+
+        /// <summary>
+        /// Detect developer placeholder/template text that shouldn't be read aloud.
+        /// </summary>
+        private static bool IsPlaceholderText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            // Known placeholder patterns in Color Challenge reward popups
+            if (text.Contains("character max)")) return true;
+            if (text.Contains("short sentences go here")) return true;
+            if (text.Contains("wraps to")) return true;
+            if (text.StartsWith("Color mastery description")) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Fallback: read Color Challenge info from strategy data when the track module
+        /// is not visible (e.g., before entering playing mode). Reads track-level summary.
+        /// </summary>
+        private static System.Collections.Generic.List<CardInfoBlock> GetCampaignGraphInfoFromStrategy()
+        {
+            var blocks = new System.Collections.Generic.List<CardInfoBlock>();
+
+            try
+            {
+                var controller = FindCampaignGraphController();
+                if (controller == null || _campaignGraphStrategyField == null) return blocks;
+
+                var strategy = _campaignGraphStrategyField.GetValue(controller);
+                if (strategy == null) return blocks;
+
+                var stratType = strategy.GetType();
+                var currentTrackProp = stratType.GetProperty("CurrentTrack", PublicInstance);
+                if (currentTrackProp == null) return blocks;
+
+                var currentTrack = currentTrackProp.GetValue(strategy);
+                if (currentTrack == null) return blocks;
+
+                var trackType = currentTrack.GetType();
+                string trackName = trackType.GetProperty("Name", PublicInstance)?.GetValue(currentTrack) as string;
+                bool completed = (bool)(trackType.GetProperty("Completed", PublicInstance)?.GetValue(currentTrack) ?? false);
+                int unlocked = (int)(trackType.GetProperty("UnlockedMatchNodeCount", PublicInstance)?.GetValue(currentTrack) ?? 0);
+
+                int total = 0;
+                var nodesProp = trackType.GetProperty("Nodes", PublicInstance);
+                if (nodesProp != null)
+                {
+                    var nodes = nodesProp.GetValue(currentTrack);
+                    if (nodes != null)
+                    {
+                        var countProp = nodes.GetType().GetProperty("Count", PublicInstance);
+                        if (countProp != null) total = (int)countProp.GetValue(nodes);
+                    }
+                }
+
+                string summary = Strings.ColorChallengeProgress(trackName, unlocked, total, completed);
+                if (!string.IsNullOrEmpty(summary))
+                    blocks.Add(new CardInfoBlock(Strings.EventInfoLabel, summary, isVerbose: false));
+
+                MelonLogger.Msg($"[EventAccessor] GetCampaignGraphInfoFromStrategy: {blocks.Count} blocks");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[EventAccessor] GetCampaignGraphInfoFromStrategy failed: {ex.Message}");
+            }
+
+            return blocks;
+        }
+
+        private static MonoBehaviour FindCampaignGraphController()
+        {
+            if (_cachedCampaignGraphController != null)
+            {
+                try
+                {
+                    if (_cachedCampaignGraphController.gameObject != null &&
+                        _cachedCampaignGraphController.gameObject.activeInHierarchy)
+                        return _cachedCampaignGraphController;
+                }
+                catch { /* Cached object may have been destroyed */ }
+                _cachedCampaignGraphController = null;
+            }
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == "CampaignGraphContentController")
+                {
+                    _cachedCampaignGraphController = mb;
+
+                    if (!_campaignGraphReflectionInit)
+                        InitCampaignGraphReflection(mb.GetType());
+
+                    return mb;
+                }
+            }
+
+            return null;
+        }
+
+        private static void InitCampaignGraphReflection(Type type)
+        {
+            if (_campaignGraphReflectionInit) return;
+
+            _campaignGraphStrategyField = type.GetField("_strategy", PrivateInstance);
+
+            _campaignGraphReflectionInit = true;
+
+            MelonLogger.Msg($"[EventAccessor] CampaignGraph reflection init: " +
+                $"strategy={_campaignGraphStrategyField != null}");
+        }
+
+        #endregion
+
         #region Utility
 
         /// <summary>
@@ -984,6 +1411,7 @@ namespace AccessibleArena.Core.Services
         {
             _cachedEventPageController = null;
             _cachedPacketController = null;
+            _cachedCampaignGraphController = null;
         }
 
         #endregion

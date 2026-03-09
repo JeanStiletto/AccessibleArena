@@ -738,6 +738,15 @@
   "EventScreenTitle_Format": "Wydarzenie: {0}",
   "PacketOf_Format": "Pakiet {0} z {1}",
   "EventInfoLabel": "Info",
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "Pełna kontrola włączona",
   "FullControl_Off": "Pełna kontrola wyłączona",
   "FullControl_Locked": "Pełna kontrola zablokowana",
@@ -816,5 +825,9 @@
   "InputFieldCharacterCount_Few": "{0} znaki",
   "BrowserCards_Few": "{0}. {1} karty. Tab do nawigacji, Enter do wyboru",
   "ItemsCount_Few": "{0} przedmioty",
-  "ItemCount_Few": "{0} elementy"
+  "ItemCount_Few": "{0} elementy",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }

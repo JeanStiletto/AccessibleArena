@@ -738,6 +738,15 @@
   "EventScreenTitle_Format": "Événement : {0}",
   "PacketOf_Format": "Paquet {0} sur {1}",
   "EventInfoLabel": "Info",
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "ContrÃ´le total activÃ©",
   "FullControl_Off": "ContrÃ´le total dÃ©sactivÃ©",
   "FullControl_Locked": "ContrÃ´le total verrouillÃ©",
@@ -803,5 +812,9 @@
   "ChooseX_CannotSubmit": "Impossible d'envoyer la valeur actuelle",
   "KeywordSelection_Entry_Format": "Choisir un mot-clé. {0} options. Tab pour naviguer, Entrée pour sélectionner, Espace pour confirmer",
   "KeywordSelection_Selected": "sélectionné",
-  "KeywordSelection_Toggled_Format": "{0}, {1}"
+  "KeywordSelection_Toggled_Format": "{0}, {1}",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }

@@ -6,13 +6,11 @@
   "NoNextItem": "No next item",
   "NoPreviousItem": "No previous item",
   "ItemDisabled": "Item is disabled",
-
   "Activating_Format": "Activating {0}",
   "CannotActivate_Format": "Cannot activate {0}",
   "CouldNotPlay_Format": "Could not play {0}",
   "NoAbilityAvailable_Format": "{0} has no activatable ability",
   "NoCardSelected": "No card selected",
-
   "NavigateWithArrows": "Arrow keys to navigate",
   "BeginningOfList": "Beginning of list",
   "EndOfList": "End of list",
@@ -31,11 +29,9 @@
   "ClosingSettings": "Closing settings",
   "ClosingPlayBlade": "Closing play menu",
   "ExitingDeckBuilder": "Exiting deck builder",
-
   "DeckInfoCardCount": "Card Count",
   "DeckInfoManaCurve": "Mana Curve",
   "DeckInfoTypeBreakdown": "Types",
-
   "DeckSelected": "selected",
   "DeckStatus_Unavailable": "unavailable",
   "DeckStatus_Invalid": "invalid deck",
@@ -43,7 +39,6 @@
   "DeckStatus_MissingCards": "missing cards",
   "DeckStatus_MissingCardsCraftable": "missing cards, craftable",
   "DeckStatus_InvalidCompanion": "invalid companion",
-
   "BirthYearField": "Birth year field. Use arrow keys to select year.",
   "BirthMonthField": "Birth month field. Use arrow keys to select month.",
   "BirthDayField": "Birth day field. Use arrow keys to select day.",
@@ -58,7 +53,6 @@
   "CheckingQueuePosition": "Checking queue position...",
   "OpeningSupportWebsite": "Opening support website...",
   "NoTermsContentFound": "No terms content found",
-
   "EndOfBattlefield": "End of battlefield",
   "BeginningOfBattlefield": "Beginning of battlefield",
   "EndOfRow": "End of row",
@@ -67,38 +61,32 @@
   "RowWithCount_One": "{0}, 1 card",
   "RowWithCount_Format": "{0}, {1} cards",
   "RowEmptyShort_Format": "{0}, empty",
-
   "LandSummary_Empty_Format": "{0}, no lands",
   "LandSummary_Total_One": "1 land",
   "LandSummary_Total_Format": "{0} lands",
   "LandSummary_AllTapped_Format": "{0}, all tapped",
   "LandSummary_AllUntapped_Format": "{0}, {1} untapped",
   "LandSummary_Mixed_Format": "{0}, {1} untapped",
-
   "EndOfZone": "End of zone",
   "BeginningOfZone": "Beginning of zone",
   "ZoneNotFound_Format": "{0} not found",
   "ZoneEmpty_Format": "{0}, empty",
   "ZoneWithCount_One": "{0}, 1 card",
   "ZoneWithCount_Format": "{0}, {1} cards",
-
   "NoValidTargets": "No valid targets",
   "NoTargetSelected": "No target selected",
   "TargetingCancelled": "Targeting cancelled",
   "SelectTargetNoValid": "Select a target. No valid targets found.",
   "Targeted_Format": "Targeted {0}",
   "CouldNotTarget_Format": "Could not target {0}",
-
   "NoPlayableCards": "No playable cards",
   "SpellCast": "Spell cast",
   "SpellCastPrefix": "Cast",
   "SpellUnknown": "unknown spell",
   "ResolveStackFirst": "Resolve stack first. Press Space to resolve or Tab to select targets.",
-
   "AbilityTriggered": "triggered",
   "AbilityActivated": "activated",
   "AbilityUnknown": "Ability",
-
   "NoSubmitButtonFound": "No submit button found",
   "CouldNotSubmitDiscard": "Could not submit discard",
   "DiscardCount_One": "Discard 1 card",
@@ -109,10 +97,8 @@
   "NeedHaveSelected_Format": "Need {0}, have {1} selected",
   "SubmittingDiscard_Format": "Submitting {0} cards for discard",
   "CouldNotSelect_Format": "Could not select {0}",
-
   "EndOfCard": "End of card",
   "BeginningOfCard": "Beginning of card",
-
   "CardInfoName": "Name",
   "CardInfoQuantity": "Quantity",
   "CardInfoCollection": "Collection",
@@ -124,13 +110,10 @@
   "CardInfoRarity": "Rarity",
   "CardInfoArtist": "Artist",
   "CardInfoSetAndArtist": "Set and Artist",
-
   "CardQuantityMissing_Format": "{0}, missing",
   "CardOwned_Format": "Owned {0}",
   "CardOwnedInDeck_Format": "Owned {0}, In Deck {1}",
-
   "CardPosition_Format": "{0}{1}, {2} of {3}",
-
   "LibraryCount_One": "Library, 1 card",
   "LibraryCount_Format": "Library, {0} cards",
   "OpponentLibraryCount_One": "Opponent's library, 1 card",
@@ -140,13 +123,11 @@
   "LibraryCountNotAvailable": "Library count not available",
   "OpponentLibraryCountNotAvailable": "Opponent's library count not available",
   "OpponentHandCountNotAvailable": "Opponent's hand count not available",
-
   "PlayerInfo": "Player info",
   "You": "You",
   "Opponent": "Opponent",
   "EndOfProperties": "End of properties",
   "PlayerType": "player",
-
   "Life_Format": "{0} life",
   "LifeNotAvailable": "Life not available",
   "TimerNotAvailable": "Timer not available",
@@ -156,11 +137,9 @@
   "GamesWon_Format": "{0} games won",
   "WinsNotAvailable": "Wins not available",
   "RankNotAvailable": "Rank not available",
-
   "Emotes": "Emotes",
   "EmoteSent_Format": "{0} sent",
   "EmotesNotAvailable": "Emotes not available",
-
   "InputFieldEmpty": "empty",
   "InputFieldStart": "start",
   "InputFieldEnd": "end",
@@ -171,7 +150,6 @@
   "InputFieldEmptyWithLabel_Format": "{0}, empty",
   "InputFieldPasswordWithCount_Format": "{0}, {1} characters",
   "InputFieldHint": "Press Enter to edit",
-
   "CharSpace": "space",
   "CharDot": "dot",
   "CharComma": "comma",
@@ -205,7 +183,6 @@
   "CharTilde": "tilde",
   "CharBacktick": "backtick",
   "CharCaret": "caret",
-
   "ManaTap": "Tap",
   "ManaUntap": "Untap",
   "ManaWhite": "White",
@@ -221,7 +198,6 @@
   "ManaPhyrexian": "Phyrexian",
   "ManaPhyrexian_Format": "Phyrexian {0}",
   "ManaHybrid_Format": "{0} or {1}",
-
   "ManaColorPicker_Format": "Choose mana color: {0}",
   "ManaColorPicker_Option_Format": "{0} {1}",
   "ManaColorPicker_Selected_Format": "Selected {0}. Selection {1} of {2}",
@@ -229,7 +205,6 @@
   "ManaColorPicker_Done_Format": "Selected {0}",
   "ManaColorPicker_Cancelled": "Mana color selection cancelled",
   "ManaColorPicker_InvalidKey": "Invalid option",
-
   "SettingsMenuTitle": "Mod Settings",
   "SettingsMenuInstructions": "Arrow Up and Down to navigate, Enter to change, Backspace or F2 to close",
   "SettingsMenuClosed": "Mod settings closed",
@@ -241,12 +216,10 @@
   "SettingOff": "Off",
   "SettingChanged_Format": "{0} set to {1}",
   "SettingItemPosition_Format": "{0} of {1}: {2}",
-
   "HelpMenuTitle": "Help Menu",
   "HelpMenuInstructions": "Arrow Up and Down to navigate, Backspace or F1 to close",
   "HelpItemPosition_Format": "{2}, {0} of {1}",
   "HelpMenuClosed": "Help closed",
-
   "HelpCategoryGlobal": "Global shortcuts",
   "HelpCategoryMenuNavigation": "Menu navigation",
   "HelpCategoryDuelZones": "Zones in duel",
@@ -255,13 +228,11 @@
   "HelpCategoryCardDetails": "Card details",
   "HelpCategoryCombat": "Combat",
   "HelpCategoryBrowser": "Browser (Scry, Surveil, Mulligan)",
-
   "HelpF1Help": "F1: Help menu",
   "HelpF2Settings": "F2: Settings menu",
   "HelpF3Context": "F3: Current screen",
   "HelpCtrlRRepeat": "Control plus R: Repeat last announcement",
   "HelpBackspace": "Backspace: Back, dismiss, or cancel",
-
   "HelpArrowUpDown": "Arrow Up or Down: Navigate menu items",
   "HelpTabNavigation": "Tab or Shift plus Tab: Navigate menu items, or switch groups in collection",
   "HelpArrowLeftRight": "Arrow Left or Right: Carousel and stepper controls",
@@ -269,14 +240,12 @@
   "HelpPageUpDown": "Page Up or Page Down: Previous or next page in collection",
   "HelpNumberKeysFilters": "Number keys 1 to 0: Activate filters 1 to 10 in collection",
   "HelpEnterSpace": "Enter or Space: Activate",
-
   "HelpCategoryInputFields": "Input fields",
   "HelpEnterEditField": "Enter: Start editing text field",
   "HelpEscapeExitField": "Escape: Stop editing, stay on field",
   "HelpTabNextField": "Tab: Stop editing and move to next element",
   "HelpShiftTabPrevField": "Shift plus Tab: Stop editing and move to previous element",
   "HelpArrowsInField": "Arrows in field: Left or Right reads character, Up or Down reads content",
-
   "HelpCHand": "C: Your hand, Shift plus C: Opponent hand count",
   "HelpBBattlefield": "B: Your creatures, Shift plus B: Opponent creatures",
   "HelpALands": "A: Your lands, Shift plus A: Opponent lands",
@@ -285,39 +254,31 @@
   "HelpXExile": "X: Your exile, Shift plus X: Opponent exile",
   "HelpSStack": "S: Stack",
   "HelpDLibrary": "D: Your library, Shift plus D: Opponent library",
-
   "HelpLLifeTotals": "L: Life totals",
   "HelpTTurnPhase": "T: Turn and phase",
   "HelpVPlayerInfo": "V: Player info zone",
   "HelpMLandSummary": "M: Your land summary, Shift plus M: Opponent land summary",
-
   "HelpLeftRightCards": "Left or Right arrow: Previous or next card",
   "HelpHomeEndCards": "Home or End: First or last card",
   "HelpEnterPlay": "Enter: Play or activate card",
   "HelpTabTargets": "Tab: Cycle through targets or playable cards",
-
   "HelpUpDownDetails": "Up or Down arrow: Navigate card details",
-
   "HelpCategoryDuelGeneral": "General duel commands",
   "HelpSpaceAdvance": "Space: Confirm or advance phase",
   "HelpBackspaceCancel": "Backspace: Cancel",
   "HelpEnterSelect": "Enter: Select",
   "HelpYUndo": "Y: Undo",
   "HelpQQFloatMana": "Double press Q: Tap all lands for mana",
-
   "HelpSpaceCombat": "Space: Confirm attackers or blockers",
   "HelpBackspaceCombat": "Backspace: No attacks or cancel blocks",
-
   "HelpTabBrowser": "Tab: Navigate all cards",
   "HelpCDZones": "C or D: Jump to keep or bottom zone",
   "HelpEnterToggle": "Enter: Toggle card between zones",
   "HelpSpaceConfirm": "Space: Confirm selection",
-
   "HelpCategoryDebug": "Debug keys (developers)",
   "HelpF4Refresh": "F4: Refresh current navigator",
   "HelpF11CardDump": "F11: Dump card details to log (pack opening)",
   "HelpF12UIDump": "F12: Dump UI hierarchy to log",
-
   "NoCards": "No cards",
   "NoButtonSelected": "No button selected",
   "NoButtonsAvailable": "No buttons available",
@@ -336,7 +297,6 @@
   "BrowserCards_One": "{0}. 1 card. Tab to navigate, Enter to select",
   "BrowserOptions_Format": "{0}. Tab to navigate options",
   "ZoneChange": "Zone",
-
   "MasteryActivation_Format": "{0}. Level {1} of {2}, {3}. Arrow keys to navigate levels.",
   "MasteryLevel_Format": "Level {0}: {1}",
   "MasteryLevelWithStatus_Format": "Level {0}: {1}. {2}",
@@ -355,18 +315,15 @@
   "MasteryStatus": "Status",
   "MasteryStatusInfo_Format": "Level {0} of {1}",
   "MasteryStatusInfoWithXP_Format": "Level {0} of {1}, {2}",
-
   "PrizeWallActivation_Format": "Prize Wall. {0} items. {1} spheres available. Arrow keys to navigate.",
   "PrizeWallItem_Format": "{0} of {1}: {2}",
   "PrizeWallSphereStatus_Format": "{0} spheres available",
   "PopupCancel": "Cancel",
-
   "NavigateHint": "Arrow keys to navigate, Enter to select",
   "DuelKeybindingsHint": "Tab cycles playable cards. C for hand. B for your creatures, A for your lands, R for your non-creatures. Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. V for player info. P for full control, Shift plus P to lock. Number keys 1 to 0 for phase stops",
   "ItemsCount_One": "1 item",
   "ItemsCount_Format": "{0} items",
   "ActivationWithItems_Format": "{0}. {1}. {2}",
-
   "SearchResults_Format": "Search results: {0} cards",
   "SearchResultsItems_Format": "Search results: {0} items",
   "ExitedEditMode": "Exited edit mode",
@@ -432,7 +389,6 @@
   "PackDetailsDumped": "Pack details dumped to log.",
   "WaitingForPlayable": "Waiting for playable cards...",
   "NoSearchResults": "No search results",
-
   "BrowserHint": "Tab to see card, Enter to keep on top",
   "EnterToSelect": "Enter to select",
   "TabToNavigate": "Tab to navigate",
@@ -440,7 +396,6 @@
   "HasCharacters_Format": "has {0} characters",
   "PositionOf_Format": "{0} of {1}",
   "LabelValue_Format": "{0}: {1}",
-
   "GroupPrimaryActions": "Primary Actions",
   "GroupPlay": "Play",
   "GroupProgress": "Progress",
@@ -487,7 +442,6 @@
   "ChallengeBlockOpponent": "Block opponent",
   "ChallengeAddFriend": "Add friend",
   "GroupOther": "Other",
-
   "NoItemsFound": "No items found.",
   "NoNavigableItemsFound": "No navigable items found.",
   "GroupCount_Format": "{0} groups",
@@ -498,7 +452,6 @@
   "ScreenGroupsSummary_Format": "{0}. {2}. {1}",
   "ScreenItemsSummary_Format": "{0}. {2}. {1}",
   "ObjectivesEntry_Format": "Objectives, {0}",
-
   "LangEnglish": "English",
   "LangGerman": "German",
   "LangFrench": "French",
@@ -511,7 +464,6 @@
   "LangPolish": "Polish",
   "LangChineseSimplified": "Chinese Simplified",
   "LangChineseTraditional": "Chinese Traditional",
-
   "ScreenHome": "Home",
   "ScreenDecks": "Decks",
   "ScreenProfile": "Profile",
@@ -577,7 +529,6 @@
   "ScreenRewardPopup": "Reward popup",
   "ScreenOverlay": "Overlay",
   "WaitingForServer": "Waiting for server",
-
   "Zone_Hand": "Your hand",
   "Zone_Battlefield": "Battlefield",
   "Zone_Graveyard": "Your graveyard",
@@ -590,14 +541,12 @@
   "Zone_OpponentLibrary": "Opponent's library",
   "Zone_OpponentExile": "Opponent's exile",
   "Zone_OpponentCommand": "Opponent's command zone",
-
   "Row_PlayerCreatures": "Your creatures",
   "Row_PlayerNonCreatures": "Your non-creatures",
   "Row_PlayerLands": "Your lands",
   "Row_EnemyCreatures": "Enemy creatures",
   "Row_EnemyNonCreatures": "Enemy non-creatures",
   "Row_EnemyLands": "Enemy lands",
-
   "BrowserZone_KeepOnTop": "Keep on top",
   "BrowserZone_PutOnBottom": "Put on bottom",
   "BrowserZone_KeepPile": "Keep pile",
@@ -608,7 +557,6 @@
   "BrowserZone_Entry_Format": "{0}: {1} cards. {2}, 1 of {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} of {3}",
   "BrowserZone_NoCardSelected": "No card selected",
-
   "Browser_Scry": "Scry",
   "Browser_Surveil": "Surveil",
   "Browser_ReadAhead": "Read ahead",
@@ -631,12 +579,10 @@
   "Browser_Information": "Information",
   "Browser_ChooseAction": "Choose action",
   "Browser_Default": "Browser",
-
   "DamageAssign_Entry_Format": "Assign damage. {0}, {1} damage. {2} blockers",
   "DamageAssign_Entry_One_Format": "Assign damage. {0}, {1} damage. 1 blocker",
   "DamageAssign_Assigned_Format": "{0} of {1} assigned",
   "DamageAssign_Lethal": "lethal",
-
   "Combat_Attacking": "attacking",
   "Combat_CanAttack": "can attack",
   "Combat_Blocking_Format": "blocking {0}",
@@ -647,10 +593,8 @@
   "Combat_Tapped": "tapped",
   "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "assigned",
-
   "Target_Targeted_Format": "Targeted {0}",
   "Target_Selected_Format": "Selected {0}",
-
   "Card_EnchantedBy_One_Format": "enchanted by {0}",
   "Card_EnchantedBy_Many_Format": "enchanted by {0}",
   "Card_AttachedTo_Format": "attached to {0}",
@@ -660,9 +604,7 @@
   "Card_TargetedBy_One_Format": "targeted by {0}",
   "Card_TargetedBy_Two_Format": "targeted by {0} and {1}",
   "Card_TargetedBy_Many_Format": "targeted by {0}",
-
   "Duel_Started_Format": "Duel started. {0} cards in hand",
-
   "Duel_YourTurn_Format": "Turn {0}",
   "Duel_OpponentTurn": "Opponent's turn",
   "Duel_TurnChanged": "Turn changed",
@@ -678,7 +620,6 @@
   "Duel_CardToYourGraveyard": "Card went to your graveyard",
   "Duel_CardToOpponentGraveyard": "Card went to opponent's graveyard",
   "Duel_SpellResolved": "Spell resolved",
-
   "Duel_Phase_FirstMain": "First main phase",
   "Duel_Phase_SecondMain": "Second main phase",
   "Duel_Phase_DeclareAttackers": "Declare attackers",
@@ -689,7 +630,6 @@
   "Duel_Phase_Upkeep": "Upkeep",
   "Duel_Phase_Draw": "Draw",
   "Duel_Phase_EndStep": "End step",
-
   "Duel_PhaseDesc_FirstMain": "first main phase",
   "Duel_PhaseDesc_SecondMain": "second main phase",
   "Duel_PhaseDesc_DeclareAttackers": "declare attackers",
@@ -703,35 +643,29 @@
   "Duel_PhaseDesc_Beginning": "beginning phase",
   "Duel_PhaseDesc_Ending": "ending phase",
   "Duel_PhaseDesc_Turn": "turn",
-
   "Duel_TurnPhase_Format": "{0} {1}, turn {2}",
   "Duel_TurnPhaseNoCount_Format": "{0} {1}",
   "Duel_Your": "Your",
   "Duel_Opponents": "Opponent's",
   "Duel_You": "You",
   "Duel_Opponent": "Opponent",
-
   "Duel_LifeGained_Format": "{0} gained {1} life",
   "Duel_LifeLost_Format": "{0} lost {1} life",
-
   "Duel_DamageDeals_Format": "{0} deals {1} to {2}",
   "Duel_DamageAmount_Format": "{0} to {1}",
   "Duel_DamageToYou": "you",
   "Duel_DamageToOpponent": "opponent",
   "Duel_DamageTarget": "target",
   "Duel_CombatDamageSource": "Combat damage",
-
   "Duel_Revealed_Format": "Revealed {0}",
   "Duel_CounterGained_Format": "{0} gained {1} {2} counter",
   "Duel_CounterGainedPlural_Format": "{0} gained {1} {2} counters",
   "Duel_CounterLost_Format": "{0} lost {1} {2} counter",
   "Duel_CounterLostPlural_Format": "{0} lost {1} {2} counters",
   "Duel_CounterCreature": "creature",
-
   "Duel_Victory": "Victory!",
   "Duel_Defeat": "Defeat",
   "Duel_GameEnded": "Game ended",
-
   "Duel_CombatBegins": "Combat begins",
   "Duel_AttackerDeclared": "Attacker declared",
   "Duel_OpponentAttackerDeclared": "Opponent's attacker declared",
@@ -740,7 +674,6 @@
   "Duel_AttackerRemoved": "Attacker removed",
   "Duel_Attackers_One": "1 attacker",
   "Duel_Attackers_Format": "{0} attackers",
-
   "Duel_TokenCreated_Format": "{0} token created",
   "Duel_Played_Format": "{0} played {1}",
   "Duel_Enchanted_Format": "{0} enchanted {1}",
@@ -751,7 +684,6 @@
   "Duel_ReturnedFromExileEnchanting_Format": "{0} returned from exile, enchanting {1}",
   "Duel_EntersBattlefieldFromLibrary_Format": "{0} enters battlefield from library",
   "Duel_EntersBattlefieldFromLibraryEnchanting_Format": "{0} enters battlefield from library, enchanting {1}",
-
   "Duel_Died_Format": "{0}{1} died",
   "Duel_Destroyed_Format": "{0}{1} was destroyed",
   "Duel_Sacrificed_Format": "{0}{1} was sacrificed",
@@ -759,32 +691,25 @@
   "Duel_Discarded_Format": "{0}{1} was discarded",
   "Duel_Milled_Format": "{0}{1} was milled",
   "Duel_WentToGraveyard_Format": "{0}{1} went to graveyard",
-
   "Duel_Exiled_Format": "{0}{1} was exiled",
   "Duel_ExiledFromGraveyard_Format": "{0}{1} was exiled from graveyard",
   "Duel_ExiledFromHand_Format": "{0}{1} was exiled from hand",
   "Duel_ExiledFromLibrary_Format": "{0}{1} was exiled from library",
   "Duel_CounteredAndExiled_Format": "{0}{1} was countered and exiled",
-
   "Duel_ReturnedToHand_Format": "{0}{1} returned to hand",
   "Duel_ReturnedToHandFromGraveyard_Format": "{0}{1} returned to hand from graveyard",
   "Duel_ReturnedToHandFromExile_Format": "{0}{1} returned to hand from exile",
-
   "Duel_DamageTo_Format": "{0} deals {1} to {2}",
   "Duel_DamageAmountTo_Format": "{0} damage to {1}",
   "Duel_CreatureDamage_Format": "{0} deals {1} to {2}",
-
   "Duel_ScryHint": "Scry. Tab to see card, Enter to keep on top, Space to put on bottom",
   "Duel_SurveilHint": "Surveil. Tab to see card, Enter to keep on top, Space to put in graveyard",
   "Duel_EffectHint_Format": "{0}. Tab to navigate, Enter to select",
   "Duel_LookAtTopCard": "Look at top card",
-
   "Duel_SelectForBottom_One": "Select 1 card to put on bottom. {0} cards. Enter to toggle, Space when done",
   "Duel_SelectForBottom_Format": "Select {0} cards to put on bottom. {1} cards. Enter to toggle, Space when done",
   "Duel_SelectedForBottom_Format": "{0} of {1} selected for bottom",
-
   "Duel_OwnerPrefix_Opponent": "Opponent's ",
-
   "CardInfoKeywords": "Keywords",
   "NoExtendedCardInfo": "No additional information",
   "LinkedFace_OtherFace": "Other face",
@@ -792,13 +717,10 @@
   "LinkedFace_Adventure": "Adventure",
   "LinkedFace_OtherRoom": "Other room",
   "HelpIExtendedInfo": "I: Extended card info (keywords and other faces)",
-
   "ExtendedInfoTitle": "Extended card info",
   "ExtendedInfoClosed": "Extended info closed",
   "ExtendedInfoInstructions": "Navigate with Up and Down. Close with I or Backspace.",
-
   "Bo3Toggle": "Best of 3",
-
   "FriendActionChat": "Chat",
   "FriendActionChallenge": "Challenge",
   "FriendActionUnfriend": "Unfriend",
@@ -807,7 +729,6 @@
   "FriendActionDecline": "Decline",
   "FriendActionRevoke": "Revoke",
   "FriendActionUnblock": "Unblock",
-
   "ScreenPacketSelect": "Packet Selection",
   "EventTileRanked": "Ranked",
   "EventTileBo3": "Best of 3",
@@ -817,14 +738,21 @@
   "EventScreenTitle_Format": "Event: {0}",
   "PacketOf_Format": "Packet {0} of {1}",
   "EventInfoLabel": "Info",
-
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "Full control on",
   "FullControl_Off": "Full control off",
   "FullControl_Locked": "Full control locked",
   "FullControl_Unlocked": "Full control unlocked",
   "PhaseStop_Set_Format": "Stop set: {0}",
   "PhaseStop_Cleared_Format": "Stop cleared: {0}",
-
   "PhaseStop_Upkeep": "Upkeep",
   "PhaseStop_Draw": "Draw",
   "PhaseStop_FirstMain": "First main",
@@ -835,16 +763,12 @@
   "PhaseStop_EndCombat": "End combat",
   "PhaseStop_SecondMain": "Second main",
   "PhaseStop_EndStep": "End step",
-
   "HelpPFullControl": "P: Full control, Shift plus P: Lock full control",
   "HelpNumberPhaseStops": "1 to 0: Toggle phase stops (upkeep through end step)",
-
   "CurrencyGold": "Gold",
   "CurrencyGems": "Gems",
   "CurrencyWildcards": "Wildcards",
-
   "NumberWords": "a=1,an=1,one=1,two=2,three=3,four=4,five=5,six=6,seven=7,eight=8,nine=9,ten=10",
-
   "RoleButton": "button",
   "RoleLink": "link",
   "RoleCheckbox": "checkbox",
@@ -870,28 +794,27 @@
   "CodexCollapsed_Format": "{0}, collapsed",
   "CodexSection": "section",
   "CodexNoContent": "No content available",
-
   "Duel_NoCounters": "No counters",
   "Duel_CounterEntry_Format": "{0} {1} counter",
   "Duel_CounterEntryPlural_Format": "{0} {1} counters",
   "Duel_Loyalty_Format": "Loyalty {0}",
-
   "HelpKCounters": "K: Counter info on focused card",
-
   "StoreSetFilter_Position_Format": "{0}, {1} of {2} sets",
   "StoreSetFilter_Items_Format": "{0}. {1} items.",
   "StoreSetFilter_Items_One": "{0}. 1 item.",
   "StoreSetFilter_EnterItems_Format": "Packs: {0}. {1} items.",
   "StoreSetFilter_EnterItems_One": "Packs: {0}. 1 item.",
-
   "ChooseX_Entry_Format": "Choose value. Current: {0}. Up/Down to adjust, Enter to confirm, Backspace to cancel",
   "ChooseX_Confirmed_Format": "Confirmed: {0}",
   "ChooseX_Cancelled": "Selection cancelled",
   "ChooseX_AtMax": "Maximum reached",
   "ChooseX_AtMin": "Minimum reached",
   "ChooseX_CannotSubmit": "Cannot submit current value",
-
   "KeywordSelection_Entry_Format": "Choose keyword. {0} options. Tab to navigate, Enter to select, Space to confirm",
   "KeywordSelection_Selected": "selected",
-  "KeywordSelection_Toggled_Format": "{0}, {1}"
+  "KeywordSelection_Toggled_Format": "{0}, {1}",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }

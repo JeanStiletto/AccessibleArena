@@ -1130,6 +1130,25 @@ namespace AccessibleArena.Core.Models
         public static string EventScreenTitle(string eventName) => L.Format("EventScreenTitle_Format", eventName);
         public static string PacketOf(int current, int total) => L.Format("PacketOf_Format", current, total);
         public static string EventInfoLabel => L.Get("EventInfoLabel");
+        public static string ColorChallengeProgress(string trackName, int unlocked, int total, bool completed)
+        {
+            bool hasTrack = !string.IsNullOrEmpty(trackName);
+            if (completed)
+                return hasTrack ? L.Format("ColorChallengeTrackComplete_Format", trackName) : L.Get("ColorChallengeComplete");
+            if (total > 0)
+                return hasTrack ? L.Format("ColorChallengeProgress_Format", trackName, unlocked, total) : L.Format("ColorChallengeProgressNoTrack_Format", unlocked, total);
+            return hasTrack ? trackName : null;
+        }
+        public static string ColorChallengeNode(string roman) => L.Format("ColorChallengeNode_Format", roman);
+        public static string ColorChallengeNodeCompleted => L.Get("ColorChallengeNodeCompleted");
+        public static string ColorChallengeNodeCurrent => L.Get("ColorChallengeNodeCurrent");
+        public static string ColorChallengeNodeLocked => L.Get("ColorChallengeNodeLocked");
+        public static string ColorChallengeNodeAvailable => L.Get("ColorChallengeNodeAvailable");
+        public static string ColorChallengeMatchPvP => L.Get("ColorChallengeMatchPvP");
+        public static string ColorChallengeMatchAI => L.Get("ColorChallengeMatchAI");
+        public static string ColorChallengeDeckUpgrade => L.Get("ColorChallengeDeckUpgrade");
+        public static string ColorChallengeReward(string reward)
+            => L.Format("ColorChallengeReward_Format", reward);
 
         // ===========================================
         // FULL CONTROL & PHASE STOPS

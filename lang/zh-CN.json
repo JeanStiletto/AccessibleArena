@@ -738,6 +738,15 @@
   "EventScreenTitle_Format": "赛事：{0}",
   "PacketOf_Format": "包 {0}/{1}",
   "EventInfoLabel": "信息",
+  "ColorChallengeProgress_Format": "{0}: {1} of {2} nodes unlocked",
+  "ColorChallengeTrackComplete_Format": "{0}: track complete",
+  "ColorChallengeComplete": "Track complete",
+  "ColorChallengeProgressNoTrack_Format": "{0} of {1} nodes unlocked",
+  "ColorChallengeNode_Format": "Challenge {0}",
+  "ColorChallengeNodeCompleted": "Completed",
+  "ColorChallengeNodeCurrent": "Current",
+  "ColorChallengeNodeLocked": "Locked",
+  "ColorChallengeNodeAvailable": "Available",
   "FullControl_On": "完全控制 开启",
   "FullControl_Off": "完全控制 关闭",
   "FullControl_Locked": "完全控制 已锁定",
@@ -803,5 +812,9 @@
   "ChooseX_CannotSubmit": "无法提交当前值",
   "KeywordSelection_Entry_Format": "选择关键词。{0}个选项。Tab导航，Enter选择，Space确认",
   "KeywordSelection_Selected": "已选择",
-  "KeywordSelection_Toggled_Format": "{0}，{1}"
+  "KeywordSelection_Toggled_Format": "{0}，{1}",
+  "ColorChallengeMatchPvP": "PvP Match",
+  "ColorChallengeMatchAI": "AI Match",
+  "ColorChallengeDeckUpgrade": "Deck Upgrade",
+  "ColorChallengeReward_Format": "Reward: {0}"
 }
