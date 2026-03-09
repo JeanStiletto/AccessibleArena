@@ -91,6 +91,14 @@ namespace AccessibleArena.Core.Services
             if (gameObject == null)
                 return string.Empty;
 
+            // NavTokenController: extract token type and count for screen reader
+            if (gameObject.name.Contains("NavTokenController") || gameObject.name.Contains("Nav_Token"))
+            {
+                string tokenLabel = TryGetNavTokenLabel(gameObject);
+                if (!string.IsNullOrEmpty(tokenLabel))
+                    return tokenLabel;
+            }
+
             // Check for special label overrides (buttons with misleading game labels)
             string overrideLabel = GetLabelOverride(gameObject.name);
             if (overrideLabel != null)
@@ -365,6 +373,46 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(text))
                     return text;
             }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts a readable label for NavTokenController elements (event/draft tokens on the nav bar).
+        /// The tooltip text (set by NavBarTokenView.UpdateTokensTooltip) includes the token count and
+        /// description via localized strings. Falls back to token type name from child object names.
+        /// </summary>
+        private static string TryGetNavTokenLabel(GameObject gameObject)
+        {
+            // The tooltip text is built by NavBarTokenView.TooltipForTokens and contains
+            // the count and description. GetWildcardTooltipText reads TooltipTrigger.TooltipData.Text
+            // and strips rich-text tags and joins lines with ", ".
+            string tooltipText = GetWildcardTooltipText(gameObject);
+            if (!string.IsNullOrEmpty(tooltipText))
+                return tooltipText;
+
+            // Fallback: read token type from active child object names (Token_JumpIn, Token_Draft, etc.)
+            var tokenNames = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < gameObject.transform.childCount; i++)
+            {
+                var child = gameObject.transform.GetChild(i);
+                if (!child.gameObject.activeInHierarchy) continue;
+                string childName = child.name;
+                if (!childName.StartsWith("Token_")) continue;
+
+                // "Token_JumpIn(Clone)" → "Jump In Token"
+                string tokenType = childName;
+                int cloneIdx = tokenType.IndexOf("(Clone)");
+                if (cloneIdx >= 0)
+                    tokenType = tokenType.Substring(0, cloneIdx);
+                if (tokenType.StartsWith("Token_"))
+                    tokenType = tokenType.Substring(6);
+                tokenType = System.Text.RegularExpressions.Regex.Replace(tokenType, @"(?<=[a-z])(?=[A-Z])", " ");
+                tokenNames.Add($"{tokenType} Token");
+            }
+
+            if (tokenNames.Count > 0)
+                return string.Join(", ", tokenNames);
 
             return null;
         }
@@ -887,6 +935,43 @@ namespace AccessibleArena.Core.Services
                 objectiveType = parentName.Substring(dashIndex + 3).Trim();
             }
 
+            // Achievement objectives: description is in Text_Description under TextLine (inactive).
+            // Read it with includeInactive flag to get the achievement name.
+            if (objectiveType == "Achievement")
+            {
+                string description = null;
+                string progress = null;
+
+                for (int i = 0; i < gameObject.transform.childCount; i++)
+                {
+                    var child = gameObject.transform.GetChild(i);
+                    string childName = child.name;
+
+                    if (childName == "TextLine")
+                    {
+                        // Text_Description is inside TextLine but the whole subtree is inactive
+                        var tmpText = child.GetComponentInChildren<TMP_Text>(true);
+                        if (tmpText != null)
+                            description = CleanText(tmpText.text);
+                    }
+                    else if (childName == "Text_GoalProgress")
+                    {
+                        var tmpText = child.GetComponentInChildren<TMP_Text>();
+                        if (tmpText != null)
+                            progress = CleanText(tmpText.text);
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(description))
+                {
+                    if (!string.IsNullOrEmpty(progress))
+                        return $"Achievement: {description}, {progress}";
+                    return $"Achievement: {description}";
+                }
+                if (!string.IsNullOrEmpty(progress))
+                    return $"Achievement: {progress}";
+            }
+
             // For quest objectives (QuestNormal), get description + progress
             if (objectiveType == "QuestNormal")
             {
@@ -963,6 +1048,9 @@ namespace AccessibleArena.Core.Services
                     typeLabel = "Battle Pass Level";
                 else if (objectiveType == "SparkRankTier1")
                     typeLabel = "Spark Rank";
+                else if (objectiveType == "Timer")
+                    // Visual countdown only — no readable text available
+                    return "Bonus Timer";
 
                 // Build label based on objective type
                 if (objectiveType == "Daily")
@@ -983,11 +1071,25 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    // Weekly, SparkRank, etc: just show progress
+                    // Weekly, SparkRank, Timer, etc: show progress or main value
                     if (!string.IsNullOrEmpty(progressValue))
                         return $"{typeLabel}: {progressValue}";
                     else if (!string.IsNullOrEmpty(mainValue))
                         return $"{typeLabel}: {mainValue}";
+                    else
+                    {
+                        // Fallback: scan all TMP_Text children (including inactive) for any readable text
+                        var texts = gameObject.GetComponentsInChildren<TMP_Text>(true);
+                        var parts = new System.Collections.Generic.List<string>();
+                        foreach (var t in texts)
+                        {
+                            string v = CleanText(t.text);
+                            if (!string.IsNullOrWhiteSpace(v) && !parts.Contains(v))
+                                parts.Add(v);
+                        }
+                        if (parts.Count > 0)
+                            return $"{typeLabel}: {string.Join(", ", parts)}";
+                    }
                 }
             }
 
@@ -2289,5 +2391,6 @@ namespace AccessibleArena.Core.Services
 
             return name.Trim().ToLower();
         }
+
     }
 }
