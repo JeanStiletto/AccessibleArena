@@ -71,6 +71,10 @@ All notable changes to Accessible Arena.
 ### Fixed: Pack Openings
 - Fixed card names, navigation order, and card details during booster pack opening
 
+### Translations: Added Missing Translations
+- Translated all remaining English fallback keys across all 11 languages (349 translations)
+- Covers help tips, Color Challenge strings, SelectGroup (Fact or Fiction pile choice) strings, screen names, and UI labels
+
 ## v0.8.1
 
 ### New: Local Release Script
