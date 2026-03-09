@@ -2,7 +2,11 @@
 
 All notable changes to Accessible Arena.
 
-## Unreleased
+## v0.8.2
+
+### New: Brawl Commander Deck Building
+- Commander empty slot button now activates correctly — filters collection to show only valid commanders
+- Select a legendary creature or planeswalker from the filtered collection to set it as commander
 
 ### New: Color Challenge node info blocks
 - When on the Color Challenge screen, challenge node info is now accessible via Up/Down navigation
@@ -21,6 +25,25 @@ All notable changes to Accessible Arena.
 - Covers Space/Backspace usage, combat blocking workflow, extended card info (I key), mana color picker, command zone shortcuts, full control and phase stops
 - Added to all 12 locale files
 
+### New: Fact or Fiction (Split/SelectGroup) Browser
+- Added accessible browser for Fact or Fiction and similar card divider effects
+- Zone-based navigation with card ownership tracking
+
+### New: Home Screen NavToken and Objective Labels
+- NavToken elements (Jump In/Draft tokens) now read token count and description
+- Achievement objectives read name and progress (e.g. "Achievement: A Party of None, 0/1")
+- Timer objectives read as "Bonus Timer" instead of raw element name
+- Unknown objective types fall back to scanning all text children
+
+### New: Color Challenge Button Labels
+- Color buttons now show track progress on their labels
+
+### Fixed: Auto-Craft on Deck List
+- Fixed auto-craft triggering incorrectly on deck list card activation with Craft filter enabled
+
+### Fixed: Help Menu F4 Friends Panel
+- F4 now shows Friends panel, command zone moved to zones section
+
 ### Fixed: Color Challenge Backspace Navigation
 - Backspace now re-expands the color list when a color is selected (blade collapsed)
 - Backspace from the color list (blade expanded) still navigates Home
@@ -31,12 +54,6 @@ All notable changes to Accessible Arena.
 - Root cause: child elements inside each packet tile had offset positions causing chaotic sort
 - Fix: sort uses the parent `JumpStartPacket` tile's position instead of the child element's position
 
-## v0.8.2
-
-### New: Brawl Commander Deck Building
-- Commander empty slot button now activates correctly — filters collection to show only valid commanders
-- Select a legendary creature or planeswalker from the filtered collection to set it as commander
-
 ### Fixed: New Deck Button Always Visible
 - Removed automatic folder collapsing on Backspace exit — deck folders now stay open
 - New Deck button is no longer hidden when the "My Decks" folder was collapsed
@@ -44,6 +61,12 @@ All notable changes to Accessible Arena.
 ### Fixed: Input Field Behavior in Web Browser
 - Tab between text fields now auto-enters edit mode, matching standard form navigation
 - Backspace in a text field no longer exits the browser
+
+### Fixed: Dismiss Button and Redundant Announcements
+- Hidden Dismiss button from navigation, suppressed redundant announcements
+
+### Fixed: Multi-Zone Browser Confirm
+- SelectCardsMultiZone browser now recognizes SingleButton for confirm action
 
 ### Fixed: Pack Openings
 - Fixed card names, navigation order, and card details during booster pack opening
