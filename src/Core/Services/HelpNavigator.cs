@@ -127,7 +127,17 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpCategoryDebug,
                 Strings.HelpF4Refresh,
                 Strings.HelpF11CardDump,
-                Strings.HelpF12UIDump
+                Strings.HelpF12UIDump,
+
+                // Tips for new users
+                Strings.HelpCategoryTips,
+                Strings.HelpTipSpaceAdvance,
+                Strings.HelpTipBackspaceCancel,
+                Strings.HelpTipCombatBlocking,
+                Strings.HelpTipExtendedInfo,
+                Strings.HelpTipManaColorPicker,
+                Strings.HelpTipCommandZone,
+                Strings.HelpTipFullControlPhases
             };
         }
 

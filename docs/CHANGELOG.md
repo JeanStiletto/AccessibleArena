@@ -2,6 +2,13 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+### New: Extended Tutorial Tips in Help Menu
+- Added "Tips for new users" category to F1 Help Menu with 7 entries
+- Covers Space/Backspace usage, combat blocking workflow, extended card info (I key), mana color picker, command zone shortcuts, full control and phase stops
+- Added to all 12 locale files
+
 ## v0.8.1
 
 ### New: Local Release Script
