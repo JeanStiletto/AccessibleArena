@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} запущен",
   "Back": "Назад",
   "NoSelection": "Ничего не выбрано",
@@ -279,6 +279,15 @@
   "HelpF4Refresh": "F4: Обновить текущий навигатор",
   "HelpF11CardDump": "F11: Вывести детали карты в лог (открытие бустеров)",
   "HelpF12UIDump": "F12: Вывести иерархию интерфейса в лог",
+
+  "HelpCategoryTips": "Tips for new users",
+  "HelpTipSpaceAdvance": "Space is the main confirm key during duels. It passes priority, advances phases, and confirms attackers or blockers",
+  "HelpTipBackspaceCancel": "Backspace is the universal cancel key. It goes back, dismisses popups, cancels attacks, and declines block assignments",
+  "HelpTipCombatBlocking": "When blocking: Left and Right to move between attackers, Enter to assign your creature as blocker, Space to confirm all blocks, Backspace to cancel",
+  "HelpTipExtendedInfo": "Press I on any card for extended info: keyword ability descriptions, other faces of double-faced cards, and adventure spells",
+  "HelpTipManaColorPicker": "When a land can produce any color: Tab or Right cycles colors, Enter selects, number keys 1 to 6 select directly, Backspace cancels",
+  "HelpTipCommandZone": "W: Your command zone (companions, commanders). Shift plus W: Opponent command zone",
+  "HelpTipFullControlPhases": "P: Enable full control for current phase. Shift plus P: Lock full control permanently. Keys 1 to 0: Toggle stops for each phase",
   "NoCards": "Нет карт",
   "NoButtonSelected": "Кнопка не выбрана",
   "NoButtonsAvailable": "Нет доступных кнопок",

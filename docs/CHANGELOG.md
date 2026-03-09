@@ -16,6 +16,11 @@ All notable changes to Accessible Arena.
 - Filters out developer placeholder text in reward descriptions
 - Reads directly from the game's CampaignGraphTrackModule, objective bubbles, and strategy node data
 
+### New: Extended Tutorial Tips in Help Menu
+- Added "Tips for new users" category to F1 Help Menu with 7 entries
+- Covers Space/Backspace usage, combat blocking workflow, extended card info (I key), mana color picker, command zone shortcuts, full control and phase stops
+- Added to all 12 locale files
+
 ## v0.8.2
 
 ### New: Brawl Commander Deck Building
