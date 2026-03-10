@@ -3165,6 +3165,10 @@ namespace AccessibleArena.Core.Services
             if (DetectActiveContentController() == "LearnToPlayControllerV2")
                 return false;
 
+            // Don't activate when Achievements screen is active - let AchievementsNavigator handle it
+            if (DetectActiveContentController() == "AchievementsContentController")
+                return false;
+
             // Don't activate when game loading panel overlay is showing (e.g. after scene transition)
             if (IsLoadingPanelShowing())
             {
