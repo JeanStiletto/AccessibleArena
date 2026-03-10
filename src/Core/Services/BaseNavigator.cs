@@ -2070,10 +2070,23 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            if (newPanel != null && !IsPopupExcluded(newPanel) && IsPopupPanel(newPanel))
+            bool newIsHandledPopup = newPanel != null && !IsPopupExcluded(newPanel) && IsPopupPanel(newPanel);
+
+            if (newIsHandledPopup)
             {
                 if (!_isInPopupMode)
                 {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
+                    OnPopupDetected(newPanel);
+                }
+                else if (_popupGameObject != newPanel.GameObject)
+                {
+                    // Active popup switched to a different popup while we were already in popup mode
+                    // (e.g., a swap confirm dialog closed while an XP reward popup was queued).
+                    // Exit the stale popup mode then enter the new one.
+                    MelonLogger.Msg($"[{NavigatorId}] Popup switched: {_popupGameObject?.name} -> {newPanel.Name}");
+                    ExitPopupMode();
+                    OnPopupClosed();
                     MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
                     OnPopupDetected(newPanel);
                 }

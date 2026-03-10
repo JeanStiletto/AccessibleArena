@@ -148,7 +148,11 @@ namespace AccessibleArena.Core.Services.PanelDetection
             System.StringComparer.OrdinalIgnoreCase)
         {
             "NavBar",
-            "TopBar"
+            "TopBar",
+            // Passive 3D reward animations (XP coin, gem, etc.) — visual-only, no navigable elements,
+            // close automatically. Tracking them causes popup mode to get stuck when they become
+            // the active panel after a real dialog closes (e.g., quest swap confirm).
+            "RewardPopup3DIcon",
         };
 
         /// <summary>

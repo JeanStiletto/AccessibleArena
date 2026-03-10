@@ -2,6 +2,13 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+### Fixed: Quest Swap Confirm Cannot Be Dismissed
+- Pressing Cancel (or Backspace) on the quest swap confirmation dialog now correctly exits popup mode
+- Root cause: a passive XP coin animation (`RewardPopup3DIcon_XPCoin`) registers as a popup at the same time as the swap dialog; when the dialog closes, the animation becomes the active panel and the popup mode handler had no case for switching between popups — leaving navigation locked on the dismissed dialog's buttons
+- Fixed by ignoring `RewardPopup3DIcon` passive animations in the panel tracking system and adding a popup-switching case to the popup mode handler
+
 ## v0.8.2
 
 ### New: Brawl Commander Deck Building

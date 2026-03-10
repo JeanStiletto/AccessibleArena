@@ -32,9 +32,11 @@ Fixed: Selecting a color button now triggers a rescan so the deck name refreshes
 
 ---
 
-### Weekly Progress Enter Locks Mod
+### ~~Weekly Progress Enter Locks Mod~~ (Fixed)
 
-Pressing Enter on the Weekly Progress element puts the mod in a locked state requiring screen transition to recover.
+~~Pressing Enter on the Weekly Progress element puts the mod in a locked state requiring screen transition to recover.~~
+
+Fixed: When the user pressed Cancel on the quest swap confirm dialog, a passive XP coin animation popup (`RewardPopup3DIcon_XPCoin`) had already registered as an active panel. When the dialog closed, this animation became the new active panel and the popup mode switch handler in `BaseNavigator` had no case for "active popup changed to a different popup" — leaving popup mode locked on the dead dialog's elements. Fixed by: (1) adding `RewardPopup3DIcon` to `PanelInfo.IgnoredPanels` so passive coin animations never filter navigation, and (2) adding a popup-switching case to `BaseNavigator.OnPopupPanelChanged`.
 
 ---
 
