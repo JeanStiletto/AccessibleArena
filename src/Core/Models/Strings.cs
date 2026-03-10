@@ -918,6 +918,23 @@ namespace AccessibleArena.Core.Models
         public static string PopupCancel => L.Get("PopupCancel");
 
         // ===========================================
+        // ACHIEVEMENTS SCREEN
+        // ===========================================
+        public static string AchievementsActivation(int count, int claimable) =>
+            L.Format("AchievementsActivation_Format", count, claimable);
+        public static string AchievementGroup(string title, int completed, int total, int claimable) =>
+            L.Format("AchievementGroup_Format", title, completed, total, claimable);
+        public static string AchievementEntry(string title, string description, string status, bool favorite) =>
+            favorite
+                ? L.Format("AchievementEntryFavorite_Format", title, description, status)
+                : L.Format("AchievementEntry_Format", title, description, status);
+        public static string AchievementCompleted => L.Get("AchievementCompleted");
+        public static string AchievementClaimed => L.Get("AchievementClaimed");
+        public static string AchievementReadyToClaim => L.Get("AchievementReadyToClaim");
+        public static string AchievementTracked => L.Get("AchievementTracked");
+        public static string AchievementUntracked => L.Get("AchievementUntracked");
+
+        // ===========================================
         // INLINE STRING MIGRATIONS
         // ===========================================
         public static string SearchResults(int count) => L.Format("SearchResults_Format", count);
