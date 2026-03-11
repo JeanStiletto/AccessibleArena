@@ -404,6 +404,7 @@
   "NoDetailsAvailable": "No details available",
   "NoCardDetails": "No card details available",
   "Tabs_Format": "Tabs. {0} tabs.",
+  "TabPositionOf_Format": "{2}, tab {0} of {1}",
   "OptionsAvailable_Format": "{0} options available. {1}",
   "Continuing": "Continuing",
   "FoundRewards_Format": "Found {0} rewards",

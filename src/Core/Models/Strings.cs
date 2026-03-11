@@ -1009,6 +1009,8 @@ namespace AccessibleArena.Core.Models
         public static string NoDetailsAvailable => L.Get("NoDetailsAvailable");
         public static string NoCardDetails => L.Get("NoCardDetails");
         public static string TabsCount(int count) => L.Format("Tabs_Format", count);
+        public static string TabPositionOf(int index, int total, string label) =>
+            L.Format("TabPositionOf_Format", index, total, label);
         public static string OptionsAvailable(int count, string hint) => L.Format("OptionsAvailable_Format", count, hint);
         public static string Continuing => L.Get("Continuing");
         public static string FoundRewards(int count) => L.Format("FoundRewards_Format", count);
