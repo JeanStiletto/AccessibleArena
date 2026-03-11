@@ -60,7 +60,8 @@ namespace AccessibleArena.Core.Services
         {
             SetHeader,
             GroupHeader,
-            Achievement
+            Achievement,
+            SectionLabel    // Read-only summary section divider — re-announces on Enter, no other action
         }
 
         #endregion
@@ -107,6 +108,11 @@ namespace AccessibleArena.Core.Services
 
         // IClientAchievement.SetFavorite
         private MethodInfo _setFavoriteMethod;
+
+        // IAchievementManager — for Summary tab
+        private Type _achievementManagerType;
+        private PropertyInfo _favoriteAchievementsProp;
+        private PropertyInfo _upNextAchievementsProp;
 
         // Toggle for favorite/tracking
         private FieldInfo _favoriteToggleField;
@@ -249,6 +255,15 @@ namespace AccessibleArena.Core.Services
             _currentlySelectedField = _setItemType?.GetField("_currentlySelected", BindingFlags.Static | BindingFlags.NonPublic);
             _selectSetMethod = _setItemType?.GetMethod("SelectSet", BindingFlags.Public | BindingFlags.Instance);
 
+            // IAchievementManager — Summary tab data
+            _achievementManagerType = FindType("IAchievementManager");
+            if (_achievementManagerType != null)
+            {
+                var pubFlags = BindingFlags.Public | BindingFlags.Instance;
+                _favoriteAchievementsProp = _achievementManagerType.GetProperty("FavoriteAchievements", pubFlags);
+                _upNextAchievementsProp   = _achievementManagerType.GetProperty("UpNextAchievements", pubFlags);
+            }
+
             _reflectionInitialized = true;
             MelonLogger.Msg($"[{NavigatorId}] Reflection cached: " +
                 $"Card={_achievementCardType != null}, " +
@@ -266,10 +281,12 @@ namespace AccessibleArena.Core.Services
             _achievementEntries.Clear();
 
             // Discover the active set (selected tab on the left blade)
-            DiscoverActiveSet();
+            bool isSummary = DiscoverActiveSet();
 
-            // Discover groups and their achievements from the visible UI
-            DiscoverGroupsAndAchievements();
+            if (isSummary)
+                DiscoverSummaryAchievements();
+            else
+                DiscoverGroupsAndAchievements();
 
             // Convert to navigable elements
             foreach (var entry in _achievementEntries)
@@ -280,11 +297,13 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Discovered {_achievementEntries.Count} entries");
         }
 
-        private void DiscoverActiveSet()
+        // Returns true if the currently selected tab is Summary (clientSet == null)
+        private bool DiscoverActiveSet()
         {
-            if (_setItemType == null || _clientSetField == null) return;
+            if (_setItemType == null || _clientSetField == null) return false;
 
             var currentlySelected = _currentlySelectedField?.GetValue(null) as UnityEngine.Object;
+            bool selectedIsSummary = false;
 
             var setItems = new List<MonoBehaviour>();
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
@@ -299,13 +318,14 @@ namespace AccessibleArena.Core.Services
             foreach (var setItem in setItems)
             {
                 var clientSet = _clientSetField.GetValue(setItem);
-                string title;
-                if (clientSet == null)
-                    title = "Summary";
-                else
-                    title = StripRichText(SafeGetString(_setTitleProp, clientSet) ?? "Unknown Set");
+                bool isSummaryTab = clientSet == null;
+                string title = isSummaryTab
+                    ? "Summary"
+                    : StripRichText(SafeGetString(_setTitleProp, clientSet) ?? "Unknown Set");
 
                 bool isSelected = currentlySelected != null && setItem.Equals(currentlySelected);
+                if (isSelected && isSummaryTab) selectedIsSummary = true;
+
                 string label = isSelected ? $"Tab: {title} (selected)" : $"Tab: {title}";
 
                 _achievementEntries.Add(new AchievementEntry
@@ -316,6 +336,130 @@ namespace AccessibleArena.Core.Services
                     IsClaimable = false
                 });
             }
+
+            return selectedIsSummary;
+        }
+
+        private void DiscoverSummaryAchievements()
+        {
+            // Read FavoriteAchievements and UpNextAchievements from IAchievementManager
+            // via Pantry (service locator) rather than parsing the hub prefab UI.
+            var managerType = FindType("IAchievementManager");
+            if (managerType == null || _achievementManagerType == null) return;
+
+            // Pantry.Get<IAchievementManager>()
+            object manager = null;
+            try
+            {
+                var pantryType = FindType("Pantry");
+                var getMethod = pantryType?.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .FirstOrDefault(m => m.Name == "Get" && m.IsGenericMethodDefinition);
+                if (getMethod != null)
+                    manager = getMethod.MakeGenericMethod(_achievementManagerType).Invoke(null, null);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[{NavigatorId}] Pantry.Get<IAchievementManager> failed: {ex.InnerException?.Message ?? ex.Message}");
+                return;
+            }
+
+            if (manager == null) return;
+
+            var pubFlags = BindingFlags.Public | BindingFlags.Instance;
+
+            // Tracked (favorites) section
+            AddSummarySection("Tracked", _favoriteAchievementsProp, manager);
+
+            // Up Next section
+            AddSummarySection("Up Next", _upNextAchievementsProp, manager);
+        }
+
+        private void AddSummarySection(string sectionName, PropertyInfo collectionProp, object manager)
+        {
+            if (collectionProp == null) return;
+
+            System.Collections.IEnumerable collection = null;
+            try { collection = collectionProp.GetValue(manager) as System.Collections.IEnumerable; }
+            catch { return; }
+
+            if (collection == null) return;
+
+            bool any = false;
+            foreach (var item in collection)
+            {
+                if (!any)
+                {
+                    // Section header as a read-only label (no GameObject needed; use controller as placeholder)
+                    _achievementEntries.Add(new AchievementEntry
+                    {
+                        Label = $"--- {sectionName} ---",
+                        GameObject = _controller.gameObject,
+                        Type = EntryType.SectionLabel,
+                        IsClaimable = false
+                    });
+                    any = true;
+                }
+
+                string title       = StripRichText(SafeGetString(_titleProp, item) ?? "Unknown");
+                string description = SafeGetString(_descriptionProp, item) ?? "";
+                int current        = SafeGetInt(_currentCountProp, item);
+                int max            = SafeGetInt(_maxCountProp, item);
+                bool isCompleted   = SafeGetBool(_isCompletedProp, item);
+                bool isClaimed     = SafeGetBool(_isClaimedProp, item);
+                bool isClaimable   = SafeGetBool(_isClaimableProp, item);
+                bool isFavorite    = SafeGetBool(_isFavoriteProp, item);
+
+                string status = isClaimed ? Strings.AchievementClaimed
+                              : isClaimable ? Strings.AchievementReadyToClaim
+                              : isCompleted ? Strings.AchievementCompleted
+                              : $"{current}/{max}";
+
+                string label = Strings.AchievementEntry(title, description, status, isFavorite);
+
+                int actionIdx  = 0;
+                int claimIdx   = isClaimable ? ++actionIdx : 0;
+                int trackIdx   = ++actionIdx;
+
+                // Summary achievements have no card GameObject — find by matching title in scene
+                var cardGo = FindAchievementCardByTitle(title);
+
+                _achievementEntries.Add(new AchievementEntry
+                {
+                    Label         = label,
+                    GameObject    = cardGo ?? _controller.gameObject,
+                    Type          = EntryType.Achievement,
+                    IsClaimable   = isClaimable,
+                    IsFavorite    = isFavorite,
+                    ActionCount   = cardGo != null ? actionIdx : 0,
+                    ClaimActionIndex = cardGo != null ? claimIdx : 0,
+                    TrackActionIndex = cardGo != null ? trackIdx : 0
+                });
+            }
+
+            if (!any)
+            {
+                _achievementEntries.Add(new AchievementEntry
+                {
+                    Label = $"--- {sectionName}: none ---",
+                    GameObject = _controller.gameObject,
+                    Type = EntryType.GroupHeader
+                });
+            }
+        }
+
+        private GameObject FindAchievementCardByTitle(string strippedTitle)
+        {
+            if (_achievementCardType == null || _achievementDataField == null) return null;
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType() != _achievementCardType) continue;
+                var data = _achievementDataField.GetValue(mb);
+                if (data == null) continue;
+                if (StripRichText(SafeGetString(_titleProp, data) ?? "") == strippedTitle)
+                    return mb.gameObject;
+            }
+            return null;
         }
 
         private void DiscoverGroupsAndAchievements()
