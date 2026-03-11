@@ -11,6 +11,9 @@ obj/
 # Local agent/tool settings
 .claude/settings.local.json
 
+# Local build overrides (per-user game install path)
+src/local.props
+
 # Rider
 .idea/
 

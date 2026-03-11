@@ -24,9 +24,10 @@
     </ItemGroup>
   </Target>
 
-  <!-- Game install path - adjust if your MTGA is installed elsewhere -->
+  <!-- Game install path - override MtgaPath in src/local.props (gitignored) if MTGA is installed elsewhere -->
+  <Import Project="local.props" Condition="Exists('local.props')" />
   <PropertyGroup>
-    <MtgaPath>C:\Program Files\Wizards of the Coast\MTGA</MtgaPath>
+    <MtgaPath Condition="'$(MtgaPath)' == ''">C:\Program Files\Wizards of the Coast\MTGA</MtgaPath>
     <MtgaManagedPath>$(MtgaPath)\MTGA_Data\Managed</MtgaManagedPath>
     <MelonLoaderPath>$(MtgaPath)\MelonLoader\net35</MelonLoaderPath>
   </PropertyGroup>
