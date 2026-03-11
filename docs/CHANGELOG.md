@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.8.3
 
+### Fix: Vehicles now show power and toughness
+- Vehicle cards (e.g., Gleiter der Reisenden, Ortungsrad-Kundschafter) now display power/toughness in card info blocks
+- Previously, P/T extraction was limited to creatures only — vehicles were skipped even though they have P/T on the card model
+
 ### Fix: Decorative 3D reward popups no longer lock mod
 - 3D reward animations (spinning coin/XP previews) on objective screens were being tracked as real popups, blocking popup detection and causing navigation lockout
 - Decorative panels are now excluded at every level: panel tracking, popup mode, and overlay filtering

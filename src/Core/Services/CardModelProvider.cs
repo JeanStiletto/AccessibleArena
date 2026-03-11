@@ -1520,6 +1520,7 @@ namespace AccessibleArena.Core.Services
                 // Power/Toughness, Loyalty, and Counters
                 bool isCreature = false;
                 bool isPlaneswalker = false;
+                bool isVehicle = subtypeList.Any(s => s.Contains("Vehicle"));
                 if (hasStructuredTypes)
                 {
                     var cardTypesForPT = GetModelPropertyValue(dataObj, objType, "CardTypes");
@@ -1542,8 +1543,8 @@ namespace AccessibleArena.Core.Services
 
                 var ptParts = new List<string>();
 
-                // Creature P/T
-                if (isCreature)
+                // Creature or Vehicle P/T (vehicles have P/T even when not crewed)
+                if (isCreature || isVehicle)
                 {
                     var power = GetModelPropertyValue(dataObj, objType, "Power");
                     var toughness = GetModelPropertyValue(dataObj, objType, "Toughness");

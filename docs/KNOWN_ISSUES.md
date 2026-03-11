@@ -260,7 +260,6 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 14. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
 15. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
 16. Pass entire turn shortcut - quick shortcut to pass priority for the whole turn (may already exist as Shift+Enter in the game, just needs to be enabled/announced)
-17. Vehicle power and toughness - announce power/toughness for vehicle cards when not crewed
 18. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
 19. Verbose "Big Card" announcements (inspired by Hearthstone Access) - option to include card details inline with action announcements, with user preference toggle for brief vs verbose
 
