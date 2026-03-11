@@ -531,6 +531,14 @@ namespace AccessibleArena.Core.Services
         {
             if (_chatManager == null || _selectNextConversationMethod == null) return;
 
+            // Don't switch if there's only one (or no) conversation
+            int conversationCount = GetConversationCount();
+            if (conversationCount <= 1)
+            {
+                _announcer.AnnounceInterrupt(Strings.ChatNoConversation);
+                return;
+            }
+
             try
             {
                 // SelectNextConversation(bool reverse = false, bool unseenOnly = false)
@@ -725,6 +733,20 @@ namespace AccessibleArena.Core.Services
                 return _displayNameProp.GetValue(friend) as string;
             }
             catch { return null; }
+        }
+
+        private int GetConversationCount()
+        {
+            if (_chatManager == null || _conversationsField == null) return 0;
+
+            try
+            {
+                var conversations = _conversationsField.GetValue(_chatManager);
+                if (conversations is ICollection collection) return collection.Count;
+                if (conversations is IList list) return list.Count;
+                return 0;
+            }
+            catch { return 0; }
         }
 
         private int GetMessageCount()
