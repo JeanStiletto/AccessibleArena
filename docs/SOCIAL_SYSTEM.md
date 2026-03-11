@@ -418,11 +418,11 @@ ContentController - Popout_Play_Desktop_16x9(Clone)
 
 ## Implementation Files
 
-- **`ChallengeNavigationHelper.cs`** - Central helper: HandleEnter, HandleBackspace, OnChallengeOpened/Closed, HandleDeckSelected, player status, CloseDeckSelectBlade
+- **`ChallengeNavigationHelper.cs`** - Central helper: HandleEnter, HandleBackspace, OnChallengeOpened/Closed, HandleDeckSelected, player status polling (local + opponent), opponent status virtual element, RescanRequested flag for button swap, CloseDeckSelectBlade
 - **`ElementGroupAssigner.cs`** - `IsChallengeContainer()` routes elements to ChallengeMain; NewDeck/EditDeck to PlayBladeFolders; InviteFriendPopup to Popup. Note: `MainButton_Leave` cannot be filtered here (returning Unknown from `DetermineOverlayGroup` means "not an overlay", not "hide") - filtered in `ShouldShowElement` instead
-- **`GroupedNavigator.cs`** - `_isChallengeContext`, `RequestChallengeMainEntry()`, folder extra elements support
+- **`GroupedNavigator.cs`** - `_isChallengeContext`, `RequestChallengeMainEntry()`, folder extra elements support, `PositionWasRestored` flag for silent rescans
 - **`OverlayDetector.cs`** - Returns ChallengeMain overlay when PlayBladeState >= 2; `IsInsideChallengeScreen()` checks
-- **`GeneralMenuNavigator.cs`** - Challenge helper integration, spinner rescan, label enhancement, player status in announcements, `ShouldShowElement` filters `MainButton_Leave`
+- **`GeneralMenuNavigator.cs`** - Challenge helper integration, spinner rescan, label enhancement, opponent status injection, RescanRequested handling, `PositionWasRestored` check in `PerformRescan`, `ShouldShowElement` filters `MainButton_Leave`
 - **`Strings.cs`** + `lang/*.json` - ChallengeYou, ChallengeOpponent, ChallengeNotInvited, ChallengeInvited, GroupChallengeMain
 
 ---
@@ -441,10 +441,11 @@ Investigation of missing elements and settings on the challenge screen that the 
 - **Starting Player spinner** (`_startingPlayerSpinner`) - Random / Challenger / Opponent. Always visible.
 - **Select Deck / Deck display** - Opens deck selector on Enter
 - **Invite button** (enemy player card, `_noPlayerInviteButton`) - Opens invite popup
-- **Main status button** (`UnifiedChallenge_MainButton`) - Enhanced with player name prefix (e.g., "jean stiletto#89866: Bereit"). Shows only the button's native label (Ready/Waiting/etc.), not the status text.
+- **Main status button** (`UnifiedChallenge_MainButton` / `UnifiedChallenge_SecondaryButton`) - Enhanced with local player name + actual status from `_playerStatus` (e.g., "jean stiletto#89866: Bereit"). The game swaps between MainButton and SecondaryButton when toggling ready state; both are handled. Reads actual player status from `ChallengePlayerDisplay._playerStatus` (Localize), NOT from button text (which is an action label).
+- **Opponent status element** - Virtual element (no GameObject) appended to ChallengeMain group. Shows opponent name + status (e.g., "OpponentName: Bereit") or "Gegner: Nicht eingeladen" / "Gegner: Eingeladen" when no opponent is present. Updated via polling.
 - **Challenge status text** - Virtual element at end of ChallengeMain list, reads `_challengeStatusText` (e.g., "Warte auf einen Gegner", "Warte, bis alle Spieler bereit sind"). Also announced via polling when it changes.
 - **Player status summary** - Announced once on challenge open via `GetPlayerStatusSummary()`
-- **Player status polling** - Detects opponent join/leave, status text changes, countdown start/cancel via 1-second polling
+- **Player status polling** - Detects opponent join/leave, local player status changes, opponent status changes, status text changes, and countdown start/cancel via 1-second polling. When the local player's status changes (e.g., after pressing Enter to toggle ready), the change is announced and a rescan is triggered to handle button swap. The rescan preserves the current navigation position via `PositionWasRestored` to avoid disruptive re-announcements.
 
 ---
 

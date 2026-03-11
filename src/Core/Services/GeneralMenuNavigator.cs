@@ -1126,7 +1126,14 @@ namespace AccessibleArena.Core.Services
 
             // Challenge screen: poll for opponent status changes
             if (_challengeHelper.IsActive)
+            {
                 _challengeHelper.Update(Time.deltaTime);
+                if (_challengeHelper.RescanRequested)
+                {
+                    _challengeHelper.ClearRescanRequest();
+                    TriggerRescan();
+                }
+            }
 
             // Panel detection handled by PanelDetectorManager via events (OnPanelChanged/OnAnyPanelOpened)
             base.Update();
@@ -3080,6 +3087,10 @@ namespace AccessibleArena.Core.Services
                 UpdateCardNavigationForGroupedElement();
                 return;
             }
+
+            // Skip full screen announcement if position was restored (same screen, same context)
+            if (_groupedNavigationEnabled && _groupedNavigator.PositionWasRestored)
+                return;
 
             // Announce the change
             string announcement = GetActivationAnnouncement();
@@ -5469,7 +5480,8 @@ namespace AccessibleArena.Core.Services
                 for (int i = 0; i < group.Value.Count; i++)
                 {
                     var go = group.Value.Elements[i].GameObject;
-                    if (go != null && go.name == "UnifiedChallenge_MainButton")
+                    if (go != null && (go.name == "UnifiedChallenge_MainButton" ||
+                        go.name == "UnifiedChallenge_SecondaryButton"))
                     {
                         mainButtonIdx = i;
                         break;

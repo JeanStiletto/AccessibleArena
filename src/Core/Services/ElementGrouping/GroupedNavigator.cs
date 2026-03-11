@@ -533,6 +533,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public bool HasPendingRestore => _pendingGroupRestore.HasValue;
 
         /// <summary>
+        /// True if the last OrganizeIntoGroups successfully restored position.
+        /// Checked by PerformRescan to skip redundant screen announcements.
+        /// </summary>
+        public bool PositionWasRestored { get; private set; }
+
+        /// <summary>
         /// Reset the pending element index to 0 (start of group).
         /// Call after SaveCurrentGroupForRestore() when you want to restore the group but not the position.
         /// </summary>
@@ -562,6 +568,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _currentGroupIndex = -1;
             _currentElementIndex = -1;
             _navigationLevel = NavigationLevel.GroupList;
+            PositionWasRestored = false;
 
             // First pass: identify folder toggles and their names
             var folderToggles = new Dictionary<string, GameObject>(); // folderName -> toggle GameObject
@@ -1071,10 +1078,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (_pendingGroupRestore.HasValue)
             {
                 bool isPopupRestore = _pendingGroupRestore.Value == ElementGroup.Popup;
-                if (!isPopupRestore && (_isPlayBladeContext || _isChallengeContext || enteredPendingFolder || playBladeAutoEntryPerformed || challengeAutoEntryPerformed))
+                if (!isPopupRestore && (_isPlayBladeContext || enteredPendingFolder || playBladeAutoEntryPerformed || challengeAutoEntryPerformed))
                 {
                     // Clear stale restore state - auto-entries take precedence
-                    string reason = challengeAutoEntryPerformed ? "Challenge auto-entry" : (playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : (_isChallengeContext ? "Challenge context" : "PlayBlade context")));
+                    string reason = challengeAutoEntryPerformed ? "Challenge auto-entry" : (playBladeAutoEntryPerformed ? "PlayBlade auto-entry" : (enteredPendingFolder ? "folder entry" : "PlayBlade context"));
                     MelonLogger.Msg($"[GroupedNavigator] Skipping group restore due to {reason} (was: {_pendingGroupRestore.Value})");
                     _pendingGroupRestore = null;
                     _pendingLevelRestore = NavigationLevel.GroupList;
@@ -1097,6 +1104,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         {
                             _currentGroupIndex = i;
                             found = true;
+                            PositionWasRestored = true;
                             if (levelToRestore == NavigationLevel.InsideGroup)
                             {
                                 _navigationLevel = NavigationLevel.InsideGroup;

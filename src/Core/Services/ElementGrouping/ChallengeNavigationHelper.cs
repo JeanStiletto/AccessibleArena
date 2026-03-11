@@ -56,6 +56,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private int _mainButtonElementIndex = -1;
 
         /// <summary>
+        /// Set by polling when local player status changes (game swaps buttons).
+        /// GeneralMenuNavigator checks this and triggers a rescan.
+        /// </summary>
+        public bool RescanRequested { get; private set; }
+
+        public void ClearRescanRequest() => RescanRequested = false;
+
+        /// <summary>
         /// Whether currently in a challenge context.
         /// Uses the context flag set by OnChallengeOpened/OnChallengeClosed.
         /// </summary>
@@ -262,7 +270,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             string name = element.name;
 
             // Main challenge button: show player name + actual player status (not button text)
-            if (name == "UnifiedChallenge_MainButton")
+            // Game swaps MainButton <-> SecondaryButton when toggling Ready
+            if (name == "UnifiedChallenge_MainButton" || name == "UnifiedChallenge_SecondaryButton")
             {
                 string playerName = GetLocalPlayerName();
                 string status = GetLocalPlayerStatus();
@@ -555,6 +564,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     : currentLocalStatus;
                 _announcer.Announce(label, Models.AnnouncementPriority.Normal);
                 _lastLocalStatus = currentLocalStatus;
+                // Game swaps MainButton <-> SecondaryButton on status change
+                RescanRequested = true;
             }
 
             // Refresh opponent virtual element label

@@ -1686,6 +1686,14 @@ Navigators must skip their own element rescan while popup mode is active. Otherw
 if (IsInPopupMode) return;
 ```
 
+**Rescan Position Restore & Silent Rescans:**
+When `GroupedNavigator.OrganizeIntoGroups()` runs during a rescan, it attempts to restore the user's previous position (same group + element index). If restoration succeeds, `PositionWasRestored` is set to `true`. Navigators can check this flag to skip the full screen announcement in `PerformRescan()`, since the user's position didn't meaningfully change:
+```csharp
+if (_groupedNavigationEnabled && _groupedNavigator.PositionWasRestored)
+    return; // Skip announcement - position preserved
+```
+This is important for context-triggered rescans (e.g., challenge screen button swap after toggling ready state) where re-announcing the entire screen is disruptive. The flag is reset to `false` at the start of each `OrganizeIntoGroups()` call.
+
 **Label Refresh on Popup Close:**
 When exiting popup mode, BaseNavigator refreshes labels of restored elements via `RefreshElementLabels()`. This picks up changes made while the popup was open (e.g., deck name edited in DeckDetailsPopup).
 
