@@ -1110,7 +1110,8 @@ namespace AccessibleArena.Core.Services
 
             // No items - stay at tab level
             _navLevel = NavigationLevel.Tabs;
-            return $"Store. {Strings.NavigateWithArrows}, Enter to select. {_tabs.Count} tabs.";
+            int realTabCount = _tabs.Count(t => !t.IsUtility);
+            return $"Store. {Strings.NavigateWithArrows}, Enter to select. {realTabCount} tabs.";
         }
 
         protected override string GetElementAnnouncement(int index)
@@ -1127,15 +1128,16 @@ namespace AccessibleArena.Core.Services
 
             if (tab.IsUtility)
             {
-                _announcer.AnnounceInterrupt(
-                    $"{tab.DisplayName}, {_currentTabIndex + 1} of {_tabs.Count}");
+                _announcer.AnnounceInterrupt($"{tab.DisplayName}, button");
             }
             else
             {
+                int tabCount = _tabs.Count(t => !t.IsUtility);
                 bool isActive = IsTabActive(tab);
                 string activeIndicator = isActive ? ", active" : "";
                 _announcer.AnnounceInterrupt(
-                    $"{tab.DisplayName}{activeIndicator}, {_currentTabIndex + 1} of {_tabs.Count}");
+                    Strings.TabPositionOf(_currentTabIndex + 1, tabCount,
+                        $"{tab.DisplayName}{activeIndicator}"));
             }
         }
 
@@ -2723,7 +2725,7 @@ namespace AccessibleArena.Core.Services
             if (_currentTabIndex < 0 && _tabs.Count > 0)
                 _currentTabIndex = 0;
 
-            _announcer.AnnounceInterrupt(Strings.TabsCount(_tabs.Count));
+            _announcer.AnnounceInterrupt(Strings.TabsCount(_tabs.Count(t => !t.IsUtility)));
             AnnounceCurrentTab();
         }
 
