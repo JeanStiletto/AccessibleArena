@@ -44,6 +44,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private enum EnemyState { NotInvited, Invited, Joined }
         private EnemyState _lastEnemyState = EnemyState.NotInvited;
         private string _lastEnemyName;
+        private string _lastLocalStatus;
         private string _lastStatusText;
         private bool _wasCountdownActive;
         private float _pollTimer;
@@ -459,6 +460,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     _lastEnemyName = null;
                 }
 
+                _lastLocalStatus = GetLocalPlayerStatus();
                 _lastStatusText = GetChallengeStatusText();
             }
             catch (Exception ex)
@@ -466,6 +468,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 MelonLogger.Msg($"[ChallengeHelper] Error initializing polling state: {ex.Message}");
                 _lastEnemyState = EnemyState.NotInvited;
                 _lastEnemyName = null;
+                _lastLocalStatus = null;
                 _lastStatusText = null;
             }
 
@@ -542,6 +545,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 _lastStatusText = currentStatusText;
             }
 
+            // Detect local player status change and announce it
+            string currentLocalStatus = GetLocalPlayerStatus();
+            if (currentLocalStatus != _lastLocalStatus && !string.IsNullOrEmpty(currentLocalStatus))
+            {
+                string playerName = GetLocalPlayerName();
+                string label = !string.IsNullOrEmpty(playerName)
+                    ? $"{playerName}: {currentLocalStatus}"
+                    : currentLocalStatus;
+                _announcer.Announce(label, Models.AnnouncementPriority.Normal);
+                _lastLocalStatus = currentLocalStatus;
+            }
+
             // Refresh opponent virtual element label
             if (_opponentElementIndex >= 0)
             {
@@ -565,6 +580,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     }
                 }
             }
+
         }
 
         private EnemyState GetEnemyState(object enemyDisplay)
