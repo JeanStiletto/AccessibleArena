@@ -331,6 +331,7 @@ namespace AccessibleArena.Core.Services
             {
                 PanelStateManager.Instance.OnPanelChanged += OnPanelStateManagerActiveChanged;
                 PanelStateManager.Instance.OnAnyPanelOpened += OnPanelStateManagerAnyOpened;
+                PanelStateManager.Instance.OnPlayBladeStateChanged += OnPanelStateManagerPlayBladeChanged;
             }
 
             // Subscribe to mail letter selection events
@@ -489,6 +490,22 @@ namespace AccessibleArena.Core.Services
                 _bladeAutoExpandDelay = BladeAutoExpandDelay;
                 LogDebug($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
             }
+
+            TriggerRescan();
+        }
+
+        /// <summary>
+        /// Handler for PanelStateManager.OnPlayBladeStateChanged - fires when blade state changes.
+        /// This is a direct signal that bypasses the panel debounce, ensuring the blade helper
+        /// is initialized even when OnAnyPanelOpened is debounced away.
+        /// </summary>
+        private void OnPanelStateManagerPlayBladeChanged(int state)
+        {
+            if (!_isActive) return;
+
+            MelonLogger.Msg($"[{NavigatorId}] PlayBladeStateChanged: state={state}");
+            CheckAndInitPlayBladeHelper("BladeStateChanged");
+            CheckAndInitChallengeHelper("BladeStateChanged");
 
             TriggerRescan();
         }
@@ -1117,6 +1134,16 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Overlay changed: {_lastKnownOverlay?.ToString() ?? "none"} -> {currentOverlay?.ToString() ?? "none"}");
                 _lastKnownOverlay = currentOverlay;
+
+                // When the overlay changes to a PlayBlade state, also initialize the play blade helper.
+                // This catches the case where the blade is opened from a home screen objective
+                // (the Harmony panel events may fire before Btn_BladeIsOpen is active, causing
+                // CheckAndInitPlayBladeHelper to miss it; the overlay poll detects it reliably).
+                if (currentOverlay == ElementGroup.PlayBladeTabs || currentOverlay == ElementGroup.ChallengeMain)
+                {
+                    CheckAndInitPlayBladeHelper("OverlayChange");
+                    CheckAndInitChallengeHelper("OverlayChange");
+                }
 
                 // Only trigger rescan if we're not already waiting for one
                 if (_rescanDelay <= 0)

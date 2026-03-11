@@ -150,6 +150,14 @@ namespace AccessibleArena.Core.Services.PanelDetection
                             MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState={bladeState} from content view: {contentView}");
                         }
                     }
+                    else if (typeName == "EventBlade")
+                    {
+                        // HomePageContentController.IsEventBladeActive = true
+                        // This fires when the play blade opens from home screen objectives
+                        // (e.g., Sparked Rank achievement). Treat it as PlayBlade state 1.
+                        _stateManager.SetPlayBladeState(1);
+                        MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=1 from EventBlade");
+                    }
 
                     _stateManager.ReportPanelOpened(panelInfo);
                     MelonLogger.Msg($"[{DetectorId}] Reported panel opened: {typeName}");
@@ -171,6 +179,12 @@ namespace AccessibleArena.Core.Services.PanelDetection
                         // BladeContentView hiding - blade is closing
                         _stateManager.SetPlayBladeState(0);
                         MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=0 from content view closing: {typeName}");
+                    }
+                    else if (typeName == "EventBlade")
+                    {
+                        // HomePageContentController.IsEventBladeActive = false
+                        _stateManager.SetPlayBladeState(0);
+                        MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=0 from EventBlade closing");
                     }
 
                     // Report panel closed

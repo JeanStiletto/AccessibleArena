@@ -571,6 +571,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _currentElementIndex = -1;
             _navigationLevel = NavigationLevel.GroupList;
             PositionWasRestored = false;
+            _currentSubgroup = null;
 
             // First pass: identify folder toggles and their names
             var folderToggles = new Dictionary<string, GameObject>(); // folderName -> toggle GameObject
