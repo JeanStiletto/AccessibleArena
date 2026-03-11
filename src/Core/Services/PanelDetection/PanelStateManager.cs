@@ -181,6 +181,14 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 return false;
             }
 
+            // Decorative panels (e.g. 3D reward animations) are not interactive.
+            // Don't track them - they'd block real popups from becoming active.
+            if (BaseNavigator.IsDecorativePanel(panel.Name))
+            {
+                MelonLogger.Msg($"[PanelStateManager] Skipping decorative panel (not tracked): {panel.Name}");
+                return false;
+            }
+
             // Check if already in stack
             var existing = _panelStack.Find(p => p.GameObject == panel.GameObject);
             if (existing != null)

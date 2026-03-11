@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.8.3
 
+### Fix: Decorative 3D reward popups no longer lock mod
+- 3D reward animations (spinning coin/XP previews) on objective screens were being tracked as real popups, blocking popup detection and causing navigation lockout
+- Decorative panels are now excluded at every level: panel tracking, popup mode, and overlay filtering
+
 ### New: Challenge Tiles in Friends Panel
 - Incoming challenge requests now appear in a "Challenges" group when browsing the friends panel
 - Active challenges (ones you created) also appear in the same group

@@ -32,18 +32,6 @@ Fixed: Selecting a color button now triggers a rescan so the deck name refreshes
 
 ---
 
-### Weekly Progress Enter Locks Mod
-
-Pressing Enter on the Weekly Progress element puts the mod in a locked state requiring screen transition to recover.
-
----
-
-### Some Progress Items Open Buggy Screens
-
-Pressing Enter on specific Progress items for certain modes opens the corresponding screen but may create buggy navigation states.
-
----
-
 ### Workflow Browser Cannot Cancel Mana-Costing Activated Abilities
 
 When activating a mana-costing ability on a battlefield card, the workflow browser opens but Backspace does not cancel it.
