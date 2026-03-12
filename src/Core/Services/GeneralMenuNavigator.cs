@@ -2119,13 +2119,13 @@ namespace AccessibleArena.Core.Services
             {
                 if (isOpen)
                 {
-                    // Close the panel
-                    var closeMethod = socialUI.GetType().GetMethod("CloseFriendsWidget",
+                    // Close the panel - SocialUI.Minimize() closes friends list + chat
+                    var closeMethod = socialUI.GetType().GetMethod("Minimize",
                         AllInstanceFlags);
                     if (closeMethod != null)
                     {
                         closeMethod.Invoke(socialUI, null);
-                        LogDebug($"[{NavigatorId}] Called SocialUI.CloseFriendsWidget()");
+                        LogDebug($"[{NavigatorId}] Called SocialUI.Minimize()");
                         ReportPanelClosed(socialPanel);
                         TriggerRescan();
                     }

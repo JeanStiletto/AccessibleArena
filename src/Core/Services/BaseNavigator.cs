@@ -2351,6 +2351,10 @@ namespace AccessibleArena.Core.Services
                 DismissPopup();
                 return;
             }
+
+            // F4: toggle Friends panel (works even during popups)
+            if (Input.GetKeyDown(KeyCode.F4))
+                HandleCustomInput();
         }
 
         private void NavigatePopupItem(int direction)

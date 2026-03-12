@@ -239,7 +239,7 @@ The `FriendsWidget` uses a **virtualized scroll view** for performance:
 ### Panel Toggle
 
 Open: `SocialUI.ShowSocialEntitiesList()` via reflection
-Close: `SocialUI.CloseFriendsWidget()` via reflection
+Close: `SocialUI.Minimize()` via reflection (closes friends list + chat)
 Detection: `GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)")` + active `FriendsWidget_*` child
 
 ### Important Notes
