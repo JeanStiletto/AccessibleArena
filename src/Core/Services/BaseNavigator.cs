@@ -2253,6 +2253,18 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Level 1.5: FriendInvitePanel has no cancel button or dismiss overlay.
+            // The game closes it via SocialUI.HandleKeyDown(Escape) -> _friendInvitePanel.Close().
+            // Call Close() directly via reflection - it destroys the GO and fires Callback_OnClose.
+            if (TryCloseFriendInvitePanel(_popupGameObject))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup: dismissed FriendInvitePanel via Close()");
+                _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
+                ExitPopupMode();
+                OnPopupClosed();
+                return;
+            }
+
             // Level 2: Click dismiss overlay (e.g., Blade_DismissButton, BackgroundImage)
             // These are the game's click-outside-to-close buttons. Clicking them closes
             // the popup through the game's own mechanism, so detectors pick up the close.
@@ -3102,6 +3114,27 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Try to close a FriendInvitePanel popup via its Close() method.
+        /// This popup has no cancel button or dismiss overlay - the game only closes it via Escape.
+        /// </summary>
+        private static bool TryCloseFriendInvitePanel(GameObject popup)
+        {
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "FriendInvitePanel")
+                {
+                    var closeMethod = mb.GetType().GetMethod("Close", PublicInstance);
+                    if (closeMethod != null)
+                    {
+                        closeMethod.Invoke(mb, null);
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>
