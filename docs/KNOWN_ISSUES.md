@@ -218,7 +218,8 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 ### Upcoming
 
-1. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
+1. Battlefield navigation performance improvements - optimize card scanning, caching, and row organization for faster response on complex board states
+2. Unplayable card detection - detect and announce when a card cannot be played (e.g. insufficient mana) instead of silently failing or entering a broken state
 3. Manual trigger ordering - allow players to manually choose the order of their triggered abilities when multiple triggers happen simultaneously
 4. Auto-skip tracking and hotkeys - correct tracking and switching of auto-skip state, including a new hotkey for toggling auto-skip and full auto-skip modes
 5. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down

@@ -2030,6 +2030,9 @@ namespace AccessibleArena.Core.Services
                     LogDebug($"[{NavigatorId}] Found MainButton_Leave, activating (awaiting confirmation)");
                     _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                     UIActivator.Activate(leaveButton);
+                    // If user cancels the confirmation, rescan will consume this and re-enter ChallengeMain.
+                    // If user confirms, OnChallengeClosed() → SetChallengeContext(false) clears it first.
+                    _groupedNavigator.RequestChallengeMainEntry();
                     return true;
                 }
             }

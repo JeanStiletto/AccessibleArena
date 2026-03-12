@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v0.8.3
 
+### Fix: Challenge and invite popup closing
+- Backspace now reliably closes the invite popup via dismiss overlay detection (game's own close mechanism)
+- Cancelling the "leave challenge?" confirmation no longer breaks challenge navigation state
+- After cancelling leave, user is automatically re-entered into the challenge group
+- Dismiss overlay detection now finds CustomButton-based overlays (not just standard Unity Buttons)
+
 ### Fix: Spell cast and resolved announcements now in correct order
 - Previously, "Spell resolved" could be announced before "Cast [card name]" when the opponent auto-passes
 - Both announcements now use the same frame delay, ensuring cast is always announced first
