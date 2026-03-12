@@ -1571,7 +1571,7 @@ Popup handling is built into `BaseNavigator`. Any navigator that extends BaseNav
 - Popups are detected via `PanelStateManager.OnPanelChanged` events
 - When a popup is active, BaseNavigator saves current elements, discovers popup elements, and routes all input through popup navigation
 - Navigation model: Up/Down through a flat list of text blocks (first) + buttons (after), no wraparound
-- Backspace dismisses the popup via a 3-level fallback chain
+- Backspace dismisses the popup via a 4-level fallback chain
 - On popup close, saved elements and index are restored, labels refreshed
 
 **BaseNavigator Popup API:**
@@ -1590,7 +1590,7 @@ BaseNavigator.IsPopupPanel(PanelInfo)      // PanelType.Popup OR name contains "
 // Manual popup mode control (for screen-specific modals)
 EnterPopupMode(GameObject popup)           // Save elements, discover popup items, announce
 ExitPopupMode()                            // Restore saved elements and index
-DismissPopup()                             // 3-level dismissal chain
+DismissPopup()                             // 4-level dismissal chain
 
 // Overridable hooks
 OnPopupDetected(PanelInfo panel)           // Default: calls EnterPopupMode(panel.GameObject)
@@ -1643,10 +1643,11 @@ BaseNavigator's `HandleInput()` automatically routes input to popup navigation w
 
 **Popup Validation:** BaseNavigator automatically validates the popup GameObject each frame. When the game destroys a popup externally (e.g., after clicking a button that triggers a server action), popup mode exits cleanly and `OnPopupClosed()` fires.
 
-**Popup Dismissal (3-level fallback chain):**
+**Popup Dismissal (4-level fallback chain):**
 1. Find and click a cancel/close button by word-boundary pattern matching ("cancel", "close", "no", "back", "abbrechen", "nein", "zuruck") — uses `ContainsWord()` to avoid false positives (e.g., "no" inside "butto-no-utline")
-2. Invoke `SystemMessageView.OnBack(null)` via reflection
-3. `SetActive(false)` as last resort
+2. Click a dismiss overlay button (e.g., `Blade_DismissButton`, `BackgroundImage`) — these are the game's click-outside-to-close areas. Prefers buttons with "dismiss" in the name. Uses the game's own close mechanism so detectors pick up the close naturally.
+3. Invoke `SystemMessageView.OnBack(null)` via reflection
+4. `SetActive(false)` as last resort
 
 **Element Discovery (handled internally by BaseNavigator):**
 - Title: Extracted from title/header containers, announced in "Popup: {title}" header

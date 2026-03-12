@@ -681,7 +681,7 @@ StoreNavigator uses BaseNavigator's built-in popup mode with dual detection:
 - **PanelStateManager events**: BaseNavigator's `EnablePopupDetection()` auto-detects system popups (SystemMessageView, Dialog, etc.)
 - **Confirmation modal polling**: Polls `_confirmationModalField` on the store controller to detect the store's own confirmation modal (uses `EnterPopupMode()` manually)
 - When popup is active, navigation switches to popup elements (Up/Down navigate, Enter activates, Backspace dismisses)
-- Dismissal tries: modal `Close()` method, cancel button pattern matching, `SystemMessageView.OnBack()`
+- Dismissal tries: modal `Close()` method, cancel button pattern matching, dismiss overlay click, `SystemMessageView.OnBack()`
 
 **Key Implementation Details:**
 - Uses reflection to access `ContentController_StoreCarousel` internals (tabs, items, confirmation modal)

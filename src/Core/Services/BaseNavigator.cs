@@ -2224,10 +2224,11 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Dismiss the popup using a 3-level chain:
+        /// Dismiss the popup using a 4-level chain:
         /// 1. Find cancel button by pattern
-        /// 2. SystemMessageView.OnBack(null) via reflection
-        /// 3. SetActive(false) as last resort
+        /// 2. Click dismiss overlay (game's click-outside-to-close button)
+        /// 3. SystemMessageView.OnBack(null) via reflection
+        /// 4. SetActive(false) as last resort
         /// </summary>
         protected void DismissPopup()
         {
@@ -2252,8 +2253,20 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Level 2: SystemMessageView.OnBack(null)
-            MelonLogger.Msg($"[{NavigatorId}] Popup: no cancel button found, trying OnBack()");
+            // Level 2: Click dismiss overlay (e.g., Blade_DismissButton, BackgroundImage)
+            // These are the game's click-outside-to-close buttons. Clicking them closes
+            // the popup through the game's own mechanism, so detectors pick up the close.
+            var dismissOverlay = FindDismissOverlay(_popupGameObject);
+            if (dismissOverlay != null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Popup: clicking dismiss overlay: {dismissOverlay.name}");
+                _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
+                UIActivator.Activate(dismissOverlay);
+                return;
+            }
+
+            // Level 3: SystemMessageView.OnBack(null)
+            MelonLogger.Msg($"[{NavigatorId}] Popup: no cancel button or dismiss overlay found, trying OnBack()");
             var systemMessageView = FindSystemMessageViewInPopup(_popupGameObject);
             if (systemMessageView != null && TryInvokeOnBack(systemMessageView))
             {
@@ -2264,7 +2277,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Level 3: SetActive(false) fallback
+            // Level 4: SetActive(false) fallback
             MelonLogger.Warning($"[{NavigatorId}] Popup: using SetActive(false) fallback");
             _popupGameObject.SetActive(false);
             _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
@@ -2966,6 +2979,31 @@ namespace AccessibleArena.Core.Services
             string name = obj.name.ToLower();
             return name.Contains("background") || name.Contains("overlay") ||
                    name.Contains("backdrop") || name.Contains("dismiss");
+        }
+
+        /// <summary>
+        /// Find a dismiss overlay button in the popup (e.g., Blade_DismissButton).
+        /// Prefers buttons with "dismiss" in the name over generic "background" ones.
+        /// </summary>
+        private static GameObject FindDismissOverlay(GameObject popup)
+        {
+            if (popup == null) return null;
+
+            GameObject fallback = null;
+            foreach (var button in popup.GetComponentsInChildren<Button>(true))
+            {
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
+                if (!IsDismissOverlay(button.gameObject)) continue;
+
+                // Prefer "dismiss" buttons over generic "background" ones
+                if (button.gameObject.name.ToLower().Contains("dismiss"))
+                    return button.gameObject;
+
+                if (fallback == null)
+                    fallback = button.gameObject;
+            }
+
+            return fallback;
         }
 
         private static bool IsChildOfAny(Transform child, List<Transform> parents)
