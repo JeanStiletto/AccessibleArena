@@ -2983,6 +2983,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Find a dismiss overlay button in the popup (e.g., Blade_DismissButton).
+        /// Searches both standard Unity Buttons and CustomButton/AdvancedButton components.
         /// Prefers buttons with "dismiss" in the name over generic "background" ones.
         /// </summary>
         private static GameObject FindDismissOverlay(GameObject popup)
@@ -2990,17 +2991,22 @@ namespace AccessibleArena.Core.Services
             if (popup == null) return null;
 
             GameObject fallback = null;
-            foreach (var button in popup.GetComponentsInChildren<Button>(true))
+
+            // Scan all MonoBehaviours to catch CustomButton, AdvancedButton, and standard Button
+            foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
             {
-                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable) continue;
-                if (!IsDismissOverlay(button.gameObject)) continue;
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName != T.CustomButton && typeName != "AdvancedButton" &&
+                    typeName != "Button") continue;
+                if (!IsDismissOverlay(mb.gameObject)) continue;
 
                 // Prefer "dismiss" buttons over generic "background" ones
-                if (button.gameObject.name.ToLower().Contains("dismiss"))
-                    return button.gameObject;
+                if (mb.gameObject.name.ToLower().Contains("dismiss"))
+                    return mb.gameObject;
 
                 if (fallback == null)
-                    fallback = button.gameObject;
+                    fallback = mb.gameObject;
             }
 
             return fallback;

@@ -2018,16 +2018,18 @@ namespace AccessibleArena.Core.Services
         {
             LogDebug($"[{NavigatorId}] Attempting to close PlayBlade");
 
-            // Challenge screen: try the Leave button first
+            // Challenge screen: click Leave button but DON'T clear state immediately.
+            // The game shows a confirmation dialog first. If user confirms, the game
+            // closes the blade and panel detection handles cleanup naturally.
+            // If user cancels, the blade stays open with challenge state intact.
             if (_challengeHelper.IsActive)
             {
                 var leaveButton = GameObject.Find("MainButton_Leave");
                 if (leaveButton != null && leaveButton.activeInHierarchy)
                 {
-                    LogDebug($"[{NavigatorId}] Found MainButton_Leave, activating");
+                    LogDebug($"[{NavigatorId}] Found MainButton_Leave, activating (awaiting confirmation)");
                     _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                     UIActivator.Activate(leaveButton);
-                    ClearBladeStateAndRescan();
                     return true;
                 }
             }
