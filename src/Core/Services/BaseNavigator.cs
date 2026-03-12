@@ -2516,10 +2516,15 @@ namespace AccessibleArena.Core.Services
             DiscoverPopupDropdowns(popup, addedObjects);
 
             // Phase 4: Discover buttons
-            DiscoverPopupButtons(popup, addedObjects);
+            // Skip for FriendInvitePanel - it has a broken send button; user submits via Enter
+            // in the input field instead (which triggers onSubmit -> HandleSubmitInput correctly)
+            if (!HasComponentInChildren(popup, "FriendInvitePanel"))
+            {
+                DiscoverPopupButtons(popup, addedObjects);
 
-            // Phase 5: Remove text blocks duplicating button labels
-            DeduplicateTextBlocksAgainstButtons();
+                // Phase 5: Remove text blocks duplicating button labels
+                DeduplicateTextBlocksAgainstButtons();
+            }
 
             // Phase 6: Detect stepper elements (e.g., craft quantity in CardViewerPopup)
             DiscoverPopupSteppers(popup);

@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.8.3
 
+### Fix: Friends panel and invite popup closing
+- F4 now correctly closes the friends panel (was silently failing due to wrong method name)
+- Backspace now closes the friends panel via SocialUI.Minimize()
+- F4 works during popups (e.g., can close friends panel while invite popup is open)
+- InviteFriendPopup now closes on Backspace via FriendInvitePanel.Close()
+- Removed non-functional send button from invite popup; press Enter in the input field to send requests
+
 ### Fix: Challenge and invite popup closing
 - Backspace now reliably closes the invite popup via dismiss overlay detection (game's own close mechanism)
 - Cancelling the "leave challenge?" confirmation no longer breaks challenge navigation state
