@@ -289,6 +289,9 @@
   "HelpF4Friends": "F4: Friends panel",
   "HelpF11CardDump": "F11: Dump card details to log (pack opening)",
   "HelpF12UIDump": "F12: Dump UI hierarchy to log",
+  "HelpShiftF12DebugLog": "Shift plus F12: Speak last 5 debug log entries",
+  "DebugLogEmpty": "Debug log is empty",
+  "DebugLogHeader_Format": "Last {0} debug entries",
 
   "HelpCategoryTips": "Tips for new users",
   "HelpTipSpaceAdvance": "Space is the main confirm key during duels. It passes priority, advances phases, and confirms attackers or blockers",

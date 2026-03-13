@@ -108,4 +108,12 @@
     <EmbeddedResource Include="..\lang\*.json" LogicalName="lang.%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- Auto-deploy: copy built DLL to game Mods folder after each build -->
+  <Target Name="CopyToMods" AfterTargets="Build">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll"
+          DestinationFolder="$(MtgaPath)\Mods\"
+          SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Deployed $(AssemblyName).dll to $(MtgaPath)\Mods\" />
+  </Target>
+
 </Project>

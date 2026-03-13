@@ -192,6 +192,7 @@ namespace AccessibleArena
             _shortcuts.RegisterShortcut(KeyCode.F2, ToggleSettingsMenu, "Settings menu");
             _shortcuts.RegisterShortcut(KeyCode.R, KeyCode.LeftControl, RepeatLastAnnouncement, "Repeat last announcement");
             _shortcuts.RegisterShortcut(KeyCode.F3, AnnounceCurrentScreen, "Announce current screen");
+            _shortcuts.RegisterShortcut(KeyCode.F12, KeyCode.LeftShift, SpeakDebugLog, "Speak recent debug log entries");
         }
 
         private void ToggleHelpMenu()
@@ -219,6 +220,22 @@ namespace AccessibleArena
             else
             {
                 _announcer.AnnounceInterrupt(Strings.NoActiveScreen);
+            }
+        }
+
+        private void SpeakDebugLog()
+        {
+            var entries = DebugConfig.GetRecentEntries(5);
+            if (entries.Length == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.DebugLogEmpty);
+                return;
+            }
+
+            _announcer.AnnounceInterrupt(Strings.DebugLogHeader(entries.Length));
+            foreach (var entry in entries)
+            {
+                ScreenReaderOutput.Speak(entry, false);
             }
         }
 

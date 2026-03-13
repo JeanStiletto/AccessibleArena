@@ -61,3 +61,6 @@ rückschauzug arena.txt
 
 # Old/archived docs
 ACCESSIBILITY_MODDING_GUIDE.md
+
+# Internal comparison docs (not part of the mod)
+docs/modder-comparison.md

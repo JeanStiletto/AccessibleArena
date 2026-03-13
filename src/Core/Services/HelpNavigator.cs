@@ -129,6 +129,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpCategoryDebug,
                 Strings.HelpF11CardDump,
                 Strings.HelpF12UIDump,
+                Strings.HelpShiftF12DebugLog,
 
                 // Tips for new users
                 Strings.HelpCategoryTips,

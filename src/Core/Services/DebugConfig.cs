@@ -5,6 +5,7 @@ namespace AccessibleArena.Core.Services
     /// <summary>
     /// Centralized debug configuration for the entire mod.
     /// Toggle DebugEnabled to control all debug output.
+    /// Maintains a ring buffer of recent log entries for screen reader playback (Shift+F12).
     /// </summary>
     public static class DebugConfig
     {
@@ -26,6 +27,12 @@ namespace AccessibleArena.Core.Services
         // When enabled, logs detailed information about which detector claims each panel
         public static bool LogPanelOverlapDiagnostic { get; set; } = true;
 
+        // Ring buffer for recent log entries (speakable via Shift+F12)
+        private const int MaxRecentEntries = 20;
+        private static readonly string[] _recentEntries = new string[MaxRecentEntries];
+        private static int _recentWriteIndex;
+        private static int _recentCount;
+
         /// <summary>
         /// Log a debug message if DebugEnabled is true.
         /// </summary>
@@ -34,7 +41,11 @@ namespace AccessibleArena.Core.Services
         public static void Log(string tag, string message)
         {
             if (DebugEnabled)
-                MelonLogger.Msg($"[{tag}] {message}");
+            {
+                string entry = $"[{tag}] {message}";
+                MelonLogger.Msg(entry);
+                AddRecentEntry(entry);
+            }
         }
 
         /// <summary>
@@ -46,7 +57,39 @@ namespace AccessibleArena.Core.Services
         public static void LogIf(bool categoryEnabled, string tag, string message)
         {
             if (DebugEnabled && categoryEnabled)
-                MelonLogger.Msg($"[{tag}] {message}");
+            {
+                string entry = $"[{tag}] {message}";
+                MelonLogger.Msg(entry);
+                AddRecentEntry(entry);
+            }
+        }
+
+        private static void AddRecentEntry(string entry)
+        {
+            _recentEntries[_recentWriteIndex] = entry;
+            _recentWriteIndex = (_recentWriteIndex + 1) % MaxRecentEntries;
+            if (_recentCount < MaxRecentEntries)
+                _recentCount++;
+        }
+
+        /// <summary>
+        /// Returns the most recent log entries (oldest first), up to <paramref name="count"/>.
+        /// </summary>
+        public static string[] GetRecentEntries(int count = 5)
+        {
+            if (_recentCount == 0)
+                return System.Array.Empty<string>();
+
+            int take = System.Math.Min(count, _recentCount);
+            var result = new string[take];
+
+            // Read from oldest to newest within the requested window
+            int startIndex = (_recentWriteIndex - take + MaxRecentEntries) % MaxRecentEntries;
+            for (int i = 0; i < take; i++)
+            {
+                result[i] = _recentEntries[(startIndex + i) % MaxRecentEntries];
+            }
+            return result;
         }
 
         /// <summary>

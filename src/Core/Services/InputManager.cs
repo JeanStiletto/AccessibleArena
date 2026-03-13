@@ -194,7 +194,7 @@ namespace AccessibleArena.Core.Services
             KeyCode.Alpha6, KeyCode.Alpha7, KeyCode.Alpha8, KeyCode.Alpha9, KeyCode.Alpha0,
 
             // Function keys (safe)
-            KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4,
+            KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4, KeyCode.F12,
 
             // With modifiers
             KeyCode.R,  // Ctrl+R for repeat

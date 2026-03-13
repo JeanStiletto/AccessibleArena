@@ -856,6 +856,9 @@ namespace AccessibleArena.Core.Models
         public static string HelpCategoryDebug => L.Get("HelpCategoryDebug");
         public static string HelpF11CardDump => L.Get("HelpF11CardDump");
         public static string HelpF12UIDump => L.Get("HelpF12UIDump");
+        public static string HelpShiftF12DebugLog => L.Get("HelpShiftF12DebugLog");
+        public static string DebugLogEmpty => L.Get("DebugLogEmpty");
+        public static string DebugLogHeader(int count) => L.Format("DebugLogHeader_Format", count);
 
         // Tips for new users
         public static string HelpCategoryTips => L.Get("HelpCategoryTips");
