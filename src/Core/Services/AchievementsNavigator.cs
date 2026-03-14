@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -142,7 +143,7 @@ namespace AccessibleArena.Core.Services
         protected override bool DetectScreen()
         {
             // The Achievements screen loads as scene "Achievements" with AchievementsContentController
-            if (_currentScene != "Achievements")
+            if (_currentScene != SceneNames.Achievements)
                 return false;
 
             var controller = FindController();
@@ -320,7 +321,7 @@ namespace AccessibleArena.Core.Services
                 var clientSet = _clientSetField.GetValue(setItem);
                 bool isSummaryTab = clientSet == null;
                 string title = isSummaryTab
-                    ? "Summary"
+                    ? Strings.AchievementSummaryTab
                     : StripRichText(SafeGetString(_setTitleProp, clientSet) ?? "Unknown Set");
 
                 bool isSelected = currentlySelected != null && setItem.Equals(currentlySelected);
@@ -365,13 +366,11 @@ namespace AccessibleArena.Core.Services
 
             if (manager == null) return;
 
-            var pubFlags = BindingFlags.Public | BindingFlags.Instance;
-
             // Tracked (favorites) section
-            AddSummarySection("Tracked", _favoriteAchievementsProp, manager);
+            AddSummarySection(Strings.AchievementSectionTracked, _favoriteAchievementsProp, manager);
 
             // Up Next section
-            AddSummarySection("Up Next", _upNextAchievementsProp, manager);
+            AddSummarySection(Strings.AchievementSectionUpNext, _upNextAchievementsProp, manager);
         }
 
         private void AddSummarySection(string sectionName, PropertyInfo collectionProp, object manager)
@@ -592,8 +591,8 @@ namespace AccessibleArena.Core.Services
             // --- Achievement cards: Left/Right cycles sub-actions, Enter fires them ---
             if (entry.Type == EntryType.Achievement)
             {
-                bool isLeft  = Input.GetKeyDown(KeyCode.LeftArrow)  || Input.GetKeyDown(KeyCode.A);
-                bool isRight = Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D);
+                bool isLeft  = Input.GetKeyDown(KeyCode.LeftArrow);
+                bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
                 bool isEnter = Input.GetKeyDown(KeyCode.Return)      || Input.GetKeyDown(KeyCode.KeypadEnter);
 
                 if (isLeft || isRight)
@@ -665,13 +664,13 @@ namespace AccessibleArena.Core.Services
 
             string label;
             if (_achievementActionIndex == entry.ClaimActionIndex)
-                label = "Claim";
+                label = Strings.AchievementActionClaim;
             else if (_achievementActionIndex == entry.TrackActionIndex)
-                label = entry.IsFavorite ? "Untrack" : "Track";
+                label = entry.IsFavorite ? Strings.AchievementActionUntrack : Strings.AchievementActionTrack;
             else
-                label = "Action";
+                label = Strings.AchievementActionGeneric;
 
-            return $"{label}, option {_achievementActionIndex} of {entry.ActionCount}";
+            return Strings.AchievementActionPosition(label, _achievementActionIndex, entry.ActionCount);
         }
 
         private void ActivateCollectButton(GameObject cardObject)
