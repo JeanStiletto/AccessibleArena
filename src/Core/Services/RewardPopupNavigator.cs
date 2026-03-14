@@ -215,6 +215,8 @@ namespace AccessibleArena.Core.Services
                     rewardType = "XP";
                 else if (name.Contains("Avatar"))
                     rewardType = "Avatar";
+                else if (name.Contains("Emote"))
+                    rewardType = "Emote";
                 else
                     rewardType = "Reward";
 
@@ -572,6 +574,33 @@ namespace AccessibleArena.Core.Services
                         }
                     }
                     return "XP";
+
+                case "Emote":
+                    var emoteTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in emoteTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy &&
+                            text.gameObject.name == "Text - Speech")
+                        {
+                            string emoteName = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(emoteName))
+                                return $"Emote: {emoteName}";
+                        }
+                    }
+                    return $"Emote {index}";
+
+                case "Avatar":
+                    var avatarTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in avatarTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy)
+                        {
+                            string content = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(content) && content.Length > 1)
+                                return $"Avatar: {content}";
+                        }
+                    }
+                    return $"Avatar {index}";
 
                 default:
                     return $"Reward {index}";
