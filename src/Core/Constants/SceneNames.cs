@@ -12,5 +12,6 @@ namespace AccessibleArena.Core.Constants
         public const string AssetPrep = "AssetPrep";
         public const string MatchEndScene = "MatchEndScene";
         public const string PreGameScene = "PreGameScene";
+        public const string Achievements = "Achievements";
     }
 }

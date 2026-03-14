@@ -933,6 +933,32 @@ namespace AccessibleArena.Core.Models
         public static string PopupCancel => L.Get("PopupCancel");
 
         // ===========================================
+        // ACHIEVEMENTS SCREEN
+        // ===========================================
+        public static string AchievementsActivation(int count, int claimable) =>
+            L.Format("AchievementsActivation_Format", count, claimable);
+        public static string AchievementGroup(string title, int completed, int total, int claimable) =>
+            L.Format("AchievementGroup_Format", title, completed, total, claimable);
+        public static string AchievementEntry(string title, string description, string status, bool favorite) =>
+            favorite
+                ? L.Format("AchievementEntryFavorite_Format", title, description, status)
+                : L.Format("AchievementEntry_Format", title, description, status);
+        public static string AchievementCompleted => L.Get("AchievementCompleted");
+        public static string AchievementClaimed => L.Get("AchievementClaimed");
+        public static string AchievementReadyToClaim => L.Get("AchievementReadyToClaim");
+        public static string AchievementTracked => L.Get("AchievementTracked");
+        public static string AchievementUntracked => L.Get("AchievementUntracked");
+        public static string AchievementActionClaim => L.Get("AchievementActionClaim");
+        public static string AchievementActionTrack => L.Get("AchievementActionTrack");
+        public static string AchievementActionUntrack => L.Get("AchievementActionUntrack");
+        public static string AchievementActionGeneric => L.Get("AchievementActionGeneric");
+        public static string AchievementActionPosition(string label, int index, int total) =>
+            L.Format("AchievementActionPosition_Format", label, index, total);
+        public static string AchievementSummaryTab => L.Get("AchievementSummaryTab");
+        public static string AchievementSectionTracked => L.Get("AchievementSectionTracked");
+        public static string AchievementSectionUpNext => L.Get("AchievementSectionUpNext");
+
+        // ===========================================
         // INLINE STRING MIGRATIONS
         // ===========================================
         public static string SearchResults(int count) => L.Format("SearchResults_Format", count);
