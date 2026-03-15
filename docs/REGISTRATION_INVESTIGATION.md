@@ -131,6 +131,50 @@ Added Login/Registration types section and critical field/property notes.
 5. **Consider preventing duplicate onEndEdit**: check if Unity already fired onEndEdit before our explicit call, skip our call if so
 6. **Consider using Panel.OnAccept()**: instead of SimulatePointerClick, invoke OnAccept() on the RegistrationPanel directly — this is the game's intended keyboard activation path and uses `Click()` which doesn't have the `_mouseOver`/`PointerIsHeldDown` issues
 
+## CRITICAL: Do NOT Globally Intercept Input.GetKeyDown(Return)
+
+**Reverted in March 2026 after breaking all duel Enter handling.**
+
+Commit `ff141d0` attempted to fix the registration phantom-submit by globally blocking
+`Input.GetKeyDown(Return)` whenever any navigator was active (via `EventSystemPatch.GetKeyDown_Postfix`).
+This also broadened `SendSubmitEventToSelectedObject` to block whenever any navigator was active.
+
+### Why it broke duels
+
+- `Input.GetKeyDown` is a Unity API that **our own mod calls** (e.g., DuelNavigator's Enter
+  guard at HandleCustomInput line 550).
+- The Harmony postfix intercepts ALL callers, including our own code.
+- DuelNavigator's Enter guard calls `Input.GetKeyDown(Return)` → patch returns `false` →
+  guard never fires → Enter falls through to BaseNavigator → `ActivateCurrentElement()`
+  clicks the settings gear button (element index 0) → SettingsMenu opens.
+- The `EnterPressedWhileBlocked` secondary channel was only checked by BaseNavigator, not
+  by the DuelNavigator guard or any other caller.
+- Result: Enter was completely broken in duels — every Enter press opened the settings menu.
+
+### The rule
+
+**Never patch `Input.GetKeyDown` with a global scope.** Our mod depends on `Input.GetKeyDown`
+returning the real Unity value. Intercepting it creates a circular dependency where our patch
+breaks our own callers, requiring a fragile secondary signaling channel that every caller must
+know about.
+
+### Allowed scope for GetKeyDown_Postfix
+
+- `BlockSubmitForToggle == true` (toggle/dropdown activation) — this is the original, safe scope.
+  It only fires when a specific navigator has set the flag for a specific element.
+
+### How to fix registration phantom-submit properly
+
+The root cause is `OldInputHandler.Update()` polling `GetKeyDown(Return)` and firing
+`Panel.OnAccept()`. Targeted solutions (pick one):
+
+1. **Patch `OldInputHandler.Update()` directly** — skip the Return key check when on registration screen
+2. **Patch `Panel.OnAccept()` for RegistrationPanel** — block it when our navigator is handling Enter
+3. **Add a registration-screen-specific flag** checked only in `GetKeyDown_Postfix`, not globally
+4. **Use `SendSubmitEventToSelectedObject` blocking** scoped to the registration navigator only
+
+Any fix must be scoped to the registration screen, not applied mod-wide.
+
 ## Key Decompiled Types
 
 - `RegistrationPanel` — `llm-docs/decompiled/RegistrationPanel.cs`
