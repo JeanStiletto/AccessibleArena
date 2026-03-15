@@ -337,11 +337,11 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverOverview()
         {
-            // Part 1: Summary achievements (tracked + up next) from IAchievementManager
-            DiscoverSummaryAchievements();
-
-            // Part 2: Set tabs (excluding Summary tab)
+            // Part 1: Set tabs (excluding Summary tab)
             DiscoverSetTabs();
+
+            // Part 2: Summary achievements (tracked + up next) from IAchievementManager
+            DiscoverSummaryAchievements();
         }
 
         private void DiscoverSummaryAchievements()
@@ -892,13 +892,8 @@ namespace AccessibleArena.Core.Services
             var currentlySelected = _currentlySelectedField?.GetValue(null) as UnityEngine.Object;
             bool alreadyActive = currentlySelected != null && setItem.Equals(currentlySelected);
 
-            if (alreadyActive)
+            if (!alreadyActive)
             {
-                TransitionToGroups();
-            }
-            else
-            {
-                // Switch tab and wait for content to load
                 try
                 {
                     _selectSetMethod.Invoke(setItem, new object[] { true });
@@ -908,9 +903,21 @@ namespace AccessibleArena.Core.Services
                     MelonLogger.Warning($"[{NavigatorId}] SelectSet error: {ex.InnerException?.Message ?? ex.Message}");
                     return;
                 }
-                _announcer.AnnounceInterrupt(Strings.Loading(_selectedTabName));
+            }
+
+            // Try immediate discovery — content may already be loaded
+            _groupEntries.Clear();
+            DiscoverGroups();
+
+            if (_groupEntries.Count > 0)
+            {
+                TransitionToGroupsImmediate();
+            }
+            else
+            {
+                // Content not yet loaded, poll after short delay
                 _pendingLevel = NavigationLevel.Groups;
-                ScheduleRescan(1.0f);
+                ScheduleRescan(0.5f);
             }
         }
 
@@ -940,6 +947,14 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            TransitionToGroupsImmediate();
+        }
+
+        /// <summary>
+        /// Enters Level 1. Assumes _groupEntries is already populated and non-empty.
+        /// </summary>
+        private void TransitionToGroupsImmediate()
+        {
             _navLevel = NavigationLevel.Groups;
             _groupIndex = 0;
             _actionSubIndex = 0;
