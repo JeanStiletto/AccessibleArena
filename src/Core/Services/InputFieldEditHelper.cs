@@ -60,12 +60,17 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Exit edit mode: deactivate field and clear state.
+        /// Passes the editing field reference so DeactivateFocusedInputField knows which field
+        /// was being edited. This is critical for Tab: Unity's EventSystem moves focus to the
+        /// next field BEFORE our code runs, so without this reference, onEndEdit would fire
+        /// on the wrong (next) field with empty text, corrupting game validation state.
         /// </summary>
         public void ExitEditMode()
         {
+            var wasEditing = _editingField;
             _editingField = null;
             UIFocusTracker.ExitInputFieldEditMode();
-            UIFocusTracker.DeactivateFocusedInputField();
+            UIFocusTracker.DeactivateFocusedInputField(wasEditing);
         }
 
         /// <summary>

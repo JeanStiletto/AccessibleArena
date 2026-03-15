@@ -162,13 +162,42 @@ namespace AccessibleArena.Core.Services
         /// Called when user presses Escape to exit an input field they clicked into.
         /// Also clears EventSystem selection so IsAnyInputFieldFocused() returns false.
         /// </summary>
-        public static void DeactivateFocusedInputField()
+        /// <param name="expectedField">The field we were editing. When provided and the current
+        /// EventSystem selection is a DIFFERENT field (Tab caused Unity to move focus before our
+        /// code ran), we skip onEndEdit on the new field to avoid corrupting game validation
+        /// state with empty values. The game's native Tab handling already called onEndEdit on
+        /// the old field.</param>
+        public static void DeactivateFocusedInputField(GameObject expectedField = null)
         {
             var eventSystem = EventSystem.current;
-            if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
+            if (eventSystem == null)
                 return;
 
             var selected = eventSystem.currentSelectedGameObject;
+
+            // Tab race condition: Unity moved focus to the next field before our code ran.
+            // The game already called onEndEdit on the old field. Don't call onEndEdit on
+            // the new field (which would send empty text and corrupt validation).
+            // Just deactivate auto-focus on the new field and clear selection.
+            if (expectedField != null && selected != null && selected != expectedField)
+            {
+                var newTmpInput = selected.GetComponent<TMPro.TMP_InputField>();
+                if (newTmpInput != null && newTmpInput.isFocused)
+                    newTmpInput.DeactivateInputField();
+                else
+                {
+                    var newLegacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
+                    if (newLegacyInput != null && newLegacyInput.isFocused)
+                        newLegacyInput.DeactivateInputField();
+                }
+                eventSystem.SetSelectedGameObject(null);
+                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker",
+                    $"Tab moved focus from {expectedField.name} to {selected.name} - skipped onEndEdit on new field");
+                return;
+            }
+
+            if (selected == null)
+                return;
 
             var tmpInput = selected.GetComponent<TMPro.TMP_InputField>();
             if (tmpInput != null)
