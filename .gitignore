@@ -64,3 +64,6 @@ ACCESSIBILITY_MODDING_GUIDE.md
 
 # Internal comparison docs (not part of the mod)
 docs/modder-comparison.md
+
+# Audio stutter investigation files
+audio-stutter/

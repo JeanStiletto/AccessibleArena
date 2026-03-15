@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.8.5
 
+### Fix: Hopefully fixed auto-advancing dropdowns in registration
+- Extended post-dropdown Submit block from 3 frames (~50ms) to 500ms to cover the game's delayed form-advance
+
 ### Fix: Deck selection in challenge friend screen
 - Pressing Enter on the deck name now correctly opens the deck selector instead of announcing "Deck Selected"
 - Entering folders in the deck selector works reliably (no longer snaps back to the folder list)

@@ -44,10 +44,11 @@ namespace AccessibleArena.Core.Services
         private static GameObject _activeDropdownObject;
 
         /// <summary>
-        /// Frame on which a dropdown item was selected via Enter. Submit events are blocked
-        /// for a few frames after this to prevent MTGA from auto-clicking Continue.
+        /// Time until which Submit events are blocked after a dropdown selection.
+        /// Uses realtime (not frame count) to be frame-rate independent.
+        /// 500ms window covers the game's delayed form-advance (~376ms observed).
         /// </summary>
-        private static int _blockSubmitAfterFrame = -1;
+        private static float _blockSubmitUntilTime = -1f;
 
         /// <summary>
         /// When true, Enter key is blocked from the game's KeyboardManager and
@@ -192,14 +193,16 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Returns true if Submit events should be blocked.
-        /// After a dropdown item is selected, we block Submit for a few frames to prevent
+        /// After a dropdown item is selected, we block Submit for 500ms to prevent
         /// MTGA from auto-clicking Continue (or other buttons that receive focus after dropdown closes).
+        /// Time-based rather than frame-based for consistent behavior across frame rates.
         /// </summary>
         public static bool ShouldBlockSubmit()
         {
-            if (_blockSubmitAfterFrame < 0) return false;
-            int frame = UnityEngine.Time.frameCount;
-            return frame > _blockSubmitAfterFrame && frame <= _blockSubmitAfterFrame + 3;
+            if (_blockSubmitUntilTime < 0f) return false;
+            if (UnityEngine.Time.realtimeSinceStartup < _blockSubmitUntilTime) return true;
+            _blockSubmitUntilTime = -1f;
+            return false;
         }
 
         /// <summary>
@@ -208,10 +211,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static void OnDropdownItemSelected(int selectedValue)
         {
-            _blockSubmitAfterFrame = UnityEngine.Time.frameCount;
+            _blockSubmitUntilTime = UnityEngine.Time.realtimeSinceStartup + 0.5f;
             _pendingNotifyValue = selectedValue;
             DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
-                $"Dropdown item selected (value={selectedValue}) on frame {_blockSubmitAfterFrame}, blocking Submit for next 3 frames");
+                $"Dropdown item selected (value={selectedValue}), blocking Submit for 500ms");
         }
 
         /// <summary>
@@ -250,9 +253,9 @@ namespace AccessibleArena.Core.Services
         public static string OnDropdownClosed()
         {
             _blockEnterFromGame = false;
-            // Block Submit for a few frames to prevent MTGA from auto-clicking
+            // Block Submit for 500ms to prevent MTGA from auto-clicking
             // the element that receives focus after dropdown closes
-            _blockSubmitAfterFrame = UnityEngine.Time.frameCount;
+            _blockSubmitUntilTime = UnityEngine.Time.realtimeSinceStartup + 0.5f;
             string newFocusName = null;
 
             // Capture pending value before restore (restore clears _suppressedDropdownComponent)
@@ -311,7 +314,7 @@ namespace AccessibleArena.Core.Services
             _wasInDropdownMode = false;
             _suppressReentry = false;
             _activeDropdownObject = null;
-            _blockSubmitAfterFrame = -1;
+            _blockSubmitUntilTime = -1f;
             _blockEnterFromGame = false;
             _pendingNotifyValue = -1;
             RestoreOnValueChanged();
