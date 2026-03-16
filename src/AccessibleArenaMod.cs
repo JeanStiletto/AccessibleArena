@@ -71,6 +71,12 @@ namespace AccessibleArena
             // Used alongside alpha-based popup detection for hybrid detection
             PanelStatePatch.Initialize();
 
+            // EventSystemPatch runtime patches (NewInputHandler.OnAccept)
+            // Attribute-based patches are auto-applied by MelonLoader, but game types
+            // in Core.dll need runtime patching via FindType + harmony.Patch.
+            var harmony = new HarmonyLib.Harmony("com.accessibility.mtga.eventsystempatch");
+            EventSystemPatch.ApplyRuntimePatches(harmony);
+
             LoggerInstance.Msg("Harmony patches initialized");
         }
 

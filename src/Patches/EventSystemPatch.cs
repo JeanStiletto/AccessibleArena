@@ -1,8 +1,12 @@
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using MelonLoader;
+using System.Reflection;
 using AccessibleArena.Core.Services;
+using static AccessibleArena.Core.Utils.ReflectionUtils;
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Patches
 {
@@ -12,7 +16,7 @@ namespace AccessibleArena.Patches
     /// MTGA has multiple ways of detecting Enter:
     /// 1. Unity's EventSystem Submit - blocked by SendSubmitEventToSelectedObject patch
     /// 2. Direct Input.GetKeyDown calls - blocked by GetKeyDown patch
-    /// 3. ActionSystem calling IAcceptActionHandler.OnAccept() - blocked by PanelOnAccept patch
+    /// 3. ActionSystem via NewInputHandler.OnAccept() - blocked by runtime patch (ApplyRuntimePatches)
     ///
     /// All patches check BlockSubmitForToggle flag set by navigators when on a toggle/login element.
     ///
@@ -22,6 +26,81 @@ namespace AccessibleArena.Patches
     [HarmonyPatch]
     public static class EventSystemPatch
     {
+        /// <summary>
+        /// Apply runtime Harmony patches that can't use attribute-based patching
+        /// (because the target types are in game assemblies without compile-time references).
+        /// </summary>
+        public static void ApplyRuntimePatches(HarmonyLib.Harmony harmony)
+        {
+            // Patch NewInputHandler.OnAccept to block the new Input System's Enter detection.
+            // MTGA uses Unity's new Input System (UnityEngine.InputSystem) when the
+            // "use_new_unity_input" feature toggle is enabled. NewInputHandler registers
+            // callbacks with the InputAction system — these fire INDEPENDENTLY of
+            // Input.GetKeyDown (old system), so our GetKeyDown_Postfix doesn't block them.
+            // Without this patch, pressing Enter fires BOTH our mod's activation AND
+            // Panel.OnAccept() via ActionSystem, causing double registration submission.
+            var newInputType = FindType("Core.Code.Input.NewInputHandler");
+            if (newInputType != null)
+            {
+                var onAcceptMethod = newInputType.GetMethod("OnAccept", PublicInstance);
+                if (onAcceptMethod != null)
+                {
+                    var prefix = typeof(EventSystemPatch).GetMethod(nameof(NewInputHandlerOnAccept_Prefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onAcceptMethod, prefix: new HarmonyMethod(prefix));
+                    MelonLogger.Msg("[EventSystemPatch] Patched NewInputHandler.OnAccept()");
+                }
+                else
+                {
+                    MelonLogger.Warning("[EventSystemPatch] Could not find NewInputHandler.OnAccept method");
+                }
+            }
+            else
+            {
+                MelonLogger.Warning("[EventSystemPatch] Could not find NewInputHandler type");
+            }
+
+            // DIAGNOSTIC: Patch RegistrationPanel.OnButton_SubmitRegistration to log every call
+            // with stack trace, so we can identify which path triggers registration.
+            var regPanelType = FindType("Wotc.Mtga.Login.RegistrationPanel");
+            if (regPanelType != null)
+            {
+                var submitMethod = regPanelType.GetMethod("OnButton_SubmitRegistration", PublicInstance);
+                if (submitMethod != null)
+                {
+                    var prefix = typeof(EventSystemPatch).GetMethod(nameof(SubmitRegistrationDiagnostic_Prefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(submitMethod, prefix: new HarmonyMethod(prefix));
+                    MelonLogger.Msg("[EventSystemPatch] Patched RegistrationPanel.OnButton_SubmitRegistration() (diagnostic)");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Block NewInputHandler.OnAccept() on the Login scene.
+        /// Our mod handles all Enter presses — without this, the new Input System
+        /// fires Accept independently, causing Panel.OnAccept() to click _mainButton.
+        /// </summary>
+        public static bool NewInputHandlerOnAccept_Prefix()
+        {
+            if (SceneManager.GetActiveScene().name == SceneNames.Login)
+            {
+                MelonLogger.Msg("[EventSystemPatch] BLOCKED NewInputHandler.OnAccept() on Login scene");
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC: Log every call to RegistrationPanel.OnButton_SubmitRegistration()
+        /// with a stack trace to identify which path triggers registration.
+        /// </summary>
+        public static void SubmitRegistrationDiagnostic_Prefix()
+        {
+            MelonLogger.Msg("[EventSystemPatch] >>> OnButton_SubmitRegistration CALLED <<<");
+            MelonLogger.Msg($"[EventSystemPatch] Stack: {System.Environment.StackTrace}");
+        }
+
         /// <summary>
         /// Patch StandaloneInputModule.SendMoveEventToSelectedObject to block arrow key
         /// navigation when the user is editing an input field. Without this, pressing
@@ -108,26 +187,5 @@ namespace AccessibleArena.Patches
             }
         }
 
-        /// <summary>
-        /// Patch Panel.OnAccept() to block the ActionSystem from submitting the form
-        /// when our navigator is handling Enter.
-        ///
-        /// Panel (Wotc.Mtga.Login.Panel) implements IAcceptActionHandler. The ActionSystem
-        /// calls OnAccept() when Enter is pressed — this is a SEPARATE path from
-        /// Input.GetKeyDown, EventSystem Submit, and KeyboardManager.PublishKeyDown.
-        /// Without this patch, pressing Enter triggers BOTH our mod's activation AND
-        /// the game's Panel.OnAccept(), causing double registration submission.
-        /// </summary>
-        [HarmonyPatch("Wotc.Mtga.Login.Panel", "OnAccept")]
-        [HarmonyPrefix]
-        public static bool PanelOnAccept_Prefix()
-        {
-            if (InputManager.BlockSubmitForToggle)
-            {
-                MelonLogger.Msg("[EventSystemPatch] BLOCKED Panel.OnAccept() - our navigator handles Enter");
-                return false;
-            }
-            return true;
-        }
     }
 }

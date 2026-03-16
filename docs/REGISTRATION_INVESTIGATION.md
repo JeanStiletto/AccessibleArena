@@ -1,124 +1,124 @@
 # Registration Form Investigation
 
-Status: **Still double-submitting** — all known Enter paths blocked, but game still submits independently.
+Status: **Diagnostic build deployed** — all known Enter paths blocked, but game still submits independently. Stack trace diagnostic on `OnButton_SubmitRegistration()` will reveal the remaining path.
 
-## Root Cause (confirmed March 2026)
+## Architecture: How Enter Reaches Registration
 
-### The problem was never `_validDisplayName`
+MTGA has **two independent input systems** that both detect Enter:
 
-Diagnostic logging (`DiagnoseRegistrationState`) confirmed ALL validation conditions pass:
+### Old Input System (`UnityEngine.Input`)
+- `OldInputHandler.Update()` polls `Input.GetKeyDown(KeyCode.Return)` → fires `Accept` event → `ActionSystem` → `Panel.OnAccept()` → `_mainButton.Click()`
+- `StandaloneInputModule` / `CustomStandaloneInputModule` → `SendSubmitEventToSelectedObject` → fires `ISubmitHandler.OnSubmit` on EventSystem selected object
+- `KeyboardManager.PublishKeyDown(Return)` → notifies subscribers (Panel implements `IKeyDownSubscriber` but only handles Escape)
+
+### New Input System (`UnityEngine.InputSystem`)
+- `NewInputHandler.OnAccept(InputAction.CallbackContext)` fires via InputAction callback → fires `Accept` event → `ActionSystem` → `Panel.OnAccept()` → `_mainButton.Click()`
+- `CustomUIInputModule` (extends `InputSystemUIInputModule`) → fires Submit events on EventSystem selected object. BUT `CustomButton` does NOT implement `ISubmitHandler` (only pointer handlers), so this path has no effect on buttons.
+
+### Which system is active?
+`ActionSystemFactory.UseNewInput` (feature toggle `"use_new_unity_input"`) determines which handler is created. `CustomInputModule.Start()` uses the same toggle to choose `CustomStandaloneInputModule` or `CustomUIInputModule`. Only ONE of each is active.
+
+### Our mod
+- `BaseNavigator.HandleInput` / `GeneralMenuNavigator.HandleCustomInput` detects Enter via `Input.GetKeyDown(Return)` or `EnterPressedWhileBlocked` flag → calls `ActivateCurrentElement()` → `UIActivator.SimulatePointerClick()`
+
+## Decompiled Types (all in `llm-docs/decompiled/`)
+
+- `OldInputHandler.cs` — `Core.Code.Input.OldInputHandler` (Core.dll): polls `Input.GetKeyDown` for all actions
+- `NewInputHandler.cs` — `Core.Code.Input.NewInputHandler` (Core.dll): uses InputAction callbacks, `Update()` is empty
+- `ActionSystem.cs` — `Core.Code.Input.ActionSystem` (Core.dll): subscribes to `IInputHandler.Accept` → calls `IAcceptActionHandler.OnAccept()`
+- `ActionSystemFactory.cs` — `Core.Code.Input.ActionSystemFactory` (Core.dll): creates OldInputHandler or NewInputHandler based on feature toggle
+- `CustomInputModule.cs` — `Wotc.Mtga.CustomInput.CustomInputModule` (Core.dll): adds CustomStandaloneInputModule or CustomUIInputModule
+- `CustomUIInputModule.cs` — `Wotc.Mtga.CustomInput.CustomUIInputModule` (Core.dll): extends InputSystemUIInputModule, no Submit override
+- `Panel.cs` — `Wotc.Mtga.Login.Panel` (Core.dll): implements IAcceptActionHandler, OnAccept() clicks _mainButton
+- `RegistrationPanel.cs` — `Wotc.Mtga.Login.RegistrationPanel` (Core.dll): OnButton_SubmitRegistration() → DoRegistration()
+- `CustomButton.cs` — `CustomButton` (Core.dll): implements IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler (NOT ISubmitHandler)
+
+## All Blocks Currently Applied
+
+### 1. `Input.GetKeyDown(KeyCode.Return)` — BLOCKED
+`EventSystemPatch.GetKeyDown_Postfix` (Harmony postfix on `UnityEngine.Input.GetKeyDown`):
+- When `BlockSubmitForToggle == true` and `__result == true` for Return/KeypadEnter
+- Sets `__result = false` (caller sees false), sets `EnterPressedWhileBlocked = true`
+- Blocks `OldInputHandler.Update()` from seeing Enter
+- Also blocks our own mod's `Input.GetKeyDown` calls (mod uses `EnterPressedWhileBlocked` instead)
+
+### 2. `EventSystem.SendSubmitEventToSelectedObject` — BLOCKED
+`EventSystemPatch.SendSubmitEventToSelectedObject_Prefix` (Harmony prefix on `StandaloneInputModule`):
+- When `BlockSubmitForToggle == true` OR `DropdownStateManager.ShouldBlockEnterFromGame` OR post-dropdown window
+- Only applies if `StandaloneInputModule` is active (old input system)
+
+### 3. `KeyboardManager.PublishKeyDown(Return)` — BLOCKED
+`KeyboardManagerPatch.PublishKeyDown_Prefix` via `ShouldBlockKey`:
+- Blocks Return/KeypadEnter on Login scene and DuelScene
+- Also blocks KeyUp via `PublishKeyUp_Prefix`
+
+### 4. `NewInputHandler.OnAccept()` — BLOCKED
+`EventSystemPatch.NewInputHandlerOnAccept_Prefix` (runtime Harmony prefix):
+- Blocks when scene is Login
+- Applied via `FindType("Core.Code.Input.NewInputHandler")` + `harmony.Patch()` at runtime
+- Log confirmed patch loaded: `"Patched NewInputHandler.OnAccept()"`
+
+### 5. `BlockNextEnterKeyUp` — SET
+In `BaseNavigator.HandleInput` and `GeneralMenuNavigator.HandleCustomInput`:
+- Set before `ActivateCurrentElement()` / `HandleGroupedEnter()` on Login scene
+- `PublishKeyUp_Prefix` checks this one-shot flag and blocks Enter KeyUp
+
+### 6. `BlockSubmitForToggle` for all Login scene elements
+In `BaseNavigator.UpdateEventSystemSelection` and `GeneralMenuNavigator.UpdateEventSystemSelectionForGroupedElement`:
+- Set to true for toggles, dropdowns, AND all Login scene elements
+- Controls GetKeyDown_Postfix and SendSubmitEventToSelectedObject_Prefix
+
+## What the Log Shows (latest test)
+
+Patch confirmed loaded at startup:
 ```
-_validDisplayName = True
-_submitting = True          ← THE FAILING CONDITION
-All fields filled correctly
-All toggles isOn=True
+[EventSystemPatch] Patched NewInputHandler.OnAccept()
+[EventSystemPatch] Patched RegistrationPanel.OnButton_SubmitRegistration() (diagnostic)
 ```
 
-The button is disabled because `_submitting = True` — meaning the registration was **already submitted by the game** before our mod processed Enter.
+Submit button activation (form fully filled, all toggles on):
+```
+09:34:02.480  BLOCKED Input.GetKeyDown(Return) x4
+09:34:02.483  Activating: MainButton_Register (ID:-2846, Label:Bestätigen)
+09:34:02.483  Simulating pointer events on: MainButton_Register
+09:34:02.483  Set EventSystem selected object to: MainButton_Register
+09:34:02.489  Announce: Aktiviert
+09:34:12.428  Accessible Arena shutting down
+```
 
-### How the race works
+No `NewInputHandler.OnAccept BLOCKED` message in log — either the new input system isn't active, or it doesn't fire on this frame.
 
-`Panel` (base class of `RegistrationPanel`) implements `IAcceptActionHandler`. The game's `OldInputHandler` polls `Input.GetKeyDown(Return)` every frame and calls `Panel.OnAccept()` when Enter is pressed. `OnAccept()` clicks `_mainButton` (the submit button) regardless of which element has focus — it's the standard "Enter submits the form" behavior.
+User reports: registration succeeds (mail sent), but a 403 error appears after a few seconds instead of advancing to the new player experience.
 
-Timeline when user presses Enter on the submit button:
-1. **Game's `OldInputHandler.Update()`** runs first → `Input.GetKeyDown(Return)` → calls `Panel.OnAccept()`
-2. **`Panel.OnAccept()`** checks `_mainButton.Interactable` → true (all conditions met) → `_mainButton.Click()`
-3. **`OnButton_SubmitRegistration()`** → `DoRegistration()` → `_submitting = true` → server call starts
-4. **`_checkFields()` (same frame)** → `_submitting == true` → `EnableButton(false)`
-5. **Our mod's `OnUpdate()`** runs after → `GetEnterAndConsume()` → `ActivateCurrentElement()`
-6. **`UIActivator.Activate()`** → checks `CustomButton.Interactable` → **false** → returns "Deaktiviert"
+## What's NOT Yet Ruled Out
 
-The game already submitted successfully. The user gets confirmation emails, the account is created. But our mod reports "Deaktiviert" and the user thinks nothing happened.
+1. **`CustomUIInputModule` (InputSystemUIInputModule) Submit path** — If the new UI module is active, it may fire Submit events through the new Input System, bypassing `StandaloneInputModule.SendSubmitEventToSelectedObject`. However, `CustomButton` doesn't implement `ISubmitHandler`, so Submit events shouldn't click the button.
 
-### Why this wasn't caught earlier
+2. **Unknown path** — The `OnButton_SubmitRegistration` diagnostic patch (with stack trace) will identify exactly which code path triggers registration. If the game calls it through a path we haven't blocked, the stack trace will reveal it.
 
-Before the `Interactable` check was added (commit `1173608`), `SimulatePointerClick` returned "Aktiviert" even though the `CustomButton.OnPointerUp` silently rejected the click (button already disabled by `_submitting=true`). The user heard "Aktiviert", the game had already submitted — everything seemed to work. The interactable check made the silent failure visible.
+3. **NOT a double-submit at all** — The 403 may come from a post-registration action (auto-login, token validation) that fails, not from a second registration attempt. The diagnostic will distinguish: one `OnButton_SubmitRegistration` call = not double-submit; two calls = double-submit with stack traces showing both paths.
 
-### Why it affects ALL elements, not just the submit button
+## Previous Attempts That Failed
 
-`Panel.OnAccept()` always clicks `_mainButton`, regardless of which element has EventSystem focus. So pressing Enter on an input field, a toggle (when not blocked), or any other element would also trigger form submission if the button is interactable.
-
-Our toggle handling (`BlockSubmitForToggle = true`) was already preventing this for toggles and dropdowns. The gap was: buttons and other non-toggle elements on the login scene did NOT set this flag.
-
-## Fixes Applied (all deployed, double-submit persists)
-
-### Fix 1: BlockSubmitForToggle for all Login scene elements
-
-Extended `BlockSubmitForToggle` to include ALL elements on the Login scene:
+### String-based Harmony patch on `Panel.OnAccept` — SILENTLY FAILED
 ```csharp
-bool isLoginScene = SceneManager.GetActiveScene().name == "Login";
-InputManager.BlockSubmitForToggle = isToggle || isDropdown || isLoginScene;
+[HarmonyPatch("Wotc.Mtga.Login.Panel", "OnAccept")]
+[HarmonyPrefix]
+public static bool PanelOnAccept_Prefix() { ... }
 ```
+Never fired — no log output. String-based `[HarmonyPatch]` attributes silently fail when the type isn't found at attribute processing time. Replaced with runtime patching via `FindType()` + `harmony.Patch()`.
 
-This blocks:
-- `GetKeyDown_Postfix` blocks `Input.GetKeyDown(Return)` → `OldInputHandler` doesn't see Enter → `OnAccept()` doesn't fire
-- `SendSubmitEventToSelectedObject_Prefix` blocks EventSystem Submit
-- `EnterPressedWhileBlocked` flag lets our mod detect the blocked Enter
-- Our mod handles activation exclusively via `UIActivator.Activate()`
+### ConsumeKey for Login scene elements — NO EFFECT
+`ConsumeKey(Return)` only blocks `KeyboardManager.PublishKeyDown` via `IsKeyConsumed()`. Doesn't block `NewInputHandler` callbacks or `InputSystemUIInputModule`.
 
-Changed in both `GeneralMenuNavigator.UpdateEventSystemSelectionForGroupedElement` and `BaseNavigator.UpdateEventSystemSelection`.
-
-**Bug in initial attempt**: Originally checked for scene name `"Bootstrap"` but the active scene during registration is actually `"Login"` (MTGA loads Bootstrap → AssetPrep → Login additively). Fixed to `"Login"`.
-
-**Result**: Enter no longer leaks to game on input fields and toggles. Submit button still double-submits.
-
-### Fix 2: Block Enter from KeyboardManager.PublishKeyDown on Login scene
-
-Added Enter blocking in `KeyboardManagerPatch.ShouldBlockKey` for the Login scene, same as DuelScene:
-```csharp
-if (_cachedSceneName == SceneNames.Login)
-{
-    if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
-        return true;
-}
-```
-
-**Theory**: `KeyboardManager.PublishKeyDown(Return)` was a separate path from `Input.GetKeyDown` that wasn't being blocked. Even with `GetKeyDown_Postfix` blocking, the game could receive Enter through keyboard manager subscribers.
-
-**Result**: Did NOT fix the double-submit. The game still submits the registration independently.
-
-### Fix 3: ConsumeKey for all Login scene elements
-
-Extended `ConsumeKey(Return/KeypadEnter)` in `BaseNavigator.HandleInput` to apply to ALL elements on Login scene (not just toggles/dropdowns):
-```csharp
-bool isLoginScene = SceneManager.GetActiveScene().name == "Login";
-if (element != null && (isLoginScene || element.GetComponent<Toggle>() != null || UIFocusTracker.IsDropdown(element)))
-{
-    InputManager.ConsumeKey(KeyCode.Return);
-    InputManager.ConsumeKey(KeyCode.KeypadEnter);
-}
-```
-
-**Theory**: `KeyboardManagerPatch` falls back to `IsKeyConsumed()` check — without consuming Enter for buttons, it went through.
-
-**Result**: Did NOT fix the double-submit.
-
-## What's been ruled out
-
-All three known Enter paths to the game are now blocked:
-1. **`Input.GetKeyDown(Return)`** — blocked by `EventSystemPatch.GetKeyDown_Postfix` when `BlockSubmitForToggle=true`
-2. **`EventSystem.SendSubmitEventToSelectedObject`** — blocked by `SendSubmitEventToSelectedObject_Prefix` when `BlockSubmitForToggle=true`
-3. **`KeyboardManager.PublishKeyDown(Return)`** — blocked by `KeyboardManagerPatch` for Login scene
-
-Yet the game still submits. This suggests there's a **fourth path** that hasn't been identified:
-- Could be a direct Unity `Input.GetKey(Return)` poll (not `GetKeyDown`) — not patched
-- Could be through a different input module or event system
-- Could be through `CustomInputModule` (MTGA's custom input handler)
-- The `OldInputHandler` might not use `Input.GetKeyDown` — needs decompilation to verify
-
-## Next Steps
-
-- Decompile `OldInputHandler` to verify how it detects Enter
-- Decompile `CustomInputModule` to check for alternative Enter paths
-- Search for all callers of `Panel.OnAccept()` and `IAcceptActionHandler`
-- Consider: instead of blocking game's Enter, intercept `Panel.OnAccept()` directly with a Harmony prefix
+### BlockNextEnterKeyUp pattern (craft fix) — INSUFFICIENT
+Blocks Enter KeyUp from `KeyboardManager.PublishKeyUp`. Correct pattern but doesn't address the new Input System which uses InputAction callbacks, not KeyUp/KeyDown.
 
 ## How Registration Validation Works (decompiled)
 
 Source: `llm-docs/decompiled/RegistrationPanel.cs`
 
 ### _checkFields() — runs every frame
-
 Enables button ONLY when ALL conditions pass:
 1. Password >= 8 chars, no rule violations
 2. Display name 3-23 chars AND `_validDisplayName == true`
@@ -129,15 +129,13 @@ Enables button ONLY when ALL conditions pass:
 7. `_submitting == false`
 
 ### _validDisplayName flow
-
 - Defaults to `false`
 - `_displayName_select` (onSelect callback): resets to `false` every time the display name field is focused
 - `_displayName_endEdit` (onEndEdit callback): starts `Coroutine_ValidateUsername` (async server call)
 - `Coroutine_ValidateUsername`: sets `_validDisplayName = false` at start, then on server success sets `true`
-- If server rejects username: `_validDisplayName` stays `false`, input field stays disabled (`InputField.enabled = false`)
+- If server rejects username: `_validDisplayName` stays `false`, button permanently disabled
 
 ### Panel.OnAccept (base class)
-
 ```csharp
 public virtual void OnAccept()
 {
@@ -149,8 +147,7 @@ public virtual void OnAccept()
     }
 }
 ```
-
-Always clicks `_mainButton` regardless of current focus. Triggered by `OldInputHandler` via `Input.GetKeyDown(Return)`.
+Always clicks `_mainButton` regardless of current focus.
 
 ## CRITICAL: Do NOT Globally Intercept Input.GetKeyDown(Return)
 
@@ -158,33 +155,19 @@ Always clicks `_mainButton` regardless of current focus. Triggered by `OldInputH
 
 Commit `ff141d0` attempted to fix the registration phantom-submit by globally blocking
 `Input.GetKeyDown(Return)` whenever any navigator was active (via `EventSystemPatch.GetKeyDown_Postfix`).
-This also broadened `SendSubmitEventToSelectedObject` to block whenever any navigator was active.
 
 ### Why it broke duels
-
-- `Input.GetKeyDown` is a Unity API that **our own mod calls** (e.g., DuelNavigator's Enter
-  guard at HandleCustomInput line 550).
-- The Harmony postfix intercepts ALL callers, including our own code.
-- DuelNavigator's Enter guard calls `Input.GetKeyDown(Return)` → patch returns `false` →
-  guard never fires → Enter falls through to BaseNavigator → `ActivateCurrentElement()`
-  clicks the settings gear button (element index 0) → SettingsMenu opens.
-- The `EnterPressedWhileBlocked` secondary channel was only checked by BaseNavigator, not
-  by the DuelNavigator guard or any other caller.
-- Result: Enter was completely broken in duels — every Enter press opened the settings menu.
+- `Input.GetKeyDown` is a Unity API that **our own mod calls** (e.g., DuelNavigator's Enter guard)
+- The Harmony postfix intercepts ALL callers, including our own code
+- DuelNavigator's Enter guard sees `false` → Enter falls through to BaseNavigator → opens settings menu
+- The `EnterPressedWhileBlocked` secondary channel was only checked by BaseNavigator
 
 ### The rule
+**Never patch `Input.GetKeyDown` with a global scope.** Scope: `BlockSubmitForToggle == true` only.
 
-**Never patch `Input.GetKeyDown` with a global scope.** Our mod depends on `Input.GetKeyDown`
-returning the real Unity value. Intercepting it creates a circular dependency where our patch
-breaks our own callers, requiring a fragile secondary signaling channel that every caller must
-know about.
+## Next Step
 
-### Allowed scope for GetKeyDown_Postfix
-
-- `BlockSubmitForToggle == true` (toggle/dropdown/login-panel activation) — scoped per-element by navigators.
-
-## Key Decompiled Types
-
-- `RegistrationPanel` — `llm-docs/decompiled/RegistrationPanel.cs`
-- `Panel` (base class) — `llm-docs/decompiled/Panel.cs`
-- `CustomButton` — `llm-docs/decompiled/CustomButton.cs`
+Test with diagnostic build. The `OnButton_SubmitRegistration` stack trace log will reveal:
+- Whether registration is called once or multiple times
+- The exact code path that triggers each call
+- Whether the 403 is from double-submit or a post-registration failure
