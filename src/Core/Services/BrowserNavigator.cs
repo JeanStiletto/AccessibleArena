@@ -1114,6 +1114,24 @@ namespace AccessibleArena.Core.Services
                     message = browserName;
                 }
             }
+            // Special announcement for RepeatSelection (modal spell modes)
+            else if (_browserInfo.BrowserType == "RepeatSelection")
+            {
+                // Count option cards vs selected copies
+                int optionCount = 0;
+                int selectedCount = 0;
+                foreach (var c in _browserCards)
+                {
+                    if (IsInRepeatSelectionsHolder(c))
+                        selectedCount++;
+                    else
+                        optionCount++;
+                }
+
+                // Try to extract header/subheader text from the scaffold
+                string headerText = ExtractBrowserHeaderText();
+                message = Strings.RepeatSelectionEntry(browserName, optionCount, selectedCount, headerText);
+            }
             else if (cardCount > 0)
             {
                 message = Strings.BrowserCards(cardCount, browserName);
@@ -1181,15 +1199,29 @@ namespace AccessibleArena.Core.Services
 
             var info = CardDetector.ExtractCardInfo(card);
             bool isSelectionBrowser = _browserInfo?.BrowserType == "SelectCards" || _browserInfo?.BrowserType == "SelectCardsMultiZone";
-            string cardName = isSelectionBrowser && !string.IsNullOrEmpty(info.RulesText)
-                ? info.RulesText
-                : info.Name ?? "Unknown card";
+            bool isRepeatSelection = _browserInfo?.BrowserType == "RepeatSelection";
+
+            string cardName;
+            if ((isRepeatSelection || isSelectionBrowser) && !string.IsNullOrEmpty(info.RulesText))
+            {
+                // For modal mode cards and selection browsers, show rules text as the primary text
+                cardName = info.RulesText;
+            }
+            else
+            {
+                cardName = info.Name ?? "Unknown card";
+            }
 
             // Get selection state from zone navigator for zone-based browsers
             string selectionState = null;
             if (_browserInfo.IsZoneBased)
             {
                 selectionState = _zoneNavigator.GetCardSelectionState(card);
+            }
+            else if (isRepeatSelection)
+            {
+                // For RepeatSelection: check if this card is in the selections holder
+                selectionState = GetRepeatSelectionState(card);
             }
             else if (!_browserInfo.IsMulligan && _browserButtons.Count > 0)
             {
@@ -1210,6 +1242,14 @@ namespace AccessibleArena.Core.Services
             if (_browserInfo.IsZoneBased && _zoneNavigator.TryGetCardZonePosition(card, out int zoneIdx, out int zoneTotal) && zoneTotal > 0)
             {
                 position = zoneTotal > 1 ? $"{zoneIdx} of {zoneTotal}" : null;
+            }
+            else if (isRepeatSelection)
+            {
+                // For RepeatSelection: show position among options only (exclude selected copies)
+                int optionIndex, optionTotal;
+                GetRepeatSelectionPosition(card, out optionIndex, out optionTotal);
+                if (optionTotal > 1)
+                    position = $"{optionIndex} of {optionTotal}";
             }
             else if (_browserCards.Count > 1)
             {
@@ -1232,8 +1272,8 @@ namespace AccessibleArena.Core.Services
 
             _announcer.Announce(announcement, AnnouncementPriority.High);
 
-            // Selection browsers show options, not cards - use Browser zone for rules-first ordering
-            var zone = (_browserInfo?.BrowserType == "SelectCards" || _browserInfo?.BrowserType == "SelectCardsMultiZone")
+            // Selection/mode browsers show options, not cards - use Browser zone for rules-first ordering
+            var zone = (isSelectionBrowser || isRepeatSelection)
                 ? ZoneType.Browser
                 : ZoneType.Library;
             AccessibleArenaMod.Instance?.CardNavigator?.PrepareForCard(card, zone);
@@ -1256,6 +1296,134 @@ namespace AccessibleArena.Core.Services
                 parent = parent.parent;
             }
             return null;
+        }
+
+        // RepeatSelection holder name for selected copies
+        private const string RepeatSelectionsHolder = "Repeat_Selections";
+
+        /// <summary>
+        /// Gets the selection state for a card in a RepeatSelection browser.
+        /// Cards in the selections holder are "selected", options have no state.
+        /// </summary>
+        private string GetRepeatSelectionState(GameObject card)
+        {
+            if (card == null) return null;
+
+            Transform parent = card.transform.parent;
+            while (parent != null)
+            {
+                if (parent.name.Contains(RepeatSelectionsHolder))
+                    return Strings.RepeatSelectionSelected;
+                parent = parent.parent;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the position of a card among options in a RepeatSelection browser.
+        /// Options are in BrowserCardHolder_Default, selected copies are in Repeat_Selections.
+        /// </summary>
+        private void GetRepeatSelectionPosition(GameObject card, out int index, out int total)
+        {
+            // Count only option cards (in Default holder), excluding selected copies
+            int optionIndex = 0;
+            int optionTotal = 0;
+            bool found = false;
+
+            foreach (var browserCard in _browserCards)
+            {
+                bool isOption = IsInDefaultHolder(browserCard);
+                bool isSelected = !isOption;
+
+                // If we can't determine holder, count all cards
+                if (!isOption && !IsInRepeatSelectionsHolder(browserCard))
+                    isOption = true;
+
+                if (isOption)
+                {
+                    optionTotal++;
+                    if (!found)
+                        optionIndex++;
+                }
+
+                if (browserCard == card)
+                    found = true;
+            }
+
+            if (!found || optionTotal == 0)
+            {
+                // Card is a selected copy or not found - use overall position
+                index = _currentCardIndex + 1;
+                total = _browserCards.Count;
+            }
+            else
+            {
+                index = optionIndex;
+                total = optionTotal;
+            }
+        }
+
+        private bool IsInDefaultHolder(GameObject card)
+        {
+            Transform parent = card?.transform.parent;
+            while (parent != null)
+            {
+                if (parent.name == BrowserDetector.HolderDefault)
+                    return true;
+                if (parent.name.Contains(RepeatSelectionsHolder))
+                    return false;
+                parent = parent.parent;
+            }
+            return false;
+        }
+
+        private bool IsInRepeatSelectionsHolder(GameObject card)
+        {
+            Transform parent = card?.transform.parent;
+            while (parent != null)
+            {
+                if (parent.name.Contains(RepeatSelectionsHolder))
+                    return true;
+                parent = parent.parent;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Extracts the header/subheader text from the browser scaffold.
+        /// Used for RepeatSelection to get the remaining selections count text.
+        /// </summary>
+        private string ExtractBrowserHeaderText()
+        {
+            if (_browserInfo?.BrowserGameObject == null) return null;
+
+            try
+            {
+                // Search the scaffold for TMP_Text elements that contain header/subheader info
+                var texts = _browserInfo.BrowserGameObject.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                string subheaderText = null;
+
+                foreach (var text in texts)
+                {
+                    if (text == null || !text.gameObject.activeInHierarchy) continue;
+                    string content = text.text?.Trim();
+                    if (string.IsNullOrEmpty(content)) continue;
+
+                    string objName = text.gameObject.name;
+                    // The subheader typically contains "X options remaining" or similar
+                    if (objName.Contains("SubHeader") || objName.Contains("Subheader") || objName.Contains("subheader"))
+                    {
+                        subheaderText = UITextExtractor.StripRichText(content);
+                        break;
+                    }
+                }
+
+                return subheaderText;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         // Maps game zone names to mod ZoneType, with local/opponent variants

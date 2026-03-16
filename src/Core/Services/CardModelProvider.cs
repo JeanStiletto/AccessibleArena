@@ -903,6 +903,66 @@ namespace AccessibleArena.Core.Services
             return value?.ToString();
         }
 
+        /// <summary>
+        /// Extracts rules text from a CardData's RulesTextOverride property.
+        /// Used for modal spell mode cards where Abilities are cleared but RulesTextOverride
+        /// contains the mode-specific ability text (AbilityTextOverride).
+        /// </summary>
+        private static string TryExtractRulesTextOverride(object dataObj, Type objType, uint cardGrpId, uint cardTitleId)
+        {
+            try
+            {
+                var rulesOverride = GetModelPropertyValue(dataObj, objType, "RulesTextOverride");
+                if (rulesOverride == null) return null;
+
+                var overrideType = rulesOverride.GetType();
+                var abilityGrpIdSetField = overrideType.GetField("_abilityGrpIdSet", PrivateInstance);
+                if (abilityGrpIdSetField == null) return null;
+
+                var abilityGrpIds = abilityGrpIdSetField.GetValue(rulesOverride) as IList;
+                if (abilityGrpIds == null || abilityGrpIds.Count == 0) return null;
+
+                // Get source GrpIds and TitleId from the override for correct text resolution
+                var sourceGrpIdSetField = overrideType.GetField("_sourceGrpIdSet", PrivateInstance);
+                var titleIdField = overrideType.GetField("_titleId", PrivateInstance);
+
+                var sourceGrpIds = sourceGrpIdSetField?.GetValue(rulesOverride) as IList;
+                uint overrideTitleId = cardTitleId;
+                if (titleIdField != null)
+                {
+                    var tid = titleIdField.GetValue(rulesOverride);
+                    if (tid is uint t && t > 0) overrideTitleId = t;
+                }
+
+                // Use first source GrpId as the card context (parent card's GrpId)
+                uint contextGrpId = cardGrpId;
+                if (sourceGrpIds != null && sourceGrpIds.Count > 0 && sourceGrpIds[0] is uint firstSource)
+                    contextGrpId = firstSource;
+
+                var rulesLines = new List<string>();
+                foreach (var abilityIdObj in abilityGrpIds)
+                {
+                    if (!(abilityIdObj is uint abilityId) || abilityId == 0) continue;
+                    var text = CardTextProvider.GetAbilityTextFromProvider(contextGrpId, abilityId, null, overrideTitleId);
+                    if (!string.IsNullOrEmpty(text))
+                        rulesLines.Add(text);
+                }
+
+                if (rulesLines.Count > 0)
+                {
+                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                        $"RulesTextOverride resolved: {rulesLines.Count} abilities for GrpId {cardGrpId}");
+                    return string.Join(" ", rulesLines);
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[CardModelProvider] RulesTextOverride extraction failed: {ex.Message}");
+            }
+
+            return null;
+        }
+
         #endregion
 
         #region Mana Parsing
@@ -1692,6 +1752,15 @@ namespace AccessibleArena.Core.Services
                         text = CardTextProvider.GetAbilityTextFromProvider(cardGrpId, cardGrpId, new uint[]{ cardGrpId }, cardTitleId);
                     if (!string.IsNullOrEmpty(text))
                         info.RulesText = ParseManaSymbolsInText(text);
+                }
+
+                // Fallback: RulesTextOverride (modal spell mode cards in RepeatSelection browser)
+                // These fake cards have cleared Abilities but a RulesTextOverride with mode-specific text
+                if (string.IsNullOrEmpty(info.RulesText))
+                {
+                    var overrideText = TryExtractRulesTextOverride(dataObj, objType, cardGrpId, cardTitleId);
+                    if (!string.IsNullOrEmpty(overrideText))
+                        info.RulesText = ParseManaSymbolsInText(overrideText);
                 }
 
                 // Flavor Text - lookup via FlavorTextId

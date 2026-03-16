@@ -229,6 +229,7 @@ namespace AccessibleArena.Core.Models
             if (typeName.Contains("AssignDamage")) return L.Get("Browser_AssignDamage");
             if (typeName.Contains("Attachment")) return L.Get("Browser_ViewAttachments");
             if (typeName.Contains("LargeScrollList")) return L.Get("Browser_ChooseFromList");
+            if (typeName.Contains("RepeatSelection")) return L.Get("Browser_ChooseModes");
             if (typeName.Contains("SelectCards")) return L.Get("Browser_SelectCards");
             if (typeName.Contains("SelectGroup")) return L.Get("Browser_SelectGroup");
             if (typeName.Contains("SelectMana")) return L.Get("Browser_ChooseManaType");
@@ -891,6 +892,18 @@ namespace AccessibleArena.Core.Models
         public static string BrowserCards(int count, string browserName) =>
             count == 1 ? L.Format("BrowserCards_One", browserName) : L.Format("BrowserCards_Format", browserName, count);
         public static string BrowserOptions(string browserName) => L.Format("BrowserOptions_Format", browserName);
+        public static string RepeatSelectionSelected => L.Get("RepeatSelection_Selected");
+        public static string RepeatSelectionEntry(string browserName, int optionCount, int selectedCount, string subheaderText)
+        {
+            string entry = optionCount == 1
+                ? L.Format("RepeatSelection_Entry_One", browserName)
+                : L.Format("RepeatSelection_Entry_Format", browserName, optionCount);
+            if (selectedCount > 0)
+                entry += ", " + L.Format("RepeatSelection_SelectedCount_Format", selectedCount);
+            if (!string.IsNullOrEmpty(subheaderText))
+                entry += ". " + subheaderText;
+            return entry;
+        }
 
         // ===========================================
         // MASTERY SCREEN
