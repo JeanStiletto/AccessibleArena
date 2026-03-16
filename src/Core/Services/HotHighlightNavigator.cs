@@ -217,6 +217,27 @@ namespace AccessibleArena.Core.Services
             // Enter - activate current item (only if we still have zone ownership)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                // In selection mode, handle Enter even if BattlefieldNavigator has zone ownership.
+                // Tab navigates to battlefield cards which delegates to BattlefieldNavigator (Left/Right work),
+                // but Enter should toggle selection rather than doing a regular click.
+                if (IsSelectionModeActive() && _zoneNavigator.CurrentZoneOwner == ZoneOwner.BattlefieldNavigator
+                    && _battlefieldNavigator != null)
+                {
+                    var card = _battlefieldNavigator.GetCurrentCard();
+                    if (card != null)
+                    {
+                        string cardName = CardDetector.GetCardName(card) ?? card.name;
+                        bool wasSelected = IsCardSelected(card);
+                        MelonLogger.Msg($"[HotHighlightNavigator] Toggling battlefield selection: {cardName} (was selected: {wasSelected})");
+                        var result = UIActivator.SimulatePointerClick(card);
+                        if (result.Success)
+                            MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected));
+                        else
+                            _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
+                        return true;
+                    }
+                }
+
                 // Check if we still have zone ownership - user may have navigated away
                 // using zone shortcuts (C, G, X, S) or battlefield shortcuts (A, B, R)
                 if (_zoneNavigator.CurrentZoneOwner != ZoneOwner.HighlightNavigator)
@@ -720,25 +741,40 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                // Battlefield/Stack/Player target - single click to select
-                var result = UIActivator.SimulatePointerClick(item.GameObject);
-
-                if (result.Success)
+                // Battlefield/Stack/Player target - single click to select/toggle
+                if (selectionMode && !item.IsPlayer)
                 {
-                    string announcement = item.IsPlayer ? Strings.Target_Targeted(item.Name) : Strings.Target_Selected(item.Name);
-                    _announcer.Announce(announcement, AnnouncementPriority.Normal);
-                    MelonLogger.Msg($"[HotHighlightNavigator] {announcement}");
+                    // Selection mode on battlefield - toggle selection with count announcement
+                    bool wasSelected = IsCardSelected(item.GameObject);
+                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name} (was selected: {wasSelected})");
+
+                    var result = UIActivator.SimulatePointerClick(item.GameObject);
+                    if (result.Success)
+                        MelonCoroutines.Start(AnnounceSelectionToggleDelayed(item.Name, wasSelected));
+                    else
+                        _announcer.Announce(Strings.CouldNotSelect(item.Name), AnnouncementPriority.High);
                 }
                 else
                 {
-                    _announcer.Announce(Strings.CouldNotTarget(item.Name), AnnouncementPriority.High);
-                    MelonLogger.Warning($"[HotHighlightNavigator] Click failed: {result.Message}");
+                    var result = UIActivator.SimulatePointerClick(item.GameObject);
+
+                    if (result.Success)
+                    {
+                        string announcement = item.IsPlayer ? Strings.Target_Targeted(item.Name) : Strings.Target_Selected(item.Name);
+                        _announcer.Announce(announcement, AnnouncementPriority.Normal);
+                        MelonLogger.Msg($"[HotHighlightNavigator] {announcement}");
+                    }
+                    else
+                    {
+                        _announcer.Announce(Strings.CouldNotTarget(item.Name), AnnouncementPriority.High);
+                        MelonLogger.Warning($"[HotHighlightNavigator] Click failed: {result.Message}");
+                    }
                 }
             }
 
             // In selection mode, preserve position so next Tab advances to the next card
             // Items will be refreshed via DiscoverAllHighlights() on next Tab press
-            if (selectionMode && item.Zone == "Hand")
+            if (selectionMode)
                 return;
 
             // Clear state after activation - highlights will update
