@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.8.6
 
+### Fix: Recent Played deck selection now starts the game
+- Pressing Enter on a deck in the Recent Played tab now correctly selects the deck and auto-presses Play
+- Previously, the deck was selected but the blade switched without pressing the Play button, leaving the user back in the tabs group
+
 ## v0.8.5
 
 ### Fix: Stale browser announcement after confirming modal spell mode

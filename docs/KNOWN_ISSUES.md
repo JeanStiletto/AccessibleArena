@@ -6,12 +6,6 @@ For resolved issues and investigation history, see docs/old/RESOLVED_ISSUES.md.
 
 ## Active Bugs
 
-### Bot Match Not Working From Recent Played
-
-Starting a bot match from the "Recent Played" section does not work properly.
-
----
-
 ### Blocking Sometimes Announces "0 0"
 
 During Declare Blockers, the mod sometimes announces "0 0" instead of meaningful blocker information.

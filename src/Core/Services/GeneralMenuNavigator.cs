@@ -5142,30 +5142,13 @@ namespace AccessibleArena.Core.Services
             }
 
             // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
-            if (_playBladeHelper.IsActive && !_challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            // For recent tab decks, the element is destroyed during Activate (blade switches from
+            // LastPlayed to FindMatch), so IsDeckEntry(element) would fail. Use isRecentTabDeck
+            // (captured before Activate) as an alternate entry condition.
+            if (!_challengeHelper.IsActive &&
+                (isRecentTabDeck || (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))))
             {
-                // Recent tab: press the tile's own play button instead of the generic PlayBlade one
-                if (isRecentTabDeck)
-                {
-                    int tileIdx = RecentPlayAccessor.FindTileIndexForElement(element);
-                    if (tileIdx >= 0)
-                    {
-                        var playBtn = RecentPlayAccessor.FindPlayButtonInTile(tileIdx);
-                        if (playBtn != null)
-                        {
-                            MelonLogger.Msg($"[{NavigatorId}] Recent tab: auto-pressing play button for tile {tileIdx}");
-                            UIActivator.Activate(playBtn);
-                        }
-                        else
-                        {
-                            MelonLogger.Msg($"[{NavigatorId}] Recent tab: no play button found for tile {tileIdx}");
-                        }
-                    }
-                }
-                else
-                {
-                    AutoPressPlayButtonInPlayBlade();
-                }
+                AutoPressPlayButtonInPlayBlade();
             }
 
             // Deck list card activated (removing card from deck) - trigger rescan to update both lists
