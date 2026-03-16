@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
@@ -1361,12 +1362,14 @@ namespace AccessibleArena.Core.Services
 
             if (enterPressed || spacePressed)
             {
-                // Consume Enter for toggles and dropdowns so the game's KeyboardManager
-                // doesn't add extra actions (form submission, etc.).
+                // Consume Enter for toggles, dropdowns, and ALL elements on Login scene
+                // so the game's KeyboardManager.PublishKeyDown doesn't trigger Panel.OnAccept()
+                // (which would submit the registration form a second time).
                 if (IsValidIndex && enterPressed)
                 {
                     var element = _elements[_currentIndex].GameObject;
-                    if (element != null && (element.GetComponent<Toggle>() != null || UIFocusTracker.IsDropdown(element)))
+                    bool isLoginScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Login";
+                    if (element != null && (isLoginScene || element.GetComponent<Toggle>() != null || UIFocusTracker.IsDropdown(element)))
                     {
                         InputManager.ConsumeKey(KeyCode.Return);
                         InputManager.ConsumeKey(KeyCode.KeypadEnter);
@@ -1775,7 +1778,10 @@ namespace AccessibleArena.Core.Services
                 // EventSystemPatch checks this flag to block Unity's Submit events.
                 // For dropdowns: prevents SendSubmitEventToSelectedObject from firing
                 // before our Update opens the dropdown and sets ShouldBlockEnterFromGame.
-                InputManager.BlockSubmitForToggle = isToggle || isDropdown;
+                // On Login scene: block Enter for ALL elements to prevent
+                // Panel.OnAccept() from racing our mod (see GeneralMenuNavigator for details).
+                bool isLoginScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Login";
+                InputManager.BlockSubmitForToggle = isToggle || isDropdown || isLoginScene;
 
                 // INPUT FIELD HANDLING (arrow navigation):
                 // Clear EventSystem selection when arrow-navigating to input fields.

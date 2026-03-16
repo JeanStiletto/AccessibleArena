@@ -1,10 +1,117 @@
 # Registration Form Investigation
 
-Status: **In Progress** — button stays disabled, root cause not yet confirmed.
+Status: **Still double-submitting** — all known Enter paths blocked, but game still submits independently.
 
-## Problem
+## Root Cause (confirmed March 2026)
 
-The registration form's "Bestätigen" (Confirm) button is never interactable when activated via our mod. The game's `_checkFields()` runs every frame in `Update()` and controls the button's enabled state via `CustomButton.Interactable`. Our `SimulatePointerClick` cannot trigger a non-interactable CustomButton.
+### The problem was never `_validDisplayName`
+
+Diagnostic logging (`DiagnoseRegistrationState`) confirmed ALL validation conditions pass:
+```
+_validDisplayName = True
+_submitting = True          ← THE FAILING CONDITION
+All fields filled correctly
+All toggles isOn=True
+```
+
+The button is disabled because `_submitting = True` — meaning the registration was **already submitted by the game** before our mod processed Enter.
+
+### How the race works
+
+`Panel` (base class of `RegistrationPanel`) implements `IAcceptActionHandler`. The game's `OldInputHandler` polls `Input.GetKeyDown(Return)` every frame and calls `Panel.OnAccept()` when Enter is pressed. `OnAccept()` clicks `_mainButton` (the submit button) regardless of which element has focus — it's the standard "Enter submits the form" behavior.
+
+Timeline when user presses Enter on the submit button:
+1. **Game's `OldInputHandler.Update()`** runs first → `Input.GetKeyDown(Return)` → calls `Panel.OnAccept()`
+2. **`Panel.OnAccept()`** checks `_mainButton.Interactable` → true (all conditions met) → `_mainButton.Click()`
+3. **`OnButton_SubmitRegistration()`** → `DoRegistration()` → `_submitting = true` → server call starts
+4. **`_checkFields()` (same frame)** → `_submitting == true` → `EnableButton(false)`
+5. **Our mod's `OnUpdate()`** runs after → `GetEnterAndConsume()` → `ActivateCurrentElement()`
+6. **`UIActivator.Activate()`** → checks `CustomButton.Interactable` → **false** → returns "Deaktiviert"
+
+The game already submitted successfully. The user gets confirmation emails, the account is created. But our mod reports "Deaktiviert" and the user thinks nothing happened.
+
+### Why this wasn't caught earlier
+
+Before the `Interactable` check was added (commit `1173608`), `SimulatePointerClick` returned "Aktiviert" even though the `CustomButton.OnPointerUp` silently rejected the click (button already disabled by `_submitting=true`). The user heard "Aktiviert", the game had already submitted — everything seemed to work. The interactable check made the silent failure visible.
+
+### Why it affects ALL elements, not just the submit button
+
+`Panel.OnAccept()` always clicks `_mainButton`, regardless of which element has EventSystem focus. So pressing Enter on an input field, a toggle (when not blocked), or any other element would also trigger form submission if the button is interactable.
+
+Our toggle handling (`BlockSubmitForToggle = true`) was already preventing this for toggles and dropdowns. The gap was: buttons and other non-toggle elements on the login scene did NOT set this flag.
+
+## Fixes Applied (all deployed, double-submit persists)
+
+### Fix 1: BlockSubmitForToggle for all Login scene elements
+
+Extended `BlockSubmitForToggle` to include ALL elements on the Login scene:
+```csharp
+bool isLoginScene = SceneManager.GetActiveScene().name == "Login";
+InputManager.BlockSubmitForToggle = isToggle || isDropdown || isLoginScene;
+```
+
+This blocks:
+- `GetKeyDown_Postfix` blocks `Input.GetKeyDown(Return)` → `OldInputHandler` doesn't see Enter → `OnAccept()` doesn't fire
+- `SendSubmitEventToSelectedObject_Prefix` blocks EventSystem Submit
+- `EnterPressedWhileBlocked` flag lets our mod detect the blocked Enter
+- Our mod handles activation exclusively via `UIActivator.Activate()`
+
+Changed in both `GeneralMenuNavigator.UpdateEventSystemSelectionForGroupedElement` and `BaseNavigator.UpdateEventSystemSelection`.
+
+**Bug in initial attempt**: Originally checked for scene name `"Bootstrap"` but the active scene during registration is actually `"Login"` (MTGA loads Bootstrap → AssetPrep → Login additively). Fixed to `"Login"`.
+
+**Result**: Enter no longer leaks to game on input fields and toggles. Submit button still double-submits.
+
+### Fix 2: Block Enter from KeyboardManager.PublishKeyDown on Login scene
+
+Added Enter blocking in `KeyboardManagerPatch.ShouldBlockKey` for the Login scene, same as DuelScene:
+```csharp
+if (_cachedSceneName == SceneNames.Login)
+{
+    if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
+        return true;
+}
+```
+
+**Theory**: `KeyboardManager.PublishKeyDown(Return)` was a separate path from `Input.GetKeyDown` that wasn't being blocked. Even with `GetKeyDown_Postfix` blocking, the game could receive Enter through keyboard manager subscribers.
+
+**Result**: Did NOT fix the double-submit. The game still submits the registration independently.
+
+### Fix 3: ConsumeKey for all Login scene elements
+
+Extended `ConsumeKey(Return/KeypadEnter)` in `BaseNavigator.HandleInput` to apply to ALL elements on Login scene (not just toggles/dropdowns):
+```csharp
+bool isLoginScene = SceneManager.GetActiveScene().name == "Login";
+if (element != null && (isLoginScene || element.GetComponent<Toggle>() != null || UIFocusTracker.IsDropdown(element)))
+{
+    InputManager.ConsumeKey(KeyCode.Return);
+    InputManager.ConsumeKey(KeyCode.KeypadEnter);
+}
+```
+
+**Theory**: `KeyboardManagerPatch` falls back to `IsKeyConsumed()` check — without consuming Enter for buttons, it went through.
+
+**Result**: Did NOT fix the double-submit.
+
+## What's been ruled out
+
+All three known Enter paths to the game are now blocked:
+1. **`Input.GetKeyDown(Return)`** — blocked by `EventSystemPatch.GetKeyDown_Postfix` when `BlockSubmitForToggle=true`
+2. **`EventSystem.SendSubmitEventToSelectedObject`** — blocked by `SendSubmitEventToSelectedObject_Prefix` when `BlockSubmitForToggle=true`
+3. **`KeyboardManager.PublishKeyDown(Return)`** — blocked by `KeyboardManagerPatch` for Login scene
+
+Yet the game still submits. This suggests there's a **fourth path** that hasn't been identified:
+- Could be a direct Unity `Input.GetKey(Return)` poll (not `GetKeyDown`) — not patched
+- Could be through a different input module or event system
+- Could be through `CustomInputModule` (MTGA's custom input handler)
+- The `OldInputHandler` might not use `Input.GetKeyDown` — needs decompilation to verify
+
+## Next Steps
+
+- Decompile `OldInputHandler` to verify how it detects Enter
+- Decompile `CustomInputModule` to check for alternative Enter paths
+- Search for all callers of `Panel.OnAccept()` and `IAcceptActionHandler`
+- Consider: instead of blocking game's Enter, intercept `Panel.OnAccept()` directly with a Harmony prefix
 
 ## How Registration Validation Works (decompiled)
 
@@ -29,107 +136,21 @@ Enables button ONLY when ALL conditions pass:
 - `Coroutine_ValidateUsername`: sets `_validDisplayName = false` at start, then on server success sets `true`
 - If server rejects username: `_validDisplayName` stays `false`, input field stays disabled (`InputField.enabled = false`)
 
-### Panel.EnableButton / OnAccept
+### Panel.OnAccept (base class)
 
-- `EnableButton(bool)` sets `_mainButton.Interactable` on the CustomButton
-- `Panel.OnAccept()` checks `_mainButton.Interactable` before calling `_mainButton.Click()`
-- `CustomButton.Click()` checks `_interactable` internally — safe path
-- `CustomButton.OnPointerUp()` also checks `_interactable` AND `_mouseOver` AND `!PointerIsHeldDown()` — our pointer simulation path
-
-## Confirmed Findings
-
-### Button is NOT interactable (confirmed via log)
-
-Added interactable check in `UIActivator.Activate()`. Log consistently shows:
-```
-CustomButton 'MainButton_Register' is NOT interactable - click blocked
-```
-Even after all fields are filled and all toggles checked. 23+ seconds after display name endEdit fires.
-
-### Diagnostic logging added
-
-Next build will log the exact failing condition when button click is blocked:
-- `_validDisplayName` value
-- `_submitting` value
-- All input field texts and enabled states
-- Toggle states
-
-### Our onEndEdit fix works mechanically
-
-Log confirms `onEndEdit` fires correctly on each field during Tab:
-```
-Tab: firing onEndEdit on old field Input Field - Displayname with text: 'klickernst'
-Tab: firing onEndEdit on old field Input Field - Email 1 with text: 'klickernst@fs.es47.de'
+```csharp
+public virtual void OnAccept()
+{
+    current.SetSelectedGameObject(_mainButton.gameObject);
+    if (_mainButton.Interactable)
+    {
+        _mainButton.Click();
+        EnableButton(enabled: false);
+    }
+}
 ```
 
-### Previous SimulatePointerClick was silently failing
-
-Before the interactable check, `SimulatePointerClick` returned success ("Aktiviert") even when the CustomButton blocked the click internally. The user thought registration was being attempted but it wasn't.
-
-## Top Theories for Why _validDisplayName Stays False
-
-### Theory 1: Duplicate onEndEdit causes double coroutine
-
-When Tab triggers the race condition path:
-1. Unity's `OnDeselect` fires `onEndEdit` on the old field (automatic)
-2. Our code fires `onEndEdit` AGAIN on the old field (explicit)
-
-This means `_displayName_endEdit` runs TWICE, starting TWO `Coroutine_ValidateUsername` coroutines. Both set `_validDisplayName = false` at their start. If one coroutine's server call fails (rate limit? duplicate request?), the sequence could be:
-- Coroutine 1 succeeds → `_validDisplayName = true`
-- Coroutine 2 fails → `_validDisplayName` stays `true` (error handler doesn't touch it)
-
-This should be OK, but needs verification. The duplicate could cause server-side issues.
-
-### Theory 2: onEndEdit fires but _displayName_endEdit is not called
-
-`_displayName_endEdit` is registered on `displayName_inputField.InputField.onEndEdit`. Our code gets the TMP_InputField via `expectedField.GetComponent<TMPro.TMP_InputField>()`. If `UIWidget_InputField_Registration` wraps the TMP_InputField in a way where the `onEndEdit` event object is different from what we invoke, the listeners might not fire.
-
-To verify: check if `displayName_inputField.InputField.gameObject` is the same as the focused `expectedField` GameObject.
-
-### Theory 3: Coroutine_ValidateUsername never completes
-
-The coroutine yields on `_loginScene._accountClient.ValidateUsername(username)`. If this promise never resolves (network issue, server not responding, or some state issue), `_validDisplayName` stays `false` forever. The coroutine also sets `InputField.enabled = false` — if it never completes, the input field stays disabled.
-
-### Theory 4: _displayName_select resets after validation
-
-If something causes the display name field to be re-selected after the coroutine completes, `_displayName_select` resets `_validDisplayName = false`. This could happen if:
-- Our Tab suppression code triggers `onSelect` on the display name field
-- Some UI event re-focuses the display name field
-- EventSystem focus changes hit the display name field
-
-### Theory 5: _displayName_endEdit reads wrong text
-
-`_displayName_endEdit` ignores the `arg0` parameter and reads `displayName_inputField.InputField.text` directly. If the InputField's text property is empty or wrong (e.g., cleared by deactivation), the length check `< 3` would fail, and no coroutine would start.
-
-## Changes Made (EXPERIMENTAL)
-
-### UIActivator.cs — CustomButton interactable check
-
-Added check before `SimulatePointerClick` for CustomButtons. If `Interactable == false`, returns `ActivationResult(false, "Deaktiviert")` instead of silently failing. Also added `DiagnoseRegistrationState()` method that logs all validation state via reflection when the registration button click is blocked.
-
-**Risk**: Low. Only adds a check before existing code, returns early with failure. Does not change activation behavior for interactable buttons.
-
-### UIFocusTracker.cs — Tab onEndEdit handling
-
-Modified Tab race condition handler to:
-1. Explicitly fire `onEndEdit` on the OLD field with correct text
-2. Suppress `onEndEdit` on the NEW field by temporarily swapping out listeners
-3. Deselect the new field without triggering its onEndEdit
-
-**Risk**: Medium. Changes how onEndEdit fires during Tab navigation. Could cause duplicate onEndEdit calls (Unity fires one automatically, we fire another). Could affect any screen with input fields and Tab navigation.
-
-### llm-docs/type-index.md — Documentation
-
-Added Login/Registration types section and critical field/property notes.
-
-## Next Steps
-
-1. **Check diagnostic log** — run the game, fill in registration form, click Bestätigen, check which condition fails
-2. **If _validDisplayName is false**: investigate whether `_displayName_endEdit` actually runs (add logging in UIFocusTracker where we invoke onEndEdit)
-3. **If fields have wrong text**: investigate whether Tab handling corrupts field text
-4. **If InputField.enabled is false**: the validation coroutine started but never completed (server call issue)
-5. **Consider preventing duplicate onEndEdit**: check if Unity already fired onEndEdit before our explicit call, skip our call if so
-6. **Consider using Panel.OnAccept()**: instead of SimulatePointerClick, invoke OnAccept() on the RegistrationPanel directly — this is the game's intended keyboard activation path and uses `Click()` which doesn't have the `_mouseOver`/`PointerIsHeldDown` issues
+Always clicks `_mainButton` regardless of current focus. Triggered by `OldInputHandler` via `Input.GetKeyDown(Return)`.
 
 ## CRITICAL: Do NOT Globally Intercept Input.GetKeyDown(Return)
 
@@ -160,20 +181,7 @@ know about.
 
 ### Allowed scope for GetKeyDown_Postfix
 
-- `BlockSubmitForToggle == true` (toggle/dropdown activation) — this is the original, safe scope.
-  It only fires when a specific navigator has set the flag for a specific element.
-
-### How to fix registration phantom-submit properly
-
-The root cause is `OldInputHandler.Update()` polling `GetKeyDown(Return)` and firing
-`Panel.OnAccept()`. Targeted solutions (pick one):
-
-1. **Patch `OldInputHandler.Update()` directly** — skip the Return key check when on registration screen
-2. **Patch `Panel.OnAccept()` for RegistrationPanel** — block it when our navigator is handling Enter
-3. **Add a registration-screen-specific flag** checked only in `GetKeyDown_Postfix`, not globally
-4. **Use `SendSubmitEventToSelectedObject` blocking** scoped to the registration navigator only
-
-Any fix must be scoped to the registration screen, not applied mod-wide.
+- `BlockSubmitForToggle == true` (toggle/dropdown/login-panel activation) — scoped per-element by navigators.
 
 ## Key Decompiled Types
 

@@ -73,6 +73,14 @@ namespace AccessibleArena.Patches
         /// </summary>
         private static bool ShouldBlockKey(KeyCode key)
         {
+            // Ensure scene name cache is populated for this frame
+            int currentFrame = Time.frameCount;
+            if (currentFrame != _lastSceneCheck)
+            {
+                _cachedSceneName = SceneManager.GetActiveScene().name;
+                _lastSceneCheck = currentFrame;
+            }
+
             // Block Escape when WebBrowser is active, input field is focused,
             // or a mod menu (Help/Settings) is open
             if (key == KeyCode.Escape && (BlockEscape || InputManager.ModMenuActive))
@@ -105,6 +113,18 @@ namespace AccessibleArena.Patches
             // Uses a persistent flag that survives the dropdown closing during EventSystem.Process()
             // (which runs before our Update and may close the dropdown before PublishKeyDown is called).
             if (DropdownStateManager.ShouldBlockEnterFromGame)
+            {
+                if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
+                {
+                    return true;
+                }
+            }
+
+            // In Login scene, block Enter entirely - our mod handles all Enter presses
+            // This prevents Panel.OnAccept() from submitting the registration form
+            // via KeyboardManager subscribers (separate path from Input.GetKeyDown which
+            // is blocked by EventSystemPatch.GetKeyDown_Postfix).
+            if (_cachedSceneName == SceneNames.Login)
             {
                 if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
                 {

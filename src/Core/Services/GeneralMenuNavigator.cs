@@ -4647,7 +4647,12 @@ namespace AccessibleArena.Core.Services
                 // EventSystemPatch checks this flag to block Unity's Submit events.
                 // For dropdowns: prevents SendSubmitEventToSelectedObject from firing
                 // before our Update opens the dropdown and sets ShouldBlockEnterFromGame.
-                InputManager.BlockSubmitForToggle = isToggle || isDropdown;
+                // On Login scene: block Enter for ALL elements. Without this,
+                // the game's Panel.OnAccept() fires via OldInputHandler before our mod
+                // processes Enter, clicking the main button and setting _submitting=true.
+                // Our mod then sees the button as disabled and reports "Deaktiviert".
+                bool isLoginScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == SceneNames.Login;
+                InputManager.BlockSubmitForToggle = isToggle || isDropdown || isLoginScene;
 
                 // Skip SetSelectedGameObject if EventSystem already has our element selected.
                 // Calling it again would trigger OnSelect handlers unnecessarily, which can cause
