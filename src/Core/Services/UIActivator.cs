@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using TMPro;
 using MelonLoader;
 using System.Collections;
@@ -8,6 +9,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
@@ -206,6 +208,13 @@ namespace AccessibleArena.Core.Services
                         }
                     }
                 }
+
+                // Login scene: use Panel.OnAccept() for main buttons to ensure the game's
+                // full login/registration flow runs. SimulatePointerClick bypasses Panel.OnAccept(),
+                // which calls _mainButton.Click() + EnableButton(false). Without this, the
+                // post-registration ConnectToFrontDoor flow may fail (403 error).
+                if (TryInvokeLoginPanelAccept(element, out var loginResult))
+                    return loginResult;
 
                 var pointerResult2 = SimulatePointerClick(element);
 
@@ -812,6 +821,68 @@ namespace AccessibleArena.Core.Services
                         Log($"UpdatePoliciesPanel.OnAccept threw: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Special handling for Login scene panel buttons (Registration, Login, etc.)
+        /// Instead of SimulatePointerClick, invoke Panel.OnAccept() directly to use
+        /// the game's exact code path. Panel.OnAccept() calls _mainButton.Click() and
+        /// EnableButton(false), ensuring the post-registration ConnectToFrontDoor flow
+        /// works correctly.
+        /// </summary>
+        private static bool TryInvokeLoginPanelAccept(GameObject element, out ActivationResult result)
+        {
+            result = default;
+
+            // Only on Login scene
+            if (SceneManager.GetActiveScene().name != SceneNames.Login)
+                return false;
+
+            // Only for MainButton_Register - the submit button name is reused across panels,
+            // but we only want RegistrationPanel's submit (the final registration form).
+            // RegisterOrLoginPanel also has MainButton_Register but it's just navigation.
+            if (element.name != "MainButton_Register")
+                return false;
+
+            // Walk up to find specifically a RegistrationPanel component.
+            // Panel.OnAccept() clicks _mainButton which is only correct when
+            // the panel's _mainButton IS the button we're trying to activate.
+            var panelTransform = element.transform.parent;
+            while (panelTransform != null)
+            {
+                foreach (var comp in panelTransform.GetComponents<MonoBehaviour>())
+                {
+                    if (comp == null) continue;
+                    if (comp.GetType().Name != "RegistrationPanel") continue;
+
+                    // Found RegistrationPanel - call OnAccept on its Panel base
+                    var baseType = comp.GetType();
+                    while (baseType != null && baseType.FullName != "Wotc.Mtga.Login.Panel")
+                        baseType = baseType.BaseType;
+
+                    if (baseType == null) break;
+
+                    var onAcceptMethod = baseType.GetMethod("OnAccept", PublicInstance);
+                    if (onAcceptMethod != null)
+                    {
+                        try
+                        {
+                            Log($"Invoking RegistrationPanel.OnAccept() via Panel base");
+                            onAcceptMethod.Invoke(comp, null);
+                            result = new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
+                            return true;
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Log($"Panel.OnAccept() threw: {ex.InnerException?.Message ?? ex.Message}");
+                        }
+                    }
+                    break;
+                }
+                panelTransform = panelTransform.parent;
             }
 
             return false;
