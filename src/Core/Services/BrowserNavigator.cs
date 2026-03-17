@@ -1116,7 +1116,7 @@ namespace AccessibleArena.Core.Services
             {
                 message = GetAssignDamageEntryAnnouncement(cardCount, browserName);
             }
-            // Special announcement for London mulligan
+            // Special announcement for London mulligan (zone-based drag phase)
             else if (_browserInfo.IsLondon)
             {
                 var londonAnnouncement = _zoneNavigator.GetLondonEntryAnnouncement(cardCount);
@@ -1131,15 +1131,6 @@ namespace AccessibleArena.Core.Services
                 else
                 {
                     message = browserName;
-                }
-
-                // Schedule the hand card list as a delayed follow-up so the user can
-                // hear the main entry message and first-card focus before the list fires.
-                string handSummary = BuildHandSummary();
-                if (!string.IsNullOrEmpty(handSummary))
-                {
-                    _pendingHandSummary = handSummary;
-                    _handSummaryTimer = 1.5f;
                 }
             }
             // Special announcement for RepeatSelection (modal spell modes)
@@ -1171,6 +1162,18 @@ namespace AccessibleArena.Core.Services
             else
             {
                 message = browserName;
+            }
+
+            // Schedule delayed hand summary for the initial mulligan screen (BrowserTypeMulligan).
+            // Fires 1.5s after entry so the user hears the main message and first-card focus first.
+            if (_browserInfo.BrowserType == BrowserDetector.BrowserTypeMulligan)
+            {
+                string handSummary = BuildHandSummary();
+                if (!string.IsNullOrEmpty(handSummary))
+                {
+                    _pendingHandSummary = handSummary;
+                    _handSummaryTimer = 1.5f;
+                }
             }
 
             _announcer.Announce(message, AnnouncementPriority.High);
