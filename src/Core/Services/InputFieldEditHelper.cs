@@ -419,7 +419,7 @@ namespace AccessibleArena.Core.Services
             if (info.IsPassword)
             {
                 if (isLeft)
-                    _announcer?.AnnounceInterrupt(caretPos <= 0 ? Strings.InputFieldStart : Strings.InputFieldStar);
+                    _announcer?.AnnounceInterrupt(caretPos <= 0 && _prevCaretPos <= 0 ? Strings.InputFieldStart : Strings.InputFieldStar);
                 else
                     _announcer?.AnnounceInterrupt(caretPos >= text.Length && _prevCaretPos >= text.Length ? Strings.InputFieldEnd : Strings.InputFieldStar);
                 return;
@@ -427,11 +427,11 @@ namespace AccessibleArena.Core.Services
 
             // TMP processes arrow keys before our Update reads caretPosition, so caretPos is
             // already the post-move value. Use text[caretPos] for LEFT and text[caretPos-1] for RIGHT.
-            // For the right-end boundary, use _prevCaretPos to distinguish "just moved to end"
-            // (announce last char) from "was already at end, couldn't move" (announce "end").
+            // Use _prevCaretPos to detect boundary cases: "just arrived" (announce the char)
+            // vs "was already at boundary, couldn't move" (announce start/end).
             if (isLeft)
             {
-                if (caretPos <= 0)
+                if (caretPos <= 0 && _prevCaretPos <= 0)
                     _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
                 else
                     _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
