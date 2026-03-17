@@ -609,7 +609,8 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                AnnounceCurrentCard(includeZoneName: true);
+                // High priority: user explicitly pressed a zone shortcut — always re-announce
+                AnnounceCurrentCard(includeZoneName: true, priority: AnnouncementPriority.High);
             }
         }
 
@@ -1054,7 +1055,8 @@ namespace AccessibleArena.Core.Services
             int count = GetZoneCardCount(ZoneType.OpponentHand);
             if (count >= 0)
             {
-                _announcer.Announce(Strings.OpponentHandCount(count), AnnouncementPriority.Normal);
+                // High priority: user explicitly pressed Shift+C — always re-announce
+                _announcer.Announce(Strings.OpponentHandCount(count), AnnouncementPriority.High);
             }
             else
             {

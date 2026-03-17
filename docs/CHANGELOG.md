@@ -80,6 +80,11 @@ All notable changes to Accessible Arena.
 - All 12 language files updated.
 - The F1 help menu already had the correct descriptions ("Enter: Toggle card between zones", "Space: Confirm selection"); only the entry announcement was wrong.
 
+### Fix: Zone/row shortcuts always re-announce when pressed again (PR #34)
+- Pressing C, B, G, X, S, W (and Shift variants) now always announces the current card/zone even if content hasn't changed
+- Pressing Shift+C now always announces opponent hand count
+- Previously, a second keypress within the same zone was silently dropped
+
 ## v0.8.5
 
 ### Fix: Stale browser announcement after confirming modal spell mode

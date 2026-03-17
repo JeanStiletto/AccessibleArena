@@ -387,7 +387,8 @@ namespace AccessibleArena.Core.Services
             _currentRow = row;
             _currentIndex = 0;
 
-            AnnounceCurrentCard(includeRowName: true);
+            // High priority: user explicitly pressed a row shortcut — always re-announce
+            AnnounceCurrentCard(includeRowName: true, priority: AnnouncementPriority.High);
         }
 
         /// <summary>
