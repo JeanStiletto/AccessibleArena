@@ -51,6 +51,10 @@ namespace AccessibleArena.Core.Services
         // Post-confirm rescan: force re-entry when scaffold is reused for a new interaction
         private bool _pendingRescan;
 
+        // Mulligan hand summary: delayed announcement so it fires after the entry + first-card announces
+        private string _pendingHandSummary;
+        private float _handSummaryTimer = -1f;
+
         // Multi-zone browser state (SelectCardsMultiZone)
         private bool _isMultiZone;
         private List<GameObject> _zoneButtons = new List<GameObject>();
@@ -128,6 +132,19 @@ namespace AccessibleArena.Core.Services
         public void Update()
         {
             var browserInfo = BrowserDetector.FindActiveBrowser();
+
+            // Fire delayed hand summary (mulligan overview)
+            if (_handSummaryTimer > 0f)
+            {
+                _handSummaryTimer -= UnityEngine.Time.deltaTime;
+                if (_handSummaryTimer <= 0f)
+                {
+                    _handSummaryTimer = -1f;
+                    if (!string.IsNullOrEmpty(_pendingHandSummary))
+                        _announcer.Announce(_pendingHandSummary, AnnouncementPriority.High);
+                    _pendingHandSummary = null;
+                }
+            }
 
             if (browserInfo.IsActive)
             {
@@ -250,6 +267,8 @@ namespace AccessibleArena.Core.Services
             _browserInfo = null;
             _hasAnnouncedEntry = false;
             _pendingRescan = false;
+            _pendingHandSummary = null;
+            _handSummaryTimer = -1f;
             _browserCards.Clear();
             _browserButtons.Clear();
             _currentCardIndex = -1;
@@ -1114,10 +1133,14 @@ namespace AccessibleArena.Core.Services
                     message = browserName;
                 }
 
-                // Announce the hand card list as a follow-up so the user knows what they have
+                // Schedule the hand card list as a delayed follow-up so the user can
+                // hear the main entry message and first-card focus before the list fires.
                 string handSummary = BuildHandSummary();
                 if (!string.IsNullOrEmpty(handSummary))
-                    _announcer.Announce(handSummary, AnnouncementPriority.Normal);
+                {
+                    _pendingHandSummary = handSummary;
+                    _handSummaryTimer = 1.5f;
+                }
             }
             // Special announcement for RepeatSelection (modal spell modes)
             else if (_browserInfo.BrowserType == "RepeatSelection")
