@@ -3621,20 +3621,25 @@ namespace AccessibleArena.Core.Services
                         announcement += $", {invalidStatus}";
                     }
 
-                    // Get the rename button (TextBox) for this deck
-                    GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
-                    attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
-
-                    // Insert detailed tooltip as first virtual info item (Level 2)
-                    string invalidTooltip = UIActivator.GetDeckInvalidTooltip(obj);
-                    if (!string.IsNullOrEmpty(invalidTooltip))
+                    // Recent tab decks: skip attached actions (Enter auto-plays; deck toolbar not applicable here)
+                    bool isRecentDeck = RecentPlayAccessor.IsActive;
+                    if (!isRecentDeck)
                     {
-                        attachedActions.Insert(0, new AttachedAction { Label = invalidTooltip, TargetButton = null });
-                    }
+                        // Get the rename button (TextBox) for this deck
+                        GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
+                        attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
 
-                    if (attachedActions.Count > 0)
-                    {
-                        LogDebug($"[{NavigatorId}] Deck '{announcement}' has {attachedActions.Count} attached actions");
+                        // Insert detailed tooltip as first virtual info item (Level 2)
+                        string invalidTooltip = UIActivator.GetDeckInvalidTooltip(obj);
+                        if (!string.IsNullOrEmpty(invalidTooltip))
+                        {
+                            attachedActions.Insert(0, new AttachedAction { Label = invalidTooltip, TargetButton = null });
+                        }
+
+                        if (attachedActions.Count > 0)
+                        {
+                            LogDebug($"[{NavigatorId}] Deck '{announcement}' has {attachedActions.Count} attached actions");
+                        }
                     }
                 }
 
