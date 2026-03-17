@@ -4966,6 +4966,7 @@ namespace AccessibleArena.Core.Services
 
                     // Always enter the group (whether we toggled or not)
                     _groupedNavigator.EnterGroup();
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
                     UpdateCardNavigationForGroupedElement();
                     return true;
                 }
