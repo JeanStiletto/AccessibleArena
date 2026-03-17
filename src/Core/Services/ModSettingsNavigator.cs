@@ -83,6 +83,12 @@ namespace AccessibleArena.Core.Services
                     Name = Strings.SettingBriefCastAnnouncements,
                     GetValue = () => _settings.BriefCastAnnouncements ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.BriefCastAnnouncements = !_settings.BriefCastAnnouncements
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingPhaseSkipWarning,
+                    GetValue = () => _settings.PhaseSkipWarning ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.PhaseSkipWarning = !_settings.PhaseSkipWarning
                 }
             };
         }

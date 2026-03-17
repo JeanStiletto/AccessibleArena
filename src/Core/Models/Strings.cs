@@ -761,6 +761,7 @@ namespace AccessibleArena.Core.Models
         public static string SettingTutorialMessages => L.Get("SettingTutorialMessages");
         public static string SettingVerboseAnnouncements => L.Get("SettingVerboseAnnouncements");
         public static string SettingBriefCastAnnouncements => L.Get("SettingBriefCastAnnouncements");
+        public static string SettingPhaseSkipWarning => L.Get("SettingPhaseSkipWarning");
         public static string SettingOn => L.Get("SettingOn");
         public static string SettingOff => L.Get("SettingOff");
         public static string SettingChanged(string name, string value) => L.Format("SettingChanged_Format", name, value);

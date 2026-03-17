@@ -53,6 +53,14 @@ namespace AccessibleArena.Core.Services
             _lastDecisionFrame = frame;
             _blockThisFrame = false;
 
+            // Setting disabled — clear any pending state to avoid stuck blocking
+            if (!(AccessibleArenaMod.Instance?.Settings?.PhaseSkipWarning ?? true))
+            {
+                if (_warningShown || _waitingForRelease)
+                    Reset();
+                return false;
+            }
+
             // Track key release: once Space is released after warning, allow next press.
             // Block on the release frame too — the confirm must be a NEW key-down.
             if (_waitingForRelease)
