@@ -183,6 +183,12 @@ namespace AccessibleArena.Core.Services
         // ReadOnly deck builder mode (starter/precon decks)
         private bool _isDeckBuilderReadOnly;
 
+        // Rename edit mode tracking: set when user activates the Rename action
+        private bool _isInRenameMode;
+
+        // Cached DeckManagerController reference for reading deck favorite state
+        private MonoBehaviour _cachedDeckManagerController;
+
         // 2D sub-navigation state for DeckBuilderInfo group
         // Rows navigated with Up/Down, entries within rows navigated with Left/Right
         private List<(string label, List<string> entries)> _deckInfoRows;
@@ -4366,9 +4372,10 @@ namespace AccessibleArena.Core.Services
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);
 
         /// <summary>
-        /// Handle Rename specially: directly enter edit mode on the embedded TMP_InputField
-        /// instead of clicking the TextBox button. Clicking TextBox auto-focuses the field,
-        /// which our anti-autofocus code in BaseNavigator would immediately deactivate.
+        /// Handle Rename and Favorite specially.
+        /// Rename: enter edit mode directly on the embedded TMP_InputField instead of clicking TextBox,
+        ///   to avoid anti-autofocus code immediately deactivating the field.
+        /// Favorite: read current IsFavorite state before activating, then announce the new state.
         /// </summary>
         protected override bool HandleAttachedAction(AttachedAction action)
         {
@@ -4379,12 +4386,96 @@ namespace AccessibleArena.Core.Services
                 {
                     string currentName = inputField.text;
                     MelonLogger.Msg($"[{NavigatorId}] Rename: entering edit mode on {inputField.gameObject.name}, current name: '{currentName}'");
+                    _isInRenameMode = true;
                     EnterInputFieldEditModeDirectly(inputField.gameObject,
                         $"Renaming {currentName}. Type new name, Enter to confirm, Escape to cancel.");
                     return true;
                 }
             }
+
+            if (action.Label == "Favorite" && action.TargetButton != null)
+            {
+                bool? isFavorited = TryGetDeckFavoriteState();
+                UIActivator.Activate(action.TargetButton);
+                string announcement = isFavorited.HasValue
+                    ? (isFavorited.Value ? "Removed from favorites." : "Added to favorites.")
+                    : Models.Strings.ActivatedBare;
+                _announcer.Announce(announcement, AnnouncementPriority.Normal);
+                return true;
+            }
+
             return false;
+        }
+
+        /// <summary>
+        /// Intercept Enter during rename edit mode to announce the new deck name.
+        /// The key is NOT consumed so the game's TMP_InputField still submits the rename.
+        /// </summary>
+        protected override void HandleInputFieldNavigation()
+        {
+            if (_isInRenameMode)
+            {
+                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                {
+                    string newName = GetEditingFieldText()?.Trim() ?? "";
+                    _isInRenameMode = false;
+                    if (!string.IsNullOrEmpty(newName))
+                        _announcer.Announce($"Renamed to {newName}.", AnnouncementPriority.Normal);
+                    // Don't return — let Enter pass through to the game to submit the rename
+                }
+                else if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    _isInRenameMode = false;
+                    // Let base handle Escape (exits edit mode, announces cancelled)
+                }
+            }
+            base.HandleInputFieldNavigation();
+        }
+
+        /// <summary>
+        /// Read IsFavorite from the selected deck in DeckManagerController via reflection.
+        /// Returns null if the state cannot be determined.
+        /// </summary>
+        private bool? TryGetDeckFavoriteState()
+        {
+            // Re-use cached reference if still valid
+            if (_cachedDeckManagerController == null || !_cachedDeckManagerController)
+            {
+                _cachedDeckManagerController = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "DeckManagerController")
+                    {
+                        _cachedDeckManagerController = mb;
+                        break;
+                    }
+                }
+            }
+
+            if (_cachedDeckManagerController == null) return null;
+
+            try
+            {
+                var selectedDeckField = _cachedDeckManagerController.GetType()
+                    .GetField("_selectedDeck", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var selectedDeck = selectedDeckField?.GetValue(_cachedDeckManagerController);
+                if (selectedDeck == null) return null;
+
+                var summaryProp = selectedDeck.GetType()
+                    .GetProperty("Summary", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                var summary = summaryProp?.GetValue(selectedDeck);
+                if (summary == null) return null;
+
+                var isFavProp = summary.GetType()
+                    .GetProperty("IsFavorite", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (isFavProp == null) return null;
+
+                return (bool)isFavProp.GetValue(summary);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         protected override string GetActivationAnnouncement()

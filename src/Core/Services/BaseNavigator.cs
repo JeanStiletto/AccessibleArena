@@ -1914,6 +1914,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets the text of the currently active input field in edit mode, or null if not editing.
+        /// Subclasses can use this in their HandleInputFieldNavigation overrides.
+        /// </summary>
+        protected string GetEditingFieldText()
+        {
+            var info = _inputFieldHelper.GetEditingFieldInfo();
+            return info.IsValid ? info.Text : null;
+        }
+
+        /// <summary>
         /// Deactivate an input field on the specified element if it was auto-focused.
         /// Used to counteract MTGA's auto-focus behavior when navigating to input fields.
         /// User must press Enter to explicitly activate the field.

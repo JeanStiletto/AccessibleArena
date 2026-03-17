@@ -373,13 +373,15 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Announce character at cursor using provided field info.
+        /// Announces the character the caret moved TO (standard screen reader convention):
+        ///   Left:  caret moves from P to P-1; announce text[P-1] (or "start" if at beginning)
+        ///   Right: caret moves from P to P+1; announce text[P]   (or "end" if at end)
         /// </summary>
         public void AnnounceCharacterAtCursor(FieldInfo info)
         {
             if (!info.IsValid) return;
 
             bool isLeft = Input.GetKeyDown(KeyCode.LeftArrow);
-            bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
             string text = info.Text;
             int caretPos = info.CaretPosition;
 
@@ -391,25 +393,27 @@ namespace AccessibleArena.Core.Services
 
             if (info.IsPassword)
             {
-                if (caretPos == 0 && isLeft)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
-                else if (caretPos >= text.Length && isRight)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
-                else if (caretPos >= 0 && caretPos < text.Length)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldStar);
+                if (isLeft)
+                    _announcer?.AnnounceInterrupt(caretPos <= 0 ? Strings.InputFieldStart : Strings.InputFieldStar);
                 else
-                    _announcer?.AnnounceInterrupt(caretPos == 0 ? Strings.InputFieldStart : Strings.InputFieldEnd);
+                    _announcer?.AnnounceInterrupt(caretPos >= text.Length ? Strings.InputFieldEnd : Strings.InputFieldStar);
                 return;
             }
 
-            if (caretPos == 0 && isLeft)
-                _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
-            else if (caretPos >= text.Length && isRight)
-                _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
-            else if (caretPos >= 0 && caretPos < text.Length)
-                _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
-            else
-                _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
+            if (isLeft)
+            {
+                if (caretPos <= 0)
+                    _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
+                else
+                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos - 1]));
+            }
+            else // Right arrow
+            {
+                if (caretPos >= text.Length)
+                    _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
+                else
+                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
+            }
         }
 
         /// <summary>
