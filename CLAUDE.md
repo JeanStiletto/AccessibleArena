@@ -77,7 +77,7 @@ LLM reference documentation in `llm-docs/`:
 dotnet build src/AccessibleArena.csproj
 
 # Deploy (game must be closed)
-powershell -NoProfile -Command "Copy-Item -Path 'C:\Users\fabia\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
+powershell -NoProfile -Command "Copy-Item -Path 'C:\Users\blind\Desktop\x\AccessibleArena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\AccessibleArena.dll' -Force"
 ```
 
 ### Release
@@ -93,7 +93,7 @@ Before running: update `ModVersion` in `src/Directory.Build.props` and add a `##
 - Use the Read tool to read files in the MTGA folder (permission pre-configured in settings.local.json)
 
 ### Deployment Paths
-- Mod DLL: `C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll`
+- Mod DLL: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\AccessibleArena.dll`
 - Tolk DLLs in game root
 
 ### Key Utilities (always use these)
