@@ -440,6 +440,12 @@ namespace AccessibleArena.Core.Services
 
         private string BuildAnnouncement(UIElementClassifier.ClassificationResult classification)
         {
+            if (classification.Role == UIElementClassifier.ElementRole.Toggle)
+            {
+                bool isOn = !classification.RoleLabel.Contains(Models.Strings.RoleUnchecked);
+                string state = isOn ? Models.Strings.SettingOn : Models.Strings.SettingOff;
+                return $"{classification.Label}, {state}";
+            }
             return BuildLabel(classification.Label, classification.RoleLabel, classification.Role);
         }
 
@@ -604,6 +610,18 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // For toggles: activate and re-announce new On/Off state immediately
+            var toggle = element?.GetComponent<Toggle>() ?? element?.GetComponentInChildren<Toggle>(true);
+            if (toggle != null)
+            {
+                UIActivator.Activate(element);
+                string label = UITextExtractor.GetText(element);
+                string state = toggle.isOn ? Models.Strings.SettingOn : Models.Strings.SettingOff;
+                _announcer.Announce($"{label}, {state}", Models.AnnouncementPriority.High);
+                TriggerRescan(); // Update element list so subsequent navigation reads the new state
+                return true;
+            }
+
             return false;
         }
 
@@ -689,7 +707,7 @@ namespace AccessibleArena.Core.Services
             {
                 return $"{menuName}. No navigable items found.";
             }
-            return $"{menuName}. {Models.Strings.NavigateWithArrows}, Enter to select. {_elements.Count} items.";
+            return $"{menuName}. {Models.Strings.NavigateHint}. {_elements.Count} items.";
         }
 
         #endregion
