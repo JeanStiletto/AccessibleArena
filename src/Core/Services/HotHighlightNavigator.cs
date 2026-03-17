@@ -112,6 +112,7 @@ namespace AccessibleArena.Core.Services
             _lastItemZone = null;
             _lastPromptButtonText = null;
             _cachedAvatarViews.Clear();
+            PhaseSkipGuard.Reset();
             MelonLogger.Msg("[HotHighlightNavigator] Deactivated");
         }
 
@@ -264,7 +265,10 @@ namespace AccessibleArena.Core.Services
             }
 
             // Space - click primary button when no highlights are available,
-            // or when in selection mode (to submit the selection/discard)
+            // or when in selection mode (to submit the selection/discard).
+            // Phase skip warning is handled at Input.GetKeyDown level by PhaseSkipGuard via
+            // EventSystemPatch.GetKeyDown_Postfix — Space returns false while warning is pending,
+            // so this block simply won't execute on a blocked press.
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 if (_items.Count == 0 || IsSelectionModeActive())
@@ -1266,6 +1270,7 @@ namespace AccessibleArena.Core.Services
             return true;
         }
 
+        /// <summary>
         #endregion
     }
 

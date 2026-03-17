@@ -151,6 +151,14 @@ namespace AccessibleArena.Patches
                 {
                     return true;
                 }
+                // Block Space when PhaseSkipGuard is warning (untapped lands in main phase).
+                // This prevents the game's keyboard subscriber from directly passing priority
+                // through a path that bypasses both EventSystem and Input.GetKeyDown.
+                if (key == KeyCode.Space && PhaseSkipGuard.ShouldBlock())
+                {
+                    MelonLogger.Msg("[KeyboardManagerPatch] Blocked Space — PhaseSkipGuard active");
+                    return true;
+                }
             }
 
             // In menu scenes, block Tab entirely - our mod handles Tab for navigation

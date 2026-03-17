@@ -135,12 +135,30 @@ namespace AccessibleArena.Patches
 
         /// <summary>
         /// Patch StandaloneInputModule.SendSubmitEventToSelectedObject to block Submit
-        /// when our navigator is on a toggle element or when in dropdown mode.
+        /// when our navigator is on a toggle element, when in dropdown mode,
+        /// or when PhaseSkipGuard is warning before passing priority.
+        ///
+        /// This is the critical interception point for phase-skip warning. MTGA's
+        /// input module may not call Input.GetButtonDown — it may use BaseInput or
+        /// a custom override — so patching Input methods alone is insufficient.
+        /// We must block here, where the actual submit dispatch happens.
+        ///
+        /// PhaseSkipGuard uses release-tracking to prevent oscillation: after showing
+        /// the warning, it blocks every frame until Space is released. The next press
+        /// after release confirms the pass.
         /// </summary>
         [HarmonyPatch(typeof(StandaloneInputModule), "SendSubmitEventToSelectedObject")]
         [HarmonyPrefix]
         public static bool SendSubmitEventToSelectedObject_Prefix()
         {
+            // Block Submit when PhaseSkipGuard wants to warn before passing.
+            // Input.GetKey(Space) distinguishes Space-triggered submit from Enter-triggered.
+            // ShouldBlock() is frame-cached and handles release-tracking internally.
+            if (Input.GetKey(KeyCode.Space) && PhaseSkipGuard.ShouldBlock())
+            {
+                return false;
+            }
+
             // Block Submit when we're on a toggle - our mod handles toggle activation directly
             if (InputManager.BlockSubmitForToggle)
             {
@@ -167,9 +185,8 @@ namespace AccessibleArena.Patches
 
         /// <summary>
         /// Patch Input.GetKeyDown to block Enter key when on a toggle or dropdown.
-        /// This catches MTGA code that directly reads Input.GetKeyDown(KeyCode.Return)
-        /// bypassing both KeyboardManager and EventSystem.
-        /// Sets EnterPressedWhileBlocked flag so our code can still detect the press.
+        /// Also blocks Space in DuelScene when PhaseSkipGuard is active, to prevent
+        /// KeyboardManager and direct callers from seeing Space.
         /// </summary>
         [HarmonyPatch(typeof(Input), nameof(Input.GetKeyDown), typeof(KeyCode))]
         [HarmonyPostfix]
@@ -182,6 +199,15 @@ namespace AccessibleArena.Patches
                 {
                     MelonLogger.Msg($"[EventSystemPatch] BLOCKED Input.GetKeyDown({key}) - on toggle/dropdown, setting EnterPressedWhileBlocked");
                     InputManager.EnterPressedWhileBlocked = true;
+                    __result = false;
+                }
+            }
+
+            // Block Space when PhaseSkipGuard is active (warning shown, waiting for release)
+            if (key == KeyCode.Space && __result)
+            {
+                if (PhaseSkipGuard.ShouldBlock())
+                {
                     __result = false;
                 }
             }

@@ -73,6 +73,16 @@ namespace AccessibleArena.Core.Services
         public float TimeSinceLastPhaseChange => UnityEngine.Time.time - _lastPhaseChangeTime;
 
         /// <summary>
+        /// Returns the current phase string ("Main1", "Main2", "Combat", etc.).
+        /// </summary>
+        public string CurrentPhase => _currentPhase;
+
+        /// <summary>
+        /// Returns true if it is currently the local player's turn.
+        /// </summary>
+        public bool IsUserTurn => _isUserTurn;
+
+        /// <summary>
         /// Returns true if currently in Declare Attackers phase.
         /// </summary>
         public bool IsInDeclareAttackersPhase => _currentPhase == "Combat" && _currentStep == "DeclareAttack";

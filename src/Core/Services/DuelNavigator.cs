@@ -91,6 +91,9 @@ namespace AccessibleArena.Core.Services
             // Connect HotHighlightNavigator to BattlefieldNavigator for syncing position on Tab
             _hotHighlightNavigator.SetBattlefieldNavigator(_battlefieldNavigator);
 
+            // Connect PriorityController to PhaseSkipGuard for phase skip warning
+            PhaseSkipGuard.SetPriorityController(_priorityController);
+
         }
 
         /// <summary>
