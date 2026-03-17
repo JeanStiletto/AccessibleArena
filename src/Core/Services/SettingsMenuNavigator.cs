@@ -43,7 +43,7 @@ namespace AccessibleArena.Core.Services
         private bool _prevInDropdownOrSuppressed; // Tracks combined dropdown+suppressed state for exit detection
         private GameObject _pendingDropdownObject; // The dropdown element to announce after rescan (by reference)
 
-        // Quick menu: shows only Concede/Options/Logout on initial settings open
+        // Quick menu: shows only Concede/Options/Leave Game on initial settings open
         private bool _isInQuickMenu = true;
         private GameObject _optionsVirtualElement; // Carrier GO for virtual Options button
 
@@ -340,12 +340,12 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Filter the discovered elements to only show quick menu items:
-        /// Concede (if visible), Options (virtual), Logout.
+        /// Concede (if visible), Options (virtual), Leave Game.
         /// </summary>
         private void ApplyQuickMenuFilter()
         {
             NavigableElement? concedeElement = null;
-            NavigableElement? logoutElement = null;
+            NavigableElement? exitGameElement = null;
 
             for (int i = 0; i < _elements.Count; i++)
             {
@@ -355,13 +355,13 @@ namespace AccessibleArena.Core.Services
 
                 if (goName.IndexOf("Concede", System.StringComparison.OrdinalIgnoreCase) >= 0)
                     concedeElement = elem;
-                else if (goName.IndexOf("LogOut", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    logoutElement = elem;
+                else if (goName.IndexOf("ExitGame", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    exitGameElement = elem;
             }
 
             _elements.Clear();
 
-            // Add in order: Concede (if visible), Options, Logout
+            // Add in order: Concede (if visible), Options, Leave Game
             if (concedeElement.HasValue)
                 _elements.Add(concedeElement.Value);
 
@@ -375,8 +375,8 @@ namespace AccessibleArena.Core.Services
                     UIElementClassifier.ElementRole.Button);
             }
 
-            if (logoutElement.HasValue)
-                _elements.Add(logoutElement.Value);
+            if (exitGameElement.HasValue)
+                _elements.Add(exitGameElement.Value);
 
             MelonLogger.Msg($"[{NavigatorId}] Quick menu: {_elements.Count} items");
         }
