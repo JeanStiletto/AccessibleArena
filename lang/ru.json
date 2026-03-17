@@ -895,5 +895,19 @@
   "ChatSendButton": "Отправить",
   "ChatClosed": "Чат закрыт",
   "ChatNoConversation": "Нет разговора",
-  "GroupChatWindow": "Чат"
+  "GroupChatWindow": "Чат",
+  "ScreenSideboard": "Sideboard",
+  "Sideboard_Activated_Format": "Sideboard. {0} {1} wins, {2} {3} wins. {4} pool cards, {5} deck cards. C for pool, D for deck, T for timer, L for score. Enter to move cards, Space to submit",
+  "Sideboard_Timer_Format": "Timer: {0}",
+  "Sideboard_Score_Format": "{0}: {1} wins, {2}: {3} wins",
+  "Sideboard_PoolZone_One": "Pool, 1 card",
+  "Sideboard_PoolZone_Format": "Pool, {0} cards",
+  "Sideboard_DeckZone_One": "Deck, 1 card",
+  "Sideboard_DeckZone_Format": "Deck, {0} cards",
+  "Sideboard_CardAdded_Format": "{0} added to deck",
+  "Sideboard_CardRemoved_Format": "{0} removed from deck",
+  "Sideboard_Submitted": "Sideboard submitted",
+  "Sideboard_ViewBattlefield": "Viewing battlefield",
+  "Sideboard_ViewDeck": "Viewing deck",
+  "Sideboard_PageInfo_Format": "Page {0} of {1}"
 }

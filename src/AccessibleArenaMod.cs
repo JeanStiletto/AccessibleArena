@@ -116,6 +116,7 @@ namespace AccessibleArena
                 new BoosterOpenNavigator(_announcer),  // Pack opening card list (priority 80)
                 new DraftNavigator(_announcer),         // Draft card picking (priority 78)
                 new NPERewardNavigator(_announcer),    // NPE reward screen - card unlocked (priority 75)
+                new SideboardNavigator(_announcer),  // Bo3 sideboard (priority 72)
                 new DuelNavigator(_announcer),
                 new LoadingScreenNavigator(_announcer),  // MatchEnd/Matchmaking transitional screens (priority 65)
                 new MasteryNavigator(_announcer),            // Mastery/Rewards screen - levels and rewards (priority 60)
@@ -270,11 +271,14 @@ namespace AccessibleArena
             // Notify navigator manager of scene change
             _navigatorManager?.OnSceneChanged(sceneName);
 
-            // DuelNavigator activates on DuelScene - game auto-transitions to duel
+            // DuelNavigator and SideboardNavigator activate on DuelScene
             if (sceneName == DuelScene)
             {
                 var duelNav = _navigatorManager?.GetNavigator<DuelNavigator>();
                 duelNav?.OnDuelSceneLoaded();
+
+                var sideboardNav = _navigatorManager?.GetNavigator<SideboardNavigator>();
+                sideboardNav?.OnDuelSceneLoaded();
             }
 
         }

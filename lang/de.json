@@ -892,5 +892,19 @@
   "ChatSendButton": "Senden",
   "ChatClosed": "Chat geschlossen",
   "ChatNoConversation": "Keine Unterhaltung",
-  "GroupChatWindow": "Chat"
+  "GroupChatWindow": "Chat",
+  "ScreenSideboard": "Sideboard",
+  "Sideboard_Activated_Format": "Sideboard. {0} {1} Siege, {2} {3} Siege. {4} Poolkarten, {5} Deckkarten. C für Pool, D für Deck, T für Timer, L für Spielstand. Enter zum Verschieben, Leertaste zum Bestätigen",
+  "Sideboard_Timer_Format": "Timer: {0}",
+  "Sideboard_Score_Format": "{0}: {1} Siege, {2}: {3} Siege",
+  "Sideboard_PoolZone_One": "Pool, 1 Karte",
+  "Sideboard_PoolZone_Format": "Pool, {0} Karten",
+  "Sideboard_DeckZone_One": "Deck, 1 Karte",
+  "Sideboard_DeckZone_Format": "Deck, {0} Karten",
+  "Sideboard_CardAdded_Format": "{0} zum Deck hinzugefügt",
+  "Sideboard_CardRemoved_Format": "{0} aus dem Deck entfernt",
+  "Sideboard_Submitted": "Sideboard eingereicht",
+  "Sideboard_ViewBattlefield": "Schlachtfeld wird angezeigt",
+  "Sideboard_ViewDeck": "Deck wird angezeigt",
+  "Sideboard_PageInfo_Format": "Seite {0} von {1}"
 }
