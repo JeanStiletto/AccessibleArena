@@ -52,6 +52,10 @@ namespace AccessibleArena.Core.Services
         private KeyCode? _holdKey;
         private float _holdTimer;
         private float _holdRepeatTimer;
+        // Rapid carousel: hold Left/Right to repeat carousel/stepper/slider steps
+        private int? _carouselHoldDir; // -1 = left, 1 = right
+        private float _carouselHoldTimer;
+        private float _carouselHoldRepeatTimer;
         private const float HoldInitialDelay = 0.5f;   // seconds before repeat starts
         private const float HoldRepeatInterval = 0.1f; // seconds between repeated steps
 
@@ -621,6 +625,7 @@ namespace AccessibleArena.Core.Services
             _elements.Clear();
             _currentIndex = -1;
             _holdKey = null;
+            _carouselHoldDir = null;
 
             // Clear toggle submit blocking when navigator deactivates
             InputManager.BlockSubmitForToggle = false;
@@ -1374,17 +1379,52 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Arrow Left/Right for carousel elements
+            // Arrow Left/Right for carousel elements (with hold-repeat)
+            if (_carouselHoldDir.HasValue)
+            {
+                KeyCode heldKey = _carouselHoldDir.Value == -1 ? KeyCode.LeftArrow : KeyCode.RightArrow;
+                if (Input.GetKey(heldKey))
+                {
+                    _carouselHoldTimer += Time.deltaTime;
+                    if (_carouselHoldTimer >= HoldInitialDelay)
+                    {
+                        _carouselHoldRepeatTimer -= Time.deltaTime;
+                        if (_carouselHoldRepeatTimer <= 0f)
+                        {
+                            _carouselHoldRepeatTimer = HoldRepeatInterval;
+                            if (HandleCarouselArrow(_carouselHoldDir.Value == 1))
+                                return;
+                            // Element no longer accepts arrows — stop repeating
+                            _carouselHoldDir = null;
+                        }
+                    }
+                }
+                else
+                {
+                    _carouselHoldDir = null;
+                }
+            }
+
             if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 if (HandleCarouselArrow(isNext: false))
+                {
+                    _carouselHoldDir = -1;
+                    _carouselHoldTimer = 0f;
+                    _carouselHoldRepeatTimer = HoldRepeatInterval;
                     return;
+                }
             }
 
             if (Input.GetKeyDown(KeyCode.RightArrow))
             {
                 if (HandleCarouselArrow(isNext: true))
+                {
+                    _carouselHoldDir = 1;
+                    _carouselHoldTimer = 0f;
+                    _carouselHoldRepeatTimer = HoldRepeatInterval;
                     return;
+                }
             }
 
             // Activation (Enter or Space)
