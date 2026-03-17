@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} 시작되었습니다",
   "Back": "뒤로",
   "NoSelection": "선택 없음",
@@ -558,6 +558,7 @@
   "ScreenSettingsGameplay": "설정, 게임플레이",
   "ScreenSettingsGraphics": "설정, 그래픽",
   "ScreenSettingsAudio": "설정, 오디오",
+  "ScreenSettingsAccount": "Settings, Account",
   "ScreenDownload": "다운로드",
   "ScreenAdvancedFilters": "고급 필터",
   "ScreenPrizeWall": "프라이즈 월",

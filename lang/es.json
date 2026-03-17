@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} iniciado",
   "Back": "Atrás",
   "NoSelection": "Sin selección",
@@ -558,6 +558,7 @@
   "ScreenSettingsGameplay": "Ajustes, Jugabilidad",
   "ScreenSettingsGraphics": "Ajustes, Gráficos",
   "ScreenSettingsAudio": "Ajustes, Audio",
+  "ScreenSettingsAccount": "Settings, Account",
   "ScreenDownload": "Descarga",
   "ScreenAdvancedFilters": "Filtros avanzados",
   "ScreenPrizeWall": "Muro de premios",

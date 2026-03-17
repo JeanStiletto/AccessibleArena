@@ -1132,6 +1132,7 @@ namespace AccessibleArena.Core.Models
         public static string ScreenSettingsGameplay => L.Get("ScreenSettingsGameplay");
         public static string ScreenSettingsGraphics => L.Get("ScreenSettingsGraphics");
         public static string ScreenSettingsAudio => L.Get("ScreenSettingsAudio");
+        public static string ScreenSettingsAccount => L.Get("ScreenSettingsAccount");
         public static string ScreenDownload => L.Get("ScreenDownload");
         public static string ScreenAdvancedFilters => L.Get("ScreenAdvancedFilters");
         public static string ScreenPrizeWall => L.Get("ScreenPrizeWall");

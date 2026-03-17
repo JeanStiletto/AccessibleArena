@@ -24,7 +24,8 @@ namespace AccessibleArena.Core.Services
             "Content - MainMenu",
             "Content - Gameplay",
             "Content - Graphics",
-            "Content - Audio"
+            "Content - Audio",
+            "Content - Account"
         };
 
         private const float RescanDelaySeconds = 0.3f;
@@ -103,6 +104,7 @@ namespace AccessibleArena.Core.Services
                 "Content - Gameplay" => Models.Strings.ScreenSettingsGameplay,
                 "Content - Graphics" => Models.Strings.ScreenSettingsGraphics,
                 "Content - Audio" => Models.Strings.ScreenSettingsAudio,
+                "Content - Account" => Models.Strings.ScreenSettingsAccount,
                 _ => Models.Strings.ScreenSettings
             };
         }
@@ -496,7 +498,8 @@ namespace AccessibleArena.Core.Services
             bool isInSubmenu = panelName != "Content - MainMenu" &&
                               (panelName == "Content - Audio" ||
                                panelName == "Content - Graphics" ||
-                               panelName == "Content - Gameplay");
+                               panelName == "Content - Gameplay" ||
+                               panelName == "Content - Account");
 
             if (isInSubmenu)
             {

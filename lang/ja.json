@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} 起動しました",
   "Back": "戻る",
   "NoSelection": "選択なし",
@@ -558,6 +558,7 @@
   "ScreenSettingsGameplay": "設定、ゲームプレイ",
   "ScreenSettingsGraphics": "設定、グラフィック",
   "ScreenSettingsAudio": "設定、オーディオ",
+  "ScreenSettingsAccount": "Settings, Account",
   "ScreenDownload": "ダウンロード",
   "ScreenAdvancedFilters": "詳細フィルター",
   "ScreenPrizeWall": "プライズウォール",
