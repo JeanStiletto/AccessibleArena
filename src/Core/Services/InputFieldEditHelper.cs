@@ -421,23 +421,27 @@ namespace AccessibleArena.Core.Services
                 if (isLeft)
                     _announcer?.AnnounceInterrupt(caretPos <= 0 ? Strings.InputFieldStart : Strings.InputFieldStar);
                 else
-                    _announcer?.AnnounceInterrupt(caretPos >= text.Length ? Strings.InputFieldEnd : Strings.InputFieldStar);
+                    _announcer?.AnnounceInterrupt(caretPos >= text.Length && _prevCaretPos >= text.Length ? Strings.InputFieldEnd : Strings.InputFieldStar);
                 return;
             }
 
+            // TMP processes arrow keys before our Update reads caretPosition, so caretPos is
+            // already the post-move value. Use text[caretPos] for LEFT and text[caretPos-1] for RIGHT.
+            // For the right-end boundary, use _prevCaretPos to distinguish "just moved to end"
+            // (announce last char) from "was already at end, couldn't move" (announce "end").
             if (isLeft)
             {
                 if (caretPos <= 0)
                     _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
                 else
-                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos - 1]));
+                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
             }
             else // Right arrow
             {
-                if (caretPos >= text.Length)
+                if (caretPos >= text.Length && _prevCaretPos >= text.Length)
                     _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
                 else
-                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
+                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos - 1]));
             }
         }
 
