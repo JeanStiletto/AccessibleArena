@@ -613,13 +613,17 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // For toggles: activate and re-announce new On/Off state immediately
-            var toggle = element?.GetComponent<Toggle>() ?? element?.GetComponentInChildren<Toggle>(true);
-            if (toggle != null)
+            // For toggles: activate and re-announce new On/Off state immediately.
+            // Use stored Role (not GetComponentInChildren) to avoid false-positive matches
+            // on Toggles nested inside Dropdown item templates.
+            if (index >= 0 && index < _elements.Count &&
+                _elements[index].Role == UIElementClassifier.ElementRole.Toggle)
             {
+                var toggle = element?.GetComponent<Toggle>() ?? element?.GetComponentInChildren<Toggle>();
                 UIActivator.Activate(element);
                 string label = UITextExtractor.GetText(element);
-                string state = toggle.isOn ? Models.Strings.SettingOn : Models.Strings.SettingOff;
+                bool isOn = toggle != null ? toggle.isOn : !_elements[index].Label.EndsWith(Models.Strings.SettingOff);
+                string state = isOn ? Models.Strings.SettingOn : Models.Strings.SettingOff;
                 _announcer.Announce($"{label}, {state}", Models.AnnouncementPriority.High);
                 _silentRescan = true; // Don't re-announce the full screen name after the rescan
                 TriggerRescan(); // Update element labels for subsequent navigation
