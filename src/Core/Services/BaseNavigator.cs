@@ -1896,6 +1896,24 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Override to handle an attached action specially instead of the default Activate call.
+        /// Return true if handled; false to fall back to UIActivator.Activate.
+        /// </summary>
+        protected virtual bool HandleAttachedAction(AttachedAction action) => false;
+
+        /// <summary>
+        /// Enter edit mode on an input field with a custom announcement.
+        /// Use this instead of EnterEditMode when you want to supply your own announcement text.
+        /// </summary>
+        protected void EnterInputFieldEditModeDirectly(GameObject field, string announcement)
+        {
+            _inputFieldHelper.SetEditingFieldSilently(field);
+            UIActivator.Activate(field);
+            _inputFieldHelper.TrackState();
+            _announcer?.Announce(announcement, AnnouncementPriority.Normal);
+        }
+
+        /// <summary>
         /// Deactivate an input field on the specified element if it was auto-focused.
         /// Used to counteract MTGA's auto-focus behavior when navigating to input fields.
         /// User must press Enter to explicitly activate the field.
@@ -1998,14 +2016,19 @@ namespace AccessibleArena.Core.Services
                 if (action.TargetButton != null && action.TargetButton.activeInHierarchy)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Activating attached action: {action.Label} -> {action.TargetButton.name}");
-                    var actionResult = UIActivator.Activate(action.TargetButton);
-                    _announcer.Announce(actionResult.Message, AnnouncementPriority.Normal);
+                    if (!HandleAttachedAction(action))
+                    {
+                        var actionResult = UIActivator.Activate(action.TargetButton);
+                        _announcer.Announce(actionResult.Message, AnnouncementPriority.Normal);
+                    }
+                    _currentActionIndex = 0;
                     return;
                 }
                 else if (action.TargetButton == null)
                 {
                     // Info-only action: re-announce the label
                     _announcer.Announce(action.Label, AnnouncementPriority.Normal);
+                    _currentActionIndex = 0;
                     return;
                 }
                 else

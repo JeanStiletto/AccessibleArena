@@ -4365,6 +4365,28 @@ namespace AccessibleArena.Core.Services
 
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);
 
+        /// <summary>
+        /// Handle Rename specially: directly enter edit mode on the embedded TMP_InputField
+        /// instead of clicking the TextBox button. Clicking TextBox auto-focuses the field,
+        /// which our anti-autofocus code in BaseNavigator would immediately deactivate.
+        /// </summary>
+        protected override bool HandleAttachedAction(AttachedAction action)
+        {
+            if (action.Label == "Rename" && action.TargetButton != null)
+            {
+                var inputField = action.TargetButton.GetComponentInChildren<TMPro.TMP_InputField>(true);
+                if (inputField != null)
+                {
+                    string currentName = inputField.text;
+                    MelonLogger.Msg($"[{NavigatorId}] Rename: entering edit mode on {inputField.gameObject.name}, current name: '{currentName}'");
+                    EnterInputFieldEditModeDirectly(inputField.gameObject,
+                        $"Renaming {currentName}. Type new name, Enter to confirm, Escape to cancel.");
+                    return true;
+                }
+            }
+            return false;
+        }
+
         protected override string GetActivationAnnouncement()
         {
             string menuName = GetMenuScreenName();
