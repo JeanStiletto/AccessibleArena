@@ -1,7 +1,3 @@
-# Changelog
-
-All notable changes to Accessible Arena.
-
 ## v0.8.6
 
 ### Fix: Recent Played deck selection now starts the game
