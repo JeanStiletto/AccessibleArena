@@ -193,7 +193,7 @@ namespace AccessibleArena.Core.Services
             _hasAnnouncedEntry = false;
             // Scaffold-detected browsers have stable UI — announce immediately.
             // Generic CardBrowserCardHolder may be a transient pre-mulligan state — settle first.
-            _announceSettleTimer = browserInfo.BrowserType == T.CardBrowserCardHolder ? 0.3f : 0f;
+            _announceSettleTimer = browserInfo.BrowserType == T.CardBrowserCardHolder ? 0.5f : 0f;
             _currentCardIndex = -1;
             _currentButtonIndex = -1;
             _browserCards.Clear();
