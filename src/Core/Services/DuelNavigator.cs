@@ -331,8 +331,7 @@ namespace AccessibleArena.Core.Services
         {
             int handCards = _zoneNavigator.HandCardCount;
 
-            string core = Models.Strings.Duel_Started(handCards);
-            return Strings.WithHint(core, "DuelKeybindingsHint");
+            return Models.Strings.Duel_Started(handCards);
         }
 
         protected override bool OnElementActivated(int index, GameObject element)
