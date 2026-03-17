@@ -4404,6 +4404,13 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            if (action.Label == "Clone" && action.TargetButton != null)
+            {
+                UIActivator.Activate(action.TargetButton);
+                _announcer.Announce("Deck cloned. Re-enter decks to see it.", AnnouncementPriority.Normal);
+                return true;
+            }
+
             return false;
         }
 
@@ -4421,7 +4428,10 @@ namespace AccessibleArena.Core.Services
                     _isInRenameMode = false;
                     if (!string.IsNullOrEmpty(newName))
                         _announcer.Announce($"Renamed to {newName}.", AnnouncementPriority.Normal);
-                    // Don't return — let Enter pass through to the game to submit the rename
+                    // Deactivate the field — this fires onEndEdit so the game saves the rename.
+                    // We return early so the Enter key is not passed to the now-deactivated field.
+                    ForceExitFieldEditMode();
+                    return;
                 }
                 else if (Input.GetKeyDown(KeyCode.Escape))
                 {

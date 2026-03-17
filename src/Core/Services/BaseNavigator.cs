@@ -1924,6 +1924,17 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Exit input field edit mode directly, bypassing the search-field rescan logic.
+        /// Deactivating the field fires onEndEdit, so the game processes any pending submit
+        /// (e.g. a rename) through its normal event handler.
+        /// Use this when a subclass handles submission itself (e.g. Enter in rename mode).
+        /// </summary>
+        protected void ForceExitFieldEditMode()
+        {
+            _inputFieldHelper.ExitEditMode();
+        }
+
+        /// <summary>
         /// Deactivate an input field on the specified element if it was auto-focused.
         /// Used to counteract MTGA's auto-focus behavior when navigating to input fields.
         /// User must press Enter to explicitly activate the field.

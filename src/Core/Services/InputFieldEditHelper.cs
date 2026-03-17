@@ -362,13 +362,38 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Announce the character at the current cursor position.
+        /// If the field is in edit mode but not yet focused (TMP deferred activation),
+        /// reactivates the field and announces the full content instead of a stale position.
         /// </summary>
         public void AnnounceCharacterAtCursor()
         {
             var info = GetEditingFieldInfo();
             if (!info.IsValid) return;
 
+            // TMP_InputField defers isFocused=true until next frame's LateUpdate.
+            // When the field is in edit mode but not yet focused the caret position is
+            // always text.Length, so Left/Right would announce the wrong character.
+            // Reactivate and announce the full content so the user knows where they are.
+            if (!IsEditingFieldFocused())
+            {
+                AnnounceFieldContent(info);
+                ReactivateField();
+                return;
+            }
+
             AnnounceCharacterAtCursor(info);
+        }
+
+        /// <summary>
+        /// Returns true if the currently editing field reports isFocused.
+        /// </summary>
+        private bool IsEditingFieldFocused()
+        {
+            if (_editingField == null) return false;
+            var tmp = _editingField.GetComponent<TMP_InputField>();
+            if (tmp != null) return tmp.isFocused;
+            var legacy = _editingField.GetComponent<InputField>();
+            return legacy != null && legacy.isFocused;
         }
 
         /// <summary>

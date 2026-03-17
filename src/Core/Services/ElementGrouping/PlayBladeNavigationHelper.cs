@@ -147,10 +147,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 return PlayBladeResult.NotHandled;
 
             var groupType = currentGroup.Value.Group;
+            // IsFolderGroup covers PlayBlade deck-folders, but DeckManager also uses folder groups.
+            // Only treat folder groups as PlayBlade if IsPlayBladeContext is set; that flag is
+            // not stale here because DeckManager never enters PlayBlade context.
             bool isPlayBladeGroup = groupType == ElementGroup.PlayBladeTabs ||
                                     groupType == ElementGroup.PlayBladeContent ||
                                     groupType == ElementGroup.PlayBladeFolders ||
-                                    currentGroup.Value.IsFolderGroup;
+                                    (currentGroup.Value.IsFolderGroup && _groupedNavigator.IsPlayBladeContext);
 
             if (!isPlayBladeGroup)
                 return PlayBladeResult.NotHandled;
