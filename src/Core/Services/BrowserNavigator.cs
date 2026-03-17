@@ -593,7 +593,10 @@ namespace AccessibleArena.Core.Services
                         return false; // Let CardInfoNavigator handle it
                     }
                 }
-                return false;
+                // Consume Up/Down when browser has no cards (e.g. Informational browser
+                // during coin flip / waiting) to prevent BaseNavigator from navigating
+                // internal UI elements like 16x9 prompt buttons
+                return _browserCards.Count == 0;
             }
 
             // Enter - activate current card or button
