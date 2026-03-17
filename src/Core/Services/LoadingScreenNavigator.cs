@@ -794,21 +794,31 @@ namespace AccessibleArena.Core.Services
                     if (_elements.Count > 0)
                         UpdateEventSystemSelection();
 
-                    // Track status text to avoid double-announcement
-                    if (_currentMode == ScreenMode.GameLoading && _elements.Count > 0)
-                        _lastLoadingStatusText = _elements[0].Label;
-
-                    _announcer.AnnounceInterrupt(GetActivationAnnouncement());
+                    // GameLoading: track status text for logging but do not announce each step.
+                    // The initial "Loading." announcement on activation is sufficient feedback;
+                    // intermediate steps ("Retrieving asset manifest" etc.) are not milestones
+                    // the user needs to hear. The main menu navigator announces when loading ends.
+                    if (_currentMode == ScreenMode.GameLoading)
+                    {
+                        if (_elements.Count > 0)
+                        {
+                            _lastLoadingStatusText = _elements[0].Label;
+                            Log($"Loading status (silent): {_lastLoadingStatusText}");
+                        }
+                    }
+                    else
+                    {
+                        _announcer.AnnounceInterrupt(GetActivationAnnouncement());
+                    }
                 }
                 else if (_currentMode == ScreenMode.GameLoading && _elements.Count > 0)
                 {
-                    // Announce status text changes even when element count is unchanged
+                    // Track status silently — no speech for intermediate GameLoading steps.
                     string currentLabel = _elements[0].Label;
-                    if (!string.IsNullOrEmpty(currentLabel) && currentLabel != _lastLoadingStatusText)
+                    if (currentLabel != _lastLoadingStatusText)
                     {
                         _lastLoadingStatusText = currentLabel;
-                        _announcer.AnnounceInterrupt(currentLabel);
-                        Log($"Loading status changed: {currentLabel}");
+                        Log($"Loading status changed (silent): {currentLabel}");
                     }
                 }
 

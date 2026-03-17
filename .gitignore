@@ -67,3 +67,11 @@ docs/modder-comparison.md
 
 # Audio stutter investigation files
 audio-stutter/
+
+# Scratch/investigation files
+*.txt
+!lang/*.txt
+llm-mod-refactoring-prompts/
+lang/*.bak
+docs/ACHIEVEMENT_NAVIGATOR_IMPROVEMENTS.md
+docs/SET_FILTER_IMPLEMENTATION_PLAN.md

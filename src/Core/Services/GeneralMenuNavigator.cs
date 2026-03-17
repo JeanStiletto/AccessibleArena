@@ -3621,20 +3621,25 @@ namespace AccessibleArena.Core.Services
                         announcement += $", {invalidStatus}";
                     }
 
-                    // Get the rename button (TextBox) for this deck
-                    GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
-                    attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
-
-                    // Insert detailed tooltip as first virtual info item (Level 2)
-                    string invalidTooltip = UIActivator.GetDeckInvalidTooltip(obj);
-                    if (!string.IsNullOrEmpty(invalidTooltip))
+                    // Recent tab decks: skip attached actions (Enter auto-plays; deck toolbar not applicable here)
+                    bool isRecentDeck = RecentPlayAccessor.IsActive;
+                    if (!isRecentDeck)
                     {
-                        attachedActions.Insert(0, new AttachedAction { Label = invalidTooltip, TargetButton = null });
-                    }
+                        // Get the rename button (TextBox) for this deck
+                        GameObject renameButton = deckEditButtons.TryGetValue(obj, out var editBtn) ? editBtn : null;
+                        attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
 
-                    if (attachedActions.Count > 0)
-                    {
-                        LogDebug($"[{NavigatorId}] Deck '{announcement}' has {attachedActions.Count} attached actions");
+                        // Insert detailed tooltip as first virtual info item (Level 2)
+                        string invalidTooltip = UIActivator.GetDeckInvalidTooltip(obj);
+                        if (!string.IsNullOrEmpty(invalidTooltip))
+                        {
+                            attachedActions.Insert(0, new AttachedAction { Label = invalidTooltip, TargetButton = null });
+                        }
+
+                        if (attachedActions.Count > 0)
+                        {
+                            LogDebug($"[{NavigatorId}] Deck '{announcement}' has {attachedActions.Count} attached actions");
+                        }
                     }
                 }
 
@@ -5142,30 +5147,13 @@ namespace AccessibleArena.Core.Services
             }
 
             // Auto-play: When a deck is selected in PlayBlade, automatically press the Play button
-            if (_playBladeHelper.IsActive && !_challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
+            // For recent tab decks, the element is destroyed during Activate (blade switches from
+            // LastPlayed to FindMatch), so IsDeckEntry(element) would fail. Use isRecentTabDeck
+            // (captured before Activate) as an alternate entry condition.
+            if (!_challengeHelper.IsActive &&
+                (isRecentTabDeck || (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))))
             {
-                // Recent tab: press the tile's own play button instead of the generic PlayBlade one
-                if (isRecentTabDeck)
-                {
-                    int tileIdx = RecentPlayAccessor.FindTileIndexForElement(element);
-                    if (tileIdx >= 0)
-                    {
-                        var playBtn = RecentPlayAccessor.FindPlayButtonInTile(tileIdx);
-                        if (playBtn != null)
-                        {
-                            MelonLogger.Msg($"[{NavigatorId}] Recent tab: auto-pressing play button for tile {tileIdx}");
-                            UIActivator.Activate(playBtn);
-                        }
-                        else
-                        {
-                            MelonLogger.Msg($"[{NavigatorId}] Recent tab: no play button found for tile {tileIdx}");
-                        }
-                    }
-                }
-                else
-                {
-                    AutoPressPlayButtonInPlayBlade();
-                }
+                AutoPressPlayButtonInPlayBlade();
             }
 
             // Deck list card activated (removing card from deck) - trigger rescan to update both lists

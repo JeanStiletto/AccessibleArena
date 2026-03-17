@@ -1132,16 +1132,38 @@ namespace AccessibleArena.Core.Models
         public static string ScreenSettingsGameplay => L.Get("ScreenSettingsGameplay");
         public static string ScreenSettingsGraphics => L.Get("ScreenSettingsGraphics");
         public static string ScreenSettingsAudio => L.Get("ScreenSettingsAudio");
+        public static string ScreenSettingsAccount => L.Get("ScreenSettingsAccount");
         public static string ScreenDownload => L.Get("ScreenDownload");
         public static string ScreenAdvancedFilters => L.Get("ScreenAdvancedFilters");
         public static string ScreenPrizeWall => L.Get("ScreenPrizeWall");
         public static string ScreenDuel => L.Get("ScreenDuel");
+        public static string ScreenSideboard => L.Get("ScreenSideboard");
         public static string ScreenPreGame => L.Get("ScreenPreGame");
         public static string ScreenWhatsNew => L.Get("ScreenWhatsNew");
         public static string ScreenAnnouncement => L.Get("ScreenAnnouncement");
         public static string ScreenRewardPopup => L.Get("ScreenRewardPopup");
         public static string ScreenOverlay => L.Get("ScreenOverlay");
         public static string WaitingForServer => L.Get("WaitingForServer");
+
+        // ===========================================
+        // SIDEBOARD (Bo3)
+        // ===========================================
+        public static string Sideboard_Activated(string playerName, int playerWins, string opponentName, int opponentWins, int poolCount, int deckCount) =>
+            L.Format("Sideboard_Activated_Format", playerName, playerWins, opponentName, opponentWins, poolCount, deckCount);
+        public static string Sideboard_Timer(string timeRemaining) => L.Format("Sideboard_Timer_Format", timeRemaining);
+        public static string Sideboard_Score(string playerName, int playerWins, string opponentName, int opponentWins) =>
+            L.Format("Sideboard_Score_Format", playerName, playerWins, opponentName, opponentWins);
+        public static string Sideboard_PoolZone(int count) =>
+            count == 1 ? L.Get("Sideboard_PoolZone_One") : L.Format("Sideboard_PoolZone_Format", count);
+        public static string Sideboard_DeckZone(int count) =>
+            count == 1 ? L.Get("Sideboard_DeckZone_One") : L.Format("Sideboard_DeckZone_Format", count);
+        public static string Sideboard_CardAdded(string cardName) => L.Format("Sideboard_CardAdded_Format", cardName);
+        public static string Sideboard_CardRemoved(string cardName) => L.Format("Sideboard_CardRemoved_Format", cardName);
+        public static string Sideboard_Submitted => L.Get("Sideboard_Submitted");
+        public static string Sideboard_ViewBattlefield => L.Get("Sideboard_ViewBattlefield");
+        public static string Sideboard_ViewDeck => L.Get("Sideboard_ViewDeck");
+        public static string Sideboard_PageInfo(int current, int total) => L.Format("Sideboard_PageInfo_Format", current, total);
+        public static string Sideboard_InfoZone => L.Get("Sideboard_InfoZone");
 
         // ===========================================
         // ELEMENT GROUPS

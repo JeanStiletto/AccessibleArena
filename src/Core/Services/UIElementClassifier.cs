@@ -40,7 +40,7 @@ namespace AccessibleArena.Core.Services
         // Exact names that always filter (case-insensitive Equals check)
         private static readonly HashSet<string> FilteredExactNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
         {
-            "button base", "buttonbase", "new", "BUTTONS", "Button_NPE", "Stop"
+            "button base", "buttonbase", "button container", "new", "BUTTONS", "Button_NPE", "Stop"
         };
 
         #endregion

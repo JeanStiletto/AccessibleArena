@@ -1,4 +1,4 @@
-﻿{
+{
   "ModLoaded_Format": "Accessible Arena v{0} 已啟動",
   "Back": "返回",
   "NoSelection": "未選取",
@@ -558,6 +558,7 @@
   "ScreenSettingsGameplay": "設定，遊戲性",
   "ScreenSettingsGraphics": "設定，畫面",
   "ScreenSettingsAudio": "設定，音訊",
+  "ScreenSettingsAccount": "設定，帳戶",
   "ScreenDownload": "下載",
   "ScreenAdvancedFilters": "進階篩選",
   "ScreenPrizeWall": "獎品牆",
@@ -882,5 +883,20 @@
   "ChatSendButton": "傳送",
   "ChatClosed": "聊天已關閉",
   "ChatNoConversation": "無對話",
-  "GroupChatWindow": "聊天"
+  "GroupChatWindow": "聊天",
+  "ScreenSideboard": "Sideboard",
+  "Sideboard_Activated_Format": "Sideboard. {0} {1} wins, {2} {3} wins. {4} pool cards, {5} deck cards. C for pool, D for deck, T for timer, L for score. Enter to move cards, Space to submit",
+  "Sideboard_Timer_Format": "Timer: {0}",
+  "Sideboard_Score_Format": "{0}: {1} wins, {2}: {3} wins",
+  "Sideboard_PoolZone_One": "Pool, 1 card",
+  "Sideboard_PoolZone_Format": "Pool, {0} cards",
+  "Sideboard_DeckZone_One": "Deck, 1 card",
+  "Sideboard_DeckZone_Format": "Deck, {0} cards",
+  "Sideboard_CardAdded_Format": "{0} added to deck",
+  "Sideboard_CardRemoved_Format": "{0} removed from deck",
+  "Sideboard_Submitted": "Sideboard submitted",
+  "Sideboard_ViewBattlefield": "Viewing battlefield",
+  "Sideboard_ViewDeck": "Viewing deck",
+  "Sideboard_PageInfo_Format": "Page {0} of {1}",
+  "Sideboard_InfoZone": "\u6bd4\u8cfd\u8cc7\u8a0a"
 }

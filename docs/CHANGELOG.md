@@ -2,11 +2,11 @@
 
 All notable changes to Accessible Arena.
 
-# Changelog
-
-All notable changes to Accessible Arena.
-
 ## v0.8.6
+
+### Fix: Recent Played deck selection now starts the game
+- Pressing Enter on a deck in the Recent Played tab now correctly selects the deck and auto-presses Play
+- Previously, the deck was selected but the blade switched without pressing the Play button, leaving the user back in the tabs group
 
 ### Fix: Phase-skip warning before passing priority with untapped lands (PR #25)
 - When in Main Phase 1 or 2 with untapped lands and full control is off, pressing Space now warns "You have untapped lands. Press Space again to pass priority."

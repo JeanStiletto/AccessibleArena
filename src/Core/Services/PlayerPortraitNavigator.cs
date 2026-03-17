@@ -861,7 +861,8 @@ namespace AccessibleArena.Core.Services
                 announcement = "Life totals not available";
             }
 
-            _announcer.Announce(announcement, AnnouncementPriority.Normal);
+            // High priority so repeated L presses always re-announce (bypasses duplicate suppression)
+            _announcer.Announce(announcement, AnnouncementPriority.High);
         }
 
         /// <summary>

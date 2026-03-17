@@ -550,6 +550,14 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
                 return true;
 
+            // Consume Up/Down so it never falls through to BaseNavigator element navigation.
+            // All duel Up/Down actions are handled by sub-navigators above (browser, card info,
+            // battlefield, zone, portrait). Without this guard, unhandled Up/Down navigates
+            // internal UI elements (PromptButtons, Nav_Settings, etc.) - e.g. during the gap
+            // between Informational browser exit and Mulligan browser open.
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+                return true;
+
             return base.HandleCustomInput();
         }
 

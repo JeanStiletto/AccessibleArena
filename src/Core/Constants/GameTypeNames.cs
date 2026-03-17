@@ -58,6 +58,11 @@ namespace AccessibleArena.Core.Constants
         public const string DeckCostsDetails = "DeckCostsDetails";
         public const string DeckTypesDetails = "DeckTypesDetails";
 
+        // --- Sideboard Types ---
+        public const string SideboardInterface = "SideboardInterface";
+        public const string SideboardNavBar = "SideboardNavBar";
+        public const string DeckBuilderWidget = "DeckBuilderWidget";
+
         // --- Game / Duel Types ---
         public const string GameManager = "GameManager";
         public const string MatchTimer = "MatchTimer";
