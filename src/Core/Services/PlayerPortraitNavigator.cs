@@ -545,6 +545,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns a matchup string for the current duel (e.g. "blindndangerous vs Opponent").
+        /// Returns null if either name is unavailable.
+        /// </summary>
+        public string GetMatchupText()
+        {
+            string local = GetPlayerUsername(false);
+            string opponent = GetPlayerUsername(true);
+            if (string.IsNullOrEmpty(local) || string.IsNullOrEmpty(opponent))
+                return null;
+            return $"{local} vs {opponent}";
+        }
+
+        /// <summary>
         /// Gets player username from PlayerNameView.
         /// </summary>
         private string GetPlayerUsername(bool isOpponent)
