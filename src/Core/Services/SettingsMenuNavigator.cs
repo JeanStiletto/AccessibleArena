@@ -39,6 +39,10 @@ namespace AccessibleArena.Core.Services
         private string _lastPanelName;
         private float _rescanDelay;
 
+        // Web browser accessibility (for privacy policy, GDPR consent, etc.)
+        private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
+        private bool _isWebBrowserActive;
+
         #endregion
 
         public override string NavigatorId => "SettingsMenu";
@@ -69,18 +73,10 @@ namespace AccessibleArena.Core.Services
             }
 
             // Settings is open (per Harmony), find the content panel for element discovery
-            foreach (var panelName in SettingsPanelNames)
-            {
-                var panel = GameObject.Find(panelName);
-                if (panel != null && panel.activeInHierarchy)
-                {
-                    _settingsContentPanel = panel;
-                    return true;
-                }
-            }
+            _settingsContentPanel = FindActiveSettingsPanel();
 
-            // Harmony says settings is open but content panel not found yet
-            // Return true anyway - we trust Harmony, elements will appear shortly
+            // Harmony says settings is open - return true even if panel not found yet
+            // (elements will appear shortly during submenu transitions)
             return true;
         }
 
@@ -115,6 +111,23 @@ namespace AccessibleArena.Core.Services
 
         public override void Update()
         {
+            // Web browser takes full control when active
+            if (_isWebBrowserActive)
+            {
+                _webBrowser.Update();
+                if (!_webBrowser.IsActive)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Web browser became inactive, returning to settings");
+                    _isWebBrowserActive = false;
+                    TriggerRescan();
+                }
+                else
+                {
+                    _webBrowser.HandleInput();
+                }
+                return;
+            }
+
             // Handle rescan delay for submenu changes or initial element loading
             if (_rescanDelay > 0)
             {
@@ -182,15 +195,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Update content panel reference
-            foreach (var panelName in SettingsPanelNames)
-            {
-                var panel = GameObject.Find(panelName);
-                if (panel != null && panel.activeInHierarchy)
-                {
-                    _settingsContentPanel = panel;
-                    break;
-                }
-            }
+            _settingsContentPanel = FindActiveSettingsPanel();
 
             // Trust Harmony - stay active even if elements temporarily empty
             // (e.g., during submenu transitions)
@@ -202,12 +207,22 @@ namespace AccessibleArena.Core.Services
             base.OnActivated();
             _lastPanelName = _settingsContentPanel?.name;
             EnablePopupDetection();
+            if (PanelStateManager.Instance != null)
+                PanelStateManager.Instance.OnPanelChanged += OnPanelChanged;
         }
 
         protected override void OnDeactivating()
         {
             base.OnDeactivating();
             DisablePopupDetection();
+            if (PanelStateManager.Instance != null)
+                PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
+
+            if (_isWebBrowserActive)
+            {
+                _webBrowser.Deactivate();
+                _isWebBrowserActive = false;
+            }
 
             _settingsContentPanel = null;
             _settingsMenuObject = null;
@@ -217,6 +232,42 @@ namespace AccessibleArena.Core.Services
         protected override void OnPopupClosed()
         {
             TriggerRescan();
+        }
+
+        /// <summary>
+        /// Exclude web browser panels from base popup handling (they use WebBrowserAccessibility instead).
+        /// </summary>
+        protected override bool IsPopupExcluded(PanelInfo panel)
+        {
+            return IsWebBrowserPanel(panel);
+        }
+
+        /// <summary>
+        /// Handle panel changes - detect web browser panels (privacy policy, GDPR consent, etc.)
+        /// </summary>
+        private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel)
+        {
+            if (!_isActive) return;
+
+            if (newPanel != null && IsWebBrowserPanel(newPanel))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Web browser panel detected: {newPanel.Name}");
+                _isWebBrowserActive = true;
+                _webBrowser.Activate(newPanel.GameObject, _announcer);
+            }
+            else if (_isWebBrowserActive && newPanel == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Web browser closed, returning to settings");
+                _webBrowser.Deactivate();
+                _isWebBrowserActive = false;
+                TriggerRescan();
+            }
+        }
+
+        private static bool IsWebBrowserPanel(PanelInfo panel)
+        {
+            if (panel == null || panel.GameObject == null) return false;
+            return panel.GameObject.GetComponentInChildren<ZenFulcrum.EmbeddedBrowser.Browser>(true) != null;
         }
 
         #endregion
@@ -494,12 +545,8 @@ namespace AccessibleArena.Core.Services
             string panelName = _settingsContentPanel.name;
             MelonLogger.Msg($"[{NavigatorId}] Settings back from: {panelName}");
 
-            // Check if we're in a submenu
-            bool isInSubmenu = panelName != "Content - MainMenu" &&
-                              (panelName == "Content - Audio" ||
-                               panelName == "Content - Graphics" ||
-                               panelName == "Content - Gameplay" ||
-                               panelName == "Content - Account");
+            // Any panel that's not MainMenu is a submenu
+            bool isInSubmenu = panelName != "Content - MainMenu";
 
             if (isInSubmenu)
             {
@@ -537,6 +584,45 @@ namespace AccessibleArena.Core.Services
             var backButton = backContainer.Find("BackButton");
             if (backButton != null && backButton.gameObject.activeInHierarchy)
                 return backButton.gameObject;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Find the active settings content panel.
+        /// Checks known panel names first, then searches for any active "Content - *" panel
+        /// under the settings hierarchy (handles panels like PrivacyPolicy, ReportIssue, etc.)
+        /// </summary>
+        private GameObject FindActiveSettingsPanel()
+        {
+            // Check known panel names first (fast path)
+            foreach (var panelName in SettingsPanelNames)
+            {
+                var panel = GameObject.Find(panelName);
+                if (panel != null && panel.activeInHierarchy)
+                    return panel;
+            }
+
+            // Dynamic fallback: search for any active "Content - *" panel
+            // This catches panels we don't know by name (PrivacyPolicy, ReportIssue, etc.)
+            foreach (var transform in GameObject.FindObjectsOfType<Transform>())
+            {
+                if (transform == null || !transform.gameObject.activeInHierarchy)
+                    continue;
+
+                string name = transform.name;
+                if (!name.StartsWith("Content - "))
+                    continue;
+
+                // Verify it's inside a Settings hierarchy
+                Transform parent = transform.parent;
+                while (parent != null)
+                {
+                    if (parent.name.Contains("Settings") || parent.name == "Middle")
+                        return transform.gameObject;
+                    parent = parent.parent;
+                }
+            }
 
             return null;
         }
@@ -604,6 +690,21 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // Settings BottomMenu link buttons (Link_Privacy, Link_ReportABug, etc.)
+            // SimulatePointerClick may not trigger CustomButton.OnClick because
+            // OnPointerUp requires _mouseOver state that isn't reliably set.
+            // Invoke Click() directly which bypasses the mouseOver check.
+            if (IsSettingsLinkButton(element))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Settings link activated: {element.name}");
+                if (TryInvokeCustomButtonClick(element))
+                {
+                    TriggerRescan();
+                    return true;
+                }
+                // Fall through to default UIActivator if no CustomButton found
+            }
+
             return false;
         }
 
@@ -628,6 +729,53 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            return false;
+        }
+
+        /// <summary>
+        /// Check if element is a Settings link button (Link_* in BottomMenu).
+        /// These are CustomButtons for privacy, report bug, account, etc.
+        /// </summary>
+        private static bool IsSettingsLinkButton(GameObject element)
+        {
+            if (element == null) return false;
+            if (!element.name.StartsWith("Link_")) return false;
+
+            Transform parent = element.transform.parent;
+            while (parent != null)
+            {
+                if (parent.name == "BottomMenu" || parent.name.Contains("Settings"))
+                    return true;
+                parent = parent.parent;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Invoke Click() directly on a CustomButton component.
+        /// This bypasses the _mouseOver check that SimulatePointerClick may fail on.
+        /// </summary>
+        private static bool TryInvokeCustomButtonClick(GameObject element)
+        {
+            foreach (var mb in element.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "CustomButton")
+                {
+                    var clickMethod = mb.GetType().GetMethod("Click", AllInstanceFlags);
+                    if (clickMethod != null)
+                    {
+                        try
+                        {
+                            clickMethod.Invoke(mb, null);
+                            return true;
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MelonLogger.Warning($"[SettingsMenu] Error invoking Click(): {ex.Message}");
+                        }
+                    }
+                }
+            }
             return false;
         }
 
