@@ -364,6 +364,54 @@ namespace AccessibleArena.Core.Services
                     TryAddElement(dropdown.gameObject);
             }
 
+            // Remove ancestor elements when a more specific descendant is also discovered.
+            // E.g., "Button - CaptureLog" (parent container) vs "CULL_CaptureLog - Button" (actual button).
+            // The descendant is always the more functional element.
+            for (int i = discoveredElements.Count - 1; i >= 0; i--)
+            {
+                var candidate = discoveredElements[i].obj;
+                bool hasDescendant = false;
+                for (int j = 0; j < discoveredElements.Count; j++)
+                {
+                    if (i == j) continue;
+                    if (IsChildOf(discoveredElements[j].obj, candidate))
+                    {
+                        hasDescendant = true;
+                        break;
+                    }
+                }
+                if (hasDescendant)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Removing ancestor element: {candidate.name} (has navigable descendant)");
+                    discoveredElements.RemoveAt(i);
+                }
+            }
+
+            // Remove image-only elements (no text content, useless for screen reader).
+            // E.g., ESRBImage is a Button with just a rating badge graphic and no text.
+            for (int i = discoveredElements.Count - 1; i >= 0; i--)
+            {
+                var go = discoveredElements[i].obj;
+                bool hasText = false;
+                foreach (var tmp in go.GetComponentsInChildren<TMP_Text>(false))
+                {
+                    if (tmp != null && !string.IsNullOrWhiteSpace(tmp.text))
+                    {
+                        hasText = true;
+                        break;
+                    }
+                }
+                if (!hasText)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Removing image-only element: {go.name}");
+                    discoveredElements.RemoveAt(i);
+                }
+            }
+
+            // Add static text blocks (explanatory paragraphs) before interactive elements.
+            // These appear in submenus like PrivacyPolicy, ReportIssue, etc.
+            DiscoverStaticTextBlocks(searchRoot, addedObjects);
+
             // Sort by position and add elements
             foreach (var (obj, classification, _) in discoveredElements.OrderBy(x => x.sortOrder))
             {
@@ -487,6 +535,38 @@ namespace AccessibleArena.Core.Services
                 return control;
 
             return null;
+        }
+
+        /// <summary>
+        /// Find substantial static text blocks in the settings panel (e.g., privacy explanations).
+        /// Adds them as read-only TextBlock elements so they can be read with the screen reader.
+        /// </summary>
+        private void DiscoverStaticTextBlocks(GameObject searchRoot, HashSet<GameObject> interactiveObjects)
+        {
+            const int MinTextLength = 30; // Skip short labels/headings
+
+            foreach (var tmp in searchRoot.GetComponentsInChildren<TMP_Text>(false))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+
+                string text = tmp.text?.Trim();
+                if (string.IsNullOrWhiteSpace(text) || text.Length < MinTextLength) continue;
+
+                // Skip if this text element is part of an interactive element
+                bool isPartOfInteractive = false;
+                foreach (var interactive in interactiveObjects)
+                {
+                    if (IsChildOf(tmp.gameObject, interactive) || tmp.gameObject == interactive)
+                    {
+                        isPartOfInteractive = true;
+                        break;
+                    }
+                }
+                if (isPartOfInteractive) continue;
+
+                MelonLogger.Msg($"[{NavigatorId}] Static text block ({text.Length} chars): {text.Substring(0, System.Math.Min(60, text.Length))}...");
+                AddTextBlock(text);
+            }
         }
 
         private string BuildAnnouncement(UIElementClassifier.ClassificationResult classification)
