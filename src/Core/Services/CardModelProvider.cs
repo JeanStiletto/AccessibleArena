@@ -2111,24 +2111,52 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Power/Toughness and Loyalty
-                var ptParts2 = new List<string>();
-                var powerProp = cardType.GetProperty("Power");
-                var toughnessProp = cardType.GetProperty("Toughness");
-                if (powerProp != null && toughnessProp != null)
+                // Only extract P/T for creatures and vehicles (same guard as duel scene extraction)
+                bool isCreatureCard = false;
+                bool isPlaneswalkerCard = false;
+                bool isVehicleCard = false;
+                var cardTypesEnum = cardType.GetProperty("CardTypes")?.GetValue(cardData) as IEnumerable;
+                if (cardTypesEnum != null)
                 {
-                    var power = powerProp.GetValue(cardData);
-                    var toughness = toughnessProp.GetValue(cardData);
-                    if (power != null && toughness != null)
+                    foreach (var ct in cardTypesEnum)
                     {
-                        string powerStr = GetStringBackedIntValue(power);
-                        string toughStr = GetStringBackedIntValue(toughness);
-                        if (!string.IsNullOrEmpty(powerStr) && !string.IsNullOrEmpty(toughStr))
-                            ptParts2.Add($"{powerStr}/{toughStr}");
+                        if (ct == null) continue;
+                        string ctStr = ct.ToString();
+                        if (ctStr.Contains("Creature")) isCreatureCard = true;
+                        if (ctStr.Contains("Planeswalker")) isPlaneswalkerCard = true;
+                    }
+                }
+                var subtypesEnum = cardType.GetProperty("Subtypes")?.GetValue(cardData) as IEnumerable;
+                if (subtypesEnum != null)
+                {
+                    foreach (var st in subtypesEnum)
+                    {
+                        if (st != null && st.ToString().Contains("Vehicle"))
+                            isVehicleCard = true;
+                    }
+                }
+
+                var ptParts2 = new List<string>();
+                if (isCreatureCard || isVehicleCard)
+                {
+                    var powerProp = cardType.GetProperty("Power");
+                    var toughnessProp = cardType.GetProperty("Toughness");
+                    if (powerProp != null && toughnessProp != null)
+                    {
+                        var power = powerProp.GetValue(cardData);
+                        var toughness = toughnessProp.GetValue(cardData);
+                        if (power != null && toughness != null)
+                        {
+                            string powerStr = GetStringBackedIntValue(power);
+                            string toughStr = GetStringBackedIntValue(toughness);
+                            if (!string.IsNullOrEmpty(powerStr) && !string.IsNullOrEmpty(toughStr))
+                                ptParts2.Add($"{powerStr}/{toughStr}");
+                        }
                     }
                 }
 
                 // Planeswalker loyalty (from CardPrintingData)
-                var loyaltyProp2 = cardType.GetProperty("Loyalty");
+                var loyaltyProp2 = isPlaneswalkerCard ? cardType.GetProperty("Loyalty") : null;
                 if (loyaltyProp2 != null)
                 {
                     var loyaltyVal = loyaltyProp2.GetValue(cardData);
