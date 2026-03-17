@@ -4,26 +4,45 @@ All notable changes to Accessible Arena.
 
 ## v0.8.6
 
-### Fix: Phase-skip warning before passing priority with untapped lands (PR #25)
-- When in Main Phase 1 or 2 with untapped lands and full control is off, pressing Space now warns "You have untapped lands. Press Space again to pass priority."
-- A second Space press confirms and passes as normal.
-- Warning is suppressed during full control mode (locked or temporary).
+### Best of 3 (Bo3) Support
+- New sideboard navigator for editing your deck between games (C = card pool, D = deck, Enter = move card, Space = submit)
+- Match info zone (Tab to Info) reads intro text, match score, timer, and card counts
+- Card info blocks (Up/Down) now work on deck list cards in the sideboard
 
-### Fix: Repeated L press now re-announces life totals (PR #26)
-- Pressing L multiple times in a row now always reads life totals, even when they haven't changed between presses.
+### Duel Start and Mulligan
+- Player matchup announced at duel start (e.g. "blindndangerous vs Opponent123")
+- Opening hand listed during mulligan (e.g. "Hand: Plains, Plains, Optimistic Scavenger, ...")
+- Duplicate cards grouped in hand summary (e.g. "3x Plains")
+- Duel start announcement shortened — full keybindings reference remains on F1
 
-### Polish: Duel startup announcement is now brief (PR #27)
-- Removed the long keybindings hint from the duel start announcement.
-- Now says only "Duel started. N cards in hand."
-- Full keybindings reference remains accessible via F1.
+### Phase-Skip Warning
+- Pressing Space in a main phase with untapped lands now warns before passing priority
+- Press Space again to confirm, or cast a spell to dismiss
+- Suppressed during full control mode and inside browsers/chooseX
 
-### Fix: Duplicate graveyard announcement suppressed (PR #28)
-- When a creature died or a card was discarded, two announcements fired: a generic "Card went to your graveyard" and the specific "Lightning Strike died."
-- Generic announcement removed; only the specific named announcement now plays.
+### Settings
+- New toggle: "Warn before passing with mana available" (F2 settings, default: on)
+- Quick menu when opening settings via Escape (Concede, Options, Logout)
+- Toggles now announce On/Off instead of checked/unchecked
+- Dropdown value announced after closing
+- Account screen added to settings navigator
+- Link buttons (Privacy, Report a Bug, etc.) now activate correctly
+- Static text blocks (explanatory paragraphs) now readable in settings panels
 
-### Fix: Recent Played deck selection now starts the game
-- Pressing Enter on a deck in the Recent Played tab now correctly selects the deck and auto-presses Play
-- Previously, the deck was selected but the blade switched without pressing the Play button, leaving the user back in the tabs group
+### Navigation
+- Hold-to-repeat for arrow keys across all navigators (0.5s delay, then 10Hz)
+- Recently Played deck selection now correctly starts the game
+- Deck sub-actions (Rename/Edit/Delete) no longer appear on Recently Played tab
+
+### Duel Fixes
+- Pressing L multiple times now always re-announces life totals
+- Duplicate graveyard announcement removed (only the specific card name is read)
+- Space in browsers no longer accidentally opens the settings menu
+- Non-creature cards no longer show 0/0 power/toughness in card info
+
+### Loading Screen
+- Loading screen no longer repeats the same status message
+- Intermediate loading steps suppressed — only "Loading" announced once
 
 ## v0.8.5
 

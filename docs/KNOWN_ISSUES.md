@@ -125,19 +125,6 @@ Accumulated defensive fallback code needs review:
 
 ---
 
-### Announcement Compaction for Zone Transitions
-
-Zone change events can create redundant announcements when a creature dies and goes to graveyard:
-- Current: "X died" followed by "X went to graveyard" (two announcements)
-- Ideal: Single combined announcement
-
-**Consideration:** Compact announcements when zone-leaving and zone-reaching events happen close together.
-
-**Risk:** Events can occur between dying and zone change (e.g., death triggers, replacement effects). Compacting could cause missed information or incorrect announcements.
-
-**Priority:** Low - current behavior is functional, just slightly verbose
-
----
 
 ## Design Decisions
 
@@ -186,19 +173,14 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 ### Upcoming
 
 1. Manual trigger ordering - allow players to manually choose the order of their triggered abilities when multiple triggers happen simultaneously
-2. Rapid navigation by holding navigation keys - allow continuous scrolling through elements when arrow keys or other navigation keys are held down
-3. Player username announcements
-4. Settings menu improvements - better sorting of options and clearer display of checkmarks/toggle states
-5. Display counters on players - announce counters like poison, energy, experience, etc. on players
-6. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
-7. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
-8. Phase skip warning - warn when passing priority would skip a phase where the player could still play cards (e.g., skipping main phase with mana open)
-9. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
-10. Verbose "Big Card" announcements (inspired by Hearthstone Access) - option to include card details inline with action announcements, with user preference toggle for brief vs verbose
-11. Ctrl+F1 to announce tutorial message - read the context-sensitive tutorial tip for the current screen or duel phase on demand
-12. Game log - accessible scrollable log of recent game events (spells cast, damage dealt, cards drawn, etc.) for reviewing what happened
-13. Ownership in phase transitions - as part of verbose announcements, indicate whose turn/phase it is when phases change (e.g., "Opponent's Main Phase" vs "Your Main Phase")
-14. Missing settings screens - make Account settings and Report Error screens accessible
+2. Display counters on players - announce counters like poison, energy, experience, etc. on players
+3. Better combat announcements when multiple attackers - clearer announcement when two or more enemies are attackable
+4. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access
+5. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
+6. Verbose "Big Card" announcements (inspired by Hearthstone Access) - option to include card details inline with action announcements, with user preference toggle for brief vs verbose
+7. Ctrl+F1 to announce tutorial message - read the context-sensitive tutorial tip for the current screen or duel phase on demand
+8. Game log - accessible scrollable log of recent game events (spells cast, damage dealt, cards drawn, etc.) for reviewing what happened
+9. Ownership in phase transitions - as part of verbose announcements, indicate whose turn/phase it is when phases change (e.g., "Opponent's Main Phase" vs "Your Main Phase")
 
 ### Tutorial System
 
@@ -236,10 +218,8 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 3. Improve deck submenus - better navigation and announcements for deck actions (rename, delete, duplicate, export, import)
 4. Improve left battlefield announcements - clearer and more informative readouts when navigating the left (friendly) battlefield rows
 5. Improve player zone entries - better labels and more useful information for properties shown in the player info zone (V key)
-6. Mulligan overview announcement - announce hand summary when mulligan opens (e.g., card count, notable cards)
-7. Loading screen announcement cleanup - reduce repetitive announcements during loading screens
-8. Useful text for all browsers - add contextual help text describing what each browser type expects (e.g. "choose a mode", "put cards on top or bottom") and make these announcements optional via a setting
-9. Better group announcements - improve how element groups are announced when entering/switching groups
+6. Useful text for all browsers - add contextual help text describing what each browser type expects (e.g. "choose a mode", "put cards on top or bottom") and make these announcements optional via a setting
+7. Better group announcements - improve how element groups are announced when entering/switching groups
 
 ### Low Priority / v1.1
 
