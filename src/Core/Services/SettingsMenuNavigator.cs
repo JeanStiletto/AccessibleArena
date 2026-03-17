@@ -38,6 +38,7 @@ namespace AccessibleArena.Core.Services
         private GameObject _settingsMenuObject; // Fallback for Login scene (no content panels)
         private string _lastPanelName;
         private float _rescanDelay;
+        private bool _silentRescan; // Suppress screen re-announcement on silent rescans (e.g. after toggle)
 
         #endregion
 
@@ -606,7 +607,9 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Settings submenu button activated: {element.name}");
                 UIActivator.Activate(element);
-                TriggerRescan();
+                // Don't call TriggerRescan() here — the Update() panel-change detection will
+                // trigger it once the new panel is actually active, avoiding a premature rescan
+                // that catches the transition midpoint (0 elements found).
                 return true;
             }
 
@@ -618,7 +621,8 @@ namespace AccessibleArena.Core.Services
                 string label = UITextExtractor.GetText(element);
                 string state = toggle.isOn ? Models.Strings.SettingOn : Models.Strings.SettingOff;
                 _announcer.Announce($"{label}, {state}", Models.AnnouncementPriority.High);
-                TriggerRescan(); // Update element list so subsequent navigation reads the new state
+                _silentRescan = true; // Don't re-announce the full screen name after the rescan
+                TriggerRescan(); // Update element labels for subsequent navigation
                 return true;
             }
 
@@ -687,12 +691,13 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Announce the change (only if not in popup mode - popup has its own announcements)
-            if (!IsInPopupMode)
+            // Announce the change (skip if this was a silent rescan, e.g. after toggle flip)
+            if (!IsInPopupMode && !_silentRescan)
             {
                 string announcement = GetActivationAnnouncement();
                 _announcer.Announce(announcement, Models.AnnouncementPriority.High);
             }
+            _silentRescan = false;
         }
 
         #endregion
