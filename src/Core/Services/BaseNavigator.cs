@@ -48,6 +48,13 @@ namespace AccessibleArena.Core.Services
         private float _spinnerRescanDelay;
         private const float SpinnerRescanDelaySeconds = 0.5f;
 
+        // Rapid navigation: hold Up/Down to repeat after an initial delay
+        private KeyCode? _holdKey;
+        private float _holdTimer;
+        private float _holdRepeatTimer;
+        private const float HoldInitialDelay = 0.5f;   // seconds before repeat starts
+        private const float HoldRepeatInterval = 0.1f; // seconds between repeated steps
+
         // Shared input field editing helper (announcements, field info, reactivation, character detection)
         private InputFieldEditHelper _inputFieldHelper;
 
@@ -613,6 +620,7 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _elements.Clear();
             _currentIndex = -1;
+            _holdKey = null;
 
             // Clear toggle submit blocking when navigator deactivates
             InputManager.BlockSubmitForToggle = false;
@@ -1299,14 +1307,43 @@ namespace AccessibleArena.Core.Services
             }
 
             // Menu navigation with Arrow Up/Down and Tab/Shift+Tab
+            // Hold-key repeat: if an arrow key is still held, fire repeat moves after initial delay
+            if (_holdKey.HasValue)
+            {
+                if (Input.GetKey(_holdKey.Value))
+                {
+                    _holdTimer += Time.deltaTime;
+                    if (_holdTimer >= HoldInitialDelay)
+                    {
+                        _holdRepeatTimer -= Time.deltaTime;
+                        if (_holdRepeatTimer <= 0f)
+                        {
+                            _holdRepeatTimer = HoldRepeatInterval;
+                            if (_holdKey.Value == KeyCode.UpArrow) MovePrevious(); else MoveNext();
+                            return;
+                        }
+                    }
+                }
+                else
+                {
+                    _holdKey = null;
+                }
+            }
+
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
+                _holdKey = KeyCode.UpArrow;
+                _holdTimer = 0f;
+                _holdRepeatTimer = HoldRepeatInterval;
                 MovePrevious();
                 return;
             }
 
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
+                _holdKey = KeyCode.DownArrow;
+                _holdTimer = 0f;
+                _holdRepeatTimer = HoldRepeatInterval;
                 MoveNext();
                 return;
             }
