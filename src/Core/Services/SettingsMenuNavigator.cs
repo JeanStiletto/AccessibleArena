@@ -39,6 +39,10 @@ namespace AccessibleArena.Core.Services
         private string _lastPanelName;
         private float _rescanDelay;
 
+        // Quick menu: shows only Concede/Options/Logout on initial settings open
+        private bool _isInQuickMenu = true;
+        private GameObject _optionsVirtualElement; // Carrier GO for virtual Options button
+
         // Web browser accessibility (for privacy policy, GDPR consent, etc.)
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
         private bool _isWebBrowserActive;
@@ -91,6 +95,9 @@ namespace AccessibleArena.Core.Services
                 return Models.Strings.ScreenConfirmation;
             }
 
+            if (_isInQuickMenu)
+                return Models.Strings.ScreenQuickMenu;
+
             if (_settingsContentPanel == null)
                 return Models.Strings.ScreenSettings;
 
@@ -139,7 +146,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Check if settings panel changed (submenu navigation)
-            if (_isActive && _settingsContentPanel != null)
+            // Skip in quick menu mode - we don't care about panel content changes
+            if (_isActive && !_isInQuickMenu && _settingsContentPanel != null)
             {
                 string currentPanelName = _settingsContentPanel.name;
                 if (_lastPanelName != currentPanelName)
@@ -205,6 +213,7 @@ namespace AccessibleArena.Core.Services
         protected override void OnActivated()
         {
             base.OnActivated();
+            _isInQuickMenu = true;
             _lastPanelName = _settingsContentPanel?.name;
             EnablePopupDetection();
             if (PanelStateManager.Instance != null)
@@ -214,6 +223,8 @@ namespace AccessibleArena.Core.Services
         protected override void OnDeactivating()
         {
             base.OnDeactivating();
+            _isInQuickMenu = true;
+            _optionsVirtualElement = null;
             DisablePopupDetection();
             if (PanelStateManager.Instance != null)
                 PanelStateManager.Instance.OnPanelChanged -= OnPanelChanged;
@@ -280,6 +291,72 @@ namespace AccessibleArena.Core.Services
             if (IsInPopupMode)
                 return;
 
+            // Login scene fallback (no content panels) - skip quick menu
+            if (_settingsContentPanel == null)
+            {
+                _isInQuickMenu = false;
+                DiscoverAllElements();
+                return;
+            }
+
+            // Always do full discovery first
+            DiscoverAllElements();
+
+            // In quick menu mode on MainMenu, filter to only show action buttons + Options
+            if (_isInQuickMenu && _settingsContentPanel?.name == "Content - MainMenu")
+            {
+                ApplyQuickMenuFilter();
+            }
+        }
+
+        /// <summary>
+        /// Filter the discovered elements to only show quick menu items:
+        /// Concede (if visible), Options (virtual), Logout.
+        /// </summary>
+        private void ApplyQuickMenuFilter()
+        {
+            NavigableElement? concedeElement = null;
+            NavigableElement? logoutElement = null;
+
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var elem = _elements[i];
+                if (elem.GameObject == null) continue;
+                string goName = elem.GameObject.name;
+
+                if (goName.IndexOf("Concede", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    concedeElement = elem;
+                else if (goName.IndexOf("LogOut", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    logoutElement = elem;
+            }
+
+            _elements.Clear();
+
+            // Add in order: Concede (if visible), Options, Logout
+            if (concedeElement.HasValue)
+                _elements.Add(concedeElement.Value);
+
+            // Virtual Options button - uses SettingsMenu GO as carrier
+            _optionsVirtualElement = FindSettingsMenuObject();
+            if (_optionsVirtualElement != null)
+            {
+                string optionsLabel = BuildLabel(Models.Strings.QuickMenuOptions,
+                    Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button);
+                AddElement(_optionsVirtualElement, optionsLabel, default, null, null,
+                    UIElementClassifier.ElementRole.Button);
+            }
+
+            if (logoutElement.HasValue)
+                _elements.Add(logoutElement.Value);
+
+            MelonLogger.Msg($"[{NavigatorId}] Quick menu: {_elements.Count} items");
+        }
+
+        /// <summary>
+        /// Full element discovery for settings panels (all buttons, controls, text blocks).
+        /// </summary>
+        private void DiscoverAllElements()
+        {
             // Use content panel if available, otherwise fall back to SettingsMenu object
             // This handles Login scene where Content - MainMenu etc. don't exist
             GameObject searchRoot = _settingsContentPanel;
@@ -616,7 +693,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle back navigation within Settings menu.
-        /// Priority: popup -> submenu -> close settings
+        /// Priority: popup -> quick menu close -> submenu back -> main menu back to quick menu
         /// </summary>
         private bool HandleSettingsBack()
         {
@@ -625,6 +702,12 @@ namespace AccessibleArena.Core.Services
             {
                 DismissPopup();
                 return true;
+            }
+
+            // Quick menu: Backspace closes settings entirely
+            if (_isInQuickMenu)
+            {
+                return CloseSettingsMenu();
             }
 
             if (_settingsContentPanel == null)
@@ -649,8 +732,12 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Close settings menu entirely
-            return CloseSettingsMenu();
+            // On MainMenu in full settings: go back to quick menu
+            MelonLogger.Msg($"[{NavigatorId}] Returning to quick menu from full settings");
+            _isInQuickMenu = true;
+            _optionsVirtualElement = null;
+            TriggerRescan();
+            return true;
         }
 
         /// <summary>
@@ -769,6 +856,16 @@ namespace AccessibleArena.Core.Services
 
         protected override bool OnElementActivated(int index, GameObject element)
         {
+            // Quick menu: virtual "Options" button -> switch to full settings
+            if (_isInQuickMenu && element == _optionsVirtualElement)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Quick menu: Options selected, entering full settings");
+                _isInQuickMenu = false;
+                _optionsVirtualElement = null;
+                TriggerRescan();
+                return true;
+            }
+
             // Check if this is a submenu button - trigger rescan after activation
             if (IsSettingsSubmenuButton(element))
             {
