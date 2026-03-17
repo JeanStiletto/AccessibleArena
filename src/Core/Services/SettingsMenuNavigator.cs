@@ -39,6 +39,7 @@ namespace AccessibleArena.Core.Services
         private string _lastPanelName;
         private float _rescanDelay;
         private bool _silentRescan; // Suppress screen re-announcement on silent rescans (e.g. after toggle)
+        private bool _pendingDropdownAnnounce; // Announce current element label after post-dropdown-close rescan
 
         #endregion
 
@@ -661,6 +662,23 @@ namespace AccessibleArena.Core.Services
 
         #region Rescan
 
+        /// <summary>
+        /// Called by base Update() when dropdown mode exits. If the current element is a dropdown,
+        /// schedule a silent rescan so we can announce its freshly updated label after the rescan.
+        /// </summary>
+        protected override void SyncIndexToFocusedElement()
+        {
+            if (_currentIndex >= 0 && _currentIndex < _elements.Count &&
+                _elements[_currentIndex].Role == UIElementClassifier.ElementRole.Dropdown)
+            {
+                _pendingDropdownAnnounce = true;
+                _silentRescan = true;
+                TriggerRescan();
+                return;
+            }
+            base.SyncIndexToFocusedElement();
+        }
+
         private void TriggerRescan()
         {
             _rescanDelay = RescanDelaySeconds;
@@ -693,6 +711,18 @@ namespace AccessibleArena.Core.Services
                         break;
                     }
                 }
+            }
+
+            // After a dropdown selection: announce the element's fresh label (post-rescan value).
+            // This lets the user hear the newly chosen option (e.g., "Quality: High, dropdown").
+            if (_pendingDropdownAnnounce && _currentIndex >= 0 && _currentIndex < _elements.Count)
+            {
+                _pendingDropdownAnnounce = false;
+                _silentRescan = false;
+                string label = _elements[_currentIndex].Label;
+                if (!string.IsNullOrEmpty(label))
+                    _announcer.Announce(label, Models.AnnouncementPriority.High);
+                return;
             }
 
             // Announce the change (skip if this was a silent rescan, e.g. after toggle flip)
