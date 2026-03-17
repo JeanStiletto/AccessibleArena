@@ -794,17 +794,16 @@ namespace AccessibleArena.Core.Services
                     if (_elements.Count > 0)
                         UpdateEventSystemSelection();
 
+                    // GameLoading: track status text for logging but do not announce each step.
+                    // The initial "Loading." announcement on activation is sufficient feedback;
+                    // intermediate steps ("Retrieving asset manifest" etc.) are not milestones
+                    // the user needs to hear. The main menu navigator announces when loading ends.
                     if (_currentMode == ScreenMode.GameLoading)
                     {
-                        // Only announce if the status text actually changed — element count
-                        // can flicker 0→1→0→1 while the same "Waiting for server" message
-                        // is displayed, causing duplicate speech.
-                        string currentLabel = _elements.Count > 0 ? _elements[0].Label : "";
-                        if (!string.IsNullOrEmpty(currentLabel) && currentLabel != _lastLoadingStatusText)
+                        if (_elements.Count > 0)
                         {
-                            _lastLoadingStatusText = currentLabel;
-                            _announcer.AnnounceInterrupt($"{Strings.ScreenLoading}. {currentLabel}");
-                            Log($"Loading status (count changed): {currentLabel}");
+                            _lastLoadingStatusText = _elements[0].Label;
+                            Log($"Loading status (silent): {_lastLoadingStatusText}");
                         }
                     }
                     else
@@ -814,13 +813,12 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (_currentMode == ScreenMode.GameLoading && _elements.Count > 0)
                 {
-                    // Announce status text changes even when element count is unchanged
+                    // Track status silently — no speech for intermediate GameLoading steps.
                     string currentLabel = _elements[0].Label;
-                    if (!string.IsNullOrEmpty(currentLabel) && currentLabel != _lastLoadingStatusText)
+                    if (currentLabel != _lastLoadingStatusText)
                     {
                         _lastLoadingStatusText = currentLabel;
-                        _announcer.AnnounceInterrupt($"{Strings.ScreenLoading}. {currentLabel}");
-                        Log($"Loading status changed: {currentLabel}");
+                        Log($"Loading status changed (silent): {currentLabel}");
                     }
                 }
 
