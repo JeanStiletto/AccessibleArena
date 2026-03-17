@@ -38,6 +38,10 @@ namespace AccessibleArena.Core.Services
         private GameObject _settingsMenuObject; // Fallback for Login scene (no content panels)
         private string _lastPanelName;
         private float _rescanDelay;
+        private bool _silentRescan; // Suppress screen re-announcement on silent rescans (e.g. after toggle)
+        private bool _pendingDropdownAnnounce; // Announce current element label after post-dropdown-close rescan
+        private bool _prevInDropdownOrSuppressed; // Tracks combined dropdown+suppressed state for exit detection
+        private GameObject _pendingDropdownObject; // The dropdown element to announce after rescan (by reference)
 
         // Quick menu: shows only Concede/Options/Logout on initial settings open
         private bool _isInQuickMenu = true;
@@ -156,6 +160,31 @@ namespace AccessibleArena.Core.Services
                     _lastPanelName = currentPanelName;
                     TriggerRescan();
                 }
+            }
+
+            // Detect dropdown+suppression exit transition to announce the newly selected value.
+            // We can't rely on SyncIndexToFocusedElement (it requires justExitedDropdown which
+            // never fires during suppression), so we track the combined state here instead.
+            if (_isActive)
+            {
+                bool nowInDropdownOrSuppressed = DropdownStateManager.IsInDropdownMode || DropdownStateManager.IsSuppressed;
+                if (_prevInDropdownOrSuppressed && !nowInDropdownOrSuppressed)
+                {
+                    // We just fully exited dropdown mode. If the focused element is a dropdown,
+                    // schedule a silent rescan so we can read its refreshed label.
+                    if (_currentIndex >= 0 && _currentIndex < _elements.Count &&
+                        _elements[_currentIndex].Role == UIElementClassifier.ElementRole.Dropdown)
+                    {
+                        _pendingDropdownObject = _elements[_currentIndex].GameObject;
+                        _pendingDropdownAnnounce = true;
+                        _silentRescan = true;
+                        if (_rescanDelay <= 0)
+                            TriggerRescan();
+                        // If rescan already pending, it will pick up the flags
+                        MelonLogger.Msg($"[{NavigatorId}] Dropdown exit detected, scheduling value announcement");
+                    }
+                }
+                _prevInDropdownOrSuppressed = nowInDropdownOrSuppressed;
             }
 
             // Base handles: activation, delayed announcements, validation, input, input field tracking
@@ -656,6 +685,12 @@ namespace AccessibleArena.Core.Services
 
         private string BuildAnnouncement(UIElementClassifier.ClassificationResult classification)
         {
+            if (classification.Role == UIElementClassifier.ElementRole.Toggle)
+            {
+                bool isOn = !classification.RoleLabel.Contains(Models.Strings.RoleUnchecked);
+                string state = isOn ? Models.Strings.SettingOn : Models.Strings.SettingOff;
+                return $"{classification.Label}, {state}";
+            }
             return BuildLabel(classification.Label, classification.RoleLabel, classification.Role);
         }
 
@@ -866,11 +901,30 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Check if this is a submenu button - trigger rescan after activation
+            // Check if this is a submenu button
             if (IsSettingsSubmenuButton(element))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Settings submenu button activated: {element.name}");
                 UIActivator.Activate(element);
+                // Don't call TriggerRescan() here — the Update() panel-change detection will
+                // trigger it once the new panel is actually active, avoiding a premature rescan
+                // that catches the transition midpoint (0 elements found).
+                return true;
+            }
+
+            // For toggles: activate and re-announce new On/Off state immediately.
+            // Use stored Role (not GetComponentInChildren) to avoid false-positive matches
+            // on Toggles nested inside Dropdown item templates.
+            if (index >= 0 && index < _elements.Count &&
+                _elements[index].Role == UIElementClassifier.ElementRole.Toggle)
+            {
+                var toggle = element?.GetComponent<Toggle>() ?? element?.GetComponentInChildren<Toggle>();
+                UIActivator.Activate(element);
+                string label = UITextExtractor.GetText(element);
+                bool isOn = toggle != null && toggle.isOn;
+                string state = isOn ? Models.Strings.SettingOn : Models.Strings.SettingOff;
+                _announcer.Announce($"{label}, {state}", Models.AnnouncementPriority.High);
+                _silentRescan = true;
                 TriggerRescan();
                 return true;
             }
@@ -1002,12 +1056,37 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Announce the change (only if not in popup mode - popup has its own announcements)
-            if (!IsInPopupMode)
+            // After a dropdown selection: find the dropdown by stored object reference (not _currentIndex,
+            // which may have moved) and announce its freshly updated label.
+            if (_pendingDropdownAnnounce && _pendingDropdownObject != null)
+            {
+                _pendingDropdownAnnounce = false;
+                _silentRescan = false;
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == _pendingDropdownObject)
+                    {
+                        string label = _elements[i].Label;
+                        _pendingDropdownObject = null;
+                        if (!string.IsNullOrEmpty(label))
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Announcing dropdown new value: {label}");
+                            _announcer.Announce(label, Models.AnnouncementPriority.High);
+                        }
+                        return;
+                    }
+                }
+                // Dropdown not found after rescan — fall through to normal announce
+                _pendingDropdownObject = null;
+            }
+
+            // Announce the change (skip if this was a silent rescan, e.g. after toggle flip)
+            if (!IsInPopupMode && !_silentRescan)
             {
                 string announcement = GetActivationAnnouncement();
                 _announcer.Announce(announcement, Models.AnnouncementPriority.High);
             }
+            _silentRescan = false;
         }
 
         #endregion
@@ -1022,7 +1101,7 @@ namespace AccessibleArena.Core.Services
             {
                 return $"{menuName}. No navigable items found.";
             }
-            return $"{menuName}. {Models.Strings.NavigateWithArrows}, Enter to select. {_elements.Count} items.";
+            return $"{menuName}. {Models.Strings.NavigateHint}. {_elements.Count} items.";
         }
 
         #endregion

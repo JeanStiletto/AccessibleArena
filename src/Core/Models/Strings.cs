@@ -51,6 +51,7 @@ namespace AccessibleArena.Core.Models
         // MENU NAVIGATION
         // ===========================================
         public static string NavigateWithArrows => L.Get("NavigateWithArrows");
+        public static string NavigateHint => L.Get("NavigateHint");
         public static string BeginningOfList => L.Get("BeginningOfList");
         public static string EndOfList => L.Get("EndOfList");
         public static string OpeningPlayModes => L.Get("OpeningPlayModes");
