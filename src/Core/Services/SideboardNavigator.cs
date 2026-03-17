@@ -471,37 +471,115 @@ namespace AccessibleArena.Core.Services
 
         private void ActivateCardInfoForCurrent()
         {
-            GameObject cardGo = GetCurrentCardGameObject();
-            if (cardGo == null) return;
-
             var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
-            if (cardNav != null && CardDetector.IsCard(cardGo))
+            if (cardNav == null) return;
+
+            if (_currentZone == SideboardZone.Pool)
             {
-                cardNav.PrepareForCard(cardGo);
+                // Pool cards are full card GameObjects - use standard PrepareForCard
+                var go = GetCurrentPoolCard();
+                if (go != null && CardDetector.IsCard(go))
+                    cardNav.PrepareForCard(go);
             }
+            else if (_currentZone == SideboardZone.Deck)
+            {
+                // Deck cards may have null ViewGameObject - use GrpId-based info blocks
+                PrepareDeckCardInfo(cardNav);
+            }
+        }
+
+        /// <summary>
+        /// Prepares CardInfoNavigator for a deck card using GrpId-based lookup.
+        /// Deck list cards often have null ViewGameObject (only CardTileBase available),
+        /// which isn't recognized by CardDetector.IsCard. Use PrepareForCardInfo instead.
+        /// </summary>
+        private void PrepareDeckCardInfo(CardInfoNavigator cardNav)
+        {
+            if (_deckIndex < 0 || _deckIndex >= _deckCards.Count) return;
+            var deckCard = _deckCards[_deckIndex];
+
+            // Try ViewGameObject first (if available and recognized as card)
+            if (deckCard.ViewGameObject != null && CardDetector.IsCard(deckCard.ViewGameObject))
+            {
+                cardNav.PrepareForCard(deckCard.ViewGameObject);
+                return;
+            }
+
+            // Build info blocks from GrpId
+            var cardInfo = CardModelProvider.GetCardInfoFromGrpId(deckCard.GrpId);
+            if (cardInfo.HasValue)
+            {
+                var info = cardInfo.Value;
+                info.Quantity = deckCard.Quantity;
+                var blocks = CardDetector.BuildInfoBlocks(info);
+                if (blocks.Count > 0)
+                {
+                    cardNav.PrepareForCardInfo(blocks, info.Name ?? $"Card #{deckCard.GrpId}");
+                    return;
+                }
+            }
+
+            // Minimal fallback: just name + quantity
+            string name = CardModelProvider.GetNameFromGrpId(deckCard.GrpId) ?? $"Card #{deckCard.GrpId}";
+            var minimalBlocks = new List<CardInfoBlock>
+            {
+                new CardInfoBlock(Strings.CardInfoName, name)
+            };
+            if (deckCard.Quantity > 1)
+                minimalBlocks.Add(new CardInfoBlock(Strings.CardInfoQuantity, deckCard.Quantity.ToString(), false));
+            cardNav.PrepareForCardInfo(minimalBlocks, name);
         }
 
         private void ActivateCardDetails()
         {
-            GameObject cardGo = GetCurrentCardGameObject();
-            if (cardGo == null) return;
+            if (_currentZone == SideboardZone.Info) return;
 
-            AccessibleArenaMod.Instance?.ActivateCardDetails(cardGo);
+            var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
+            if (cardNav == null) return;
+
+            if (_currentZone == SideboardZone.Pool)
+            {
+                var go = GetCurrentPoolCard();
+                if (go != null)
+                    AccessibleArenaMod.Instance?.ActivateCardDetails(go);
+            }
+            else if (_currentZone == SideboardZone.Deck)
+            {
+                // For deck cards, ensure info is prepared then activate
+                if (!cardNav.IsActive)
+                    PrepareDeckCardInfo(cardNav);
+                if (cardNav.IsActive)
+                    cardNav.HandleInput();
+            }
         }
 
-        private GameObject GetCurrentCardGameObject()
+        /// <summary>
+        /// Gets the current pool card GameObject (for pool zone only).
+        /// </summary>
+        private GameObject GetCurrentPoolCard()
+        {
+            if (_poolIndex >= 0 && _poolIndex < _poolCards.Count)
+                return _poolCards[_poolIndex];
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the best activation target for the current card.
+        /// For pool cards: the card GameObject.
+        /// For deck cards: TileButton preferred (intended click target), then CardTileBase.
+        /// </summary>
+        private GameObject GetCurrentActivationTarget()
         {
             if (_currentZone == SideboardZone.Pool)
             {
-                if (_poolIndex >= 0 && _poolIndex < _poolCards.Count)
-                    return _poolCards[_poolIndex];
+                return GetCurrentPoolCard();
             }
             else
             {
                 if (_deckIndex >= 0 && _deckIndex < _deckCards.Count)
                 {
                     var info = _deckCards[_deckIndex];
-                    return info.ViewGameObject ?? info.TileButton ?? info.CardTileBase;
+                    return info.TileButton ?? info.CardTileBase ?? info.ViewGameObject;
                 }
             }
             return null;
@@ -513,28 +591,40 @@ namespace AccessibleArena.Core.Services
 
         private void ActivateCurrentCard()
         {
-            GameObject cardGo = GetCurrentCardGameObject();
-            if (cardGo == null)
+            bool isPool = _currentZone == SideboardZone.Pool;
+
+            // Get card name before activation for announcement
+            string cardName;
+            if (isPool)
+            {
+                var go = GetCurrentPoolCard();
+                if (go == null)
+                {
+                    _announcer.AnnounceInterrupt(Strings.NoCardSelected);
+                    return;
+                }
+                cardName = CardModelProvider.ExtractCardInfoFromModel(go)?.Name ?? UITextExtractor.GetText(go);
+            }
+            else
+            {
+                if (_deckIndex < 0 || _deckIndex >= _deckCards.Count)
+                {
+                    _announcer.AnnounceInterrupt(Strings.NoCardSelected);
+                    return;
+                }
+                cardName = CardModelProvider.GetNameFromGrpId(_deckCards[_deckIndex].GrpId) ?? "Card";
+            }
+
+            // Get the activation target (pool card GO or deck card TileButton/CardTileBase)
+            var target = GetCurrentActivationTarget();
+            if (target == null)
             {
                 _announcer.AnnounceInterrupt(Strings.NoCardSelected);
                 return;
             }
 
-            // Get card name before activation for announcement
-            string cardName;
-            bool isPool = _currentZone == SideboardZone.Pool;
-            if (isPool)
-            {
-                cardName = CardModelProvider.ExtractCardInfoFromModel(cardGo)?.Name ?? UITextExtractor.GetText(cardGo);
-            }
-            else
-            {
-                var deckCard = _deckCards[_deckIndex];
-                cardName = CardModelProvider.GetNameFromGrpId(deckCard.GrpId) ?? "Card";
-            }
-
             // Click the card to toggle it between pool and deck
-            UIActivator.Activate(cardGo);
+            UIActivator.Activate(target);
 
             // Announce what happened
             if (isPool)
@@ -545,6 +635,9 @@ namespace AccessibleArena.Core.Services
             {
                 _announcer.AnnounceInterrupt(Strings.Sideboard_CardRemoved(cardName));
             }
+
+            // Deactivate card info nav (blocks are stale after move)
+            AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
 
             // Schedule a rescan to refresh card lists
             _rescanFrameCountdown = RescanDelayFrames;
