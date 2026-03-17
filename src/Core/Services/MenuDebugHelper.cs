@@ -1040,7 +1040,6 @@ namespace AccessibleArena.Core.Services
         public static void DumpWorkflowSystemDebug(string tag, GameObject workflowBrowser = null)
         {
             var flags = AllInstanceFlags;
-            var staticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
 
             MelonLogger.Msg($"[{tag}] ╔══════════════════════════════════════════════════════════════╗");
             MelonLogger.Msg($"[{tag}] ║       COMPREHENSIVE WORKFLOW SYSTEM DEBUG DUMP              ║");
