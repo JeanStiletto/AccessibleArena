@@ -507,7 +507,9 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (zoneName == "Graveyard" && diff > 0)
                 {
-                    return isOpponent ? Strings.Duel_CardToOpponentGraveyard : Strings.Duel_CardToYourGraveyard;
+                    // Suppress generic "card to graveyard" — ZoneTransferGroup fires with the specific
+                    // card name and reason (died, destroyed, discarded, etc.) which is more informative.
+                    // We still track the count above for dirty-marking navigators.
                 }
                 else if (zoneName == "Stack")
                 {
