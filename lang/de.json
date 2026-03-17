@@ -906,5 +906,6 @@
   "Sideboard_Submitted": "Sideboard eingereicht",
   "Sideboard_ViewBattlefield": "Schlachtfeld wird angezeigt",
   "Sideboard_ViewDeck": "Deck wird angezeigt",
-  "Sideboard_PageInfo_Format": "Seite {0} von {1}"
+  "Sideboard_PageInfo_Format": "Seite {0} von {1}",
+  "Sideboard_InfoZone": "Match-Info"
 }

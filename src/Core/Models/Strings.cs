@@ -1162,6 +1162,7 @@ namespace AccessibleArena.Core.Models
         public static string Sideboard_ViewBattlefield => L.Get("Sideboard_ViewBattlefield");
         public static string Sideboard_ViewDeck => L.Get("Sideboard_ViewDeck");
         public static string Sideboard_PageInfo(int current, int total) => L.Format("Sideboard_PageInfo_Format", current, total);
+        public static string Sideboard_InfoZone => L.Get("Sideboard_InfoZone");
 
         // ===========================================
         // ELEMENT GROUPS

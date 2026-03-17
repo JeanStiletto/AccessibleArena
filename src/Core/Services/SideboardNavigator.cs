@@ -32,7 +32,7 @@ namespace AccessibleArena.Core.Services
         private MonoBehaviour _navBar;
 
         // Navigation zones
-        private enum SideboardZone { Pool, Deck }
+        private enum SideboardZone { Pool, Deck, Info }
         private SideboardZone _currentZone = SideboardZone.Pool;
         private int _poolIndex = -1;
         private int _deckIndex = -1;
@@ -49,6 +49,7 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _deckBuilderField;
         private static FieldInfo _showHideToggleField;
         private static FieldInfo _navBarField;
+        private static FieldInfo _introTextField;
         private static bool _sideboardReflectionInit;
 
         // Reflection caches for DeckBuilderWidget
@@ -132,6 +133,7 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
+            string introText = GetIntroText();
             string playerName = GetPlayerName();
             int playerWins = GetPlayerWins();
             string opponentName = GetOpponentName();
@@ -142,7 +144,10 @@ namespace AccessibleArena.Core.Services
             int poolCount = _poolCards.Count;
             int deckCount = _deckCards.Count;
 
-            return Strings.Sideboard_Activated(playerName, playerWins, opponentName, opponentWins, poolCount, deckCount);
+            string announcement = Strings.Sideboard_Activated(playerName, playerWins, opponentName, opponentWins, poolCount, deckCount);
+            if (!string.IsNullOrEmpty(introText))
+                announcement = $"{introText}. {announcement}";
+            return announcement;
         }
 
         protected override void DiscoverElements()
@@ -300,13 +305,23 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Tab = cycle between zones
+            // Tab = cycle between zones (Pool -> Deck -> Info -> Pool)
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                var nextZone = shift
-                    ? (_currentZone == SideboardZone.Pool ? SideboardZone.Deck : SideboardZone.Pool)
-                    : (_currentZone == SideboardZone.Pool ? SideboardZone.Deck : SideboardZone.Pool);
+                SideboardZone nextZone;
+                if (shift)
+                {
+                    nextZone = _currentZone == SideboardZone.Pool ? SideboardZone.Info
+                             : _currentZone == SideboardZone.Deck ? SideboardZone.Pool
+                             : SideboardZone.Deck;
+                }
+                else
+                {
+                    nextZone = _currentZone == SideboardZone.Pool ? SideboardZone.Deck
+                             : _currentZone == SideboardZone.Deck ? SideboardZone.Info
+                             : SideboardZone.Pool;
+                }
                 NavigateToZone(nextZone);
                 return;
             }
@@ -332,7 +347,7 @@ namespace AccessibleArena.Core.Services
                 if (_poolIndex < 0) _poolIndex = 0;
                 AnnounceZoneEntry(zone);
             }
-            else
+            else if (zone == SideboardZone.Deck)
             {
                 RefreshDeckCards();
                 if (_deckCards.Count == 0)
@@ -343,6 +358,10 @@ namespace AccessibleArena.Core.Services
                 _deckIndex = Math.Max(0, Math.Min(_deckIndex, _deckCards.Count - 1));
                 if (_deckIndex < 0) _deckIndex = 0;
                 AnnounceZoneEntry(zone);
+            }
+            else // Info
+            {
+                AnnounceInfoZone();
             }
         }
 
@@ -673,6 +692,28 @@ namespace AccessibleArena.Core.Services
             _announcer.AnnounceInterrupt(Strings.Sideboard_Score(playerName, playerWins, opponentName, opponentWins));
         }
 
+        private void AnnounceInfoZone()
+        {
+            string introText = GetIntroText();
+            string score = Strings.Sideboard_Score(GetPlayerName(), GetPlayerWins(), GetOpponentName(), GetOpponentWins());
+            string timerText = GetTimerText();
+
+            var parts = new List<string>();
+            parts.Add(Strings.Sideboard_InfoZone);
+            if (!string.IsNullOrEmpty(introText))
+                parts.Add(introText);
+            parts.Add(score);
+            if (!string.IsNullOrEmpty(timerText))
+                parts.Add(Strings.Sideboard_Timer(timerText));
+
+            RefreshPoolCards();
+            RefreshDeckCards();
+            parts.Add(Strings.Sideboard_PoolZone(_poolCards.Count));
+            parts.Add(Strings.Sideboard_DeckZone(_deckCards.Count));
+
+            _announcer.AnnounceInterrupt(string.Join(". ", parts));
+        }
+
         #endregion
 
         #region Card Data Refresh
@@ -750,11 +791,13 @@ namespace AccessibleArena.Core.Services
             _deckBuilderField = type.GetField("_deckBuilder", PrivateInstance);
             _showHideToggleField = type.GetField("_showHideToggle", PrivateInstance);
             _navBarField = type.GetField("_navBar", PrivateInstance);
+            _introTextField = type.GetField("_sideboardIntroText", PrivateInstance);
 
             MelonLogger.Msg($"[SideboardNavigator] Reflection init: " +
                 $"_deckBuilder={_deckBuilderField != null}, " +
                 $"_showHideToggle={_showHideToggleField != null}, " +
-                $"_navBar={_navBarField != null}");
+                $"_navBar={_navBarField != null}, " +
+                $"_introText={_introTextField != null}");
         }
 
         private static void EnsureDeckBuilderReflection()
@@ -876,6 +919,19 @@ namespace AccessibleArena.Core.Services
             {
                 var tmp = _timerTextField.GetValue(_navBar) as TMP_Text;
                 if (tmp != null && tmp.gameObject.activeInHierarchy)
+                    return tmp.text;
+            }
+            catch { }
+            return null;
+        }
+
+        private string GetIntroText()
+        {
+            if (_sideboardInterface == null || _introTextField == null) return null;
+            try
+            {
+                var tmp = _introTextField.GetValue(_sideboardInterface) as TMP_Text;
+                if (tmp != null && !string.IsNullOrEmpty(tmp.text))
                     return tmp.text;
             }
             catch { }
