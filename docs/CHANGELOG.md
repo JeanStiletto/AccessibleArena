@@ -2,6 +2,14 @@
 
 All notable changes to Accessible Arena.
 
+## v0.8.7-dev
+
+### Fix: Scry and Surveil browser hint text corrected (PR #32)
+- The in-game announcement when Scry or Surveil triggered said "Enter to keep on top, Space to put on bottom" — which was backwards.
+- Corrected to "Enter to toggle to bottom, Space to confirm" (Scry) and "Enter to toggle to graveyard, Space to confirm" (Surveil).
+- All 12 language files updated.
+- The F1 help menu already had the correct descriptions ("Enter: Toggle card between zones", "Space: Confirm selection"); only the entry announcement was wrong.
+
 ## v0.8.6
 
 ### Fix: Phase-skip warning before passing priority with untapped lands (PR #25)
