@@ -80,6 +80,12 @@ All notable changes to Accessible Arena.
 - All 12 language files updated.
 - The F1 help menu already had the correct descriptions ("Enter: Toggle card between zones", "Space: Confirm selection"); only the entry announcement was wrong.
 
+### Polish: Battlefield cards now announce P/T, counters, and summoning sickness (PR #33)
+- Creature cards now include power/toughness in the announcement (e.g. "Grizzly Bears 2/2, can attack, 1 of 5")
+- Nonzero counters are listed after P/T (e.g. "2 +1/+1 counters, 1 Oil counter")
+- Planeswalker loyalty appears via the Loyalty counter (e.g. "4 Loyalty counters")
+- Creatures that entered this turn now explicitly say "summoning sickness" when no other combat state applies
+
 ## v0.8.5
 
 ### Fix: Stale browser announcement after confirming modal spell mode

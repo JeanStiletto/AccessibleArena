@@ -675,12 +675,20 @@ namespace AccessibleArena.Core.Services
             if (_currentIndex >= cards.Count) return;
 
             var card = cards[_currentIndex];
-            string cardName = CardDetector.GetCardName(card);
+
+            // Get full card info (name + P/T) in one call — GetCardName already calls this internally
+            var info = CardDetector.ExtractCardInfo(card);
+            string cardName = info.Name ?? "Unknown card";
+            string statSuffix = !string.IsNullOrEmpty(info.PowerToughness) ? $" {info.PowerToughness}" : "";
+
             int position = _currentIndex + 1;
             int total = cards.Count;
 
             // Add combat state if available
             string combatState = _combatNavigator?.GetCombatStateText(card) ?? "";
+
+            // Add nonzero counter info (e.g. ", 2 +1/+1 counters")
+            string counterText = BuildCounterText(CardStateProvider.GetCountersFromCard(card));
 
             // Add attachment info (enchantments, equipment attached to this card)
             string attachmentText = CardStateProvider.GetAttachmentText(card);
@@ -689,7 +697,7 @@ namespace AccessibleArena.Core.Services
             string targetingText = CardStateProvider.GetTargetingText(card);
 
             string prefix = includeRowName ? $"{GetRowName(_currentRow)}, " : "";
-            _announcer.Announce($"{prefix}{cardName}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
+            _announcer.Announce($"{prefix}{cardName}{statSuffix}{counterText}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
@@ -704,6 +712,22 @@ namespace AccessibleArena.Core.Services
             {
                 cardNavigator.PrepareForCard(card, ZoneType.Battlefield);
             }
+        }
+
+        /// <summary>
+        /// Builds a compact counter text string for nonzero counters, e.g. ", 2 +1/+1 counters, 1 Oil counter".
+        /// Returns empty string if there are no counters.
+        /// </summary>
+        private static string BuildCounterText(List<(string typeName, int count)> counters)
+        {
+            if (counters == null || counters.Count == 0) return "";
+            var parts = new System.Text.StringBuilder();
+            foreach (var (typeName, count) in counters)
+            {
+                parts.Append($", {count} {typeName} counter");
+                if (count != 1) parts.Append('s');
+            }
+            return parts.ToString();
         }
 
         /// <summary>

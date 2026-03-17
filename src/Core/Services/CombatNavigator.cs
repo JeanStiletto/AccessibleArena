@@ -453,6 +453,10 @@ namespace AccessibleArena.Core.Services
             if (isTapped && !isAttacking)
                 states.Add(Models.Strings.Combat_Tapped);
 
+            // Summoning sickness: creature entered this turn and cannot yet attack
+            if (states.Count == 0 && CardStateProvider.IsCreatureCard(card) && CardStateProvider.GetHasSummoningSicknessFromCard(card))
+                states.Add(Models.Strings.Combat_SummoningSickness);
+
             if (states.Count == 0)
                 return "";
 
