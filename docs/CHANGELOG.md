@@ -43,6 +43,7 @@ All notable changes to Accessible Arena.
 ### Loading Screen
 - Loading screen no longer repeats the same status message
 - Intermediate loading steps suppressed — only "Loading" announced once
+- Matchmaking screen ("Suche nach Gegner") announced once instead of 4 times during scene transitions
 
 ## v0.8.5
 

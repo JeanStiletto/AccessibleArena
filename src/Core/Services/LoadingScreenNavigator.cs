@@ -123,7 +123,8 @@ namespace AccessibleArena.Core.Services
             // Check all loaded scenes for MatchEndScene (loaded additively)
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
-                if (SceneManager.GetSceneAt(i).name == SceneNames.MatchEndScene)
+                var scene = SceneManager.GetSceneAt(i);
+                if (scene.name == SceneNames.MatchEndScene && scene.isLoaded)
                     return true;
             }
             return false;
@@ -133,7 +134,8 @@ namespace AccessibleArena.Core.Services
         {
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
-                if (SceneManager.GetSceneAt(i).name == SceneNames.PreGameScene)
+                var scene = SceneManager.GetSceneAt(i);
+                if (scene.name == SceneNames.PreGameScene && scene.isLoaded)
                     return true;
             }
             return false;
@@ -798,12 +800,14 @@ namespace AccessibleArena.Core.Services
                     // The initial "Loading." announcement on activation is sufficient feedback;
                     // intermediate steps ("Retrieving asset manifest" etc.) are not milestones
                     // the user needs to hear. The main menu navigator announces when loading ends.
-                    if (_currentMode == ScreenMode.GameLoading)
+                    // PreGame: same — the initial "Suche nach Gegner" is enough; element count
+                    // changes (tips/timer appearing) don't warrant re-announcing the screen name.
+                    if (_currentMode == ScreenMode.GameLoading || _currentMode == ScreenMode.PreGame)
                     {
                         if (_elements.Count > 0)
                         {
-                            _lastLoadingStatusText = _elements[0].Label;
-                            Log($"Loading status (silent): {_lastLoadingStatusText}");
+                            _lastLoadingStatusText = _elements.Count > 0 ? _elements[0].Label : "";
+                            Log($"Status update (silent): {_lastLoadingStatusText}");
                         }
                     }
                     else
@@ -875,7 +879,32 @@ namespace AccessibleArena.Core.Services
         {
             Log($"OnSceneChanged: {sceneName}");
 
-            // Reset state
+            // If active, check whether the current mode is still valid before deactivating.
+            // Multiple scenes load in rapid succession during matchmaking (MatchScene, PreGameScene,
+            // Battlefield_OM1) — we must not deactivate+reactivate on each one.
+            if (_isActive)
+            {
+                bool modeStillValid = false;
+                switch (_currentMode)
+                {
+                    case ScreenMode.PreGame:
+                        modeStillValid = DetectPreGame();
+                        break;
+                    case ScreenMode.MatchEnd:
+                        modeStillValid = DetectMatchEnd();
+                        break;
+                }
+
+                if (modeStillValid)
+                {
+                    Log($"Mode {_currentMode} still valid after scene change to {sceneName}, staying active");
+                    return;
+                }
+
+                Deactivate();
+            }
+
+            // Full reset
             _polling = false;
             _currentMode = ScreenMode.None;
             _matchResultText = "";
@@ -885,11 +914,6 @@ namespace AccessibleArena.Core.Services
             _loadingInfoText = null;
             _lastLoadingStatusText = "";
             _dumpedHierarchy = false;
-
-            if (_isActive)
-            {
-                Deactivate();
-            }
         }
 
         #endregion
