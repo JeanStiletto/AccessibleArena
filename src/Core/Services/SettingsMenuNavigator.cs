@@ -40,6 +40,8 @@ namespace AccessibleArena.Core.Services
         private float _rescanDelay;
         private bool _silentRescan; // Suppress screen re-announcement on silent rescans (e.g. after toggle)
         private bool _pendingDropdownAnnounce; // Announce current element label after post-dropdown-close rescan
+        private bool _prevInDropdownOrSuppressed; // Tracks combined dropdown+suppressed state for exit detection
+        private GameObject _pendingDropdownObject; // The dropdown element to announce after rescan (by reference)
 
         #endregion
 
@@ -137,6 +139,29 @@ namespace AccessibleArena.Core.Services
                     _lastPanelName = currentPanelName;
                     TriggerRescan();
                 }
+            }
+
+            // Detect dropdown+suppression exit transition to announce the newly selected value.
+            // We can't rely on SyncIndexToFocusedElement (it requires justExitedDropdown which
+            // never fires during suppression), so we track the combined state here instead.
+            if (_isActive)
+            {
+                bool nowInDropdownOrSuppressed = DropdownStateManager.IsInDropdownMode || DropdownStateManager.IsSuppressed;
+                if (_prevInDropdownOrSuppressed && !nowInDropdownOrSuppressed && _rescanDelay <= 0)
+                {
+                    // We just fully exited dropdown mode. If the focused element is a dropdown,
+                    // schedule a silent rescan so we can read its refreshed label.
+                    if (_currentIndex >= 0 && _currentIndex < _elements.Count &&
+                        _elements[_currentIndex].Role == UIElementClassifier.ElementRole.Dropdown)
+                    {
+                        _pendingDropdownObject = _elements[_currentIndex].GameObject;
+                        _pendingDropdownAnnounce = true;
+                        _silentRescan = true;
+                        TriggerRescan();
+                        MelonLogger.Msg($"[{NavigatorId}] Dropdown exit detected, scheduling value announcement");
+                    }
+                }
+                _prevInDropdownOrSuppressed = nowInDropdownOrSuppressed;
             }
 
             // Base handles: activation, delayed announcements, validation, input, input field tracking
@@ -662,23 +687,6 @@ namespace AccessibleArena.Core.Services
 
         #region Rescan
 
-        /// <summary>
-        /// Called by base Update() when dropdown mode exits. If the current element is a dropdown,
-        /// schedule a silent rescan so we can announce its freshly updated label after the rescan.
-        /// </summary>
-        protected override void SyncIndexToFocusedElement()
-        {
-            if (_currentIndex >= 0 && _currentIndex < _elements.Count &&
-                _elements[_currentIndex].Role == UIElementClassifier.ElementRole.Dropdown)
-            {
-                _pendingDropdownAnnounce = true;
-                _silentRescan = true;
-                TriggerRescan();
-                return;
-            }
-            base.SyncIndexToFocusedElement();
-        }
-
         private void TriggerRescan()
         {
             _rescanDelay = RescanDelaySeconds;
@@ -713,16 +721,28 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // After a dropdown selection: announce the element's fresh label (post-rescan value).
-            // This lets the user hear the newly chosen option (e.g., "Quality: High, dropdown").
-            if (_pendingDropdownAnnounce && _currentIndex >= 0 && _currentIndex < _elements.Count)
+            // After a dropdown selection: find the dropdown by stored object reference (not _currentIndex,
+            // which may have moved) and announce its freshly updated label.
+            if (_pendingDropdownAnnounce && _pendingDropdownObject != null)
             {
                 _pendingDropdownAnnounce = false;
                 _silentRescan = false;
-                string label = _elements[_currentIndex].Label;
-                if (!string.IsNullOrEmpty(label))
-                    _announcer.Announce(label, Models.AnnouncementPriority.High);
-                return;
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == _pendingDropdownObject)
+                    {
+                        string label = _elements[i].Label;
+                        _pendingDropdownObject = null;
+                        if (!string.IsNullOrEmpty(label))
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Announcing dropdown new value: {label}");
+                            _announcer.Announce(label, Models.AnnouncementPriority.High);
+                        }
+                        return;
+                    }
+                }
+                // Dropdown not found after rescan — fall through to normal announce
+                _pendingDropdownObject = null;
             }
 
             // Announce the change (skip if this was a silent rescan, e.g. after toggle flip)
