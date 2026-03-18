@@ -2,7 +2,29 @@
 
 All notable changes to Accessible Arena.
 
-## v0.8.6
+## v0.8.7-dev
+
+### Polish: Battlefield cards now announce P/T, counters, and summoning sickness (PR #33)
+- Creature cards now include power/toughness in the announcement (e.g. "Grizzly Bears 2/2, can attack, 1 of 5")
+- Nonzero counters are listed after P/T (e.g. "2 +1/+1 counters, 1 Oil counter")
+- Planeswalker loyalty appears via the Loyalty counter (e.g. "4 Loyalty counters")
+- Creatures that entered this turn now explicitly say "summoning sickness" when no other combat state applies
+
+### Fix: Scry and Surveil browser hint text corrected (PR #32)
+- Enter now correctly described as "toggle" (sends to bottom for Scry, toggles selection for Surveil)
+- Space now correctly described as "confirm"
+- Previous text had them reversed
+
+### Fix: Zone/row shortcuts always re-announce when pressed again (PR #34)
+- Pressing C, B, G, X, S, W (and Shift variants) now always announces even if the content hasn't changed
+- Pressing Shift+C now always announces opponent hand count
+- Previously, a second keypress within the same zone was silently dropped
+
+### Feat: Browser entry hints respect TutorialMessages setting (PR #35)
+- When TutorialMessages is off, browser entry says only the zone/card count without "Tab to navigate, Enter to select" appended
+- Applies to Scry, Surveil, Mulligan, and all generic browser types
+- Default (TutorialMessages on) behavior unchanged
+
 
 ### Best of 3 (Bo3) Support
 - New sideboard navigator for editing your deck between games (C = card pool, D = deck, Enter = move card, Space = submit)
@@ -79,6 +101,12 @@ All notable changes to Accessible Arena.
 - Corrected to "Enter to toggle to bottom, Space to confirm" (Scry) and "Enter to toggle to graveyard, Space to confirm" (Surveil).
 - All 12 language files updated.
 - The F1 help menu already had the correct descriptions ("Enter: Toggle card between zones", "Space: Confirm selection"); only the entry announcement was wrong.
+
+### Feat: Browser entry hints respect TutorialMessages setting (PR #35)
+- When TutorialMessages is off (F2 settings), browser entry announcements give just the facts without navigation hints
+- Before: "Scry. 3 cards. Tab to navigate, Enter to select" — After: "Scry. 3 cards"
+- Applies to Scry, Surveil, Mulligan, and all generic browser types
+- Default (TutorialMessages on) behavior unchanged
 
 ## v0.8.5
 
