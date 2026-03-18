@@ -33,6 +33,7 @@ All notable changes to Accessible Arena.
 - Hold-to-repeat for arrow keys across all navigators (0.5s delay, then 10Hz)
 - Recently Played deck selection now correctly starts the game
 - Deck sub-actions (Rename/Edit/Delete) no longer appear on Recently Played tab
+- Most recent deck on Recently Played tab now shows event/mode name like the other entries
 
 ### Duel Fixes
 - Pressing L multiple times now always re-announces life totals

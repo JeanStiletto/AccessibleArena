@@ -9,19 +9,30 @@ using static AccessibleArena.Core.Utils.ReflectionUtils;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
-    /// Provides reflection-based access to the game's LastPlayedBladeContentView.
+    /// Provides reflection-based access to the game's LastPlayedBladeContentView and
+    /// LastPlayedBladeView. The game splits recent entries: the most recent goes into
+    /// BladeView._lastPlayedTile, the rest go into ContentView._tiles.
     /// Used for enriching Recent tab deck labels with event names and finding play buttons.
     /// Caches FieldInfo objects for performance.
     /// </summary>
     public static class RecentPlayAccessor
     {
+        /// <summary>
+        /// Sentinel tile index returned by FindTileIndexForElement when the element
+        /// is inside the BladeView's most-recent tile (not in the ContentView tiles).
+        /// </summary>
+        public const int BLADE_VIEW_INDEX = 1000;
 
-        // Cached component reference (invalidated on scene change via ClearCache)
+        // Cached component references (invalidated on scene change via ClearCache)
         private static MonoBehaviour _cachedContentView;
+        private static MonoBehaviour _cachedBladeView;
 
-        // Cached reflection members
+        // Cached reflection members (ContentView)
         private static FieldInfo _tilesField;       // _tiles (List<LastGamePlayedTile>)
         private static FieldInfo _modelsField;      // _models (List<RecentlyPlayedInfo>)
+
+        // Cached reflection members (BladeView)
+        private static FieldInfo _bladeViewTileField; // _lastPlayedTile (LastGamePlayedTile)
 
         private static bool _reflectionInitialized;
 
@@ -47,8 +58,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Find and cache the LastPlayedBladeContentView component in the scene.
-        /// Returns the cached component if still valid, otherwise searches again.
+        /// Find and cache the LastPlayedBladeContentView and LastPlayedBladeView components.
+        /// Returns the ContentView if still valid, otherwise searches again.
         /// </summary>
         public static MonoBehaviour FindContentView()
         {
@@ -58,30 +69,143 @@ namespace AccessibleArena.Core.Services
                 try
                 {
                     if (_cachedContentView.gameObject != null && _cachedContentView.gameObject.activeInHierarchy)
+                    {
+                        // Also refresh blade view if needed
+                        FindBladeView();
                         return _cachedContentView;
+                    }
                 }
                 catch
                 {
                     // Object was destroyed
                 }
                 _cachedContentView = null;
+                _cachedBladeView = null;
             }
 
-            // Search for LastPlayedBladeContentView in the scene
+            // Search for both views in one pass
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null) continue;
-                if (mb.GetType().Name == "LastPlayedBladeContentView")
+                var typeName = mb.GetType().Name;
+
+                if (typeName == "LastPlayedBladeContentView" && _cachedContentView == null)
                 {
                     _cachedContentView = mb;
-
                     if (!_reflectionInitialized)
-                    {
                         InitializeReflection(mb.GetType());
-                    }
-
-                    return _cachedContentView;
                 }
+                else if (typeName == "LastPlayedBladeView" && _cachedBladeView == null)
+                {
+                    _cachedBladeView = mb;
+                    if (_bladeViewTileField == null)
+                        _bladeViewTileField = mb.GetType().GetField("_lastPlayedTile", PrivateInstance);
+                }
+            }
+
+            return _cachedContentView;
+        }
+
+        /// <summary>
+        /// Refresh the blade view cache if it's stale.
+        /// </summary>
+        private static void FindBladeView()
+        {
+            if (_cachedBladeView != null)
+            {
+                try
+                {
+                    if (_cachedBladeView.gameObject != null && _cachedBladeView.gameObject.activeInHierarchy)
+                        return;
+                }
+                catch { }
+                _cachedBladeView = null;
+            }
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                if (mb.GetType().Name == "LastPlayedBladeView")
+                {
+                    _cachedBladeView = mb;
+                    if (_bladeViewTileField == null)
+                        _bladeViewTileField = mb.GetType().GetField("_lastPlayedTile", PrivateInstance);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get the BladeView's most-recent tile (LastGamePlayedTile), or null.
+        /// </summary>
+        private static MonoBehaviour GetBladeViewTile()
+        {
+            if (_cachedBladeView == null || _bladeViewTileField == null)
+                return null;
+
+            try
+            {
+                return _bladeViewTileField.GetValue(_cachedBladeView) as MonoBehaviour;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Read the event title from any LastGamePlayedTile by reading its _eventTitleText
+        /// Localize component, falling back to _model.EventInfo.EventName.
+        /// </summary>
+        private static string ReadEventTitleFromTile(MonoBehaviour tile)
+        {
+            if (tile == null) return null;
+
+            try
+            {
+                // Read _eventTitleText (Localize component) from the tile
+                var eventTitleTextField = tile.GetType().GetField("_eventTitleText", PrivateInstance);
+                if (eventTitleTextField != null)
+                {
+                    var localizeComp = eventTitleTextField.GetValue(tile) as MonoBehaviour;
+                    if (localizeComp != null)
+                    {
+                        var tmp = localizeComp.GetComponentInChildren<TMPro.TMP_Text>();
+                        if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+                            return tmp.text;
+                    }
+                }
+
+                // Fallback: read _model.EventInfo.EventName from the tile itself
+                var modelField = tile.GetType().GetField("_model", PrivateInstance);
+                if (modelField != null)
+                {
+                    var model = modelField.GetValue(tile);
+                    if (model != null)
+                    {
+                        var eventInfoField = model.GetType().GetField("EventInfo");
+                        var eventInfo = eventInfoField?.GetValue(model);
+                        if (eventInfo != null)
+                        {
+                            // Try LocTitle first (localized), then EventName
+                            var locTitleField = eventInfo.GetType().GetField("LocTitle");
+                            if (locTitleField != null)
+                            {
+                                var locTitle = locTitleField.GetValue(eventInfo) as string;
+                                if (!string.IsNullOrEmpty(locTitle))
+                                    return locTitle;
+                            }
+
+                            var eventNameField = eventInfo.GetType().GetField("EventName");
+                            if (eventNameField != null)
+                                return eventNameField.GetValue(eventInfo) as string;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[RecentPlayAccessor] ReadEventTitleFromTile failed: {ex.Message}");
             }
 
             return null;
@@ -131,11 +255,16 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Get the event title for a tile at the given index.
+        /// Use BLADE_VIEW_INDEX for the most-recent entry in the BladeView.
         /// Reads the rendered (localized) text from the tile's _eventTitleText component.
         /// Falls back to EventName from the model if no rendered text found.
         /// </summary>
         public static string GetEventTitle(int index)
         {
+            // BladeView's most-recent tile
+            if (index == BLADE_VIEW_INDEX)
+                return ReadEventTitleFromTile(GetBladeViewTile());
+
             if (_cachedContentView == null || _tilesField == null)
                 return null;
 
@@ -145,47 +274,7 @@ namespace AccessibleArena.Core.Services
                 if (tiles == null || index < 0 || index >= tiles.Count)
                     return null;
 
-                var tile = tiles[index] as MonoBehaviour;
-                if (tile == null)
-                    return null;
-
-                // Read _eventTitleText (Localize component) from the tile via reflection
-                var eventTitleTextField = tile.GetType().GetField("_eventTitleText", PrivateInstance);
-                if (eventTitleTextField != null)
-                {
-                    var localizeComp = eventTitleTextField.GetValue(tile) as MonoBehaviour;
-                    if (localizeComp != null)
-                    {
-                        // The Localize component's TextTarget writes to a TextMeshProUGUI
-                        // Find TMP_Text on the same object or children for the rendered text
-                        var tmp = localizeComp.GetComponentInChildren<TMPro.TMP_Text>();
-                        if (tmp != null && !string.IsNullOrEmpty(tmp.text))
-                            return tmp.text;
-                    }
-                }
-
-                // Fallback: read EventName from model
-                if (_modelsField != null)
-                {
-                    var models = _modelsField.GetValue(_cachedContentView) as IList;
-                    if (models != null && index < models.Count)
-                    {
-                        var model = models[index];
-                        if (model != null)
-                        {
-                            var eventInfoField = model.GetType().GetField("EventInfo");
-                            var eventInfo = eventInfoField?.GetValue(model);
-                            if (eventInfo != null)
-                            {
-                                var eventNameField = eventInfo.GetType().GetField("EventName");
-                                if (eventNameField != null)
-                                    return eventNameField.GetValue(eventInfo) as string;
-                            }
-                        }
-                    }
-                }
-
-                return null;
+                return ReadEventTitleFromTile(tiles[index] as MonoBehaviour);
             }
             catch (Exception ex)
             {
@@ -234,58 +323,72 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Find the tile index for a given UI element by walking up the parent chain.
+        /// Returns BLADE_VIEW_INDEX if inside the BladeView's most-recent tile.
         /// Returns -1 if the element is not inside any tile.
         /// </summary>
         public static int FindTileIndexForElement(GameObject element)
         {
-            if (_cachedContentView == null || _tilesField == null || element == null)
+            if (element == null)
                 return -1;
 
-            try
+            // Check ContentView tiles first
+            if (_cachedContentView != null && _tilesField != null)
             {
-                var tiles = _tilesField.GetValue(_cachedContentView) as IList;
-                if (tiles == null || tiles.Count == 0)
-                    return -1;
-
-                for (int i = 0; i < tiles.Count; i++)
+                try
                 {
-                    var tile = tiles[i] as MonoBehaviour;
-                    if (tile == null) continue;
+                    var tiles = _tilesField.GetValue(_cachedContentView) as IList;
+                    if (tiles != null)
+                    {
+                        for (int i = 0; i < tiles.Count; i++)
+                        {
+                            var tile = tiles[i] as MonoBehaviour;
+                            if (tile == null) continue;
 
-                    if (element.transform.IsChildOf(tile.transform))
-                        return i;
+                            if (element.transform.IsChildOf(tile.transform))
+                                return i;
+                        }
+                    }
                 }
+                catch (Exception ex)
+                {
+                    MelonLogger.Error($"[RecentPlayAccessor] FindTileIndexForElement (content) failed: {ex.Message}");
+                }
+            }
 
-                return -1;
-            }
-            catch (Exception ex)
+            // Check BladeView's most-recent tile
+            var bladeViewTile = GetBladeViewTile();
+            if (bladeViewTile != null)
             {
-                MelonLogger.Error($"[RecentPlayAccessor] FindTileIndexForElement failed: {ex.Message}");
-                return -1;
+                try
+                {
+                    if (element.transform.IsChildOf(bladeViewTile.transform))
+                        return BLADE_VIEW_INDEX;
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Error($"[RecentPlayAccessor] FindTileIndexForElement (blade) failed: {ex.Message}");
+                }
             }
+
+            return -1;
         }
 
         /// <summary>
         /// Find ALL non-deck CustomButtons in a tile (play button, secondary button, etc.).
         /// These are buttons NOT inside a DeckView_Base parent.
         /// Used for filtering them out of the navigation list.
+        /// Supports BLADE_VIEW_INDEX for the BladeView's most-recent tile.
         /// </summary>
         public static List<GameObject> FindAllButtonsInTile(int index)
         {
             var result = new List<GameObject>();
-            if (_cachedContentView == null || _tilesField == null)
+
+            MonoBehaviour tile = GetTileByIndex(index);
+            if (tile == null)
                 return result;
 
             try
             {
-                var tiles = _tilesField.GetValue(_cachedContentView) as IList;
-                if (tiles == null || index < 0 || index >= tiles.Count)
-                    return result;
-
-                var tile = tiles[index] as MonoBehaviour;
-                if (tile == null)
-                    return result;
-
                 foreach (var mb in tile.GetComponentsInChildren<MonoBehaviour>(false))
                 {
                     if (mb == null) continue;
@@ -308,32 +411,27 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Find the play/continue button in a tile for auto-press on Enter.
-        /// Returns the _secondaryButton (the one that actually triggers play).
-        /// We identify it by reading the _secondaryButton field via reflection.
+        /// For ContentView tiles: returns _secondaryButton.
+        /// For BladeView tile: returns _playButton.
         /// Falls back to first non-deck CustomButton if reflection fails.
+        /// Supports BLADE_VIEW_INDEX for the BladeView's most-recent tile.
         /// </summary>
         public static GameObject FindPlayButtonInTile(int index)
         {
-            if (_cachedContentView == null || _tilesField == null)
+            MonoBehaviour tile = GetTileByIndex(index);
+            if (tile == null)
                 return null;
 
             try
             {
-                var tiles = _tilesField.GetValue(_cachedContentView) as IList;
-                if (tiles == null || index < 0 || index >= tiles.Count)
-                    return null;
-
-                var tile = tiles[index] as MonoBehaviour;
-                if (tile == null)
-                    return null;
-
-                // Try to get _secondaryButton directly via reflection
-                var secondaryField = tile.GetType().GetField("_secondaryButton", PrivateInstance);
-                if (secondaryField != null)
+                // BladeView uses _playButton; ContentView uses _secondaryButton
+                string buttonFieldName = (index == BLADE_VIEW_INDEX) ? "_playButton" : "_secondaryButton";
+                var buttonField = tile.GetType().GetField(buttonFieldName, PrivateInstance);
+                if (buttonField != null)
                 {
-                    var secondaryBtn = secondaryField.GetValue(tile) as MonoBehaviour;
-                    if (secondaryBtn != null && secondaryBtn.gameObject.activeInHierarchy)
-                        return secondaryBtn.gameObject;
+                    var btn = buttonField.GetValue(tile) as MonoBehaviour;
+                    if (btn != null && btn.gameObject.activeInHierarchy)
+                        return btn.gameObject;
                 }
 
                 // Fallback: first non-deck CustomButton
@@ -343,6 +441,30 @@ namespace AccessibleArena.Core.Services
             catch (Exception ex)
             {
                 MelonLogger.Error($"[RecentPlayAccessor] FindPlayButtonInTile({index}) failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get a tile MonoBehaviour by index. Supports both ContentView indices and BLADE_VIEW_INDEX.
+        /// </summary>
+        private static MonoBehaviour GetTileByIndex(int index)
+        {
+            if (index == BLADE_VIEW_INDEX)
+                return GetBladeViewTile();
+
+            if (_cachedContentView == null || _tilesField == null)
+                return null;
+
+            try
+            {
+                var tiles = _tilesField.GetValue(_cachedContentView) as IList;
+                if (tiles == null || index < 0 || index >= tiles.Count)
+                    return null;
+                return tiles[index] as MonoBehaviour;
+            }
+            catch
+            {
                 return null;
             }
         }
@@ -363,12 +485,13 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Clear the cached component reference. Call on scene changes.
+        /// Clear the cached component references. Call on scene changes.
         /// Reflection members are preserved since types don't change.
         /// </summary>
         public static void ClearCache()
         {
             _cachedContentView = null;
+            _cachedBladeView = null;
         }
     }
 }
