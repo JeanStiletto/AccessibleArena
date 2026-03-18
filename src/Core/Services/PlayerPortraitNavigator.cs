@@ -40,6 +40,12 @@ namespace AccessibleArena.Core.Services
         private MonoBehaviour _localMatchTimer;
         private MonoBehaviour _opponentMatchTimer;
 
+        // Low-timer warning tracking
+        private bool _localWarnedAt10;
+        private bool _localWarnedAt5;
+        private bool _opponentWarnedAt10;
+        private bool _opponentWarnedAt5;
+
         // Avatar reflection cache (for emote wheel via PortraitButton)
         private static System.Type _avatarViewType;
         private static PropertyInfo _isLocalPlayerProp;
@@ -813,6 +819,81 @@ namespace AccessibleArena.Core.Services
             // Return to player navigation
             _navigationState = NavigationState.PlayerNavigation;
             _emoteButtons.Clear();
+        }
+
+        public void AnnounceTimer(bool opponent)
+        {
+            if (_localTimerObj == null || _opponentTimerObj == null)
+                DiscoverTimerElements();
+
+            var timerObj = opponent ? _opponentTimerObj : _localTimerObj;
+            if (timerObj == null)
+            {
+                _announcer.Announce(Strings.TimerNotAvailable, AnnouncementPriority.High);
+                return;
+            }
+
+            string raw = GetTimerText(timerObj);
+            string formatted = FormatTimerText(raw);
+            string playerType = opponent ? "Opponent" : "LocalPlayer";
+            int timeouts = GetTimeoutCount(playerType);
+
+            string announcement = opponent
+                ? Strings.TimerOpponentAnnounce(formatted ?? Strings.TimerNotAvailable, timeouts >= 0 ? timeouts : 0)
+                : Strings.TimerAnnounce(formatted ?? Strings.TimerNotAvailable, timeouts >= 0 ? timeouts : 0);
+
+            _announcer.Announce(announcement, AnnouncementPriority.High);
+        }
+
+        public void Update()
+        {
+            if (_localTimerObj == null && _opponentTimerObj == null)
+                return;
+
+            CheckTimerWarning(_localTimerObj, isOpponent: false);
+            CheckTimerWarning(_opponentTimerObj, isOpponent: true);
+        }
+
+        private void CheckTimerWarning(GameObject timerObj, bool isOpponent)
+        {
+            if (timerObj == null) return;
+
+            string raw = GetTimerText(timerObj);
+            int secs = ParseTimerSeconds(raw);
+            if (secs < 0) return;
+
+            ref bool warned10 = ref (isOpponent ? ref _opponentWarnedAt10 : ref _localWarnedAt10);
+            ref bool warned5 = ref (isOpponent ? ref _opponentWarnedAt5 : ref _localWarnedAt5);
+
+            // Reset flags when time has risen back above the threshold (e.g. new turn)
+            if (secs > 10) warned10 = false;
+            if (secs > 5) warned5 = false;
+
+            if (secs <= 5 && !warned5)
+            {
+                warned5 = true;
+                string msg = isOpponent ? Strings.TimerOpponentWarning(5) : Strings.TimerWarning(5);
+                _announcer.Announce(msg, AnnouncementPriority.Immediate);
+            }
+            else if (secs <= 10 && !warned10)
+            {
+                warned10 = true;
+                string msg = isOpponent ? Strings.TimerOpponentWarning(10) : Strings.TimerWarning(10);
+                _announcer.Announce(msg, AnnouncementPriority.Immediate);
+            }
+        }
+
+        private int ParseTimerSeconds(string timerText)
+        {
+            if (string.IsNullOrEmpty(timerText)) return -1;
+            var parts = timerText.Split(':');
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0], out int minutes) &&
+                int.TryParse(parts[1], out int seconds))
+            {
+                return minutes * 60 + seconds;
+            }
+            return -1;
         }
 
         private void DiscoverTimerElements()

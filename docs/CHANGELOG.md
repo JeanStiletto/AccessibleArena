@@ -85,6 +85,12 @@ All notable changes to Accessible Arena.
 - Pressing Shift+C now always announces opponent hand count
 - Previously, a second keypress within the same zone was silently dropped
 
+### Feat: Timer announce shortcut (E / Shift+E) with low-timer warnings
+- Press E to hear your timer and timeouts remaining (e.g. "Your timer: 2 minutes 30 seconds, 2 timeouts")
+- Press Shift+E to hear the opponent's timer and timeouts
+- Automatic Immediate-priority warnings fire at 10 seconds and 5 seconds for both players
+- All 12 language files updated
+
 ## v0.8.5
 
 ### Fix: Stale browser announcement after confirming modal spell mode

@@ -569,6 +569,12 @@ namespace AccessibleArena.Core.Models
         public static string LifeNotAvailable => L.Get("LifeNotAvailable");
         public static string Timer(string formatted) => formatted;
         public static string TimerNotAvailable => L.Get("TimerNotAvailable");
+        public static string TimerAnnounce(string timerText, int timeouts) =>
+            L.Format("Timer_Announce_Format", timerText, Timeouts(timeouts));
+        public static string TimerOpponentAnnounce(string timerText, int timeouts) =>
+            L.Format("Timer_Opponent_Announce_Format", timerText, Timeouts(timeouts));
+        public static string TimerWarning(int seconds) => L.Format("Timer_Warning_Format", seconds);
+        public static string TimerOpponentWarning(int seconds) => L.Format("Timer_Opponent_Warning_Format", seconds);
         public static string Timeouts(int count) =>
             count == 1 ? L.Get("Timeouts_One") : L.Format("Timeouts_Format", count);
         public static string GamesWon(int count) =>
@@ -824,6 +830,7 @@ namespace AccessibleArena.Core.Models
         public static string HelpTTurnPhase => L.Get("HelpTTurnPhase");
         public static string HelpVPlayerInfo => L.Get("HelpVPlayerInfo");
         public static string HelpMLandSummary => L.Get("HelpMLandSummary");
+        public static string HelpETimer => L.Get("HelpETimer");
         public static string HelpKCounters => L.Get("HelpKCounters");
 
         // Card navigation

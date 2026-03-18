@@ -391,6 +391,9 @@ namespace AccessibleArena.Core.Services
             // Monitor prompt buttons for meaningful choice announcements
             _hotHighlightNavigator.MonitorPromptButtons(_duelAnnouncer.TimeSinceLastPhaseChange);
 
+            // Monitor timers for low-time warnings
+            _portraitNavigator.Update();
+
             // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
 
@@ -560,6 +563,14 @@ namespace AccessibleArena.Core.Services
                 var landRow = shift ? BattlefieldRow.EnemyLands : BattlefieldRow.PlayerLands;
                 string summary = _battlefieldNavigator.GetLandSummary(landRow);
                 _announcer.AnnounceInterrupt(summary);
+                return true;
+            }
+
+            // E key: Timer announce (E = your timer, Shift+E = opponent timer)
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                _portraitNavigator.AnnounceTimer(opponent: shift);
                 return true;
             }
 
