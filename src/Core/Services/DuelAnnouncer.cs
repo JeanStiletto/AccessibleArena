@@ -1832,11 +1832,11 @@ namespace AccessibleArena.Core.Services
                 string announcement;
                 if (effectName.ToLower() == "scry")
                 {
-                    announcement = $"{effectDescription}. {Strings.Duel_ScryHint}";
+                    announcement = Strings.WithHint(effectDescription, "Duel_ScryHint");
                 }
                 else if (effectName.ToLower() == "surveil")
                 {
-                    announcement = $"{effectDescription}. {Strings.Duel_SurveilHint}";
+                    announcement = Strings.WithHint(effectDescription, "Duel_SurveilHint");
                 }
                 else
                 {
