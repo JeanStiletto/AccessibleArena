@@ -183,6 +183,12 @@ namespace AccessibleArena.Core.Services
         // ReadOnly deck builder mode (starter/precon decks)
         private bool _isDeckBuilderReadOnly;
 
+        // Rename edit mode tracking: set when user activates the Rename action
+        private bool _isInRenameMode;
+
+        // Cached DeckManagerController reference for reading deck favorite state
+        private MonoBehaviour _cachedDeckManagerController;
+
         // 2D sub-navigation state for DeckBuilderInfo group
         // Rows navigated with Up/Down, entries within rows navigated with Left/Right
         private List<(string label, List<string> entries)> _deckInfoRows;
@@ -3551,25 +3557,6 @@ namespace AccessibleArena.Core.Services
                     }
                 }
                 MelonLogger.Msg($"[{NavigatorId}] Recent tab: {recentDeckEventTitles.Count} deck-event mappings, {recentTilePlayButtons.Count} play buttons to hide");
-
-                // Reverse sort order for recently played decks (most recent first)
-                if (recentDeckEventTitles.Count > 1)
-                {
-                    var pairs = new List<(int idx, float order)>();
-                    for (int i = 0; i < discoveredElements.Count; i++)
-                    {
-                        if (recentDeckEventTitles.ContainsKey(discoveredElements[i].obj))
-                            pairs.Add((i, discoveredElements[i].sortOrder));
-                    }
-                    // Sort by current order, then assign reversed orders
-                    pairs.Sort((a, b) => a.order.CompareTo(b.order));
-                    var reversed = pairs.Select(p => p.order).Reverse().ToList();
-                    for (int j = 0; j < pairs.Count; j++)
-                    {
-                        var (o, c, _) = discoveredElements[pairs[j].idx];
-                        discoveredElements[pairs[j].idx] = (o, c, reversed[j]);
-                    }
-                }
             }
 
             // Sort by position and add elements with proper labels
@@ -4384,6 +4371,123 @@ namespace AccessibleArena.Core.Services
 
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);
 
+        /// <summary>
+        /// Handle Rename and Favorite specially.
+        /// Rename: enter edit mode directly on the embedded TMP_InputField instead of clicking TextBox,
+        ///   to avoid anti-autofocus code immediately deactivating the field.
+        /// Favorite: read current IsFavorite state before activating, then announce the new state.
+        /// </summary>
+        protected override bool HandleAttachedAction(AttachedAction action)
+        {
+            if (action.Label == "Rename" && action.TargetButton != null)
+            {
+                var inputField = action.TargetButton.GetComponentInChildren<TMPro.TMP_InputField>(true);
+                if (inputField != null)
+                {
+                    string currentName = inputField.text;
+                    MelonLogger.Msg($"[{NavigatorId}] Rename: entering edit mode on {inputField.gameObject.name}, current name: '{currentName}'");
+                    _isInRenameMode = true;
+                    EnterInputFieldEditModeDirectly(inputField.gameObject,
+                        $"Renaming {currentName}. Type new name, Enter to confirm, Escape to cancel.");
+                    return true;
+                }
+            }
+
+            if (action.Label == "Favorite" && action.TargetButton != null)
+            {
+                bool? isFavorited = TryGetDeckFavoriteState();
+                UIActivator.Activate(action.TargetButton);
+                string announcement = isFavorited.HasValue
+                    ? (isFavorited.Value ? "Removed from favorites." : "Added to favorites.")
+                    : Models.Strings.ActivatedBare;
+                _announcer.Announce(announcement, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            if (action.Label == "Clone" && action.TargetButton != null)
+            {
+                UIActivator.Activate(action.TargetButton);
+                _announcer.Announce("Deck cloned. Re-enter decks to see it.", AnnouncementPriority.Normal);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Intercept Enter during rename edit mode to announce the new deck name.
+        /// The key is NOT consumed so the game's TMP_InputField still submits the rename.
+        /// </summary>
+        protected override void HandleInputFieldNavigation()
+        {
+            if (_isInRenameMode)
+            {
+                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                {
+                    string newName = GetEditingFieldText()?.Trim() ?? "";
+                    _isInRenameMode = false;
+                    if (!string.IsNullOrEmpty(newName))
+                        _announcer.Announce($"Renamed to {newName}.", AnnouncementPriority.Normal);
+                    // Deactivate the field — this fires onEndEdit so the game saves the rename.
+                    // We return early so the Enter key is not passed to the now-deactivated field.
+                    ForceExitFieldEditMode();
+                    return;
+                }
+                else if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    _isInRenameMode = false;
+                    // Let base handle Escape (exits edit mode, announces cancelled)
+                }
+            }
+            base.HandleInputFieldNavigation();
+        }
+
+        /// <summary>
+        /// Read IsFavorite from the selected deck in DeckManagerController via reflection.
+        /// Returns null if the state cannot be determined.
+        /// </summary>
+        private bool? TryGetDeckFavoriteState()
+        {
+            // Re-use cached reference if still valid
+            if (_cachedDeckManagerController == null || !_cachedDeckManagerController)
+            {
+                _cachedDeckManagerController = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "DeckManagerController")
+                    {
+                        _cachedDeckManagerController = mb;
+                        break;
+                    }
+                }
+            }
+
+            if (_cachedDeckManagerController == null) return null;
+
+            try
+            {
+                var selectedDeckField = _cachedDeckManagerController.GetType()
+                    .GetField("_selectedDeck", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var selectedDeck = selectedDeckField?.GetValue(_cachedDeckManagerController);
+                if (selectedDeck == null) return null;
+
+                var summaryProp = selectedDeck.GetType()
+                    .GetProperty("Summary", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                var summary = summaryProp?.GetValue(selectedDeck);
+                if (summary == null) return null;
+
+                var isFavProp = summary.GetType()
+                    .GetProperty("IsFavorite", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (isFavProp == null) return null;
+
+                return (bool)isFavProp.GetValue(summary);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         protected override string GetActivationAnnouncement()
         {
             string menuName = GetMenuScreenName();
@@ -4421,7 +4525,7 @@ namespace AccessibleArena.Core.Services
         /// In deck builder with Tab, cycles between Collection, Filters, and Deck groups only.
         /// In DeckBuilderInfo group, Down arrow switches to next row with custom announcement.
         /// </summary>
-        protected override bool MoveNext()
+        protected override void MoveNext()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
@@ -4436,7 +4540,7 @@ namespace AccessibleArena.Core.Services
                         AnnounceDeckInfoEntry(includeRowName: true);
                     }
                     // If !moved, GroupedNavigator already announced "End of list"
-                    return moved;
+                    return;
                 }
 
                 // Friend section navigation: Up/Down navigates between friends
@@ -4450,7 +4554,7 @@ namespace AccessibleArena.Core.Services
                         AnnounceFriendEntry();
                         AnnounceFirstFriendAction();
                     }
-                    return moved;
+                    return;
                 }
 
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
@@ -4478,18 +4582,17 @@ namespace AccessibleArena.Core.Services
                             }
                         }
                         UpdateCardNavigationForGroupedElement();
-                        return true;
+                        return;
                     }
-                    return false;
                 }
 
                 // Default behavior: navigate all groups/elements
-                bool result = _groupedNavigator.MoveNext();
+                _groupedNavigator.MoveNext();
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
-                return result;
+                return;
             }
-            return base.MoveNext();
+            base.MoveNext();
         }
 
         /// <summary>
@@ -4497,7 +4600,7 @@ namespace AccessibleArena.Core.Services
         /// In deck builder with Shift+Tab, cycles between Collection, Filters, and Deck groups only.
         /// In DeckBuilderInfo group, Up arrow switches to previous row with custom announcement.
         /// </summary>
-        protected override bool MovePrevious()
+        protected override void MovePrevious()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
@@ -4512,7 +4615,7 @@ namespace AccessibleArena.Core.Services
                         AnnounceDeckInfoEntry(includeRowName: true);
                     }
                     // If !moved, GroupedNavigator already announced "Beginning of list"
-                    return moved;
+                    return;
                 }
 
                 // Friend section navigation: Up/Down navigates between friends
@@ -4525,7 +4628,7 @@ namespace AccessibleArena.Core.Services
                         AnnounceFriendEntry();
                         AnnounceFirstFriendAction();
                     }
-                    return moved;
+                    return;
                 }
 
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
@@ -4553,18 +4656,17 @@ namespace AccessibleArena.Core.Services
                             }
                         }
                         UpdateCardNavigationForGroupedElement();
-                        return true;
+                        return;
                     }
-                    return false;
                 }
 
                 // Default behavior: navigate all groups/elements
-                bool result = _groupedNavigator.MovePrevious();
+                _groupedNavigator.MovePrevious();
                 UpdateEventSystemSelectionForGroupedElement();
                 UpdateCardNavigationForGroupedElement();
-                return result;
+                return;
             }
-            return base.MovePrevious();
+            base.MovePrevious();
         }
 
         /// <summary>
@@ -4864,6 +4966,7 @@ namespace AccessibleArena.Core.Services
 
                     // Always enter the group (whether we toggled or not)
                     _groupedNavigator.EnterGroup();
+                    _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
                     UpdateCardNavigationForGroupedElement();
                     return true;
                 }

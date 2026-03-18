@@ -7,7 +7,6 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.PanelDetection;
-using AccessibleArena.Core.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -58,9 +57,6 @@ namespace AccessibleArena.Core.Services
 
         // Letter navigation handler (buffered jump with same-letter cycling)
         protected readonly LetterSearchHandler _letterSearch = new LetterSearchHandler();
-
-        // Hold-to-repeat handler for arrow key navigation
-        protected readonly KeyHoldRepeater _holdRepeater = new KeyHoldRepeater();
 
         /// <summary>
         /// Represents a virtual action attached to an element (e.g., Delete, Edit for decks).
@@ -611,8 +607,6 @@ namespace AccessibleArena.Core.Services
                 ClearPopupModeState();
 
             DisablePopupDetection();
-
-            _holdRepeater.Reset();
 
             OnDeactivating();
 
@@ -1304,9 +1298,18 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Menu navigation with Arrow Up/Down (hold-to-repeat) and Tab/Shift+Tab
-            if (_holdRepeater.Check(KeyCode.UpArrow, () => MovePrevious())) return;
-            if (_holdRepeater.Check(KeyCode.DownArrow, () => MoveNext())) return;
+            // Menu navigation with Arrow Up/Down and Tab/Shift+Tab
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                MovePrevious();
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                MoveNext();
+                return;
+            }
 
             // Tab/Shift+Tab navigation - same as arrow down/up but auto-enters input fields
             // Use GetKeyDownAndConsume to prevent game from also processing Tab
@@ -1334,9 +1337,18 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Arrow Left/Right for carousel elements (hold-to-repeat)
-            if (_holdRepeater.Check(KeyCode.LeftArrow, () => HandleCarouselArrow(isNext: false))) return;
-            if (_holdRepeater.Check(KeyCode.RightArrow, () => HandleCarouselArrow(isNext: true))) return;
+            // Arrow Left/Right for carousel elements
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                if (HandleCarouselArrow(isNext: false))
+                    return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                if (HandleCarouselArrow(isNext: true))
+                    return;
+            }
 
             // Activation (Enter or Space)
             // Check EnterPressedWhileBlocked for when our Input.GetKeyDown patch blocked Enter on a toggle
@@ -1469,7 +1481,7 @@ namespace AccessibleArena.Core.Services
             if (control == null || !control.activeInHierarchy)
             {
                 _announcer.Announce(isNext ? Strings.NoNextItem : Strings.NoPreviousItem, AnnouncementPriority.Normal);
-                return false; // Boundary — stop hold-repeat (initial press still consumed by Check)
+                return true;
             }
 
             // Activate the nav control (carousel nav button or stepper increment/decrement)
@@ -1683,17 +1695,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>Move to next (direction=1) or previous (direction=-1) element without wrapping</summary>
-        /// <returns>True if moved, false if at boundary or empty.</returns>
-        protected virtual bool Move(int direction)
+        protected virtual void Move(int direction)
         {
             _letterSearch.Clear();
-            if (_elements.Count == 0) return false;
+            if (_elements.Count == 0) return;
 
             // Single element: re-announce it instead of saying "end/beginning of list"
             if (_elements.Count == 1)
             {
                 AnnounceCurrentElement();
-                return false;
+                return;
             }
 
             int newIndex = _currentIndex + direction;
@@ -1702,13 +1713,13 @@ namespace AccessibleArena.Core.Services
             if (newIndex < 0)
             {
                 _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
-                return false;
+                return;
             }
 
             if (newIndex >= _elements.Count)
             {
                 _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
-                return false;
+                return;
             }
 
             _currentIndex = newIndex;
@@ -1720,7 +1731,6 @@ namespace AccessibleArena.Core.Services
 
             AnnounceCurrentElement();
             UpdateCardNavigation();
-            return true;
         }
 
         /// <summary>
@@ -1886,6 +1896,45 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Override to handle an attached action specially instead of the default Activate call.
+        /// Return true if handled; false to fall back to UIActivator.Activate.
+        /// </summary>
+        protected virtual bool HandleAttachedAction(AttachedAction action) => false;
+
+        /// <summary>
+        /// Enter edit mode on an input field with a custom announcement.
+        /// Use this instead of EnterEditMode when you want to supply your own announcement text.
+        /// </summary>
+        protected void EnterInputFieldEditModeDirectly(GameObject field, string announcement)
+        {
+            _inputFieldHelper.SetEditingFieldSilently(field);
+            UIActivator.Activate(field);
+            _inputFieldHelper.TrackState();
+            _announcer?.Announce(announcement, AnnouncementPriority.Normal);
+        }
+
+        /// <summary>
+        /// Gets the text of the currently active input field in edit mode, or null if not editing.
+        /// Subclasses can use this in their HandleInputFieldNavigation overrides.
+        /// </summary>
+        protected string GetEditingFieldText()
+        {
+            var info = _inputFieldHelper.GetEditingFieldInfo();
+            return info.IsValid ? info.Text : null;
+        }
+
+        /// <summary>
+        /// Exit input field edit mode directly, bypassing the search-field rescan logic.
+        /// Deactivating the field fires onEndEdit, so the game processes any pending submit
+        /// (e.g. a rename) through its normal event handler.
+        /// Use this when a subclass handles submission itself (e.g. Enter in rename mode).
+        /// </summary>
+        protected void ForceExitFieldEditMode()
+        {
+            _inputFieldHelper.ExitEditMode();
+        }
+
+        /// <summary>
         /// Deactivate an input field on the specified element if it was auto-focused.
         /// Used to counteract MTGA's auto-focus behavior when navigating to input fields.
         /// User must press Enter to explicitly activate the field.
@@ -1912,8 +1961,8 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        protected virtual bool MoveNext() => Move(1);
-        protected virtual bool MovePrevious() => Move(-1);
+        protected virtual void MoveNext() => Move(1);
+        protected virtual void MovePrevious() => Move(-1);
 
         /// <summary>Jump to first element</summary>
         protected virtual void MoveFirst()
@@ -1988,14 +2037,19 @@ namespace AccessibleArena.Core.Services
                 if (action.TargetButton != null && action.TargetButton.activeInHierarchy)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Activating attached action: {action.Label} -> {action.TargetButton.name}");
-                    var actionResult = UIActivator.Activate(action.TargetButton);
-                    _announcer.Announce(actionResult.Message, AnnouncementPriority.Normal);
+                    if (!HandleAttachedAction(action))
+                    {
+                        var actionResult = UIActivator.Activate(action.TargetButton);
+                        _announcer.Announce(actionResult.Message, AnnouncementPriority.Normal);
+                    }
+                    _currentActionIndex = 0;
                     return;
                 }
                 else if (action.TargetButton == null)
                 {
                     // Info-only action: re-announce the label
                     _announcer.Announce(action.Label, AnnouncementPriority.Normal);
+                    _currentActionIndex = 0;
                     return;
                 }
                 else
@@ -2410,17 +2464,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Up/Down arrows (hold-to-repeat)
-            if (_holdRepeater.Check(KeyCode.UpArrow, () => NavigatePopupItem(-1))) return;
-            if (_holdRepeater.Check(KeyCode.DownArrow, () => NavigatePopupItem(1))) return;
-
-            // Shift+Tab: previous item / Tab: next item (no hold-repeat)
-            if (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+            // Up/Shift+Tab: previous item
+            if (Input.GetKeyDown(KeyCode.UpArrow) ||
+                (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))))
             {
                 NavigatePopupItem(-1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+
+            // Down/Tab: next item
+            if (Input.GetKeyDown(KeyCode.DownArrow) ||
+                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
             {
                 NavigatePopupItem(1);
                 return;
@@ -2436,9 +2490,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Left/Right: stepper (e.g., craft count) — hold-to-repeat
-            if (_holdRepeater.Check(KeyCode.LeftArrow, () => HandleCarouselArrow(false))) return;
-            if (_holdRepeater.Check(KeyCode.RightArrow, () => HandleCarouselArrow(true))) return;
+            // Left/Right: stepper (e.g., craft count)
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                HandleCarouselArrow(false);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                HandleCarouselArrow(true);
+                return;
+            }
 
             // Backspace: dismiss popup
             if (Input.GetKeyDown(KeyCode.Backspace))
@@ -2466,28 +2528,26 @@ namespace AccessibleArena.Core.Services
                 HandleCustomInput();
         }
 
-        /// <returns>True if moved, false if at boundary or empty.</returns>
-        private bool NavigatePopupItem(int direction)
+        private void NavigatePopupItem(int direction)
         {
             _letterSearch.Clear();
-            if (_elements.Count == 0) return false;
+            if (_elements.Count == 0) return;
 
             int newIndex = _currentIndex + direction;
 
             if (newIndex < 0)
             {
                 _announcer?.AnnounceInterruptVerbose(Strings.BeginningOfList);
-                return false;
+                return;
             }
             if (newIndex >= _elements.Count)
             {
                 _announcer?.AnnounceInterruptVerbose(Strings.EndOfList);
-                return false;
+                return;
             }
 
             _currentIndex = newIndex;
             AnnouncePopupCurrentItem();
-            return true;
         }
 
         private void ActivatePopupItem()

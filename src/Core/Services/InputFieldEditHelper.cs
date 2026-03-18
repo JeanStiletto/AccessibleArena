@@ -362,24 +362,51 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Announce the character at the current cursor position.
+        /// If the field is in edit mode but not yet focused (TMP deferred activation),
+        /// reactivates the field and announces the full content instead of a stale position.
         /// </summary>
         public void AnnounceCharacterAtCursor()
         {
             var info = GetEditingFieldInfo();
             if (!info.IsValid) return;
 
+            // TMP_InputField defers isFocused=true until next frame's LateUpdate.
+            // When the field is in edit mode but not yet focused the caret position is
+            // always text.Length, so Left/Right would announce the wrong character.
+            // Reactivate and announce the full content so the user knows where they are.
+            if (!IsEditingFieldFocused())
+            {
+                AnnounceFieldContent(info);
+                ReactivateField();
+                return;
+            }
+
             AnnounceCharacterAtCursor(info);
         }
 
         /// <summary>
+        /// Returns true if the currently editing field reports isFocused.
+        /// </summary>
+        private bool IsEditingFieldFocused()
+        {
+            if (_editingField == null) return false;
+            var tmp = _editingField.GetComponent<TMP_InputField>();
+            if (tmp != null) return tmp.isFocused;
+            var legacy = _editingField.GetComponent<InputField>();
+            return legacy != null && legacy.isFocused;
+        }
+
+        /// <summary>
         /// Announce character at cursor using provided field info.
+        /// Announces the character the caret moved TO (standard screen reader convention):
+        ///   Left:  caret moves from P to P-1; announce text[P-1] (or "start" if at beginning)
+        ///   Right: caret moves from P to P+1; announce text[P]   (or "end" if at end)
         /// </summary>
         public void AnnounceCharacterAtCursor(FieldInfo info)
         {
             if (!info.IsValid) return;
 
             bool isLeft = Input.GetKeyDown(KeyCode.LeftArrow);
-            bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
             string text = info.Text;
             int caretPos = info.CaretPosition;
 
@@ -391,25 +418,31 @@ namespace AccessibleArena.Core.Services
 
             if (info.IsPassword)
             {
-                if (caretPos == 0 && isLeft)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
-                else if (caretPos >= text.Length && isRight)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
-                else if (caretPos >= 0 && caretPos < text.Length)
-                    _announcer?.AnnounceInterrupt(Strings.InputFieldStar);
+                if (isLeft)
+                    _announcer?.AnnounceInterrupt(caretPos <= 0 && _prevCaretPos <= 0 ? Strings.InputFieldStart : Strings.InputFieldStar);
                 else
-                    _announcer?.AnnounceInterrupt(caretPos == 0 ? Strings.InputFieldStart : Strings.InputFieldEnd);
+                    _announcer?.AnnounceInterrupt(caretPos >= text.Length && _prevCaretPos >= text.Length ? Strings.InputFieldEnd : Strings.InputFieldStar);
                 return;
             }
 
-            if (caretPos == 0 && isLeft)
-                _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
-            else if (caretPos >= text.Length && isRight)
-                _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
-            else if (caretPos >= 0 && caretPos < text.Length)
-                _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
-            else
-                _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
+            // TMP processes arrow keys before our Update reads caretPosition, so caretPos is
+            // already the post-move value. Use text[caretPos] for LEFT and text[caretPos-1] for RIGHT.
+            // Use _prevCaretPos to detect boundary cases: "just arrived" (announce the char)
+            // vs "was already at boundary, couldn't move" (announce start/end).
+            if (isLeft)
+            {
+                if (caretPos <= 0 && _prevCaretPos <= 0)
+                    _announcer?.AnnounceInterrupt(Strings.InputFieldStart);
+                else
+                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos]));
+            }
+            else // Right arrow
+            {
+                if (caretPos >= text.Length && _prevCaretPos >= text.Length)
+                    _announcer?.AnnounceInterrupt(Strings.InputFieldEnd);
+                else
+                    _announcer?.AnnounceInterrupt(Strings.GetCharacterName(text[caretPos - 1]));
+            }
         }
 
         /// <summary>

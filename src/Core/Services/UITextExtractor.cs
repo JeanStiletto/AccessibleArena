@@ -1571,7 +1571,7 @@ namespace AccessibleArena.Core.Services
             {
                 var parts = name.Split('_');
                 if (parts.Length > 1)
-                    return parts[parts.Length - 1].Trim();
+                    return CleanObjectName(parts[parts.Length - 1].Trim());
             }
 
             // Check placeholder text
