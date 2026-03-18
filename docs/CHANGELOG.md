@@ -74,6 +74,12 @@ All notable changes to Accessible Arena.
 - When a creature died or a card was discarded, two announcements fired: a generic "Card went to your graveyard" and the specific "Lightning Strike died."
 - Generic announcement removed; only the specific named announcement now plays.
 
+### Fix: Scry and Surveil browser hint text corrected (PR #32)
+- The in-game announcement when Scry or Surveil triggered said "Enter to keep on top, Space to put on bottom" — which was backwards.
+- Corrected to "Enter to toggle to bottom, Space to confirm" (Scry) and "Enter to toggle to graveyard, Space to confirm" (Surveil).
+- All 12 language files updated.
+- The F1 help menu already had the correct descriptions ("Enter: Toggle card between zones", "Space: Confirm selection"); only the entry announcement was wrong.
+
 ## v0.8.5
 
 ### Fix: Stale browser announcement after confirming modal spell mode
