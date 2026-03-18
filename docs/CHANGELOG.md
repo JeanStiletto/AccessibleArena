@@ -36,6 +36,16 @@ All notable changes to Accessible Arena.
 - Most recent deck on Recently Played tab now shows event/mode name like the other entries
 - Recently Played decks now listed most recent first instead of oldest first
 
+### Deck Submenu Improvements (contributed by blindndangerous)
+- Rename: enters edit mode with instructions, Enter confirms and announces new name
+- Favorite: announces "Added to favorites" or "Removed from favorites"
+- Clone: announces "Deck cloned. Re-enter decks to see it."
+- Action index resets after use so focus returns to the deck
+- Entering My Decks / Starter Decks folder now announces the first deck
+- Folder restore after rescan lands on the correct folder instead of the first match
+- Backspace no longer loops in DeckManager folder groups
+- Input field arrow navigation fixed across all input fields (login, search, deck rename)
+
 ### Duel Fixes
 - Pressing L multiple times now always re-announces life totals
 - Duplicate graveyard announcement removed (only the specific card name is read)
