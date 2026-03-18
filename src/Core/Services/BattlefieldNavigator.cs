@@ -464,6 +464,12 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            if (cards.Count == 1)
+            {
+                AnnounceCurrentCard(priority: AnnouncementPriority.High);
+                return;
+            }
+
             if (_currentIndex < cards.Count - 1)
             {
                 _currentIndex++;
@@ -484,6 +490,12 @@ namespace AccessibleArena.Core.Services
             if (cards.Count == 0)
             {
                 _announcer.AnnounceInterrupt(Strings.RowEmpty(GetRowName(_currentRow)));
+                return;
+            }
+
+            if (cards.Count == 1)
+            {
+                AnnounceCurrentCard(priority: AnnouncementPriority.High);
                 return;
             }
 
