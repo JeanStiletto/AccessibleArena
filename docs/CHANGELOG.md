@@ -2,6 +2,8 @@
 
 All notable changes to Accessible Arena.
 
+## v0.8.7
+
 ## v0.8.6
 
 ### Timer Announcements
