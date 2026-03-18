@@ -2,6 +2,13 @@
 
 All notable changes to Accessible Arena.
 
+## v0.8.7-dev
+
+### Fix: Single-item zones repeat on Left/Right (PR #36)
+- When a zone or battlefield row contains exactly one card, pressing Left or Right now re-announces that card instead of saying "end" or "beginning".
+- Applies to all zones (Hand, Graveyard, Exile, Stack, Command) and all battlefield rows.
+- Opponent hand count (Shift+C) is unaffected as it announces a count, not a card.
+
 ## v0.8.6
 
 ### Best of 3 (Bo3) Support
@@ -79,6 +86,10 @@ All notable changes to Accessible Arena.
 - Corrected to "Enter to toggle to bottom, Space to confirm" (Scry) and "Enter to toggle to graveyard, Space to confirm" (Surveil).
 - All 12 language files updated.
 - The F1 help menu already had the correct descriptions ("Enter: Toggle card between zones", "Space: Confirm selection"); only the entry announcement was wrong.
+
+### Fix: Single-item zones/rows repeat on Left/Right (PR #36)
+- When a zone or battlefield row contains exactly one card, pressing Left or Right now re-announces that card instead of saying "end" or "beginning"
+- Applies to all zones (Hand, Graveyard, Exile, Stack, Command) and all battlefield rows
 
 ## v0.8.5
 

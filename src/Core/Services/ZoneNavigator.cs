@@ -656,6 +656,12 @@ namespace AccessibleArena.Core.Services
             var zoneInfo = _zones[_currentZone];
             if (zoneInfo.Cards.Count == 0) return;
 
+            if (zoneInfo.Cards.Count == 1)
+            {
+                AnnounceCurrentCard(priority: AnnouncementPriority.High);
+                return;
+            }
+
             if (_cardIndexInZone < zoneInfo.Cards.Count - 1)
             {
                 _cardIndexInZone++;
@@ -677,6 +683,12 @@ namespace AccessibleArena.Core.Services
 
             var zoneInfo = _zones[_currentZone];
             if (zoneInfo.Cards.Count == 0) return;
+
+            if (zoneInfo.Cards.Count == 1)
+            {
+                AnnounceCurrentCard(priority: AnnouncementPriority.High);
+                return;
+            }
 
             if (_cardIndexInZone > 0)
             {
