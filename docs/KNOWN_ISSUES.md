@@ -12,6 +12,24 @@ During Declare Blockers, the mod sometimes announces "0 0" instead of meaningful
 
 ---
 
+### Rate Match Screen Not Accessible
+
+The post-match rating screen is not navigable or announced by the mod.
+
+---
+
+### Command Zone Shows Wrong Cards for Opponent
+
+When the opponent's commander is played, the command zone sometimes displays random other cards or shows your own commander in the opponent's command zone.
+
+---
+
+### Backspace Exits Workflow Browser
+
+Pressing Backspace in a workflow browser (e.g. modal spell mode selection) exits the browser instead of acting as cancel within it.
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Resolution Dropdown Shows Native Display Resolution Until Changed
@@ -181,6 +199,8 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 7. Ctrl+F1 to announce tutorial message - read the context-sensitive tutorial tip for the current screen or duel phase on demand
 8. Game log - accessible scrollable log of recent game events (spells cast, damage dealt, cards drawn, etc.) for reviewing what happened
 9. Ownership in phase transitions - as part of verbose announcements, indicate whose turn/phase it is when phases change (e.g., "Opponent's Main Phase" vs "Your Main Phase")
+10. Improve mod settings - reorganize settings into useful categories with category splitting for better navigation
+11. Summoning sickness announcement - announce summoning sickness status on creatures, controlled by a user setting
 
 ### Tutorial System
 
@@ -215,16 +235,18 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 1. Check all tutorial messages for completeness and correctness - review every context-sensitive tutorial tip for accuracy, missing steps, and outdated references
 2. Add tutorial messages to deck building screen, player zone, and multi-zone browser - these screens currently lack onboarding guidance for new users
-3. Improve deck submenus - better navigation and announcements for deck actions (rename, delete, duplicate, export, import)
-4. Improve left battlefield announcements - clearer and more informative readouts when navigating the left (friendly) battlefield rows
-5. Improve player zone entries - better labels and more useful information for properties shown in the player info zone (V key)
+3. Improve left battlefield announcements - clearer and more informative readouts when navigating the left (friendly) battlefield rows
+5. Add player counters to player zone - player zone now shows only working entries but is missing counters on players (poison, energy, experience, etc.)
 6. Useful text for all browsers - add contextual help text describing what each browser type expects (e.g. "choose a mode", "put cards on top or bottom") and make these announcements optional via a setting
 7. Better group announcements - improve how element groups are announced when entering/switching groups
+8. Next button in deck building screen - make the Next/Done button accessible during deck construction
+9. "New Deck" not translated - the "New Deck" label is not properly localized in non-English languages
+10. Hardcoded "vs" in duel start announcement - the "vs" string in the matchup announcement should use a localized string instead of being hardcoded
 
 ### Low Priority / v1.1
 
 1. Auto version checking and auto update - check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
 2. Cube and other draft event accessibility - make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event)
 3. Cosmetic handling support - accessible navigation and selection for emotes, avatars, card sleeves, card styles, and companions
-4. Improving deck actions workflow - streamline the deck management actions (rename, delete, duplicate, etc.) for better screen reader accessibility
+
 
