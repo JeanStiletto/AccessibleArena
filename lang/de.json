@@ -656,6 +656,7 @@
   "Combat_SelectedToBlock": "zum Blocken ausgewählt",
   "Combat_CanBlock": "kann blocken",
   "Combat_Tapped": "getappt",
+  "Combat_SummoningSickness": "Beschwörungskrankheit",
   "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "zugewiesen",
   "Target_Targeted_Format": "{0} anvisiert",

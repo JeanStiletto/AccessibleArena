@@ -70,6 +70,12 @@ All notable changes to Accessible Arena.
 - Matchmaking screen ("Suche nach Gegner") announced once instead of 4 times during scene transitions
 
 
+### Polish: Battlefield cards now announce P/T, counters, and summoning sickness (PR #33)
+- Creature cards now include power/toughness in the announcement (e.g. "Grizzly Bears 2/2, can attack, 1 of 5")
+- Nonzero counters are listed after P/T (e.g. "2 +1/+1 counters, 1 Oil counter")
+- Planeswalker loyalty appears via the Loyalty counter (e.g. "4 Loyalty counters")
+- Creatures that entered this turn now explicitly say "summoning sickness" when no other combat state applies
+
 ## v0.8.5
 
 ### Fix: Stale browser announcement after confirming modal spell mode

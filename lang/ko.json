@@ -645,6 +645,7 @@
   "Combat_SelectedToBlock": "방어용으로 선택됨",
   "Combat_CanBlock": "방어 가능",
   "Combat_Tapped": "탭됨",
+  "Combat_SummoningSickness": "소환 멀미",
   "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "배정됨",
   "Target_Targeted_Format": "{0} 대상 지정",

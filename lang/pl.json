@@ -645,6 +645,7 @@
   "Combat_SelectedToBlock": "wybrany do blokowania",
   "Combat_CanBlock": "może blokować",
   "Combat_Tapped": "odwrócony",
+  "Combat_SummoningSickness": "choroba przywołania",
   "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "przypisany",
   "Target_Targeted_Format": "{0} obrany jako cel",
