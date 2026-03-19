@@ -4,6 +4,11 @@ All notable changes to Accessible Arena.
 
 ## v0.8.7
 
+### Fix: Backspace now cancels workflow browsers (ability activation prompts)
+- Pressing Backspace in a workflow browser (e.g. "Activate ability" prompt on Evolving Wilds) now properly cancels the action
+- Previously, Backspace clicked the wrong button (duel-level PromptButton_Secondary) which left the ConfirmWidget UI stuck
+- New reflection-based cancel finds the ConfirmWidget and calls Cancel() directly, with fallback to workflow variant cancellation and request undo
+
 ## v0.8.6
 
 ### Timer Announcements

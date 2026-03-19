@@ -2048,6 +2048,144 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Tries to cancel the current workflow via reflection.
+        /// First tries to close the ConfirmWidget (ability activation prompt),
+        /// then falls back to invoking Cancelled on the workflow variant,
+        /// then tries _request.Undo().
+        /// </summary>
+        /// <returns>True if workflow was successfully cancelled</returns>
+        private bool TryCancelWorkflowViaReflection()
+        {
+            var flags = AllInstanceFlags;
+
+            try
+            {
+                // Try 1: Find ConfirmWidget and call Cancel() on it
+                var confirmWidgetType = FindType("ConfirmWidget");
+                if (confirmWidgetType != null)
+                {
+                    var confirmWidgets = UnityEngine.Object.FindObjectsOfType(confirmWidgetType);
+                    foreach (var cw in confirmWidgets)
+                    {
+                        if (cw == null) continue;
+                        var isOpenProp = confirmWidgetType.GetProperty("IsOpen", PublicInstance);
+                        if (isOpenProp != null && (bool)isOpenProp.GetValue(cw))
+                        {
+                            var cancelMethod = confirmWidgetType.GetMethod("Cancel", PublicInstance);
+                            if (cancelMethod != null)
+                            {
+                                cancelMethod.Invoke(cw, null);
+                                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: Cancelled ConfirmWidget");
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Try 2: Navigate to workflow variant and invoke Cancelled
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+
+                if (gameManager == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: GameManager not found");
+                    return false;
+                }
+
+                var wcProp = gameManager.GetType().GetProperty("WorkflowController", flags);
+                var workflowController = wcProp?.GetValue(gameManager);
+                if (workflowController == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: WorkflowController not found");
+                    return false;
+                }
+
+                // Get CurrentInteraction
+                var wcType = workflowController.GetType();
+                object currentInteraction = null;
+
+                var ciProp = wcType.GetProperty("CurrentInteraction", flags);
+                if (ciProp != null)
+                    currentInteraction = ciProp.GetValue(workflowController);
+
+                if (currentInteraction == null)
+                {
+                    var ciField = wcType.GetField("_currentInteraction", flags)
+                               ?? wcType.GetField("currentInteraction", flags)
+                               ?? wcType.GetField("_current", flags);
+                    if (ciField != null)
+                        currentInteraction = ciField.GetValue(workflowController);
+                }
+
+                if (currentInteraction == null)
+                {
+                    MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: No active workflow found");
+                    return false;
+                }
+
+                var workflowType = currentInteraction.GetType();
+                MelonLogger.Msg($"[BrowserNavigator] WorkflowCancel: Found workflow: {workflowType.Name}");
+
+                // Try to find _currentVariant and invoke Cancelled
+                var variantField = workflowType.GetField("_currentVariant", flags);
+                if (variantField != null)
+                {
+                    var variant = variantField.GetValue(currentInteraction);
+                    if (variant != null)
+                    {
+                        var cancelledField = variant.GetType().GetField("Cancelled", PublicInstance);
+                        if (cancelledField != null)
+                        {
+                            var cancelled = cancelledField.GetValue(variant) as System.Action;
+                            if (cancelled != null)
+                            {
+                                cancelled.Invoke();
+                                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: Invoked Cancelled on variant");
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Try 3: Use _request.Undo() if available
+                var requestField = workflowType.GetField("_request", flags);
+                if (requestField != null)
+                {
+                    var request = requestField.GetValue(currentInteraction);
+                    if (request != null)
+                    {
+                        var allowUndoProp = request.GetType().GetProperty("AllowUndo", flags);
+                        if (allowUndoProp != null && (bool)allowUndoProp.GetValue(request))
+                        {
+                            var undoMethod = request.GetType().GetMethod("Undo", flags);
+                            if (undoMethod != null && undoMethod.GetParameters().Length == 0)
+                            {
+                                undoMethod.Invoke(request, null);
+                                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: Called _request.Undo()");
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: No cancel mechanism found");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"[BrowserNavigator] WorkflowCancel error: {ex.Message}");
+                return false;
+            }
+        }
+
         #endregion
 
         #region Button Clicking
@@ -2161,6 +2299,17 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[BrowserNavigator] ClickCancelButton called. Browser: {_browserInfo?.BrowserType}");
 
             string clickedLabel;
+
+            // Workflow browser: try reflection approach to cancel (ConfirmWidget, variant, or undo)
+            if (_browserInfo?.IsWorkflow == true)
+            {
+                if (TryCancelWorkflowViaReflection())
+                {
+                    _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
+                    BrowserDetector.InvalidateCache();
+                    return;
+                }
+            }
 
             // First priority: MulliganButton (doesn't close browser, starts new mulligan)
             if (TryClickButtonByName(BrowserDetector.ButtonMulligan, out clickedLabel))

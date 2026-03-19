@@ -24,12 +24,6 @@ When the opponent's commander is played, the command zone sometimes displays ran
 
 ---
 
-### Backspace Exits Workflow Browser
-
-Pressing Backspace in a workflow browser (e.g. modal spell mode selection) exits the browser instead of acting as cancel within it.
-
----
-
 ## Game Behavior (Not Fixable by Mod)
 
 ### Resolution Dropdown Shows Native Display Resolution Until Changed
