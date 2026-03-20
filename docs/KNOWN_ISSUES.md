@@ -252,6 +252,8 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 8. Next button in deck building screen - make the Next/Done button accessible during deck construction
 9. "New Deck" not translated - the "New Deck" label is not properly localized in non-English languages
 10. Hardcoded "vs" in duel start announcement - the "vs" string in the matchup announcement should use a localized string instead of being hardcoded
+11. Improve role reading for choose-options browsers - better announce the player's role/task when entering choose-options browsers (e.g., "choose cards to discard", "choose a mode")
+12. Mail tag vanishes when inbox has messages - when there are unread mails, only the count number is read instead of the full "Mail" label with count, making it unclear what the number refers to
 
 ### Low Priority / v1.1
 
