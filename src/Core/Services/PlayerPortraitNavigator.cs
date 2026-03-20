@@ -582,7 +582,7 @@ namespace AccessibleArena.Core.Services
             string opponent = GetPlayerUsername(true);
             if (string.IsNullOrEmpty(local) || string.IsNullOrEmpty(opponent))
                 return null;
-            return $"{local} vs {opponent}";
+            return Strings.Duel_Matchup(local, opponent);
         }
 
         /// <summary>

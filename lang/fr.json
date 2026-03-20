@@ -659,6 +659,7 @@
   "Card_TargetedBy_Two_Format": "ciblé par {0} et {1}",
   "Card_TargetedBy_Many_Format": "ciblé par {0}",
   "Duel_Started": "Duel commencé",
+  "Duel_Matchup_Format": "{0} contre {1}",
   "Duel_YourTurn_Format": "Tour {0}",
   "Duel_OpponentTurn": "Tour de l'adversaire",
   "Duel_TurnChanged": "Changement de tour",
