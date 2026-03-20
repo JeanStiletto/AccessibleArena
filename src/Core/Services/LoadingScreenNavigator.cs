@@ -738,8 +738,20 @@ namespace AccessibleArena.Core.Services
         {
             if (_isSurveyPopup)
             {
-                // Survey content is graphical — no native UI to discover.
-                // Add a description so the announcement is meaningful.
+                // Dump full hierarchy for diagnostics — find out what components the survey uses
+                Log("=== Survey popup hierarchy ===");
+                DumpHierarchy(popup.transform, 0, 10);
+
+                // Also log all TMP_Text content (including inactive)
+                foreach (var tmp in popup.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (tmp == null) continue;
+                    string text = tmp.text?.Trim();
+                    if (!string.IsNullOrEmpty(text))
+                        Log($"  TMP_Text: '{text}' on {tmp.gameObject.name} (active={tmp.gameObject.activeInHierarchy})");
+                }
+
+                // Survey content uses non-standard components — fallback announcement.
                 _elements.Add(new NavigableElement
                 {
                     GameObject = popup,
