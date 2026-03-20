@@ -112,6 +112,20 @@ namespace AccessibleArena.Core.Services
         public string ActiveBrowserType => _browserInfo?.BrowserType;
         public BrowserZoneNavigator ZoneNavigator => _zoneNavigator;
 
+        /// <summary>Return the tutorial hint for the current browser type (used by Ctrl+F1 via DuelNavigator)</summary>
+        public string GetTutorialHint()
+        {
+            var L = LocaleManager.Instance;
+            if (_browserInfo == null) return L.Get("BrowserHint");
+
+            string type = _browserInfo.BrowserType;
+            if (type != null && type.ToLower().Contains("surveil"))
+                return L.Get("Duel_SurveilHint");
+            if (_browserInfo.IsScryLike)
+                return L.Get("Duel_ScryHint");
+            return L.Get("BrowserHint");
+        }
+
         #endregion
 
         #region Lifecycle

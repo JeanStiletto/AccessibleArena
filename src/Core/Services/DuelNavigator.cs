@@ -357,7 +357,8 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        public override string GetTutorialHint() => LocaleManager.Instance.Get("DuelKeybindingsHint");
+        public override string GetTutorialHint() =>
+            BrowserNavigator.IsActive ? _browserNavigator.GetTutorialHint() : LocaleManager.Instance.Get("DuelKeybindingsHint");
 
         protected override string GetActivationAnnouncement()
         {
