@@ -675,6 +675,7 @@
   "Card_TargetedBy_Two_Format": "{0}과(와) {1}의 대상",
   "Card_TargetedBy_Many_Format": "{0}의 대상",
   "Duel_Started": "대전 시작",
+  "Duel_Matchup_Format": "{0} vs {1}",
   "Duel_YourTurn_Format": "턴 {0}",
   "Duel_OpponentTurn": "상대의 턴",
   "Duel_TurnChanged": "턴 변경",

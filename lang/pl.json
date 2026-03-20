@@ -675,6 +675,7 @@
   "Card_TargetedBy_Two_Format": "cel {0} i {1}",
   "Card_TargetedBy_Many_Format": "cel {0}",
   "Duel_Started": "Pojedynek rozpoczęty",
+  "Duel_Matchup_Format": "{0} kontra {1}",
   "Duel_YourTurn_Format": "Tura {0}",
   "Duel_OpponentTurn": "Tura przeciwnika",
   "Duel_TurnChanged": "Zmiana tury",

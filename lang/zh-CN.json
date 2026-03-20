@@ -675,6 +675,7 @@
   "Card_TargetedBy_Two_Format": "被{0}和{1}指定为目标",
   "Card_TargetedBy_Many_Format": "被{0}指定为目标",
   "Duel_Started": "对决开始",
+  "Duel_Matchup_Format": "{0} 对战 {1}",
   "Duel_YourTurn_Format": "回合{0}",
   "Duel_OpponentTurn": "对手的回合",
   "Duel_TurnChanged": "回合变更",

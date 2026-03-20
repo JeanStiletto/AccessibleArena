@@ -675,6 +675,7 @@
   "Card_TargetedBy_Two_Format": "цель {0} и {1}",
   "Card_TargetedBy_Many_Format": "цель {0}",
   "Duel_Started": "Дуэль началась",
+  "Duel_Matchup_Format": "{0} против {1}",
   "Duel_YourTurn_Format": "Ход {0}",
   "Duel_OpponentTurn": "Ход оппонента",
   "Duel_TurnChanged": "Смена хода",

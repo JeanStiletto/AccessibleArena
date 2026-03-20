@@ -675,6 +675,7 @@
   "Card_TargetedBy_Two_Format": "{0}と{1}の対象",
   "Card_TargetedBy_Many_Format": "{0}の対象",
   "Duel_Started": "デュエル開始",
+  "Duel_Matchup_Format": "{0} vs {1}",
   "Duel_YourTurn_Format": "ターン{0}",
   "Duel_OpponentTurn": "対戦相手のターン",
   "Duel_TurnChanged": "ターン変更",

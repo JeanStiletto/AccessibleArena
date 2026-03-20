@@ -675,6 +675,7 @@
   "Card_TargetedBy_Two_Format": "alvo de {0} e {1}",
   "Card_TargetedBy_Many_Format": "alvo de {0}",
   "Duel_Started": "Duelo iniciado",
+  "Duel_Matchup_Format": "{0} vs {1}",
   "Duel_YourTurn_Format": "Turno {0}",
   "Duel_OpponentTurn": "Turno do oponente",
   "Duel_TurnChanged": "Mudança de turno",
