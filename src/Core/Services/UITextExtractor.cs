@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -291,7 +292,7 @@ namespace AccessibleArena.Core.Services
 
             // NewDeckButton shows "Enter deck name..." placeholder but is actually a create deck button
             if (objectName.Contains("NewDeckButton"))
-                return "New Deck";
+                return Strings.NewDeck;
 
             return null;
         }

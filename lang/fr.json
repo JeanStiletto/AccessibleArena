@@ -29,6 +29,7 @@
   "ClosingSettings": "Fermeture des paramètres",
   "ClosingPlayBlade": "Fermeture du menu de jeu",
   "ExitingDeckBuilder": "Sortie du constructeur de deck",
+  "NewDeck": "Nouveau deck",
   "DeckInfoCardCount": "Nombre de cartes",
   "DeckInfoManaCurve": "Courbe de mana",
   "DeckInfoTypeBreakdown": "Types",
