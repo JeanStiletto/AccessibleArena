@@ -1198,6 +1198,13 @@ namespace AccessibleArena.Core.Models
         public static string Sideboard_InfoZone => L.Get("Sideboard_InfoZone");
 
         // ===========================================
+        // SURVEY POPUP
+        // ===========================================
+        public static string SurveyGood => L.Get("SurveyGood");
+        public static string SurveyBad => L.Get("SurveyBad");
+        public static string SurveyHint => L.Get("SurveyHint");
+
+        // ===========================================
         // ELEMENT GROUPS
         // ===========================================
         public static string GroupName(Services.ElementGrouping.ElementGroup group)

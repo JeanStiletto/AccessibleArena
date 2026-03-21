@@ -54,8 +54,11 @@ namespace AccessibleArena.Core.Services
         private TMP_Text _loadingInfoText;
         private string _lastLoadingStatusText = "";
 
-        // Survey popup: content is non-accessible (graphical/web-based)
+        // Survey popup: interactive Good/Bad/Skip buttons, UI starts INACTIVE (animator intro)
         private bool _isSurveyPopup;
+        private GameObject _surveyUIContainer;  // The "UI" CanvasGroup child (INACTIVE initially)
+        private float _surveyPollTimer;
+        private bool _surveyElementsDiscovered;
 
         // Diagnostic: dump hierarchy once per activation
         private bool _dumpedHierarchy;
@@ -721,11 +724,11 @@ namespace AccessibleArena.Core.Services
         {
             if (panel?.GameObject == null) return;
 
-            // GameEndSurveyPopup content is non-accessible (graphical/web-based).
-            // Enter popup mode so Backspace can dismiss via ClickShield.
+            // GameEndSurveyPopup: interactive survey with Good/Bad/Skip buttons.
+            // UI elements start INACTIVE (animator intro), so we poll for activation.
             if (panel.Name.Contains("Survey"))
             {
-                Log($"Survey popup detected: {panel.Name} — entering dismiss-only popup mode");
+                Log($"Survey popup detected: {panel.Name} — entering survey popup mode");
                 _isSurveyPopup = true;
                 EnterPopupMode(panel.GameObject);
                 return;
@@ -738,35 +741,143 @@ namespace AccessibleArena.Core.Services
         {
             if (_isSurveyPopup)
             {
-                // Dump full hierarchy for diagnostics — find out what components the survey uses
-                Log("=== Survey popup hierarchy ===");
-                DumpHierarchy(popup.transform, 0, 10);
-
-                // Also log all TMP_Text content (including inactive)
-                foreach (var tmp in popup.GetComponentsInChildren<TMP_Text>(true))
-                {
-                    if (tmp == null) continue;
-                    string text = tmp.text?.Trim();
-                    if (!string.IsNullOrEmpty(text))
-                        Log($"  TMP_Text: '{text}' on {tmp.gameObject.name} (active={tmp.gameObject.activeInHierarchy})");
-                }
-
-                // Survey content uses non-standard components — fallback announcement.
-                _elements.Add(new NavigableElement
-                {
-                    GameObject = popup,
-                    Label = Strings.WithHint("Game survey (not accessible)", "HelpBackspaceCancel"),
-                    Role = UIElementClassifier.ElementRole.TextBlock
-                });
+                DiscoverSurveyElements(popup);
                 return;
             }
 
             base.DiscoverPopupElements(popup);
         }
 
+        /// <summary>
+        /// Discover survey popup elements. The survey UI is initially INACTIVE (animator intro),
+        /// so we poll for activation. Button_Good/Button_Bad have no text children (emoji faces only),
+        /// so we use our own localized labels.
+        /// </summary>
+        private void DiscoverSurveyElements(GameObject popup)
+        {
+            _surveyElementsDiscovered = false;
+            _surveyUIContainer = null;
+
+            // Find the "UI" CanvasGroup child (contains all interactive elements)
+            foreach (Transform child in popup.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name == "UI" && child.GetComponent<CanvasGroup>() != null)
+                {
+                    _surveyUIContainer = child.gameObject;
+                    break;
+                }
+            }
+
+            // Read title text even when inactive (TMP_Text.text is populated by Localize component)
+            string titleText = null;
+            foreach (var tmp in popup.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp != null && tmp.gameObject.name == "Text_Title")
+                {
+                    titleText = tmp.text?.Trim();
+                    break;
+                }
+            }
+
+            Log($"Survey: UI container {(_surveyUIContainer != null ? "found" : "NOT found")}, " +
+                $"active={_surveyUIContainer?.activeInHierarchy}, title='{titleText}'");
+
+            if (_surveyUIContainer != null && _surveyUIContainer.activeInHierarchy)
+            {
+                // UI is already active — discover real interactive elements
+                DiscoverActiveSurveyElements(popup, titleText);
+            }
+            else
+            {
+                // UI still inactive (animator intro playing) — show title + hint, start polling
+                string label = !string.IsNullOrEmpty(titleText) ? titleText : "Survey";
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = popup,
+                    Label = Strings.WithHint(label, "SurveyHint"),
+                    Role = UIElementClassifier.ElementRole.TextBlock
+                });
+
+                _surveyPollTimer = 0.3f;
+                Log("Survey: UI inactive, polling for activation");
+            }
+        }
+
+        /// <summary>
+        /// Discover survey elements when the UI CanvasGroup is active.
+        /// </summary>
+        private void DiscoverActiveSurveyElements(GameObject popup, string titleText)
+        {
+            // 1. Title as info text
+            if (!string.IsNullOrEmpty(titleText))
+            {
+                var titleObj = FindChildRecursive(popup.transform, "Text_Title");
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = titleObj,
+                    Label = Strings.WithHint(titleText, "SurveyHint"),
+                    Role = UIElementClassifier.ElementRole.TextBlock
+                });
+            }
+
+            // 2. Good button (emoji face only — use our localized label)
+            var goodButton = FindChildRecursive(popup.transform, "Button_Good");
+            if (goodButton != null && goodButton.activeInHierarchy)
+            {
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = goodButton,
+                    Label = BuildLabel(Strings.SurveyGood, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
+                    Role = UIElementClassifier.ElementRole.Button
+                });
+                Log($"Survey: ADDED Button_Good -> '{Strings.SurveyGood}'");
+            }
+
+            // 3. Bad button (emoji face only — use our localized label)
+            var badButton = FindChildRecursive(popup.transform, "Button_Bad");
+            if (badButton != null && badButton.activeInHierarchy)
+            {
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = badButton,
+                    Label = BuildLabel(Strings.SurveyBad, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
+                    Role = UIElementClassifier.ElementRole.Button
+                });
+                Log($"Survey: ADDED Button_Bad -> '{Strings.SurveyBad}'");
+            }
+
+            // 4. Skip button — read label from child Text TMP_Text (game-localized "Skip")
+            var skipButton = FindChildRecursive(popup.transform, "Button_Secondary");
+            if (skipButton != null && skipButton.activeInHierarchy)
+            {
+                string skipLabel = FindTextByName(popup, "Text") ?? "Skip";
+                // The generic "Text" name might match wrong elements. Scope to Button_Secondary's children.
+                var skipTextObj = FindChildRecursive(skipButton.transform, "Text");
+                if (skipTextObj != null)
+                {
+                    var skipTmp = skipTextObj.GetComponent<TMP_Text>();
+                    if (skipTmp != null && !string.IsNullOrEmpty(skipTmp.text?.Trim()))
+                        skipLabel = skipTmp.text.Trim();
+                }
+
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = skipButton,
+                    Label = BuildLabel(skipLabel, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
+                    Role = UIElementClassifier.ElementRole.Button
+                });
+                Log($"Survey: ADDED Button_Secondary -> '{skipLabel}'");
+            }
+
+            _surveyElementsDiscovered = true;
+            Log($"Survey: {_elements.Count} elements discovered (UI active)");
+        }
+
         protected override void OnPopupClosed()
         {
             _isSurveyPopup = false;
+            _surveyUIContainer = null;
+            _surveyElementsDiscovered = false;
             if (_currentMode != ScreenMode.MatchEnd) return;
 
             Log("Survey popup closed, re-discovering elements");
@@ -842,6 +953,47 @@ namespace AccessibleArena.Core.Services
 
             // Run base Update for input handling, validation, etc.
             base.Update();
+
+            // Survey popup: poll for UI CanvasGroup activation (animator intro delay)
+            if (_isActive && _isSurveyPopup && IsInPopupMode && !_surveyElementsDiscovered)
+            {
+                _surveyPollTimer -= Time.deltaTime;
+                if (_surveyPollTimer <= 0)
+                {
+                    _surveyPollTimer = 0.3f;
+                    if (_surveyUIContainer != null && _surveyUIContainer.activeInHierarchy)
+                    {
+                        Log("Survey: UI became active, rediscovering elements");
+
+                        // Read title from TMP_Text
+                        string titleText = null;
+                        foreach (var tmp in PopupGameObject.GetComponentsInChildren<TMP_Text>(true))
+                        {
+                            if (tmp != null && tmp.gameObject.name == "Text_Title")
+                            {
+                                titleText = tmp.text?.Trim();
+                                break;
+                            }
+                        }
+
+                        _elements.Clear();
+                        _currentIndex = -1;
+                        DiscoverActiveSurveyElements(PopupGameObject, titleText);
+
+                        if (_elements.Count > 0)
+                        {
+                            // Focus first actionable (button), skip title text block
+                            int firstButton = _elements.FindIndex(e => e.Role == UIElementClassifier.ElementRole.Button);
+                            _currentIndex = firstButton >= 0 ? firstButton : 0;
+                        }
+
+                        // Re-announce with discovered elements
+                        _announcer.AnnounceInterrupt($"Popup: {titleText ?? "Survey"}. {Strings.ItemCount(_elements.Count)}.");
+                        if (_currentIndex >= 0 && _currentIndex < _elements.Count)
+                            _announcer.Announce(_elements[_currentIndex].Label, AnnouncementPriority.Normal);
+                    }
+                }
+            }
 
             if (!_isActive || !_polling || IsInPopupMode) return;
 
@@ -993,6 +1145,8 @@ namespace AccessibleArena.Core.Services
             _loadingInfoText = null;
             _lastLoadingStatusText = "";
             _isSurveyPopup = false;
+            _surveyUIContainer = null;
+            _surveyElementsDiscovered = false;
             _dumpedHierarchy = false;
         }
 

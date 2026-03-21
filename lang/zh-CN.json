@@ -930,7 +930,10 @@
   "Sideboard_ViewBattlefield": "Viewing battlefield",
   "Sideboard_ViewDeck": "Viewing deck",
   "Sideboard_PageInfo_Format": "Page {0} of {1}",
-  "Sideboard_InfoZone": "\u6bd4\u8d5b\u4fe1\u606f"
+  "Sideboard_InfoZone": "\u6bd4\u8d5b\u4fe1\u606f",
+  "SurveyGood": "\u597d",
+  "SurveyBad": "\u5dee",
+  "SurveyHint": "\u4e0a\u4e0b\u952e\u5bfc\u822a\uff0c\u56de\u8f66\u9009\u62e9\uff0c\u9000\u683c\u8df3\u8fc7"
 }
 
 

@@ -930,5 +930,8 @@
   "Sideboard_ViewBattlefield": "Viewing battlefield",
   "Sideboard_ViewDeck": "Viewing deck",
   "Sideboard_PageInfo_Format": "Page {0} of {1}",
-  "Sideboard_InfoZone": "Info partita"
+  "Sideboard_InfoZone": "Info partita",
+  "SurveyGood": "Bene",
+  "SurveyBad": "Male",
+  "SurveyHint": "Su e Giù per navigare, Invio per selezionare, Backspace per saltare"
 }

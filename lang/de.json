@@ -942,5 +942,8 @@
   "Sideboard_ViewBattlefield": "Schlachtfeld wird angezeigt",
   "Sideboard_ViewDeck": "Deck wird angezeigt",
   "Sideboard_PageInfo_Format": "Seite {0} von {1}",
-  "Sideboard_InfoZone": "Match-Info"
+  "Sideboard_InfoZone": "Match-Info",
+  "SurveyGood": "Gut",
+  "SurveyBad": "Schlecht",
+  "SurveyHint": "Pfeil hoch und runter zum Navigieren, Enter zum Auswählen, Rücktaste zum Überspringen"
 }

@@ -944,5 +944,8 @@
   "Sideboard_ViewBattlefield": "Viewing battlefield",
   "Sideboard_ViewDeck": "Viewing deck",
   "Sideboard_PageInfo_Format": "Page {0} of {1}",
-  "Sideboard_InfoZone": "Match info"
+  "Sideboard_InfoZone": "Match info",
+  "SurveyGood": "Good",
+  "SurveyBad": "Bad",
+  "SurveyHint": "Up and Down to navigate, Enter to select, Backspace to skip"
 }

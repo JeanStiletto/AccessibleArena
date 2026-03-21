@@ -943,5 +943,8 @@
   "Sideboard_ViewBattlefield": "Viewing battlefield",
   "Sideboard_ViewDeck": "Viewing deck",
   "Sideboard_PageInfo_Format": "Page {0} of {1}",
-  "Sideboard_InfoZone": "Info meczu"
+  "Sideboard_InfoZone": "Info meczu",
+  "SurveyGood": "Dobrze",
+  "SurveyBad": "\u0179le",
+  "SurveyHint": "Strza\u0142ki g\u00f3ra i d\u00f3\u0142 do nawigacji, Enter aby wybra\u0107, Backspace aby pomin\u0105\u0107"
 }

@@ -18,10 +18,11 @@ All notable changes to Accessible Arena.
 - Previously, Backspace clicked the wrong button (duel-level PromptButton_Secondary) which left the ConfirmWidget UI stuck
 - New reflection-based cancel finds the ConfirmWidget and calls Cancel() directly, with fallback to workflow variant cancellation and request undo
 
-### Fix: Rate Game survey popup no longer blocks match end screen
-- The post-match survey popup (GameEndSurveyPopup) now announces itself and can be dismissed with Backspace
-- Previously, the popup showed only an unlabeled "click shield" button; now it announces "Game survey (not accessible)"
-- Added debug hierarchy logging to enable future improvements to survey screen accessibility
+### Fix: Rate Game survey popup is now fully accessible (hopefully)
+- The post-match survey popup (GameEndSurveyPopup) now presents interactive Good/Bad/Skip buttons
+- Polls for UI activation after animator intro, then announces the survey question and navigable buttons
+- Up/Down to navigate, Enter to rate or skip, Backspace to dismiss
+- Button labels are localized (Good/Bad buttons have no game text — they're emoji faces)
 
 ### Feat: Browser entry hints respect TutorialMessages setting (PR #35)
 - When TutorialMessages is off, browser entry says only the zone/card count without "Tab to navigate, Enter to select" appended
