@@ -463,27 +463,7 @@ namespace AccessibleArena.Core.Services
             => GetCombatRelationText(card, CardStateProvider.GetBlockingIds, Models.Strings.Combat_Blocking);
 
         private string GetBlockedByText(GameObject card)
-        {
-            try
-            {
-                var cdc = CardModelProvider.GetDuelSceneCDC(card);
-                if (cdc == null) return null;
-                var model = CardModelProvider.GetCardModel(cdc);
-                if (model == null) return null;
-                var ids = CardStateProvider.GetBlockedByIds(model);
-                if (ids.Count == 0) return null;
-                var names = new List<string>();
-                foreach (var id in ids)
-                {
-                    string nameWithPT = CardStateProvider.ResolveInstanceIdToNameWithPT(id);
-                    if (!string.IsNullOrEmpty(nameWithPT))
-                        names.Add(nameWithPT);
-                }
-                if (names.Count == 0) return null;
-                return Models.Strings.Combat_BlockedBy(string.Join(" and ", names));
-            }
-            catch { return null; }
-        }
+            => GetCombatRelationText(card, CardStateProvider.GetBlockedByIds, Models.Strings.Combat_BlockedBy);
 
         /// <summary>
         /// Resolves combat relationship IDs (blocking/blocked-by) to card names.

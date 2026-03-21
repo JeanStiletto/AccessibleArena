@@ -104,7 +104,6 @@ namespace AccessibleArena.Core.Models
         public static string BeginningOfBattlefield => L.Get("BeginningOfBattlefield");
         public static string EndOfRow => L.Get("EndOfRow");
         public static string BeginningOfRow => L.Get("BeginningOfRow");
-        public static string EnteringRow(string rowName) => L.Format("EnteringRow_Format", rowName);
         public static string RowEmpty(string rowName) => L.Format("RowEmpty_Format", rowName);
         public static string RowWithCount(string rowName, int count) =>
             count == 1 ? L.Format("RowWithCount_One", rowName) : L.Format("RowWithCount_Format", rowName, count);
@@ -116,7 +115,7 @@ namespace AccessibleArena.Core.Models
             count == 1 ? L.Get("LandSummary_Total_One") : L.Format("LandSummary_Total_Format", count);
         public static string LandSummaryAllTapped(string totalPart) => L.Format("LandSummary_AllTapped_Format", totalPart);
         public static string LandSummaryAllUntapped(string totalPart, string untappedList) => L.Format("LandSummary_AllUntapped_Format", totalPart, untappedList);
-        public static string LandSummaryMixed(string totalPart, string untappedList, int tappedCount) => L.Format("LandSummary_Mixed_Format", totalPart, untappedList, tappedCount);
+        public static string LandSummaryMixed(string totalPart, string untappedList) => L.Format("LandSummary_Mixed_Format", totalPart, untappedList);
 
         // ===========================================
         // ZONE NAVIGATION
@@ -322,8 +321,6 @@ namespace AccessibleArena.Core.Models
         public static string Duel_Phase_Upkeep => L.Get("Duel_Phase_Upkeep");
         public static string Duel_Phase_Draw => L.Get("Duel_Phase_Draw");
         public static string Duel_Phase_EndStep => L.Get("Duel_Phase_EndStep");
-        public static string Duel_Phase_WithOwner(bool isUser, string phaseName) =>
-            isUser ? L.Format("Duel_Phase_YourPhase_Format", phaseName) : L.Format("Duel_Phase_OpponentPhase_Format", phaseName);
 
         // Phase descriptions (lowercase for "Your first main phase, turn 5")
         public static string Duel_PhaseDesc_Turn => L.Get("Duel_PhaseDesc_Turn");

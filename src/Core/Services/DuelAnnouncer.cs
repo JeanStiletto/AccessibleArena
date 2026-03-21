@@ -884,9 +884,6 @@ namespace AccessibleArena.Core.Services
                 else if (phase == "Beginning" && step == "Draw") phaseAnnouncement = Strings.Duel_Phase_Draw;
                 else if (phase == "Ending" && step == "None") phaseAnnouncement = Strings.Duel_Phase_EndStep;
 
-                if (phaseAnnouncement != null)
-                    phaseAnnouncement = Strings.Duel_Phase_WithOwner(_isUserTurn, phaseAnnouncement);
-
                 // If we have attacker info, announce immediately (this is a real combat stop, not auto-skip)
                 if (attackerAnnouncement != null)
                 {

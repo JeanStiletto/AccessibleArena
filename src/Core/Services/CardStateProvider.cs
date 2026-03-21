@@ -388,67 +388,6 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
-        /// <summary>
-        /// Resolves an InstanceId to a card name with P/T appended if available.
-        /// Returns null if not found.
-        /// </summary>
-        public static string ResolveInstanceIdToNameWithPT(uint instanceId)
-        {
-            if (instanceId == 0) return null;
-            try
-            {
-                var allCards = GetAllBattlefieldCardModels();
-                foreach (var (cardModel, id, grpId) in allCards)
-                {
-                    if (id == instanceId)
-                    {
-                        string name = grpId > 0 ? CardModelProvider.GetNameFromGrpId(grpId) : null;
-                        if (name == null) return null;
-                        var info = CardModelProvider.ExtractCardInfoFromObject(cardModel);
-                        if (!string.IsNullOrEmpty(info.PowerToughness))
-                            return $"{name} {info.PowerToughness}";
-                        return name;
-                    }
-                }
-            }
-            catch { /* Reflection may fail on different game versions */ }
-            return null;
-        }
-
-        /// <summary>
-        /// Returns the primary non-creature type label (Artifact, Enchantment, Planeswalker, Battle)
-        /// for a card on the battlefield. Returns null if not determinable or if it's a creature/land.
-        /// </summary>
-        public static string GetNonCreatureTypeLabel(GameObject card)
-        {
-            if (card == null) return null;
-            var cdc = CardModelProvider.GetDuelSceneCDC(card);
-            if (cdc == null) return null;
-            var model = CardModelProvider.GetCardModel(cdc);
-            if (model == null) return null;
-            try
-            {
-                EnsureModelPropsSearched(model.GetType());
-                if (_cardTypesProp != null)
-                {
-                    var cardTypes = _cardTypesProp.GetValue(model) as System.Collections.IEnumerable;
-                    if (cardTypes != null)
-                    {
-                        foreach (var cardType in cardTypes)
-                        {
-                            string typeStr = cardType?.ToString() ?? "";
-                            if (typeStr.Contains("Planeswalker")) return "Planeswalker";
-                            if (typeStr.Contains("Artifact")) return "Artifact";
-                            if (typeStr.Contains("Enchantment")) return "Enchantment";
-                            if (typeStr.Contains("Battle")) return "Battle";
-                        }
-                    }
-                }
-            }
-            catch { }
-            return null;
-        }
-
         // IsTapped and HasSummoningSickness are public FIELDS on MtgCardInstance, not properties
         public static bool GetIsTapped(object model) => GetBoolFromInstance(model, "IsTapped", PublicInstance);
         public static bool GetHasSummoningSickness(object model) => GetBoolFromInstance(model, "HasSummoningSickness", PublicInstance);
