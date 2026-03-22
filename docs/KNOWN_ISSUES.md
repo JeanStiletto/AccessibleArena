@@ -111,6 +111,16 @@ Per-browser-type tutorial hints were added for 16 browser types (Scry, Surveil, 
 
 ---
 
+### TryGetLocalizeText / ResolveLocKey Fallback Coverage
+
+`UITextExtractor.TryGetLocalizeText()` provides general localization for CustomButtons with `Localize` components by: (1) reading TMP_Text.text from inactive children, (2) resolving the `locKey` directly via `ActiveLocProvider`. This should handle icon-only DeckManager buttons (Import, Export, Delete, Clone, etc.) that have no programmatic `SetText()` call.
+
+**Action:** After deploying, verify these DeckManager buttons show localized text instead of English GO names. If "Import Deck" still appears in English, the button likely has no Localize component at all and needs a specific override or FallbackLabels entry.
+
+**Files:** `UITextExtractor.cs` (TryGetLocalizeText, ResolveLocKey)
+
+---
+
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers

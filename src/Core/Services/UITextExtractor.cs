@@ -276,6 +276,12 @@ namespace AccessibleArena.Core.Services
             if (FallbackLabels.TryGetValue(gameObject.name, out var fallbackFunc))
                 return fallbackFunc();
 
+            // Try Localize component: reads TMP_Text.text from inactive children, or resolves
+            // the locKey directly via ActiveLocProvider for icon-only buttons with Localize.
+            string localizeText = TryGetLocalizeText(gameObject);
+            if (!string.IsNullOrEmpty(localizeText))
+                return localizeText;
+
             // Fallback to GameObject name (cleaned up)
             return CleanObjectName(gameObject.name);
         }
@@ -296,6 +302,111 @@ namespace AccessibleArena.Core.Services
                 return Strings.NewDeck;
 
             return null;
+        }
+
+        // Cached reflection for Localize component text extraction
+        private static Type _localizeType;
+        private static FieldInfo _textTargetField;
+        private static FieldInfo _serializedCmpField;
+        private static FieldInfo _locKeyField;
+        private static bool _localizeReflectionResolved;
+
+        /// <summary>
+        /// Tries to read localized text from Localize components (Wotc.Mtga.Loc.Localize).
+        /// Two strategies: (1) read TMP_Text.text from serializedCmp on inactive children that
+        /// GetComponentInChildren(false) misses, (2) resolve the locKey directly via the game's
+        /// loc provider when the TMP_Text is empty or null (e.g. icon-only buttons with a
+        /// Localize component that hasn't fired DoLocalize yet).
+        /// </summary>
+        private static string TryGetLocalizeText(GameObject gameObject)
+        {
+            if (!_localizeReflectionResolved)
+            {
+                _localizeReflectionResolved = true;
+                _localizeType = FindType("Wotc.Mtga.Loc.Localize");
+                if (_localizeType != null)
+                {
+                    _textTargetField = _localizeType.GetField("TextTarget", PublicInstance);
+                    if (_textTargetField != null)
+                    {
+                        var targetType = _textTargetField.FieldType;
+                        _serializedCmpField = targetType.GetField("serializedCmp", PublicInstance);
+                        _locKeyField = targetType.GetField("locKey", PublicInstance);
+                    }
+                }
+            }
+
+            if (_localizeType == null || _textTargetField == null)
+                return null;
+
+            // Search element and children (including inactive) for Localize components
+            var behaviours = gameObject.GetComponentsInChildren<MonoBehaviour>(true);
+            foreach (var mb in behaviours)
+            {
+                if (mb == null || mb.GetType() != _localizeType)
+                    continue;
+
+                var textTarget = _textTargetField.GetValue(mb);
+                if (textTarget == null)
+                    continue;
+
+                // Strategy 1: read TMP_Text.text directly (works when Localize has already run)
+                if (_serializedCmpField != null)
+                {
+                    var cmp = _serializedCmpField.GetValue(textTarget) as TMP_Text;
+                    if (cmp != null)
+                    {
+                        string text = CleanText(cmp.text);
+                        if (!string.IsNullOrWhiteSpace(text))
+                            return text;
+                    }
+                }
+
+                // Strategy 2: resolve locKey via ActiveLocProvider (works even if TMP_Text
+                // is inactive/empty or DoLocalize hasn't fired yet)
+                if (_locKeyField != null)
+                {
+                    string locKey = _locKeyField.GetValue(textTarget) as string;
+                    if (!string.IsNullOrEmpty(locKey))
+                    {
+                        string resolved = ResolveLocKey(locKey);
+                        if (!string.IsNullOrEmpty(resolved))
+                            return resolved;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Resolves a localization key via Languages.ActiveLocProvider.GetLocalizedText().
+        /// Returns null if the key can't be resolved or resolves to itself.
+        /// </summary>
+        private static string ResolveLocKey(string locKey)
+        {
+            EnsureLocReflectionCached();
+            if (_activeLocProviderField == null || _getLocalizedTextMethod == null)
+                return null;
+
+            try
+            {
+                var locProvider = _activeLocProviderField.GetValue(null);
+                if (locProvider == null) return null;
+
+                string result = _getLocalizedTextMethod.Invoke(locProvider,
+                    new object[] { locKey, Array.Empty<ValueTuple<string, string>>() }) as string;
+
+                // Localization returns the key itself if not found
+                if (string.IsNullOrEmpty(result) || result == locKey)
+                    return null;
+
+                return CleanText(result);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -664,27 +775,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static string GetLocalizedSetName(string setCode)
         {
-            EnsureLocReflectionCached();
-            if (_activeLocProviderField == null || _getLocalizedTextMethod == null) return null;
-
-            try
-            {
-                var locProvider = _activeLocProviderField.GetValue(null);
-                if (locProvider == null) return null;
-
-                string result = _getLocalizedTextMethod.Invoke(locProvider,
-                    new object[] { "General/Sets/" + setCode, Array.Empty<ValueTuple<string, string>>() }) as string;
-
-                // Localization returns the key itself or empty if not found
-                if (string.IsNullOrEmpty(result) || result.StartsWith("General/Sets/"))
-                    return null;
-
-                return result;
-            }
-            catch
-            {
-                return null;
-            }
+            return ResolveLocKey("General/Sets/" + setCode);
         }
 
         /// <summary>
@@ -828,6 +919,8 @@ namespace AccessibleArena.Core.Services
         /// Extracts button labels from DeckManager icon buttons.
         /// These are icon-only buttons with no text, but the element name contains the function
         /// (e.g., "Clone_MainButton_Round" -> "Clone", "Delete_MainButton_Round" -> "Delete").
+        /// Tries the button's Localize component first for proper translation, falls back to
+        /// English labels extracted from the GO name.
         /// </summary>
         private static string TryGetDeckManagerButtonText(GameObject gameObject)
         {
@@ -863,6 +956,12 @@ namespace AccessibleArena.Core.Services
             if (!inDeckManager)
                 return null;
 
+            // Try Localize component first — these buttons may have localized text
+            // on children that the standard TMP_Text check misses
+            string localizedText = TryGetLocalizeText(gameObject);
+            if (!string.IsNullOrEmpty(localizedText))
+                return localizedText;
+
             // Extract function name from element name
             string function = null;
 
@@ -891,7 +990,7 @@ namespace AccessibleArena.Core.Services
             // Replace underscores with spaces
             function = function.Replace("_", " ");
 
-            // Specific mappings for known functions
+            // Fallback: English labels from GO name (only reached if no Localize component found)
             switch (function.ToLowerInvariant())
             {
                 case "clone":
