@@ -106,6 +106,9 @@ namespace AccessibleArena.Core.Services
             _isWatching = true;
             _hasCenteredMouse = false; // Reset so mouse gets centered when duel activates
 
+            // Clear announcement history for the new duel
+            _announcer.ClearHistory();
+
             // Clear stale EventSystem selection from pre-game screen.
             // Without this, the first Tab press navigates from the stale "Button" (Settings)
             // to NavArrowNextbutton (emote panel) via Unity's Selectable chain.
@@ -519,6 +522,15 @@ namespace AccessibleArena.Core.Services
                         _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
                     }
                 }
+                return true;
+            }
+
+            // O key: Game log (review all duel announcements)
+            if (Input.GetKeyDown(KeyCode.O))
+            {
+                var logNav = AccessibleArenaMod.Instance?.GameLogNavigator;
+                if (logNav != null)
+                    logNav.Open();
                 return true;
             }
 

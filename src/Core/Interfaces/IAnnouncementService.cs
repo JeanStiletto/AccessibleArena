@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AccessibleArena.Core.Models;
 
 namespace AccessibleArena.Core.Interfaces
@@ -12,5 +13,7 @@ namespace AccessibleArena.Core.Interfaces
         void Silence();
         void SetEnabled(bool enabled);
         bool IsEnabled { get; }
+        IReadOnlyList<string> History { get; }
+        void ClearHistory();
     }
 }

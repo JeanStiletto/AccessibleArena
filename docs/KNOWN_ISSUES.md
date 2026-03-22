@@ -158,6 +158,12 @@ Adding cards to a deck reportedly moves the user out of the Collection group to 
 
 Challenging friends sometimes fails: deck selection not available and screen elements auto-change unexpectedly. Exact reproduction steps unknown.
 
+---
+
+### Chat Menu Cannot Be Closed Reliably
+
+The chat menu (ChatNavigator) cannot be reliably closed with Escape or Backspace. Exact conditions and reproduction steps unknown.
+
 ## Technical Debt
 
 ### Code Archaeology
@@ -222,8 +228,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 2. Display counters on players - announce counters like poison, energy, experience, etc. on players
 3. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
 4. Verbose "Big Card" announcements (inspired by Hearthstone Access) - option to include card details inline with action announcements, with user preference toggle for brief vs verbose
-5. Game log - accessible scrollable log of recent game events (spells cast, damage dealt, cards drawn, etc.) for reviewing what happened
-6. Improve mod settings - reorganize settings into useful categories with category splitting for better navigation
+5. Improve mod settings - reorganize settings into useful categories with category splitting for better navigation
 7. Summoning sickness announcement - announce summoning sickness status on creatures, controlled by a user setting
 
 ### Tutorial System

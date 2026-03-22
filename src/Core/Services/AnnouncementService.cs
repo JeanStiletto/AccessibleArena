@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
@@ -8,6 +9,9 @@ namespace AccessibleArena.Core.Services
     {
         private bool _enabled = true;
         private string _lastAnnouncement;
+        private readonly List<string> _history = new List<string>();
+
+        public IReadOnlyList<string> History => _history;
 
         public bool IsEnabled => _enabled;
 
@@ -20,6 +24,7 @@ namespace AccessibleArena.Core.Services
                 return;
 
             _lastAnnouncement = message;
+            _history.Add(message);
 
             // Log what we're speaking
             MelonLogger.Msg($"[Announce] {priority}: {message}");
@@ -62,6 +67,11 @@ namespace AccessibleArena.Core.Services
             {
                 ScreenReaderOutput.Speak(_lastAnnouncement, true);
             }
+        }
+
+        public void ClearHistory()
+        {
+            _history.Clear();
         }
     }
 }

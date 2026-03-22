@@ -26,6 +26,7 @@ namespace AccessibleArena
         private HelpNavigator _helpNavigator;
         private ModSettingsNavigator _settingsNavigator;
         private ExtendedInfoNavigator _extendedInfoNavigator;
+        private GameLogNavigator _gameLogNavigator;
         private ModSettings _settings;
         private PanelStateManager _panelStateManager;
 
@@ -35,6 +36,7 @@ namespace AccessibleArena
         public IAnnouncementService Announcer => _announcer;
         public CardInfoNavigator CardNavigator => _cardInfoNavigator;
         public ExtendedInfoNavigator ExtendedInfoNavigator => _extendedInfoNavigator;
+        public GameLogNavigator GameLogNavigator => _gameLogNavigator;
         public ModSettings Settings => _settings;
 
         public override void OnInitializeMelon()
@@ -101,6 +103,7 @@ namespace AccessibleArena
             _helpNavigator = new HelpNavigator(_announcer);
             _settingsNavigator = new ModSettingsNavigator(_announcer, _settings);
             _extendedInfoNavigator = new ExtendedInfoNavigator(_announcer);
+            _gameLogNavigator = new GameLogNavigator(_announcer);
 
             // Rebuild help items when language changes
             _settings.OnLanguageChanged += () => _helpNavigator.RebuildItems();
@@ -310,7 +313,8 @@ namespace AccessibleArena
             // when a mod menu is open (persistent flag avoids timing issues with per-frame consume)
             InputManager.ModMenuActive = (_helpNavigator?.IsActive == true)
                 || (_settingsNavigator?.IsActive == true)
-                || (_extendedInfoNavigator?.IsActive == true);
+                || (_extendedInfoNavigator?.IsActive == true)
+                || (_gameLogNavigator?.IsActive == true);
 
             // Help menu has highest priority - blocks all other input when active
             if (_helpNavigator != null && _helpNavigator.IsActive)
@@ -330,6 +334,13 @@ namespace AccessibleArena
             if (_extendedInfoNavigator != null && _extendedInfoNavigator.IsActive)
             {
                 _extendedInfoNavigator.HandleInput();
+                return;
+            }
+
+            // Game log menu - same priority tier as extended info
+            if (_gameLogNavigator != null && _gameLogNavigator.IsActive)
+            {
+                _gameLogNavigator.HandleInput();
                 return;
             }
 

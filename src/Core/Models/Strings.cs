@@ -520,6 +520,12 @@ namespace AccessibleArena.Core.Models
         public static string LinkedFaceAdventure => L.Get("LinkedFace_Adventure");
         public static string LinkedFaceOtherRoom => L.Get("LinkedFace_OtherRoom");
         public static string HelpIExtendedInfo => L.Get("HelpIExtendedInfo");
+        public static string HelpOGameLog => L.Get("HelpOGameLog");
+
+        // Game log (O key - navigable announcement history)
+        public static string GameLogTitle => L.Get("GameLogTitle");
+        public static string GameLogClosed => L.Get("GameLogClosed");
+        public static string GameLogEmpty => L.Get("GameLogEmpty");
 
         // Card info block labels
         public static string CardInfoName => L.Get("CardInfoName");
