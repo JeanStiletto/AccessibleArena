@@ -115,15 +115,43 @@ namespace AccessibleArena.Core.Services
         /// <summary>Return the tutorial hint for the current browser type (used by Ctrl+F1 via DuelNavigator)</summary>
         public string GetTutorialHint()
         {
-            var L = LocaleManager.Instance;
-            if (_browserInfo == null) return L.Get("BrowserHint");
+            return LocaleManager.Instance.Get(GetBrowserHintKey());
+        }
+
+        /// <summary>Maps the current browser type to a locale key for its specific hint text.</summary>
+        private string GetBrowserHintKey()
+        {
+            if (_browserInfo == null) return "BrowserHint";
 
             string type = _browserInfo.BrowserType;
+
+            // Zone-based browsers
             if (type != null && type.ToLower().Contains("surveil"))
-                return L.Get("Duel_SurveilHint");
-            if (_browserInfo.IsScryLike)
-                return L.Get("Duel_ScryHint");
-            return L.Get("BrowserHint");
+                return "BrowserHint_Surveil";
+            if (type == "Scry") return "BrowserHint_Scry";
+            if (type == "ReadAhead") return "BrowserHint_ReadAhead";
+            if (type == "SplitCards" || type == "SplitGroup")
+                return "BrowserHint_SplitCards";
+            if (_browserInfo.IsLondon) return "BrowserHint_London";
+            if (_browserInfo.IsMulligan) return "BrowserHint_Mulligan";
+
+            // Special browsers
+            if (_isAssignDamage) return "BrowserHint_AssignDamage";
+            if (_isKeywordSelection) return "BrowserHint_KeywordSelection";
+            if (_isSelectGroup) return "BrowserHint_SelectGroup";
+            if (_isMultiZone) return "BrowserHint_SelectCardsMultiZone";
+            if (type == "RepeatSelection") return "BrowserHint_RepeatSelection";
+            if (type == "SelectMana") return "BrowserHint_SelectMana";
+            if (type == "Informational") return "BrowserHint_Informational";
+            if (type == "SelectNCounters") return "BrowserHint_SelectNCounters";
+            if (_browserInfo.IsWorkflow) return "BrowserHint_Workflow";
+
+            // SelectCards and similar card selection browsers
+            if (type == "SelectCards" || type == "LibrarySideboard" || type == "OrderCards")
+                return "BrowserHint_SelectCards";
+
+            // Simple button browsers (YesNo, Dungeon, Optional*, Mutate, LargeScrollList)
+            return "BrowserHint";
         }
 
         #endregion
@@ -1181,6 +1209,8 @@ namespace AccessibleArena.Core.Services
                 message = browserName;
             }
 
+            string hintKey = GetBrowserHintKey();
+            message = Strings.WithHint(message, hintKey);
             _announcer.Announce(message, AnnouncementPriority.High);
 
             // Auto-navigate to first item

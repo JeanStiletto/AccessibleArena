@@ -32,6 +32,13 @@ All notable changes to Accessible Arena.
 ### Fix: Recently Played tab lists most recent first again
 - Restored reverse sort order for Recently Played decks that was accidentally removed during deck submenu polish
 
+### Feat: Per-browser-type tutorial hints
+- Each browser type now has its own specific Ctrl+F1 hint instead of one generic hint for all browsers
+- 16 browser-specific hints: Scry, Surveil, ReadAhead, London Mulligan, Mulligan, SelectCards, SelectCardsMultiZone, SelectGroup, SplitCards, AssignDamage, KeywordSelection, RepeatSelection, Workflow, SelectMana, Informational, SelectNCounters
+- Browser entry announcements now append the correct browser-specific hint (e.g. mulligan says "Space to keep hand, Backspace to mulligan" instead of "Tab to navigate, Enter to select")
+- Removed embedded hints from format strings (KeywordSelection, RepeatSelection, SelectForBottom) — hints are now appended externally via WithHint pattern
+- All 16 hints translated in all 12 languages
+
 ### Feat: Browser entry hints respect TutorialMessages setting (PR #35)
 - When TutorialMessages is off, browser entry says only the zone/card count without "Tab to navigate, Enter to select" appended
 - Applies to Scry, Surveil, Mulligan, and all generic browser types

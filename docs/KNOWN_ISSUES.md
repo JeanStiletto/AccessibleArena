@@ -96,6 +96,21 @@ Steam's default overlay hotkey (Shift+Tab) conflicts with the mod's backward nav
 
 ---
 
+## Monitoring
+
+### Browser Hint Accuracy
+
+Per-browser-type tutorial hints were added for 16 browser types (Scry, Surveil, London Mulligan, SelectCards, AssignDamage, etc.). Some hints may be missing, wrong, or incomplete for edge cases:
+- New browser types added by game updates won't have specific hints (fall back to generic "BrowserHint")
+- Some browsers may behave differently depending on context (e.g. SelectCards with optional vs required selection)
+- Hint text may not match actual keybindings if shortcuts are changed in the future
+
+**Action:** When testing browsers in-game, verify Ctrl+F1 returns the correct hint and entry announcements include appropriate instructions. Report any mismatches.
+
+**Files:** `BrowserNavigator.cs` (GetBrowserHintKey), `lang/*.json` (BrowserHint_* keys)
+
+---
+
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers
