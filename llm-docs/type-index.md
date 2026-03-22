@@ -38,6 +38,9 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | CardDatabase | Wotc.Mtga.Cards.Database.CardDatabase | Shared |
 | MtgCardInstance | (runtime only, not easily decompiled) | Core |
 | DuelScene_CDC | DuelScene_CDC | Core |
+| BASE_CDC | BASE_CDC | Core |
+| CDCPart_Highlights | CDCPart_Highlights | Core |
+| HighlightType (enum) | HighlightType | Core |
 | MetaCardView | MetaCardView | Core |
 | PagesMetaCardView | PagesMetaCardView | Core |
 | BoosterMetaCardView | BoosterMetaCardView | Core |
@@ -60,6 +63,9 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | CardBrowserCardHolder | CardBrowserCardHolder | Core |
 | ListMetaCardHolder | ListMetaCardHolder | Core |
 | UniversalBattlefieldStack | UniversalBattlefieldStack | Core |
+| CardBrowserBase | Wotc.Mtga.DuelScene.Browsers.CardBrowserBase | Core |
+| SelectCardsBrowser | Wotc.Mtga.DuelScene.Browsers.SelectCardsBrowser | Core |
+| SelectCardsWorkflow\<T\> | Wotc.Mtga.DuelScene.Interactions.SelectN.SelectCardsWorkflow\<T\> | Core |
 
 ## UI Components
 
@@ -283,3 +289,7 @@ Some types have members that are fields (not properties) - reflection with `GetP
 - **RegistrationPanel._validDisplayName**: only set to `true` by `Coroutine_ValidateUsername` (server call), triggered by `_displayName_endEdit`. Reset to `false` by `_displayName_select`. If displayname validation fails (taken, invalid), button stays permanently disabled.
 - **RegistrationPanel.Show()**: Data toggle visibility depends on `CountryCodes.DataShareCountries.ContainsKey(selectedCountry)` — shown for EU/GDPR countries, hidden (auto-checked) otherwise
 - **RegistrationPanel.OnButton_SubmitRegistration()**: does NOT check validation — directly calls `DoRegistration()`. Button disabling is done by `_checkFields()` + `EnableButton(false)`
+- **BASE_CDC**: base class for all card display controllers. `CurrentHighlight()` is a METHOD (not property), returns `HighlightType` enum. `UpdateHighlight(HighlightType)` sets it. Uses `CDCPart_Highlights` internally via `_cachedHighlightPart`, falls back to `_mostRecentHighlight` field.
+- **HighlightType (enum)**: None=0, Cold=1, Tepid=2, Hot=3, AutoPay=4, **Selected=5**, OpponentHover=8, Invalid=9, ColdMana=10, Hover=11. Gaps at 6,7. No localized text — just visual glow states.
+- **SelectCardsBrowser** (extends CardBrowserBase): selection tracked via `currentSelections` list (List\<DuelScene_CDC\>) on workflow, NOT on CDC. But `GetBrowserHighlights()` sets `HighlightType.Selected` on selected CDCs, so `CurrentHighlight()` reliably reflects toggle state.
+- **SelectCardsWorkflow\<T\>**: generic type, cannot be decompiled with ilspycmd 8.x. Maintains `selectable`, `currentSelections`, `nonSelectable` lists. Toggle logic in `CardBrowser_OnCardViewSelected`. `GetBrowserHighlights()` maps: selectable→Hot, nonSelectable→None, currentSelections→Selected.

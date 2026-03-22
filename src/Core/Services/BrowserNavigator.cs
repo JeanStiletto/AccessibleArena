@@ -1261,8 +1261,8 @@ namespace AccessibleArena.Core.Services
             }
             else if (!_browserInfo.IsMulligan && _browserButtons.Count > 0)
             {
-                // Check holder for non-zone browsers with buttons (might be scry-like)
-                selectionState = GetCardHolderState(card);
+                // Check CDC highlight for non-zone browsers (SelectCards, etc.)
+                selectionState = GetCardCDCSelectionState(card);
             }
 
             // For multi-zone browsers, append the card's zone (e.g., "Your graveyard", "Opponent's exile")
@@ -1315,22 +1315,43 @@ namespace AccessibleArena.Core.Services
             AccessibleArenaMod.Instance?.CardNavigator?.PrepareForCard(card, zone);
         }
 
+        // CDC HighlightType.Selected enum value (set by game when card is toggled in browsers)
+        private const int HighlightTypeSelected = 5;
+        private static MethodInfo _currentHighlightMethod;
+        private static bool _currentHighlightSearched;
+
         /// <summary>
-        /// Gets card state based on holder (for non-zone browsers).
+        /// Gets card selection state from the CDC's CurrentHighlight() method.
+        /// Returns "selected" when HighlightType == Selected (5), null otherwise.
+        /// Used for non-zone browsers (SelectCards, etc.) where the game indicates
+        /// selection via highlight state rather than moving cards between holders.
         /// </summary>
-        private string GetCardHolderState(GameObject card)
+        private string GetCardCDCSelectionState(GameObject card)
         {
             if (card == null) return null;
 
-            Transform parent = card.transform.parent;
-            while (parent != null)
+            var cdc = CardDetector.GetDuelSceneCDC(card);
+            if (cdc == null) return null;
+
+            if (!_currentHighlightSearched)
             {
-                if (parent.name == BrowserDetector.HolderDefault)
-                    return Strings.KeepOnTop;
-                if (parent.name == BrowserDetector.HolderViewDismiss)
-                    return Strings.PutOnBottom;
-                parent = parent.parent;
+                _currentHighlightSearched = true;
+                _currentHighlightMethod = cdc.GetType().GetMethod("CurrentHighlight", PublicInstance);
             }
+
+            if (_currentHighlightMethod == null) return null;
+
+            try
+            {
+                var highlight = _currentHighlightMethod.Invoke(cdc, null);
+                if (highlight != null && (int)highlight == HighlightTypeSelected)
+                    return Strings.Selected;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[BrowserNavigator] Error reading CurrentHighlight: {ex.Message}");
+            }
+
             return null;
         }
 
@@ -1873,15 +1894,11 @@ namespace AccessibleArena.Core.Services
 
             if (card != null)
             {
-                string stateAfter = GetCardHolderState(card);
-                if (!string.IsNullOrEmpty(stateAfter))
-                {
-                    _announcer.Announce(stateAfter, AnnouncementPriority.Normal);
-                }
-                else
-                {
-                    _announcer.Announce(Strings.Selected, AnnouncementPriority.Normal);
-                }
+                string stateAfter = GetCardCDCSelectionState(card);
+                // If CDC says Selected → "selected", otherwise → "deselected" (toggled off)
+                _announcer.Announce(
+                    !string.IsNullOrEmpty(stateAfter) ? Strings.Selected : Strings.Deselected,
+                    AnnouncementPriority.Normal);
 
                 // Update the card reference
                 if (_currentCardIndex >= 0 && _currentCardIndex < _browserCards.Count)
