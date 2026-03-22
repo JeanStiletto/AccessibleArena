@@ -321,6 +321,18 @@ namespace AccessibleArena.Core.Services
                     : label;
             }
 
+            if (name == "Nav_Mail")
+            {
+                // NavBarMailController shows an unread count badge (TMP_Text UnreadMailCount) when
+                // there are unread messages. When active it returns just the count ("1", "2", etc.),
+                // losing the "Mail" label. Intercept here to always return "Mail: N" or "Mail".
+                var tmpText = gameObject.GetComponentInChildren<TMP_Text>();
+                string count = tmpText != null ? CleanText(tmpText.text) : "";
+                return !string.IsNullOrEmpty(count)
+                    ? LocaleManager.Instance.Format("LabelValue_Format", Models.Strings.NavMail, count)
+                    : Models.Strings.NavMail;
+            }
+
             if (name == "Nav_WildCard")
             {
                 // Read TooltipData.Text from TooltipTrigger component (same pattern as UIActivator)

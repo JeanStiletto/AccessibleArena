@@ -714,6 +714,7 @@ namespace AccessibleArena.Core.Models
         public static string CurrencyGold => L.Get("CurrencyGold");
         public static string CurrencyGems => L.Get("CurrencyGems");
         public static string CurrencyWildcards => L.Get("CurrencyWildcards");
+        public static string NavMail => L.Get("GroupMail");
 
         // ===========================================
         // MANA SYMBOLS (for rules text parsing)
