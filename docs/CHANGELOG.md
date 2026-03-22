@@ -47,6 +47,10 @@ All notable changes to Accessible Arena.
 - Added `AttachedAction.Id` field to separate stable matching IDs from localized display labels
 - `ResolveLocKey()` made public for use across mod components
 
+### Fix: Navigation arrows (Next/Previous) no longer appear in navigable element list
+- Standalone navigation arrows are now classified as non-navigable, removing them from Tab navigation across all screens
+- Page buttons in the deck builder remain accessible via PageUp/PageDown as before
+
 ### Fix: Recently Played tab lists most recent first again
 - Restored reverse sort order for Recently Played decks that was accidentally removed during deck submenu polish
 

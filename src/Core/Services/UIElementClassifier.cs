@@ -404,7 +404,7 @@ namespace AccessibleArena.Core.Services
             if (!IsNavigationArrow(obj, objName, text))
                 return null;
 
-            return CreateResult(ElementRole.Navigation, GetNavigationLabel(objName), Models.Strings.RoleNavigation, true, true);
+            return CreateResult(ElementRole.Navigation, GetNavigationLabel(objName), Models.Strings.RoleNavigation, false, false);
         }
 
         private static ClassificationResult TryClassifyAsClickable(GameObject obj, string objName, string text)

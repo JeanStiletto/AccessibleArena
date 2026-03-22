@@ -260,8 +260,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 1. Check all tutorial messages for completeness and correctness - review every context-sensitive tutorial tip for accuracy, missing steps, and outdated references
 2. Better group announcements - improve how element groups are announced when entering/switching groups
-3. Next button in deck building screen - make the Next/Done button accessible during deck construction
-4. Improve role reading for choose-options browsers - better announce the player's role/task when entering choose-options browsers (e.g., "choose cards to discard", "choose a mode")
+3. Improve role reading for choose-options browsers - better announce the player's role/task when entering choose-options browsers (e.g., "choose cards to discard", "choose a mode")
 
 ### Low Priority / v1.1
 
