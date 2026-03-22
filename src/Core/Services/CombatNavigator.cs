@@ -512,7 +512,7 @@ namespace AccessibleArena.Core.Services
                 var names = new List<string>();
                 foreach (var id in ids)
                 {
-                    string name = CardStateProvider.ResolveInstanceIdToName(id);
+                    string name = CardStateProvider.ResolveInstanceIdToNameWithPT(id);
                     if (!string.IsNullOrEmpty(name))
                         names.Add(name);
                 }
