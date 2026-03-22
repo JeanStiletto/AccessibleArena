@@ -919,14 +919,13 @@ namespace AccessibleArena.Core.Services
                 var abilityGrpIdSetField = overrideType.GetField("_abilityGrpIdSet", PrivateInstance);
                 if (abilityGrpIdSetField == null) return null;
 
-                var abilityGrpIds = abilityGrpIdSetField.GetValue(rulesOverride) as IList;
+                var abilityGrpIds = abilityGrpIdSetField.GetValue(rulesOverride) as System.Collections.IList;
                 if (abilityGrpIds == null || abilityGrpIds.Count == 0) return null;
 
-                // Get source GrpIds and TitleId from the override for correct text resolution
                 var sourceGrpIdSetField = overrideType.GetField("_sourceGrpIdSet", PrivateInstance);
                 var titleIdField = overrideType.GetField("_titleId", PrivateInstance);
 
-                var sourceGrpIds = sourceGrpIdSetField?.GetValue(rulesOverride) as IList;
+                var sourceGrpIds = sourceGrpIdSetField?.GetValue(rulesOverride) as System.Collections.IList;
                 uint overrideTitleId = cardTitleId;
                 if (titleIdField != null)
                 {
@@ -934,16 +933,29 @@ namespace AccessibleArena.Core.Services
                     if (tid is uint t && t > 0) overrideTitleId = t;
                 }
 
-                // Use first source GrpId as the card context (parent card's GrpId)
-                uint contextGrpId = cardGrpId;
-                if (sourceGrpIds != null && sourceGrpIds.Count > 0 && sourceGrpIds[0] is uint firstSource)
-                    contextGrpId = firstSource;
-
                 var rulesLines = new List<string>();
                 foreach (var abilityIdObj in abilityGrpIds)
                 {
                     if (!(abilityIdObj is uint abilityId) || abilityId == 0) continue;
-                    var text = CardTextProvider.GetAbilityTextFromProvider(contextGrpId, abilityId, null, overrideTitleId);
+
+                    // Try each source GrpId as context until one resolves the ability text.
+                    // The game uses a list-based overload internally; we iterate source GrpIds
+                    // to find which one provides the correct card context for resolution.
+                    string text = null;
+                    if (sourceGrpIds != null)
+                    {
+                        foreach (var srcObj in sourceGrpIds)
+                        {
+                            if (!(srcObj is uint srcGrpId) || srcGrpId == 0) continue;
+                            text = CardTextProvider.GetAbilityTextFromProvider(srcGrpId, abilityId, null, overrideTitleId);
+                            if (!string.IsNullOrEmpty(text)) break;
+                        }
+                    }
+
+                    // Last resort: use the card's own GrpId (the ability ID itself)
+                    if (string.IsNullOrEmpty(text))
+                        text = CardTextProvider.GetAbilityTextFromProvider(cardGrpId, abilityId, null, overrideTitleId);
+
                     if (!string.IsNullOrEmpty(text))
                         rulesLines.Add(text);
                 }

@@ -24,6 +24,11 @@ All notable changes to Accessible Arena.
 - Up/Down to navigate, Enter to rate or skip, Backspace to dismiss
 - Button labels are localized (Good/Bad buttons have no game text — they're emoji faces)
 
+### Fix: Modal ability options now announce rules text instead of just the card name
+- Triggered abilities with multiple choices (e.g. Warden of the Cycle's morbid "gain 2 life" / "lose 1 life, draw a card") now read the option text
+- Previously, the SelectCards browser only announced the parent card name for each option
+- Fixed RulesTextOverride extraction to try all source GrpIds as card context for ability text resolution
+
 ### Feat: Browser entry hints respect TutorialMessages setting (PR #35)
 - When TutorialMessages is off, browser entry says only the zone/card count without "Tab to navigate, Enter to select" appended
 - Applies to Scry, Surveil, Mulligan, and all generic browser types
