@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "Zamykanie menu gry",
   "ExitingDeckBuilder": "Wychodzenie z edytora talii",
   "NewDeck": "Nowa talia",
+  "DeckAction_Rename": "Zmień nazwę",
+  "DeckAction_Details": "Szczegóły",
   "Continue": "Kontynuuj",
   "DeckInfoCardCount": "Liczba kart",
   "DeckInfoManaCurve": "Krzywa many",

@@ -39,6 +39,14 @@ All notable changes to Accessible Arena.
 - Previously, the SelectCards browser only announced the parent card name for each option
 - Fixed RulesTextOverride extraction to try all source GrpIds as card context for ability text resolution
 
+### Fix: Deck screens fully localized
+- Deck manager buttons (Import, Export, Clone, Delete, Edit, Favorite) now use the game's own localization keys instead of hardcoded English labels
+- Deck action cycle (Rename, Edit, Details, Clone, Export, Delete, Favorite) fully localized — game keys where available, mod lang files for Rename and Details
+- "New Deck" button uses game localization key with mod lang file fallback
+- Sideboard toggle in deck builder now reads from the game's Localize component
+- Added `AttachedAction.Id` field to separate stable matching IDs from localized display labels
+- `ResolveLocKey()` made public for use across mod components
+
 ### Fix: Recently Played tab lists most recent first again
 - Restored reverse sort order for Recently Played decks that was accidentally removed during deck submenu polish
 

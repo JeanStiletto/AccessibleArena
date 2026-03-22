@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "Закрытие меню игры",
   "ExitingDeckBuilder": "Выход из конструктора колод",
   "NewDeck": "Новая колода",
+  "DeckAction_Rename": "Переименовать",
+  "DeckAction_Details": "Подробности",
   "Continue": "Продолжить",
   "DeckInfoCardCount": "Количество карт",
   "DeckInfoManaCurve": "Кривая маны",

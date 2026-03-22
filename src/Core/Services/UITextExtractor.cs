@@ -299,7 +299,7 @@ namespace AccessibleArena.Core.Services
             // Deck builder title panel picks up English "New Deck Name" from InputField Placeholder child.
             // DeckManager "NewDeckButton" shows "Enter deck name..." placeholder.
             if (objectName.Contains("NewDeckButton") || objectName == "TitlePanel_MainDeck")
-                return Strings.NewDeck;
+                return ResolveLocKey("MainNav/DeckManager/DeckManager_Top_New") ?? Strings.NewDeck;
 
             return null;
         }
@@ -383,7 +383,7 @@ namespace AccessibleArena.Core.Services
         /// Resolves a localization key via Languages.ActiveLocProvider.GetLocalizedText().
         /// Returns null if the key can't be resolved or resolves to itself.
         /// </summary>
-        private static string ResolveLocKey(string locKey)
+        public static string ResolveLocKey(string locKey)
         {
             EnsureLocReflectionCached();
             if (_activeLocProviderField == null || _getLocalizedTextMethod == null)
@@ -990,29 +990,40 @@ namespace AccessibleArena.Core.Services
             // Replace underscores with spaces
             function = function.Replace("_", " ");
 
-            // Fallback: English labels from GO name (only reached if no Localize component found)
+            // Try game localization keys (MainNav/DeckManager/DeckManager_Top_*)
+            string locKey = null;
             switch (function.ToLowerInvariant())
             {
                 case "clone":
-                    return "Clone Deck";
-                case "deck details":
-                case "deckdetails":
-                    return "Deck Details";
+                    locKey = "MainNav/DeckManager/DeckManager_Top_Clone";
+                    break;
                 case "delete":
-                    return "Delete Deck";
+                    locKey = "MainNav/DeckManager/DeckManager_Top_Delete";
+                    break;
                 case "export":
-                    return "Export Deck";
+                    locKey = "MainNav/DeckManager/DeckManager_Top_Export";
+                    break;
                 case "import":
-                    return "Import Deck";
+                    locKey = "MainNav/DeckManager/DeckManager_Top_Import";
+                    break;
                 case "favorite":
-                    return "Favorite";
+                    locKey = "MainNav/DeckManager/DeckManager_Top_Favorite";
+                    break;
                 case "edit deck":
                 case "editdeck":
-                    return "Edit Deck";
-                default:
-                    // Return the cleaned function name with proper casing
-                    return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(function.ToLowerInvariant());
+                    locKey = "MainNav/DeckManager/DeckManager_Top_Edit";
+                    break;
             }
+
+            if (locKey != null)
+            {
+                string resolved = ResolveLocKey(locKey);
+                if (!string.IsNullOrEmpty(resolved))
+                    return resolved;
+            }
+
+            // Final fallback: cleaned function name with proper casing
+            return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(function.ToLowerInvariant());
         }
 
         /// <summary>
@@ -2018,6 +2029,16 @@ namespace AccessibleArena.Core.Services
         private static string GetToggleText(Toggle toggle)
         {
             // Only return the label text - UIElementClassifier handles adding "checkbox, checked/unchecked"
+
+            // Try Localize component first — ensures localized text for toggles like Sideboard
+            string localizeText = TryGetLocalizeText(toggle.gameObject);
+            if (!string.IsNullOrEmpty(localizeText))
+            {
+                if (localizeText.Contains("POSITION"))
+                    return Models.Strings.Bo3Toggle();
+                return localizeText;
+            }
+
             // Try to find associated label
             var label = toggle.GetComponentInChildren<TMP_Text>();
             if (label != null && !string.IsNullOrWhiteSpace(label.text))

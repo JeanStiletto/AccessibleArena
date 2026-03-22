@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "Spielmenü wird geschlossen",
   "ExitingDeckBuilder": "Deck-Editor wird verlassen",
   "NewDeck": "Neues Deck",
+  "DeckAction_Rename": "Umbenennen",
+  "DeckAction_Details": "Details",
   "Continue": "Weiter",
   "DeckInfoCardCount": "Kartenanzahl",
   "DeckInfoManaCurve": "Manakurve",

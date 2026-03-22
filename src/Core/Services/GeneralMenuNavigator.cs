@@ -4366,35 +4366,60 @@ namespace AccessibleArena.Core.Services
         {
             var actions = new List<AttachedAction>();
 
-            // Rename (TextBox button on the deck)
+            // Rename (TextBox button on the deck) — no game loc key, use our lang file
             if (renameButton != null)
-                actions.Add(new AttachedAction { Label = "Rename", TargetButton = renameButton });
+                actions.Add(new AttachedAction { Id = "Rename", Label = Models.Strings.DeckActionRename, TargetButton = renameButton });
 
-            // Edit (open deck builder)
+            // Edit (open deck builder) — game reads button text via SetText with loc key
             if (toolbarButtons.EditButton != null)
-                actions.Add(new AttachedAction { Label = "Edit", TargetButton = toolbarButtons.EditButton });
+                actions.Add(new AttachedAction { Id = "Edit", Label = ResolveDeckActionLabel("MainNav/DeckManager/DeckManager_Top_Edit", toolbarButtons.EditButton, "Edit"), TargetButton = toolbarButtons.EditButton });
 
-            // Deck Details
+            // Deck Details — no game loc key, use our lang file
             if (toolbarButtons.DetailsButton != null)
-                actions.Add(new AttachedAction { Label = "Details", TargetButton = toolbarButtons.DetailsButton });
+                actions.Add(new AttachedAction { Id = "Details", Label = Models.Strings.DeckActionDetails, TargetButton = toolbarButtons.DetailsButton });
 
             // Favorite
             if (toolbarButtons.FavoriteButton != null)
-                actions.Add(new AttachedAction { Label = "Favorite", TargetButton = toolbarButtons.FavoriteButton });
+                actions.Add(new AttachedAction { Id = "Favorite", Label = ResolveDeckActionLabel("MainNav/DeckManager/DeckManager_Top_Favorite", toolbarButtons.FavoriteButton, "Favorite"), TargetButton = toolbarButtons.FavoriteButton });
 
             // Clone
             if (toolbarButtons.CloneButton != null)
-                actions.Add(new AttachedAction { Label = "Clone", TargetButton = toolbarButtons.CloneButton });
+                actions.Add(new AttachedAction { Id = "Clone", Label = ResolveDeckActionLabel("MainNav/DeckManager/DeckManager_Top_Clone", toolbarButtons.CloneButton, "Clone"), TargetButton = toolbarButtons.CloneButton });
 
             // Export
             if (toolbarButtons.ExportButton != null)
-                actions.Add(new AttachedAction { Label = "Export", TargetButton = toolbarButtons.ExportButton });
+                actions.Add(new AttachedAction { Id = "Export", Label = ResolveDeckActionLabel("MainNav/DeckManager/DeckManager_Top_Export", toolbarButtons.ExportButton, "Export"), TargetButton = toolbarButtons.ExportButton });
 
             // Delete (last, as it's destructive)
             if (toolbarButtons.DeleteButton != null)
-                actions.Add(new AttachedAction { Label = "Delete", TargetButton = toolbarButtons.DeleteButton });
+                actions.Add(new AttachedAction { Id = "Delete", Label = ResolveDeckActionLabel("MainNav/DeckManager/DeckManager_Top_Delete", toolbarButtons.DeleteButton, "Delete"), TargetButton = toolbarButtons.DeleteButton });
 
             return actions;
+        }
+
+        /// <summary>
+        /// Resolve a deck action label: try game loc key first, then read button text, then English fallback.
+        /// </summary>
+        private static string ResolveDeckActionLabel(string locKey, GameObject button, string fallback)
+        {
+            // Try game's localization system
+            string resolved = UITextExtractor.ResolveLocKey(locKey);
+            if (!string.IsNullOrEmpty(resolved))
+                return resolved;
+
+            // Try reading text already set on the button (game may have called SetText)
+            if (button != null)
+            {
+                var tmp = button.GetComponentInChildren<TMPro.TMP_Text>();
+                if (tmp != null)
+                {
+                    string text = tmp.text?.Trim();
+                    if (!string.IsNullOrEmpty(text))
+                        return text;
+                }
+            }
+
+            return fallback;
         }
 
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);
@@ -4407,7 +4432,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override bool HandleAttachedAction(AttachedAction action)
         {
-            if (action.Label == "Rename" && action.TargetButton != null)
+            string id = action.Id ?? action.Label;
+
+            if (id == "Rename" && action.TargetButton != null)
             {
                 var inputField = action.TargetButton.GetComponentInChildren<TMPro.TMP_InputField>(true);
                 if (inputField != null)
@@ -4421,7 +4448,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            if (action.Label == "Favorite" && action.TargetButton != null)
+            if (id == "Favorite" && action.TargetButton != null)
             {
                 bool? isFavorited = TryGetDeckFavoriteState();
                 UIActivator.Activate(action.TargetButton);
@@ -4432,7 +4459,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (action.Label == "Clone" && action.TargetButton != null)
+            if (id == "Clone" && action.TargetButton != null)
             {
                 UIActivator.Activate(action.TargetButton);
                 _announcer.Announce("Deck cloned. Re-enter decks to see it.", AnnouncementPriority.Normal);

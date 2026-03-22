@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "正在关闭游戏菜单",
   "ExitingDeckBuilder": "正在退出套牌构建器",
   "NewDeck": "新套牌",
+  "DeckAction_Rename": "重命名",
+  "DeckAction_Details": "详情",
   "Continue": "继续",
   "DeckInfoCardCount": "卡牌数量",
   "DeckInfoManaCurve": "法术力曲线",

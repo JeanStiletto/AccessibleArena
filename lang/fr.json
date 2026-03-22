@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "Fermeture du menu de jeu",
   "ExitingDeckBuilder": "Sortie du constructeur de deck",
   "NewDeck": "Nouveau deck",
+  "DeckAction_Rename": "Renommer",
+  "DeckAction_Details": "Détails",
   "Continue": "Continuer",
   "DeckInfoCardCount": "Nombre de cartes",
   "DeckInfoManaCurve": "Courbe de mana",

@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "Closing play menu",
   "ExitingDeckBuilder": "Exiting deck builder",
   "NewDeck": "New Deck",
+  "DeckAction_Rename": "Rename",
+  "DeckAction_Details": "Details",
   "Continue": "Continue",
   "DeckInfoCardCount": "Card Count",
   "DeckInfoManaCurve": "Mana Curve",

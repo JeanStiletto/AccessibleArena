@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "플레이 메뉴를 닫는 중",
   "ExitingDeckBuilder": "덱 빌더를 종료하는 중",
   "NewDeck": "새 덱",
+  "DeckAction_Rename": "이름 변경",
+  "DeckAction_Details": "상세정보",
   "Continue": "계속",
   "DeckInfoCardCount": "카드 수",
   "DeckInfoManaCurve": "마나 커브",

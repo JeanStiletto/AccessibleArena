@@ -68,7 +68,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected struct AttachedAction
         {
-            /// <summary>Display name announced to user (e.g., "Delete", "Edit")</summary>
+            /// <summary>Stable identifier for matching in HandleAttachedAction (e.g., "Rename", "Clone").
+            /// Does not change with locale. When null, falls back to Label for matching.</summary>
+            public string Id { get; set; }
+            /// <summary>Display name announced to user (localized)</summary>
             public string Label { get; set; }
             /// <summary>The actual button to activate when this action is triggered</summary>
             public GameObject TargetButton { get; set; }

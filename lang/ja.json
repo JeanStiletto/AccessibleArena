@@ -30,6 +30,8 @@
   "ClosingPlayBlade": "プレイメニューを閉じています",
   "ExitingDeckBuilder": "デッキビルダーを終了しています",
   "NewDeck": "新しいデッキ",
+  "DeckAction_Rename": "名前変更",
+  "DeckAction_Details": "詳細",
   "Continue": "続ける",
   "DeckInfoCardCount": "カード枚数",
   "DeckInfoManaCurve": "マナカーブ",
