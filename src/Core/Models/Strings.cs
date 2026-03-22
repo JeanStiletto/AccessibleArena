@@ -108,6 +108,10 @@ namespace AccessibleArena.Core.Models
         public static string RowWithCount(string rowName, int count) =>
             count == 1 ? L.Format("RowWithCount_One", rowName) : L.Format("RowWithCount_Format", rowName, count);
         public static string RowEmptyShort(string rowName) => L.Format("RowEmptyShort_Format", rowName);
+        public static string CardType_Artifact => L.Get("CardType_Artifact");
+        public static string CardType_Enchantment => L.Get("CardType_Enchantment");
+        public static string CardType_Planeswalker => L.Get("CardType_Planeswalker");
+        public static string CardType_Battle => L.Get("CardType_Battle");
 
         // Land summary (M key)
         public static string LandSummaryEmpty(string rowName) => L.Format("LandSummary_Empty_Format", rowName);
@@ -265,7 +269,9 @@ namespace AccessibleArena.Core.Models
         public static string Combat_CanAttack => L.Get("Combat_CanAttack");
         public static string Combat_Blocking(string target) => L.Format("Combat_Blocking_Format", target);
         public static string Combat_BlockingSimple => L.Get("Combat_Blocking");
-        public static string Combat_BlockedBy(string blockers) => L.Format("Combat_BlockedBy_Format", blockers);
+        public static string Combat_BlockedBy(string blocker) => L.Format("Combat_BlockedBy_Format", blocker);
+        public static string Combat_BlockedByTwo(string b1, string b2) => L.Format("Combat_BlockedBy_Two_Format", b1, b2);
+        public static string Combat_BlockedByMany(string others, string last) => L.Format("Combat_BlockedBy_Many_Format", others, last);
         public static string Combat_SelectedToBlock => L.Get("Combat_SelectedToBlock");
         public static string Combat_CanBlock => L.Get("Combat_CanBlock");
         public static string Combat_Tapped => L.Get("Combat_Tapped");

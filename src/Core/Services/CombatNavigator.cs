@@ -463,7 +463,32 @@ namespace AccessibleArena.Core.Services
             => GetCombatRelationText(card, CardStateProvider.GetBlockingIds, Models.Strings.Combat_Blocking);
 
         private string GetBlockedByText(GameObject card)
-            => GetCombatRelationText(card, CardStateProvider.GetBlockedByIds, Models.Strings.Combat_BlockedBy);
+        {
+            try
+            {
+                var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                if (cdc == null) return null;
+                var model = CardModelProvider.GetCardModel(cdc);
+                if (model == null) return null;
+                var ids = CardStateProvider.GetBlockedByIds(model);
+                if (ids.Count == 0) return null;
+                var names = new List<string>();
+                foreach (var id in ids)
+                {
+                    string nameWithPT = CardStateProvider.ResolveInstanceIdToNameWithPT(id);
+                    if (!string.IsNullOrEmpty(nameWithPT))
+                        names.Add(nameWithPT);
+                }
+                if (names.Count == 0) return null;
+                if (names.Count == 1)
+                    return Models.Strings.Combat_BlockedBy(names[0]);
+                if (names.Count == 2)
+                    return Models.Strings.Combat_BlockedByTwo(names[0], names[1]);
+                string allButLast = string.Join(", ", names.GetRange(0, names.Count - 1));
+                return Models.Strings.Combat_BlockedByMany(allButLast, names[names.Count - 1]);
+            }
+            catch { return null; }
+        }
 
         /// <summary>
         /// Resolves combat relationship IDs (blocking/blocked-by) to card names.
@@ -487,7 +512,7 @@ namespace AccessibleArena.Core.Services
                 var names = new List<string>();
                 foreach (var id in ids)
                 {
-                    string name = CardStateProvider.ResolveInstanceIdToName(id);
+                    string name = CardStateProvider.ResolveInstanceIdToNameWithPT(id);
                     if (!string.IsNullOrEmpty(name))
                         names.Add(name);
                 }

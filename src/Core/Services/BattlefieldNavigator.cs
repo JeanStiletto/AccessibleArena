@@ -670,7 +670,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Announces the current card with position, combat state, and attachments.
         /// </summary>
-        private void AnnounceCurrentCard(bool includeRowName = false, AnnouncementPriority priority = AnnouncementPriority.Normal)
+        private void AnnounceCurrentCard(bool includeRowName = false, AnnouncementPriority priority = AnnouncementPriority.Normal, bool isRowSwitch = false)
         {
             var cards = _rows[_currentRow];
             if (_currentIndex >= cards.Count) return;
@@ -689,8 +689,22 @@ namespace AccessibleArena.Core.Services
             // Add targeting info (what this card targets / what targets it)
             string targetingText = CardStateProvider.GetTargetingText(card);
 
-            string prefix = includeRowName ? $"{GetRowName(_currentRow)}, " : "";
-            _announcer.Announce($"{prefix}{cardName}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
+            // For non-creature rows, include the primary card type
+            string typeLabel = "";
+            if (_currentRow == BattlefieldRow.PlayerNonCreatures || _currentRow == BattlefieldRow.EnemyNonCreatures)
+            {
+                string t = CardStateProvider.GetNonCreatureTypeLabel(card);
+                if (t != null) typeLabel = $", {t}";
+            }
+
+            string prefix = "";
+            if (includeRowName)
+            {
+                string rowName = GetRowName(_currentRow);
+                bool verbose = AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false;
+                prefix = (!isRowSwitch || verbose) ? $"{rowName}, " : "";
+            }
+            _announcer.Announce($"{prefix}{cardName}{typeLabel}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

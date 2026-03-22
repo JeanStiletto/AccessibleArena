@@ -4,6 +4,16 @@ All notable changes to Accessible Arena.
 
 ## v0.8.7
 
+### Battlefield Announcement Polish (initial PR by blindndangerous, PR #40)
+- Phase announcements now prefix with "Your" or "Opponent's" based on whose turn it is (e.g. "Your First main phase", "Opponent's Declare Attackers")
+- Non-creature rows now include the primary card type in announcements (Artifact, Enchantment, Planeswalker, Battle), localized via Strings keys
+- "Blocked by" text now includes blocker power/toughness (e.g. "blocked by Spider 2/1")
+- Multi-blocker grammar fixed: "A" (1 blocker), "A and B" (2), "A, B, and C" (3+) with localized conjunctions
+- Mixed land summary now says "X untapped, Y tapped" instead of only showing untapped count
+- Row switching (Shift+Up/Down) announces the row name directly, gated behind VerboseAnnouncements setting
+- `AnnounceCurrentCard` now announces "[row] is empty" as a fallback instead of silently returning
+- All 12 locale files updated with new keys for card types, blocker grammar, phase ownership, and land summary
+
 ### Ctrl+F1: Tutorial Hint Hotkey (contributed by blindndangerous)
 - New global shortcut Ctrl+F1 announces the tutorial hint for the current screen at any time
 - Works regardless of the TutorialMessages setting (always available as an on-demand reminder)
