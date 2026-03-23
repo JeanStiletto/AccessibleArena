@@ -32,6 +32,7 @@
   "NewDeck": "Nuevo mazo",
   "DeckAction_Rename": "Renombrar",
   "DeckAction_Details": "Detalles",
+  "ChangeDeckDetails": "Cambiar detalles del mazo",
   "Continue": "Continuar",
   "DeckInfoCardCount": "Número de cartas",
   "DeckInfoManaCurve": "Curva de maná",

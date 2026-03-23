@@ -32,6 +32,7 @@
   "NewDeck": "Nuovo mazzo",
   "DeckAction_Rename": "Rinomina",
   "DeckAction_Details": "Dettagli",
+  "ChangeDeckDetails": "Modifica dettagli mazzo",
   "Continue": "Continua",
   "DeckInfoCardCount": "Numero carte",
   "DeckInfoManaCurve": "Curva di mana",

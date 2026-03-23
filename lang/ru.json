@@ -32,6 +32,7 @@
   "NewDeck": "Новая колода",
   "DeckAction_Rename": "Переименовать",
   "DeckAction_Details": "Подробности",
+  "ChangeDeckDetails": "Изменить параметры колоды",
   "Continue": "Продолжить",
   "DeckInfoCardCount": "Количество карт",
   "DeckInfoManaCurve": "Кривая маны",

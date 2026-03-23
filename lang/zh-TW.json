@@ -32,6 +32,7 @@
   "NewDeck": "新套牌",
   "DeckAction_Rename": "重新命名",
   "DeckAction_Details": "詳細資料",
+  "ChangeDeckDetails": "變更牌組詳細資料",
   "Continue": "繼續",
   "DeckInfoCardCount": "卡牌數量",
   "DeckInfoManaCurve": "魔法力曲線",

@@ -72,6 +72,7 @@ namespace AccessibleArena.Core.Models
         public static string NewDeck => L.Get("NewDeck");
         public static string DeckActionRename => L.Get("DeckAction_Rename");
         public static string DeckActionDetails => L.Get("DeckAction_Details");
+        public static string ChangeDeckDetails => L.Get("ChangeDeckDetails");
         public static string Continue => L.Get("Continue");
 
         // ===========================================

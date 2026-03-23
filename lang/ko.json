@@ -32,6 +32,7 @@
   "NewDeck": "새 덱",
   "DeckAction_Rename": "이름 변경",
   "DeckAction_Details": "상세정보",
+  "ChangeDeckDetails": "덱 세부정보 변경",
   "Continue": "계속",
   "DeckInfoCardCount": "카드 수",
   "DeckInfoManaCurve": "마나 커브",

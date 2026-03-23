@@ -32,6 +32,7 @@
   "NewDeck": "Nouveau deck",
   "DeckAction_Rename": "Renommer",
   "DeckAction_Details": "Détails",
+  "ChangeDeckDetails": "Modifier les détails du deck",
   "Continue": "Continuer",
   "DeckInfoCardCount": "Nombre de cartes",
   "DeckInfoManaCurve": "Courbe de mana",

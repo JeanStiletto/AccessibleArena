@@ -32,6 +32,7 @@
   "NewDeck": "New Deck",
   "DeckAction_Rename": "Rename",
   "DeckAction_Details": "Details",
+  "ChangeDeckDetails": "Change Deck Details",
   "Continue": "Continue",
   "DeckInfoCardCount": "Card Count",
   "DeckInfoManaCurve": "Mana Curve",
