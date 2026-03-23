@@ -358,15 +358,11 @@ namespace AccessibleArena.Core.Services
                 var result = modelInfo.Value;
                 // For collection cards, also extract owned/used quantities from PagesMetaCardView
                 CardModelProvider.ExtractCollectionQuantity(cardObj, ref result);
-                MelonLogger.Msg($"[CardDetector] Using MODEL extraction: {result.Name}" +
-                    (result.OwnedCount > 0 ? $" (Owned: {result.OwnedCount}, InDeck: {result.UsedInDeckCount})" : ""));
                 return result;
             }
 
             // Fall back to UI text extraction (for Meta scene cards or if Model fails)
-            var uiInfo = ExtractCardInfoFromUI(cardObj);
-            MelonLogger.Msg($"[CardDetector] Using UI extraction: {uiInfo.Name ?? "null"} (Model failed: {(modelInfo.HasValue ? "invalid" : "no CDC")})");
-            return uiInfo;
+            return ExtractCardInfoFromUI(cardObj);
         }
 
         /// <summary>

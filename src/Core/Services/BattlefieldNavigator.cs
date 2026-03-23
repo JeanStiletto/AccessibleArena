@@ -344,7 +344,6 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private BattlefieldRow CategorizeCard(GameObject card)
         {
-            string cardName = CardDetector.GetCardName(card);
             var (isCreature, isLand, isOpponent) = CardDetector.GetCardCategory(card);
 
             // Determine row based on type and ownership
@@ -362,8 +361,6 @@ namespace AccessibleArena.Core.Services
                 else row = BattlefieldRow.PlayerNonCreatures;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "BattlefieldNavigator",
-                $"Card: {cardName}, IsCreature: {isCreature}, IsLand: {isLand}, IsOpponent: {isOpponent} -> {row}");
             return row;
         }
 

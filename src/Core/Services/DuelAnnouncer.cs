@@ -1231,7 +1231,8 @@ namespace AccessibleArena.Core.Services
                         }
                     }
 
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
+                    if (grpId != 0)
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
                     isOpponent = controllerId != 0 && controllerId != _localPlayerId;
                 }
 
@@ -1245,8 +1246,9 @@ namespace AccessibleArena.Core.Services
                     zoneToCheck = toZoneStr;
                 }
 
-                // Log zone strings for debugging ownership detection
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
+                // Log zone strings for debugging ownership detection (skip for GrpId=0 library shuffles)
+                if (grpId != 0)
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
 
                 // Try to auto-correct local player ID from zone strings containing "(LocalPlayer)"
                 TryUpdateLocalPlayerIdFromZoneString(fromZoneStr);
@@ -1262,8 +1264,9 @@ namespace AccessibleArena.Core.Services
                 else if (zoneToCheck.Contains("Player: ") || zoneToCheck.Contains("Player:"))
                     isOpponent = true; // Contains a player reference but not our ID, so it's opponent
 
-                // Log for debugging
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");
+                // Log for debugging (skip for GrpId=0 library shuffles)
+                if (grpId != 0)
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");
 
                 // Skip if no card data
                 if (grpId == 0)
@@ -2067,13 +2070,6 @@ namespace AccessibleArena.Core.Services
             {
                 var typeName = uxEvent.GetType().Name;
 
-                // DIAGNOSTIC: Log button state when mana is produced (ability activation mode)
-                if (typeName == "ManaProducedUXEvent")
-                {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== MANA PRODUCED - Logging button state ===");
-                    LogAllPromptButtons();
-                }
-
                 // Only process UpdateManaPoolUXEvent for announcements
                 if (typeName == "UpdateManaPoolUXEvent")
                 {
@@ -2096,91 +2092,6 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        /// <summary>
-        /// DIAGNOSTIC: Logs all current prompt buttons and their text.
-        /// Called during mana payment mode to understand button state.
-        /// </summary>
-        public static void LogAllPromptButtons()
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== PROMPT BUTTON DIAGNOSTIC ===");
-
-                // Find all prompt buttons
-                var allObjects = UnityEngine.GameObject.FindObjectsOfType<UnityEngine.GameObject>();
-                int buttonCount = 0;
-
-                foreach (var go in allObjects)
-                {
-                    if (go == null || !go.activeInHierarchy) continue;
-
-                    // Check for PromptButton objects
-                    if (go.name.Contains("PromptButton") || go.name.Contains("ButtonsLayout"))
-                    {
-                        string buttonText = UITextExtractor.GetText(go);
-                        var button = go.GetComponent<UnityEngine.UI.Button>();
-                        var selectable = go.GetComponent<UnityEngine.UI.Selectable>();
-
-                        bool isInteractable = (button?.interactable ?? false) || (selectable?.interactable ?? false);
-
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Button: {go.name}");
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  Text: '{buttonText}'");
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  Interactable: {isInteractable}");
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  Path: {MenuDebugHelper.GetGameObjectPath(go)}");
-
-                        // Check for callbacks
-                        if (button != null)
-                        {
-                            var onClick = button.onClick;
-                            int listenerCount = onClick?.GetPersistentEventCount() ?? 0;
-                            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"  OnClick listeners: {listenerCount}");
-                        }
-
-                        buttonCount++;
-                    }
-                }
-
-                // Also check for any active workflow buttons
-                foreach (var go in allObjects)
-                {
-                    if (go == null || !go.activeInHierarchy) continue;
-
-                    // Check for workflow-related UI
-                    if (go.name.Contains("AutoTap") || go.name.Contains("ManaPayment") ||
-                        go.name.Contains("Workflow") || go.name.Contains("ActionButton"))
-                    {
-                        string text = UITextExtractor.GetText(go);
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Workflow UI: {go.name} - '{text}'");
-                    }
-                }
-
-                // Check for any HotHighlight on lands
-                int highlightedLands = 0;
-                foreach (var go in allObjects)
-                {
-                    if (go == null || !go.activeInHierarchy) continue;
-
-                    if (CardDetector.IsCard(go) && CardDetector.HasHotHighlight(go))
-                    {
-                        var (_, isLand, _) = CardDetector.GetCardCategory(go);
-                        if (isLand)
-                        {
-                            highlightedLands++;
-                            string cardName = CardDetector.GetCardName(go);
-                            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Highlighted land: {cardName}");
-                        }
-                    }
-                }
-
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Total prompt buttons found: {buttonCount}");
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Total highlighted lands: {highlightedLands}");
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== END PROMPT BUTTON DIAGNOSTIC ===");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[DuelAnnouncer] Error logging buttons: {ex.Message}");
-            }
-        }
 
         /// <summary>
         /// Parses the mana pool from UpdateManaPoolUXEvent into a readable string like "2 Green, 1 Blue"

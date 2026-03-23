@@ -471,7 +471,6 @@ namespace AccessibleArena.Core.Services
 
                 DiscoverCardsInZone(zoneInfo);
                 _zones[zoneType] = zoneInfo;
-                MelonLogger.Msg($"[ZoneNavigator] Zone: {zoneType} - {go.name} - {zoneInfo.Cards.Count} cards");
             }
 
             // MTGA places commanders visually in the hand holder, not CommandCardHolder.

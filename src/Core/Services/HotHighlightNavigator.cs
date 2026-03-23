@@ -1065,7 +1065,6 @@ namespace AccessibleArena.Core.Services
                 if (match.Success)
                 {
                     int count = int.Parse(match.Groups[1].Value);
-                    MelonLogger.Msg($"[HotHighlightNavigator] DIAG GetSubmitButtonInfo matched: '{buttonText}' count={count}");
                     return (count, selectable.gameObject);
                 }
             }
