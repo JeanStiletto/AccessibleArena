@@ -60,7 +60,8 @@ namespace AccessibleArena.Core.Services
         private string _currentStep;
 
         // Track commander GrpIds for command zone access (Brawl/Commander)
-        private readonly HashSet<uint> _commandZoneGrpIds = new HashSet<uint>();
+        // Maps GrpId -> isOpponent, set when cards first enter the Command zone
+        private readonly Dictionary<uint, bool> _commandZoneGrpIds = new Dictionary<uint, bool>();
 
         // Track which event labels have been field-logged (replaces per-type boolean flags)
         private static readonly HashSet<string> _fieldLoggedLabels = new HashSet<string>();
@@ -260,24 +261,15 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets the opponent's commander GrpId for Brawl/Commander games.
-        /// Determines ownership by checking which command zone GrpId matches
-        /// a card in the local hand with model ZoneType=="Command" (our commander).
-        /// The remaining GrpId is the opponent's commander.
+        /// Uses ownership tracked when cards first entered the Command zone.
         /// </summary>
         public uint GetOpponentCommanderGrpId()
         {
-            if (_commandZoneGrpIds.Count == 0) return 0;
-
-            // Find our commander GrpId by scanning local hand for a card with model ZoneType=="Command"
-            uint ourCommanderGrpId = FindOurCommanderGrpId();
-
-            // Find the opponent's commander: any command zone GrpId that isn't ours
-            foreach (var grpId in _commandZoneGrpIds)
+            foreach (var kvp in _commandZoneGrpIds)
             {
-                if (grpId != ourCommanderGrpId)
-                    return grpId;
+                if (kvp.Value) // isOpponent == true
+                    return kvp.Key;
             }
-
             return 0;
         }
 
@@ -302,40 +294,6 @@ namespace AccessibleArena.Core.Services
             return CardModelProvider.GetNameFromGrpId(grpId);
         }
 
-        /// <summary>
-        /// Finds our own commander's GrpId by scanning the local hand for a card
-        /// with model ZoneType=="Command".
-        /// </summary>
-        private uint FindOurCommanderGrpId()
-        {
-            if (_zoneNavigator == null) return 0;
-
-            _zoneNavigator.DiscoverZones();
-            var handCards = _zoneNavigator.GetCardsInZone(ZoneType.Hand);
-            if (handCards == null) return 0;
-
-            foreach (var card in handCards)
-            {
-                string modelZone = CardStateProvider.GetCardZoneTypeName(card);
-                if (modelZone == "Command")
-                {
-                    var cdc = CardModelProvider.GetDuelSceneCDC(card);
-                    if (cdc == null) continue;
-                    var model = CardModelProvider.GetCardModel(cdc);
-                    if (model == null) continue;
-
-                    var grpIdProp = model.GetType().GetProperty("GrpId", PublicInstance);
-                    if (grpIdProp != null)
-                    {
-                        var val = grpIdProp.GetValue(model);
-                        if (val is uint gid) return gid;
-                        if (val is int gidi) return (uint)gidi;
-                    }
-                }
-            }
-
-            return 0;
-        }
 
         #endregion
 
@@ -1323,11 +1281,11 @@ namespace AccessibleArena.Core.Services
                 string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
                 string announcement = null;
 
-                // Track cards entering Command zone (for opponent commander detection)
+                // Track commander ownership permanently (for opponent commander detection)
                 if (toZoneTypeStr == "Command" && grpId != 0)
                 {
-                    _commandZoneGrpIds.Add(grpId);
-                    MelonLogger.Msg($"[DuelAnnouncer] Tracking command zone card: GrpId={grpId} ({cardName})");
+                    _commandZoneGrpIds[grpId] = isOpponent;
+                    MelonLogger.Msg($"[DuelAnnouncer] Tracking commander: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
                 }
 
                 // Determine announcement based on zone transfer type

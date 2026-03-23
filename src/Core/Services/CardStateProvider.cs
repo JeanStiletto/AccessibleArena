@@ -235,6 +235,37 @@ namespace AccessibleArena.Core.Services
             => GetAllCardModelsInHolder("BattlefieldCardHolder");
 
         /// <summary>
+        /// Checks if a card with the given GrpId exists on the battlefield, stack, graveyard, or exile.
+        /// Used to determine if a commander has left the command zone.
+        /// </summary>
+        public static bool IsGrpIdInNonCommandZone(uint grpId)
+        {
+            if (grpId == 0) return false;
+
+            string[] holders = { "BattlefieldCardHolder", "StackCardHolder", "LocalGraveyard", "OpponentGraveyard", "ExileCardHolder" };
+            foreach (var holderName in holders)
+            {
+                var holder = DuelHolderCache.GetHolder(holderName);
+                if (holder == null) continue;
+
+                foreach (var child in holder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child == null || !child.gameObject.activeInHierarchy) continue;
+
+                    var cdc = CardModelProvider.GetDuelSceneCDC(child.gameObject);
+                    if (cdc == null) continue;
+
+                    var model = CardModelProvider.GetCardModel(cdc);
+                    if (model == null) continue;
+
+                    if (GetModelGrpId(model) == grpId)
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Gets the list of cards attached to this card (enchantments, equipment, etc.).
         /// Scans all battlefield cards and checks whose Instance.AttachedToId matches this card's InstanceId.
         /// </summary>
