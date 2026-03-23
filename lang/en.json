@@ -977,5 +977,7 @@
   "Sideboard_InfoZone": "Match info",
   "SurveyGood": "Good",
   "SurveyBad": "Bad",
-  "SurveyHint": "Up and Down to navigate, Enter to select, Backspace to skip"
+  "SurveyHint": "Up and Down to navigate, Enter to select, Backspace to skip",
+  "DeckBuilder_Commander": "Commander",
+  "DeckBuilder_Companion": "Companion"
 }

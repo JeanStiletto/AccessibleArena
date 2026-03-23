@@ -635,6 +635,225 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Commander Card Support
+
+        /// <summary>
+        /// Information about a commander/companion card in the deck builder.
+        /// </summary>
+        public struct CommanderCardInfo
+        {
+            public uint GrpId;
+            public int Quantity;
+            public GameObject CardGameObject; // StaticColumnMetaCardView(Clone) gameObject
+            public bool IsCompanion;
+            public bool IsPartner;
+            public bool IsValid => GrpId != 0 && CardGameObject != null;
+        }
+
+        // Cache for commander cards
+        private static List<CommanderCardInfo> _cachedCommanderCards = new List<CommanderCardInfo>();
+        private static int _cachedCommanderFrame = -1;
+
+        /// <summary>
+        /// Gets all commander/companion cards from CommanderSlotCardHolder components.
+        /// Uses caching to avoid repeated reflection calls within the same frame.
+        /// </summary>
+        public static List<CommanderCardInfo> GetCommanderCards()
+        {
+            if (_cachedCommanderFrame == Time.frameCount && _cachedCommanderCards.Count > 0)
+                return _cachedCommanderCards;
+
+            _cachedCommanderCards.Clear();
+            _cachedCommanderFrame = Time.frameCount;
+
+            try
+            {
+                // Find CommanderSlotCardHolder components in the scene
+                var holders = new List<MonoBehaviour>();
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == T.CommanderSlotCardHolder)
+                        holders.Add(mb);
+                }
+
+                if (holders.Count == 0)
+                    return _cachedCommanderCards;
+
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                    $"Found {holders.Count} CommanderSlotCardHolder(s)");
+
+                foreach (var holder in holders)
+                {
+                    var holderType = holder.GetType();
+
+                    // Check _populated field - do NOT skip inactive holders,
+                    // the game sets holder inactive but the card view children may still be active
+                    var populatedField = holderType.GetField("_populated", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (populatedField != null)
+                    {
+                        bool populated = (bool)populatedField.GetValue(holder);
+                        if (!populated)
+                            continue;
+                    }
+
+                    // Get _commanderCardView field (private StaticColumnMetaCardView)
+                    var cardViewField = holderType.GetField("_commanderCardView", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (cardViewField == null)
+                    {
+                        // Fallback: try CardViews property (inherited from MetaCardHolder)
+                        var cardViewsProp = holderType.GetProperty("CardViews");
+                        if (cardViewsProp != null)
+                        {
+                            var cardViews = cardViewsProp.GetValue(holder) as IEnumerable;
+                            if (cardViews != null)
+                            {
+                                foreach (var cv in cardViews)
+                                {
+                                    if (cv == null) continue;
+                                    var cmdInfo = ExtractCommanderCardViewInfo(cv, holder);
+                                    if (cmdInfo.IsValid)
+                                        _cachedCommanderCards.Add(cmdInfo);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+
+                    var cardView = cardViewField.GetValue(holder);
+                    if (cardView == null)
+                        continue;
+
+                    var info = ExtractCommanderCardViewInfo(cardView, holder);
+                    if (info.IsValid)
+                        _cachedCommanderCards.Add(info);
+                }
+
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                    $"Found {_cachedCommanderCards.Count} commander card(s)");
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                    $"Error getting commander cards: {ex.Message}");
+            }
+
+            return _cachedCommanderCards;
+        }
+
+        /// <summary>
+        /// Extract commander card info from a card view object and its holder.
+        /// </summary>
+        private static CommanderCardInfo ExtractCommanderCardViewInfo(object cardView, MonoBehaviour holder)
+        {
+            var info = new CommanderCardInfo();
+            var viewType = cardView.GetType();
+
+            // Store the view's gameObject
+            if (cardView is Component viewComponent)
+                info.CardGameObject = viewComponent.gameObject;
+
+            // Get Card.GrpId
+            var cardProp = viewType.GetProperty("Card");
+            if (cardProp != null)
+            {
+                var card = cardProp.GetValue(cardView);
+                if (card != null)
+                {
+                    var grpIdProp = card.GetType().GetProperty("GrpId");
+                    if (grpIdProp != null)
+                        info.GrpId = (uint)grpIdProp.GetValue(card);
+                }
+            }
+
+            // Get Quantity
+            var qtyProp = viewType.GetProperty("Quantity");
+            if (qtyProp != null)
+                info.Quantity = (int)qtyProp.GetValue(cardView);
+
+            // Check IsCompanion / IsPartner on holder
+            var holderType = holder.GetType();
+            var companionField = holderType.GetField("IsCompanion", BindingFlags.Public | BindingFlags.Instance);
+            if (companionField != null)
+                info.IsCompanion = (bool)companionField.GetValue(holder);
+
+            var partnerField = holderType.GetField("IsPartner", BindingFlags.Public | BindingFlags.Instance);
+            if (partnerField != null)
+                info.IsPartner = (bool)partnerField.GetValue(holder);
+
+            return info;
+        }
+
+        /// <summary>
+        /// Gets commander card info for a specific UI element.
+        /// Returns null if the element is not a commander card.
+        /// </summary>
+        public static CommanderCardInfo? GetCommanderCardInfo(GameObject element)
+        {
+            if (element == null) return null;
+
+            var cards = GetCommanderCards();
+            foreach (var card in cards)
+            {
+                if (card.CardGameObject == element)
+                    return card;
+
+                // Check if element is a child of the card view
+                if (card.CardGameObject != null && element.transform.IsChildOf(card.CardGameObject.transform))
+                    return card;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts full card info for a commander/companion card.
+        /// Sets the IsCommander flag on the returned CardInfo.
+        /// </summary>
+        public static CardInfo? ExtractCommanderCardInfo(GameObject element)
+        {
+            var commanderCard = GetCommanderCardInfo(element);
+            if (commanderCard == null || !commanderCard.Value.IsValid)
+                return null;
+
+            var cmdInfo = commanderCard.Value;
+
+            // Use ExtractCardInfoFromModel for consistent extraction
+            if (cmdInfo.CardGameObject != null)
+            {
+                var cardInfo = CardModelProvider.ExtractCardInfoFromModel(cmdInfo.CardGameObject);
+                if (cardInfo.HasValue && cardInfo.Value.IsValid)
+                {
+                    var result = cardInfo.Value;
+                    result.Quantity = cmdInfo.Quantity;
+                    result.IsCommander = !cmdInfo.IsCompanion;
+                    result.IsCompanion = cmdInfo.IsCompanion;
+                    return result;
+                }
+            }
+
+            // Fallback: return minimal info with just name and quantity
+            string name = CardModelProvider.GetNameFromGrpId(cmdInfo.GrpId);
+            return new CardInfo
+            {
+                Name = name ?? $"Card #{cmdInfo.GrpId}",
+                Quantity = cmdInfo.Quantity,
+                IsCommander = !cmdInfo.IsCompanion,
+                IsCompanion = cmdInfo.IsCompanion,
+                IsValid = true
+            };
+        }
+
+        /// <summary>
+        /// Clears the commander card cache.
+        /// </summary>
+        public static void ClearCommanderCache()
+        {
+            _cachedCommanderCards.Clear();
+            _cachedCommanderFrame = -1;
+        }
+
+        #endregion
+
         /// <summary>
         /// Clears all caches (deck list and read-only deck).
         /// Call this on scene changes or when deck data may have changed.
@@ -643,6 +862,7 @@ namespace AccessibleArena.Core.Services
         {
             ClearDeckListCache();
             ClearReadOnlyDeckCache();
+            ClearCommanderCache();
             _showUnCollectedField = null;
             _showUnCollectedFieldSearched = false;
         }

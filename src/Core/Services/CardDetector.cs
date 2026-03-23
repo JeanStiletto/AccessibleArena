@@ -314,6 +314,14 @@ namespace AccessibleArena.Core.Services
                 return sideboardInfo.Value;
             }
 
+            // Check if this is a commander/companion card (CommanderSlotCardHolder)
+            var commanderInfo = DeckCardProvider.ExtractCommanderCardInfo(cardObj);
+            if (commanderInfo.HasValue && commanderInfo.Value.IsValid)
+            {
+                MelonLogger.Msg($"[CardDetector] Using COMMANDER extraction: {commanderInfo.Value.Name}");
+                return commanderInfo.Value;
+            }
+
             // Check if this is a read-only deck card (StaticColumnMetaCardView)
             var readOnlyInfo = DeckCardProvider.ExtractReadOnlyDeckCardInfo(cardObj);
             if (readOnlyInfo.HasValue && readOnlyInfo.Value.IsValid)
@@ -486,7 +494,14 @@ namespace AccessibleArena.Core.Services
             var info = ExtractCardInfo(cardObj);
 
             if (!string.IsNullOrEmpty(info.Name))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, info.Name));
+            {
+                string nameValue = info.Name;
+                if (info.IsCommander)
+                    nameValue = $"{Models.Strings.DeckBuilderCommander}: {nameValue}";
+                else if (info.IsCompanion)
+                    nameValue = $"{Models.Strings.DeckBuilderCompanion}: {nameValue}";
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, nameValue));
+            }
 
             // For deck list cards, show quantity right after name (with "missing" if unowned)
             if (info.Quantity > 0)
@@ -750,6 +765,14 @@ namespace AccessibleArena.Core.Services
         /// Whether this deck list entry represents unowned (missing) copies.
         /// </summary>
         public bool IsUnowned;
+        /// <summary>
+        /// Whether this card is a commander (Brawl/Commander deck builder).
+        /// </summary>
+        public bool IsCommander;
+        /// <summary>
+        /// Whether this card is a companion (Brawl/Commander deck builder).
+        /// </summary>
+        public bool IsCompanion;
     }
 
     /// <summary>

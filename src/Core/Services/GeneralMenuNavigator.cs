@@ -3693,6 +3693,10 @@ namespace AccessibleArena.Core.Services
             // detected separately by FindSideboardCards().
             FindPoolHolderCards(addedObjects);
 
+            // Find commander/companion cards (CommanderSlotCardHolder)
+            // Must be before FindDeckListCards so they get proper labels and are excluded from generic scan
+            FindCommanderCards(addedObjects);
+
             // Find deck list cards (MainDeck_MetaCardHolder)
             // These are cards currently in your deck
             FindDeckListCards(addedObjects);
@@ -4032,6 +4036,67 @@ namespace AccessibleArena.Core.Services
         /// These are cards currently in your deck, displayed as a compact list.
         /// Uses GrpId for language-agnostic card identification.
         /// </summary>
+        /// <summary>
+        /// Find commander/companion cards in Brawl deck builder (CommanderSlotCardHolder).
+        /// These are the commander and companion cards shown in special slots above the deck list.
+        /// </summary>
+        private void FindCommanderCards(HashSet<GameObject> addedObjects)
+        {
+            // Only active in deck builder
+            if (_activeContentController != "WrapperDeckBuilder")
+                return;
+
+            var commanderCards = DeckCardProvider.GetCommanderCards();
+            if (commanderCards.Count == 0)
+                return;
+
+            LogDebug($"[{NavigatorId}] Found {commanderCards.Count} commander/companion card(s)");
+
+            foreach (var cmdCard in commanderCards)
+            {
+                if (!cmdCard.IsValid) continue;
+
+                var cardObj = cmdCard.CardGameObject;
+                if (cardObj == null || addedObjects.Contains(cardObj))
+                    continue;
+
+                // Get card name from GrpId
+                string cardName = CardModelProvider.GetNameFromGrpId(cmdCard.GrpId);
+                if (string.IsNullOrEmpty(cardName))
+                    cardName = $"Card #{cmdCard.GrpId}";
+
+                // Build label with commander/companion prefix
+                string prefix = cmdCard.IsCompanion
+                    ? Models.Strings.DeckBuilderCompanion
+                    : Models.Strings.DeckBuilderCommander;
+                string label = $"{prefix}: {cardName}";
+
+                LogDebug($"[{NavigatorId}] Adding commander card: {label}");
+
+                AddElement(cardObj, label);
+                addedObjects.Add(cardObj);
+
+                // Also add child buttons to addedObjects to prevent duplicate entries from generic scan
+                foreach (Transform child in cardObj.transform)
+                {
+                    if (child != null)
+                        addedObjects.Add(child.gameObject);
+                }
+                // Add parent commander container children too
+                var parent = cardObj.transform.parent;
+                if (parent != null)
+                {
+                    foreach (Transform sibling in parent)
+                    {
+                        if (sibling != null)
+                            addedObjects.Add(sibling.gameObject);
+                    }
+                    // Also mark the parent holder itself
+                    addedObjects.Add(parent.gameObject);
+                }
+            }
+        }
+
         private void FindDeckListCards(HashSet<GameObject> addedObjects)
         {
             // Only active in deck builder

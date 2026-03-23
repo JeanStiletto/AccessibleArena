@@ -975,5 +975,7 @@
   "Sideboard_InfoZone": "Match-Info",
   "SurveyGood": "Gut",
   "SurveyBad": "Schlecht",
-  "SurveyHint": "Pfeil hoch und runter zum Navigieren, Enter zum Auswählen, Rücktaste zum Überspringen"
+  "SurveyHint": "Pfeil hoch und runter zum Navigieren, Enter zum Auswählen, Rücktaste zum Überspringen",
+  "DeckBuilder_Commander": "Kommandeur",
+  "DeckBuilder_Companion": "Begleiter"
 }

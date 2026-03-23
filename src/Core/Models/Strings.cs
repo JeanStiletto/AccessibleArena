@@ -78,6 +78,8 @@ namespace AccessibleArena.Core.Models
         // ===========================================
         // DECK BUILDER INFO
         // ===========================================
+        public static string DeckBuilderCommander => L.Get("DeckBuilder_Commander");
+        public static string DeckBuilderCompanion => L.Get("DeckBuilder_Companion");
         public static string DeckInfoCardCount => L.Get("DeckInfoCardCount");
         public static string DeckInfoManaCurve => L.Get("DeckInfoManaCurve");
         public static string DeckInfoTypeBreakdown => L.Get("DeckInfoTypeBreakdown");

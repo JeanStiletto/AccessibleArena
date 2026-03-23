@@ -118,6 +118,19 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 && name == "CustomButton - Tile")
                 return ElementGroup.DeckBuilderSideboard;
 
+            // Commander/Companion card slot (Brawl deck builder)
+            // Route the card view and Tile button to DeckList; filter out Tag and other sub-elements
+            if (parentPath.Contains("ColumnMetaCardHolder_Commander") ||
+                parentPath.Contains("ColumnMetaCardHolder_Companion") ||
+                parentPath.Contains("ColumnMetaCardHolder_Partner") ||
+                parentPath.Contains(T.CommanderSlotCardHolder))
+            {
+                if (name.Contains("StaticColumnMetaCardView") || name == "CustomButton - Tile")
+                    return ElementGroup.DeckBuilderDeckList;
+                // Filter out Tag buttons and other sub-elements to prevent duplicates
+                return ElementGroup.Unknown;
+            }
+
             // ReadOnly deck builder cards (StaticColumnMetaCardView in column view)
             // These appear when viewing starter/precon decks in read-only mode
             if (name.Contains("StaticColumnMetaCardView") || parentPath.Contains("StaticColumnMetaCardHolder"))
