@@ -109,6 +109,18 @@ Per-browser-type tutorial hints were added for 16 browser types (Scry, Surveil, 
 
 **Files:** `BrowserNavigator.cs` (GetBrowserHintKey), `lang/*.json` (BrowserHint_* keys)
 
+### SelectCards Browser Confirm with 2-Button Layout
+
+SelectCards browsers that require explicit confirmation (e.g. choosing which counterspell to cast from 4 options) may use a `2Button_Left`/`2Button_Right` scaffold layout instead of `SubmitButton`/`SingleButton`. The 2-button names don't match `ConfirmPatterns`. A workflow reflection fallback was added to handle this by submitting via `WorkflowController.CurrentInteraction` — monitor whether this reliably confirms in all SelectCards scenarios or causes issues in other scaffold types.
+
+**Observed in:** Casting Zauberschlinge (Spell Snare) with 4 valid counterspell targets on the stack. The scaffold used 2-button layout, ConfirmPatterns failed, and Space fell through to PromptButton_Primary ("Zug des Gegners") which did nothing.
+
+**Fix applied:** `ClickConfirmButton` now tries `TrySubmitWorkflowViaReflection()` after ConfirmPatterns fail but before the PromptButton_Primary fallback.
+
+**Files:** `BrowserNavigator.cs` (ClickConfirmButton), `BrowserDetector.cs` (ScanForBrowser priority order)
+
+---
+
 ### SelectCardsMultiZone: Space Without Selection Dismisses Silently
 
 In SelectCardsMultiZone browsers (e.g. Abprall/Rebound triggers from Ojer Pakpatiq), pressing Space without first selecting a card via Enter clicks SingleButton which is "Ablehnen" (Decline). This silently declines the ability to cast the exiled spell. The help hint correctly says "Enter to select, Space to confirm", but the UX is confusing because:
@@ -240,7 +252,8 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 ### Upcoming
 
-1. Manual trigger ordering - allow players to manually choose the order of their triggered abilities when multiple triggers happen simultaneously
+1. ~~Manual trigger ordering~~ — Implemented in v0.8.7 (OrderCards/TriggerOrderCards browser support)
+
 2. Display counters on players - announce counters like poison, energy, experience, etc. on players
 3. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
 4. Verbose "Big Card" announcements (inspired by Hearthstone Access) - option to include card details inline with action announcements, with user preference toggle for brief vs verbose

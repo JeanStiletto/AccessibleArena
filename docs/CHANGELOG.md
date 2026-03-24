@@ -4,6 +4,22 @@ All notable changes to Accessible Arena.
 
 ## v0.8.7
 
+### Manual Trigger and Card Ordering
+- New OrderCards/TriggerOrderCards browser support for reordering cards and triggers
+- Pick up a card with Enter, navigate with Left/Right, place with Enter or Space, cancel with Backspace
+- Works for library card ordering (e.g. after Brainstorm) and simultaneous trigger ordering
+- Per-browser tutorial hint explains the pick-up-and-place workflow
+
+### Performance Improvements
+- Removed redundant diagnostic logging, reducing log volume by ~36%
+- Skipped unnecessary DeckCardProvider lookups in duel scene
+- Removed library diagnostic logging for cleaner logs
+
+### Browser Fixes
+- SelectCards browsers with 2-button scaffold layout (e.g. choosing among multiple counterspells) now confirm via workflow reflection instead of falling through to the wrong button
+- OrderCards/TriggerOrderCards browsers no longer have scaffold buttons steal focus when navigating with arrow keys
+- Fixed opponent command zone sometimes showing wrong commander or stale data
+
 ### Brawl Commander Cards in Deck Builder
 - Commander and companion cards are now correctly displayed in the deck list with a "Commander:" or "Companion:" prefix
 - Full card info navigation (Arrow Up/Down) works on commander cards: type line, mana cost, power/toughness, rules text, etc.
@@ -43,7 +59,7 @@ All notable changes to Accessible Arena.
 - Previously, Backspace clicked the wrong button (duel-level PromptButton_Secondary) which left the ConfirmWidget UI stuck
 - New reflection-based cancel finds the ConfirmWidget and calls Cancel() directly, with fallback to workflow variant cancellation and request undo
 
-### Fix: Rate Game survey popup is now fully accessible (hopefully)
+### Fix: Rate Game survey popup is now fully accessible
 - The post-match survey popup (GameEndSurveyPopup) now presents interactive Good/Bad/Skip buttons
 - Polls for UI activation after animator intro, then announces the survey question and navigable buttons
 - Up/Down to navigate, Enter to rate or skip, Backspace to dismiss

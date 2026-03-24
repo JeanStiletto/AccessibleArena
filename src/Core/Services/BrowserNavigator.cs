@@ -2439,6 +2439,16 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Scaffold browsers backed by a workflow (e.g. SelectCards with 2-button layout):
+            // scaffold buttons don't match ConfirmPatterns, but the underlying workflow can submit.
+            if (!(_browserInfo?.IsWorkflow == true) && TrySubmitWorkflowViaReflection())
+            {
+                MelonLogger.Msg($"[BrowserNavigator] Scaffold workflow submitted via reflection");
+                _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // Fallback: PromptButton_Primary (scene search)
             // Skip for OptionalAction and choice-list browsers — their buttons are choices,
             // not confirm/cancel, and the global PromptButtons would click unrelated duel phase buttons
