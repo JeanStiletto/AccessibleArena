@@ -362,7 +362,7 @@
   "AchievementsGroups_Format": "{0}. {1} grupos.",
   "AchievementsInGroup_Format": "{0}. {1} conquistas.",
   "AchievementGroup_Format": "{0}, {1} de {2} concluídas, {3} resgatáveis",
-  "AchievementGroupDesc_Format": "{0}. {1}. {2} de {3} concluídas, {4} resgatáveis",
+  "AchievementGroupDesc_Format": "{0}. {2} de {3} concluídas, {4} resgatáveis. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. Rastreada",
   "AchievementCompleted": "concluída",

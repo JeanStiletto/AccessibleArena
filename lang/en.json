@@ -375,7 +375,7 @@
   "AchievementsGroups_Format": "{0}. {1} groups.",
   "AchievementsInGroup_Format": "{0}. {1} achievements.",
   "AchievementGroup_Format": "{0}, {1} of {2} completed, {3} claimable",
-  "AchievementGroupDesc_Format": "{0}. {1}. {2} of {3} completed, {4} claimable",
+  "AchievementGroupDesc_Format": "{0}. {2} of {3} completed, {4} claimable. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. Tracked",
   "AchievementCompleted": "completed",

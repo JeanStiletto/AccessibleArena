@@ -362,7 +362,7 @@
   "AchievementsGroups_Format": "{0}. {1} grup.",
   "AchievementsInGroup_Format": "{0}. {1} osiągnięć.",
   "AchievementGroup_Format": "{0}, {1} z {2} ukończonych, {3} do odebrania",
-  "AchievementGroupDesc_Format": "{0}. {1}. {2} z {3} ukończonych, {4} do odebrania",
+  "AchievementGroupDesc_Format": "{0}. {2} z {3} ukończonych, {4} do odebrania. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. Śledzone",
   "AchievementCompleted": "ukończone",

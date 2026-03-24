@@ -362,7 +362,7 @@
   "AchievementsGroups_Format": "{0}. {1} групп.",
   "AchievementsInGroup_Format": "{0}. {1} достижений.",
   "AchievementGroup_Format": "{0}, {1} из {2} выполнено, {3} доступно",
-  "AchievementGroupDesc_Format": "{0}. {1}. {2} из {3} выполнено, {4} доступно",
+  "AchievementGroupDesc_Format": "{0}. {2} из {3} выполнено, {4} доступно. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. Отслеживается",
   "AchievementCompleted": "выполнено",

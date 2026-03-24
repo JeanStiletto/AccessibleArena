@@ -362,7 +362,7 @@
   "AchievementsGroups_Format": "{0}. 그룹 {1}개.",
   "AchievementsInGroup_Format": "{0}. 업적 {1}개.",
   "AchievementGroup_Format": "{0}, {2}개 중 {1}개 완료, {3}개 수령 가능",
-  "AchievementGroupDesc_Format": "{0}. {1}. {3}개 중 {2}개 완료, {4}개 수령 가능",
+  "AchievementGroupDesc_Format": "{0}. {3}개 중 {2}개 완료, {4}개 수령 가능. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. 추적 중",
   "AchievementCompleted": "완료",

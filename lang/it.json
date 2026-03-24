@@ -362,7 +362,7 @@
   "AchievementsGroups_Format": "{0}. {1} gruppi.",
   "AchievementsInGroup_Format": "{0}. {1} obiettivi.",
   "AchievementGroup_Format": "{0}, {1} di {2} completati, {3} riscattabili",
-  "AchievementGroupDesc_Format": "{0}. {1}. {2} di {3} completati, {4} riscattabili",
+  "AchievementGroupDesc_Format": "{0}. {2} di {3} completati, {4} riscattabili. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. Monitorato",
   "AchievementCompleted": "completato",

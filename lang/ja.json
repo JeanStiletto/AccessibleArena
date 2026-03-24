@@ -362,7 +362,7 @@
   "AchievementsGroups_Format": "{0}。{1}個のグループ。",
   "AchievementsInGroup_Format": "{0}。{1}個の実績。",
   "AchievementGroup_Format": "{0}、{2}中{1}完了、{3}受取可能",
-  "AchievementGroupDesc_Format": "{0}。{1}。{3}中{2}完了、{4}受取可能",
+  "AchievementGroupDesc_Format": "{0}。{3}中{2}完了、{4}受取可能。{1}",
   "AchievementEntry_Format": "{0}。{1}。{2}",
   "AchievementEntryFavorite_Format": "{0}。{1}。{2}。追跡中",
   "AchievementCompleted": "完了",

@@ -362,7 +362,7 @@
   "AchievementsGroups_Format": "{0}. {1} groupes.",
   "AchievementsInGroup_Format": "{0}. {1} hauts faits.",
   "AchievementGroup_Format": "{0}, {1} sur {2} terminés, {3} récupérables",
-  "AchievementGroupDesc_Format": "{0}. {1}. {2} sur {3} terminés, {4} récupérables",
+  "AchievementGroupDesc_Format": "{0}. {2} sur {3} terminés, {4} récupérables. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. Suivi",
   "AchievementCompleted": "terminé",

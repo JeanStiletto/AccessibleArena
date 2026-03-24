@@ -373,7 +373,7 @@
   "AchievementsGroups_Format": "{0}. {1} Gruppen.",
   "AchievementsInGroup_Format": "{0}. {1} Errungenschaften.",
   "AchievementGroup_Format": "{0}, {1} von {2} abgeschlossen, {3} einlösbar",
-  "AchievementGroupDesc_Format": "{0}. {1}. {2} von {3} abgeschlossen, {4} einlösbar",
+  "AchievementGroupDesc_Format": "{0}. {2} von {3} abgeschlossen, {4} einlösbar. {1}",
   "AchievementEntry_Format": "{0}. {1}. {2}",
   "AchievementEntryFavorite_Format": "{0}. {1}. {2}. Verfolgt",
   "AchievementCompleted": "abgeschlossen",
