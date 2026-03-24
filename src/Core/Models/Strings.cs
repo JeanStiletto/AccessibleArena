@@ -927,6 +927,10 @@ namespace AccessibleArena.Core.Models
         public static string OnStack => L.Get("OnStack");
         public static string Confirmed => L.Get("Confirmed");
         public static string Cancelled => L.Get("Cancelled");
+        public static string OrderCardsPickedUp => L.Get("OrderCards_PickedUp");
+        public static string OrderCardsCancelled => L.Get("OrderCards_Cancelled");
+        public static string OrderCardsPlaced(int position, int total) =>
+            L.Format("OrderCards_Placed_Format", position, total);
         public static string NoConfirmButton => L.Get("NoConfirmButton");
         public static string KeepOnTop => L.Get("KeepOnTop");
         public static string PutOnBottom => L.Get("PutOnBottom");

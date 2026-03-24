@@ -86,6 +86,15 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _kf_onFilterSubmitted;
         private static bool _keywordReflectionInit;
 
+        // OrderCards browser state (card reordering for library/triggers)
+        private bool _isOrderCards;
+        private int _orderGrabbedIndex = -1; // Index of card being moved (-1 = none grabbed)
+
+        // OrderCards reflection cache
+        private static MethodInfo _shiftCardsMethod;
+        private static PropertyInfo _cardViewsProp;
+        private static PropertyInfo _instanceIdProp;
+
         // Zone name constant
         private const string ZoneLocalHand = "LocalHand";
 
@@ -146,8 +155,11 @@ namespace AccessibleArena.Core.Services
             if (type == "SelectNCounters") return "BrowserHint_SelectNCounters";
             if (_browserInfo.IsWorkflow) return "BrowserHint_Workflow";
 
+            // OrderCards browsers (library reorder / trigger reorder)
+            if (_isOrderCards) return "BrowserHint_OrderCards";
+
             // SelectCards and similar card selection browsers
-            if (type == "SelectCards" || type == "LibrarySideboard" || type == "OrderCards")
+            if (type == "SelectCards" || type == "LibrarySideboard")
                 return "BrowserHint_SelectCards";
 
             // Simple button browsers (YesNo, Dungeon, Optional*, Mutate, LargeScrollList)
@@ -276,6 +288,13 @@ namespace AccessibleArena.Core.Services
                 CacheKeywordFilterState();
             }
 
+            // Detect OrderCards browser (library card reorder / trigger reorder)
+            if (browserInfo.BrowserType == "OrderCards" || browserInfo.BrowserType == "TriggerOrderCards")
+            {
+                _isOrderCards = true;
+                _orderGrabbedIndex = -1;
+            }
+
             // Discover elements
             DiscoverBrowserElements();
         }
@@ -331,6 +350,10 @@ namespace AccessibleArena.Core.Services
             _isKeywordSelection = false;
             _keywordFilterRef = null;
             _currentKeywordIndex = -1;
+
+            // Clear OrderCards state
+            _isOrderCards = false;
+            _orderGrabbedIndex = -1;
 
             // Invalidate detector cache
             BrowserDetector.InvalidateCache();
@@ -517,6 +540,22 @@ namespace AccessibleArena.Core.Services
                 // Reclaim Browser zone ownership (user may have navigated to graveyard/battlefield)
                 _duelZoneNavigator?.SetCurrentZone(ZoneType.Browser, "BrowserNavigator");
 
+                // OrderCards: Tab also uses clamped navigation (same as Left/Right)
+                if (_isOrderCards && _browserCards.Count > 0)
+                {
+                    if (shift)
+                    {
+                        if (_currentCardIndex > 0) { _currentCardIndex--; AnnounceCurrentCard(); }
+                        else _announcer.AnnounceInterruptVerbose(Strings.BeginningOfZone);
+                    }
+                    else
+                    {
+                        if (_currentCardIndex < _browserCards.Count - 1) { _currentCardIndex++; AnnounceCurrentCard(); }
+                        else _announcer.AnnounceInterruptVerbose(Strings.EndOfZone);
+                    }
+                    return true;
+                }
+
                 // Multi-zone: Tab wraps back to zone selector at boundaries
                 if (_isMultiZone && _zoneButtons.Count > 0)
                 {
@@ -613,6 +652,37 @@ namespace AccessibleArena.Core.Services
             bool browserOwnsZone = _duelZoneNavigator == null || _duelZoneNavigator.CurrentZone == ZoneType.Browser;
             if (browserOwnsZone && (!_browserInfo.IsZoneBased || _zoneNavigator.CurrentZone == BrowserZoneType.None))
             {
+                // OrderCards: clamp navigation (no wrapping) with verbose boundary announcements
+                if (_isOrderCards && _browserCards.Count > 0)
+                {
+                    if (Input.GetKeyDown(KeyCode.LeftArrow))
+                    {
+                        if (_currentCardIndex > 0)
+                        {
+                            _currentCardIndex--;
+                            AnnounceCurrentCard();
+                        }
+                        else
+                        {
+                            _announcer.AnnounceInterruptVerbose(Strings.BeginningOfZone);
+                        }
+                        return true;
+                    }
+                    if (Input.GetKeyDown(KeyCode.RightArrow))
+                    {
+                        if (_currentCardIndex < _browserCards.Count - 1)
+                        {
+                            _currentCardIndex++;
+                            AnnounceCurrentCard();
+                        }
+                        else
+                        {
+                            _announcer.AnnounceInterruptVerbose(Strings.EndOfZone);
+                        }
+                        return true;
+                    }
+                }
+
                 if (Input.GetKeyDown(KeyCode.LeftArrow))
                 {
                     // OptionalAction: respect current focus type (card vs button)
@@ -655,6 +725,13 @@ namespace AccessibleArena.Core.Services
             // Only when Browser zone owns focus
             if (browserOwnsZone && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
+                // OrderCards: pick up or place card
+                if (_isOrderCards)
+                {
+                    HandleOrderCardsActivation();
+                    return true;
+                }
+
                 // Zone navigator handles Enter only when actually navigating in a zone (with selected card)
                 if (_browserInfo.IsZoneBased && _zoneNavigator.CurrentZone != BrowserZoneType.None
                     && _zoneNavigator.CurrentCardIndex >= 0)
@@ -677,6 +754,12 @@ namespace AccessibleArena.Core.Services
             // Space - confirm/submit
             if (Input.GetKeyDown(KeyCode.Space))
             {
+                // OrderCards: if a card is grabbed, place it instead of submitting
+                if (_isOrderCards && _orderGrabbedIndex >= 0)
+                {
+                    PlaceOrderCard();
+                    return true;
+                }
                 ClickConfirmButton();
                 return true;
             }
@@ -684,6 +767,13 @@ namespace AccessibleArena.Core.Services
             // Backspace - cancel
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
+                // OrderCards: if a card is grabbed, cancel the grab
+                if (_isOrderCards && _orderGrabbedIndex >= 0)
+                {
+                    _orderGrabbedIndex = -1;
+                    _announcer.Announce(Strings.OrderCardsCancelled, AnnouncementPriority.Normal);
+                    return true;
+                }
                 ClickCancelButton();
                 return true;
             }
@@ -758,6 +848,12 @@ namespace AccessibleArena.Core.Services
             }
 
             DiscoverCardsInHolders();
+
+            // OrderCards: filter out placeholder cards (InstanceId == 0) used as library boundary markers
+            if (_isOrderCards)
+            {
+                FilterPlaceholderCards();
+            }
 
             // Scope button discovery to the scaffold when available.
             // Global search picks up unrelated duel UI buttons (PromptButton_Primary/Secondary)
@@ -3762,6 +3858,268 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        #endregion
+
+        #region OrderCards Browser
+
+        /// <summary>
+        /// Filters out placeholder cards (InstanceId == 0) from the browser cards list.
+        /// OrderCards browsers may include a library boundary placeholder that players
+        /// should not interact with.
+        /// </summary>
+        private void FilterPlaceholderCards()
+        {
+            for (int i = _browserCards.Count - 1; i >= 0; i--)
+            {
+                var card = _browserCards[i];
+                var cdc = CardDetector.GetDuelSceneCDC(card);
+                if (cdc == null) continue;
+
+                if (_instanceIdProp == null)
+                    _instanceIdProp = cdc.GetType().GetProperty("InstanceId", PublicInstance);
+
+                if (_instanceIdProp != null)
+                {
+                    var id = _instanceIdProp.GetValue(cdc);
+                    if ((id is uint uid && uid == 0) || (id is int iid && iid == 0))
+                    {
+                        MelonLogger.Msg($"[BrowserNavigator] Filtered placeholder card at index {i}");
+                        _browserCards.RemoveAt(i);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles Enter key for OrderCards browsers: pick up or place a card.
+        /// </summary>
+        private void HandleOrderCardsActivation()
+        {
+            if (_currentCardIndex < 0 || _currentCardIndex >= _browserCards.Count)
+            {
+                _announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (_orderGrabbedIndex < 0)
+            {
+                // Pick up: record current index
+                _orderGrabbedIndex = _currentCardIndex;
+                var cardName = CardDetector.GetCardName(_browserCards[_currentCardIndex]) ?? "card";
+                MelonLogger.Msg($"[BrowserNavigator] OrderCards: picked up '{cardName}' at index {_orderGrabbedIndex}");
+                _announcer.Announce(Strings.OrderCardsPickedUp, AnnouncementPriority.Normal);
+            }
+            else
+            {
+                // Place: shift card from grabbed index to current index
+                PlaceOrderCard();
+            }
+        }
+
+        /// <summary>
+        /// Places the grabbed card at the current navigation index.
+        /// Calls ShiftCards on the holder and syncs the browser via OnDragRelease.
+        /// </summary>
+        private void PlaceOrderCard()
+        {
+            int fromIndex = _orderGrabbedIndex;
+            int toIndex = _currentCardIndex;
+            _orderGrabbedIndex = -1;
+
+            if (fromIndex == toIndex)
+            {
+                // Same position — just announce placement
+                _announcer.Announce(
+                    Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count),
+                    AnnouncementPriority.Normal);
+                return;
+            }
+
+            var card = _browserCards[fromIndex];
+            var cardName = CardDetector.GetCardName(card) ?? "card";
+            var cdc = CardDetector.GetDuelSceneCDC(card);
+
+            MelonLogger.Msg($"[BrowserNavigator] OrderCards: placing '{cardName}' from {fromIndex} to {toIndex}");
+
+            // Find the holder and its CardBrowserCardHolder component
+            var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+            if (defaultHolder == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] OrderCards: default holder not found");
+                _announcer.Announce(Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count), AnnouncementPriority.Normal);
+                return;
+            }
+
+            Component holderComp = null;
+            foreach (var comp in defaultHolder.GetComponents<Component>())
+            {
+                if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                {
+                    holderComp = comp;
+                    break;
+                }
+            }
+
+            if (holderComp == null)
+            {
+                MelonLogger.Warning("[BrowserNavigator] OrderCards: CardBrowserCardHolder not found");
+                _announcer.Announce(Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count), AnnouncementPriority.Normal);
+                return;
+            }
+
+            // Map our filtered indices to holder CardViews indices (accounting for placeholders)
+            int holderFromIndex = GetHolderCardViewIndex(holderComp, _browserCards[fromIndex]);
+            int holderToIndex = GetHolderCardViewIndex(holderComp, _browserCards[toIndex]);
+
+            if (holderFromIndex < 0 || holderToIndex < 0)
+            {
+                MelonLogger.Warning($"[BrowserNavigator] OrderCards: could not map indices (from={holderFromIndex}, to={holderToIndex})");
+                _announcer.Announce(Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count), AnnouncementPriority.Normal);
+                return;
+            }
+
+            // Call ShiftCards on the holder
+            if (_shiftCardsMethod == null)
+                _shiftCardsMethod = holderComp.GetType().GetMethod("ShiftCards", PublicInstance);
+
+            if (_shiftCardsMethod != null)
+            {
+                _shiftCardsMethod.Invoke(holderComp, new object[] { holderFromIndex, holderToIndex });
+                MelonLogger.Msg($"[BrowserNavigator] OrderCards: ShiftCards({holderFromIndex}, {holderToIndex})");
+            }
+            else
+            {
+                MelonLogger.Warning("[BrowserNavigator] OrderCards: ShiftCards method not found");
+            }
+
+            // Sync the browser's internal cardViews list via OnDragRelease
+            if (cdc != null)
+            {
+                SyncOrderBrowserCardViews(cdc);
+            }
+
+            // Refresh our card list from the holder to match new order
+            RefreshOrderCardsFromHolder(holderComp);
+
+            // Keep cursor at the target position
+            _currentCardIndex = toIndex;
+
+            _announcer.Announce(
+                Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count),
+                AnnouncementPriority.Normal);
+        }
+
+        /// <summary>
+        /// Maps a card GameObject to its index in the holder's CardViews list.
+        /// Necessary because our _browserCards may skip placeholder cards (InstanceId==0).
+        /// </summary>
+        private int GetHolderCardViewIndex(Component holderComp, GameObject card)
+        {
+            if (_cardViewsProp == null)
+                _cardViewsProp = holderComp.GetType().GetProperty("CardViews",
+                    PublicInstance | BindingFlags.FlattenHierarchy);
+
+            var cardViewsList = _cardViewsProp?.GetValue(holderComp) as System.Collections.IList;
+            if (cardViewsList == null) return -1;
+
+            var cdc = CardDetector.GetDuelSceneCDC(card);
+            if (cdc == null) return -1;
+
+            for (int i = 0; i < cardViewsList.Count; i++)
+            {
+                if (cardViewsList[i] as Component == cdc)
+                    return i;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Syncs the browser's cardViews list from the holder after a reorder.
+        /// Calls OnDragRelease on GameManager.BrowserManager.CurrentBrowser.
+        /// </summary>
+        private void SyncOrderBrowserCardViews(Component cardCDC)
+        {
+            try
+            {
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+
+                if (gameManager == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] OrderCards: GameManager not found");
+                    return;
+                }
+
+                var bmProp = gameManager.GetType().GetProperty("BrowserManager", PublicInstance);
+                var browserManager = bmProp?.GetValue(gameManager);
+                if (browserManager == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] OrderCards: BrowserManager not found");
+                    return;
+                }
+
+                var currentBrowserProp = browserManager.GetType().GetProperty("CurrentBrowser", PublicInstance);
+                var currentBrowser = currentBrowserProp?.GetValue(browserManager);
+                if (currentBrowser == null)
+                {
+                    MelonLogger.Warning("[BrowserNavigator] OrderCards: CurrentBrowser not found");
+                    return;
+                }
+
+                var onDragRelease = currentBrowser.GetType().GetMethod("OnDragRelease", PublicInstance);
+                if (onDragRelease != null)
+                {
+                    onDragRelease.Invoke(currentBrowser, new object[] { cardCDC });
+                    MelonLogger.Msg("[BrowserNavigator] OrderCards: browser synced via OnDragRelease");
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[BrowserNavigator] OrderCards: error syncing browser: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the browser cards list from the holder's CardViews after a reorder.
+        /// Maintains order consistency between our navigation list and the actual holder order.
+        /// </summary>
+        private void RefreshOrderCardsFromHolder(Component holderComp)
+        {
+            if (_cardViewsProp == null)
+                _cardViewsProp = holderComp.GetType().GetProperty("CardViews",
+                    PublicInstance | BindingFlags.FlattenHierarchy);
+
+            var cardViewsList = _cardViewsProp?.GetValue(holderComp) as System.Collections.IList;
+            if (cardViewsList == null) return;
+
+            _browserCards.Clear();
+            foreach (var item in cardViewsList)
+            {
+                var cdcComp = item as Component;
+                if (cdcComp == null) continue;
+
+                // Skip placeholder cards (InstanceId == 0)
+                if (_instanceIdProp == null)
+                    _instanceIdProp = cdcComp.GetType().GetProperty("InstanceId", PublicInstance);
+
+                if (_instanceIdProp != null)
+                {
+                    var id = _instanceIdProp.GetValue(cdcComp);
+                    if ((id is uint uid && uid == 0) || (id is int iid && iid == 0))
+                        continue;
+                }
+
+                _browserCards.Add(cdcComp.gameObject);
+            }
         }
 
         #endregion
