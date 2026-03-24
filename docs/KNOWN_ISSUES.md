@@ -133,6 +133,20 @@ In SelectCardsMultiZone browsers (e.g. Abprall/Rebound triggers from Ojer Pakpat
 
 ---
 
+### RepeatSelection Modal Spell Remaining Choices Announcement
+
+Fixed `ExtractBrowserHeaderText()` to read the subheader from the `BrowserHeader` component via reflection instead of searching by GO name (which never matched). Added dedicated `AnnounceRepeatSelectionAfterDelay()` that announces "selected/deselected" plus the remaining count after each mode selection. Monitor whether:
+- The initial entry announcement now includes the remaining count (e.g., "Modus wählen. 3 Modi. 5 verbleibende Optionen")
+- Each selection announces remaining (e.g., "ausgewählt. 4 verbleibende Optionen")
+- Deselecting a selected copy announces correctly
+- Auto-submit after reaching max selections doesn't cause issues
+
+**Observed in:** Zeit des Webens (choose modes up to 5 times). Previously no remaining count was spoken.
+
+**Files:** `BrowserNavigator.cs` (ExtractBrowserHeaderText, AnnounceRepeatSelectionAfterDelay, ActivateCurrentCard)
+
+---
+
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers

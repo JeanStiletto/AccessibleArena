@@ -1611,9 +1611,14 @@ namespace AccessibleArena.Core.Services
             return string.Join(", ", parts);
         }
 
+        // BrowserHeader reflection cache
+        private static FieldInfo _browserHeaderSubheaderField;
+        private static bool _browserHeaderReflectionInit;
+
         /// <summary>
         /// Extracts the header/subheader text from the browser scaffold.
         /// Used for RepeatSelection to get the remaining selections count text.
+        /// Finds the BrowserHeader component and reads its protected 'subheader' TMP field.
         /// </summary>
         private string ExtractBrowserHeaderText()
         {
@@ -1621,29 +1626,42 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Search the scaffold for TMP_Text elements that contain header/subheader info
-                var texts = _browserInfo.BrowserGameObject.GetComponentsInChildren<TMPro.TMP_Text>(true);
-                string subheaderText = null;
-
-                foreach (var text in texts)
+                // Find BrowserHeader component on the scaffold or its children
+                var components = _browserInfo.BrowserGameObject.GetComponentsInChildren<Component>(true);
+                Component browserHeader = null;
+                foreach (var comp in components)
                 {
-                    if (text == null || !text.gameObject.activeInHierarchy) continue;
-                    string content = text.text?.Trim();
-                    if (string.IsNullOrEmpty(content)) continue;
-
-                    string objName = text.gameObject.name;
-                    // The subheader typically contains "X options remaining" or similar
-                    if (objName.Contains("SubHeader") || objName.Contains("Subheader") || objName.Contains("subheader"))
+                    if (comp != null && comp.GetType().Name == "BrowserHeader")
                     {
-                        subheaderText = UITextExtractor.StripRichText(content);
+                        browserHeader = comp;
                         break;
                     }
                 }
 
-                return subheaderText;
+                if (browserHeader == null) return null;
+
+                // Cache the reflection lookup for the 'subheader' field
+                if (!_browserHeaderReflectionInit)
+                {
+                    _browserHeaderReflectionInit = true;
+                    _browserHeaderSubheaderField = browserHeader.GetType().GetField("subheader", PrivateInstance);
+                    if (_browserHeaderSubheaderField == null)
+                        MelonLogger.Warning("[BrowserNavigator] BrowserHeader.subheader field not found");
+                }
+
+                if (_browserHeaderSubheaderField == null) return null;
+
+                var subheaderTMP = _browserHeaderSubheaderField.GetValue(browserHeader) as TMPro.TMP_Text;
+                if (subheaderTMP == null) return null;
+
+                string content = subheaderTMP.text?.Trim();
+                if (string.IsNullOrEmpty(content)) return null;
+
+                return UITextExtractor.StripRichText(content);
             }
-            catch
+            catch (Exception ex)
             {
+                MelonLogger.Warning($"[BrowserNavigator] ExtractBrowserHeaderText error: {ex.Message}");
                 return null;
             }
         }
@@ -1981,7 +1999,10 @@ namespace AccessibleArena.Core.Services
             }
 
             // Capture selection state BEFORE click to detect toggle direction
-            bool wasSelected = GetCardCDCSelectionState(card) != null;
+            bool isRepeat = _browserInfo?.BrowserType == "RepeatSelection";
+            bool wasSelected = isRepeat
+                ? GetRepeatSelectionState(card) != null
+                : GetCardCDCSelectionState(card) != null;
 
             // For non-zone browsers, use generic click
             var result = UIActivator.SimulatePointerClick(card);
@@ -1992,7 +2013,29 @@ namespace AccessibleArena.Core.Services
             }
 
             // Wait for game state to update
-            MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, wasSelected));
+            if (isRepeat)
+                MelonCoroutines.Start(AnnounceRepeatSelectionAfterDelay(wasSelected));
+            else
+                MelonCoroutines.Start(AnnounceStateChangeAfterDelay(cardName, wasSelected));
+        }
+
+        /// <summary>
+        /// Announces selection state for RepeatSelection browsers.
+        /// Reads the updated subheader text (remaining count) from the BrowserHeader component.
+        /// Does not re-find the card — option cards stay in place in RepeatSelection.
+        /// </summary>
+        private IEnumerator AnnounceRepeatSelectionAfterDelay(bool wasSelected)
+        {
+            yield return new WaitForSeconds(0.2f);
+
+            string stateText = wasSelected ? Strings.Deselected : Strings.Selected;
+
+            // Read the updated subheader (e.g. "4 remaining options")
+            string subheader = ExtractBrowserHeaderText();
+            if (!string.IsNullOrEmpty(subheader))
+                stateText += ". " + subheader;
+
+            _announcer.Announce(stateText, AnnouncementPriority.High);
         }
 
         /// <summary>
