@@ -153,17 +153,9 @@ namespace AccessibleArena.Core.Services
 
         private MonoBehaviour FindChatWindow(GameObject socialPanel)
         {
-            var safeArea = socialPanel.transform.Find("MobileSafeArea");
-            if (safeArea == null) return null;
-
-            foreach (Transform child in safeArea)
-            {
-                if (!child.gameObject.activeInHierarchy) continue;
-                var comp = FindComponentByTypeName(child.gameObject, T.ChatWindow);
-                if (comp != null) return comp;
-            }
-
-            return null;
+            // ChatWindow is instantiated under SocialUI._safeZoneRoot (not MobileSafeArea).
+            // Search the entire panel hierarchy for an active ChatWindow component.
+            return FindComponentByTypeName(socialPanel, T.ChatWindow);
         }
 
         private MonoBehaviour FindComponentByTypeName(GameObject go, string typeName)
