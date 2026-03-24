@@ -1053,6 +1053,8 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Announces the opponent's commander card name (Brawl/Commander).
+        /// Supports multiple commanders (e.g., partner commanders).
+        /// Filters out commanders that are currently in non-command zones (battlefield, graveyard, etc.).
         /// </summary>
         private void AnnounceOpponentCommander()
         {
@@ -1063,36 +1065,67 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            uint grpId = duelAnnouncer.GetOpponentCommanderGrpId();
-            if (grpId == 0)
+            var allGrpIds = duelAnnouncer.GetAllOpponentCommanderGrpIds();
+            if (allGrpIds.Count == 0)
             {
                 _announcer.Announce(Strings.ZoneEmpty(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
                 return;
             }
 
-            // Check if the commander is currently on the battlefield/stack/graveyard/exile
-            // If so, the command zone is empty (commander is not castable from command zone)
-            if (CardStateProvider.IsGrpIdInNonCommandZone(grpId))
+            // Filter out commanders currently in non-command zones (battlefield, graveyard, exile, stack)
+            var inZoneGrpIds = new List<uint>();
+            foreach (var grpId in allGrpIds)
+            {
+                if (!CardStateProvider.IsGrpIdInNonCommandZone(grpId))
+                    inZoneGrpIds.Add(grpId);
+            }
+
+            if (inZoneGrpIds.Count == 0)
             {
                 _announcer.Announce(Strings.ZoneEmpty(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
                 return;
             }
-
-            // Commander is in the command zone - announce with card info
-            var cardInfo = duelAnnouncer.GetOpponentCommanderInfo();
-            string commanderName = cardInfo?.Name ?? CardModelProvider.GetNameFromGrpId(grpId) ?? "Unknown";
 
             // Set zone so Left/Right don't navigate the previous zone
             SetCurrentZone(ZoneType.OpponentCommand, "NavigateToZone");
 
-            _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {commanderName}", AnnouncementPriority.High);
-
-            // Prepare CardInfoNavigator for Up/Down card detail navigation
-            if (cardInfo != null)
+            // Single commander (most common - Brawl)
+            if (inZoneGrpIds.Count == 1)
             {
-                var blocks = CardDetector.BuildInfoBlocks(cardInfo.Value);
-                var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
-                cardNavigator?.PrepareForCardInfo(blocks, commanderName);
+                uint grpId = inZoneGrpIds[0];
+                var cardInfo = CardModelProvider.GetCardInfoFromGrpId(grpId);
+                string commanderName = cardInfo?.Name ?? CardModelProvider.GetNameFromGrpId(grpId) ?? "Unknown";
+
+                _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {commanderName}", AnnouncementPriority.High);
+
+                if (cardInfo != null)
+                {
+                    var blocks = CardDetector.BuildInfoBlocks(cardInfo.Value);
+                    var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+                    cardNavigator?.PrepareForCardInfo(blocks, commanderName);
+                }
+            }
+            else
+            {
+                // Multiple commanders (partner commanders)
+                var names = new List<string>();
+                foreach (var grpId in inZoneGrpIds)
+                {
+                    string name = CardModelProvider.GetNameFromGrpId(grpId) ?? "Unknown";
+                    names.Add(name);
+                }
+
+                string combined = string.Join(", ", names);
+                _announcer.Announce($"{Strings.GetZoneName(ZoneType.OpponentCommand)}, {inZoneGrpIds.Count}: {combined}", AnnouncementPriority.High);
+
+                // Prepare card info for the first commander
+                var firstInfo = CardModelProvider.GetCardInfoFromGrpId(inZoneGrpIds[0]);
+                if (firstInfo != null)
+                {
+                    var blocks = CardDetector.BuildInfoBlocks(firstInfo.Value);
+                    var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+                    cardNavigator?.PrepareForCardInfo(blocks, names[0]);
+                }
             }
         }
 

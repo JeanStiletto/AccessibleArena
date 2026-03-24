@@ -19,6 +19,7 @@ All notable changes to Accessible Arena.
 - SelectCards browsers with 2-button scaffold layout (e.g. choosing among multiple counterspells) now confirm via workflow reflection instead of falling through to the wrong button
 - OrderCards/TriggerOrderCards browsers no longer have scaffold buttons steal focus when navigating with arrow keys
 - Fixed opponent command zone sometimes showing wrong commander or stale data
+- Fixed opponent command zone (Shift+W) always empty — commander GrpIds are now read from MatchManager at match start
 
 ### Brawl Commander Cards in Deck Builder
 - Commander and companion cards are now correctly displayed in the deck list with a "Commander:" or "Companion:" prefix

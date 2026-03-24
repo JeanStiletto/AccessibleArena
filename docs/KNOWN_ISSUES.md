@@ -12,12 +12,6 @@ During Declare Blockers, the mod sometimes announces "0 0" instead of meaningful
 
 ---
 
-### Command Zone Shows Wrong Cards for Opponent
-
-When the opponent's commander is played, the command zone sometimes displays random other cards or shows your own commander in the opponent's command zone.
-
----
-
 ### Registration Does Not Auto-Advance After Account Confirmation
 
 After successfully sending the account confirmation email during registration, the game does not automatically advance to the tutorial. Under investigation — requires deep investigation by project owner.

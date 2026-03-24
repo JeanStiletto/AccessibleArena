@@ -95,6 +95,7 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | DeckSelectBlade | DeckSelectBlade | Core |
 | SettingsMenu | Wotc.Mtga.Wrapper.SettingsMenu | Core |
 | GameManager | GameManager | Core |
+| MatchManager | MatchManager (nested PlayerInfo) | Core |
 | MatchTimer | MatchTimer | Core |
 | LowTimeWarning | LowTimeWarning | Core |
 | PlayerTimeoutDisplay | PlayerTimeoutDisplay | Core |
@@ -293,3 +294,4 @@ Some types have members that are fields (not properties) - reflection with `GetP
 - **HighlightType (enum)**: None=0, Cold=1, Tepid=2, Hot=3, AutoPay=4, **Selected=5**, OpponentHover=8, Invalid=9, ColdMana=10, Hover=11. Gaps at 6,7. No localized text — just visual glow states.
 - **SelectCardsBrowser** (extends CardBrowserBase): selection tracked via `currentSelections` list (List\<DuelScene_CDC\>) on workflow, NOT on CDC. But `GetBrowserHighlights()` sets `HighlightType.Selected` on selected CDCs, so `CurrentHighlight()` reliably reflects toggle state.
 - **SelectCardsWorkflow\<T\>**: generic type, cannot be decompiled with ilspycmd 8.x. Maintains `selectable`, `currentSelections`, `nonSelectable` lists. Toggle logic in `CardBrowser_OnCardViewSelected`. `GetBrowserHighlights()` maps: selectable→Hot, nonSelectable→None, currentSelections→Selected.
+- **MatchManager**: accessed via `GameManager.MatchManager` (public property). Has `LocalPlayerInfo` and `OpponentInfo` (public properties → nested `PlayerInfo` class). `PlayerInfo.CommanderGrpIds` (`IReadOnlyList<uint>`, property) — commander GrpIds, available from match start even for opponents. MTGA never fires zone transfer events for opponent commanders, so this is the only reliable source.
