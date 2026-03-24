@@ -981,5 +981,12 @@
   "SurveyBad": "Ruim",
   "SurveyHint": "Cima e Baixo para navegar, Enter para selecionar, Backspace para pular",
   "NPE_SuggestedCard_Format": "Carta sugerida: {0}",
-  "NPE_Tooltip_Format": "Tutorial: {0}"
+  "NPE_Tooltip_Format": "Tutorial: {0}",
+  "NPE_Hint_PlayCard": "Navegue at\u00e9 a carta sugerida com Esquerda e Direita e pressione Enter para jog\u00e1-la.",
+  "NPE_Hint_AssignBlocker": "Navegue at\u00e9 sua criatura e pressione Enter para design\u00e1-la como bloqueadora.",
+  "NPE_Hint_ConfirmBlocks": "Pressione Espa\u00e7o para confirmar os bloqueios, ou Backspace para recusar.",
+  "NPE_Hint_AssignAttacker": "Navegue at\u00e9 sua criatura e pressione Enter para selecion\u00e1-la como atacante.",
+  "NPE_Hint_ConfirmAttackers": "Pressione Espa\u00e7o para confirmar os atacantes.",
+  "NPE_Hint_SkipAttack": "Pressione Backspace para pular o ataque neste turno.",
+  "NPE_Hint_SelectCard": "Navegue at\u00e9 a carta e pressione Enter para selecion\u00e1-la."
 }

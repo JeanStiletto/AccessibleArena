@@ -997,5 +997,12 @@
   "DeckBuilder_Commander": "Commander",
   "DeckBuilder_Companion": "Companion",
   "NPE_SuggestedCard_Format": "Suggested card: {0}",
-  "NPE_Tooltip_Format": "Tutorial: {0}"
+  "NPE_Tooltip_Format": "Tutorial: {0}",
+  "NPE_Hint_PlayCard": "Navigate to the suggested card with Left and Right and press Enter to play it.",
+  "NPE_Hint_AssignBlocker": "Navigate to your creature and press Enter to assign it as a blocker.",
+  "NPE_Hint_ConfirmBlocks": "Press Space to confirm your blocks, or Backspace to decline.",
+  "NPE_Hint_AssignAttacker": "Navigate to your creature and press Enter to select it as an attacker.",
+  "NPE_Hint_ConfirmAttackers": "Press Space to confirm your attackers.",
+  "NPE_Hint_SkipAttack": "Press Backspace to skip attacking this turn.",
+  "NPE_Hint_SelectCard": "Navigate to the card and press Enter to select it."
 }

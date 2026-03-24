@@ -2337,6 +2337,7 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _npeReminderTextField;
         private static FieldInfo _npeReminderSuggestedField;
         private static FieldInfo _npeTooltipTypeField;
+        private static FieldInfo _localizedStringKeyField;
         private static bool _npeReflectionInitialized;
 
         private static void EnsureNPEReflection()
@@ -2365,6 +2366,12 @@ namespace AccessibleArena.Core.Services
                     _npeReminderSuggestedField = reminderType.GetField("SparkySuggestedInstances", PublicInstance);
                 }
 
+                // MTGALocalizedString.Key (public field, string) - for NPE key extraction
+                // MTGALocalizedString is in the root namespace, not Wotc.Mtga.Loc
+                var localizedStringType = FindType("MTGALocalizedString");
+                if (localizedStringType != null)
+                    _localizedStringKeyField = localizedStringType.GetField("Key", PublicInstance);
+
                 // NPEDismissableDeluxeTooltipUXEvent._type (private field, DeluxeTooltipType enum)
                 var tooltipType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEDismissableDeluxeTooltipUXEvent");
                 if (tooltipType != null)
@@ -2390,8 +2397,9 @@ namespace AccessibleArena.Core.Services
                 string text = lineObj.ToString();
                 if (string.IsNullOrEmpty(text)) return null;
 
-                MelonLogger.Msg($"[DuelAnnouncer] NPE Dialog: {text}");
-                return text;
+                MelonLogger.Msg($"[DuelAnnouncer] NPE Dialog (voice-over, not announced): {text}");
+                // Dialog lines are voice-acted NPC subtitles - don't read aloud
+                return null;
             }
             catch (Exception ex)
             {
@@ -2411,13 +2419,18 @@ namespace AccessibleArena.Core.Services
                 var reminderObj = _npeReminderField.GetValue(uxEvent);
                 if (reminderObj == null) return null;
 
-                // Get reminder text
+                // Get reminder text and localization key
                 string text = null;
+                string locKey = null;
                 if (_npeReminderTextField != null)
                 {
                     var textObj = _npeReminderTextField.GetValue(reminderObj);
                     if (textObj != null)
+                    {
                         text = textObj.ToString();
+                        if (_localizedStringKeyField != null)
+                            locKey = _localizedStringKeyField.GetValue(textObj) as string;
+                    }
                 }
 
                 if (string.IsNullOrEmpty(text)) return null;
@@ -2444,11 +2457,15 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                MelonLogger.Msg($"[DuelAnnouncer] NPE Reminder: {text}" + (cardHint != null ? $" (cards: {cardHint})" : ""));
+                MelonLogger.Msg($"[DuelAnnouncer] NPE Reminder: {text} (key: {locKey})" + (cardHint != null ? $" (cards: {cardHint})" : ""));
+
+                // Replace mouse/drag instructions with keyboard-focused text
+                string replacement = NPETutorialTextProvider.GetReplacementText(locKey);
+                string announcement = replacement ?? text;
 
                 if (!string.IsNullOrEmpty(cardHint))
-                    return $"{text}. {Strings.NPE_SuggestedCard(cardHint)}";
-                return text;
+                    return $"{announcement} {Strings.NPE_SuggestedCard(cardHint)}";
+                return announcement;
             }
             catch (Exception ex)
             {

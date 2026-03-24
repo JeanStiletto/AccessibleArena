@@ -981,5 +981,12 @@
   "SurveyBad": "Mal",
   "SurveyHint": "Haut et Bas pour naviguer, Entrée pour sélectionner, Retour arrière pour passer",
   "NPE_SuggestedCard_Format": "Carte suggérée : {0}",
-  "NPE_Tooltip_Format": "Tutoriel : {0}"
+  "NPE_Tooltip_Format": "Tutoriel : {0}",
+  "NPE_Hint_PlayCard": "Naviguez vers la carte suggérée avec Gauche et Droite et appuyez sur Entrée pour la jouer.",
+  "NPE_Hint_AssignBlocker": "Naviguez vers votre créature et appuyez sur Entrée pour l'assigner comme bloqueuse.",
+  "NPE_Hint_ConfirmBlocks": "Appuyez sur Espace pour confirmer les blocages, ou Retour arrière pour refuser.",
+  "NPE_Hint_AssignAttacker": "Naviguez vers votre créature et appuyez sur Entrée pour la sélectionner comme attaquante.",
+  "NPE_Hint_ConfirmAttackers": "Appuyez sur Espace pour confirmer les attaquants.",
+  "NPE_Hint_SkipAttack": "Appuyez sur Retour arrière pour passer l'attaque ce tour.",
+  "NPE_Hint_SelectCard": "Naviguez vers la carte et appuyez sur Entrée pour la sélectionner."
 }

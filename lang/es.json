@@ -981,5 +981,12 @@
   "SurveyBad": "Mal",
   "SurveyHint": "Arriba y Abajo para navegar, Enter para seleccionar, Retroceso para omitir",
   "NPE_SuggestedCard_Format": "Carta sugerida: {0}",
-  "NPE_Tooltip_Format": "Tutorial: {0}"
+  "NPE_Tooltip_Format": "Tutorial: {0}",
+  "NPE_Hint_PlayCard": "Navega hasta la carta sugerida con Izquierda y Derecha y pulsa Intro para jugarla.",
+  "NPE_Hint_AssignBlocker": "Navega hasta tu criatura y pulsa Intro para asignarla como bloqueadora.",
+  "NPE_Hint_ConfirmBlocks": "Pulsa Espacio para confirmar los bloqueos, o Retroceso para rechazar.",
+  "NPE_Hint_AssignAttacker": "Navega hasta tu criatura y pulsa Intro para seleccionarla como atacante.",
+  "NPE_Hint_ConfirmAttackers": "Pulsa Espacio para confirmar los atacantes.",
+  "NPE_Hint_SkipAttack": "Pulsa Retroceso para saltar el ataque este turno.",
+  "NPE_Hint_SelectCard": "Navega hasta la carta y pulsa Intro para seleccionarla."
 }

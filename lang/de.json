@@ -995,5 +995,12 @@
   "DeckBuilder_Commander": "Kommandeur",
   "DeckBuilder_Companion": "Begleiter",
   "NPE_SuggestedCard_Format": "Vorgeschlagene Karte: {0}",
-  "NPE_Tooltip_Format": "Tutorial: {0}"
+  "NPE_Tooltip_Format": "Tutorial: {0}",
+  "NPE_Hint_PlayCard": "Navigiere mit Links und Rechts zur vorgeschlagenen Karte und drücke Eingabe, um sie zu spielen.",
+  "NPE_Hint_AssignBlocker": "Navigiere zu deiner Kreatur und drücke Eingabe, um sie als Blocker zuzuweisen.",
+  "NPE_Hint_ConfirmBlocks": "Drücke Leertaste, um die Blocker zu bestätigen, oder Rücktaste zum Ablehnen.",
+  "NPE_Hint_AssignAttacker": "Navigiere zu deiner Kreatur und drücke Eingabe, um sie als Angreifer auszuwählen.",
+  "NPE_Hint_ConfirmAttackers": "Drücke Leertaste, um die Angreifer zu bestätigen.",
+  "NPE_Hint_SkipAttack": "Drücke Rücktaste, um den Angriff zu überspringen.",
+  "NPE_Hint_SelectCard": "Navigiere zur Karte und drücke Eingabe, um sie auszuwählen."
 }
