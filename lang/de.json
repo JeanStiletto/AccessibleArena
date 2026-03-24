@@ -993,5 +993,7 @@
   "SurveyBad": "Schlecht",
   "SurveyHint": "Pfeil hoch und runter zum Navigieren, Enter zum Auswählen, Rücktaste zum Überspringen",
   "DeckBuilder_Commander": "Kommandeur",
-  "DeckBuilder_Companion": "Begleiter"
+  "DeckBuilder_Companion": "Begleiter",
+  "NPE_SuggestedCard_Format": "Vorgeschlagene Karte: {0}",
+  "NPE_Tooltip_Format": "Tutorial: {0}"
 }

@@ -979,5 +979,7 @@
   "Sideboard_InfoZone": "Info partita",
   "SurveyGood": "Bene",
   "SurveyBad": "Male",
-  "SurveyHint": "Su e Giù per navigare, Invio per selezionare, Backspace per saltare"
+  "SurveyHint": "Su e Giù per navigare, Invio per selezionare, Backspace per saltare",
+  "NPE_SuggestedCard_Format": "Carta suggerita: {0}",
+  "NPE_Tooltip_Format": "Tutorial: {0}"
 }

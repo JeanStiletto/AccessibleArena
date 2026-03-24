@@ -979,5 +979,7 @@
   "Sideboard_InfoZone": "Info du match",
   "SurveyGood": "Bien",
   "SurveyBad": "Mal",
-  "SurveyHint": "Haut et Bas pour naviguer, Entrée pour sélectionner, Retour arrière pour passer"
+  "SurveyHint": "Haut et Bas pour naviguer, Entrée pour sélectionner, Retour arrière pour passer",
+  "NPE_SuggestedCard_Format": "Carte suggérée : {0}",
+  "NPE_Tooltip_Format": "Tutoriel : {0}"
 }

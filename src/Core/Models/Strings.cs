@@ -462,6 +462,12 @@ namespace AccessibleArena.Core.Models
         public static string Duel_OwnerPrefix_Opponent => L.Get("Duel_OwnerPrefix_Opponent");
 
         // ===========================================
+        // NPE TUTORIAL
+        // ===========================================
+        public static string NPE_SuggestedCard(string cardNames) => L.Format("NPE_SuggestedCard_Format", cardNames);
+        public static string NPE_Tooltip(string tooltipType) => L.Format("NPE_Tooltip_Format", tooltipType);
+
+        // ===========================================
         // COMBAT
         // ===========================================
         // Combat button activation uses language-agnostic detection (by button name, not text)

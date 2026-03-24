@@ -995,5 +995,7 @@
   "SurveyBad": "Bad",
   "SurveyHint": "Up and Down to navigate, Enter to select, Backspace to skip",
   "DeckBuilder_Commander": "Commander",
-  "DeckBuilder_Companion": "Companion"
+  "DeckBuilder_Companion": "Companion",
+  "NPE_SuggestedCard_Format": "Suggested card: {0}",
+  "NPE_Tooltip_Format": "Tutorial: {0}"
 }

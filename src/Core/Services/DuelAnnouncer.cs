@@ -174,6 +174,11 @@ namespace AccessibleArena.Core.Services
             // MTGA never fires zone transfer events for the opponent's commander,
             // so this is the only way to discover their commander identity.
             PopulateCommandersFromMatchManager();
+
+            // Check if this is an NPE tutorial game (NpeDirector != null)
+            _npeCheckDone = false;
+            _isNPETutorial = false;
+            CheckNPETutorial();
         }
 
         public void Deactivate()
@@ -531,6 +536,12 @@ namespace AccessibleArena.Core.Services
                     return HandleMultistepEffect(uxEvent);
                 case DuelEventType.ManaPool:
                     return HandleManaPoolEvent(uxEvent);
+                case DuelEventType.NPEDialog:
+                    return HandleNPEDialog(uxEvent);
+                case DuelEventType.NPEReminder:
+                    return HandleNPEReminder(uxEvent);
+                case DuelEventType.NPETooltip:
+                    return HandleNPETooltip(uxEvent);
                 default:
                     return null;
             }
@@ -2318,6 +2329,292 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region NPE Tutorial Handlers
+
+        // Reflection cache for NPE types
+        private static FieldInfo _npeDialogLineField;
+        private static FieldInfo _npeReminderField;
+        private static FieldInfo _npeReminderTextField;
+        private static FieldInfo _npeReminderSuggestedField;
+        private static FieldInfo _npeTooltipTypeField;
+        private static bool _npeReflectionInitialized;
+
+        private static void EnsureNPEReflection()
+        {
+            if (_npeReflectionInitialized) return;
+            _npeReflectionInitialized = true;
+
+            try
+            {
+                // NPEDialogUXEvent.Line (public readonly field, MTGALocalizedString)
+                var dialogType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEDialogUXEvent");
+                if (dialogType != null)
+                    _npeDialogLineField = dialogType.GetField("Line", PublicInstance);
+
+                // NPEReminderUXEvent._reminder (private field, NPEReminder)
+                var reminderEventType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEReminderUXEvent");
+                if (reminderEventType != null)
+                    _npeReminderField = reminderEventType.GetField("_reminder", PrivateInstance);
+
+                // NPEReminder.Text (public field, MTGALocalizedString)
+                // NPEReminder.SparkySuggestedInstances (public field, List<uint>)
+                var reminderType = FindType("NPEReminder");
+                if (reminderType != null)
+                {
+                    _npeReminderTextField = reminderType.GetField("Text", PublicInstance);
+                    _npeReminderSuggestedField = reminderType.GetField("SparkySuggestedInstances", PublicInstance);
+                }
+
+                // NPEDismissableDeluxeTooltipUXEvent._type (private field, DeluxeTooltipType enum)
+                var tooltipType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEDismissableDeluxeTooltipUXEvent");
+                if (tooltipType != null)
+                    _npeTooltipTypeField = tooltipType.GetField("_type", PrivateInstance);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Failed to initialize NPE reflection: {ex.Message}");
+            }
+        }
+
+        private string HandleNPEDialog(object uxEvent)
+        {
+            try
+            {
+                EnsureNPEReflection();
+
+                if (_npeDialogLineField == null) return null;
+
+                var lineObj = _npeDialogLineField.GetValue(uxEvent);
+                if (lineObj == null) return null;
+
+                string text = lineObj.ToString();
+                if (string.IsNullOrEmpty(text)) return null;
+
+                MelonLogger.Msg($"[DuelAnnouncer] NPE Dialog: {text}");
+                return text;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE dialog: {ex.Message}");
+                return null;
+            }
+        }
+
+        private string HandleNPEReminder(object uxEvent)
+        {
+            try
+            {
+                EnsureNPEReflection();
+
+                if (_npeReminderField == null) return null;
+
+                var reminderObj = _npeReminderField.GetValue(uxEvent);
+                if (reminderObj == null) return null;
+
+                // Get reminder text
+                string text = null;
+                if (_npeReminderTextField != null)
+                {
+                    var textObj = _npeReminderTextField.GetValue(reminderObj);
+                    if (textObj != null)
+                        text = textObj.ToString();
+                }
+
+                if (string.IsNullOrEmpty(text)) return null;
+
+                // Try to resolve suggested card names
+                string cardHint = null;
+                if (_npeReminderSuggestedField != null)
+                {
+                    var suggestedObj = _npeReminderSuggestedField.GetValue(reminderObj);
+                    if (suggestedObj is IList suggestedList && suggestedList.Count > 0)
+                    {
+                        var names = new List<string>();
+                        foreach (var item in suggestedList)
+                        {
+                            if (item is uint instanceId)
+                            {
+                                string name = GetCardNameByInstanceId(instanceId);
+                                if (!string.IsNullOrEmpty(name) && !names.Contains(name))
+                                    names.Add(name);
+                            }
+                        }
+                        if (names.Count > 0)
+                            cardHint = string.Join(", ", names);
+                    }
+                }
+
+                MelonLogger.Msg($"[DuelAnnouncer] NPE Reminder: {text}" + (cardHint != null ? $" (cards: {cardHint})" : ""));
+
+                if (!string.IsNullOrEmpty(cardHint))
+                    return $"{text}. {Strings.NPE_SuggestedCard(cardHint)}";
+                return text;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE reminder: {ex.Message}");
+                return null;
+            }
+        }
+
+        private string HandleNPETooltip(object uxEvent)
+        {
+            try
+            {
+                EnsureNPEReflection();
+
+                if (_npeTooltipTypeField == null) return null;
+
+                var typeObj = _npeTooltipTypeField.GetValue(uxEvent);
+                if (typeObj == null) return null;
+
+                string tooltipType = typeObj.ToString();
+                MelonLogger.Msg($"[DuelAnnouncer] NPE Tooltip: {tooltipType}");
+                return Strings.NPE_Tooltip(tooltipType);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE tooltip: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the current duel is an NPE tutorial game.
+        /// Caches the result for the duration of the duel.
+        /// </summary>
+        public bool IsNPETutorial => _isNPETutorial;
+        private bool _isNPETutorial;
+        private bool _npeCheckDone;
+
+        private static PropertyInfo _npeDirectorProp;
+
+        /// <summary>
+        /// Check once per duel activation whether this is an NPE tutorial.
+        /// Call from Activate() after the duel is set up.
+        /// </summary>
+        public void CheckNPETutorial()
+        {
+            if (_npeCheckDone) return;
+            _npeCheckDone = true;
+
+            try
+            {
+                if (_npeDirectorProp == null)
+                {
+                    var gmType = FindType("GameManager");
+                    if (gmType != null)
+                        _npeDirectorProp = gmType.GetProperty("NpeDirector", PublicInstance);
+                }
+
+                if (_npeDirectorProp == null) return;
+
+                // GameManager is a singleton - find it
+                var gmObj = UnityEngine.Object.FindObjectOfType(FindType("GameManager")) as Component;
+                if (gmObj == null) return;
+
+                var director = _npeDirectorProp.GetValue(gmObj);
+                _isNPETutorial = director != null;
+
+                if (_isNPETutorial)
+                    MelonLogger.Msg("[DuelAnnouncer] NPE tutorial detected");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error checking NPE state: {ex.Message}");
+            }
+        }
+
+        // Hover simulation for NPE - fire CardHoverController.OnHoveredCardUpdated when user navigates to a CDC
+        private GameObject _lastHoveredNPECard;
+
+        /// <summary>
+        /// During NPE tutorials, simulate a mouse hover on the currently focused CDC.
+        /// The tutorial expects CardHoverController.OnHoveredCardUpdated to fire when
+        /// the player looks at a card - without this, Sparky loops pointing at cards forever.
+        /// Call from DuelNavigator.Update() each frame.
+        /// </summary>
+        public void UpdateNPEHoverSimulation()
+        {
+            if (!_isNPETutorial || !_isActive) return;
+
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem == null) return;
+
+            var focused = eventSystem.currentSelectedGameObject;
+
+            // Only fire when focus actually changes to a different card
+            if (focused == _lastHoveredNPECard) return;
+            _lastHoveredNPECard = focused;
+
+            if (focused == null) return;
+
+            // Check if focused object is a DuelScene_CDC
+            var cdcComponent = GetDuelSceneCDC(focused);
+            if (cdcComponent == null) return;
+
+            // Fire CardHoverController.OnHoveredCardUpdated(cdc)
+            FireHoveredCardUpdated(cdcComponent);
+        }
+
+        private static object GetDuelSceneCDC(GameObject go)
+        {
+            foreach (var mb in go.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "DuelScene_CDC")
+                    return mb;
+            }
+            // Also check parent (CDC components may be on parent of focused child)
+            if (go.transform.parent != null)
+            {
+                foreach (var mb in go.transform.parent.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "DuelScene_CDC")
+                        return mb;
+                }
+            }
+            return null;
+        }
+
+        private static FieldInfo _hoverEventField;
+        private static bool _hoverFieldSearched;
+
+        private static void FireHoveredCardUpdated(object cdc)
+        {
+            try
+            {
+                if (!_hoverFieldSearched)
+                {
+                    _hoverFieldSearched = true;
+                    var hoverType = FindType("CardHoverController");
+                    if (hoverType != null)
+                    {
+                        // OnHoveredCardUpdated is a static event (Action<DuelScene_CDC>)
+                        // Access the backing field directly
+                        _hoverEventField = hoverType.GetField("OnHoveredCardUpdated",
+                            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    }
+                }
+
+                if (_hoverEventField == null) return;
+
+                // Re-read the delegate each time since subscribers may change
+                var currentDelegate = _hoverEventField.GetValue(null) as Delegate;
+                if (currentDelegate != null)
+                {
+                    currentDelegate.DynamicInvoke(cdc);
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer",
+                        $"NPE hover simulated on: {((MonoBehaviour)cdc).gameObject.name}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error simulating NPE hover: {ex.Message}");
+            }
+        }
+
+        #endregion
+
         #region Helper Methods
 
         private IEnumerator AnnounceSpellResolvedDelayed()
@@ -2544,6 +2841,9 @@ namespace AccessibleArena.Core.Services
                 case DuelEventType.TurnChange:
                 case DuelEventType.DamageDealt:
                 case DuelEventType.LifeChange:
+                case DuelEventType.NPEDialog:
+                case DuelEventType.NPEReminder:
+                case DuelEventType.NPETooltip:
                     return AnnouncementPriority.High;
                 case DuelEventType.ZoneTransfer:
                 case DuelEventType.CardRevealed:
@@ -2617,9 +2917,10 @@ namespace AccessibleArena.Core.Services
                 { "HandShuffleUxEvent", DuelEventType.Ignored },
                 { "UserActionTakenUXEvent", DuelEventType.Ignored },
                 { "HypotheticalActionsUXChangedEvent", DuelEventType.Ignored },
+                { "NPEDialogUXEvent", DuelEventType.NPEDialog },
+                { "NPEReminderUXEvent", DuelEventType.NPEReminder },
+                { "NPEDismissableDeluxeTooltipUXEvent", DuelEventType.NPETooltip },
                 { "NPEPauseUXEvent", DuelEventType.Ignored },
-                { "NPEDialogUXEvent", DuelEventType.Ignored },
-                { "NPEReminderUXEvent", DuelEventType.Ignored },
                 { "NPEShowBattlefieldHangerUXEvent", DuelEventType.Ignored },
                 { "NPETooltipBumperUXEvent", DuelEventType.Ignored },
                 { "UXEventUpdateDecider", DuelEventType.Ignored },
@@ -2652,6 +2953,9 @@ namespace AccessibleArena.Core.Services
         ZoneTransferGroup,
         CombatFrame,
         MultistepEffect,
-        ManaPool
+        ManaPool,
+        NPEDialog,
+        NPEReminder,
+        NPETooltip
     }
 }

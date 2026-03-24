@@ -161,6 +161,11 @@ namespace AccessibleArena.Core.Services
                     }
                 }
             }
+
+            // NPE tutorial: simulate hover on focused CDC so the tutorial progresses
+            // when the player navigates to the card Sparky is pointing at
+            if (_isActive)
+                _duelAnnouncer.UpdateNPEHoverSimulation();
         }
 
         public override void OnSceneChanged(string sceneName)

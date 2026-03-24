@@ -979,5 +979,7 @@
   "Sideboard_InfoZone": "Info da partida",
   "SurveyGood": "Bom",
   "SurveyBad": "Ruim",
-  "SurveyHint": "Cima e Baixo para navegar, Enter para selecionar, Backspace para pular"
+  "SurveyHint": "Cima e Baixo para navegar, Enter para selecionar, Backspace para pular",
+  "NPE_SuggestedCard_Format": "Carta sugerida: {0}",
+  "NPE_Tooltip_Format": "Tutorial: {0}"
 }

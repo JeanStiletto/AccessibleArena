@@ -979,5 +979,7 @@
   "Sideboard_InfoZone": "Info del partido",
   "SurveyGood": "Bien",
   "SurveyBad": "Mal",
-  "SurveyHint": "Arriba y Abajo para navegar, Enter para seleccionar, Retroceso para omitir"
+  "SurveyHint": "Arriba y Abajo para navegar, Enter para seleccionar, Retroceso para omitir",
+  "NPE_SuggestedCard_Format": "Carta sugerida: {0}",
+  "NPE_Tooltip_Format": "Tutorial: {0}"
 }
