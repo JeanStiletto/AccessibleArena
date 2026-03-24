@@ -98,6 +98,14 @@ All notable changes to Accessible Arena.
 - Applies to Scry, Surveil, Mulligan, and all generic browser types
 - Default (TutorialMessages on) behavior unchanged
 
+### Objective readability improvements (reported by blindndangerous, PRs #45, #46)
+- Daily and Weekly objectives now include the task description alongside progress and reward
+- Empty quest slot (timer) now reads the game's localized "waiting for quest" text and explanatory tooltip instead of a hardcoded English "Bonus Timer"
+- Added localized `ObjectiveQuestTimer` fallback string to all 12 locale files
+
+### Fix: Chat panel not closable (contributed by blindndangerous, PR #46)
+- Chat window is now found anywhere in the social panel hierarchy, fixing cases where Backspace failed to close it
+
 ### Clean up group announcements
 - Groups now announce just their name (e.g. "Play") instead of name with item count ("Play, 3 items")
 - Screen activation no longer announces group count ("6 groups") or total item count

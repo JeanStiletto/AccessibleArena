@@ -547,6 +547,7 @@
   "ScreenGroupsSummary_Format": "{0}. {2}. {1}",
   "ScreenItemsSummary_Format": "{0}. {2}. {1}",
   "ObjectivesEntry_Format": "Задания, {0}",
+  "ObjectiveQuestTimer": "Следующее задание скоро будет доступно",
   "LangEnglish": "Английский",
   "LangGerman": "Немецкий",
   "LangFrench": "Французский",

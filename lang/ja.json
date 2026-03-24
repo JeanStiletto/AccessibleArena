@@ -547,6 +547,7 @@
   "ScreenGroupsSummary_Format": "{0}。{2}。{1}",
   "ScreenItemsSummary_Format": "{0}。{2}。{1}",
   "ObjectivesEntry_Format": "目標、{0}",
+  "ObjectiveQuestTimer": "次のクエストがまもなく利用可能",
   "LangEnglish": "英語",
   "LangGerman": "ドイツ語",
   "LangFrench": "フランス語",

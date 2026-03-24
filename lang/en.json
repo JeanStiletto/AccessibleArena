@@ -560,6 +560,7 @@
   "ScreenGroupsSummary_Format": "{0}. {2}. {1}",
   "ScreenItemsSummary_Format": "{0}. {2}. {1}",
   "ObjectivesEntry_Format": "Objectives, {0}",
+  "ObjectiveQuestTimer": "Next quest available soon",
   "LangEnglish": "English",
   "LangGerman": "German",
   "LangFrench": "French",

@@ -1187,8 +1187,24 @@ namespace AccessibleArena.Core.Services
                 else if (objectiveType == "SparkRankTier1")
                     typeLabel = "Spark Rank";
                 else if (objectiveType == "Timer")
-                    // Visual countdown only — no readable text available
-                    return "Bonus Timer";
+                {
+                    // Empty quest slot with countdown — read popup text from ObjectiveBubble
+                    // ObjectiveBubble._popupData holds localization keys for the popup:
+                    //   HeaderString1 = "MainNav/Quest/Quest_Wait_Text"
+                    //   FooterString  = "MainNav/Popups/QuestRewardPopupDetailsForWaiting"
+                    string header = TryGetObjectiveBubblePopupText(gameObject, "HeaderString1");
+                    string footer = TryGetObjectiveBubblePopupText(gameObject, "FooterString");
+
+                    // Use game-localized header as label, fall back to our own locale string
+                    string label = !string.IsNullOrEmpty(header)
+                        ? header
+                        : LocaleManager.Instance?.Get("ObjectiveQuestTimer") ?? "Next quest available soon";
+
+                    if (!string.IsNullOrEmpty(footer) && footer != header)
+                        label += $", {footer}";
+
+                    return label;
+                }
 
                 // Build label based on objective type
                 if (objectiveType == "Daily")
@@ -1639,6 +1655,66 @@ namespace AccessibleArena.Core.Services
                 string text = locString.ToString();
                 if (!string.IsNullOrWhiteSpace(text) && text.Length > 1 && text.Length < 60)
                     return text;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Reads a localized popup string from the ObjectiveBubble component on a parent.
+        /// ObjectiveBubble._popupData holds MTGALocalizedString fields (HeaderString1, FooterString, etc.)
+        /// that contain game localization keys like "MainNav/Quest/Quest_Wait_Text".
+        /// </summary>
+        private static string TryGetObjectiveBubblePopupText(GameObject gameObject, string fieldName)
+        {
+            if (gameObject == null) return null;
+
+            // ObjectiveBubble is on the direct parent of ObjectiveGraphics
+            var parent = gameObject.transform.parent;
+            if (parent == null) return null;
+
+            MonoBehaviour bubble = null;
+            foreach (var comp in parent.GetComponents<MonoBehaviour>())
+            {
+                if (comp != null && comp.GetType().Name == "ObjectiveBubble")
+                {
+                    bubble = comp;
+                    break;
+                }
+            }
+            if (bubble == null) return null;
+
+            try
+            {
+                // _popupData is protected: NonPublic | Instance
+                var popupDataField = bubble.GetType().GetField("_popupData", PrivateInstance);
+                if (popupDataField == null) return null;
+
+                var popupData = popupDataField.GetValue(bubble);
+                if (popupData == null) return null;
+
+                // HeaderString1, FooterString, etc. are public fields of type MTGALocalizedString
+                var stringField = popupData.GetType().GetField(fieldName, PublicInstance);
+                if (stringField == null) return null;
+
+                var locString = stringField.GetValue(popupData);
+                if (locString == null) return null;
+
+                // MTGALocalizedString.Key is a public FIELD (not property)
+                var keyField = locString.GetType().GetField("Key", PublicInstance);
+                string locKey = keyField?.GetValue(locString) as string;
+
+                if (string.IsNullOrEmpty(locKey) || locKey == "MainNav/General/Empty_String")
+                    return null;
+
+                // MTGALocalizedString.ToString() resolves the localization directly
+                string resolved = locString.ToString();
+                if (!string.IsNullOrEmpty(resolved) && resolved != locKey)
+                    return CleanText(resolved);
+            }
+            catch (System.Exception ex)
+            {
+                MelonLoader.MelonLogger.Msg($"[UITextExtractor] Error reading ObjectiveBubble popup: {ex.Message}");
             }
 
             return null;

@@ -547,6 +547,7 @@
   "ScreenGroupsSummary_Format": "{0}. {2}. {1}",
   "ScreenItemsSummary_Format": "{0}. {2}. {1}",
   "ObjectivesEntry_Format": "Objectifs, {0}",
+  "ObjectiveQuestTimer": "Prochaine quête bientôt disponible",
   "LangEnglish": "Anglais",
   "LangGerman": "Allemand",
   "LangFrench": "Français",

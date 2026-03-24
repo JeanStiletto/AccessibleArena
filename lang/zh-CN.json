@@ -547,6 +547,7 @@
   "ScreenGroupsSummary_Format": "{0}。{2}。{1}",
   "ScreenItemsSummary_Format": "{0}。{2}。{1}",
   "ObjectivesEntry_Format": "任务，{0}",
+  "ObjectiveQuestTimer": "下一个任务即将可用",
   "LangEnglish": "英语",
   "LangGerman": "德语",
   "LangFrench": "法语",
