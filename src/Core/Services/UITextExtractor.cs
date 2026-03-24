@@ -1152,8 +1152,9 @@ namespace AccessibleArena.Core.Services
             {
                 string mainValue = null;
                 string progressValue = null;
+                string description = null;
 
-                // Look for Circle (main display) and Text_GoalProgress (detailed progress)
+                // Look for Circle (main display), Text_GoalProgress (detailed progress), TextLine (description)
                 for (int i = 0; i < gameObject.transform.childCount; i++)
                 {
                     var child = gameObject.transform.GetChild(i);
@@ -1171,6 +1172,12 @@ namespace AccessibleArena.Core.Services
                         if (tmpText != null)
                             progressValue = CleanText(tmpText.text);
                     }
+                    else if (childName == "TextLine")
+                    {
+                        var tmpText = child.GetComponentInChildren<TMP_Text>(true);
+                        if (tmpText != null)
+                            description = CleanText(tmpText.text);
+                    }
                 }
 
                 // Clean up type names for readability
@@ -1186,11 +1193,16 @@ namespace AccessibleArena.Core.Services
                 // Build label based on objective type
                 if (objectiveType == "Daily")
                 {
-                    // Daily: "0/15 wins, 250 gold"
-                    if (!string.IsNullOrEmpty(progressValue) && !string.IsNullOrEmpty(mainValue))
-                        return $"{typeLabel}: {progressValue} wins, {mainValue} gold";
-                    else if (!string.IsNullOrEmpty(progressValue))
-                        return $"{typeLabel}: {progressValue}";
+                    // Daily: "description, progress, reward gold"
+                    var parts = new System.Collections.Generic.List<string>();
+                    if (!string.IsNullOrEmpty(description))
+                        parts.Add(description);
+                    if (!string.IsNullOrEmpty(progressValue))
+                        parts.Add(progressValue);
+                    if (!string.IsNullOrEmpty(mainValue))
+                        parts.Add($"{mainValue} gold");
+                    if (parts.Count > 0)
+                        return $"{typeLabel}: {string.Join(", ", parts)}";
                 }
                 else if (objectiveType == "BattlePass - Level")
                 {
@@ -1202,25 +1214,28 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    // Weekly, SparkRank, Timer, etc: show progress or main value
+                    // Weekly, SparkRank, etc: show description, progress, main value
+                    var parts = new System.Collections.Generic.List<string>();
+                    if (!string.IsNullOrEmpty(description))
+                        parts.Add(description);
                     if (!string.IsNullOrEmpty(progressValue))
-                        return $"{typeLabel}: {progressValue}";
+                        parts.Add(progressValue);
                     else if (!string.IsNullOrEmpty(mainValue))
-                        return $"{typeLabel}: {mainValue}";
-                    else
+                        parts.Add(mainValue);
+                    if (parts.Count > 0)
+                        return $"{typeLabel}: {string.Join(", ", parts)}";
+
+                    // Fallback: scan all TMP_Text children (including inactive) for any readable text
+                    var texts = gameObject.GetComponentsInChildren<TMP_Text>(true);
+                    var fallbackParts = new System.Collections.Generic.List<string>();
+                    foreach (var t in texts)
                     {
-                        // Fallback: scan all TMP_Text children (including inactive) for any readable text
-                        var texts = gameObject.GetComponentsInChildren<TMP_Text>(true);
-                        var parts = new System.Collections.Generic.List<string>();
-                        foreach (var t in texts)
-                        {
-                            string v = CleanText(t.text);
-                            if (!string.IsNullOrWhiteSpace(v) && !parts.Contains(v))
-                                parts.Add(v);
-                        }
-                        if (parts.Count > 0)
-                            return $"{typeLabel}: {string.Join(", ", parts)}";
+                        string v = CleanText(t.text);
+                        if (!string.IsNullOrWhiteSpace(v) && !fallbackParts.Contains(v))
+                            fallbackParts.Add(v);
                     }
+                    if (fallbackParts.Count > 0)
+                        return $"{typeLabel}: {string.Join(", ", fallbackParts)}";
                 }
             }
 
