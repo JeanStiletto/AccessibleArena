@@ -527,13 +527,14 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Sort cards by position.
-            // Graveyards: right to left (newest first, matching hand/battlefield convention)
-            // All other zones: left to right
-            bool reverseSort = zone.Type == ZoneType.Graveyard || zone.Type == ZoneType.OpponentGraveyard;
-            zone.Cards.Sort((a, b) => reverseSort
-                ? b.transform.position.x.CompareTo(a.transform.position.x)
-                : a.transform.position.x.CompareTo(b.transform.position.x));
+            // Sort cards by position (left to right) for spatially-arranged zones.
+            // Graveyards are stacked (all same x position), so reverse the hierarchy order
+            // to show newest first, matching hand/battlefield convention.
+            bool isGraveyard = zone.Type == ZoneType.Graveyard || zone.Type == ZoneType.OpponentGraveyard;
+            if (isGraveyard)
+                zone.Cards.Reverse();
+            else
+                zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
             // Library is a hidden zone - ONLY include cards visible to sighted players.
             // HotHighlight = playable from library (creature with Vizier, any with Future Sight)
