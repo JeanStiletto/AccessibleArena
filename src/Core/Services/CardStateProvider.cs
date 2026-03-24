@@ -38,6 +38,7 @@ namespace AccessibleArena.Core.Services
         private static PropertyInfo _cardTypesProp;
         private static PropertyInfo _instanceIdProp;
         private static PropertyInfo _grpIdProp;
+        private static PropertyInfo _subtypesProp;
         private static bool _modelPropsSearched;
 
         #endregion
@@ -59,6 +60,7 @@ namespace AccessibleArena.Core.Services
             _cardTypesProp = null;
             _instanceIdProp = null;
             _grpIdProp = null;
+            _subtypesProp = null;
             _modelPropsSearched = false;
         }
 
@@ -158,6 +160,7 @@ namespace AccessibleArena.Core.Services
             _cardTypesProp = modelType.GetProperty("CardTypes");
             _instanceIdProp = modelType.GetProperty("InstanceId");
             _grpIdProp = modelType.GetProperty("GrpId");
+            _subtypesProp = modelType.GetProperty("Subtypes");
         }
 
         #endregion
@@ -958,6 +961,45 @@ namespace AccessibleArena.Core.Services
         public static bool IsLandCard(GameObject card)
         {
             return GetCardCategory(card).isLand;
+        }
+
+        /// <summary>
+        /// Checks if a card is a creature or has the Vehicle subtype.
+        /// Used to determine whether summoning sickness is relevant for a card.
+        /// </summary>
+        public static bool IsCreatureOrVehicleCard(GameObject card)
+        {
+            if (card == null) return false;
+            var cdc = CardModelProvider.GetDuelSceneCDC(card);
+            if (cdc == null) return false;
+            var model = CardModelProvider.GetCardModel(cdc);
+            if (model == null) return false;
+
+            try
+            {
+                EnsureModelPropsSearched(model.GetType());
+
+                if (_cardTypesProp != null)
+                {
+                    var cardTypes = _cardTypesProp.GetValue(model) as IEnumerable;
+                    if (cardTypes != null)
+                        foreach (var ct in cardTypes)
+                            if (ct != null && ct.ToString().Contains("Creature"))
+                                return true;
+                }
+
+                if (_subtypesProp != null)
+                {
+                    var subtypes = _subtypesProp.GetValue(model) as IEnumerable;
+                    if (subtypes != null)
+                        foreach (var st in subtypes)
+                            if (st != null && st.ToString().Contains("Vehicle"))
+                                return true;
+                }
+            }
+            catch { }
+
+            return false;
         }
 
         /// <summary>

@@ -698,6 +698,7 @@
   "Combat_SelectedToBlock": "selecionado para bloquear",
   "Combat_CanBlock": "pode bloquear",
   "Combat_Tapped": "virada",
+  "Combat_SummoningSickness": "enjoo de invocação",
   "Combat_PTBlocking_Format": "{0}/{1}",
   "Combat_Assigned": "atribuído",
   "Target_Targeted_Format": "{0} alvejado",

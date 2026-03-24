@@ -280,6 +280,7 @@ namespace AccessibleArena.Core.Models
         public static string Combat_SelectedToBlock => L.Get("Combat_SelectedToBlock");
         public static string Combat_CanBlock => L.Get("Combat_CanBlock");
         public static string Combat_Tapped => L.Get("Combat_Tapped");
+        public static string Combat_SummoningSickness => L.Get("Combat_SummoningSickness");
         public static string Combat_PTBlocking(int power, int toughness) => L.Format("Combat_PTBlocking_Format", power, toughness);
         public static string Combat_Assigned => L.Get("Combat_Assigned");
 

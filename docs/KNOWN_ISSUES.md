@@ -147,6 +147,22 @@ Fixed `ExtractBrowserHeaderText()` to read the subheader from the `BrowserHeader
 
 ---
 
+### Summoning Sickness Announcement Verbosity
+
+Summoning sickness is now announced on all creatures and vehicles in every duel phase, based on the game model's `HasSummoningSickness` field. Monitor whether this creates too much noise during gameplay, especially:
+- On boards with many freshly played creatures (e.g. token generation turns)
+- During combat phases where "can attack" already implies no summoning sickness
+- Whether players find it useful or distracting overall
+
+**Possible adjustments if too verbose:**
+- Add a user setting to toggle summoning sickness announcements on/off
+- Suppress during combat phases (where "can attack"/"tapped" already convey the relevant info)
+- Only announce on first navigation to a card, not on repeated passes
+
+**Files:** `CombatNavigator.cs` (GetCombatStateText), `CardStateProvider.cs` (IsCreatureOrVehicleCard), `lang/*.json` (Combat_SummoningSickness)
+
+---
+
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers
@@ -195,10 +211,6 @@ Adding cards to a deck reportedly moves the user out of the Collection group to 
 Challenging friends sometimes fails: deck selection not available and screen elements auto-change unexpectedly. Exact reproduction steps unknown.
 
 ---
-
-### Chat Menu Cannot Be Closed Reliably
-
-The chat menu (ChatNavigator) cannot be reliably closed with Escape or Backspace. Exact conditions and reproduction steps unknown.
 
 ## Technical Debt
 
@@ -266,8 +278,6 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 3. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
 4. Verbose "Big Card" announcements (inspired by Hearthstone Access) - option to include card details inline with action announcements, with user preference toggle for brief vs verbose
 5. Improve mod settings - reorganize settings into useful categories with category splitting for better navigation
-7. Summoning sickness announcement - announce summoning sickness status on creatures, controlled by a user setting
-
 ### Tutorial System
 
 **Goal:** Help blind players learn the mod's controls and the game's mechanics through accessible, context-sensitive guidance.
