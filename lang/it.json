@@ -982,11 +982,11 @@
   "SurveyHint": "Su e Giù per navigare, Invio per selezionare, Backspace per saltare",
   "NPE_SuggestedCard_Format": "Carta suggerita: {0}",
   "NPE_Tooltip_Format": "Tutorial: {0}",
-  "NPE_Hint_PlayCard": "Naviga fino alla carta suggerita con Sinistra e Destra e premi Invio per giocarla.",
-  "NPE_Hint_AssignBlocker": "Naviga fino alla tua creatura e premi Invio per assegnarla come bloccante.",
-  "NPE_Hint_ConfirmBlocks": "Premi Spazio per confermare i blocchi, o Backspace per rifiutare.",
-  "NPE_Hint_AssignAttacker": "Naviga fino alla tua creatura e premi Invio per selezionarla come attaccante.",
+  "NPE_Hint_PlayCard": "Usa Sinistra e Destra per navigare tra le carte, o Tab per saltare alla carta suggerita. Premi Invio per giocarla.",
+  "NPE_Hint_AssignBlocker": "Usa Sinistra e Destra per navigare tra le creature, o Tab per saltare alla carta suggerita. Premi Invio su una creatura per selezionarla come bloccante. Puoi selezionare più bloccanti. Poi naviga verso la creatura attaccante e premi Invio per assegnare i bloccanti selezionati.",
+  "NPE_Hint_ConfirmBlocks": "Premi Spazio per confermare i blocchi, o per saltare la fase di blocco se non hai selezionato alcun bloccante.",
+  "NPE_Hint_AssignAttacker": "Usa Sinistra e Destra per navigare tra le creature, o Tab per saltare alla carta suggerita. Premi Invio per selezionarla come attaccante.",
   "NPE_Hint_ConfirmAttackers": "Premi Spazio per confermare gli attaccanti.",
   "NPE_Hint_SkipAttack": "Premi Backspace per saltare l'attacco questo turno.",
-  "NPE_Hint_SelectCard": "Naviga fino alla carta e premi Invio per selezionarla."
+  "NPE_Hint_SelectCard": "Usa Sinistra e Destra per navigare tra le carte, o Tab per saltare alla carta suggerita. Premi Invio per selezionarla."
 }

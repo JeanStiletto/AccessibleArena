@@ -982,11 +982,11 @@
   "SurveyHint": "Cima e Baixo para navegar, Enter para selecionar, Backspace para pular",
   "NPE_SuggestedCard_Format": "Carta sugerida: {0}",
   "NPE_Tooltip_Format": "Tutorial: {0}",
-  "NPE_Hint_PlayCard": "Navegue at\u00e9 a carta sugerida com Esquerda e Direita e pressione Enter para jog\u00e1-la.",
-  "NPE_Hint_AssignBlocker": "Navegue at\u00e9 sua criatura e pressione Enter para design\u00e1-la como bloqueadora.",
-  "NPE_Hint_ConfirmBlocks": "Pressione Espa\u00e7o para confirmar os bloqueios, ou Backspace para recusar.",
-  "NPE_Hint_AssignAttacker": "Navegue at\u00e9 sua criatura e pressione Enter para selecion\u00e1-la como atacante.",
+  "NPE_Hint_PlayCard": "Use Esquerda e Direita para navegar entre cartas, ou Tab para ir \u00e0 carta sugerida. Pressione Enter para jog\u00e1-la.",
+  "NPE_Hint_AssignBlocker": "Use Esquerda e Direita para navegar entre criaturas, ou Tab para ir \u00e0 carta sugerida. Pressione Enter em uma criatura para selecion\u00e1-la como bloqueadora. Voc\u00ea pode selecionar v\u00e1rios bloqueadores. Em seguida, navegue at\u00e9 a criatura atacante e pressione Enter para atribuir os bloqueadores selecionados.",
+  "NPE_Hint_ConfirmBlocks": "Pressione Espa\u00e7o para confirmar os bloqueios, ou para pular a fase de bloqueio se voc\u00ea n\u00e3o selecionou nenhum bloqueador.",
+  "NPE_Hint_AssignAttacker": "Use Esquerda e Direita para navegar entre criaturas, ou Tab para ir \u00e0 carta sugerida. Pressione Enter para selecion\u00e1-la como atacante.",
   "NPE_Hint_ConfirmAttackers": "Pressione Espa\u00e7o para confirmar os atacantes.",
   "NPE_Hint_SkipAttack": "Pressione Backspace para pular o ataque neste turno.",
-  "NPE_Hint_SelectCard": "Navegue at\u00e9 a carta e pressione Enter para selecion\u00e1-la."
+  "NPE_Hint_SelectCard": "Use Esquerda e Direita para navegar entre cartas, ou Tab para ir \u00e0 carta sugerida. Pressione Enter para selecion\u00e1-la."
 }

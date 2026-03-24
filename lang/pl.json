@@ -995,11 +995,11 @@
   "SurveyHint": "Strza\u0142ki g\u00f3ra i d\u00f3\u0142 do nawigacji, Enter aby wybra\u0107, Backspace aby pomin\u0105\u0107",
   "NPE_SuggestedCard_Format": "Sugerowana karta: {0}",
   "NPE_Tooltip_Format": "Samouczek: {0}",
-  "NPE_Hint_PlayCard": "Przejd\u017a do sugerowanej karty strza\u0142kami w lewo i prawo, naci\u015bnij Enter, aby j\u0105 zagra\u0107.",
-  "NPE_Hint_AssignBlocker": "Przejd\u017a do swojego stworzenia i naci\u015bnij Enter, aby przypisa\u0107 je jako blokera.",
-  "NPE_Hint_ConfirmBlocks": "Naci\u015bnij Spacj\u0119, aby potwierdzi\u0107 bloki, lub Backspace, aby odm\u00f3wi\u0107.",
-  "NPE_Hint_AssignAttacker": "Przejd\u017a do swojego stworzenia i naci\u015bnij Enter, aby wybra\u0107 je jako atakuj\u0105cego.",
+  "NPE_Hint_PlayCard": "Strza\u0142ki lewo i prawo do nawigacji mi\u0119dzy kartami, lub Tab aby przej\u015b\u0107 do sugerowanej karty. Enter aby zagra\u0107.",
+  "NPE_Hint_AssignBlocker": "Strza\u0142ki lewo i prawo do nawigacji mi\u0119dzy stworzeniami, lub Tab aby przej\u015b\u0107 do sugerowanej karty. Enter na stworzeniu, aby wybra\u0107 je jako blokera. Mo\u017cesz wybra\u0107 kilku bloker\u00f3w. Nast\u0119pnie przejd\u017a do atakuj\u0105cego stworzenia i naci\u015bnij Enter, aby przypisa\u0107 wybranych bloker\u00f3w.",
+  "NPE_Hint_ConfirmBlocks": "Naci\u015bnij Spacj\u0119, aby potwierdzi\u0107 bloki, lub aby pomin\u0105\u0107 faz\u0119 blokowania, je\u015bli nie wybra\u0142e\u015b \u017cadnych bloker\u00f3w.",
+  "NPE_Hint_AssignAttacker": "Strza\u0142ki lewo i prawo do nawigacji mi\u0119dzy stworzeniami, lub Tab aby przej\u015b\u0107 do sugerowanej karty. Enter aby wybra\u0107 jako atakuj\u0105cego.",
   "NPE_Hint_ConfirmAttackers": "Naci\u015bnij Spacj\u0119, aby potwierdzi\u0107 atakuj\u0105cych.",
   "NPE_Hint_SkipAttack": "Naci\u015bnij Backspace, aby pomin\u0105\u0107 atak w tej turze.",
-  "NPE_Hint_SelectCard": "Przejd\u017a do karty i naci\u015bnij Enter, aby j\u0105 wybra\u0107."
+  "NPE_Hint_SelectCard": "Strza\u0142ki lewo i prawo do nawigacji mi\u0119dzy kartami, lub Tab aby przej\u015b\u0107 do sugerowanej karty. Enter aby wybra\u0107."
 }

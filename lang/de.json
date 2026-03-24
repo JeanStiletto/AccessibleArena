@@ -996,11 +996,11 @@
   "DeckBuilder_Companion": "Begleiter",
   "NPE_SuggestedCard_Format": "Vorgeschlagene Karte: {0}",
   "NPE_Tooltip_Format": "Tutorial: {0}",
-  "NPE_Hint_PlayCard": "Navigiere mit Links und Rechts zur vorgeschlagenen Karte und drücke Eingabe, um sie zu spielen.",
-  "NPE_Hint_AssignBlocker": "Navigiere zu deiner Kreatur und drücke Eingabe, um sie als Blocker zuzuweisen.",
-  "NPE_Hint_ConfirmBlocks": "Drücke Leertaste, um die Blocker zu bestätigen, oder Rücktaste zum Ablehnen.",
-  "NPE_Hint_AssignAttacker": "Navigiere zu deiner Kreatur und drücke Eingabe, um sie als Angreifer auszuwählen.",
+  "NPE_Hint_PlayCard": "Links und Rechts zum Navigieren zwischen Karten, oder Tab um zur vorgeschlagenen Karte zu springen. Eingabe zum Spielen.",
+  "NPE_Hint_AssignBlocker": "Links und Rechts zum Navigieren zwischen Kreaturen, oder Tab um zur vorgeschlagenen Karte zu springen. Eingabe auf eine Kreatur, um sie als Blocker auszuw\u00e4hlen. Du kannst mehrere Blocker ausw\u00e4hlen. Dann zum Angreifer navigieren und Eingabe dr\u00fccken, um die ausgew\u00e4hlten Blocker zuzuweisen.",
+  "NPE_Hint_ConfirmBlocks": "Drücke Leertaste, um die Blocker zu bestätigen, oder um die Blockerphase zu überspringen, wenn du keine Blocker ausgewählt hast.",
+  "NPE_Hint_AssignAttacker": "Links und Rechts zum Navigieren zwischen Kreaturen, oder Tab um zur vorgeschlagenen Karte zu springen. Eingabe zum Auswählen als Angreifer.",
   "NPE_Hint_ConfirmAttackers": "Drücke Leertaste, um die Angreifer zu bestätigen.",
   "NPE_Hint_SkipAttack": "Drücke Rücktaste, um den Angriff zu überspringen.",
-  "NPE_Hint_SelectCard": "Navigiere zur Karte und drücke Eingabe, um sie auszuwählen."
+  "NPE_Hint_SelectCard": "Links und Rechts zum Navigieren zwischen Karten, oder Tab um zur vorgeschlagenen Karte zu springen. Eingabe zum Auswählen."
 }
