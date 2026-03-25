@@ -905,7 +905,12 @@ namespace AccessibleArena.Core.Services
         {
             StartPolling();
             if (_currentMode == ScreenMode.MatchEnd)
+            {
                 EnablePopupDetection();
+                // MatchEnd has no non-popup panels, so IsSceneLoading never clears
+                // naturally. Clear it so AlphaDetector can detect the survey popup.
+                PanelStateManager.Instance?.ClearSceneLoadingGate();
+            }
         }
 
         private void StartPolling()

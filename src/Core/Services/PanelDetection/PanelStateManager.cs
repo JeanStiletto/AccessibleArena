@@ -122,6 +122,17 @@ namespace AccessibleArena.Core.Services.PanelDetection
         /// </summary>
         public bool IsSceneLoading { get; private set; }
 
+        /// <summary>
+        /// Clear the scene-loading gate so alpha-detected popups are no longer suppressed.
+        /// Call from navigators that own screens without non-popup panels (e.g., MatchEnd).
+        /// </summary>
+        public void ClearSceneLoadingGate()
+        {
+            if (!IsSceneLoading) return;
+            IsSceneLoading = false;
+            MelonLogger.Msg("[PanelStateManager] Scene loading gate cleared externally");
+        }
+
         #endregion
 
         #region Initialization

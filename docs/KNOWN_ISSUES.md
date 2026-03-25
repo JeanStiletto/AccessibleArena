@@ -165,6 +165,18 @@ Fixed `ExtractBrowserHeaderText()` to read the subheader from the `BrowserHeader
 
 ---
 
+### Match End Survey Popup Detection
+
+The "Rate this match" survey popup (`GameEndSurveyPopup`) on the match end screen was not detected because `PanelStateManager.IsSceneLoading` stayed permanently `true`. The MatchEnd scene has no non-popup panels, so the flag (which clears on the first non-popup panel open) never cleared naturally. AlphaDetector registered the popup but suppressed its visibility report.
+
+**Symptoms:** Only rank info and game log button visible (2 elements), no survey popup announced, no continue button (stays INACTIVE until survey is dismissed), user stuck on match end screen.
+
+**Fix applied:** `LoadingScreenNavigator.OnActivated()` now calls `PanelStateManager.ClearSceneLoadingGate()` when entering MatchEnd mode, unblocking AlphaDetector immediately.
+
+**Files:** `LoadingScreenNavigator.cs` (OnActivated), `PanelStateManager.cs` (ClearSceneLoadingGate)
+
+---
+
 ### Summoning Sickness Announcement Verbosity
 
 Summoning sickness is now announced on all creatures and vehicles in every duel phase, based on the game model's `HasSummoningSickness` field. Monitor whether this creates too much noise during gameplay, especially:
