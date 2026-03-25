@@ -2658,6 +2658,9 @@ namespace AccessibleArena.Core.Services
             // Phase 1: Discover text blocks
             DiscoverPopupTextBlocks(popup, hasDeckCosts, skipTransforms);
 
+            // Phase 1b: Add title/header texts as navigable items
+            DiscoverPopupTitleTexts(popup);
+
             // Phase 2: Discover input fields
             DiscoverPopupInputFields(popup, addedObjects);
 
@@ -2726,6 +2729,49 @@ namespace AccessibleArena.Core.Services
                         MelonLogger.Msg($"[{NavigatorId}] Popup: deck info: {combined}");
                     }
                 }
+            }
+        }
+
+        private void DiscoverPopupTitleTexts(GameObject popup)
+        {
+            if (popup == null) return;
+
+            var titleTexts = new List<string>();
+            var seenTexts = new HashSet<string>();
+
+            // Collect existing text block labels to avoid duplicates
+            foreach (var el in _elements)
+            {
+                if (el.Role == UIElementClassifier.ElementRole.TextBlock && !string.IsNullOrEmpty(el.Label))
+                    seenTexts.Add(el.Label);
+            }
+
+            foreach (var tmp in popup.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+                if (!IsInsideTitleContainer(tmp.transform, popup.transform)) continue;
+                if (IsInsideButton(tmp.transform, popup.transform)) continue;
+
+                string text = UITextExtractor.CleanText(tmp.text);
+                if (string.IsNullOrWhiteSpace(text) || text.Length < 3) continue;
+
+                string trimmed = text.Trim();
+                if (seenTexts.Contains(trimmed)) continue;
+
+                seenTexts.Add(trimmed);
+                titleTexts.Add(trimmed);
+                MelonLogger.Msg($"[{NavigatorId}] Popup: title text: {trimmed}");
+            }
+
+            // Insert title texts at the beginning so they're navigated first
+            for (int i = titleTexts.Count - 1; i >= 0; i--)
+            {
+                _elements.Insert(0, new NavigableElement
+                {
+                    GameObject = null,
+                    Label = titleTexts[i],
+                    Role = UIElementClassifier.ElementRole.TextBlock
+                });
             }
         }
 
@@ -3064,8 +3110,10 @@ namespace AccessibleArena.Core.Services
             while (current != null && current != stopAt)
             {
                 string name = current.name;
-                if (name.IndexOf("Title", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    name.IndexOf("Header", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (name.IndexOf("Header", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+                int titleIdx = name.IndexOf("Title", StringComparison.OrdinalIgnoreCase);
+                if (titleIdx >= 0 && name.IndexOf("Subtitle", StringComparison.OrdinalIgnoreCase) < 0)
                     return true;
                 current = current.parent;
             }

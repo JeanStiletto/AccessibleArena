@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.8.8
 
+### Popup Accessibility
+- Fixed banned card popup (and similar popups with subtitle elements) missing ban heading, explanation, and playability info — "Subtitle" containers were incorrectly matched as title containers
+- Popup title and header texts are now navigable as text blocks instead of only appearing in the opening announcement
+
 ### Combat
 - Fixed attacker declaration announcing 0/0 power/toughness instead of correct values (e.g. 1/1) — model properties are StringBackedInt, not plain int
 
