@@ -2550,7 +2550,8 @@ namespace AccessibleArena.Core.Services
                 // DominariaFall fires at the very start of the first tutorial duel,
                 // overlapping with NPC intro dialogs and matchup info — suppress it.
                 // Combat fires right after "Du wurdest geblockt!" dialog which has its own hint.
-                if (tooltipType == "DominariaFall" || tooltipType == "Combat") return null;
+                // Mana fires after playing first land — mana hint already played on Sparky_05 dialog.
+                if (tooltipType == "DominariaFall" || tooltipType == "Combat" || tooltipType == "Mana") return null;
 
                 // Check for custom tooltip text (visual-only popups replaced with keyboard hints)
                 string custom = NPETutorialTextProvider.GetTooltipText(tooltipType);
