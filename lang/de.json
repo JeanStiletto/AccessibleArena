@@ -1007,5 +1007,6 @@
   "NPE_UnlockedCardNumber_Format": "Freigeschaltete Karte {0}: {1}",
   "NPE_TakeReward": "Belohnung nehmen",
   "NPE_RewardClaimed": "Belohnung erhalten",
-  "NPE_Stage_Format": "Stufe {0}"
+  "NPE_Stage_Format": "Stufe {0}",
+  "NPE_DialogHint_LandSummary": "Hinweis: Drücke M für deine Länderübersicht und Umschalt+M für die des Gegners. Die Anzahl der ungetappten Länder zeigt das verfügbare Mana."
 }

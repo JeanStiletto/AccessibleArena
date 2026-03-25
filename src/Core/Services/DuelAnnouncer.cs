@@ -2407,9 +2407,16 @@ namespace AccessibleArena.Core.Services
                 string text = lineObj.ToString();
                 if (string.IsNullOrEmpty(text)) return null;
 
-                MelonLogger.Msg($"[DuelAnnouncer] NPE Dialog (voice-over, not announced): {text}");
-                // Dialog lines are voice-acted NPC subtitles - don't read aloud
-                return null;
+                // Extract localization key for language-agnostic hint matching
+                string locKey = null;
+                if (_localizedStringKeyField != null)
+                    locKey = _localizedStringKeyField.GetValue(lineObj) as string;
+
+                MelonLogger.Msg($"[DuelAnnouncer] NPE Dialog: {text} (key: {locKey})");
+
+                // Dialog lines are voice-acted NPC subtitles - don't read aloud,
+                // but check if we have a supplementary keyboard hint for this line
+                return NPETutorialTextProvider.GetDialogHint(locKey);
             }
             catch (Exception ex)
             {
