@@ -10,6 +10,7 @@ All notable changes to Accessible Arena.
 
 ### Combat
 - Fixed attacker declaration announcing 0/0 power/toughness instead of correct values (e.g. 1/1) — model properties are StringBackedInt, not plain int
+- Suppressed summoning sickness announcement during declare blockers phase to reduce spam — it doesn't affect blocking
 
 ## v0.8.7
 

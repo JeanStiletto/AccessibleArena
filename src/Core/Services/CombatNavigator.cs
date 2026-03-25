@@ -478,7 +478,9 @@ namespace AccessibleArena.Core.Services
                 states.Add(Models.Strings.Combat_Tapped);
 
             // Show summoning sickness on creatures and vehicles (relevant for attack/tap eligibility)
-            if (CardStateProvider.GetHasSummoningSicknessFromCard(card)
+            // Skip during declare blockers - summoning sickness doesn't affect blocking
+            if (!_duelAnnouncer.IsInDeclareBlockersPhase
+                && CardStateProvider.GetHasSummoningSicknessFromCard(card)
                 && CardStateProvider.IsCreatureOrVehicleCard(card))
                 states.Add(Models.Strings.Combat_SummoningSickness);
 
