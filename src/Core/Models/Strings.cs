@@ -466,6 +466,10 @@ namespace AccessibleArena.Core.Models
         // ===========================================
         public static string NPE_SuggestedCard(string cardNames) => L.Format("NPE_SuggestedCard_Format", cardNames);
         public static string NPE_Tooltip(string tooltipType) => L.Format("NPE_Tooltip_Format", tooltipType);
+        public static string NPE_UnknownCard => L.Get("NPE_UnknownCard");
+        public static string NPE_UnlockedCardNumber(int num, string name) => L.Format("NPE_UnlockedCardNumber_Format", num, name);
+        public static string NPE_TakeReward => L.Get("NPE_TakeReward");
+        public static string NPE_RewardClaimed => L.Get("NPE_RewardClaimed");
 
         // ===========================================
         // COMBAT

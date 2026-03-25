@@ -988,5 +988,9 @@
   "NPE_Hint_AssignAttacker": "Utilisez Gauche et Droite pour naviguer entre les créatures, ou Tab pour aller à la carte suggérée. Appuyez sur Entrée pour la sélectionner comme attaquante.",
   "NPE_Hint_ConfirmAttackers": "Appuyez sur Espace pour confirmer les attaquants.",
   "NPE_Hint_SkipAttack": "Appuyez sur Retour arrière pour passer l'attaque ce tour.",
-  "NPE_Hint_SelectCard": "Utilisez Gauche et Droite pour naviguer entre les cartes, ou Tab pour aller à la carte suggérée. Appuyez sur Entrée pour la sélectionner."
+  "NPE_Hint_SelectCard": "Utilisez Gauche et Droite pour naviguer entre les cartes, ou Tab pour aller à la carte suggérée. Appuyez sur Entrée pour la sélectionner.",
+  "NPE_UnknownCard": "Carte inconnue",
+  "NPE_UnlockedCardNumber_Format": "Carte d\u00e9bloqu\u00e9e {0} : {1}",
+  "NPE_TakeReward": "Prendre la r\u00e9compense",
+  "NPE_RewardClaimed": "R\u00e9compense r\u00e9clam\u00e9e"
 }

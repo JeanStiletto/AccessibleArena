@@ -988,5 +988,9 @@
   "NPE_Hint_AssignAttacker": "Usa Sinistra e Destra per navigare tra le creature, o Tab per saltare alla carta suggerita. Premi Invio per selezionarla come attaccante.",
   "NPE_Hint_ConfirmAttackers": "Premi Spazio per confermare gli attaccanti.",
   "NPE_Hint_SkipAttack": "Premi Backspace per saltare l'attacco questo turno.",
-  "NPE_Hint_SelectCard": "Usa Sinistra e Destra per navigare tra le carte, o Tab per saltare alla carta suggerita. Premi Invio per selezionarla."
+  "NPE_Hint_SelectCard": "Usa Sinistra e Destra per navigare tra le carte, o Tab per saltare alla carta suggerita. Premi Invio per selezionarla.",
+  "NPE_UnknownCard": "Carta sconosciuta",
+  "NPE_UnlockedCardNumber_Format": "Carta sbloccata {0}: {1}",
+  "NPE_TakeReward": "Prendi ricompensa",
+  "NPE_RewardClaimed": "Ricompensa ottenuta"
 }

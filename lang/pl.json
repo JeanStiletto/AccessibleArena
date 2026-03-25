@@ -1001,5 +1001,9 @@
   "NPE_Hint_AssignAttacker": "Strza\u0142ki lewo i prawo do nawigacji mi\u0119dzy stworzeniami, lub Tab aby przej\u015b\u0107 do sugerowanej karty. Enter aby wybra\u0107 jako atakuj\u0105cego.",
   "NPE_Hint_ConfirmAttackers": "Naci\u015bnij Spacj\u0119, aby potwierdzi\u0107 atakuj\u0105cych.",
   "NPE_Hint_SkipAttack": "Naci\u015bnij Backspace, aby pomin\u0105\u0107 atak w tej turze.",
-  "NPE_Hint_SelectCard": "Strza\u0142ki lewo i prawo do nawigacji mi\u0119dzy kartami, lub Tab aby przej\u015b\u0107 do sugerowanej karty. Enter aby wybra\u0107."
+  "NPE_Hint_SelectCard": "Strza\u0142ki lewo i prawo do nawigacji mi\u0119dzy kartami, lub Tab aby przej\u015b\u0107 do sugerowanej karty. Enter aby wybra\u0107.",
+  "NPE_UnknownCard": "Nieznana karta",
+  "NPE_UnlockedCardNumber_Format": "Odblokowana karta {0}: {1}",
+  "NPE_TakeReward": "Odbierz nagrod\u0119",
+  "NPE_RewardClaimed": "Nagroda odebrana"
 }

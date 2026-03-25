@@ -748,8 +748,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Special handling for NPE reward claim button (NullClaimButton).
-        /// The button's onClick listener is broken - we need to invoke OnClaimClicked_Unity
-        /// on the NPEContentControllerRewards component directly.
+        /// Invokes PutAwayRewards() on NPEContentControllerRewards - this is the same method
+        /// the game uses when the user presses Escape on the reward screen.
+        /// Falls back to OnClaimClicked_Unity() on the base class if PutAwayRewards is not found.
         /// </summary>
         private static bool TryInvokeNPERewardClaim(GameObject element, out ActivationResult result)
         {
@@ -785,18 +786,35 @@ namespace AccessibleArena.Core.Services
 
                 Log($"Found NPEContentControllerRewards on: {behaviour.gameObject.name}");
 
-                // Invoke OnClaimClicked_Unity
                 var type = behaviour.GetType();
-                var method = type.GetMethod("OnClaimClicked_Unity",
-                    AllInstanceFlags);
 
-                if (method != null)
+                // Try PutAwayRewards first - this is the NPE-specific dismiss method
+                // (same as what the game calls on Escape key)
+                var putAwayMethod = type.GetMethod("PutAwayRewards", AllInstanceFlags);
+                if (putAwayMethod != null)
                 {
                     try
                     {
-                        Log($"Invoking NPEContentControllerRewards.OnClaimClicked_Unity()");
-                        method.Invoke(behaviour, null);
-                        result = new ActivationResult(true, "Reward claimed", ActivationType.Button);
+                        Log($"Invoking NPEContentControllerRewards.PutAwayRewards()");
+                        putAwayMethod.Invoke(behaviour, null);
+                        result = new ActivationResult(true, Models.Strings.NPE_RewardClaimed, ActivationType.Button);
+                        return true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log($"PutAwayRewards error: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+
+                // Fallback to OnClaimClicked_Unity on base class
+                var claimMethod = type.GetMethod("OnClaimClicked_Unity", AllInstanceFlags);
+                if (claimMethod != null)
+                {
+                    try
+                    {
+                        Log($"Invoking OnClaimClicked_Unity() (fallback)");
+                        claimMethod.Invoke(behaviour, null);
+                        result = new ActivationResult(true, Models.Strings.NPE_RewardClaimed, ActivationType.Button);
                         return true;
                     }
                     catch (System.Exception ex)
@@ -806,7 +824,7 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    Log($"OnClaimClicked_Unity method not found on NPEContentControllerRewards");
+                    Log($"Neither PutAwayRewards nor OnClaimClicked_Unity found");
                 }
             }
 

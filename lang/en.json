@@ -1004,5 +1004,9 @@
   "NPE_Hint_AssignAttacker": "Use Left and Right to navigate between creatures, or Tab to jump to the suggested card. Press Enter to select it as an attacker.",
   "NPE_Hint_ConfirmAttackers": "Press Space to confirm your attackers.",
   "NPE_Hint_SkipAttack": "Press Backspace to skip attacking this turn.",
-  "NPE_Hint_SelectCard": "Use Left and Right to navigate between cards, or Tab to jump to the suggested card. Press Enter to select it."
+  "NPE_Hint_SelectCard": "Use Left and Right to navigate between cards, or Tab to jump to the suggested card. Press Enter to select it.",
+  "NPE_UnknownCard": "Unknown card",
+  "NPE_UnlockedCardNumber_Format": "Unlocked card {0}: {1}",
+  "NPE_TakeReward": "Take reward",
+  "NPE_RewardClaimed": "Reward claimed"
 }

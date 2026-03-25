@@ -271,7 +271,7 @@ namespace AccessibleArena.Core.Services
                 Log($"    CardInfo.ManaCost: {cardInfo.ManaCost ?? "null"}");
                 Log($"    CardInfo.RulesText: {(cardInfo.RulesText?.Length > 50 ? cardInfo.RulesText.Substring(0, 50) + "..." : cardInfo.RulesText ?? "null")}");
 
-                string cardName = cardInfo.IsValid ? cardInfo.Name : "Unknown card";
+                string cardName = cardInfo.IsValid ? cardInfo.Name : Strings.NPE_UnknownCard;
                 string typeLine = cardInfo.IsValid ? cardInfo.TypeLine : "";
 
                 // Sort by X position (left to right)
@@ -293,8 +293,8 @@ namespace AccessibleArena.Core.Services
             foreach (var (cardObj, sortX, cardName, typeLine) in cardEntries)
             {
                 string label = _totalCards > 1
-                    ? $"Unlocked card {cardNum}: {cardName}"
-                    : $"{cardName}";
+                    ? Strings.NPE_UnlockedCardNumber(cardNum, cardName)
+                    : cardName;
 
                 if (!string.IsNullOrEmpty(typeLine))
                 {
@@ -392,7 +392,12 @@ namespace AccessibleArena.Core.Services
             {
                 // If the name was a fallback "Deck N", re-generate with sorted index
                 string label = name;
-                if (name == Strings.DeckNumber(deckNum) || name.StartsWith("Deck "))
+                bool isFallbackName = false;
+                for (int i = 1; i <= deckEntries.Count; i++)
+                {
+                    if (name == Strings.DeckNumber(i)) { isFallbackName = true; break; }
+                }
+                if (isFallbackName)
                 {
                     label = Strings.DeckNumber(deckNum);
                 }
@@ -465,7 +470,9 @@ namespace AccessibleArena.Core.Services
 
             if (foundButton != null)
             {
-                string buttonLabel = _isDeckReward ? "Continue, button" : "Take reward, button";
+                string buttonLabel = _isDeckReward
+                    ? BuildLabel(Strings.Continue, Strings.RoleButton, UIElementClassifier.ElementRole.Button)
+                    : BuildLabel(Strings.NPE_TakeReward, Strings.RoleButton, UIElementClassifier.ElementRole.Button);
                 AddElement(foundButton, buttonLabel);
                 addedObjects.Add(foundButton);
                 Log($"{buttonLabel} ADDED");
@@ -517,17 +524,8 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            string hintKey;
-            if (_isDeckReward)
-            {
-                string deckInfo = _totalCards > 0 ? $" {_totalCards} {(_totalCards == 1 ? "deck" : "decks")}." : "";
-                string core = $"{ScreenName}.{deckInfo}".TrimEnd();
-                hintKey = "NPERewardDeckHint";
-                return Strings.WithHint(core, hintKey);
-            }
-            string cardInfo = _totalCards > 0 ? $" {_totalCards} {(_totalCards == 1 ? "card" : "cards")}." : "";
-            string coreCard = $"{ScreenName}.{cardInfo}".TrimEnd();
-            return Strings.WithHint(coreCard, "NPERewardCardHint");
+            string hintKey = _isDeckReward ? "NPERewardDeckHint" : "NPERewardCardHint";
+            return Strings.WithHint(ScreenName, hintKey);
         }
 
         protected override void HandleInput()
@@ -581,7 +579,16 @@ namespace AccessibleArena.Core.Services
             {
                 Log($"Input: Enter - ActivateCurrentElement");
                 LogCurrentState();
-                ActivateCurrentElement();
+                if (IsClaimButton(_currentIndex))
+                {
+                    ActivateCurrentElement();
+                    Log($"Claim button activated - deactivating navigator");
+                    Deactivate();
+                }
+                else
+                {
+                    ActivateCurrentElement();
+                }
                 return;
             }
 
@@ -590,13 +597,15 @@ namespace AccessibleArena.Core.Services
             {
                 Log($"Input: Backspace - Finding dismiss button");
                 // Find and activate the take reward / continue button
-                foreach (var element in _elements)
+                for (int i = 0; i < _elements.Count; i++)
                 {
-                    if (element.Label.Contains("Take reward") || element.Label.Contains("Continue"))
+                    var element = _elements[i];
+                    if (IsClaimButton(i))
                     {
-                        Log($"  Activating: {element.Label} -> {element.GameObject?.name}");
-                        var result = UIActivator.Activate(element.GameObject);
-                        Log($"  Activation result: Success={result.Success}, Message={result.Message}, Type={result.Type}");
+                        Log($"  Activating: {element.Label} -> {GetSafeName(element.GameObject)}");
+                        UIActivator.Activate(element.GameObject);
+                        Log($"Claim button activated via Backspace - deactivating navigator");
+                        Deactivate();
                         return;
                     }
                 }
@@ -605,13 +614,32 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        private bool IsClaimButton(int index)
+        {
+            if (index < 0 || index >= _elements.Count) return false;
+            var go = _elements[index].GameObject;
+            return go != null && go.name == "NullClaimButton";
+        }
+
+        /// <summary>
+        /// Safe name access that handles Unity-destroyed objects (native side gone but C# reference exists).
+        /// The ?. operator only checks C# null, not Unity's overloaded == null for destroyed objects.
+        /// </summary>
+        private static string GetSafeName(GameObject go)
+        {
+            // Unity overloads == to return true for destroyed objects
+            if (go == null) return "NULL";
+            try { return go.name; }
+            catch { return "DESTROYED"; }
+        }
+
         private void LogCurrentState()
         {
             if (_currentIndex >= 0 && _currentIndex < _elements.Count)
             {
                 var current = _elements[_currentIndex];
                 Log($"  Current: [{_currentIndex}] {current.Label}");
-                Log($"    GameObject: {current.GameObject?.name ?? "NULL"} (active={current.GameObject?.activeInHierarchy})");
+                Log($"    GameObject: {GetSafeName(current.GameObject)} (active={current.GameObject?.activeInHierarchy})");
 
                 // Check if this is a card and if CardInfoNavigator should be prepared
                 if (current.GameObject != null)
@@ -623,7 +651,7 @@ namespace AccessibleArena.Core.Services
                     if (cardNav != null)
                     {
                         Log($"    CardInfoNavigator.IsActive: {cardNav.IsActive}");
-                        Log($"    CardInfoNavigator.CurrentCard: {cardNav.CurrentCard?.name ?? "null"}");
+                        Log($"    CardInfoNavigator.CurrentCard: {GetSafeName(cardNav.CurrentCard)}");
                     }
                 }
             }
@@ -642,7 +670,25 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            return base.ValidateElements();
+            // Check if any element GameObjects are still alive and active
+            // After claiming, card objects get destroyed and button gets deactivated
+            bool anyAlive = false;
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var go = _elements[i].GameObject;
+                if (go != null && go.activeInHierarchy)
+                {
+                    anyAlive = true;
+                    break;
+                }
+            }
+            if (!anyAlive)
+            {
+                Log($"ValidateElements: No active elements remaining (reward dismissed)");
+                return false;
+            }
+
+            return true;
         }
 
         public override void OnSceneChanged(string sceneName)
