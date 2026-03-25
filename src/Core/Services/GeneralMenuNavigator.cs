@@ -709,6 +709,12 @@ namespace AccessibleArena.Core.Services
             // Update the element label
             UpdateBoosterCarouselElement();
 
+            // Rescan after carousel switch so button states reflect the newly selected pack.
+            // The "Open x10" button updates asynchronously when the game centers the new pack,
+            // so a delayed rescan is needed to pick up the correct enabled/disabled state.
+            _suppressRescanAnnouncement = true;
+            TriggerRescan();
+
             return true;
         }
 
