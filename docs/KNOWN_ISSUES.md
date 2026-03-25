@@ -212,6 +212,12 @@ Challenging friends sometimes fails: deck selection not available and screen ele
 
 ---
 
+### Avatar Set Filter Not Selectable
+
+Reported that users cannot select a specific set (avatar) to filter and view only that set. Exact reproduction steps unknown.
+
+---
+
 ## Technical Debt
 
 ### Code Archaeology
