@@ -709,6 +709,11 @@ namespace AccessibleArena.Core.Services
             // Update the element label
             UpdateBoosterCarouselElement();
 
+            // Rescan so buttons that appear/disappear based on the selected pack
+            // (e.g., "Open Packs") become navigable via arrow up/down
+            _suppressRescanAnnouncement = true;
+            TriggerRescan();
+
             return true;
         }
 
