@@ -86,6 +86,9 @@ namespace AccessibleArena.Core.Services
         // Suppress duplicate NPE BlockingReminder in same blockers phase
         private bool _shownBlockingReminderThisStep;
 
+        // Suppress the generic ActionReminder that fires right after a tooltip with custom text
+        private bool _suppressNextActionReminder;
+
         // Track time of last phase change for external consumers
         private float _lastPhaseChangeTime;
         public float TimeSinceLastPhaseChange => UnityEngine.Time.time - _lastPhaseChangeTime;
@@ -545,6 +548,8 @@ namespace AccessibleArena.Core.Services
                     return HandleNPEReminder(uxEvent);
                 case DuelEventType.NPETooltip:
                     return HandleNPETooltip(uxEvent);
+                case DuelEventType.NPEWarning:
+                    return HandleNPEWarning(uxEvent);
                 default:
                     return null;
             }
@@ -2347,6 +2352,7 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _npeReminderTextField;
         private static FieldInfo _npeReminderSuggestedField;
         private static FieldInfo _npeTooltipTypeField;
+        private static FieldInfo _npeWarningTextField;
         private static FieldInfo _localizedStringKeyField;
         private static bool _npeReflectionInitialized;
 
@@ -2381,6 +2387,11 @@ namespace AccessibleArena.Core.Services
                 var localizedStringType = FindType("MTGALocalizedString");
                 if (localizedStringType != null)
                     _localizedStringKeyField = localizedStringType.GetField("Key", PublicInstance);
+
+                // NPEWarningUXEvent._displayText (protected field, MTGALocalizedString)
+                var warningType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEWarningUXEvent");
+                if (warningType != null)
+                    _npeWarningTextField = warningType.GetField("_displayText", PrivateInstance);
 
                 // NPEDismissableDeluxeTooltipUXEvent._type (private field, DeluxeTooltipType enum)
                 var tooltipType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEDismissableDeluxeTooltipUXEvent");
@@ -2498,6 +2509,15 @@ namespace AccessibleArena.Core.Services
                     _shownBlockingReminderThisStep = true;
                 }
 
+                // Suppress the generic ActionReminder that fires right after a tooltip with custom text
+                if (_suppressNextActionReminder && locKey != null && locKey.Contains("/ActionReminder"))
+                {
+                    _suppressNextActionReminder = false;
+                    MelonLogger.Msg("[DuelAnnouncer] Suppressing ActionReminder after tooltip hint");
+                    return null;
+                }
+                _suppressNextActionReminder = false;
+
                 // Replace mouse/drag instructions with keyboard-focused text
                 string replacement = NPETutorialTextProvider.GetReplacementText(locKey);
                 string announcement = replacement ?? text;
@@ -2526,11 +2546,50 @@ namespace AccessibleArena.Core.Services
 
                 string tooltipType = typeObj.ToString();
                 MelonLogger.Msg($"[DuelAnnouncer] NPE Tooltip: {tooltipType}");
+
+                // DominariaFall fires at the very start of the first tutorial duel,
+                // overlapping with NPC intro dialogs and matchup info — suppress it.
+                // Combat fires right after "Du wurdest geblockt!" dialog which has its own hint.
+                if (tooltipType == "DominariaFall" || tooltipType == "Combat") return null;
+
+                // Check for custom tooltip text (visual-only popups replaced with keyboard hints)
+                string custom = NPETutorialTextProvider.GetTooltipText(tooltipType);
+                if (custom != null)
+                {
+                    // Suppress the generic ActionReminder that immediately follows this tooltip
+                    _suppressNextActionReminder = true;
+                    return custom;
+                }
+
                 return Strings.NPE_Tooltip(tooltipType);
             }
             catch (Exception ex)
             {
                 MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE tooltip: {ex.Message}");
+                return null;
+            }
+        }
+
+        private string HandleNPEWarning(object uxEvent)
+        {
+            try
+            {
+                EnsureNPEReflection();
+
+                if (_npeWarningTextField == null) return null;
+
+                var textObj = _npeWarningTextField.GetValue(uxEvent);
+                if (textObj == null) return null;
+
+                string text = textObj.ToString();
+                if (string.IsNullOrEmpty(text)) return null;
+
+                MelonLogger.Msg($"[DuelAnnouncer] NPE Warning: {text}");
+                return text;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE warning: {ex.Message}");
                 return null;
             }
         }
@@ -2940,6 +2999,7 @@ namespace AccessibleArena.Core.Services
                 case DuelEventType.NPEDialog:
                 case DuelEventType.NPEReminder:
                 case DuelEventType.NPETooltip:
+                case DuelEventType.NPEWarning:
                     return AnnouncementPriority.High;
                 case DuelEventType.ZoneTransfer:
                 case DuelEventType.CardRevealed:
@@ -3018,6 +3078,7 @@ namespace AccessibleArena.Core.Services
                 { "NPEDismissableDeluxeTooltipUXEvent", DuelEventType.NPETooltip },
                 { "NPEPauseUXEvent", DuelEventType.Ignored },
                 { "NPEShowBattlefieldHangerUXEvent", DuelEventType.Ignored },
+                { "NPEWarningUXEvent", DuelEventType.NPEWarning },
                 { "NPETooltipBumperUXEvent", DuelEventType.Ignored },
                 { "UXEventUpdateDecider", DuelEventType.Ignored },
                 { "AddCardDecoratorUXEvent", DuelEventType.Ignored },
@@ -3052,6 +3113,7 @@ namespace AccessibleArena.Core.Services
         ManaPool,
         NPEDialog,
         NPEReminder,
-        NPETooltip
+        NPETooltip,
+        NPEWarning
     }
 }

@@ -175,6 +175,31 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | PresetManaWheel | Wotc.Mtga.DuelScene.UI.PresetManaWheel | Core |
 | Spinner_OptionSelector | Spinner_OptionSelector | Core |
 
+## NPE Tutorial (Duel)
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| NPEController | NPEController | Core |
+| NPE_Game (abstract) | NPE_Game | Core |
+| F1_NPEGame1_Combined | F1_NPEGame1_Combined | Core |
+| NPEDirector | NPEDirector | Core |
+| NPEReminder | NPEReminder | Core |
+| NPEDismissableDeluxeTooltipUXEvent | Wotc.Mtga.DuelScene.UXEvents.NPEDismissableDeluxeTooltipUXEvent | Core |
+| NPEDialogUXEvent | Wotc.Mtga.DuelScene.UXEvents.NPEDialogUXEvent | Core |
+| NPEReminderUXEvent | Wotc.Mtga.DuelScene.UXEvents.NPEReminderUXEvent | Core |
+| NPEPauseUXEvent | Wotc.Mtga.DuelScene.UXEvents.NPEPauseUXEvent | Core |
+| NPEShowBattlefieldHangerUXEvent | Wotc.Mtga.DuelScene.UXEvents.NPEShowBattlefieldHangerUXEvent | Core |
+| NPEWarningUXEvent | Wotc.Mtga.DuelScene.UXEvents.NPEWarningUXEvent | Core |
+| NPEUXEventWithDuration | Wotc.Mtga.DuelScene.UXEvents.NPEUXEventWithDuration | Core |
+| DeluxeTooltipType (enum) | DeluxeTooltipType | Core |
+| DeluxeTooltip | DeluxeTooltip | Core |
+| DismissableDeluxeTooltip | DismissableDeluxeTooltip | Core |
+| ManaDeluxeTooltipController | ManaDeluxeTooltipController | Core |
+| CombatDeluxeTooltipController | CombatDeluxeTooltipController | Core |
+| ElfDeluxeTooltipController | ElfDeluxeTooltipController | Core |
+| NPEContentControllerRewards | NPEContentControllerRewards | Core |
+| NPEObjective | NPEObjective | Core |
+
 ## Home Page / Objectives
 
 | Short Name | Full Namespace | DLL |

@@ -20,6 +20,8 @@ namespace AccessibleArena.Core.Services
         // Checked BEFORE prefix matching, allowing specific reminders to override the default for their type.
         private static readonly Dictionary<string, string> ExactKeyToModKey = new Dictionary<string, string>
         {
+            // "Du kannst ein Land pro Zug spielen" - standalone land play reminder (no nearby dialog)
+            { "NPE/Game01/Turn03/ActionReminder_0", "NPE_Hint_PlayLand" },
             // Game 3 (aura deck) - enchanting targets: "click on your creature to enchant it"
             { "NPE/Game03/Turn02/TargetReminder_45", "NPE_Hint_EnchantTarget" },
             { "NPE/Game03/Turn04/TargetReminder_49", "NPE_Hint_EnchantTarget" },
@@ -40,11 +42,24 @@ namespace AccessibleArena.Core.Services
             { "TargetReminder", "NPE_Hint_Target" },
         };
 
+        // Maps DeluxeTooltipType enum names to mod localization keys.
+        // These are visual-only tutorial popups (animations, card demos) with no text for screen readers.
+        private static readonly Dictionary<string, string> TooltipTypeToModKey = new Dictionary<string, string>
+        {
+            { "Mana", "NPE_Tooltip_Mana" },
+        };
+
         // Maps exact NPE dialog localization keys to mod localization keys.
         // Add entries here to provide extra hints when specific NPC dialog lines appear.
         // Key = game's loc key (e.g. "NPE/Game01/Turn02/Dialog_3"), Value = mod locale key.
         private static readonly Dictionary<string, string> DialogKeyToModKey = new Dictionary<string, string>
         {
+            // "Fahre für alle Infos mit der Maus über die Karte" - mouse hover hint, replace with keyboard
+            { "NPE/Game01/g1_142", "NPE_DialogHint_CardDetails" },
+            // "Du wurdest geblockt!" - hint about battlefield navigation during combat
+            { "NPE/Game01/Turn03/g1_t3_143", "NPE_DialogHint_BattlefieldBlocked" },
+            // "Dieses Ungetüm zerstört deine Kreaturen, falls du angreifst" - no DontAttackReminder fires
+            { "NPE/Game01/Turn05/Sparky_15", "NPE_Hint_SkipAttack" },
             // "I've got nothing. Really. It's in your hands." - hint about land summary shortcuts
             { "NPE/Game04/Turn08/ViperNang_14", "NPE_DialogHint_LandSummary" },
         };
@@ -80,6 +95,29 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg($"[NPETutorialText] Replaced '{prefix}' (key: {npeLocKey}) with mod text");
                     return replacement;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets a keyboard-focused replacement for an NPE tooltip, or null if no mapping exists.
+        /// Tooltip types are visual-only popups (animations, card demos) with no useful text.
+        /// </summary>
+        /// <param name="tooltipType">The DeluxeTooltipType enum name (e.g. "Mana", "Combat")</param>
+        /// <returns>Replacement text from mod localization, or null to use default format</returns>
+        public static string GetTooltipText(string tooltipType)
+        {
+            if (string.IsNullOrEmpty(tooltipType)) return null;
+
+            if (TooltipTypeToModKey.TryGetValue(tooltipType, out string modKey))
+            {
+                string text = LocaleManager.Instance.Get(modKey);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    MelonLogger.Msg($"[NPETutorialText] Tooltip '{tooltipType}' replaced with mod text");
+                    return text;
                 }
             }
 
