@@ -2572,12 +2572,18 @@ namespace AccessibleArena.Core.Services
 
         // Hover simulation for NPE - fire CardHoverController.OnHoveredCardUpdated when user navigates to a CDC
         private GameObject _lastHoveredNPECard;
+        private bool _lastHoverWasStack;
 
         /// <summary>
         /// During NPE tutorials, simulate a mouse hover on the currently focused CDC.
         /// The tutorial expects CardHoverController.OnHoveredCardUpdated to fire when
         /// the player looks at a card - without this, Sparky loops pointing at cards forever.
         /// Call from DuelNavigator.Update() each frame.
+        ///
+        /// CRITICAL: NPEController pauses the NPE director when the player hovers a Stack card,
+        /// and only resumes when OnHoveredCardUpdated fires with null. With a mouse, moving
+        /// away from a card fires null automatically. We must replicate this: when focus leaves
+        /// a Stack card, fire null first so the NPE director resumes.
         /// </summary>
         public void UpdateNPEHoverSimulation()
         {
@@ -2592,14 +2598,38 @@ namespace AccessibleArena.Core.Services
             if (focused == _lastHoveredNPECard) return;
             _lastHoveredNPECard = focused;
 
+            // When focus leaves a Stack card (to null or another card), fire null first
+            // to unpause the NPE director. NPEController.OnHoveredCardUpdated pauses on
+            // Stack hover and only resumes on null - without this the NPE freezes permanently.
+            if (_lastHoverWasStack)
+            {
+                _lastHoverWasStack = false;
+                FireHoveredCardUpdated(null);
+            }
+
             if (focused == null) return;
 
             // Check if focused object is a DuelScene_CDC
             var cdcComponent = GetDuelSceneCDC(focused);
             if (cdcComponent == null) return;
 
+            // Track whether this CDC is on the Stack
+            _lastHoverWasStack = IsInStackHolder(focused);
+
             // Fire CardHoverController.OnHoveredCardUpdated(cdc)
             FireHoveredCardUpdated(cdcComponent);
+        }
+
+        private static bool IsInStackHolder(GameObject go)
+        {
+            var current = go.transform;
+            while (current != null)
+            {
+                if (current.name.Contains("StackCardHolder"))
+                    return true;
+                current = current.parent;
+            }
+            return false;
         }
 
         private static object GetDuelSceneCDC(GameObject go)
@@ -2647,9 +2677,19 @@ namespace AccessibleArena.Core.Services
                 var currentDelegate = _hoverEventField.GetValue(null) as Delegate;
                 if (currentDelegate != null)
                 {
-                    currentDelegate.DynamicInvoke(cdc);
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer",
-                        $"NPE hover simulated on: {((MonoBehaviour)cdc).gameObject.name}");
+                    // DynamicInvoke(null) is ambiguous - must wrap in array to pass null as first arg
+                    if (cdc != null)
+                    {
+                        currentDelegate.DynamicInvoke(cdc);
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer",
+                            $"NPE hover simulated on: {((MonoBehaviour)cdc).gameObject.name}");
+                    }
+                    else
+                    {
+                        currentDelegate.DynamicInvoke(new object[] { null });
+                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer",
+                            "NPE hover cleared (null) to unpause NPE director");
+                    }
                 }
             }
             catch (Exception ex)
