@@ -320,40 +320,10 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 3. Saga support - announce current chapter, total chapters, and chapter abilities for Saga enchantments
 4. Verbose "Big Card" announcements (inspired by Hearthstone Access) - option to include card details inline with action announcements, with user preference toggle for brief vs verbose
 5. Improve mod settings - reorganize settings into useful categories with category splitting for better navigation
-### Tutorial System
-
-**Goal:** Help blind players learn the mod's controls and the game's mechanics through accessible, context-sensitive guidance.
-
-**1. Text readability for existing tutorial messages**
-- The game's built-in tutorial (Color Challenge) displays popup messages with instructions and lore
-- These are currently not reliably read by the screen reader
-- Detect tutorial message panels and announce their text content automatically
-- Ensure multi-step tutorials (e.g., "click your creature", "now click the enemy") are announced at each step
-
-**2. Custom tutorial message system**
-- Framework for triggering mod-specific tutorial messages at appropriate moments
-- Messages should be dismissible (Backspace/Enter) and not block gameplay
-- Track which messages the user has already seen (persist across sessions via settings)
-- First-launch tutorial covering basic navigation concepts
-
-**3. Looping animation detection**
-- The game sometimes enters looping animations waiting for user action (e.g., attack arrow hovering, target selection active) with no audio or text cue
-- Detect when the game is stuck in such a loop and prompt the user with what action is expected
-- Example: "The game is waiting for you to select a target. Use battlefield navigation (B) to choose a creature, then press Enter."
-- Example: "Declare attackers phase. Press Space to confirm attacks or Backspace to cancel."
-
-**4. Contextual explanations for mod-specific controls**
-- F1 and F2 menus: explain that F1 opens the help overlay with all shortcuts and F2 opens the mod settings menu
-- Attacking: explain that in MTG, attackers always attack the opponent (or a planeswalker) — you do NOT choose which creature to attack. The opponent then decides how to block. This is a key difference from Hearthstone where you pick a target for each attacker. During Declare Attackers, simply toggle your creatures as attacking (Enter) and confirm (Space) — there is no target selection step
-- Blocking: explain how to assign blockers during Declare Blockers step (navigate to attacker, press Enter, select blocker)
-- Mana costs: explain how mana payment works when a card requires specific colors, and how the mana color picker (Tab/number keys) appears for any-color sources
-- Confirming with Space: explain that Space acts as the primary confirm/pass/next button during duels (pass priority, confirm attacks, submit choices)
-- Backspace behavior: explain that Backspace is the universal cancel/back/dismiss key (cancel targeting, decline attacks, close popups, go back in menus)
-
 ### Polish
 
-1. Check all tutorial messages for completeness and correctness - review every context-sensitive tutorial tip for accuracy, missing steps, and outdated references
-2. Improve role reading for choose-options browsers - better announce the player's role/task when entering choose-options browsers (e.g., "choose cards to discard", "choose a mode")
+1. Add mana cost explanation to the tutorial (how mana payment works, color picker for any-color sources)
+2. Improve roule reading for choose-options browsers - better announce the player's role/task when entering choose-options browsers (e.g., "choose cards to discard", "choose a mode")
 
 ### Low Priority / v1.1
 

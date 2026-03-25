@@ -4,6 +4,18 @@ All notable changes to Accessible Arena.
 
 ## v0.8.8
 
+### NPE Tutorial Accessibility
+- The game's built-in tutorial (Color Challenge) is now fully playable by blind users
+- All mouse/drag instructions are replaced with keyboard equivalents (e.g. "drag to attack" becomes "Enter to select attacker, Space to confirm")
+- Contextual hints appear at key moments: first combat, first blocking, targeting, enchanting, discarding, and combat tricks
+- Suggested cards (Sparky highlights) are announced by name so players know which card the tutorial expects
+- Error messages (invalid target, can't afford spell) are always read aloud
+- Tutorial reward screens navigate with Left/Right for cards, Enter to claim
+- All hints localized across 12 languages
+
+### Booster Chamber
+- Pack carousel navigation now triggers a menu rescan so contextual buttons (e.g. "Open All" when you have multiple of the same pack) appear in arrow navigation (suggested by blindndangerous and patricus3, #47)
+
 ### Popup Accessibility
 - Fixed banned card popup (and similar popups with subtitle elements) missing ban heading, explanation, and playability info — "Subtitle" containers were incorrectly matched as title containers
 - Popup title and header texts are now navigable as text blocks instead of only appearing in the opening announcement
