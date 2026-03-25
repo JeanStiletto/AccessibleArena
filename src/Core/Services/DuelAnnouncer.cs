@@ -36,6 +36,22 @@ namespace AccessibleArena.Core.Services
             _announcer.LogToHistory(message);
         }
 
+        private const float NPE_ANNOUNCE_DELAY = 0.5f;
+
+        private IEnumerator DelayedAnnounce(string message, AnnouncementPriority priority)
+        {
+            yield return new WaitForSeconds(NPE_ANNOUNCE_DELAY);
+            AnnounceToLog(message, priority);
+        }
+
+        private static bool IsNPEEvent(DuelEventType eventType)
+        {
+            return eventType == DuelEventType.NPEDialog
+                || eventType == DuelEventType.NPEReminder
+                || eventType == DuelEventType.NPETooltip
+                || eventType == DuelEventType.NPEWarning;
+        }
+
         private readonly Dictionary<string, DuelEventType> _eventTypeMap;
         private readonly Dictionary<string, int> _zoneCounts = new Dictionary<string, int>();
 
@@ -486,7 +502,11 @@ namespace AccessibleArena.Core.Services
 
                 if (IsDuplicateAnnouncement(announcement)) return;
 
-                AnnounceToLog(announcement, GetPriority(eventType));
+                var priority = GetPriority(eventType);
+                if (IsNPEEvent(eventType))
+                    MelonCoroutines.Start(DelayedAnnounce(announcement, priority));
+                else
+                    AnnounceToLog(announcement, priority);
                 _lastAnnouncement = announcement;
                 _lastAnnouncementTime = DateTime.Now;
             }
