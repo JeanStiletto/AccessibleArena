@@ -27,6 +27,8 @@ namespace AccessibleArena.Core.Services
             { "NPE/Game03/Turn04/TargetReminder_49", "NPE_Hint_EnchantTarget" },
             { "NPE/Game03/Turn06/TargetReminder_50", "NPE_Hint_EnchantTarget" },
             { "NPE/Extra/Extra09", "NPE_Hint_EnchantTarget" },
+            // Game 5 - Infizierende Mumie forces discard: "Wirf eine Ebene ab"
+            { "NPE/Game05/Turn02/PickReminder_67", "NPE_Hint_DiscardCard" },
         };
 
         // Maps NPE reminder type prefixes to mod localization keys
@@ -64,6 +66,10 @@ namespace AccessibleArena.Core.Services
             { "NPE/Game01/Turn05/Sparky_15", "NPE_Hint_SkipAttack" },
             // "I've got nothing. Really. It's in your hands." - hint about land summary shortcuts
             { "NPE/Game04/Turn08/ViperNang_14", "NPE_DialogHint_LandSummary" },
+            // "Mach weiter. Er hat bald keine Karten mehr." - hint about opponent hand/library count shortcuts
+            { "NPE/Game03/Turn04/g3_t4_145", "NPE_DialogHint_OpponentCounts" },
+            // "Mach dich bereit." - opponent's blockers phase, player should cast combat trick
+            { "NPE/Game04/Turn07/Sparky_07", "NPE_DialogHint_CastCombatTrick" },
         };
 
         /// <summary>

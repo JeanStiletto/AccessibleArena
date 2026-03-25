@@ -1016,5 +1016,8 @@
   "NPE_TakeReward": "Take reward",
   "NPE_RewardClaimed": "Reward claimed",
   "NPE_Stage_Format": "Stage {0}",
-  "NPE_DialogHint_LandSummary": "Hint: Press M to see your land summary and Shift+M for the opponent's. The number of untapped lands shows the available mana."
+  "NPE_DialogHint_LandSummary": "Hint: Press M to see your land summary and Shift+M for the opponent's. The number of untapped lands shows the available mana.",
+  "NPE_DialogHint_OpponentCounts": "Hint: Press Shift+C to see the number of opponent's hand cards. Press Shift+D for the opponent's library count.",
+  "NPE_DialogHint_CastCombatTrick": "Press Tab to find the highlighted spell in your hand, then Enter to cast it. This is your chance to power up your blocker with a combat trick.",
+  "NPE_Hint_DiscardCard": "Discard a card. Use Left and Right to navigate between cards, or Tab to jump to the suggested card. Press Enter to select or deselect a card for discard. Press Space to confirm the discard."
 }

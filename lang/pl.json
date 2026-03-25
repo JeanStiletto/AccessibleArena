@@ -1012,5 +1012,8 @@
   "NPE_UnlockedCardNumber_Format": "Odblokowana karta {0}: {1}",
   "NPE_TakeReward": "Odbierz nagrod\u0119",
   "NPE_RewardClaimed": "Nagroda odebrana",
-  "NPE_Stage_Format": "Etap {0}"
+  "NPE_Stage_Format": "Etap {0}",
+  "NPE_DialogHint_OpponentCounts": "Wskaz\u00f3wka: Naci\u015bnij Shift+C, aby zobaczy\u0107 liczb\u0119 kart w r\u0119ce przeciwnika. Naci\u015bnij Shift+D, aby zobaczy\u0107 liczb\u0119 kart w bibliotece przeciwnika.",
+  "NPE_DialogHint_CastCombatTrick": "Naci\u015bnij Tab, aby znale\u017a\u0107 pod\u015bwietlone zakl\u0119cie w r\u0119ce, a nast\u0119pnie Enter, aby je rzuci\u0107. To twoja szansa, aby wzmocni\u0107 blokuj\u0105cego sztuczk\u0105 bojow\u0105.",
+  "NPE_Hint_DiscardCard": "Odrzu\u0107 kart\u0119. U\u017cyj strza\u0142ek w lewo i w prawo, aby nawigowa\u0107 mi\u0119dzy kartami, lub Tab, aby przeskoczy\u0107 do sugerowanej karty. Naci\u015bnij Enter, aby wybra\u0107 lub odznaczy\u0107 kart\u0119 do odrzucenia. Naci\u015bnij Spacja, aby potwierdzi\u0107 odrzucenie."
 }

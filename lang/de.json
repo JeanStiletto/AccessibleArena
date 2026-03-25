@@ -1014,5 +1014,8 @@
   "NPE_TakeReward": "Belohnung nehmen",
   "NPE_RewardClaimed": "Belohnung erhalten",
   "NPE_Stage_Format": "Stufe {0}",
-  "NPE_DialogHint_LandSummary": "Hinweis: Drücke M für deine Länderübersicht und Umschalt+M für die des Gegners. Die Anzahl der ungetappten Länder zeigt das verfügbare Mana."
+  "NPE_DialogHint_LandSummary": "Hinweis: Drücke M für deine Länderübersicht und Umschalt+M für die des Gegners. Die Anzahl der ungetappten Länder zeigt das verfügbare Mana.",
+  "NPE_DialogHint_OpponentCounts": "Hinweis: Drücke Umschalt+C, um die Anzahl der Handkarten des Gegners zu sehen. Drücke Umschalt+D für die Bibliotheksgröße des Gegners.",
+  "NPE_DialogHint_CastCombatTrick": "Drücke Tab, um den hervorgehobenen Zauber in deiner Hand zu finden, dann Enter, um ihn zu wirken. Das ist deine Chance, deinen Blocker mit einem Kampftrick zu verstärken.",
+  "NPE_Hint_DiscardCard": "Wirf eine Karte ab. Benutze Links und Rechts, um zwischen Karten zu navigieren, oder Tab, um zur vorgeschlagenen Karte zu springen. Drücke Enter, um eine Karte zum Abwerfen auszuwählen oder abzuwählen. Drücke Leertaste, um das Abwerfen zu bestätigen."
 }

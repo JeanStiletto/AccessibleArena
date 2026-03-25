@@ -999,5 +999,8 @@
   "NPE_UnlockedCardNumber_Format": "Carta desbloqueada {0}: {1}",
   "NPE_TakeReward": "Tomar recompensa",
   "NPE_RewardClaimed": "Recompensa reclamada",
-  "NPE_Stage_Format": "Etapa {0}"
+  "NPE_Stage_Format": "Etapa {0}",
+  "NPE_DialogHint_OpponentCounts": "Consejo: Pulsa May\u00fas+C para ver la cantidad de cartas en mano del oponente. Pulsa May\u00fas+D para ver el tama\u00f1o de su biblioteca.",
+  "NPE_DialogHint_CastCombatTrick": "Pulsa Tab para encontrar el hechizo resaltado en tu mano y luego Enter para lanzarlo. Es tu oportunidad de potenciar a tu bloqueador con un truco de combate.",
+  "NPE_Hint_DiscardCard": "Descarta una carta. Usa Izquierda y Derecha para navegar entre cartas, o Tab para saltar a la carta sugerida. Pulsa Enter para seleccionar o deseleccionar una carta para descartar. Pulsa Espacio para confirmar el descarte."
 }

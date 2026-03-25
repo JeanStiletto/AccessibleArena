@@ -999,5 +999,8 @@
   "NPE_UnlockedCardNumber_Format": "Carta sbloccata {0}: {1}",
   "NPE_TakeReward": "Prendi ricompensa",
   "NPE_RewardClaimed": "Ricompensa ottenuta",
-  "NPE_Stage_Format": "Fase {0}"
+  "NPE_Stage_Format": "Fase {0}",
+  "NPE_DialogHint_OpponentCounts": "Suggerimento: Premi Maiusc+C per vedere il numero di carte in mano dell'avversario. Premi Maiusc+D per il conteggio della biblioteca dell'avversario.",
+  "NPE_DialogHint_CastCombatTrick": "Premi Tab per trovare la magia evidenziata nella tua mano, poi Invio per lanciarla. \u00c8 la tua occasione per potenziare il tuo bloccante con un trucco da combattimento.",
+  "NPE_Hint_DiscardCard": "Scarta una carta. Usa Sinistra e Destra per navigare tra le carte, oppure Tab per saltare alla carta suggerita. Premi Invio per selezionare o deselezionare una carta da scartare. Premi Spazio per confermare lo scarto."
 }

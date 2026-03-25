@@ -999,5 +999,8 @@
   "NPE_UnlockedCardNumber_Format": "Carte d\u00e9bloqu\u00e9e {0} : {1}",
   "NPE_TakeReward": "Prendre la r\u00e9compense",
   "NPE_RewardClaimed": "R\u00e9compense r\u00e9clam\u00e9e",
-  "NPE_Stage_Format": "\u00c9tape {0}"
+  "NPE_Stage_Format": "\u00c9tape {0}",
+  "NPE_DialogHint_OpponentCounts": "Astuce : Appuyez sur Maj+C pour voir le nombre de cartes en main de l'adversaire. Appuyez sur Maj+D pour le nombre de cartes dans sa biblioth\u00e8que.",
+  "NPE_DialogHint_CastCombatTrick": "Appuyez sur Tab pour trouver le sort en surbrillance dans votre main, puis Entr\u00e9e pour le lancer. C'est votre chance de renforcer votre bloqueur avec une astuce de combat.",
+  "NPE_Hint_DiscardCard": "D\u00e9faussez une carte. Utilisez Gauche et Droite pour naviguer entre les cartes, ou Tab pour aller \u00e0 la carte sugg\u00e9r\u00e9e. Appuyez sur Entr\u00e9e pour s\u00e9lectionner ou d\u00e9s\u00e9lectionner une carte \u00e0 d\u00e9fausser. Appuyez sur Espace pour confirmer la d\u00e9fausse."
 }
