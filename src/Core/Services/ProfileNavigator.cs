@@ -505,13 +505,7 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(buttonLabel))
                     buttonLabel = cosmeticType;
 
-                // Read the current cosmetic value from the corresponding DisplayItem
-                string currentValue = ReadCurrentCosmeticValue(cosmeticType);
-                string label;
-                if (!string.IsNullOrEmpty(currentValue))
-                    label = Strings.ProfileCosmeticCurrent(buttonLabel, currentValue);
-                else
-                    label = buttonLabel;
+                string label = buttonLabel;
 
                 _infoBlocks.Add(new InfoBlock
                 {
@@ -710,6 +704,13 @@ namespace AccessibleArena.Core.Services
                         _announcer.AnnounceInterrupt(Strings.EndOfList);
                     }
                 }
+                return true;
+            }
+
+            // Backspace: navigate back to home screen
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Backspace))
+            {
+                NavigateBackToHome();
                 return true;
             }
 
@@ -986,11 +987,10 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            var nameField = avatarSelType.GetProperty("NameString", PublicInstance)
-                         ?? avatarSelType.GetProperty("Name", PublicInstance);
-            var idField = avatarSelType.GetProperty("Id", PublicInstance)
-                       ?? avatarSelType.GetField("Id", PublicInstance) as MemberInfo;
-            var isLockedMethod = avatarSelType.GetMethod("IsLocked", PublicInstance);
+            var nameField = avatarSelType.GetProperty("NameString", PublicInstance);
+            var idProp = avatarSelType.GetProperty("Id", PublicInstance);
+            var lockedField = avatarSelType.GetField("_locked", PrivateInstance);
+            var defaultField = avatarSelType.GetField("_default", PrivateInstance);
             bool loggedType = false;
 
             foreach (var mb in panelGo.GetComponentsInChildren<MonoBehaviour>(true))
@@ -1006,56 +1006,51 @@ namespace AccessibleArena.Core.Services
 
                 string name = null;
 
-                // Try NameString property first
+                // Try NameString property (returns LocalizedString, ToString() gives localized text)
                 if (nameField != null)
                 {
-                    try { name = (nameField as PropertyInfo)?.GetValue(mb)?.ToString(); }
+                    try { name = nameField.GetValue(mb)?.ToString(); }
                     catch { }
                 }
 
-                // Fallback: read via ProfileUtilities.GetAvatarLocKey(id)
-                if (string.IsNullOrEmpty(name))
+                // Fallback: read via ProfileUtilities loc key pattern
+                if (string.IsNullOrEmpty(name) && idProp != null)
                 {
-                    string id = null;
                     try
                     {
-                        if (idField is PropertyInfo pi)
-                            id = pi.GetValue(mb)?.ToString();
-                        else if (idField is FieldInfo fi)
-                            id = fi.GetValue(mb)?.ToString();
+                        string id = idProp.GetValue(mb)?.ToString();
+                        if (!string.IsNullOrEmpty(id))
+                            name = UITextExtractor.ResolveLocKey($"MainNav/Profile/Avatars/{id}_Name");
                     }
                     catch { }
-
-                    if (!string.IsNullOrEmpty(id))
-                    {
-                        name = UITextExtractor.ResolveLocKey($"MainNav/Profile/Avatars/{id}_Name");
-                    }
                 }
 
                 // Fallback: read TMP_Text children
                 if (string.IsNullOrEmpty(name))
-                {
                     name = ReadFirstText(mb.gameObject);
-                }
-
                 if (string.IsNullOrEmpty(name))
                     name = mb.gameObject.name;
 
-                // Check locked status
+                // Check status: _default (selected/equipped), _locked
                 string status = null;
-                if (isLockedMethod != null)
+                if (defaultField != null)
                 {
                     try
                     {
-                        bool locked = (bool)isLockedMethod.Invoke(mb, null);
+                        if ((bool)defaultField.GetValue(mb))
+                            status = Strings.ProfileItemSelected;
+                    }
+                    catch { }
+                }
+                if (status == null && lockedField != null)
+                {
+                    try
+                    {
+                        bool locked = (bool)lockedField.GetValue(mb);
                         status = locked ? Strings.ProfileItemLocked : Strings.ProfileItemOwned;
                     }
                     catch { }
                 }
-
-                // Check animator for selected state
-                if (CheckAnimatorBool(mb.gameObject, "Toggle", "Selected"))
-                    status = Strings.ProfileItemSelected;
 
                 _subPanelItems.Add(new SubPanelItem
                 {
@@ -1156,22 +1151,18 @@ namespace AccessibleArena.Core.Services
         {
             // SelectPetsListItemView with PetEntry, IsOwned, IsDefault
             var petItemType = FindType("SelectPetsListItemView");
-            PropertyInfo petEntryProp = null;
+            PropertyInfo petIdProp = null;
             PropertyInfo isOwnedProp = null;
-            PropertyInfo isDefaultProp = null;
-            FieldInfo petNameField = null;
+            FieldInfo isDefaultField = null;
+            FieldInfo isSelectedField = null;
             bool loggedFields = false;
 
             if (petItemType != null)
             {
-                petEntryProp = petItemType.GetProperty("PetEntry", PublicInstance);
+                petIdProp = petItemType.GetProperty("PetId", PublicInstance);
                 isOwnedProp = petItemType.GetProperty("IsOwned", PublicInstance);
-                isDefaultProp = petItemType.GetProperty("IsDefault", PublicInstance);
-
-                // PetEntry.Name field
-                var petEntryType = FindType("PetEntry");
-                if (petEntryType != null)
-                    petNameField = petEntryType.GetField("Name", PublicInstance);
+                isDefaultField = petItemType.GetField("_isDefault", PrivateInstance);
+                isSelectedField = petItemType.GetField("_isSelected", PrivateInstance);
             }
 
             if (petItemType == null)
@@ -1193,32 +1184,25 @@ namespace AccessibleArena.Core.Services
                 }
 
                 string name = null;
-                string petName = null;
+                string petId = null;
 
-                // Try PetEntry.Name
-                if (petEntryProp != null)
+                // Read PetId property (string like "TMT_Mastery_Companion", "Brushwagg")
+                if (petIdProp != null)
                 {
-                    try
-                    {
-                        var petEntry = petEntryProp.GetValue(mb);
-                        if (petEntry != null && petNameField != null)
-                        {
-                            petName = petNameField.GetValue(petEntry) as string;
-                        }
-                    }
+                    try { petId = petIdProp.GetValue(mb) as string; }
                     catch { }
                 }
 
                 // Try resolving localized name via multiple key patterns
-                if (!string.IsNullOrEmpty(petName))
+                if (!string.IsNullOrEmpty(petId))
                 {
                     string[] locPatterns =
                     {
-                        $"MainNav/Cosmetics/Pet/{petName}_Details",
-                        $"MainNav/Cosmetics/Pet/{petName}_Name",
-                        $"MainNav/Cosmetics/Pet/{petName}",
-                        $"MainNav/Cosmetics/Pets/{petName}_Details",
-                        $"MainNav/Cosmetics/Pets/{petName}",
+                        $"MainNav/Cosmetics/Pet/{petId}_Details",
+                        $"MainNav/Cosmetics/Pet/{petId}_Name",
+                        $"MainNav/Cosmetics/Pet/{petId}",
+                        $"MainNav/Cosmetics/Pets/{petId}_Details",
+                        $"MainNav/Cosmetics/Pets/{petId}",
                     };
                     foreach (var pattern in locPatterns)
                     {
@@ -1239,16 +1223,26 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(name))
                     name = ReadFirstText(mb.gameObject);
 
-                // Use internal name if nothing else worked
+                // Humanize internal ID if nothing else worked
                 if (string.IsNullOrEmpty(name))
-                    name = !string.IsNullOrEmpty(petName) ? petName : Strings.ProfileCosmeticNone;
+                    name = !string.IsNullOrEmpty(petId) ? HumanizeInternalId(petId) : Strings.ProfileCosmeticNone;
 
+                // Check selected/default status via private fields
                 string status = null;
-                if (isDefaultProp != null)
+                if (isSelectedField != null)
                 {
                     try
                     {
-                        if ((bool)isDefaultProp.GetValue(mb))
+                        if ((bool)isSelectedField.GetValue(mb))
+                            status = Strings.ProfileItemSelected;
+                    }
+                    catch { }
+                }
+                if (status == null && isDefaultField != null)
+                {
+                    try
+                    {
+                        if ((bool)isDefaultField.GetValue(mb))
                             status = Strings.ProfileItemDefault;
                     }
                     catch { }
@@ -1316,15 +1310,14 @@ namespace AccessibleArena.Core.Services
                     catch { }
                 }
 
-                // Try to resolve as set name (card backs are often set-themed)
+                // Try to resolve localized name from card back ID
                 if (!string.IsNullOrEmpty(cardBack))
                 {
-                    // Try various loc key patterns
+                    // Try direct loc key patterns first
                     string[] locPatterns =
                     {
                         $"MainNav/Cosmetics/CardBack/{cardBack}",
                         $"MainNav/Cosmetics/Sleeve/{cardBack}",
-                        $"General/Sets/{cardBack}",
                     };
                     foreach (var pattern in locPatterns)
                     {
@@ -1336,9 +1329,28 @@ namespace AccessibleArena.Core.Services
                         }
                     }
 
-                    // Use the cardBack string directly (better than "0/4")
+                    // Try extracting set code from ID (e.g., "CardBack_DMU_StainedGlassBasics" → "DMU")
                     if (string.IsNullOrEmpty(name))
-                        name = cardBack;
+                    {
+                        string stripped = cardBack.StartsWith("CardBack_") ? cardBack.Substring(9) : cardBack;
+                        // Try set code as first segment (e.g., "DMU_StainedGlassBasics" → set "DMU")
+                        int underscoreIdx = stripped.IndexOf('_');
+                        if (underscoreIdx > 0)
+                        {
+                            string possibleSetCode = stripped.Substring(0, underscoreIdx);
+                            string setName = UITextExtractor.ResolveLocKey($"General/Sets/{possibleSetCode}");
+                            if (!string.IsNullOrEmpty(setName))
+                            {
+                                // Use set name + rest as descriptor
+                                string descriptor = stripped.Substring(underscoreIdx + 1);
+                                name = $"{setName} - {HumanizeInternalId(descriptor)}";
+                            }
+                        }
+                    }
+
+                    // Humanize the internal ID as fallback
+                    if (string.IsNullOrEmpty(name))
+                        name = HumanizeInternalId(cardBack);
                 }
 
                 // Try tooltip data
@@ -1523,6 +1535,41 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Navigate back to the home screen by clicking Nav_Home in the nav bar.
+        /// </summary>
+        private void NavigateBackToHome()
+        {
+            // Find the Nav_Home button in the nav bar
+            var homeButton = GameObject.Find("Nav_Home");
+            if (homeButton != null)
+            {
+                _announcer.Announce(Strings.Back);
+                UIActivator.Activate(homeButton);
+            }
+            else
+            {
+                // Fallback: try the game's OnHandheldBackButton
+                if (_controller != null)
+                {
+                    try
+                    {
+                        var backMethod = _controller.GetType().GetMethod("OnHandheldBackButton",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        if (backMethod != null)
+                        {
+                            _announcer.Announce(Strings.Back);
+                            backMethod.Invoke(_controller, null);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning($"[{NavigatorId}] OnHandheldBackButton failed: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Read tooltip text from a TooltipTrigger component if present.
         /// TooltipTrigger.TooltipData is a public FIELD, TooltipData.Text is a property.
         /// </summary>
@@ -1553,6 +1600,33 @@ namespace AccessibleArena.Core.Services
             }
             catch { }
             return null;
+        }
+
+        /// <summary>
+        /// Converts internal IDs like "CardBack_DMU_StainedGlassBasics" or "TMT_Mastery_Companion"
+        /// into human-readable text by stripping prefixes and splitting on underscores/camelCase.
+        /// </summary>
+        private string HumanizeInternalId(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return id;
+
+            // Strip common prefixes
+            if (id.StartsWith("CardBack_"))
+                id = id.Substring(9);
+
+            // Replace underscores with spaces
+            id = id.Replace('_', ' ');
+
+            // Insert spaces before capitals in camelCase (e.g., "StainedGlassBasics" → "Stained Glass Basics")
+            var sb = new System.Text.StringBuilder(id.Length + 8);
+            for (int i = 0; i < id.Length; i++)
+            {
+                char c = id[i];
+                if (i > 0 && char.IsUpper(c) && id[i - 1] != ' ' && !char.IsUpper(id[i - 1]))
+                    sb.Append(' ');
+                sb.Append(c);
+            }
+            return sb.ToString().Trim();
         }
 
         /// <summary>
