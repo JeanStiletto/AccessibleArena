@@ -108,6 +108,11 @@ namespace AccessibleArena.Core.Services
         private FieldInfo _mythicPlacementTextField;    // _mythicPlacementText
         private FieldInfo _isLimitedField;              // _isLimited
 
+        // Avatar persistence
+        private Type _avatarSelectPanelType;
+        private MethodInfo _doneButtonOnClickMethod;
+        private MethodInfo _avatarIsLockedMethod;
+
         #endregion
 
         #region Constructor
@@ -218,6 +223,14 @@ namespace AccessibleArena.Core.Services
                 _mythicPlacementTextField = rankType.GetField("_mythicPlacementText", PrivateInstance);
                 _isLimitedField = rankType.GetField("_isLimited", PrivateInstance);
             }
+
+            // Avatar persistence types
+            _avatarSelectPanelType = FindType("ProfileUI.AvatarSelectPanel");
+            if (_avatarSelectPanelType != null)
+                _doneButtonOnClickMethod = _avatarSelectPanelType.GetMethod("DoneButton_OnClick", PublicInstance);
+            var avatarSelType = FindType("AvatarSelection");
+            if (avatarSelType != null)
+                _avatarIsLockedMethod = avatarSelType.GetMethod("IsLocked", PublicInstance);
 
             _reflectionInitialized = true;
             MelonLogger.Msg($"[{NavigatorId}] Reflection cached: " +
@@ -802,6 +815,7 @@ namespace AccessibleArena.Core.Services
                     {
                         _announcer.Announce(Strings.Activating(item.Label));
                         UIActivator.Activate(item.GameObject);
+                        TryPersistAvatarSelection(item);
                     }
                 }
                 return true;
@@ -815,6 +829,58 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// After previewing an avatar via UIActivator, invoke DoneButton_OnClick to persist
+        /// the selection and close the panel. Skips locked avatars.
+        /// </summary>
+        private void TryPersistAvatarSelection(SubPanelItem item)
+        {
+            if (_subPanelType != "Avatar") return;
+            if (item.GameObject == null || _avatarSelectPanelType == null || _doneButtonOnClickMethod == null) return;
+
+            // Check if avatar is locked via IsLocked() on the AvatarSelection component
+            if (_avatarIsLockedMethod != null)
+            {
+                try
+                {
+                    var avatarSelType = FindType("AvatarSelection");
+                    if (avatarSelType != null)
+                    {
+                        var avatarComp = item.GameObject.GetComponent(avatarSelType);
+                        if (avatarComp != null && (bool)_avatarIsLockedMethod.Invoke(avatarComp, null))
+                        {
+                            MelonLogger.Msg($"[{NavigatorId}] Avatar is locked, skipping persistence");
+                            return;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"[{NavigatorId}] IsLocked check failed: {ex.Message}");
+                }
+            }
+
+            // Find AvatarSelectPanel in parent hierarchy and invoke DoneButton_OnClick
+            try
+            {
+                var panel = item.GameObject.GetComponentInParent(_avatarSelectPanelType);
+                if (panel == null)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] AvatarSelectPanel not found in parent hierarchy");
+                    return;
+                }
+
+                _doneButtonOnClickMethod.Invoke(panel, null);
+                MelonLogger.Msg($"[{NavigatorId}] Avatar selection persisted via DoneButton_OnClick");
+                // Panel closes automatically via _backButton_OnClicked callback;
+                // polling will detect mode change and call ExitSubPanel()
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[{NavigatorId}] DoneButton_OnClick failed: {ex.Message}");
+            }
         }
 
         #endregion
