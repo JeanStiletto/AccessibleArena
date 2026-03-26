@@ -793,27 +793,31 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Coroutine to click the Dismiss_MainButton after RevealAll animation completes.
+        /// Retries multiple times since "Open All" with many cards can have long reveal animations.
         /// </summary>
         private System.Collections.IEnumerator ClickDismissAfterDelay()
         {
-            // Wait for reveal animation to complete and Dismiss_MainButton to appear
-            yield return new WaitForSeconds(0.5f);
-
-            // Find and click Dismiss_MainButton
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            const int maxAttempts = 10; // Up to 5 seconds total (10 × 0.5s)
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == T.CustomButton && mb.gameObject.name.Contains("Dismiss_MainButton"))
+                yield return new WaitForSeconds(0.5f);
+
+                // Find and click Dismiss_MainButton
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Delayed click on Dismiss_MainButton: {mb.gameObject.name}");
-                    UIActivator.Activate(mb.gameObject);
-                    yield break;
+                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                    if (mb.GetType().Name == T.CustomButton && mb.gameObject.name.Contains("Dismiss_MainButton"))
+                    {
+                        MelonLogger.Msg($"[{NavigatorId}] Delayed click on Dismiss_MainButton (attempt {attempt + 1}): {mb.gameObject.name}");
+                        UIActivator.Activate(mb.gameObject);
+                        yield break;
+                    }
                 }
             }
 
-            // If still no Dismiss_MainButton, use controller fallback
-            MelonLogger.Msg($"[{NavigatorId}] Dismiss_MainButton not found after delay, using controller fallback");
-            TryClosePackContents();
+            // If still no Dismiss_MainButton after all retries, use chamber controller fallback
+            MelonLogger.Msg($"[{NavigatorId}] Dismiss_MainButton not found after {maxAttempts} attempts, using controller fallback");
+            TryCloseChamberController();
         }
 
         /// <summary>
@@ -838,16 +842,21 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Try to close the pack contents view.
-        /// Uses method iteration instead of GetMethod for better IL2CPP compatibility.
+        /// Prefers the BoosterChamberController's DismissCards (proper full cleanup),
+        /// then falls back to the scroll list controller.
         /// </summary>
         private bool TryClosePackContents()
         {
+            // Priority 1: Call DismissCards on the BoosterChamberController (parent)
+            // This resets ThereIsABoosterOpened, triggers animator, refreshes carousel
+            if (TryCloseChamberController())
+                return true;
+
+            // Priority 2: Fall back to scroll list controller methods
             var controller = FindBoosterController();
             if (controller != null)
             {
                 var controllerType = controller.GetType();
-
-                // Iterate through all methods to find close-related ones (IL2CPP compatible)
                 var allMethods = controllerType.GetMethods(AllInstanceFlags);
 
                 MethodInfo dismissCards = null;
@@ -864,10 +873,9 @@ namespace AccessibleArena.Core.Services
                         closeMethod = method;
                 }
 
-                // Try DismissCards() - this is the actual method on BoosterOpenToScrollListController
                 if (dismissCards != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Found DismissCards, invoking to close");
+                    MelonLogger.Msg($"[{NavigatorId}] Found DismissCards on scroll list controller, invoking to close");
                     try
                     {
                         dismissCards.Invoke(controller, null);
@@ -878,12 +886,7 @@ namespace AccessibleArena.Core.Services
                         MelonLogger.Msg($"[{NavigatorId}] DismissCards failed: {ex.Message}");
                     }
                 }
-                else
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] DismissCards not found in {allMethods.Length} methods");
-                }
 
-                // Fallback: try other close method
                 if (closeMethod != null)
                 {
                     MelonLogger.Msg($"[{NavigatorId}] Invoking {closeMethod.Name}() to close");
@@ -901,6 +904,56 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[{NavigatorId}] Could not close pack contents via controller");
             return false;
+        }
+
+        /// <summary>
+        /// Call DismissCards on the BoosterChamberController (the parent NavContentController).
+        /// This is the proper close method that resets ThereIsABoosterOpened, triggers the
+        /// dismiss animation, and refreshes the booster carousel — unlike the scroll list
+        /// controller's DismissCards which only clears the card list.
+        /// </summary>
+        private bool TryCloseChamberController()
+        {
+            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
+            if (boosterChamber == null) return false;
+
+            // Find the BoosterChamberController component (the NavContentController, not the scroll list)
+            Component chamberController = null;
+            foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "BoosterChamberController")
+                {
+                    chamberController = mb;
+                    break;
+                }
+            }
+
+            if (chamberController == null)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] BoosterChamberController not found on chamber GO");
+                return false;
+            }
+
+            // Find DismissCards (private method on BoosterChamberController)
+            var dismissMethod = chamberController.GetType().GetMethod("DismissCards",
+                PrivateInstance | System.Reflection.BindingFlags.Public);
+            if (dismissMethod == null || dismissMethod.GetParameters().Length != 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] DismissCards not found on BoosterChamberController");
+                return false;
+            }
+
+            MelonLogger.Msg($"[{NavigatorId}] Found DismissCards on BoosterChamberController, invoking");
+            try
+            {
+                dismissMethod.Invoke(chamberController, null);
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] BoosterChamberController.DismissCards failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>
