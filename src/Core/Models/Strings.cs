@@ -762,6 +762,7 @@ namespace AccessibleArena.Core.Models
         public static string ManaRed => L.Get("ManaRed");
         public static string ManaGreen => L.Get("ManaGreen");
         public static string ManaColorless => L.Get("ManaColorless");
+        public static string ManaMulticolor => L.Get("ManaMulticolor");
         public static string ManaX => L.Get("ManaX");
         public static string ManaSnow => L.Get("ManaSnow");
         public static string ManaEnergy => L.Get("ManaEnergy");
@@ -1068,6 +1069,14 @@ namespace AccessibleArena.Core.Models
         public static string FiltersReset => L.Get("FiltersReset");
         public static string FiltersCancelled => L.Get("FiltersCancelled");
         public static string FiltersDismissed => L.Get("FiltersDismissed");
+        public static string FilterRowColors => L.Get("FilterRowColors");
+        public static string FilterRowManaCost => L.Get("FilterRowManaCost");
+        public static string FilterRowTypes => L.Get("FilterRowTypes");
+        public static string FilterRowRarity => L.Get("FilterRowRarity");
+        public static string FilterRowSets => L.Get("FilterRowSets");
+        public static string FilterRowActions => L.Get("FilterRowActions");
+        public static string FilterAllSets => L.Get("FilterAllSets");
+        public static string FilterRowsCount(int count) => L.Format("FilterRowsCount", count.ToString());
         public static string CouldNotClosePopup => L.Get("CouldNotClosePopup");
         public static string Opening(string name) => L.Format("Opening_Format", name);
         public static string Toggled(string label) => L.Format("Toggled_Format", label);

@@ -96,12 +96,12 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Discovering elements in AdvancedFiltersPopup");
 
             // Build rows based on parent path patterns
-            var colorsRow = new FilterRow { Name = "Colors", Items = new List<FilterItem>() };
-            var manaCostRow = new FilterRow { Name = "Mana Cost", Items = new List<FilterItem>() };
-            var typesRow = new FilterRow { Name = "Types", Items = new List<FilterItem>() };
-            var rarityRow = new FilterRow { Name = "Rarity", Items = new List<FilterItem>() };
-            var setsRow = new FilterRow { Name = "Sets", Items = new List<FilterItem>() };
-            var actionsRow = new FilterRow { Name = "Actions", Items = new List<FilterItem>() };
+            var colorsRow = new FilterRow { Name = Strings.FilterRowColors, Items = new List<FilterItem>() };
+            var manaCostRow = new FilterRow { Name = Strings.FilterRowManaCost, Items = new List<FilterItem>() };
+            var typesRow = new FilterRow { Name = Strings.FilterRowTypes, Items = new List<FilterItem>() };
+            var rarityRow = new FilterRow { Name = Strings.FilterRowRarity, Items = new List<FilterItem>() };
+            var setsRow = new FilterRow { Name = Strings.FilterRowSets, Items = new List<FilterItem>() };
+            var actionsRow = new FilterRow { Name = Strings.FilterRowActions, Items = new List<FilterItem>() };
 
             // Find all interactable elements in the popup
             var toggles = _popup.GetComponentsInChildren<Toggle>(true);
@@ -162,7 +162,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (toggle.gameObject.name == "Button_Check")
                     {
-                        item.Label = "All Sets";
+                        item.Label = Strings.FilterAllSets;
                     }
                     setsRow.Items.Add(item);
                 }
@@ -337,7 +337,7 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            string core = $"Advanced Filters. {_rows.Count} rows";
+            string core = $"{ScreenName}. {Strings.FilterRowsCount(_rows.Count)}";
             string withHint = Strings.WithHint(core, "AdvancedFiltersHint");
 
             // Append current row and item so user knows where they are

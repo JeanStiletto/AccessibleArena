@@ -1220,6 +1220,7 @@ namespace AccessibleArena.Core.Services
                 case "Red": case "R": return Strings.ManaRed;
                 case "Green": case "G": return Strings.ManaGreen;
                 case "Colorless": case "C": return Strings.ManaColorless;
+                case "MultiColor": case "Multicolor": return Strings.ManaMulticolor;
                 case "Generic": return Strings.ManaGeneric;
                 case "Snow": case "S": return Strings.ManaSnow;
                 case "Phyrexian": case "P": return Strings.ManaPhyrexianBare;
