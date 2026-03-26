@@ -82,8 +82,6 @@ namespace AccessibleArena.Core.Services
         private FieldInfo _avatarNameTextField;        // AvatarNameText (Localize)
         private FieldInfo _avatarBioTextField;         // AvatarBioText (Localize)
         private FieldInfo _profileDetailsPanelField;   // ProfileDetailsPanel
-        private FieldInfo _avatarSelectPanelField;     // AvatarSelectPanel
-        private FieldInfo _emoteSelectPanelField;      // EmoteSelectPanel
         private FieldInfo _profileScreenModeField;     // _profileScreenMode
         private FieldInfo _avatarButtonField;           // _avatarButton
         private FieldInfo _emoteButtonField;            // _emoteButton
@@ -91,6 +89,12 @@ namespace AccessibleArena.Core.Services
         private FieldInfo _sleeveButtonField;           // _sleeveButton
         private FieldInfo _titleButtonField;            // _titleButton
         private FieldInfo _cosmeticSelectorField;       // _cosmeticSelectorController
+        private FieldInfo _cosmeticSelectorsTransformField; // _cosmeticSelectorsTransform
+        private FieldInfo _avatarDisplayItemField;     // _avatarDisplayItem
+        private FieldInfo _emoteDisplayItemField;      // _emoteDisplayItem
+        private FieldInfo _petDisplayItemField;        // _petDisplayItem
+        private FieldInfo _sleeveDisplayItemField;     // _sleeveDisplayItem
+        private FieldInfo _titleDisplayItemField;      // _titleDisplayItem
 
         // ProfileDetailsPanel fields
         private FieldInfo _constructedRankField;       // _constructedRankDisplay
@@ -181,8 +185,6 @@ namespace AccessibleArena.Core.Services
             _avatarNameTextField = controllerType.GetField("AvatarNameText", flags);
             _avatarBioTextField = controllerType.GetField("AvatarBioText", flags);
             _profileDetailsPanelField = controllerType.GetField("ProfileDetailsPanel", flags);
-            _avatarSelectPanelField = controllerType.GetField("AvatarSelectPanel", flags);
-            _emoteSelectPanelField = controllerType.GetField("EmoteSelectPanel", flags);
             _profileScreenModeField = controllerType.GetField("_profileScreenMode", PrivateInstance);
             _avatarButtonField = controllerType.GetField("_avatarButton", PrivateInstance);
             _emoteButtonField = controllerType.GetField("_emoteButton", PrivateInstance);
@@ -190,6 +192,12 @@ namespace AccessibleArena.Core.Services
             _sleeveButtonField = controllerType.GetField("_sleeveButton", PrivateInstance);
             _titleButtonField = controllerType.GetField("_titleButton", PrivateInstance);
             _cosmeticSelectorField = controllerType.GetField("_cosmeticSelectorController", PrivateInstance);
+            _cosmeticSelectorsTransformField = controllerType.GetField("_cosmeticSelectorsTransform", PrivateInstance);
+            _avatarDisplayItemField = controllerType.GetField("_avatarDisplayItem", PrivateInstance);
+            _emoteDisplayItemField = controllerType.GetField("_emoteDisplayItem", PrivateInstance);
+            _petDisplayItemField = controllerType.GetField("_petDisplayItem", PrivateInstance);
+            _sleeveDisplayItemField = controllerType.GetField("_sleeveDisplayItem", PrivateInstance);
+            _titleDisplayItemField = controllerType.GetField("_titleDisplayItem", PrivateInstance);
 
             // ProfileDetailsPanel fields
             var detailsType = FindType("ProfileUI.ProfileDetailsPanel");
@@ -497,8 +505,8 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(buttonLabel))
                     buttonLabel = cosmeticType;
 
-                // Try to read the current cosmetic value from the DisplayItem text children
-                string currentValue = ReadCurrentCosmeticValue(button.gameObject);
+                // Read the current cosmetic value from the corresponding DisplayItem
+                string currentValue = ReadCurrentCosmeticValue(cosmeticType);
                 string label;
                 if (!string.IsNullOrEmpty(currentValue))
                     label = Strings.ProfileCosmeticCurrent(buttonLabel, currentValue);
@@ -519,38 +527,32 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private string ReadCurrentCosmeticValue(GameObject buttonGo)
+        private string ReadCurrentCosmeticValue(string cosmeticType)
         {
-            // The DisplayItem* components are siblings or children of the button
-            // and contain TMP_Text elements showing the current selection
-            if (buttonGo == null) return null;
+            // Read from the corresponding DisplayItem* field on the controller
+            var displayItemField = GetDisplayItemField(cosmeticType);
+            if (displayItemField == null || _controller == null) return null;
 
-            // Look in the button's parent for TMP_Text showing current value
-            var parent = buttonGo.transform.parent;
-            if (parent == null) return null;
-
-            // Search siblings and children for text that isn't the button label itself
-            string buttonText = null;
-            var buttonTmp = buttonGo.GetComponentInChildren<TMP_Text>(true);
-            if (buttonTmp != null)
-                buttonText = UITextExtractor.CleanText(buttonTmp.text);
-
-            foreach (Transform child in parent)
+            try
             {
-                if (child.gameObject == buttonGo) continue;
-                if (!child.gameObject.activeInHierarchy) continue;
-
-                var texts = child.GetComponentsInChildren<TMP_Text>(true);
-                foreach (var t in texts)
-                {
-                    if (t == null || !t.gameObject.activeInHierarchy) continue;
-                    string text = UITextExtractor.CleanText(t.text);
-                    if (!string.IsNullOrEmpty(text) && text != buttonText)
-                        return text;
-                }
+                var displayItem = displayItemField.GetValue(_controller) as MonoBehaviour;
+                if (displayItem == null || !displayItem.gameObject.activeInHierarchy) return null;
+                return ReadFirstText(displayItem.gameObject);
             }
+            catch { return null; }
+        }
 
-            return null;
+        private FieldInfo GetDisplayItemField(string cosmeticType)
+        {
+            switch (cosmeticType)
+            {
+                case "Avatar": return _avatarDisplayItemField;
+                case "Title": return _titleDisplayItemField;
+                case "Emote": return _emoteDisplayItemField;
+                case "Pet": return _petDisplayItemField;
+                case "Sleeve": return _sleeveDisplayItemField;
+                default: return null;
+            }
         }
 
         #endregion
@@ -955,6 +957,21 @@ namespace AccessibleArena.Core.Services
                     DiscoverGenericItems(panelGo);
                     break;
             }
+
+            // If no items found under panelGo for Avatar/Emote, try scene-wide search
+            if (_subPanelItems.Count == 0 && (_subPanelType == "Avatar" || _subPanelType == "Emote"))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] No {_subPanelType} items found under panelGo, trying scene-wide search");
+                foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    switch (_subPanelType)
+                    {
+                        case "Avatar": DiscoverAvatarItems(root); break;
+                        case "Emote": DiscoverEmoteItems(root); break;
+                    }
+                    if (_subPanelItems.Count > 0) break;
+                }
+            }
         }
 
         private void DiscoverAvatarItems(GameObject panelGo)
@@ -964,6 +981,7 @@ namespace AccessibleArena.Core.Services
             var avatarSelType = FindType("AvatarSelection");
             if (avatarSelType == null)
             {
+                MelonLogger.Msg($"[{NavigatorId}] AvatarSelection type not found, falling back to generic");
                 DiscoverGenericItems(panelGo);
                 return;
             }
@@ -973,11 +991,18 @@ namespace AccessibleArena.Core.Services
             var idField = avatarSelType.GetProperty("Id", PublicInstance)
                        ?? avatarSelType.GetField("Id", PublicInstance) as MemberInfo;
             var isLockedMethod = avatarSelType.GetMethod("IsLocked", PublicInstance);
+            bool loggedType = false;
 
             foreach (var mb in panelGo.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null || mb.GetType() != avatarSelType) continue;
                 if (!mb.gameObject.activeInHierarchy) continue;
+
+                if (!loggedType)
+                {
+                    loggedType = true;
+                    LogTypeMembers(avatarSelType, "AvatarItem");
+                }
 
                 string name = null;
 
@@ -1135,6 +1160,7 @@ namespace AccessibleArena.Core.Services
             PropertyInfo isOwnedProp = null;
             PropertyInfo isDefaultProp = null;
             FieldInfo petNameField = null;
+            bool loggedFields = false;
 
             if (petItemType != null)
             {
@@ -1159,9 +1185,17 @@ namespace AccessibleArena.Core.Services
                 if (mb == null || mb.GetType() != petItemType) continue;
                 if (!mb.gameObject.activeInHierarchy) continue;
 
-                string name = null;
+                // Log fields/properties of the first item for debugging
+                if (!loggedFields)
+                {
+                    loggedFields = true;
+                    LogTypeMembers(mb.GetType(), "PetItem");
+                }
 
-                // Try PetEntry.Name -> PetUtils loc key
+                string name = null;
+                string petName = null;
+
+                // Try PetEntry.Name
                 if (petEntryProp != null)
                 {
                     try
@@ -1169,26 +1203,45 @@ namespace AccessibleArena.Core.Services
                         var petEntry = petEntryProp.GetValue(mb);
                         if (petEntry != null && petNameField != null)
                         {
-                            string petName = petNameField.GetValue(petEntry) as string;
-                            if (!string.IsNullOrEmpty(petName))
-                            {
-                                // PetUtils loc key pattern: "MainNav/Cosmetics/Pet/{petName}_Details"
-                                string locName = UITextExtractor.ResolveLocKey($"MainNav/Cosmetics/Pet/{petName}_Details");
-                                if (!string.IsNullOrEmpty(locName))
-                                    name = locName;
-                                else
-                                    name = petName;
-                            }
+                            petName = petNameField.GetValue(petEntry) as string;
                         }
                     }
                     catch { }
                 }
 
-                // Fallback: read any TMP_Text child
+                // Try resolving localized name via multiple key patterns
+                if (!string.IsNullOrEmpty(petName))
+                {
+                    string[] locPatterns =
+                    {
+                        $"MainNav/Cosmetics/Pet/{petName}_Details",
+                        $"MainNav/Cosmetics/Pet/{petName}_Name",
+                        $"MainNav/Cosmetics/Pet/{petName}",
+                        $"MainNav/Cosmetics/Pets/{petName}_Details",
+                        $"MainNav/Cosmetics/Pets/{petName}",
+                    };
+                    foreach (var pattern in locPatterns)
+                    {
+                        string locName = UITextExtractor.ResolveLocKey(pattern);
+                        if (!string.IsNullOrEmpty(locName))
+                        {
+                            name = locName;
+                            break;
+                        }
+                    }
+                }
+
+                // Try tooltip data (TooltipTrigger.TooltipData.Text)
+                if (string.IsNullOrEmpty(name))
+                    name = ReadTooltipText(mb.gameObject);
+
+                // Try any TMP_Text child
                 if (string.IsNullOrEmpty(name))
                     name = ReadFirstText(mb.gameObject);
+
+                // Use internal name if nothing else worked
                 if (string.IsNullOrEmpty(name))
-                    name = Strings.ProfileCosmeticNone;
+                    name = !string.IsNullOrEmpty(petName) ? petName : Strings.ProfileCosmeticNone;
 
                 string status = null;
                 if (isDefaultProp != null)
@@ -1223,15 +1276,7 @@ namespace AccessibleArena.Core.Services
         {
             // CardBackSelector with CardBack string, Collected bool
             var selectorType = FindType("CardBackSelector");
-            FieldInfo cardBackField = null;
-            PropertyInfo collectedProp = null;
-
-            if (selectorType != null)
-            {
-                cardBackField = selectorType.GetField("CardBack", PublicInstance)
-                             ?? selectorType.GetField("_cardBack", PrivateInstance);
-                collectedProp = selectorType.GetProperty("Collected", PublicInstance);
-            }
+            bool loggedFields = false;
 
             if (selectorType == null)
             {
@@ -1244,35 +1289,80 @@ namespace AccessibleArena.Core.Services
                 if (mb == null || mb.GetType() != selectorType) continue;
                 if (!mb.gameObject.activeInHierarchy) continue;
 
-                string name = null;
-
-                if (cardBackField != null)
+                // Log fields/properties of the first item for debugging
+                if (!loggedFields)
                 {
+                    loggedFields = true;
+                    LogTypeMembers(mb.GetType(), "SleeveItem");
+                }
+
+                string name = null;
+                string cardBack = null;
+
+                // Try to read any string field/property that looks like a name or identifier
+                foreach (var field in mb.GetType().GetFields(AllInstanceFlags))
+                {
+                    if (field.FieldType != typeof(string)) continue;
                     try
                     {
-                        string cardBack = cardBackField.GetValue(mb) as string;
-                        if (!string.IsNullOrEmpty(cardBack))
+                        string val = field.GetValue(mb) as string;
+                        if (!string.IsNullOrEmpty(val))
                         {
-                            // Try to resolve a localized name
-                            string locName = UITextExtractor.ResolveLocKey($"MainNav/Cosmetics/CardBack/{cardBack}");
-                            name = !string.IsNullOrEmpty(locName) ? locName : cardBack;
+                            MelonLogger.Msg($"[{NavigatorId}] Sleeve field {field.Name}={val}");
+                            if (cardBack == null)
+                                cardBack = val;
                         }
                     }
                     catch { }
                 }
 
+                // Try to resolve as set name (card backs are often set-themed)
+                if (!string.IsNullOrEmpty(cardBack))
+                {
+                    // Try various loc key patterns
+                    string[] locPatterns =
+                    {
+                        $"MainNav/Cosmetics/CardBack/{cardBack}",
+                        $"MainNav/Cosmetics/Sleeve/{cardBack}",
+                        $"General/Sets/{cardBack}",
+                    };
+                    foreach (var pattern in locPatterns)
+                    {
+                        string locName = UITextExtractor.ResolveLocKey(pattern);
+                        if (!string.IsNullOrEmpty(locName))
+                        {
+                            name = locName;
+                            break;
+                        }
+                    }
+
+                    // Use the cardBack string directly (better than "0/4")
+                    if (string.IsNullOrEmpty(name))
+                        name = cardBack;
+                }
+
+                // Try tooltip data
                 if (string.IsNullOrEmpty(name))
-                    name = ReadFirstText(mb.gameObject);
+                    name = ReadTooltipText(mb.gameObject);
+
                 if (string.IsNullOrEmpty(name))
                     name = mb.gameObject.name;
 
+                // Check collected/owned status via bool properties
                 string status = null;
-                if (collectedProp != null)
+                foreach (var prop in mb.GetType().GetProperties(PublicInstance))
                 {
+                    if (prop.PropertyType != typeof(bool)) continue;
                     try
                     {
-                        bool collected = (bool)collectedProp.GetValue(mb);
-                        status = collected ? Strings.ProfileItemOwned : Strings.ProfileItemLocked;
+                        bool val = (bool)prop.GetValue(mb);
+                        string pName = prop.Name.ToLower();
+                        if (pName.Contains("collected") || pName.Contains("owned"))
+                            status = val ? Strings.ProfileItemOwned : Strings.ProfileItemLocked;
+                        else if (pName.Contains("default") || pName.Contains("selected"))
+                        {
+                            if (val) status = Strings.ProfileItemSelected;
+                        }
                     }
                     catch { }
                 }
@@ -1344,44 +1434,58 @@ namespace AccessibleArena.Core.Services
         {
             if (_controller == null) return;
 
-            if (_subPanelType == "Avatar" && IsMonoBehaviourPanelActive("Avatar"))
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Avatar panel detected");
-                var panel = GetMonoBehaviourPanel("Avatar");
-                if (panel != null)
-                    EnterSubPanel(panel);
-                return;
-            }
+            // Check if the game's profileScreenMode matches the expected cosmetic type
+            string currentMode = ReadProfileScreenMode();
+            string expectedMode = _subPanelType == "Avatar" ? "AvatarSelect" : "EmoteSelect";
 
-            if (_subPanelType == "Emote" && IsMonoBehaviourPanelActive("Emote"))
+            if (currentMode != expectedMode) return;
+
+            // Mode matches - find the panel content from CosmeticSelectorController's transform
+            var panelGo = FindCosmeticSelectorContent();
+            if (panelGo != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Emote panel detected");
-                var panel = GetMonoBehaviourPanel("Emote");
-                if (panel != null)
-                    EnterSubPanel(panel);
-                return;
+                MelonLogger.Msg($"[{NavigatorId}] {_subPanelType} panel detected via mode={currentMode}");
+                EnterSubPanel(panelGo);
             }
         }
 
-        private bool IsMonoBehaviourPanelActive(string type)
+        private string ReadProfileScreenMode()
         {
-            var panel = GetMonoBehaviourPanel(type);
-            return panel != null && panel.activeInHierarchy;
-        }
-
-        private GameObject GetMonoBehaviourPanel(string type)
-        {
-            if (_controller == null) return null;
-
+            if (_profileScreenModeField == null || _controller == null) return null;
             try
             {
-                FieldInfo field = type == "Avatar" ? _avatarSelectPanelField : _emoteSelectPanelField;
-                if (field == null) return null;
-
-                var panel = field.GetValue(_controller) as MonoBehaviour;
-                return panel?.gameObject;
+                var mode = _profileScreenModeField.GetValue(_controller);
+                return mode?.ToString();
             }
             catch { return null; }
+        }
+
+        private GameObject FindCosmeticSelectorContent()
+        {
+            // CosmeticSelectorController places panels under _cosmeticSelectorsTransform
+            if (_cosmeticSelectorsTransformField != null && _controller != null)
+            {
+                try
+                {
+                    var transform = _cosmeticSelectorsTransformField.GetValue(_controller) as Transform;
+                    if (transform != null && transform.gameObject.activeInHierarchy)
+                        return transform.gameObject;
+                }
+                catch { }
+            }
+
+            // Fallback: use the controller's gameObject (items will be found scene-wide)
+            return _controller?.gameObject;
+        }
+
+        /// <summary>
+        /// Checks if a MonoBehaviour sub-panel is still active by verifying the profile screen mode.
+        /// </summary>
+        private bool IsMonoBehaviourPanelActive(string type)
+        {
+            string currentMode = ReadProfileScreenMode();
+            string expectedMode = type == "Avatar" ? "AvatarSelect" : "EmoteSelect";
+            return currentMode == expectedMode;
         }
 
         #endregion
@@ -1416,6 +1520,59 @@ namespace AccessibleArena.Core.Services
                     return text;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Read tooltip text from a TooltipTrigger component if present.
+        /// TooltipTrigger.TooltipData is a public FIELD, TooltipData.Text is a property.
+        /// </summary>
+        private string ReadTooltipText(GameObject go)
+        {
+            if (go == null) return null;
+            try
+            {
+                foreach (var comp in go.GetComponents<Component>())
+                {
+                    if (comp == null) continue;
+                    if (comp.GetType().Name != "TooltipTrigger") continue;
+
+                    var tooltipDataField = comp.GetType().GetField("TooltipData", PublicInstance);
+                    if (tooltipDataField == null) continue;
+
+                    var tooltipData = tooltipDataField.GetValue(comp);
+                    if (tooltipData == null) continue;
+
+                    var textProp = tooltipData.GetType().GetProperty("Text", PublicInstance);
+                    if (textProp != null)
+                    {
+                        string text = textProp.GetValue(tooltipData)?.ToString();
+                        if (!string.IsNullOrEmpty(text))
+                            return UITextExtractor.CleanText(text);
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Log fields and properties of a type for debugging (first item only).
+        /// </summary>
+        private void LogTypeMembers(System.Type type, string label)
+        {
+            try
+            {
+                MelonLogger.Msg($"[{NavigatorId}] {label} type: {type.FullName}");
+                foreach (var prop in type.GetProperties(PublicInstance))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}]   Prop: {prop.Name} ({prop.PropertyType.Name})");
+                }
+                foreach (var field in type.GetFields(AllInstanceFlags))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}]   Field: {field.Name} ({field.FieldType.Name})");
+                }
+            }
+            catch { }
         }
 
         /// <summary>
