@@ -23,6 +23,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Ensure ilspycmd can find .NET 8.0 runtime installed in user-local directory
+$userDotnet = "$env:USERPROFILE\AppData\Local\Microsoft\dotnet"
+if ((Test-Path $userDotnet) -and -not $env:DOTNET_ROOT) {
+    $env:DOTNET_ROOT = $userDotnet
+}
+
 # Paths
 $managedDir = "C:\Program Files\Wizards of the Coast\MTGA\MTGA_Data\Managed"
 $ilspycmd = "$env:USERPROFILE\.dotnet\tools\ilspycmd.exe"
