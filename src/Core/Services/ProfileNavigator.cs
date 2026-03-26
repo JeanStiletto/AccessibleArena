@@ -1201,15 +1201,13 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(name))
                     name = mb.gameObject.name;
 
-                // Read bio text from BioString property
+                // Read bio text from BioString property (appended after status below)
                 string bio = null;
                 if (_bioStringProp != null)
                 {
                     try { bio = _bioStringProp.GetValue(mb)?.ToString(); }
                     catch { }
                 }
-                if (!string.IsNullOrEmpty(bio))
-                    name = $"{name}. {bio}";
 
                 // Check status: _default (selected/equipped), _locked
                 string status = null;
@@ -1244,6 +1242,15 @@ namespace AccessibleArena.Core.Services
                             status = $"{Strings.ProfileItemLocked}, {Strings.ProfileItemStore}";
                     }
                     catch { }
+                }
+
+                // Append bio after status so name+status is heard first, then the long bio
+                if (!string.IsNullOrEmpty(bio))
+                {
+                    if (!string.IsNullOrEmpty(status))
+                        status = $"{status}. {bio}";
+                    else
+                        status = bio;
                 }
 
                 _subPanelItems.Add(new SubPanelItem
