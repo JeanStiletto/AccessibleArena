@@ -22,6 +22,16 @@ All notable changes to Accessible Arena.
 ### Duel Tutorial Hint
 - Added Ctrl+Tab hint (cycles opponent's highlighted cards only) to the duel start tutorial text across all 12 languages
 
+### Profile Screen
+- Full keyboard navigation of the Profile screen: player name, avatar with biography, season, constructed/limited rank, mastery progress, set collection, and cosmetic category buttons
+- Mastery block shows level, XP progress (e.g., "200/1000 XP"), and next reward description
+- Set collection block shows localized set name and completion percentage
+- Cosmetic sub-panels (Avatar, Title, Emote, Pet, Sleeve) navigable with Up/Down, selectable with Enter, closable with Backspace
+- Avatar sub-panel includes planeswalker biography text and "available in store" hint for locked purchasable avatars
+- Pet and sleeve names resolved via localization keys, tooltip data, and humanized internal IDs
+- Avatar selection persists via DoneButton_OnClick (skips locked avatars)
+- All profile strings localized across 12 languages
+
 ## v0.8.8
 
 ### NPE Tutorial Accessibility

@@ -325,8 +325,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 1. Auto version checking and auto update - check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
 2. Cube and other draft event accessibility - make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event)
-3. Cosmetic handling support - accessible navigation and selection for emotes, avatars, card sleeves, card styles, and companions
-4. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-5. Replace Tolk with Prism library - Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
+3. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
+4. Replace Tolk with Prism library - Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
 
 
