@@ -1021,6 +1021,8 @@
   "ProfileRankLimited_Format": "\u9650\u5236\uff1a{0}",
   "ProfileRankMythic_Format": "{0}\uff0c{1}",
   "ProfileMastery_Format": "\u7cbe\u901a\uff1a{0}",
+  "ProfileMasteryDetail_Format": "\u7cbe\u901a\uff1a\u7b49\u7ea7{0}\uff0c{1}\uff0c\u4e0b\u4e00\u4e2a\uff1a{2}",
+  "ProfileCollection_Format": "\u6536\u85cf\uff1a{0}\uff0c{1}",
   "ProfileSeason_Format": "\u8d5b\u5b63\uff1a{0}",
   "ProfileCosmeticCurrent_Format": "{0}\uff1a{1}",
   "ProfileCosmeticNone": "\u65e0",
@@ -1030,7 +1032,8 @@
   "ProfileItemLocked": "\u5df2\u9501\u5b9a",
   "ProfileItemSelected": "\u5df2\u9009\u62e9",
   "ProfileItemDefault": "\u9ed8\u8ba4",
-  "ProfileItemEquipped": "\u5df2\u88c5\u5907"
+  "ProfileItemEquipped": "\u5df2\u88c5\u5907",
+  "ProfileItemStore": "\u53ef\u5728\u5546\u5e97\u8d2d\u4e70"
 }
 
 

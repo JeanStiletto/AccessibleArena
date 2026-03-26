@@ -1038,6 +1038,8 @@
   "ProfileRankLimited_Format": "Limited: {0}",
   "ProfileRankMythic_Format": "{0}, {1}",
   "ProfileMastery_Format": "Mastery: {0}",
+  "ProfileMasteryDetail_Format": "Mastery: Level {0}, {1}, Next: {2}",
+  "ProfileCollection_Format": "Collection: {0}, {1}",
   "ProfileSeason_Format": "Season: {0}",
   "ProfileCosmeticCurrent_Format": "{0}: {1}",
   "ProfileCosmeticNone": "None",
@@ -1047,5 +1049,6 @@
   "ProfileItemLocked": "locked",
   "ProfileItemSelected": "selected",
   "ProfileItemDefault": "default",
-  "ProfileItemEquipped": "equipped"
+  "ProfileItemEquipped": "equipped",
+  "ProfileItemStore": "available in store"
 }

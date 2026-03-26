@@ -101,12 +101,21 @@ namespace AccessibleArena.Core.Services
         private FieldInfo _limitedRankField;           // _limitedRankDisplay
         private FieldInfo _seasonNameField;            // _seasonNameRankText
         private FieldInfo _battlePassBubbleField;      // _battlePassBubble
+        private FieldInfo _profileSetBadgeField;       // _profileSetBadge
 
         // RankDisplay fields
         private FieldInfo _rankFormatTextField;         // _rankFormatText
         private FieldInfo _rankTierTextField;           // _rankTierText
         private FieldInfo _mythicPlacementTextField;    // _mythicPlacementText
         private FieldInfo _isLimitedField;              // _isLimited
+
+        // SetBadge fields
+        private FieldInfo _percentageTextField;        // _percentageText (TMP_Text)
+        private FieldInfo _tooltipField;               // _tooltip (TooltipTrigger)
+
+        // Avatar sub-panel fields
+        private PropertyInfo _bioStringProp;            // AvatarSelection.BioString
+        private PropertyInfo _storeSectionProp;         // AvatarSelection.StoreSection
 
         // Avatar persistence
         private Type _avatarSelectPanelType;
@@ -212,6 +221,15 @@ namespace AccessibleArena.Core.Services
                 _limitedRankField = detailsType.GetField("_limitedRankDisplay", PrivateInstance);
                 _seasonNameField = detailsType.GetField("_seasonNameRankText", PrivateInstance);
                 _battlePassBubbleField = detailsType.GetField("_battlePassBubble", PrivateInstance);
+                _profileSetBadgeField = detailsType.GetField("_profileSetBadge", PrivateInstance);
+            }
+
+            // SetBadge fields
+            var setBadgeType = FindType("SetBadge");
+            if (setBadgeType != null)
+            {
+                _percentageTextField = setBadgeType.GetField("_percentageText", PrivateInstance);
+                _tooltipField = setBadgeType.GetField("_tooltip", PrivateInstance);
             }
 
             // RankDisplay fields
@@ -230,7 +248,11 @@ namespace AccessibleArena.Core.Services
                 _doneButtonOnClickMethod = _avatarSelectPanelType.GetMethod("DoneButton_OnClick", PublicInstance);
             var avatarSelType = FindType("AvatarSelection");
             if (avatarSelType != null)
+            {
                 _avatarIsLockedMethod = avatarSelType.GetMethod("IsLocked", PublicInstance);
+                _bioStringProp = avatarSelType.GetProperty("BioString", PublicInstance);
+                _storeSectionProp = avatarSelType.GetProperty("StoreSection", PublicInstance);
+            }
 
             _reflectionInitialized = true;
             MelonLogger.Msg($"[{NavigatorId}] Reflection cached: " +
@@ -326,19 +348,31 @@ namespace AccessibleArena.Core.Services
                 });
             }
 
-            // 6. Mastery progress
+            // 6. Mastery progress (ReadMasteryInfo returns fully formatted string)
             string mastery = ReadMasteryInfo();
             if (!string.IsNullOrEmpty(mastery))
             {
                 _infoBlocks.Add(new InfoBlock
                 {
-                    Label = Strings.ProfileMastery(mastery),
+                    Label = mastery,
                     GameObject = _controller.gameObject,
                     IsActivatable = false
                 });
             }
 
-            // 7-11. Cosmetic category buttons
+            // 7. Set collection progress
+            string collection = ReadSetCollectionInfo();
+            if (!string.IsNullOrEmpty(collection))
+            {
+                _infoBlocks.Add(new InfoBlock
+                {
+                    Label = collection,
+                    GameObject = _controller.gameObject,
+                    IsActivatable = false
+                });
+            }
+
+            // 8-12. Cosmetic category buttons
             AddCosmeticButton(_avatarButtonField, "Avatar");
             AddCosmeticButton(_titleButtonField, "Title");
             AddCosmeticButton(_emoteButtonField, "Emote");
@@ -480,27 +514,97 @@ namespace AccessibleArena.Core.Services
                 var bubble = _battlePassBubbleField.GetValue(_detailsPanel) as MonoBehaviour;
                 if (bubble == null || !bubble.gameObject.activeInHierarchy) return null;
 
-                // Read popup data from ObjectiveBubble (same pattern as in MEMORY.md)
-                var popupDataField = bubble.GetType().GetField("_popupData",
-                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-
-                // Also try reading the progress text directly from TMP children
+                // Read level text from visible TMP children
                 var texts = bubble.GetComponentsInChildren<TMP_Text>(true);
-                string progressText = null;
+                string levelText = null;
                 foreach (var t in texts)
                 {
                     if (t == null || !t.gameObject.activeInHierarchy) continue;
                     string text = UITextExtractor.CleanText(t.text);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        if (progressText == null)
-                            progressText = text;
+                        if (levelText == null)
+                            levelText = text;
                         else
-                            progressText += ", " + text;
+                            levelText += ", " + text;
                     }
                 }
 
-                return progressText;
+                // Try to read enhanced details from _popupData (protected field)
+                string xpProgress = null;
+                string rewardText = null;
+                var popupDataField = bubble.GetType().GetField("_popupData",
+                    PrivateInstance | BindingFlags.FlattenHierarchy);
+                if (popupDataField != null)
+                {
+                    var popupData = popupDataField.GetValue(bubble);
+                    if (popupData != null)
+                    {
+                        // ProgressString → XP progress (e.g., "200/1000 XP")
+                        var progressField = popupData.GetType().GetField("ProgressString", AllInstanceFlags);
+                        if (progressField != null)
+                        {
+                            try { xpProgress = progressField.GetValue(popupData)?.ToString(); }
+                            catch { }
+                        }
+
+                        // HeaderString2 → reward description (e.g., "500 Gold")
+                        var headerString2Field = popupData.GetType().GetField("HeaderString2", AllInstanceFlags);
+                        if (headerString2Field != null)
+                        {
+                            try { rewardText = headerString2Field.GetValue(popupData)?.ToString(); }
+                            catch { }
+                        }
+                    }
+                }
+
+                // Use enhanced format if we have XP or reward details
+                if (!string.IsNullOrEmpty(xpProgress) || !string.IsNullOrEmpty(rewardText))
+                {
+                    string level = levelText ?? "";
+                    string xp = !string.IsNullOrEmpty(xpProgress) ? xpProgress : "";
+                    string reward = !string.IsNullOrEmpty(rewardText) ? rewardText : "";
+                    return Strings.ProfileMasteryDetail(level, xp, reward);
+                }
+
+                // Fallback: basic mastery format with just level text
+                return !string.IsNullOrEmpty(levelText) ? Strings.ProfileMastery(levelText) : null;
+            }
+            catch { return null; }
+        }
+
+        private string ReadSetCollectionInfo()
+        {
+            if (_profileSetBadgeField == null || _detailsPanel == null) return null;
+            try
+            {
+                var badge = _profileSetBadgeField.GetValue(_detailsPanel) as MonoBehaviour;
+                if (badge == null || !badge.gameObject.activeInHierarchy) return null;
+
+                // Read percentage text (e.g., "73%")
+                string percentage = null;
+                if (_percentageTextField != null)
+                {
+                    var tmpText = _percentageTextField.GetValue(badge) as TMP_Text;
+                    if (tmpText != null)
+                        percentage = UITextExtractor.CleanText(tmpText.text);
+                }
+
+                // Read set name from tooltip (TooltipTrigger.TooltipData.Text)
+                string setName = null;
+                if (_tooltipField != null)
+                {
+                    var tooltip = _tooltipField.GetValue(badge) as Component;
+                    if (tooltip != null)
+                        setName = ReadTooltipText(tooltip.gameObject);
+                }
+
+                if (string.IsNullOrEmpty(percentage) && string.IsNullOrEmpty(setName))
+                    return null;
+
+                return Strings.ProfileCollection(
+                    setName ?? "",
+                    percentage ?? "");
             }
             catch { return null; }
         }
@@ -1097,8 +1201,19 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(name))
                     name = mb.gameObject.name;
 
+                // Read bio text from BioString property
+                string bio = null;
+                if (_bioStringProp != null)
+                {
+                    try { bio = _bioStringProp.GetValue(mb)?.ToString(); }
+                    catch { }
+                }
+                if (!string.IsNullOrEmpty(bio))
+                    name = $"{name}. {bio}";
+
                 // Check status: _default (selected/equipped), _locked
                 string status = null;
+                bool isLocked = false;
                 if (defaultField != null)
                 {
                     try
@@ -1112,8 +1227,21 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        bool locked = (bool)lockedField.GetValue(mb);
-                        status = locked ? Strings.ProfileItemLocked : Strings.ProfileItemOwned;
+                        isLocked = (bool)lockedField.GetValue(mb);
+                        status = isLocked ? Strings.ProfileItemLocked : Strings.ProfileItemOwned;
+                    }
+                    catch { }
+                }
+
+                // For locked avatars, check if purchasable in store
+                if (isLocked && _storeSectionProp != null)
+                {
+                    try
+                    {
+                        var storeSection = _storeSectionProp.GetValue(mb);
+                        // EStoreSection.None = 0; non-zero means purchasable
+                        if (storeSection != null && (int)storeSection != 0)
+                            status = $"{Strings.ProfileItemLocked}, {Strings.ProfileItemStore}";
                     }
                     catch { }
                 }

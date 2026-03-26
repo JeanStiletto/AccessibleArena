@@ -1021,6 +1021,8 @@
   "ProfileRankLimited_Format": "Limitado: {0}",
   "ProfileRankMythic_Format": "{0}, {1}",
   "ProfileMastery_Format": "Maestria: {0}",
+  "ProfileMasteryDetail_Format": "Maestria: N\u00edvel {0}, {1}, Pr\u00f3ximo: {2}",
+  "ProfileCollection_Format": "Cole\u00e7\u00e3o: {0}, {1}",
   "ProfileSeason_Format": "Temporada: {0}",
   "ProfileCosmeticCurrent_Format": "{0}: {1}",
   "ProfileCosmeticNone": "Nenhum",
@@ -1030,5 +1032,6 @@
   "ProfileItemLocked": "bloqueado",
   "ProfileItemSelected": "selecionado",
   "ProfileItemDefault": "padr\u00e3o",
-  "ProfileItemEquipped": "equipado"
+  "ProfileItemEquipped": "equipado",
+  "ProfileItemStore": "dispon\u00edvel na loja"
 }

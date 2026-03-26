@@ -1021,6 +1021,8 @@
   "ProfileRankLimited_Format": "\ub9ac\ubbf8\ud2f0\ub4dc: {0}",
   "ProfileRankMythic_Format": "{0}, {1}",
   "ProfileMastery_Format": "\uc219\ub828\ub3c4: {0}",
+  "ProfileMasteryDetail_Format": "\uc219\ub828\ub3c4: \ub808\ubca8 {0}, {1}, \ub2e4\uc74c: {2}",
+  "ProfileCollection_Format": "\ucee8\ub809\uc158: {0}, {1}",
   "ProfileSeason_Format": "\uc2dc\uc98c: {0}",
   "ProfileCosmeticCurrent_Format": "{0}: {1}",
   "ProfileCosmeticNone": "\uc5c6\uc74c",
@@ -1030,5 +1032,6 @@
   "ProfileItemLocked": "\uc7a0\uae40",
   "ProfileItemSelected": "\uc120\ud0dd\ub428",
   "ProfileItemDefault": "\uae30\ubcf8",
-  "ProfileItemEquipped": "\uc7a5\ucc29\ub428"
+  "ProfileItemEquipped": "\uc7a5\ucc29\ub428",
+  "ProfileItemStore": "\uc0c1\uc810\uc5d0\uc11c \uad6c\ub9e4 \uac00\ub2a5"
 }

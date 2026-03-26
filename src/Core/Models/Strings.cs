@@ -1448,6 +1448,10 @@ namespace AccessibleArena.Core.Models
             L.Format("ProfileRankMythic_Format", rank, placement);
         public static string ProfileMastery(string info) =>
             L.Format("ProfileMastery_Format", info);
+        public static string ProfileMasteryDetail(string level, string xp, string reward) =>
+            L.Format("ProfileMasteryDetail_Format", level, xp, reward);
+        public static string ProfileCollection(string setName, string percentage) =>
+            L.Format("ProfileCollection_Format", setName, percentage);
         public static string ProfileSeason(string name) =>
             L.Format("ProfileSeason_Format", name);
         public static string ProfileCosmeticCurrent(string category, string current) =>
@@ -1462,6 +1466,7 @@ namespace AccessibleArena.Core.Models
         public static string ProfileItemSelected => L.Get("ProfileItemSelected");
         public static string ProfileItemDefault => L.Get("ProfileItemDefault");
         public static string ProfileItemEquipped => L.Get("ProfileItemEquipped");
+        public static string ProfileItemStore => L.Get("ProfileItemStore");
 
         // ===========================================
         // FRIEND ACTIONS

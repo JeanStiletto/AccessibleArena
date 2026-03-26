@@ -98,6 +98,8 @@ namespace AccessibleArena.Core.Constants
         public const string DisplayItemEmote = "DisplayItemEmote";
         public const string DisplayItemPet = "DisplayItemPet";
         public const string DisplayItemSleeve = "DisplayItemSleeve";
+        public const string ObjectiveBubble = "ObjectiveBubble";
+        public const string SetBadge = "SetBadge";
 
         // --- Fully-Qualified Type Names (for FindType lookups) ---
         public const string NavContentControllerFQ = "Wotc.Mtga.Wrapper.NavContentController";
