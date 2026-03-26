@@ -1028,5 +1028,22 @@
   "NPE_DialogHint_LandSummary": "Hinweis: Drücke M für deine Länderübersicht und Umschalt+M für die des Gegners. Die Anzahl der ungetappten Länder zeigt das verfügbare Mana.",
   "NPE_DialogHint_OpponentCounts": "Hinweis: Drücke Umschalt+C, um die Anzahl der Handkarten des Gegners zu sehen. Drücke Umschalt+D für die Bibliotheksgröße des Gegners.",
   "NPE_DialogHint_CastCombatTrick": "Drücke Tab, um den hervorgehobenen Zauber in deiner Hand zu finden, dann Enter, um ihn zu wirken. Das ist deine Chance, deinen Blocker mit einem Kampftrick zu verstärken.",
-  "NPE_Hint_DiscardCard": "Wirf eine Karte ab. Benutze Links und Rechts, um zwischen Karten zu navigieren, oder Tab, um zur vorgeschlagenen Karte zu springen. Drücke Enter, um eine Karte zum Abwerfen auszuwählen oder abzuwählen. Drücke Leertaste, um das Abwerfen zu bestätigen."
+  "NPE_Hint_DiscardCard": "Wirf eine Karte ab. Benutze Links und Rechts, um zwischen Karten zu navigieren, oder Tab, um zur vorgeschlagenen Karte zu springen. Drücke Enter, um eine Karte zum Abwerfen auszuwählen oder abzuwählen. Drücke Leertaste, um das Abwerfen zu bestätigen.",
+  "ProfileActivation_Format": "Profil. {0}. {1} Einträge",
+  "ProfilePlayer_Format": "{0}, {1}",
+  "ProfileAvatar_Format": "Avatar: {0}. {1}",
+  "ProfileRankConstructed_Format": "Constructed: {0}",
+  "ProfileRankLimited_Format": "Limited: {0}",
+  "ProfileRankMythic_Format": "{0}, {1}",
+  "ProfileMastery_Format": "Meisterung: {0}",
+  "ProfileSeason_Format": "Saison: {0}",
+  "ProfileCosmeticCurrent_Format": "{0}: {1}",
+  "ProfileCosmeticNone": "Keine",
+  "ProfileSubPanelOpened_Format": "{0}. {1} Einträge",
+  "ProfileSubPanelItem_Format": "{0}, {1} von {2}",
+  "ProfileItemOwned": "besessen",
+  "ProfileItemLocked": "gesperrt",
+  "ProfileItemSelected": "ausgewählt",
+  "ProfileItemDefault": "Standard",
+  "ProfileItemEquipped": "ausgerüstet"
 }

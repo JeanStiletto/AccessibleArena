@@ -1026,5 +1026,22 @@
   "NPE_Stage_Format": "Etap {0}",
   "NPE_DialogHint_OpponentCounts": "Wskaz\u00f3wka: Naci\u015bnij Shift+C, aby zobaczy\u0107 liczb\u0119 kart w r\u0119ce przeciwnika. Naci\u015bnij Shift+D, aby zobaczy\u0107 liczb\u0119 kart w bibliotece przeciwnika.",
   "NPE_DialogHint_CastCombatTrick": "Naci\u015bnij Tab, aby znale\u017a\u0107 pod\u015bwietlone zakl\u0119cie w r\u0119ce, a nast\u0119pnie Enter, aby je rzuci\u0107. To twoja szansa, aby wzmocni\u0107 blokuj\u0105cego sztuczk\u0105 bojow\u0105.",
-  "NPE_Hint_DiscardCard": "Odrzu\u0107 kart\u0119. U\u017cyj strza\u0142ek w lewo i w prawo, aby nawigowa\u0107 mi\u0119dzy kartami, lub Tab, aby przeskoczy\u0107 do sugerowanej karty. Naci\u015bnij Enter, aby wybra\u0107 lub odznaczy\u0107 kart\u0119 do odrzucenia. Naci\u015bnij Spacja, aby potwierdzi\u0107 odrzucenie."
+  "NPE_Hint_DiscardCard": "Odrzu\u0107 kart\u0119. U\u017cyj strza\u0142ek w lewo i w prawo, aby nawigowa\u0107 mi\u0119dzy kartami, lub Tab, aby przeskoczy\u0107 do sugerowanej karty. Naci\u015bnij Enter, aby wybra\u0107 lub odznaczy\u0107 kart\u0119 do odrzucenia. Naci\u015bnij Spacja, aby potwierdzi\u0107 odrzucenie.",
+  "ProfileActivation_Format": "Profil. {0}. {1} element\u00f3w",
+  "ProfilePlayer_Format": "{0}, {1}",
+  "ProfileAvatar_Format": "Awatar: {0}. {1}",
+  "ProfileRankConstructed_Format": "Constructed: {0}",
+  "ProfileRankLimited_Format": "Limited: {0}",
+  "ProfileRankMythic_Format": "{0}, {1}",
+  "ProfileMastery_Format": "Bieg\u0142o\u015b\u0107: {0}",
+  "ProfileSeason_Format": "Sezon: {0}",
+  "ProfileCosmeticCurrent_Format": "{0}: {1}",
+  "ProfileCosmeticNone": "Brak",
+  "ProfileSubPanelOpened_Format": "{0}. {1} element\u00f3w",
+  "ProfileSubPanelItem_Format": "{0}, {1} z {2}",
+  "ProfileItemOwned": "posiadany",
+  "ProfileItemLocked": "zablokowany",
+  "ProfileItemSelected": "wybrany",
+  "ProfileItemDefault": "domy\u015blny",
+  "ProfileItemEquipped": "wyposa\u017cony"
 }

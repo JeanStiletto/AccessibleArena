@@ -1432,6 +1432,38 @@ namespace AccessibleArena.Core.Models
         public static string CodexNoContent => L.Get("CodexNoContent");
 
         // ===========================================
+        // PROFILE SCREEN
+        // ===========================================
+        public static string ProfileActivation(string playerInfo, int itemCount) =>
+            L.Format("ProfileActivation_Format", playerInfo, itemCount);
+        public static string ProfilePlayer(string name, string title) =>
+            L.Format("ProfilePlayer_Format", name, title);
+        public static string ProfileAvatar(string name, string bio) =>
+            L.Format("ProfileAvatar_Format", name, bio);
+        public static string ProfileRankConstructed(string rank) =>
+            L.Format("ProfileRankConstructed_Format", rank);
+        public static string ProfileRankLimited(string rank) =>
+            L.Format("ProfileRankLimited_Format", rank);
+        public static string ProfileRankMythic(string rank, string placement) =>
+            L.Format("ProfileRankMythic_Format", rank, placement);
+        public static string ProfileMastery(string info) =>
+            L.Format("ProfileMastery_Format", info);
+        public static string ProfileSeason(string name) =>
+            L.Format("ProfileSeason_Format", name);
+        public static string ProfileCosmeticCurrent(string category, string current) =>
+            L.Format("ProfileCosmeticCurrent_Format", category, current);
+        public static string ProfileCosmeticNone => L.Get("ProfileCosmeticNone");
+        public static string ProfileSubPanelOpened(string name, int count) =>
+            L.Format("ProfileSubPanelOpened_Format", name, count);
+        public static string ProfileSubPanelItem(string name, int index, int total) =>
+            L.Format("ProfileSubPanelItem_Format", name, index, total);
+        public static string ProfileItemOwned => L.Get("ProfileItemOwned");
+        public static string ProfileItemLocked => L.Get("ProfileItemLocked");
+        public static string ProfileItemSelected => L.Get("ProfileItemSelected");
+        public static string ProfileItemDefault => L.Get("ProfileItemDefault");
+        public static string ProfileItemEquipped => L.Get("ProfileItemEquipped");
+
+        // ===========================================
         // FRIEND ACTIONS
         // ===========================================
         public static string FriendActionChat => L.Get("FriendActionChat");

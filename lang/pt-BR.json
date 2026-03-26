@@ -1013,5 +1013,22 @@
   "NPE_Stage_Format": "Etapa {0}",
   "NPE_DialogHint_OpponentCounts": "Dica: Pressione Shift+C para ver o n\u00famero de cartas na m\u00e3o do oponente. Pressione Shift+D para ver o tamanho do grim\u00f3rio do oponente.",
   "NPE_DialogHint_CastCombatTrick": "Pressione Tab para encontrar a m\u00e1gica destacada na sua m\u00e3o e depois Enter para conjur\u00e1-la. Esta \u00e9 sua chance de fortalecer seu bloqueador com um truque de combate.",
-  "NPE_Hint_DiscardCard": "Descarte uma carta. Use Esquerda e Direita para navegar entre as cartas, ou Tab para pular para a carta sugerida. Pressione Enter para selecionar ou desmarcar uma carta para descarte. Pressione Espa\u00e7o para confirmar o descarte."
+  "NPE_Hint_DiscardCard": "Descarte uma carta. Use Esquerda e Direita para navegar entre as cartas, ou Tab para pular para a carta sugerida. Pressione Enter para selecionar ou desmarcar uma carta para descarte. Pressione Espa\u00e7o para confirmar o descarte.",
+  "ProfileActivation_Format": "Perfil. {0}. {1} itens",
+  "ProfilePlayer_Format": "{0}, {1}",
+  "ProfileAvatar_Format": "Avatar: {0}. {1}",
+  "ProfileRankConstructed_Format": "Constru\u00eddo: {0}",
+  "ProfileRankLimited_Format": "Limitado: {0}",
+  "ProfileRankMythic_Format": "{0}, {1}",
+  "ProfileMastery_Format": "Maestria: {0}",
+  "ProfileSeason_Format": "Temporada: {0}",
+  "ProfileCosmeticCurrent_Format": "{0}: {1}",
+  "ProfileCosmeticNone": "Nenhum",
+  "ProfileSubPanelOpened_Format": "{0}. {1} itens",
+  "ProfileSubPanelItem_Format": "{0}, {1} de {2}",
+  "ProfileItemOwned": "possu\u00eddo",
+  "ProfileItemLocked": "bloqueado",
+  "ProfileItemSelected": "selecionado",
+  "ProfileItemDefault": "padr\u00e3o",
+  "ProfileItemEquipped": "equipado"
 }

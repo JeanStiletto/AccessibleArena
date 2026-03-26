@@ -1030,5 +1030,22 @@
   "NPE_DialogHint_LandSummary": "Hint: Press M to see your land summary and Shift+M for the opponent's. The number of untapped lands shows the available mana.",
   "NPE_DialogHint_OpponentCounts": "Hint: Press Shift+C to see the number of opponent's hand cards. Press Shift+D for the opponent's library count.",
   "NPE_DialogHint_CastCombatTrick": "Press Tab to find the highlighted spell in your hand, then Enter to cast it. This is your chance to power up your blocker with a combat trick.",
-  "NPE_Hint_DiscardCard": "Discard a card. Use Left and Right to navigate between cards, or Tab to jump to the suggested card. Press Enter to select or deselect a card for discard. Press Space to confirm the discard."
+  "NPE_Hint_DiscardCard": "Discard a card. Use Left and Right to navigate between cards, or Tab to jump to the suggested card. Press Enter to select or deselect a card for discard. Press Space to confirm the discard.",
+  "ProfileActivation_Format": "Profile. {0}. {1} items",
+  "ProfilePlayer_Format": "{0}, {1}",
+  "ProfileAvatar_Format": "Avatar: {0}. {1}",
+  "ProfileRankConstructed_Format": "Constructed: {0}",
+  "ProfileRankLimited_Format": "Limited: {0}",
+  "ProfileRankMythic_Format": "{0}, {1}",
+  "ProfileMastery_Format": "Mastery: {0}",
+  "ProfileSeason_Format": "Season: {0}",
+  "ProfileCosmeticCurrent_Format": "{0}: {1}",
+  "ProfileCosmeticNone": "None",
+  "ProfileSubPanelOpened_Format": "{0}. {1} items",
+  "ProfileSubPanelItem_Format": "{0}, {1} of {2}",
+  "ProfileItemOwned": "owned",
+  "ProfileItemLocked": "locked",
+  "ProfileItemSelected": "selected",
+  "ProfileItemDefault": "default",
+  "ProfileItemEquipped": "equipped"
 }

@@ -1013,7 +1013,24 @@
   "NPE_Stage_Format": "\u9636\u6bb5 {0}",
   "NPE_DialogHint_OpponentCounts": "\u63d0\u793a\uff1a\u6309 Shift+C \u67e5\u770b\u5bf9\u624b\u624b\u724c\u6570\u91cf\u3002\u6309 Shift+D \u67e5\u770b\u5bf9\u624b\u724c\u5e93\u6570\u91cf\u3002",
   "NPE_DialogHint_CastCombatTrick": "\u6309 Tab \u627e\u5230\u624b\u724c\u4e2d\u9ad8\u4eae\u7684\u6cd5\u672f\uff0c\u7136\u540e\u6309 Enter \u65bd\u653e\u3002\u8fd9\u662f\u4f60\u7528\u6218\u6597\u8be1\u8ba1\u5f3a\u5316\u963b\u6321\u8005\u7684\u673a\u4f1a\u3002",
-  "NPE_Hint_DiscardCard": "\u5f03\u7259\u4e00\u5f20\u724c\u3002\u7528\u5de6\u53f3\u65b9\u5411\u952e\u5728\u724c\u4e4b\u95f4\u5bfc\u822a\uff0c\u6216\u6309 Tab \u8df3\u5230\u5efa\u8bae\u7684\u724c\u3002\u6309 Enter \u9009\u62e9\u6216\u53d6\u6d88\u9009\u62e9\u8981\u5f03\u7684\u724c\u3002\u6309\u7a7a\u683c\u952e\u786e\u8ba4\u5f03\u7259\u3002"
+  "NPE_Hint_DiscardCard": "\u5f03\u7259\u4e00\u5f20\u724c\u3002\u7528\u5de6\u53f3\u65b9\u5411\u952e\u5728\u724c\u4e4b\u95f4\u5bfc\u822a\uff0c\u6216\u6309 Tab \u8df3\u5230\u5efa\u8bae\u7684\u724c\u3002\u6309 Enter \u9009\u62e9\u6216\u53d6\u6d88\u9009\u62e9\u8981\u5f03\u7684\u724c\u3002\u6309\u7a7a\u683c\u952e\u786e\u8ba4\u5f03\u7259\u3002",
+  "ProfileActivation_Format": "\u4e2a\u4eba\u8d44\u6599\u3002{0}\u3002{1}\u4e2a\u9879\u76ee",
+  "ProfilePlayer_Format": "{0}\uff0c{1}",
+  "ProfileAvatar_Format": "\u5934\u50cf\uff1a{0}\u3002{1}",
+  "ProfileRankConstructed_Format": "\u6784\u7b51\uff1a{0}",
+  "ProfileRankLimited_Format": "\u9650\u5236\uff1a{0}",
+  "ProfileRankMythic_Format": "{0}\uff0c{1}",
+  "ProfileMastery_Format": "\u7cbe\u901a\uff1a{0}",
+  "ProfileSeason_Format": "\u8d5b\u5b63\uff1a{0}",
+  "ProfileCosmeticCurrent_Format": "{0}\uff1a{1}",
+  "ProfileCosmeticNone": "\u65e0",
+  "ProfileSubPanelOpened_Format": "{0}\u3002{1}\u4e2a\u9879\u76ee",
+  "ProfileSubPanelItem_Format": "{0}\uff0c\u7b2c{1}\u4e2a\uff0c\u5171{2}\u4e2a",
+  "ProfileItemOwned": "\u5df2\u62e5\u6709",
+  "ProfileItemLocked": "\u5df2\u9501\u5b9a",
+  "ProfileItemSelected": "\u5df2\u9009\u62e9",
+  "ProfileItemDefault": "\u9ed8\u8ba4",
+  "ProfileItemEquipped": "\u5df2\u88c5\u5907"
 }
 
 

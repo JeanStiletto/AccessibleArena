@@ -86,6 +86,19 @@ namespace AccessibleArena.Core.Constants
         public const string Conversation = "Conversation";
         public const string SocialMessage = "SocialMessage";
 
+        // --- Profile Types ---
+        public const string ProfileContentController = "ProfileContentController";
+        public const string ProfileDetailsPanel = "ProfileDetailsPanel";
+        public const string RankDisplay = "RankDisplay";
+        public const string CosmeticSelectorController = "CosmeticSelectorController";
+        public const string AvatarSelectPanel = "AvatarSelectPanel";
+        public const string EmoteSelectionScreenView = "EmoteSelectionScreenView";
+        public const string DisplayItemAvatar = "DisplayItemAvatar";
+        public const string DisplayItemTitle = "DisplayItemTitle";
+        public const string DisplayItemEmote = "DisplayItemEmote";
+        public const string DisplayItemPet = "DisplayItemPet";
+        public const string DisplayItemSleeve = "DisplayItemSleeve";
+
         // --- Fully-Qualified Type Names (for FindType lookups) ---
         public const string NavContentControllerFQ = "Wotc.Mtga.Wrapper.NavContentController";
         public const string SettingsMenuFQ = "Wotc.Mtga.Wrapper.SettingsMenu";

@@ -1013,5 +1013,22 @@
   "NPE_Stage_Format": "Fase {0}",
   "NPE_DialogHint_OpponentCounts": "Suggerimento: Premi Maiusc+C per vedere il numero di carte in mano dell'avversario. Premi Maiusc+D per il conteggio della biblioteca dell'avversario.",
   "NPE_DialogHint_CastCombatTrick": "Premi Tab per trovare la magia evidenziata nella tua mano, poi Invio per lanciarla. \u00c8 la tua occasione per potenziare il tuo bloccante con un trucco da combattimento.",
-  "NPE_Hint_DiscardCard": "Scarta una carta. Usa Sinistra e Destra per navigare tra le carte, oppure Tab per saltare alla carta suggerita. Premi Invio per selezionare o deselezionare una carta da scartare. Premi Spazio per confermare lo scarto."
+  "NPE_Hint_DiscardCard": "Scarta una carta. Usa Sinistra e Destra per navigare tra le carte, oppure Tab per saltare alla carta suggerita. Premi Invio per selezionare o deselezionare una carta da scartare. Premi Spazio per confermare lo scarto.",
+  "ProfileActivation_Format": "Profilo. {0}. {1} elementi",
+  "ProfilePlayer_Format": "{0}, {1}",
+  "ProfileAvatar_Format": "Avatar: {0}. {1}",
+  "ProfileRankConstructed_Format": "Constructed: {0}",
+  "ProfileRankLimited_Format": "Limited: {0}",
+  "ProfileRankMythic_Format": "{0}, {1}",
+  "ProfileMastery_Format": "Maestria: {0}",
+  "ProfileSeason_Format": "Stagione: {0}",
+  "ProfileCosmeticCurrent_Format": "{0}: {1}",
+  "ProfileCosmeticNone": "Nessuno",
+  "ProfileSubPanelOpened_Format": "{0}. {1} elementi",
+  "ProfileSubPanelItem_Format": "{0}, {1} di {2}",
+  "ProfileItemOwned": "posseduto",
+  "ProfileItemLocked": "bloccato",
+  "ProfileItemSelected": "selezionato",
+  "ProfileItemDefault": "predefinito",
+  "ProfileItemEquipped": "equipaggiato"
 }
