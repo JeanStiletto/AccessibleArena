@@ -988,11 +988,12 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Polls prompt button state each frame. Announces the primary button text
         /// when meaningful choices first appear (both buttons visible with real text).
-        /// Suppressed briefly after phase changes to avoid announcing combat buttons
-        /// that the CombatNavigator already handles.
+        /// During combat phases, suppresses the initial button appearance (null → text)
+        /// since the phase announcement already informed the user. Subsequent text changes
+        /// (e.g. "1 Angreifer" after clicking, or triggered ability prompts) are announced.
         /// Called from DuelNavigator's HandleCustomInput.
         /// </summary>
-        public void MonitorPromptButtons(float timeSincePhaseChange)
+        public void MonitorPromptButtons(float timeSincePhaseChange, bool isInCombatPhase)
         {
             if (!_isActive) return;
 
@@ -1011,9 +1012,15 @@ namespace AccessibleArena.Core.Services
 
             if (currentText != _lastPromptButtonText)
             {
-                // Announce unless this is a phase-transition button (combat buttons appear
-                // immediately after phase change; real choices like pay-life come later)
-                if (currentText != null && timeSincePhaseChange > 0.3f)
+                bool shouldAnnounce = currentText != null;
+
+                // During combat phases, suppress the initial button appearance (null → text).
+                // The phase change already announced "Declare Attackers/Blockers".
+                // Real changes (text → different text) like triggered ability prompts still announce.
+                if (shouldAnnounce && isInCombatPhase && _lastPromptButtonText == null)
+                    shouldAnnounce = false;
+
+                if (shouldAnnounce)
                     _announcer.Announce(currentText, AnnouncementPriority.High);
                 _lastPromptButtonText = currentText;
             }
