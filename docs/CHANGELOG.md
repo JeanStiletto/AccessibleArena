@@ -11,6 +11,14 @@ All notable changes to Accessible Arena.
 ### Localization Fix
 - Fixed hardcoded German strings "Kommandeurmodus aktiviert" and "Deaktiviert" — now properly localized in all 12 languages (reported by patricus3, #50)
 
+### Advanced Filters
+- Added missing Colors row (White, Blue, Black, Red, Green, Colorless, MultiColor) and Mana Cost row (0-7+) — previously these filters were not navigable
+- Fixed Format dropdown not being found (game uses cTMP_Dropdown, not TMP_Dropdown)
+- Row changes now always start at the first item instead of preserving horizontal position, which was confusing with rows of very different lengths
+- Row name is announced separately before the first item when switching rows
+- Opening announcement now includes current row and item position
+- Improved tutorial hint: explains grid navigation, row switching, letter jump, and Backspace to close
+
 ### Duel Tutorial Hint
 - Added Ctrl+Tab hint (cycles opponent's highlighted cards only) to the duel start tutorial text across all 12 languages
 

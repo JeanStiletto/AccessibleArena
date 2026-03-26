@@ -96,6 +96,8 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] Discovering elements in AdvancedFiltersPopup");
 
             // Build rows based on parent path patterns
+            var colorsRow = new FilterRow { Name = "Colors", Items = new List<FilterItem>() };
+            var manaCostRow = new FilterRow { Name = "Mana Cost", Items = new List<FilterItem>() };
             var typesRow = new FilterRow { Name = "Types", Items = new List<FilterItem>() };
             var rarityRow = new FilterRow { Name = "Rarity", Items = new List<FilterItem>() };
             var setsRow = new FilterRow { Name = "Sets", Items = new List<FilterItem>() };
@@ -103,7 +105,6 @@ namespace AccessibleArena.Core.Services
 
             // Find all interactable elements in the popup
             var toggles = _popup.GetComponentsInChildren<Toggle>(true);
-            var dropdowns = _popup.GetComponentsInChildren<TMP_Dropdown>(true);
             var buttons = _popup.GetComponentsInChildren<MonoBehaviour>(true)
                 .Where(mb => mb.GetType().Name == "CustomButton" || mb.GetType().Name == "CustomButtonWithTooltip");
 
@@ -129,7 +130,23 @@ namespace AccessibleArena.Core.Services
                 };
 
                 // Categorize by path
-                if (path.Contains("Column_1/TYPES/"))
+                if (path.Contains("ManaRow/COLORS/"))
+                {
+                    // Color toggles have no text - derive label from parent GO name (e.g. "Color_White")
+                    string parentName = toggle.transform.parent?.name ?? "";
+                    if (parentName.StartsWith("Color_"))
+                    {
+                        string colorKey = parentName.Substring(6); // "White", "Blue", "MultiColor", etc.
+                        item.Label = CardModelProvider.ConvertManaColorToName(colorKey);
+                    }
+                    colorsRow.Items.Add(item);
+                }
+                else if (path.Contains("ManaRow/MANA/"))
+                {
+                    // Mana cost toggles - label is already the number ("0", "1", ..., "7+")
+                    manaCostRow.Items.Add(item);
+                }
+                else if (path.Contains("Column_1/TYPES/"))
                 {
                     typesRow.Items.Add(item);
                 }
@@ -153,18 +170,19 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[{NavigatorId}] Toggle: {label} - Path: {path}");
             }
 
-            // Process dropdowns
-            foreach (var dropdown in dropdowns)
+            // Process dropdowns (game uses cTMP_Dropdown which doesn't extend TMP_Dropdown)
+            foreach (var mb in _popup.GetComponentsInChildren<MonoBehaviour>(true))
             {
-                if (!dropdown.gameObject.activeInHierarchy) continue;
-                if (!dropdown.interactable) continue;
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name != "cTMP_Dropdown" && mb is not TMP_Dropdown) continue;
 
-                string path = GetPath(dropdown.transform);
-                string label = GetDropdownLabel(dropdown);
+                string path = GetPath(mb.transform);
+                string displayValue = GetDropdownDisplayValue(mb.gameObject) ?? "Unknown";
+                string label = $"Format: {displayValue}, dropdown";
 
                 FilterItem item = new FilterItem
                 {
-                    GameObject = dropdown.gameObject,
+                    GameObject = mb.gameObject,
                     Label = label,
                     IsToggle = false,
                     IsDropdown = true
@@ -206,12 +224,18 @@ namespace AccessibleArena.Core.Services
             }
 
             // Sort items within rows by horizontal position (left to right)
+            SortRowByPosition(colorsRow);
+            SortRowByPosition(manaCostRow);
             SortRowByPosition(typesRow);
             SortRowByPosition(rarityRow);
             SortRowByPosition(setsRow);
             SortRowByPosition(actionsRow);
 
-            // Add non-empty rows
+            // Add non-empty rows (visual top-to-bottom order)
+            if (colorsRow.Items.Count > 0)
+                _rows.Add(colorsRow);
+            if (manaCostRow.Items.Count > 0)
+                _rows.Add(manaCostRow);
             if (typesRow.Items.Count > 0)
                 _rows.Add(typesRow);
             if (rarityRow.Items.Count > 0)
@@ -288,14 +312,6 @@ namespace AccessibleArena.Core.Services
             return name;
         }
 
-        private string GetDropdownLabel(TMP_Dropdown dropdown)
-        {
-            string selectedOption = dropdown.options.Count > dropdown.value
-                ? dropdown.options[dropdown.value].text
-                : "Unknown";
-            return $"Format: {selectedOption}, dropdown";
-        }
-
         private string GetButtonLabel(GameObject button)
         {
             // Try text extraction
@@ -321,9 +337,22 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            int totalItems = _rows.Sum(r => r.Items.Count);
-            string core = $"Advanced Filters. {_rows.Count} sections, {totalItems} items";
-            return Strings.WithHint(core, "AdvancedFiltersHint");
+            string core = $"Advanced Filters. {_rows.Count} rows";
+            string withHint = Strings.WithHint(core, "AdvancedFiltersHint");
+
+            // Append current row and item so user knows where they are
+            if (IsValidPosition())
+            {
+                var row = _rows[_currentRowIndex];
+                var item = row.Items[_currentItemIndex];
+                string state = "";
+                if (item.IsToggle && item.ToggleComponent != null)
+                    state = item.ToggleComponent.isOn ? ", on" : ", off";
+                string position = $"{_currentItemIndex + 1} of {row.Items.Count}";
+                withHint += $". {row.Name}. {item.Label}{state}, {position}";
+            }
+
+            return withHint;
         }
 
         protected override void HandleInput()
@@ -419,9 +448,7 @@ namespace AccessibleArena.Core.Services
             if (_currentRowIndex > 0)
             {
                 _currentRowIndex--;
-                // Preserve horizontal position as much as possible
-                _currentItemIndex = Mathf.Min(_currentItemIndex, _rows[_currentRowIndex].Items.Count - 1);
-                if (_currentItemIndex < 0) _currentItemIndex = 0;
+                _currentItemIndex = 0;
                 AnnounceCurrentPosition(true);
             }
             else
@@ -437,9 +464,7 @@ namespace AccessibleArena.Core.Services
             if (_currentRowIndex < _rows.Count - 1)
             {
                 _currentRowIndex++;
-                // Preserve horizontal position as much as possible
-                _currentItemIndex = Mathf.Min(_currentItemIndex, _rows[_currentRowIndex].Items.Count - 1);
-                if (_currentItemIndex < 0) _currentItemIndex = 0;
+                _currentItemIndex = 0;
                 AnnounceCurrentPosition(true);
             }
             else
@@ -552,7 +577,8 @@ namespace AccessibleArena.Core.Services
 
             if (includeRowName)
             {
-                _announcer.Announce($"{row.Name}. {item.Label}{state}, {position}", AnnouncementPriority.High);
+                _announcer.Announce($"{row.Name}", AnnouncementPriority.High);
+                _announcer.Announce($"{item.Label}{state}, {position}", AnnouncementPriority.Normal);
             }
             else
             {
@@ -740,13 +766,6 @@ namespace AccessibleArena.Core.Services
         protected override void OnActivated()
         {
             base.OnActivated();
-
-            // Announce initial position after activation announcement
-            if (IsValidPosition())
-            {
-                // Defer initial position announcement slightly
-                // The activation announcement from base class will play first
-            }
         }
 
         protected override bool ValidateElements()

@@ -387,7 +387,7 @@
   "PopupCancel": "취소",
   "NavigateHint": "방향키로 이동, Enter로 선택",
   "DuelKeybindingsHint": "F1 for keyboard help, F2 for mod settings, Ctrl+F1 to repeat tutorial hints. Tab으로 플레이 가능한 카드 순환, Ctrl+Tab으로 상대 카드만. C로 손패. B로 내 생물, A로 내 대지, R로 내 비생물. Shift+B, A, R로 적 측. G로 무덤, X로 추방, S로 스택. V로 플레이어 정보. P로 전체 제어, Shift+P로 잠금. 숫자 키 1~0으로 단계 정지",
-  "AdvancedFiltersHint": "Up and Down to switch sections. Left and Right to navigate. Enter to toggle",
+  "AdvancedFiltersHint": "Grid navigation. Up and Down switches rows of different filter types. Left and Right navigates filters in a row. Enter or Space to toggle. A to Z to jump by letter. Backspace to close",
   "BoosterOpenHint": "Left and Right to navigate cards, Up and Down for card details",
   "DraftHint": "Left and Right to navigate cards, Enter to select, Space to confirm",
   "RewardPopupHint": "Left and Right to navigate. Up and Down for card details. Backspace to continue",

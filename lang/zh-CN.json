@@ -387,7 +387,7 @@
   "PopupCancel": "取消",
   "NavigateHint": "方向键导航，Enter选择",
   "DuelKeybindingsHint": "F1 for keyboard help, F2 for mod settings, Ctrl+F1 to repeat tutorial hints. Tab循环可用卡牌，Ctrl+Tab仅对手卡牌。C查看手牌。B你的生物，A你的地牌，R你的非生物。Shift+B、A、R查看对手。G坟场，X放逐区，S堆叠。V玩家信息。P完全控制，Shift+P锁定。数字键1到0切换阶段停止",
-  "AdvancedFiltersHint": "Up and Down to switch sections. Left and Right to navigate. Enter to toggle",
+  "AdvancedFiltersHint": "Grid navigation. Up and Down switches rows of different filter types. Left and Right navigates filters in a row. Enter or Space to toggle. A to Z to jump by letter. Backspace to close",
   "BoosterOpenHint": "Left and Right to navigate cards, Up and Down for card details",
   "DraftHint": "Left and Right to navigate cards, Enter to select, Space to confirm",
   "RewardPopupHint": "Left and Right to navigate. Up and Down for card details. Backspace to continue",

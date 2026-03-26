@@ -400,7 +400,7 @@
   "PopupCancel": "Cancel",
   "NavigateHint": "Arrow keys to navigate, Enter to select",
   "DuelKeybindingsHint": "F1 for keyboard help, F2 for mod settings, Ctrl+F1 to repeat tutorial hints. Tab cycles playable cards, Ctrl+Tab for opponent's cards only. C for hand. B for your creatures, A for your lands, R for your non-creatures. Shift plus B, A, R for enemy. G for graveyard, X for exile, S for stack. V for player info. P for full control, Shift plus P to lock. Number keys 1 to 0 for phase stops",
-  "AdvancedFiltersHint": "Up and Down to switch sections. Left and Right to navigate. Enter to toggle",
+  "AdvancedFiltersHint": "Grid navigation. Up and Down switches rows of different filter types. Left and Right navigates filters in a row. Enter or Space to toggle. A to Z to jump by letter. Backspace to close",
   "BoosterOpenHint": "Left and Right to navigate cards, Up and Down for card details",
   "DraftHint": "Left and Right to navigate cards, Enter to select, Space to confirm",
   "RewardPopupHint": "Left and Right to navigate. Up and Down for card details. Backspace to continue",

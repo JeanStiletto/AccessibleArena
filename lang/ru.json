@@ -387,7 +387,7 @@
   "PopupCancel": "Отмена",
   "NavigateHint": "Стрелки для навигации, Enter для выбора",
   "DuelKeybindingsHint": "F1 for keyboard help, F2 for mod settings, Ctrl+F1 to repeat tutorial hints. Tab перебирает доступные карты, Ctrl+Tab только карты противника. C для руки. B для ваших существ, A для ваших земель, R для ваших не-существ. Shift плюс B, A, R для противника. G для кладбища, X для изгнания, S для стека. V для информации об игроке. P для полного контроля, Shift плюс P для блокировки. Клавиши 1–0 для остановок фаз",
-  "AdvancedFiltersHint": "Up and Down to switch sections. Left and Right to navigate. Enter to toggle",
+  "AdvancedFiltersHint": "Grid navigation. Up and Down switches rows of different filter types. Left and Right navigates filters in a row. Enter or Space to toggle. A to Z to jump by letter. Backspace to close",
   "BoosterOpenHint": "Left and Right to navigate cards, Up and Down for card details",
   "DraftHint": "Left and Right to navigate cards, Enter to select, Space to confirm",
   "RewardPopupHint": "Left and Right to navigate. Up and Down for card details. Backspace to continue",
