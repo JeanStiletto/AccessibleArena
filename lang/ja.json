@@ -386,7 +386,7 @@
   "AchievementSectionEmpty": "なし",
   "PopupCancel": "キャンセル",
   "NavigateHint": "矢印キーで移動、Enterで選択",
-  "DuelKeybindingsHint": "F1 for keyboard help, F2 for mod settings, Ctrl+F1 to repeat tutorial hints. Tabでプレイ可能なカードを切り替え。Cで手札。Bで自分のクリーチャー、Aで自分の土地、Rで自分の非クリーチャー。Shift+B、A、Rで敵側。Gで墓地、Xで追放、Sでスタック。Vでプレイヤー情報。Pでフルコントロール、Shift+Pでロック。1～0で各フェイズストップ",
+  "DuelKeybindingsHint": "F1 for keyboard help, F2 for mod settings, Ctrl+F1 to repeat tutorial hints. Tabでプレイ可能なカードを切り替え、Ctrl+Tabで相手のカードのみ。Cで手札。Bで自分のクリーチャー、Aで自分の土地、Rで自分の非クリーチャー。Shift+B、A、Rで敵側。Gで墓地、Xで追放、Sでスタック。Vでプレイヤー情報。Pでフルコントロール、Shift+Pでロック。1～0で各フェイズストップ",
   "AdvancedFiltersHint": "Up and Down to switch sections. Left and Right to navigate. Enter to toggle",
   "BoosterOpenHint": "Left and Right to navigate cards, Up and Down for card details",
   "DraftHint": "Left and Right to navigate cards, Enter to select, Space to confirm",

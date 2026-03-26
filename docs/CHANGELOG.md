@@ -2,6 +2,11 @@
 
 All notable changes to Accessible Arena.
 
+## v0.9
+
+### Duel Tutorial Hint
+- Added Ctrl+Tab hint (cycles opponent's highlighted cards only) to the duel start tutorial text across all 12 languages
+
 ## v0.8.8
 
 ### NPE Tutorial Accessibility
