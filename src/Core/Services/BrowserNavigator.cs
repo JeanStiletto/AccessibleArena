@@ -1399,9 +1399,10 @@ namespace AccessibleArena.Core.Services
                 selectionState = GetCardCDCSelectionState(card);
             }
 
-            // For multi-zone browsers, append the card's zone (e.g., "Your graveyard", "Opponent's exile")
+            // For multi-zone browsers with multiple zones, append the card's zone
+            // (e.g., "Your graveyard", "Opponent's exile"). Skip when only one zone — redundant.
             string zoneSuffix = "";
-            if (_browserInfo?.BrowserType == "SelectCardsMultiZone")
+            if (_browserInfo?.BrowserType == "SelectCardsMultiZone" && _zoneButtons.Count > 1)
             {
                 zoneSuffix = GetMultiZoneCardZoneName(card);
             }
