@@ -1130,20 +1130,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     _pendingLevelRestore = NavigationLevel.GroupList;
                     _pendingElementIndexRestore = -1;
 
-                    // Find the group to restore.
-                    // When multiple groups share the same type (e.g. folder groups and standalone Content
-                    // items both use ElementGroup.Content), prefer the one whose display name matches
-                    // the saved display name. This ensures "My Decks" folder restores correctly
-                    // instead of landing on the first Content item (e.g., "All Decks, dropdown").
+                    // Find the group to restore by exact type + display name match.
+                    // Display name must match to avoid landing on a same-typed group from a
+                    // different screen (e.g. closing the mailbox must not restore to "Decks"
+                    // just because both use ElementGroup.Content).
                     bool found = false;
-                    int fallbackIndex = -1;
                     for (int i = 0; i < _groups.Count; i++)
                     {
                         if (_groups[i].Group != groupToRestore) continue;
-
-                        if (fallbackIndex < 0) fallbackIndex = i; // first match as fallback
-
-                        // Prefer exact display name match
                         if (displayNameToRestore != null &&
                             _groups[i].DisplayName == displayNameToRestore)
                         {
@@ -1151,13 +1145,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                             found = true;
                             break;
                         }
-                    }
-
-                    // Fall back to first type match if no display-name match found
-                    if (!found && fallbackIndex >= 0)
-                    {
-                        _currentGroupIndex = fallbackIndex;
-                        found = true;
                     }
 
                     if (found)
