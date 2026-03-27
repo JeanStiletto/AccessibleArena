@@ -137,6 +137,12 @@ namespace AccessibleArena.Core.Services
             // Per-frame: check if a watched card's state changed after Enter click
             CheckWatchedCardState();
 
+            // Don't process battlefield shortcuts while a browser overlay is active.
+            // Cards in the browser (e.g. AssignDamage blockers) are not on the battlefield,
+            // so A/B/R would produce incorrect "empty" announcements.
+            if (BrowserNavigator.IsActive)
+                return false;
+
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
             // Row shortcuts: A for lands (also announces floating mana for player lands)

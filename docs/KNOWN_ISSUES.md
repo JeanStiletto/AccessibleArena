@@ -112,6 +112,18 @@ Steam's default overlay hotkey (Shift+Tab) conflicts with the mod's backward nav
 
 ## Monitoring
 
+### AssignDamage Browser — Shift+B Announced "Enemy Creatures Empty"
+
+During the first `CombatDamage` phase when an `AssignDamage` browser was active, pressing Shift+B to view opponent creatures announced "Enemy creatures, empty" even though creatures existed.
+
+**Root cause:** When the user pressed B, `BattlefieldNavigator.HandleInput()` called `SetCurrentZone(ZoneType.Battlefield, ...)`, stealing zone ownership from `BrowserNavigator`. The opponent's blocking creatures were held in the browser's card list and were not visible to the battlefield scan, so `EnemyCreatures` came up empty.
+
+**Fix applied:** Added a `BrowserNavigator.IsActive` guard at the top of `BattlefieldNavigator.HandleInput()`. When any browser overlay is active, the A/B/R row-shortcut handlers return without stealing zone ownership. The browser remains in control and no incorrect "empty" announcement fires.
+
+**Files:** `BattlefieldNavigator.cs` (HandleInput)
+
+---
+
 ### NPE Tutorial Combat Cancel Lock
 
 During the first NPE tutorial fight (Game01, Turn 4), pressing Backspace to cancel attacks after the NPE prompted "attack with your creatures" caused a locked state. The NPE script doesn't handle attack cancellation at this stage — no highlights reappear, the primary button has empty text, and the game becomes unresponsive until a system message popup (timeout/disconnect) appears.
