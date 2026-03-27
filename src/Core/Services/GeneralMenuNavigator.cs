@@ -1864,7 +1864,7 @@ namespace AccessibleArena.Core.Services
                             {
                                 LogDebug($"[{NavigatorId}] Invoking NavBarController.HideInboxIfActive()");
                                 method.Invoke(mb, null);
-                                _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                                _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                                 TriggerRescan();
                                 return true;
                             }
@@ -1885,7 +1885,7 @@ namespace AccessibleArena.Core.Services
                 var closeButton = FindCloseButtonInPanel(mailboxPanel);
                 if (closeButton != null)
                 {
-                    _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                    _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(closeButton);
                     TriggerRescan();
                     return true;
@@ -1922,7 +1922,7 @@ namespace AccessibleArena.Core.Services
                                 _isInMailDetailView = false;
                                 _currentMailLetterId = Guid.Empty;
                                 ResetMailFieldNavigation();
-                                _announcer.AnnounceVerbose(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
+                                _announcer.Announce(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
                                 TriggerRescan();
                                 return true;
                             }
