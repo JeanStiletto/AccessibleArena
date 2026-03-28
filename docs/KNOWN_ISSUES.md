@@ -213,6 +213,20 @@ After completing all 5 NPE tutorial stages, the game shows a deck reward screen 
 - Does Backspace activate the Continue button (`NullClaimButton`)?
 - Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
 
+## Under Investigation
+
+### Mailbox Close Restores to Wrong Group
+
+After closing the mailbox with Backspace, the GroupedNavigator restores to "Decks" on the home screen instead of the group the user was in before opening the mailbox (e.g., "Social"). The user can then navigate with Up/Down to find their position.
+
+**Root cause:** When navigating inside the mailbox, the GroupedNavigator saves the current mail item position as `ElementGroup.Content`. On the home screen, the first `ElementGroup.Content`-typed group happens to be "Decks", so the restore succeeds but in the wrong place. The pre-mailbox position (Social, InsideGroup) is overwritten by the mailbox's internal navigation saves.
+
+**Fix needed:** Save the home screen GroupedNavigator state when the mailbox opens, then restore to it explicitly in `CloseMailbox()` rather than relying on the auto-restore mechanism.
+
+**Files:** `GeneralMenuNavigator.cs` (CloseMailbox, OverlayChanged handler)
+
+---
+
 ## Not Reproducible Yet
 
 ### Game Assets Loading Problem
