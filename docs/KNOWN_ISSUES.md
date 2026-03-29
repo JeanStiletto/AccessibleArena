@@ -166,6 +166,18 @@ Steam's default overlay hotkey (Shift+Tab) conflicts with the mod's backward nav
 
 ## Monitoring
 
+### Wrong Group Restore After Closing Mailbox
+
+After closing the mailbox, the navigator landed on "Decks" instead of the pre-mailbox group (e.g., "Social"), and no screen announcement fired so the user didn't know they had returned to the home screen.
+
+**Root cause:** The group restore logic saved `ElementGroup.Content` + a mailbox display name. After closing, it rescanned the home screen, found no Content group with that display name, then fell back to the first Content group by type — which was "Decks". Setting `PositionWasRestored = true` on that fallback match suppressed the home-screen announcement.
+
+**Fix applied:** Removed the type-only fallback. Restore now requires an exact type + display name match. If no match is found, `PositionWasRestored` stays false and the screen announcement fires normally.
+
+**Files:** `GroupedNavigator.cs` (OrganizeIntoGroups restore block)
+
+---
+
 ### NPE Tutorial Combat Cancel Lock
 
 During the first NPE tutorial fight (Game01, Turn 4), pressing Backspace to cancel attacks after the NPE prompted "attack with your creatures" caused a locked state. The NPE script doesn't handle attack cancellation at this stage — no highlights reappear, the primary button has empty text, and the game becomes unresponsive until a system message popup (timeout/disconnect) appears.
