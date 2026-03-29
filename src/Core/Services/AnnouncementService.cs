@@ -71,7 +71,12 @@ namespace AccessibleArena.Core.Services
         public void LogToHistory(string message)
         {
             if (!string.IsNullOrEmpty(message))
+            {
+                // Skip consecutive duplicates (e.g. two stack-decrease events for the same resolution)
+                if (_history.Count > 0 && _history[_history.Count - 1] == message)
+                    return;
                 _history.Add(message);
+            }
         }
 
         public void ClearHistory()

@@ -321,6 +321,8 @@ namespace AccessibleArena.Core.Models
         public static string Duel_CardToYourGraveyard => L.Get("Duel_CardToYourGraveyard");
         public static string Duel_CardToOpponentGraveyard => L.Get("Duel_CardToOpponentGraveyard");
         public static string Duel_SpellResolved => L.Get("Duel_SpellResolved");
+        public static string Duel_Resolved(string name) => L.Format("Duel_Resolved_Format", name);
+        public static string Duel_AbilityResolved(string name) => L.Format("Duel_AbilityResolved_Format", name);
 
         // Phase announcement strings
         public static string Duel_Phase_FirstMain => L.Get("Duel_Phase_FirstMain");
@@ -441,6 +443,10 @@ namespace AccessibleArena.Core.Models
         public static string Duel_ExiledFromHand(string owner, string name) => L.Format("Duel_ExiledFromHand_Format", owner, name);
         public static string Duel_ExiledFromLibrary(string owner, string name) => L.Format("Duel_ExiledFromLibrary_Format", owner, name);
         public static string Duel_CounteredAndExiled(string owner, string name) => L.Format("Duel_CounteredAndExiled_Format", owner, name);
+        public static string Duel_CounteredBy(string owner, string name, string source) => L.Format("Duel_CounteredBy_Format", owner, name, source);
+        public static string Duel_CounteredAndExiledBy(string owner, string name, string source) => L.Format("Duel_CounteredAndExiledBy_Format", owner, name, source);
+        public static string Duel_AbilityCountered(string owner, string name) => L.Format("Duel_AbilityCountered_Format", owner, name);
+        public static string Duel_AbilityCounteredBy(string owner, string name, string source) => L.Format("Duel_AbilityCounteredBy_Format", owner, name, source);
 
         // Zone transfers - hand (bounce)
         public static string Duel_ReturnedToHand(string owner, string name) => L.Format("Duel_ReturnedToHand_Format", owner, name);

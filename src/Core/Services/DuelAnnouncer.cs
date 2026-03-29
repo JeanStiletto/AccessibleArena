@@ -672,6 +672,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (diff > 0)
                     {
+                        SnapshotTopStackCard();
                         MelonCoroutines.Start(AnnounceStackCardDelayed());
                         return null;
                     }
@@ -689,6 +690,7 @@ namespace AccessibleArena.Core.Services
 
                 if (zoneName == "Stack" && cardCount > 0)
                 {
+                    SnapshotTopStackCard();
                     MelonCoroutines.Start(AnnounceStackCardDelayed());
                     return null;
                 }
@@ -1373,30 +1375,37 @@ namespace AccessibleArena.Core.Services
                 uint grpId = 0;
                 bool isOpponent = false;
 
-                if (newInstance != null)
+                // Use NewInstance first, fall back to OldInstance (e.g. countered abilities have no NewInstance)
+                var cardInstance = newInstance;
+                if (cardInstance == null)
+                {
+                    cardInstance = GetFieldValue<object>(transfer, "OldInstance");
+                }
+
+                if (cardInstance != null)
                 {
                     // Try to get GrpId from the card instance
-                    var printing = GetNestedPropertyValue<object>(newInstance, "Printing");
+                    var printing = GetNestedPropertyValue<object>(cardInstance, "Printing");
                     if (printing != null)
                     {
                         grpId = GetNestedPropertyValue<uint>(printing, "GrpId");
                     }
                     if (grpId == 0)
                     {
-                        grpId = GetNestedPropertyValue<uint>(newInstance, "GrpId");
+                        grpId = GetNestedPropertyValue<uint>(cardInstance, "GrpId");
                     }
 
                     // Check ownership via controller - try multiple property names
-                    uint controllerId = GetNestedPropertyValue<uint>(newInstance, "ControllerSeatId");
-                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "ControllerId");
-                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "OwnerSeatId");
-                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "OwnerNum");
-                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(newInstance, "ControllerNum");
+                    uint controllerId = GetNestedPropertyValue<uint>(cardInstance, "ControllerSeatId");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(cardInstance, "ControllerId");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(cardInstance, "OwnerSeatId");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(cardInstance, "OwnerNum");
+                    if (controllerId == 0) controllerId = GetNestedPropertyValue<uint>(cardInstance, "ControllerNum");
 
                     // Try Owner property which might be a player object
                     if (controllerId == 0)
                     {
-                        var owner = GetNestedPropertyValue<object>(newInstance, "Owner");
+                        var owner = GetNestedPropertyValue<object>(cardInstance, "Owner");
                         if (owner != null)
                         {
                             controllerId = GetNestedPropertyValue<uint>(owner, "SeatId");
@@ -1477,11 +1486,11 @@ namespace AccessibleArena.Core.Services
                         break;
 
                     case "Graveyard":
-                        announcement = ProcessGraveyardEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix);
+                        announcement = ProcessGraveyardEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix, transfer);
                         break;
 
                     case "Exile":
-                        announcement = ProcessExileEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix);
+                        announcement = ProcessExileEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix, transfer);
                         break;
 
                     case "Hand":
@@ -1642,7 +1651,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Process card entering graveyard - death, destruction, discard, mill, counter
         /// </summary>
-        private string ProcessGraveyardEntry(string fromZone, string reason, string cardName, string ownerPrefix)
+        private string ProcessGraveyardEntry(string fromZone, string reason, string cardName, string ownerPrefix, object transfer)
         {
             // Use reason for specific language if available
             switch (reason)
@@ -1654,7 +1663,8 @@ namespace AccessibleArena.Core.Services
                 case "Sacrificed":
                     return Strings.Duel_Sacrificed(ownerPrefix, cardName);
                 case "Countered":
-                    return Strings.Duel_Countered(ownerPrefix, cardName);
+                    _suppressNextSpellResolved = true;
+                    return BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: false);
                 case "Discarded":
                     return Strings.Duel_Discarded(ownerPrefix, cardName);
                 case "Milled":
@@ -1683,12 +1693,13 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Process card entering exile
         /// </summary>
-        private string ProcessExileEntry(string fromZone, string reason, string cardName, string ownerPrefix)
+        private string ProcessExileEntry(string fromZone, string reason, string cardName, string ownerPrefix, object transfer)
         {
             // Check for countered spells that exile (e.g., Dissipate, Syncopate)
             if (reason == "Countered")
             {
-                return Strings.Duel_CounteredAndExiled(ownerPrefix, cardName);
+                _suppressNextSpellResolved = true;
+                return BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: true);
             }
 
             if (fromZone == "Battlefield")
@@ -2188,6 +2199,8 @@ namespace AccessibleArena.Core.Services
         // Track the last resolving card for damage correlation
         private string _lastResolvingCardName = null;
         private uint _lastResolvingInstanceId = 0;
+        private bool _lastResolvingIsAbility = false;
+        private bool _suppressNextSpellResolved = false;
 
         private string HandleResolutionStarted(object uxEvent)
         {
@@ -2213,12 +2226,22 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
+                // Check if this is an ability (not a spell) resolving
+                bool isAbility = false;
+                if (instigator != null)
+                {
+                    var objectType = GetFieldValue<object>(instigator, "ObjectType");
+                    if (objectType != null && objectType.ToString() == "Ability")
+                        isAbility = true;
+                }
+
                 // Store for later correlation with life/damage events
                 if (!string.IsNullOrEmpty(cardName))
                 {
                     _lastResolvingCardName = cardName;
                     _lastResolvingInstanceId = instigatorInstanceId;
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Resolution started: {cardName} (InstanceId: {instigatorInstanceId})");
+                    _lastResolvingIsAbility = isAbility;
+                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Resolution started: {cardName} (InstanceId: {instigatorInstanceId}, isAbility: {isAbility})");
                 }
 
                 return null; // Don't announce resolution start, just track it
@@ -2801,7 +2824,121 @@ namespace AccessibleArena.Core.Services
             if ((DateTime.Now - _lastStackUndoTime).TotalMilliseconds < 500)
                 yield break;
 
-            AnnounceToLog(Strings.Duel_SpellResolved, AnnouncementPriority.Normal);
+            // If a counter announcement already handled this stack decrease, skip
+            if (_suppressNextSpellResolved)
+            {
+                _suppressNextSpellResolved = false;
+                yield break;
+            }
+
+            // Prefer ResolutionStarted tracking data, fall back to cast-time cache
+            string name = _lastResolvingCardName;
+            bool isAbility = _lastResolvingIsAbility;
+
+            if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(_lastStackedCardName))
+            {
+                name = _lastStackedCardName;
+                isAbility = _lastStackedIsAbility;
+            }
+
+            // Clear all tracking data after use to prevent stale announcements
+            _lastResolvingCardName = null;
+            _lastResolvingInstanceId = 0;
+            _lastResolvingIsAbility = false;
+            _lastStackedCardName = null;
+            _lastStackedIsAbility = false;
+
+            if (!string.IsNullOrEmpty(name))
+            {
+                string msg = isAbility ? Strings.Duel_AbilityResolved(name) : Strings.Duel_Resolved(name);
+                AnnounceToLog(msg, AnnouncementPriority.Normal);
+            }
+            else
+            {
+                AnnounceToLog(Strings.Duel_SpellResolved, AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Builds a counter announcement with optional source card name.
+        /// Checks the transfer's Instigator for the counterspell source and
+        /// whether the countered item is an ability.
+        /// </summary>
+        private string BuildCounteredAnnouncement(string ownerPrefix, string cardName, object transfer, bool exiled)
+        {
+            string sourceName = null;
+            bool isAbility = false;
+
+            try
+            {
+                if (transfer != null)
+                {
+                    // Check if this is an ability being countered
+                    var isAbilityField = GetFieldValue<object>(transfer, "IsAbilityBeingCountered");
+                    if (isAbilityField != null && isAbilityField is bool b)
+                        isAbility = b;
+
+                    // Try to get the Instigator (the counterspell source)
+                    var instigator = GetFieldValue<object>(transfer, "Instigator");
+                    if (instigator != null)
+                    {
+                        var gid = GetFieldValue<uint>(instigator, "GrpId");
+                        if (gid != 0)
+                        {
+                            sourceName = CardModelProvider.GetNameFromGrpId(gid);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Error extracting counter source: {ex.Message}");
+            }
+
+            if (isAbility)
+            {
+                // Ability countered (abilities go to graveyard, not exile)
+                if (!string.IsNullOrEmpty(sourceName))
+                    return Strings.Duel_AbilityCounteredBy(ownerPrefix, cardName, sourceName);
+                return Strings.Duel_AbilityCountered(ownerPrefix, cardName);
+            }
+
+            if (!string.IsNullOrEmpty(sourceName))
+            {
+                return exiled
+                    ? Strings.Duel_CounteredAndExiledBy(ownerPrefix, cardName, sourceName)
+                    : Strings.Duel_CounteredBy(ownerPrefix, cardName, sourceName);
+            }
+
+            // Fallback to existing no-source announcements
+            return exiled
+                ? Strings.Duel_CounteredAndExiled(ownerPrefix, cardName)
+                : Strings.Duel_Countered(ownerPrefix, cardName);
+        }
+
+        // Snapshot of the top stack card, captured immediately when stack count increases.
+        // Used as fallback in AnnounceSpellResolvedDelayed when ResolutionStarted doesn't fire.
+        private string _lastStackedCardName;
+        private bool _lastStackedIsAbility;
+
+        /// <summary>
+        /// Captures the top stack card's name and ability status immediately (before coroutine delay).
+        /// This ensures the data is available even if the ability auto-resolves before the cast coroutine runs.
+        /// </summary>
+        private void SnapshotTopStackCard()
+        {
+            try
+            {
+                GameObject topCard = GetTopStackCard();
+                if (topCard != null)
+                {
+                    var info = CardDetector.ExtractCardInfo(topCard);
+                    _lastStackedCardName = info.Name;
+                    var (isAb, _) = CardStateProvider.IsAbilityOnStack(topCard);
+                    _lastStackedIsAbility = isAb;
+                }
+            }
+            catch { /* Non-critical — resolution will fall back to generic */ }
         }
 
         private IEnumerator AnnounceStackCardDelayed()
