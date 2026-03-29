@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.9
 
+### Spell and Ability Resolution Announcements
+- Spells and abilities now announce their name when resolving (e.g., "Lightning Bolt resolved", "Ability Sheoldred resolved") instead of the generic "Spell resolved"
+- Counter announcements now name the source counterspell (e.g., "Creature X was countered by Counterspell") (reported by patricus3, #54)
+- Abilities being countered are distinguished from spells (e.g., "Ability X was countered by Y")
+- Auto-resolving triggered abilities (begin-of-combat, attack triggers) now announce correctly — previously missed or announced generically
+- Resolve detection is now driven by the game's ResolutionEventEndedUXEvent instead of stack timing heuristics, making it reliable for all resolution types
+
 ### Browser Card Selection
 - When selecting cards from your library, graveyard, or other zones, the card name is now read first for faster scanning. Only modal choices (Warp, Adventure, MDFC faces) read rules text first, since those are options on the same card where the ability text matters most.
 - Tab now jumps only to highlighted (valid target) cards when searching through a large number of cards, e.g. picking a card from your library. Arrow keys still navigate all cards, matching the rest of the duel navigation. This could be changed to fully skip non-highlighted cards based on user feedback.
