@@ -47,7 +47,6 @@ namespace AccessibleArena.Core.Services
         private ZoneNavigator _zoneNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
         private DateTime _lastSpellResolvedTime = DateTime.MinValue;
-        private DateTime _lastStackUndoTime = DateTime.MinValue;
 
         // Track user's turn count (game turn number counts each half-turn, we want full cycles)
         private int _userTurnCount = 0;
@@ -529,7 +528,7 @@ namespace AccessibleArena.Core.Services
                 case DuelEventType.ResolutionStarted:
                     return HandleResolutionStarted(uxEvent);
                 case DuelEventType.ResolutionEnded:
-                    return null; // Just tracking, no announcement
+                    return HandleResolutionEnded(uxEvent);
                 case DuelEventType.CardModelUpdate:
                     return HandleCardModelUpdate(uxEvent);
                 case DuelEventType.ZoneTransferGroup:
@@ -672,14 +671,14 @@ namespace AccessibleArena.Core.Services
                 {
                     if (diff > 0)
                     {
-                        SnapshotTopStackCard();
                         MelonCoroutines.Start(AnnounceStackCardDelayed());
                         return null;
                     }
                     else if (diff < 0)
                     {
                         _lastSpellResolvedTime = DateTime.Now;
-                        MelonCoroutines.Start(AnnounceSpellResolvedDelayed());
+                        // Resolve announcement is handled by ResolutionEventEndedUXEvent
+                        // which carries the actual card data from the game engine.
                         return null;
                     }
                 }
@@ -690,7 +689,6 @@ namespace AccessibleArena.Core.Services
 
                 if (zoneName == "Stack" && cardCount > 0)
                 {
-                    SnapshotTopStackCard();
                     MelonCoroutines.Start(AnnounceStackCardDelayed());
                     return null;
                 }
@@ -1663,7 +1661,6 @@ namespace AccessibleArena.Core.Services
                 case "Sacrificed":
                     return Strings.Duel_Sacrificed(ownerPrefix, cardName);
                 case "Countered":
-                    _suppressNextSpellResolved = true;
                     return BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: false);
                 case "Discarded":
                     return Strings.Duel_Discarded(ownerPrefix, cardName);
@@ -1698,7 +1695,6 @@ namespace AccessibleArena.Core.Services
             // Check for countered spells that exile (e.g., Dissipate, Syncopate)
             if (reason == "Countered")
             {
-                _suppressNextSpellResolved = true;
                 return BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: true);
             }
 
@@ -1762,7 +1758,6 @@ namespace AccessibleArena.Core.Services
             // From stack with Undo = spell cancelled (player took back)
             if (fromZone == "Stack" && reason == "Undo")
             {
-                _lastStackUndoTime = DateTime.Now;
                 return Strings.SpellCancelled;
             }
 
@@ -2200,7 +2195,6 @@ namespace AccessibleArena.Core.Services
         private string _lastResolvingCardName = null;
         private uint _lastResolvingInstanceId = 0;
         private bool _lastResolvingIsAbility = false;
-        private bool _suppressNextSpellResolved = false;
 
         private string HandleResolutionStarted(object uxEvent)
         {
@@ -2251,6 +2245,57 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Warning($"[DuelAnnouncer] Error handling resolution: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Handles ResolutionEventEndedUXEvent — fired by the game when a spell or ability
+        /// finishes resolving. Carries the Instigator (source card) directly from the game
+        /// engine, so this works reliably for all resolutions including auto-resolving
+        /// triggered abilities (begin-of-combat, attack triggers, etc.).
+        /// </summary>
+        private string HandleResolutionEnded(object uxEvent)
+        {
+            try
+            {
+                var instigator = GetFieldValue<object>(uxEvent, "Instigator");
+                if (instigator == null) return null;
+
+                var gid = GetFieldValue<uint>(instigator, "GrpId");
+                if (gid == 0) return null;
+
+                string cardName = CardModelProvider.GetNameFromGrpId(gid);
+                if (string.IsNullOrEmpty(cardName)) return null;
+
+                bool isAbility = false;
+                var objectType = GetFieldValue<object>(instigator, "ObjectType");
+                if (objectType != null && objectType.ToString() == "Ability")
+                    isAbility = true;
+
+                // Clear resolution tracking data now that the resolution is complete
+                _lastResolvingCardName = null;
+                _lastResolvingInstanceId = 0;
+                _lastResolvingIsAbility = false;
+
+                // Delay so the resolve announcement arrives after the cast/trigger
+                // announcement (which waits 3 frames for the stack holder to populate).
+                string msg = isAbility ? Strings.Duel_AbilityResolved(cardName) : Strings.Duel_Resolved(cardName);
+                MelonCoroutines.Start(AnnounceResolvedDelayed(msg));
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[DuelAnnouncer] Error handling resolution ended: {ex.Message}");
+                return null;
+            }
+        }
+
+        private IEnumerator AnnounceResolvedDelayed(string message)
+        {
+            yield return null;
+            yield return null;
+            yield return null;
+            yield return null;
+            AnnounceToLog(message, AnnouncementPriority.Normal);
         }
 
         // Track if we've logged mana pool event fields (once per event type for discovery)
@@ -2814,51 +2859,6 @@ namespace AccessibleArena.Core.Services
 
         #region Helper Methods
 
-        private IEnumerator AnnounceSpellResolvedDelayed()
-        {
-            yield return null;
-            yield return null;
-            yield return null;
-
-            // If an undo happened recently, the stack decrease was from cancellation, not resolution
-            if ((DateTime.Now - _lastStackUndoTime).TotalMilliseconds < 500)
-                yield break;
-
-            // If a counter announcement already handled this stack decrease, skip
-            if (_suppressNextSpellResolved)
-            {
-                _suppressNextSpellResolved = false;
-                yield break;
-            }
-
-            // Prefer ResolutionStarted tracking data, fall back to cast-time cache
-            string name = _lastResolvingCardName;
-            bool isAbility = _lastResolvingIsAbility;
-
-            if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(_lastStackedCardName))
-            {
-                name = _lastStackedCardName;
-                isAbility = _lastStackedIsAbility;
-            }
-
-            // Clear all tracking data after use to prevent stale announcements
-            _lastResolvingCardName = null;
-            _lastResolvingInstanceId = 0;
-            _lastResolvingIsAbility = false;
-            _lastStackedCardName = null;
-            _lastStackedIsAbility = false;
-
-            if (!string.IsNullOrEmpty(name))
-            {
-                string msg = isAbility ? Strings.Duel_AbilityResolved(name) : Strings.Duel_Resolved(name);
-                AnnounceToLog(msg, AnnouncementPriority.Normal);
-            }
-            else
-            {
-                AnnounceToLog(Strings.Duel_SpellResolved, AnnouncementPriority.Normal);
-            }
-        }
-
         /// <summary>
         /// Builds a counter announcement with optional source card name.
         /// Checks the transfer's Instigator for the counterspell source and
@@ -2914,31 +2914,6 @@ namespace AccessibleArena.Core.Services
             return exiled
                 ? Strings.Duel_CounteredAndExiled(ownerPrefix, cardName)
                 : Strings.Duel_Countered(ownerPrefix, cardName);
-        }
-
-        // Snapshot of the top stack card, captured immediately when stack count increases.
-        // Used as fallback in AnnounceSpellResolvedDelayed when ResolutionStarted doesn't fire.
-        private string _lastStackedCardName;
-        private bool _lastStackedIsAbility;
-
-        /// <summary>
-        /// Captures the top stack card's name and ability status immediately (before coroutine delay).
-        /// This ensures the data is available even if the ability auto-resolves before the cast coroutine runs.
-        /// </summary>
-        private void SnapshotTopStackCard()
-        {
-            try
-            {
-                GameObject topCard = GetTopStackCard();
-                if (topCard != null)
-                {
-                    var info = CardDetector.ExtractCardInfo(topCard);
-                    _lastStackedCardName = info.Name;
-                    var (isAb, _) = CardStateProvider.IsAbilityOnStack(topCard);
-                    _lastStackedIsAbility = isAb;
-                }
-            }
-            catch { /* Non-critical — resolution will fall back to generic */ }
         }
 
         private IEnumerator AnnounceStackCardDelayed()
