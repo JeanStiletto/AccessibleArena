@@ -317,6 +317,33 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // When a browser is active, combat participants may be reparented to browser holders.
+            // Include cards from browser holders whose game model ZoneType is still "Battlefield".
+            if (BrowserNavigator.IsActive)
+            {
+                var browserHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
+                if (browserHolder != null)
+                {
+                    foreach (Transform child in browserHolder.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (child == null || !child.gameObject.activeInHierarchy)
+                            continue;
+
+                        var go = child.gameObject;
+                        if (!CardDetector.IsCard(go)) continue;
+                        if (foundCardIds.Contains(go.GetInstanceID())) continue;
+
+                        // Only include cards whose model says they're on the battlefield
+                        string zone = CardStateProvider.GetCardZoneTypeName(go);
+                        if (zone == "Battlefield")
+                        {
+                            foundCardIds.Add(go.GetInstanceID());
+                            cards.Add(go);
+                        }
+                    }
+                }
+            }
+
             // Categorize each card into appropriate row
             foreach (var card in cards)
             {

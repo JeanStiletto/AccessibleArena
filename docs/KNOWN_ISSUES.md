@@ -24,6 +24,48 @@ Crashing Wave triggers a browser type that the mod does not currently support. E
 
 ---
 
+### Deck Builder Done Button Triggers "Deck Creation Failed" Popup
+
+Pressing Backspace or the Done button in the deck building screen triggers a "Deck creation failed" popup even though the deck was created successfully. Most likely a double-click caused by too many fallback activation attempts on the Done button. Similar double-activation issues have been solved in other screens before.
+
+---
+
+### Split Card Stack Selection Browser Crashes
+
+When the opponent plays a split card that requires the player to pick one of two stacks of cards, the browser crashes or behaves incorrectly. See `logs/selectsplitbug.log` for a user-reported example with error details.
+
+---
+
+### Adding Duplicate Cards in Deck Builder Causes Focus Glitch
+
+Adding more of the same card to a deck causes focus to jump to the wrong card, resulting in adding an incorrect card. Most likely the first add changes the card pool indices, and the mod's focused index now points to a different card.
+
+---
+
+### Crafting Popup Missing Home/End Navigation
+
+Home and End keys do not work in the crafting popup for jumping to first/last element.
+
+---
+
+### Index Announcements Inconsistent Across Menus
+
+Some menus announce position indices (e.g., "2 of 7") and some do not. Index announcements should be available everywhere, gated behind the tutorial completion or the verbose announcements setting.
+
+---
+
+### Objectives Show Meaningless Progress Text
+
+Objective progress text is read out but contains meaningless or placeholder content that provides no useful information to the player.
+
+---
+
+### Pack Opening Reads Flipped-Down Cards
+
+During pack opening, cards that are still flipped face-down can be read with Up/Down arrow keys, revealing their content before the player flips them.
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Resolution Dropdown Shows Native Display Resolution Until Changed
@@ -87,6 +129,18 @@ The "Invite Friend to Challenge" popup contains a `cTMP_Dropdown` (DropdownHitbo
 **Current behavior:** The mod correctly handles it as a single-item dropdown (arrow keys re-announce the one item, Enter selects it). The input field works for typing any friend's display name.
 
 **Files:** `DropdownEditHelper.cs`, `GeneralMenuNavigator.cs` (popup mode)
+
+---
+
+### Mailbox Close Restores to Wrong Group
+
+After closing the mailbox with Backspace, the GroupedNavigator restores to "Decks" on the home screen instead of the group the user was in before opening the mailbox (e.g., "Social"). The user can then navigate with Up/Down to find their position.
+
+**Root cause:** When navigating inside the mailbox, the GroupedNavigator saves the current mail item position as `ElementGroup.Content`. On the home screen, the first `ElementGroup.Content`-typed group happens to be "Decks", so the restore succeeds but in the wrong place. The pre-mailbox position (Social, InsideGroup) is overwritten by the mailbox's internal navigation saves.
+
+**Fix needed:** Save the home screen GroupedNavigator state when the mailbox opens, then restore to it explicitly in `CloseMailbox()` rather than relying on the auto-restore mechanism.
+
+**Files:** `GeneralMenuNavigator.cs` (CloseMailbox, OverlayChanged handler)
 
 ---
 
@@ -213,20 +267,6 @@ After completing all 5 NPE tutorial stages, the game shows a deck reward screen 
 - Does Backspace activate the Continue button (`NullClaimButton`)?
 - Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
 
-## Under Investigation
-
-### Mailbox Close Restores to Wrong Group
-
-After closing the mailbox with Backspace, the GroupedNavigator restores to "Decks" on the home screen instead of the group the user was in before opening the mailbox (e.g., "Social"). The user can then navigate with Up/Down to find their position.
-
-**Root cause:** When navigating inside the mailbox, the GroupedNavigator saves the current mail item position as `ElementGroup.Content`. On the home screen, the first `ElementGroup.Content`-typed group happens to be "Decks", so the restore succeeds but in the wrong place. The pre-mailbox position (Social, InsideGroup) is overwritten by the mailbox's internal navigation saves.
-
-**Fix needed:** Save the home screen GroupedNavigator state when the mailbox opens, then restore to it explicitly in `CloseMailbox()` rather than relying on the auto-restore mechanism.
-
-**Files:** `GeneralMenuNavigator.cs` (CloseMailbox, OverlayChanged handler)
-
----
-
 ## Not Reproducible Yet
 
 ### Game Assets Loading Problem
@@ -256,6 +296,12 @@ Adding cards to a deck reportedly moves the user out of the Collection group to 
 ### Challenge Friends Sometimes Not Working
 
 Challenging friends sometimes fails: deck selection not available and screen elements auto-change unexpectedly. Exact reproduction steps unknown.
+
+---
+
+### Targeting Planeswalker with Burn Spell May Not Work
+
+Targeting a planeswalker with a burn spell (direct damage) may not work correctly. Exact reproduction steps unknown.
 
 ---
 
@@ -333,7 +379,14 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 5. Improve mod settings - reorganize settings into useful categories with category splitting for better navigation
 ### Polish
 
-1. Add mana cost explanation to the tutorial (how mana payment works, color picker for any-color sources)
+1. Improve Challenge Friend screen workflow communication — currently unclear for blind users. Consider adding a dedicated Ready button, more contextual hints, or custom strings to guide through the challenge setup flow.
+
+#### Tutorial Improvements
+- Add mana cost explanation (how mana payment works, color picker for any-color sources)
+- Explain that creatures heal at the end of each turn — damage doesn't persist across turns, which is non-obvious for new players and important for combat decisions
+3. Multi-target attack announcements — when multiple attack targets exist (e.g. opponent has planeswalkers alongside their life total), the mod needs to announce available targets and which target each attacker is assigned to. Consider adding a safeguard to prevent accidentally sending all attackers to one target when the player intended to split them.
+4. Auto-advancing browsers can silently decline options — in browsers where selecting a card immediately advances (e.g. Rebound triggers), pressing Space without first selecting a card clicks the confirm/decline button, silently skipping the option. Needs either a safeguard (e.g. "no card selected, press Space again to decline" warning, similar to the phase skip confirmation) or a structural redesign so these browsers follow the standard Enter-to-select, Space-to-confirm pattern more safely.
+5. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
 
 ### Low Priority / v1.1
 
