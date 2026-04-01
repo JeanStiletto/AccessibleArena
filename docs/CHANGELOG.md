@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.9
 
+### Phase-Skip Guard Fix (Browser Space Lockup in 2nd+ Duels)
+- Fixed a bug where pressing Space inside a browser (scry, surveil, SelectCards, etc.) during main phase with untapped lands would trigger the phase-skip warning instead of confirming the browser selection — this affected all duels after the first, making friend matches appear completely broken
+- Root cause: `PhaseSkipGuard.Reset()` was clearing the modal-navigator callback that tells the guard to bypass browsers. That callback is wired once at startup and must persist across duel resets.
+
 ### SelectGroup Browser Fix (untested)
 - Fixed Fact or Fiction / Curator of Destinies pile selection browser: Enter and Space now correctly activate the focused pile button instead of clicking a random card or falling through to "Opponent's Turn"
 

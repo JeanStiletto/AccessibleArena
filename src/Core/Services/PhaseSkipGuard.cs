@@ -146,7 +146,9 @@ namespace AccessibleArena.Core.Services
             _confirmedPhase = null;
             _blockThisFrame = false;
             _lastDecisionFrame = -1;
-            _isModalNavigatorActive = null;
+            // Do not clear _isModalNavigatorActive — it is wired once from DuelNavigator's
+            // constructor and must survive duel-end resets. Clearing it caused browsers
+            // to lose their Space bypass in every duel after the first.
         }
 
         private static bool HasUntappedPlayerLands()
