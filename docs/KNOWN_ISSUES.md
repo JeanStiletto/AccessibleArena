@@ -250,6 +250,22 @@ The "Rate this match" survey popup (`GameEndSurveyPopup`) on the match end scree
 
 ---
 
+### Season Rewards Popup (Monthly Reset)
+
+Season end rewards popup now uses content-gated detection (NPE-style): the navigator stays inactive until actual content is loaded, and activates once with a clean announcement. Season rank display phases (old rank, new rank) extract title, subtitle, and per-format rank details from `SeasonEndRankDisplay` components. ForceRescan suppresses duplicate announcements by tracking element count. Monitor whether:
+- Old rank phase announces correctly (e.g., "Season Rankings. Final Results. Constructed: Gold Tier 2. Limited: Silver Tier 4")
+- Rewards phase activates only after reward prefabs appear (no repeated "Rewards." during loading)
+- New rank phase announces the new season name and placement ranks
+- Transitions between phases work smoothly (navigator deactivates during empty transitions, reactivates for next phase)
+- Enter/Backspace still advance through phases via the game's click blocker
+- Pack fallback label includes quantity (e.g., "Booster Pack x3") when set name data is unavailable
+
+**Testable:** May 2025 (next monthly season reset)
+
+**Files:** `RewardPopupNavigator.cs` (CheckRewardsPopupOpenInternal, GetSeasonEndState, HasActiveSeasonDisplay, ExtractSeasonRankText, DiscoverSeasonRankElements, ForceRescan override)
+
+---
+
 ### Summoning Sickness Announcement Verbosity
 
 Summoning sickness is now announced on all creatures and vehicles in every duel phase, based on the game model's `HasSummoningSickness` field. Monitor whether this creates too much noise during gameplay, especially:

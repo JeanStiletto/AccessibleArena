@@ -26,6 +26,10 @@ namespace AccessibleArena.Core.Services
 
         private GameObject _activePopup;
         private int _rewardCount;
+        private int _cardIndex;          // Card-only counter for numbering cards separately from other rewards
+        private int _seasonEndState;     // 0=None, 1=OldRank, 2=Rewards, 3=NewRank
+        private string _seasonDisplayText; // Extracted rank text for season end announcements
+        private int _lastRescanElementCount; // Suppress duplicate announcements in ForceRescan
 
         // Pre-extracted pack set names from ContentControllerRewards._packReward data
         // Uses List+index instead of Queue because rescans re-discover elements but
@@ -35,12 +39,6 @@ namespace AccessibleArena.Core.Services
 
         // Cache to avoid logging spam
         private bool _lastRewardsPopupState = false;
-
-        // Rescan mechanism for timing issues - rewards may not be loaded immediately
-        private int _rescanFrameCounter;
-        private const int RescanDelayFrames = 30; // ~0.5 seconds at 60fps
-        private const int MaxRescanAttempts = 10;
-        private int _rescanAttempts;
 
         public RewardPopupNavigator(IAnnouncementService announcer) : base(announcer) { }
 
@@ -61,70 +59,176 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Check if the rewards popup is currently open.
-        /// Copied exactly from OverlayDetector.CheckRewardsPopupOpenInternal().
+        /// Check if the rewards popup is currently open AND has displayable content.
+        /// Returns false during loading/transition phases so the navigator stays inactive
+        /// until content is ready (NPE-style gating).
         /// </summary>
         private bool CheckRewardsPopupOpenInternal()
         {
             // Look for the rewards controller in Screenspace Popups canvas
             var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
             if (screenspacePopups == null)
+            {
+                _activePopup = null;
+                _seasonEndState = 0;
                 return false;
+            }
 
             // Find the rewards controller - it should have ContentController and Rewards in its name
             foreach (Transform child in screenspacePopups.transform)
             {
-                if (child.name.Contains("ContentController") && child.name.Contains("Rewards") &&
-                    child.gameObject.activeInHierarchy)
+                if (!child.name.Contains("ContentController") || !child.name.Contains("Rewards") ||
+                    !child.gameObject.activeInHierarchy)
+                    continue;
+
+                _activePopup = child.gameObject;
+
+                // Read season end state from controller
+                _seasonEndState = GetSeasonEndState();
+
+                // Phase-specific content gating
+                if (_seasonEndState == 1 || _seasonEndState == 3) // OldRank or NewRank
                 {
-                    _activePopup = child.gameObject;
+                    // Rank display phases: content is available immediately (SetRank populates TMP_Text before visible)
+                    // Check that the end-of-season GameObject is active
+                    return HasActiveSeasonDisplay();
+                }
 
-                    // Check for Container child
-                    var container = child.Find("Container");
-                    if (container == null)
+                // State 2 (Rewards) or 0 (None): only return true when actual reward content exists
+                // This gates the navigator during the loading delay
+                bool hasRewardPrefabs = false;
+                bool hasRewardsContainer = false;
+                bool hasButtons = false;
+
+                foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t == null || !t.gameObject.activeInHierarchy) continue;
+
+                    if (t.name.StartsWith("RewardPrefab_"))
+                        hasRewardPrefabs = true;
+                    else if (t.name == "RewardsCONTAINER")
+                        hasRewardsContainer = true;
+                }
+
+                if (hasRewardPrefabs || hasRewardsContainer)
+                    return true;
+
+                // Check for buttons (claim button may appear before rewards in some flows)
+                foreach (var mb in child.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.gameObject.activeInHierarchy)
                     {
-                        // Try searching deeper in case Container is nested
-                        foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                        string typeName = mb.GetType().Name;
+                        if (typeName == T.CustomButton || typeName == T.CustomButtonWithTooltip)
                         {
-                            if (t.name == "Container")
-                            {
-                                container = t;
-                                break;
-                            }
+                            hasButtons = true;
+                            break;
                         }
-                    }
-
-                    if (container == null)
-                    {
-                        // Fallback: if controller is active and has any active children with reward prefabs, consider it open
-                        foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
-                        {
-                            if (t.gameObject.activeInHierarchy && t.name.Contains("RewardPrefab"))
-                                return true;
-                        }
-                        continue;
-                    }
-
-                    // Check for RewardsCONTAINER or Buttons
-                    var rewardsContainer = container.Find("RewardsCONTAINER");
-                    var buttons = container.Find("Buttons");
-
-                    bool rewardsActive = rewardsContainer != null && rewardsContainer.gameObject.activeInHierarchy;
-                    bool buttonsActive = buttons != null && buttons.gameObject.activeInHierarchy;
-
-                    if (rewardsActive || buttonsActive)
-                        return true;
-
-                    // Additional fallback: check for any RewardPrefab children directly
-                    foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
-                    {
-                        if (t.gameObject.activeInHierarchy && t.name.Contains("RewardPrefab"))
-                            return true;
                     }
                 }
+
+                if (hasButtons)
+                    return true;
+
+                // Fallback: check Visible property on controller
+                try
+                {
+                    foreach (var mb in child.GetComponentsInChildren<MonoBehaviour>(true))
+                    {
+                        if (mb != null && mb.GetType().Name == "ContentControllerRewards")
+                        {
+                            var visibleProp = mb.GetType().GetProperty("Visible", PublicInstance);
+                            if (visibleProp != null && (bool)visibleProp.GetValue(mb))
+                            {
+                                // Controller is visible but no content yet — still loading
+                                // Don't activate yet
+                            }
+                            break;
+                        }
+                    }
+                }
+                catch { }
+
+                // No content ready yet — return false to keep navigator inactive
+                continue;
             }
 
             _activePopup = null;
+            _seasonEndState = 0;
+            return false;
+        }
+
+        /// <summary>
+        /// Read _endOfSeasonDisplayState from ContentControllerRewards via reflection.
+        /// Returns integer cast: 0=None, 1=OldRankDisplay, 2=RewardsDisplay, 3=NewRankDisplay.
+        /// </summary>
+        private int GetSeasonEndState()
+        {
+            if (_activePopup == null) return 0;
+
+            try
+            {
+                foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "ContentControllerRewards")
+                    {
+                        var field = mb.GetType().GetField("_endOfSeasonDisplayState", PrivateInstance);
+                        if (field != null)
+                        {
+                            object val = field.GetValue(mb);
+                            return (int)val;
+                        }
+                        break;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] GetSeasonEndState failed: {ex.Message}");
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Check if the end-of-season display GameObjects are active (rank display visible).
+        /// </summary>
+        private bool HasActiveSeasonDisplay()
+        {
+            if (_activePopup == null) return false;
+
+            try
+            {
+                foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "ContentControllerRewards")
+                    {
+                        // Check _endOfSeasonGameObject active
+                        var goField = mb.GetType().GetField("_endOfSeasonGameObject", PrivateInstance);
+                        if (goField != null)
+                        {
+                            var go = goField.GetValue(mb) as GameObject;
+                            if (go != null && go.activeInHierarchy)
+                                return true;
+                        }
+
+                        // Check SeasonEndRankDisplay components active
+                        var constructedField = mb.GetType().GetField("_endSeasonRankDisplayConstructed", PrivateInstance);
+                        if (constructedField != null)
+                        {
+                            var display = constructedField.GetValue(mb) as MonoBehaviour;
+                            if (display != null && display.gameObject.activeInHierarchy)
+                                return true;
+                        }
+                        break;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] HasActiveSeasonDisplay failed: {ex.Message}");
+            }
+
             return false;
         }
 
@@ -163,18 +267,146 @@ namespace AccessibleArena.Core.Services
         protected override void DiscoverElements()
         {
             _rewardCount = 0;
+            _cardIndex = 0;
             var addedObjects = new HashSet<GameObject>();
 
-            // Pre-extract pack set names from controller data before discovering UI elements
-            ExtractPackSetNames();
+            // _seasonEndState already set by DetectScreen
+            _seasonDisplayText = null;
 
-            // Discover reward elements
-            DiscoverRewardElements(addedObjects);
+            if (_seasonEndState == 1 || _seasonEndState == 3)  // OldRank or NewRank
+            {
+                DiscoverSeasonRankElements(addedObjects);
+            }
+            else
+            {
+                // Pre-extract pack set names from controller data before discovering UI elements
+                ExtractPackSetNames();
+
+                // Discover reward elements
+                DiscoverRewardElements(addedObjects);
+            }
 
             // Also discover buttons (ClaimButton, etc.)
             DiscoverButtons(addedObjects);
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} elements ({_rewardCount} rewards)");
+            MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} elements ({_rewardCount} rewards, seasonState={_seasonEndState})");
+        }
+
+        /// <summary>
+        /// Discover elements for season end rank display phases (OldRank/NewRank).
+        /// Extracts rank text and adds a single read-only element.
+        /// </summary>
+        private void DiscoverSeasonRankElements(HashSet<GameObject> addedObjects)
+        {
+            if (_activePopup == null) return;
+
+            _seasonDisplayText = ExtractSeasonRankText();
+
+            if (!string.IsNullOrEmpty(_seasonDisplayText))
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Season rank text: {_seasonDisplayText}");
+                AddElement(_activePopup, _seasonDisplayText);
+                addedObjects.Add(_activePopup);
+            }
+        }
+
+        /// <summary>
+        /// Extract readable text from season end rank display.
+        /// Reads title, subtitle from ContentControllerRewards, and rank details from SeasonEndRankDisplay components.
+        /// </summary>
+        private string ExtractSeasonRankText()
+        {
+            if (_activePopup == null) return null;
+
+            var parts = new List<string>();
+
+            try
+            {
+                MonoBehaviour rewardsController = null;
+                foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (mb != null && mb.GetType().Name == "ContentControllerRewards")
+                    {
+                        rewardsController = mb;
+                        break;
+                    }
+                }
+                if (rewardsController == null) return null;
+
+                // Read title text (protected field on ContentControllerRewards)
+                var titleField = rewardsController.GetType().GetField("_rewardsTitleText", PrivateInstance);
+                if (titleField != null)
+                {
+                    var titleTmp = titleField.GetValue(rewardsController) as TMPro.TMP_Text;
+                    if (titleTmp != null)
+                    {
+                        string title = UITextExtractor.StripRichText(titleTmp.text)?.Trim();
+                        if (!string.IsNullOrEmpty(title))
+                            parts.Add(title);
+                    }
+                }
+
+                // Read subtitle text
+                var subtitleField = rewardsController.GetType().GetField("_rewardsSubtitleText", PrivateInstance);
+                if (subtitleField != null)
+                {
+                    var subtitleTmp = subtitleField.GetValue(rewardsController) as TMPro.TMP_Text;
+                    if (subtitleTmp != null)
+                    {
+                        string subtitle = UITextExtractor.StripRichText(subtitleTmp.text)?.Trim();
+                        if (!string.IsNullOrEmpty(subtitle))
+                            parts.Add(subtitle);
+                    }
+                }
+
+                // Read rank details from SeasonEndRankDisplay components
+                string[] rankFieldNames = { "_endSeasonRankDisplayConstructed", "_endSeasonRankDisplayLimited" };
+                foreach (string fieldName in rankFieldNames)
+                {
+                    var displayField = rewardsController.GetType().GetField(fieldName, PrivateInstance);
+                    if (displayField == null) continue;
+
+                    var display = displayField.GetValue(rewardsController) as MonoBehaviour;
+                    if (display == null || !display.gameObject.activeInHierarchy) continue;
+
+                    // SeasonEndRankDisplay fields: RankDisplayPreface (private TMP_Text), Details (private TMP_Text)
+                    var prefaceField = display.GetType().GetField("RankDisplayPreface", PrivateInstance);
+                    var detailsField = display.GetType().GetField("Details", PrivateInstance);
+
+                    string preface = null;
+                    string details = null;
+
+                    if (prefaceField != null)
+                    {
+                        var prefaceTmp = prefaceField.GetValue(display) as TMPro.TMP_Text;
+                        if (prefaceTmp != null)
+                            preface = UITextExtractor.StripRichText(prefaceTmp.text)?.Trim();
+                    }
+
+                    if (detailsField != null)
+                    {
+                        var detailsTmp = detailsField.GetValue(display) as TMPro.TMP_Text;
+                        if (detailsTmp != null)
+                            details = UITextExtractor.StripRichText(detailsTmp.text)?.Trim();
+                    }
+
+                    if (!string.IsNullOrEmpty(preface) || !string.IsNullOrEmpty(details))
+                    {
+                        string rankInfo = "";
+                        if (!string.IsNullOrEmpty(preface))
+                            rankInfo = preface;
+                        if (!string.IsNullOrEmpty(details))
+                            rankInfo = string.IsNullOrEmpty(rankInfo) ? details : $"{rankInfo}: {details}";
+                        parts.Add(rankInfo);
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] ExtractSeasonRankText failed: {ex.Message}");
+            }
+
+            return parts.Count > 0 ? string.Join(". ", parts) : null;
         }
 
         /// <summary>
@@ -459,13 +691,14 @@ namespace AccessibleArena.Core.Services
             switch (rewardType)
             {
                 case "Card":
+                    _cardIndex++;
                     var cardObj = FindCardObjectInReward(rewardPrefab);
                     if (cardObj != null)
                     {
                         var cardInfo = CardDetector.ExtractCardInfo(cardObj);
                         if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
                         {
-                            string cardLabel = $"Card {index}: {cardInfo.Name}";
+                            string cardLabel = $"Card {_cardIndex}: {cardInfo.Name}";
                             if (!string.IsNullOrEmpty(cardInfo.TypeLine))
                                 cardLabel += $", {cardInfo.TypeLine}";
                             return cardLabel;
@@ -478,10 +711,10 @@ namespace AccessibleArena.Core.Services
                         {
                             string content = text.text?.Trim();
                             if (!string.IsNullOrEmpty(content) && content != "+99" && !content.StartsWith("+"))
-                                return $"Card {index}: {content}";
+                                return $"Card {_cardIndex}: {content}";
                         }
                     }
-                    return $"Card {index}";
+                    return $"Card {_cardIndex}";
 
                 case "Pack":
                     // Use pre-extracted set name from controller data
@@ -504,6 +737,17 @@ namespace AccessibleArena.Core.Services
                             }
                         }
                         return countText != null ? $"{setName} Pack {countText}" : $"{setName} Pack";
+                    }
+                    // Fallback: no pre-extracted set name, check for count text
+                    var fallbackTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in fallbackTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy)
+                        {
+                            string content = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(content) && content.StartsWith("x"))
+                                return $"Booster Pack {content}";
+                        }
                     }
                     return "Booster Pack";
 
@@ -742,6 +986,14 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
+            // Season rank display phases: announce the extracted rank text
+            if (_seasonEndState == 1 || _seasonEndState == 3)
+            {
+                string rankText = _seasonDisplayText ?? Strings.ScreenRewards;
+                return Strings.WithHint(rankText, "RewardPopupHint");
+            }
+
+            // Standard rewards
             string rewardInfo = _rewardCount > 0 ? $" {_rewardCount} rewards." : "";
             string core = $"Rewards.{rewardInfo}".TrimEnd();
             return Strings.WithHint(core, "RewardPopupHint");
@@ -868,38 +1120,45 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
-        #region Update with rescan support
+        #region ForceRescan override
 
-        public override void Update()
+        /// <summary>
+        /// Override ForceRescan to suppress duplicate announcements.
+        /// Only announces if the element count changed since last rescan.
+        /// </summary>
+        public override void ForceRescan()
         {
-            // Check if we need to rescan for rewards (timing issue - rewards may load after popup appears)
-            if (_isActive && _rewardCount == 0 && _rescanAttempts < MaxRescanAttempts)
-            {
-                _rescanFrameCounter++;
-                if (_rescanFrameCounter >= RescanDelayFrames)
-                {
-                    _rescanFrameCounter = 0;
-                    _rescanAttempts++;
-                    MelonLogger.Msg($"[{NavigatorId}] Rescanning for rewards (attempt {_rescanAttempts}/{MaxRescanAttempts})");
-                    ForceRescan();
+            if (!_isActive) return;
 
-                    // If we found rewards this time, announce them
-                    if (_rewardCount > 0)
-                    {
-                        _announcer.AnnounceInterrupt(Strings.FoundRewards(_rewardCount));
-                    }
+            MelonLogger.Msg($"[{NavigatorId}] ForceRescan triggered");
+
+            _elements.Clear();
+            _currentIndex = -1;
+
+            DiscoverElements();
+
+            if (_elements.Count > 0)
+            {
+                _currentIndex = 0;
+                MelonLogger.Msg($"[{NavigatorId}] Rescan found {_elements.Count} elements");
+                UpdateEventSystemSelection();
+
+                if (_elements.Count != _lastRescanElementCount)
+                {
+                    _lastRescanElementCount = _elements.Count;
+                    _announcer.AnnounceInterrupt(GetActivationAnnouncement());
                 }
             }
-
-            base.Update();
+            else
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Rescan found no elements");
+            }
         }
 
         protected override void OnActivated()
         {
             base.OnActivated();
-            // Reset rescan counters on activation
-            _rescanFrameCounter = 0;
-            _rescanAttempts = 0;
+            _lastRescanElementCount = 0;
         }
 
         #endregion
@@ -926,6 +1185,9 @@ namespace AccessibleArena.Core.Services
             _activePopup = null;
             _packSetNames.Clear();
             _packSetNameIndex = 0;
+            _seasonEndState = 0;
+            _seasonDisplayText = null;
+            _lastRescanElementCount = 0;
         }
 
         #endregion

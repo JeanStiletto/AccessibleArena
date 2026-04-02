@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v0.9
 
+### Monthly Season Rewards Popup (untested — testable in May)
+- Season end rank displays (old rank, new rank) now announce title, subtitle, and per-format rank details (Constructed/Limited tier) instead of a generic "Rewards" announcement
+- Navigator no longer activates until actual content is loaded, eliminating repeated "Rewards." announcements during loading delays
+- Pack quantity is now included in the fallback label when set name data is unavailable (e.g., "Booster Pack x3")
+- Card rewards are numbered independently (Card 1, Card 2, ...) instead of using the global reward index
+
 ### Phase-Skip Guard Fix (Browser Space Lockup in 2nd+ Duels)
 - Fixed a bug where pressing Space inside a browser (scry, surveil, SelectCards, etc.) during main phase with untapped lands would trigger the phase-skip warning instead of confirming the browser selection — this affected all duels after the first, making friend matches appear completely broken
 - Root cause: `PhaseSkipGuard.Reset()` was clearing the modal-navigator callback that tells the guard to bypass browsers. That callback is wired once at startup and must persist across duel resets.
