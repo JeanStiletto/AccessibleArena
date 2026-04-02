@@ -14,6 +14,8 @@ namespace AccessibleArena.Core.Services
     /// casting X-cost spells, choosing any amount, or choosing a die roll.
     /// Polled from DuelNavigator at high priority (between mana picker and browser).
     /// Up/Down adjust by 1, PageUp/PageDown adjust by 5, Enter submits, Backspace cancels.
+    /// Zone shortcuts (B, A, C, G, etc.) release focus so the user can browse zones;
+    /// Tab reclaims ChooseX focus.
     /// </summary>
     public class ChooseXNavigator
     {
@@ -34,6 +36,7 @@ namespace AccessibleArena.Core.Services
         // State
         private bool _isActive;
         private bool _hasAnnounced;
+        private bool _hasFocus; // Whether ChooseX has input focus (vs zone navigation)
         private MonoBehaviour _viewInstance;
         private string _lastAnnouncedValue;
         private uint? _maxValue;
@@ -83,8 +86,9 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handles keyboard input when active. Returns true if key was consumed.
-        /// Up/Down = +1/-1, PageUp/PageDown = +5/-5,
-        /// Enter = submit, Backspace = cancel.
+        /// When ChooseX has focus: Up/Down = +1/-1, PageUp/PageDown = +5/-5.
+        /// Tab always reclaims focus. Zone shortcuts release focus and pass through.
+        /// Enter/Space = submit, Backspace = cancel (always consumed).
         /// </summary>
         public bool HandleInput()
         {
@@ -97,6 +101,40 @@ namespace AccessibleArena.Core.Services
                 AnnounceEntry();
                 _hasAnnounced = true;
             }
+
+            // Tab always reclaims ChooseX focus
+            if (Input.GetKeyDown(KeyCode.Tab))
+            {
+                _hasFocus = true;
+                AnnounceCurrentValue();
+                AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
+                return true;
+            }
+
+            // Enter/Space = submit (always consumed when active)
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
+            {
+                Submit();
+                return true;
+            }
+
+            // Backspace = cancel (always consumed, but let Shift/Ctrl modifiers pass through)
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                if (!shift && !ctrl)
+                {
+                    Cancel();
+                    return true;
+                }
+                return false;
+            }
+
+            // If ChooseX doesn't have focus (user navigated to a zone), only consume the above.
+            // Let zone navigation keys pass through.
+            if (!_hasFocus)
+                return false;
 
             // Up arrow = increment by 1
             if (Input.GetKeyDown(KeyCode.UpArrow))
@@ -126,35 +164,27 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Enter = submit
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            // Zone shortcuts release focus and pass through
+            if (IsZoneShortcut())
             {
-                Submit();
-                return true;
-            }
-
-            // Backspace = cancel
-            if (Input.GetKeyDown(KeyCode.Backspace))
-            {
-                Cancel();
-                return true;
-            }
-
-            // Consume Tab so HotHighlightNavigator doesn't steal focus
-            if (Input.GetKeyDown(KeyCode.Tab))
-            {
-                AnnounceCurrentValue();
-                return true;
-            }
-
-            // Consume Space to prevent game from processing it
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                Submit();
-                return true;
+                _hasFocus = false;
+                return false;
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns true if a zone navigation shortcut key is being pressed.
+        /// </summary>
+        private bool IsZoneShortcut()
+        {
+            return Input.GetKeyDown(KeyCode.B) || Input.GetKeyDown(KeyCode.A) ||
+                   Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.C) ||
+                   Input.GetKeyDown(KeyCode.G) || Input.GetKeyDown(KeyCode.X) ||
+                   Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.W) ||
+                   Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.L) ||
+                   Input.GetKeyDown(KeyCode.V);
         }
 
         private MonoBehaviour FindActiveView()
@@ -183,6 +213,7 @@ namespace AccessibleArena.Core.Services
         {
             _viewInstance = view;
             _isActive = true;
+            _hasFocus = true;
             _hasAnnounced = false;
             _lastAnnouncedValue = null;
             _maxValue = FindMaxValue();
@@ -196,6 +227,7 @@ namespace AccessibleArena.Core.Services
         private void Exit()
         {
             _isActive = false;
+            _hasFocus = false;
             _hasAnnounced = false;
             _viewInstance = null;
             _lastAnnouncedValue = null;

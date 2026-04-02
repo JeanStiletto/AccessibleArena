@@ -46,6 +46,13 @@ All notable changes to Accessible Arena.
 - Battlefield shortcuts (B, Shift+B, A, R, etc.) now correctly show combat participants during AssignDamage and other browsers — creatures temporarily reparented to browser holders are included if their game model zone is still "Battlefield"
 - Previously, combat creatures appeared missing ("empty") because they were moved out of the battlefield holder into the browser holder
 
+### Spinner Navigator (Counter Distribution)
+- Added SpinnerNavigator for spells that distribute counters across multiple creatures (e.g. Crashing Wave distributing stun counters)
+- Left/Right navigates between target creatures, Up/Down adjusts counter values, Enter submits, Backspace cancels
+- Zone shortcuts (B, A, C, G, etc.) release spinner focus for battlefield browsing; Tab reclaims spinner focus
+- Announces card name, current value, remaining counters, and position
+- ChooseXNavigator also updated with the same zone-navigation focus pattern
+
 ### Profile Screen
 - Full keyboard navigation of the Profile screen: player name, avatar with biography, season, constructed/limited rank, mastery progress, set collection, and cosmetic category buttons
 - Mastery block shows level, XP progress (e.g., "200/1000 XP"), and next reward description

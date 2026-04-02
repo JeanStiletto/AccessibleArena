@@ -18,12 +18,6 @@ After successfully sending the account confirmation email during registration, t
 
 ---
 
-### Crashing Wave Has Unsupported Browser
-
-Crashing Wave triggers a browser type that the mod does not currently support. Exact browser type and symptoms unknown.
-
----
-
 ### Deck Builder Done Button Triggers "Deck Creation Failed" Popup
 
 Pressing Backspace or the Done button in the deck building screen triggers a "Deck creation failed" popup even though the deck was created successfully. Most likely a double-click caused by too many fallback activation attempts on the Done button. Similar double-activation issues have been solved in other screens before.
