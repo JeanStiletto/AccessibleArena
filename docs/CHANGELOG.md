@@ -4,6 +4,14 @@ All notable changes to Accessible Arena.
 
 ## v0.9
 
+### Reward Popups
+- Fixed reward popup activating too early (showing only buttons with no reward info) by gating on the controller's internal reveal state instead of checking for buttons
+- Pack rewards now correctly show the set name (e.g., "Lorwyns Finsternis Pack") — previously the name was lost due to the game's ToAdd queue being consumed before discovery
+- Gold and Gem rewards now show the amount (e.g., "500 Gold") — previously the quantity text was skipped because the game sets it on an inactive GameObject
+- Removed stale "Continue" button from navigable elements (invisible click-blocker overlay — Backspace dismisses instead)
+- Fixed navigator getting stuck on a phantom reward entry after claiming, requiring Escape to exit
+- Pack set names now survive scene changes that occur while the popup is still visible
+
 ### Monthly Season Rewards Popup (untested — testable in May)
 - Season end rank displays (old rank, new rank) now announce title, subtitle, and per-format rank details (Constructed/Limited tier) instead of a generic "Rewards" announcement
 - Navigator no longer activates until actual content is loaded, eliminating repeated "Rewards." announcements during loading delays

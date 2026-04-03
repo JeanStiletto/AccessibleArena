@@ -73,9 +73,7 @@ namespace AccessibleArena.Core.Services
             var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
             if (screenspacePopups == null)
             {
-                _activePopup = null;
-                _seasonEndState = 0;
-                _popupDetectedTime = -1f;
+                ClearPopupState();
                 return false;
             }
 
@@ -145,10 +143,29 @@ namespace AccessibleArena.Core.Services
                 continue;
             }
 
+            // End of foreach — no matching child returned true.
+            // Do NOT call ClearPopupState here: we may have found a popup but are still
+            // waiting (stillRevealing or timeout). Pack names must survive across frames.
             _activePopup = null;
             _seasonEndState = 0;
             _popupDetectedTime = -1f;
             return false;
+        }
+
+        /// <summary>
+        /// Reset all popup-specific state when the popup disappears.
+        /// Called from detection when no popup is found — NOT from OnSceneChanged,
+        /// because the popup (in Screenspace Popups canvas) survives scene changes.
+        /// </summary>
+        private void ClearPopupState()
+        {
+            _activePopup = null;
+            _seasonEndState = 0;
+            _popupDetectedTime = -1f;
+            _packSetNames.Clear();
+            _packSetNameIndex = 0;
+            _seasonDisplayText = null;
+            _lastRescanElementCount = 0;
         }
 
         /// <summary>
@@ -551,13 +568,6 @@ namespace AccessibleArena.Core.Services
 
                 var rewardParts = new List<string>();
 
-                // Use pre-extracted pack set names
-                if (_packSetNames.Count > 0)
-                {
-                    foreach (string setName in _packSetNames)
-                        rewardParts.Add($"{setName} Pack");
-                }
-
                 foreach (var reward in allRewards)
                 {
                     if (reward == null) continue;
@@ -569,11 +579,16 @@ namespace AccessibleArena.Core.Services
                     if (count <= 0) continue;
 
                     string typeName = reward.GetType().Name;
+
+                    // Use pre-extracted set names for packs
+                    if (typeName == "PackReward" && _packSetNames.Count > 0)
+                    {
+                        foreach (string setName in _packSetNames)
+                            rewardParts.Add($"{setName} Pack");
+                        continue;
+                    }
+
                     string label = MapRewardTypeToLabel(typeName);
-
-                    // Skip packs if we already have names from ExtractPackSetNames
-                    if (typeName == "PackReward" && _packSetNames.Count > 0) continue;
-
                     if (count > 1)
                         rewardParts.Add($"{count} {label}");
                     else
@@ -894,49 +909,29 @@ namespace AccessibleArena.Core.Services
                     else if (rewardPrefab.name.Contains("Coins") || rewardPrefab.name.Contains("Gold"))
                         currencyType = "Gold";
 
-                    // Find quantity in Text_Quantity
+                    // Find quantity in Text_Quantity (may be inactive — text is set before GO activates)
                     var currencyTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
                     foreach (var text in currencyTexts)
                     {
-                        if (text != null && text.gameObject.activeInHierarchy && text.gameObject.name == "Text_Quantity")
+                        if (text != null && text.gameObject.name == "Text_Quantity")
                         {
                             string quantity = text.text?.Trim();
-                            if (!string.IsNullOrEmpty(quantity))
+                            if (!string.IsNullOrEmpty(quantity) && quantity != "x0")
                                 return $"{quantity} {currencyType}";
-                        }
-                    }
-                    // Fallback: find any active text
-                    foreach (var text in currencyTexts)
-                    {
-                        if (text != null && text.gameObject.activeInHierarchy)
-                        {
-                            string content = text.text?.Trim();
-                            if (!string.IsNullOrEmpty(content) && char.IsDigit(content[0]))
-                                return $"{content} {currencyType}";
                         }
                     }
                     return currencyType;
 
                 case "XP":
-                    // Find quantity in Text_Quantity
+                    // Find quantity in Text_Quantity (may be inactive — text is set before GO activates)
                     var xpTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
                     foreach (var text in xpTexts)
                     {
-                        if (text != null && text.gameObject.activeInHierarchy && text.gameObject.name == "Text_Quantity")
+                        if (text != null && text.gameObject.name == "Text_Quantity")
                         {
                             string quantity = text.text?.Trim();
-                            if (!string.IsNullOrEmpty(quantity))
+                            if (!string.IsNullOrEmpty(quantity) && quantity != "x0")
                                 return $"{quantity} XP";
-                        }
-                    }
-                    // Fallback: find any active numeric text
-                    foreach (var text in xpTexts)
-                    {
-                        if (text != null && text.gameObject.activeInHierarchy)
-                        {
-                            string content = text.text?.Trim();
-                            if (!string.IsNullOrEmpty(content) && char.IsDigit(content[0]))
-                                return $"{content} XP";
                         }
                     }
                     return "XP";
@@ -1304,12 +1299,12 @@ namespace AccessibleArena.Core.Services
             {
                 Deactivate();
             }
+            // Only reset _activePopup — forces re-detection of the popup.
+            // Do NOT clear _packSetNames here: the reward popup (Screenspace Popups canvas)
+            // survives scene changes, and the ToAdd queue is already consumed by then.
+            // Pack names are cleared by ClearPopupState() when the popup actually disappears.
             _activePopup = null;
-            _packSetNames.Clear();
-            _packSetNameIndex = 0;
             _seasonEndState = 0;
-            _seasonDisplayText = null;
-            _lastRescanElementCount = 0;
             _popupDetectedTime = -1f;
         }
 
