@@ -55,6 +55,7 @@ namespace AccessibleArena.Core.Services
         // SocialUI
         private PropertyInfo _chatVisibleProp;
         private MethodInfo _closeChatMethod;
+        private MethodInfo _showFriendsListMethod;
         private FieldInfo _socialManagerField;
 
         // ISocialManager -> ChatManager
@@ -200,6 +201,7 @@ namespace AccessibleArena.Core.Services
             // SocialUI
             _chatVisibleProp = socialUIType.GetProperty("ChatVisible", PublicInstance);
             _closeChatMethod = socialUIType.GetMethod("CloseChat", PublicInstance);
+            _showFriendsListMethod = socialUIType.GetMethod("ShowSocialEntitiesList", PublicInstance);
             _socialManagerField = socialUIType.GetField("_socialManager", PrivateInstance);
 
             // ChatWindow type
@@ -486,10 +488,10 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Backspace: Close chat (when not editing input field)
+            // Backspace: Close chat and return to friends panel
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                CloseChat();
+                CloseChatAndReturnToFriends();
                 Deactivate();
                 return true;
             }
@@ -588,6 +590,35 @@ namespace AccessibleArena.Core.Services
                 _closeChatMethod.Invoke(_socialUI, null);
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Close chat and re-open the friends panel.
+        /// SocialUI.CloseChat() triggers Minimize() through the ConversationSelected(null) chain,
+        /// which closes everything. After that, the conversation is null so
+        /// ShowSocialEntitiesList()'s internal SelectConversation(null) is a no-op (same value),
+        /// meaning the friends panel stays open without triggering Minimize again.
+        /// </summary>
+        private void CloseChatAndReturnToFriends()
+        {
+            if (_socialUI == null) return;
+
+            try
+            {
+                // Close chat — triggers Minimize via ConversationSelected(null) chain,
+                // but also deselects the conversation (sets it to null)
+                _closeChatMethod?.Invoke(_socialUI, null);
+
+                // Re-open friends panel — safe because conversation is already null,
+                // so SelectConversation(null) inside is a no-op (no Minimize triggered)
+                _showFriendsListMethod?.Invoke(_socialUI, null);
+
+                _announcer.AnnounceInterrupt(Strings.ChatClosed);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[Chat] Failed to close chat and return to friends: {ex.Message}");
+            }
         }
 
         private void SendMessage()
