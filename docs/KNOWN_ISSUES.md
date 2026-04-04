@@ -12,6 +12,22 @@ During Declare Blockers, the mod sometimes announces "0 0" instead of meaningful
 
 ---
 
+### Escape in Input Fields Wipes Text Content
+
+Pressing Escape while editing an input field (e.g. registration form) clears the text the user just typed. The user must press Enter or Tab to "save" the text before pressing Escape, which is unintuitive. Tab works correctly because the mod explicitly fires `onEndEdit` on the old field with the correct text before deactivating.
+
+**Root cause:** Unity's `TMP_InputField` natively handles Escape by reverting text to the original value from when the field was activated. This happens in Unity's internal processing *before* our `HandleInputFieldNavigation` runs. By the time we call `DeactivateFocusedInputField`, the field's `.text` has already been reverted.
+
+**Possible fix:** Consume the Escape key before it reaches Unity's `TMP_InputField` — save the current text, call `ExitEditMode()`, then restore the text. This would preserve content on Escape, matching Tab/Enter behavior.
+
+**On hold:** This would further extend our custom input field handling, which already significantly overrides Unity's standard behavior (custom edit mode, Tab interception, onEndEdit management, field reactivation). Before investing more in this pattern, evaluating how other game accessibility mods (e.g. Hearthstone Access) handle input fields to decide whether to continue with our approach or adopt a different paradigm.
+
+**Issue:** [#59](https://github.com/FabianWilworeit/accessible-arena/issues/59)
+
+**Files:** `InputFieldEditHelper.cs` (HandleEditing — Escape handler), `UIFocusTracker.cs` (DeactivateFocusedInputField)
+
+---
+
 ### Registration Does Not Auto-Advance After Account Confirmation
 
 After successfully sending the account confirmation email during registration, the game does not automatically advance to the tutorial. Under investigation — requires deep investigation by project owner.
@@ -394,6 +410,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 ### Polish
 
 1. Improve Challenge Friend screen workflow communication — currently unclear for blind users. Consider adding a dedicated Ready button, more contextual hints, or custom strings to guide through the challenge setup flow.
+2. Draft navigator polish — reduce unnecessary rescans, add a key to check how many copies of the focused card are already in the player's collection, and correctly announce and read the selected/picked state of cards during drafting.
 
 #### Tutorial Improvements
 - Add mana cost explanation (how mana payment works, color picker for any-color sources)
