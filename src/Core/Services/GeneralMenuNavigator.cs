@@ -1239,9 +1239,18 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Enter: In grouped navigation mode, handle both group entry and element activation
+            // Enter/Space: In grouped navigation mode, handle both group entry and element activation
             // Use GetEnterAndConsume to prevent game from also processing Enter on EventSystem selected object
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive && InputManager.GetEnterAndConsume())
+            {
+                if (HandleGroupedEnter())
+                    return true;
+            }
+
+            // Space: Route through grouped activation when grouped navigation is active.
+            // Without this, Space falls through to BaseNavigator which uses stale _currentIndex.
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive
+                && AcceptSpaceKey && InputManager.GetKeyDownAndConsume(KeyCode.Space))
             {
                 if (HandleGroupedEnter())
                     return true;
@@ -5229,7 +5238,28 @@ namespace AccessibleArena.Core.Services
                         return true;
                     }
 
-                    // Generic virtual element (e.g., challenge status text) - re-announce
+                    // ChallengeMain virtual elements: forward activation to the main button.
+                    // The status text (e.g., "Start the Match") and opponent status are virtual
+                    // but the user expects Enter/Space to trigger the main action.
+                    if (currentGroupInfo.Value.Group == ElementGroup.ChallengeMain
+                        && _challengeHelper.IsActive)
+                    {
+                        var mainButton = _challengeHelper.GetMainButtonElement();
+                        if (mainButton != null)
+                        {
+                            for (int i = 0; i < _elements.Count; i++)
+                            {
+                                if (_elements[i].GameObject == mainButton)
+                                {
+                                    _currentIndex = i;
+                                    ActivateCurrentElement();
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+
+                    // Generic virtual element - re-announce
                     _announcer.AnnounceInterrupt(_groupedNavigator.GetCurrentAnnouncement());
                     return true;
                 }
@@ -5839,28 +5869,6 @@ namespace AccessibleArena.Core.Services
             if (_challengeHelper == null || !_challengeHelper.IsActive)
                 return;
 
-            // Inject opponent status as virtual element before the status text
-            InjectOpponentStatusElement();
-
-            string statusText = _challengeHelper.GetChallengeStatusText();
-            if (string.IsNullOrEmpty(statusText))
-                return;
-
-            _groupedNavigator.AppendElementToGroup(
-                ElementGrouping.ElementGroup.ChallengeMain,
-                statusText
-            );
-        }
-
-        /// <summary>
-        /// Injects opponent status as a virtual element in ChallengeMain and tracks
-        /// element indices for the opponent element and main button for polling updates.
-        /// </summary>
-        private void InjectOpponentStatusElement()
-        {
-            if (_challengeHelper == null || !_challengeHelper.IsActive)
-                return;
-
             // Find main button index before appending virtual elements
             int mainButtonIdx = -1;
             var group = _groupedNavigator.GetGroupByType(ElementGrouping.ElementGroup.ChallengeMain);
@@ -5887,7 +5895,20 @@ namespace AccessibleArena.Core.Services
                 opponentLabel
             );
 
-            _challengeHelper.SetElementIndices(opponentIdx, mainButtonIdx);
+            // Append challenge status text virtual element
+            int statusIdx = -1;
+            string statusText = _challengeHelper.GetChallengeStatusText();
+            if (!string.IsNullOrEmpty(statusText))
+            {
+                statusIdx = _groupedNavigator.GetGroupElementCount(
+                    ElementGrouping.ElementGroup.ChallengeMain);
+                _groupedNavigator.AppendElementToGroup(
+                    ElementGrouping.ElementGroup.ChallengeMain,
+                    statusText
+                );
+            }
+
+            _challengeHelper.SetElementIndices(opponentIdx, mainButtonIdx, statusIdx);
         }
 
         /// Injects event info blocks as standalone virtual elements into the grouped navigator.

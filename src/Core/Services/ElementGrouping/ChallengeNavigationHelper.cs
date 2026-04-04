@@ -54,6 +54,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         // Element indices for label updates during polling
         private int _opponentElementIndex = -1;
         private int _mainButtonElementIndex = -1;
+        private int _statusElementIndex = -1;
 
         /// <summary>
         /// Set by polling when local player status changes (game swaps buttons).
@@ -193,6 +194,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pollingInitialized = false;
             _opponentElementIndex = -1;
             _mainButtonElementIndex = -1;
+            _statusElementIndex = -1;
             MelonLogger.Msg("[ChallengeHelper] Challenge closed, cleared context");
         }
 
@@ -542,6 +544,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
 
                 _lastStatusText = currentStatusText;
+
+                // Refresh the status virtual element label so navigating back shows current text
+                if (_statusElementIndex >= 0)
+                {
+                    _groupedNavigator.UpdateElementLabel(
+                        ElementGroup.ChallengeMain, _statusElementIndex, currentStatusText);
+                }
             }
             else if (string.IsNullOrEmpty(currentStatusText) && !string.IsNullOrEmpty(_lastStatusText))
             {
@@ -793,13 +802,25 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Set the element indices for opponent virtual element and main button
+        /// Set the element indices for opponent virtual element, main button, and status text
         /// within the ChallengeMain group. Called by GeneralMenuNavigator after injection.
         /// </summary>
-        public void SetElementIndices(int opponentIndex, int mainButtonIndex)
+        public void SetElementIndices(int opponentIndex, int mainButtonIndex, int statusIndex = -1)
         {
             _opponentElementIndex = opponentIndex;
             _mainButtonElementIndex = mainButtonIndex;
+            _statusElementIndex = statusIndex;
+        }
+
+        /// <summary>
+        /// Get the main button GameObject from the ChallengeMain group.
+        /// Returns null if the index is not tracked or the element doesn't exist.
+        /// </summary>
+        public GameObject GetMainButtonElement()
+        {
+            if (_mainButtonElementIndex < 0) return null;
+            return _groupedNavigator.GetElementFromGroup(
+                ElementGroup.ChallengeMain, _mainButtonElementIndex);
         }
 
         /// <summary>
