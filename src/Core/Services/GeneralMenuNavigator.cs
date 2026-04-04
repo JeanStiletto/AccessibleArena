@@ -5238,24 +5238,20 @@ namespace AccessibleArena.Core.Services
                         return true;
                     }
 
-                    // ChallengeMain virtual elements: forward activation to the main button.
-                    // The status text (e.g., "Start the Match") and opponent status are virtual
-                    // but the user expects Enter/Space to trigger the main action.
+                    // ChallengeMain virtual elements: forward activation to the active challenge button.
+                    // The game swaps MainButton/SecondaryButton visibility on state changes
+                    // without triggering a rescan, so the active button may not be in _elements.
+                    // Find it directly in the scene and activate via UIActivator.
                     if (currentGroupInfo.Value.Group == ElementGroup.ChallengeMain
                         && _challengeHelper.IsActive)
                     {
-                        var mainButton = _challengeHelper.GetMainButtonElement();
-                        if (mainButton != null)
+                        var activeButton = ChallengeNavigationHelper.FindActiveChallengeButton();
+                        if (activeButton != null)
                         {
-                            for (int i = 0; i < _elements.Count; i++)
-                            {
-                                if (_elements[i].GameObject == mainButton)
-                                {
-                                    _currentIndex = i;
-                                    ActivateCurrentElement();
-                                    return true;
-                                }
-                            }
+                            var result = UIActivator.Activate(activeButton);
+                            if (result.Success)
+                                _announcer.Announce(result.Message, Models.AnnouncementPriority.High);
+                            return true;
                         }
                     }
 

@@ -813,14 +813,20 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Get the main button GameObject from the ChallengeMain group.
-        /// Returns null if the index is not tracked or the element doesn't exist.
+        /// Find the currently active challenge button (MainButton or SecondaryButton).
+        /// The game swaps visibility between them on state changes, so we must find
+        /// whichever is active in the scene rather than using cached indices.
         /// </summary>
-        public GameObject GetMainButtonElement()
+        public static GameObject FindActiveChallengeButton()
         {
-            if (_mainButtonElementIndex < 0) return null;
-            return _groupedNavigator.GetElementFromGroup(
-                ElementGroup.ChallengeMain, _mainButtonElementIndex);
+            // GameObject.Find only returns active GameObjects
+            var mainBtn = GameObject.Find("UnifiedChallenge_MainButton");
+            if (mainBtn != null && mainBtn.activeInHierarchy) return mainBtn;
+
+            var secBtn = GameObject.Find("UnifiedChallenge_SecondaryButton");
+            if (secBtn != null && secBtn.activeInHierarchy) return secBtn;
+
+            return null;
         }
 
         /// <summary>
