@@ -44,6 +44,8 @@ namespace AccessibleArena.Core.Services
 
         // Track known message counts per conversation (by identity)
         private readonly Dictionary<object, int> _knownMessageCounts = new Dictionary<object, int>();
+        private bool _hasCompletedFirstPoll;
+        private bool _loggedFirstPoll;
 
         public ChatMessageWatcher(IAnnouncementService announcer)
         {
@@ -81,6 +83,8 @@ namespace AccessibleArena.Core.Services
             _lookupAttempted = false;
             _loggedLookupFailure = false;
             _knownMessageCounts.Clear();
+            _hasCompletedFirstPoll = false;
+            _loggedFirstPoll = false;
         }
 
         private object GetChatManager()
@@ -174,12 +178,34 @@ namespace AccessibleArena.Core.Services
 
         private void PollConversations(object chatManager)
         {
-            if (_conversationsField == null || _messageHistoryField == null) return;
+            if (_conversationsField == null || _messageHistoryField == null)
+            {
+                if (!_loggedFirstPoll)
+                {
+                    _loggedFirstPoll = true;
+                    MelonLogger.Warning($"[ChatWatcher] Reflection fields null: conversations={_conversationsField != null}, messageHistory={_messageHistoryField != null}");
+                }
+                return;
+            }
 
             try
             {
                 var conversations = _conversationsField.GetValue(chatManager) as IList;
-                if (conversations == null) return;
+                if (conversations == null)
+                {
+                    if (!_loggedFirstPoll)
+                    {
+                        _loggedFirstPoll = true;
+                        MelonLogger.Msg("[ChatWatcher] Conversations field returned null or not IList");
+                    }
+                    return;
+                }
+
+                if (!_loggedFirstPoll)
+                {
+                    _loggedFirstPoll = true;
+                    MelonLogger.Msg($"[ChatWatcher] First poll: {conversations.Count} conversations");
+                }
 
                 foreach (var conversation in conversations)
                 {
@@ -192,9 +218,10 @@ namespace AccessibleArena.Core.Services
 
                     if (_knownMessageCounts.TryGetValue(conversation, out int knownCount))
                     {
+                        // Known conversation - check for count increase
                         if (currentCount > knownCount)
                         {
-                            // New messages - check if any are incoming chat messages
+                            MelonLogger.Msg($"[ChatWatcher] Messages changed: {knownCount} -> {currentCount}");
                             for (int i = knownCount; i < currentCount; i++)
                             {
                                 var message = history[i];
@@ -205,10 +232,26 @@ namespace AccessibleArena.Core.Services
                             }
                         }
                     }
-                    // else: first time seeing this conversation, just record count (don't announce old messages)
+                    else if (_hasCompletedFirstPoll)
+                    {
+                        // New conversation appeared after first poll - likely created by incoming message.
+                        // Check all its messages instead of silently recording baseline.
+                        MelonLogger.Msg($"[ChatWatcher] New conversation detected with {currentCount} messages");
+                        for (int i = 0; i < currentCount; i++)
+                        {
+                            var message = history[i];
+                            if (IsIncomingChatMessage(message))
+                            {
+                                AnnounceMessage(message, conversation);
+                            }
+                        }
+                    }
+                    // else: first poll cycle, just record baseline (don't announce old messages)
 
                     _knownMessageCounts[conversation] = currentCount;
                 }
+
+                _hasCompletedFirstPoll = true;
             }
             catch (Exception ex)
             {

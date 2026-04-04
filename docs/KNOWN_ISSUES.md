@@ -40,6 +40,32 @@ Pressing Backspace or the Done button in the deck building screen triggers a "De
 
 ---
 
+### F4 Chat Toggle Fails Every Other Press During Duels
+
+Pressing F4 to open chat during a friend challenge duel alternates between success and failure. First press works, second says "Chat not available", third works, etc.
+
+**Root cause:** `ShowChatWindow(null)` triggers an asynchronous SocialUI panel transition (Hide then Show). The mod's `RequestActivation("Chat")` polls ChatNavigator immediately after the call, but `ChatVisible` is still false mid-transition. The poll fails, DuelNavigator is restored, and it re-deactivates the SocialUI selectables. On the next F4, `RestoreSocialUIBeforeChat` reactivates the GOs, `ShowChatWindow` starts a clean transition, and the timing happens to work.
+
+**Fix needed:** Replace the immediate `RequestActivation` poll with a `ScheduleActivation` retry mechanism in NavigatorManager. This would deactivate the current navigator, then retry polling the target every ~150ms for up to 5 attempts, giving `ShowChatWindow` time to complete its panel transition. During the retry window, no navigator would be active (brief input gap, acceptable for a sub-second transition).
+
+**Workaround:** Press F4 again if chat doesn't open on the first press.
+
+**Files:** `NavigatorManager.cs` (needs `ScheduleActivation` method), `BaseNavigator.cs` (`OpenChat` method)
+
+---
+
+### Friend Challenge Stuck on "Waiting for Players" When Host Readies First
+
+In a friend challenge, if the host (challenge sender) clicks Ready before the opponent has clicked Ready, the "Start Match" button never appears. The screen stays stuck on "Waiting for players to get ready." The match only starts correctly if the opponent readies first or both ready at roughly the same time.
+
+---
+
+### Match Confirm Button Only Responds to Space, Not Enter
+
+The match confirmation button (e.g., after accepting a match or confirming a game action) can only be activated with Space, not Enter. Enter should also work since the mod treats Enter and Space as activation keys elsewhere.
+
+---
+
 ### Adding Duplicate Cards in Deck Builder Causes Focus Glitch
 
 Adding more of the same card to a deck causes focus to jump to the wrong card, resulting in adding an incorrect card. Most likely the first add changes the card pool indices, and the mod's focused index now points to a different card.
