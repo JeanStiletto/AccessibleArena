@@ -967,6 +967,11 @@ namespace AccessibleArena.Core.Services
 
         protected override void OnDeactivating()
         {
+            // Save grouped navigation state when being preempted by another navigator
+            // (e.g., ChatNavigator) so we can restore position when we reactivate.
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive && !_groupedNavigator.HasPendingRestore)
+                _groupedNavigator.SaveCurrentGroupForRestore();
+
             base.OnDeactivating();
             DisablePopupDetection();
 
