@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9
 
+### Objectives
+- Removed redundant "Fortschritt" (progress) role suffix from objective announcements — objectives already contain descriptive progress info and are inside the Progress group
+
 ### Reward Popups
 - Fixed reward popup activating too early (showing only buttons with no reward info) by gating on the controller's internal reveal state instead of checking for buttons
 - Pack rewards now correctly show the set name (e.g., "Lorwyns Finsternis Pack") — previously the name was lost due to the game's ToAdd queue being consumed before discovery

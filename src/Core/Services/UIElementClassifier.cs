@@ -393,6 +393,10 @@ namespace AccessibleArena.Core.Services
 
         private static ClassificationResult TryClassifyAsProgressIndicator(GameObject obj, string objName, string text)
         {
+            // Objectives have dedicated text extraction with progress info — skip redundant role suffix
+            if (objName == "ObjectiveGraphics")
+                return null;
+
             if (!IsProgressIndicator(obj, objName, text))
                 return null;
 

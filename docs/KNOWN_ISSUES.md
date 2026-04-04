@@ -58,12 +58,6 @@ Some menus announce position indices (e.g., "2 of 7") and some do not. Index ann
 
 ---
 
-### Objectives Show Meaningless Progress Text
-
-Objective progress text is read out but contains meaningless or placeholder content that provides no useful information to the player.
-
----
-
 ### Pack Opening Reads Flipped-Down Cards
 
 During pack opening, cards that are still flipped face-down can be read with Up/Down arrow keys, revealing their content before the player flips them.
