@@ -34,24 +34,6 @@ After successfully sending the account confirmation email during registration, t
 
 ---
 
-### Deck Builder Done Button Triggers "Deck Creation Failed" Popup
-
-Pressing Backspace or the Done button in the deck building screen triggers a "Deck creation failed" popup even though the deck was created successfully. Most likely a double-click caused by too many fallback activation attempts on the Done button. Similar double-activation issues have been solved in other screens before.
-
----
-
-### Friend Challenge Stuck on "Waiting for Players" When Host Readies First
-
-In a friend challenge, if the host (challenge sender) clicks Ready before the opponent has clicked Ready, the "Start Match" button never appears. The screen stays stuck on "Waiting for players to get ready." The match only starts correctly if the opponent readies first or both ready at roughly the same time.
-
----
-
-### Match Confirm Button Only Responds to Space, Not Enter
-
-The match confirmation button (e.g., after accepting a match or confirming a game action) can only be activated with Space, not Enter. Enter should also work since the mod treats Enter and Space as activation keys elsewhere.
-
----
-
 ### Adding Duplicate Cards in Deck Builder Causes Focus Glitch
 
 Adding more of the same card to a deck causes focus to jump to the wrong card, resulting in adding an incorrect card. Most likely the first add changes the card pool indices, and the mod's focused index now points to a different card.
@@ -273,22 +255,6 @@ Season end rewards popup now uses content-gated detection (NPE-style): the navig
 **Testable:** May 2025 (next monthly season reset)
 
 **Files:** `RewardPopupNavigator.cs` (CheckRewardsPopupOpenInternal, GetSeasonEndState, HasActiveSeasonDisplay, ExtractSeasonRankText, DiscoverSeasonRankElements, ForceRescan override)
-
----
-
-### Summoning Sickness Announcement Verbosity
-
-Summoning sickness is now announced on all creatures and vehicles in every duel phase, based on the game model's `HasSummoningSickness` field. Monitor whether this creates too much noise during gameplay, especially:
-- On boards with many freshly played creatures (e.g. token generation turns)
-- During combat phases where "can attack" already implies no summoning sickness
-- Whether players find it useful or distracting overall
-
-**Possible adjustments if too verbose:**
-- Add a user setting to toggle summoning sickness announcements on/off
-- Suppress during combat phases (where "can attack"/"tapped" already convey the relevant info)
-- Only announce on first navigation to a card, not on repeated passes
-
-**Files:** `CombatNavigator.cs` (GetCombatStateText), `CardStateProvider.cs` (IsCreatureOrVehicleCard), `lang/*.json` (Combat_SummoningSickness)
 
 ---
 

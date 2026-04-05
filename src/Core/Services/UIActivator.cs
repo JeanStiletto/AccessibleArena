@@ -265,10 +265,8 @@ namespace AccessibleArena.Core.Services
                     return new ActivationResult(true, Models.Strings.Activated(Models.Strings.DeckBuilderCommander), ActivationType.Button);
                 }
 
-                var pointerResult2 = SimulatePointerClick(element);
-
-                // Special handling for deck builder MainButton - its onClick listener has NULL target
-                // We need to find the WrapperDeckBuilder component and invoke the method directly
+                // Special handling for deck builder MainButton - invoke directly instead of SimulatePointerClick
+                // to avoid double activation (pointer click + direct call both trigger the Done action)
                 // Only apply when the button is NOT inside a popup (e.g. AdvancedFiltersPopup also has a "MainButton")
                 if (element.name == "MainButton" && !IsInsidePopup(element))
                 {
@@ -279,19 +277,13 @@ namespace AccessibleArena.Core.Services
                         if (TryInvokeMethod(deckBuilderController, "OnDeckbuilderDoneButtonClicked"))
                         {
                             Log($"WrapperDeckBuilder.OnDeckbuilderDoneButtonClicked() invoked successfully");
+                            return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                         }
-                        else
-                        {
-                            Log($"Could not invoke OnDeckbuilderDoneButtonClicked");
-                        }
-                    }
-                    else
-                    {
-                        Log($"Could not find deck builder controller");
+                        Log($"Could not invoke OnDeckbuilderDoneButtonClicked, falling back to pointer click");
                     }
                 }
 
-                return pointerResult2;
+                return SimulatePointerClick(element);
             }
 
             // Try standard Unity Button (only if no CustomButton)
