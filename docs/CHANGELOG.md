@@ -19,6 +19,12 @@ All notable changes to Accessible Arena.
 - Cards that create tokens now show full token details (name, type, rules text, power/toughness) — useful for complex tokens like Roles that aren't self-descriptive from rules text alone
 - Item order changed to: ability lines, linked card face, token info, keyword descriptions
 
+### Position Counts
+- All "X of Y" position announcements are now localized instead of hardcoded English — they use the correct format for each language (e.g., "3 von 7" in German, "3 sur 7" in French)
+- Added a "Position counts" toggle in the F2 settings menu to show or hide position announcements globally
+- Position counts are now consistently suppressed when there is only one item (no more "1 of 1")
+- Fixed ProfileNavigator using "/" format ("2/5") instead of "of" — now uses the same localized format as all other navigators
+
 ### Deck Builder
 - Fixed "Deck creation failed" popup when pressing Done or Backspace to exit the deck builder — the Done button was being activated twice (pointer click + direct method call), causing a duplicate server submission
 

@@ -238,6 +238,7 @@
   "SettingTutorialMessages": "Komunikaty samouczka",
   "SettingVerboseAnnouncements": "Szczegółowe ogłoszenia",
   "SettingBriefCastAnnouncements": "Krótkie ogłoszenia własnych zaklęć",
+  "SettingPositionCounts": "Liczniki pozycji",
   "SettingOn": "Włączone",
   "SettingOff": "Wyłączone",
   "SettingChanged_Format": "{0} ustawiono na {1}",

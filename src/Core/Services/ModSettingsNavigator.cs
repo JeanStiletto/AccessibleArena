@@ -89,6 +89,12 @@ namespace AccessibleArena.Core.Services
                     Name = Strings.SettingPhaseSkipWarning,
                     GetValue = () => _settings.PhaseSkipWarning ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.PhaseSkipWarning = !_settings.PhaseSkipWarning
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingPositionCounts,
+                    GetValue = () => _settings.PositionCounts ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.PositionCounts = !_settings.PositionCounts
                 }
             };
         }

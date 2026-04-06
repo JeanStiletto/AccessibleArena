@@ -249,6 +249,7 @@
   "SettingVerboseAnnouncements": "Ausführliche Ansagen",
   "SettingBriefCastAnnouncements": "Kurze eigene Zauberansagen",
   "SettingPhaseSkipWarning": "Warnung vor Passen mit verfügbarem Mana",
+  "SettingPositionCounts": "Positionsangaben",
   "SettingOn": "An",
   "SettingOff": "Aus",
   "SettingChanged_Format": "{0} auf {1} gesetzt",

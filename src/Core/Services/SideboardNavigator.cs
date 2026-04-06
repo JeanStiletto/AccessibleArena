@@ -467,7 +467,8 @@ namespace AccessibleArena.Core.Services
                 var deckCard = _deckCards[_deckIndex];
                 string name = CardModelProvider.GetNameFromGrpId(deckCard.GrpId) ?? $"Card #{deckCard.GrpId}";
                 string qty = deckCard.Quantity > 1 ? $" x{deckCard.Quantity}" : "";
-                return $"{name}{qty}, {_deckIndex + 1} of {_deckCards.Count}";
+                string pos = Strings.PositionOf(_deckIndex + 1, _deckCards.Count);
+                return $"{name}{qty}" + (pos != "" ? $", {pos}" : "");
             }
         }
 

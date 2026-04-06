@@ -731,7 +731,8 @@ namespace AccessibleArena.Core.Services
                 bool verbose = AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false;
                 prefix = (!isRowSwitch || verbose) ? $"{rowName}, " : "";
             }
-            _announcer.Announce($"{prefix}{cardName}{typeLabel}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
+            string pos = Strings.PositionOf(position, total);
+            _announcer.Announce($"{prefix}{cardName}{typeLabel}{combatState}{attachmentText}{targetingText}" + (pos != "" ? $", {pos}" : ""), priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

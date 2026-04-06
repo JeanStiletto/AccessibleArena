@@ -915,7 +915,8 @@ namespace AccessibleArena.Core.Services
             }
 
             string prefix = includeZoneName ? $"{GetZoneName(_currentZone)}, " : "";
-            _announcer.Announce($"{prefix}{cardName}{originZoneText}{selectionState}{combatState}{attachmentText}{targetingText}, {position} of {total}", priority);
+            string pos = Strings.PositionOf(position, total);
+            _announcer.Announce($"{prefix}{cardName}{originZoneText}{selectionState}{combatState}{attachmentText}{targetingText}" + (pos != "" ? $", {pos}" : ""), priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
@@ -1016,7 +1017,8 @@ namespace AccessibleArena.Core.Services
             var zoneInfo = _zones[libraryZone];
             var card = zoneInfo.Cards[0];
             string cardName = CardDetector.GetCardName(card);
-            _announcer.Announce($"{countText}. {cardName}, 1 of {zoneInfo.Cards.Count}", AnnouncementPriority.High);
+            string pos = Strings.PositionOf(1, zoneInfo.Cards.Count);
+            _announcer.Announce($"{countText}. {cardName}" + (pos != "" ? $", {pos}" : ""), AnnouncementPriority.High);
 
             SetFocusedGameObject(card, "ZoneNavigator");
             var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;

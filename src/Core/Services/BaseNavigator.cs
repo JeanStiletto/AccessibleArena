@@ -227,7 +227,7 @@ namespace AccessibleArena.Core.Services
             var navElement = _elements[index];
             string label = RefreshElementLabel(navElement.GameObject, navElement.Label, navElement.Role);
 
-            return $"{label}, {index + 1} of {_elements.Count}";
+            return Strings.ItemPositionOf(index + 1, _elements.Count, label);
         }
 
         /// <summary>
@@ -2635,7 +2635,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _announcer?.Announce(
-                $"{label}, {_currentIndex + 1} of {_elements.Count}",
+                Strings.ItemPositionOf(_currentIndex + 1, _elements.Count, label),
                 AnnouncementPriority.Normal);
         }
 

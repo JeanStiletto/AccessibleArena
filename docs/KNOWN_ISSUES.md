@@ -40,12 +40,6 @@ Home and End keys do not work in the crafting popup for jumping to first/last el
 
 ---
 
-### Index Announcements Inconsistent Across Menus
-
-Some menus announce position indices (e.g., "2 of 7") and some do not. Index announcements should be available everywhere, gated behind the tutorial completion or the verbose announcements setting.
-
----
-
 ### Event-Specific Quests Show English Text
 
 Event-specific quests (e.g. special event objectives) display English text instead of the user's localized language. Standard daily/weekly quests are localized correctly.

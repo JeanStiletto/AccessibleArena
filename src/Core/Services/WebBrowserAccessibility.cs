@@ -1111,7 +1111,8 @@ namespace AccessibleArena.Core.Services
 
         private string FormatElementAnnouncement(WebElement elem, int index, int total)
         {
-            string position = $"{index + 1} of {total}";
+            string position = Strings.PositionOf(index + 1, total);
+            string prefix = position != "" ? $"{position}: " : "";
             string text = elem.Text;
             string roleStr = FormatRole(elem);
             string extra = "";
@@ -1143,9 +1144,9 @@ namespace AccessibleArena.Core.Services
 
             // For text/heading, omit role — just announce content
             if (elem.Role == "text" || elem.Role == "heading")
-                return $"{position}: {text}";
+                return $"{prefix}{text}";
 
-            return $"{position}: {text}, {roleStr}{extra}";
+            return $"{prefix}{text}, {roleStr}{extra}";
         }
 
         private string FormatRole(WebElement elem)

@@ -238,6 +238,7 @@
   "SettingTutorialMessages": "Mensagens de tutorial",
   "SettingVerboseAnnouncements": "Anúncios detalhados",
   "SettingBriefCastAnnouncements": "Anúncios breves de feitiços próprios",
+  "SettingPositionCounts": "Contadores de posição",
   "SettingOn": "Ativado",
   "SettingOff": "Desativado",
   "SettingChanged_Format": "{0} definido para {1}",

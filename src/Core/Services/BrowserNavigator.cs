@@ -1474,19 +1474,18 @@ namespace AccessibleArena.Core.Services
             string position = null;
             if (_browserInfo.IsZoneBased && _zoneNavigator.TryGetCardZonePosition(card, out int zoneIdx, out int zoneTotal) && zoneTotal > 0)
             {
-                position = zoneTotal > 1 ? $"{zoneIdx} of {zoneTotal}" : null;
+                position = Strings.PositionOf(zoneIdx, zoneTotal); if (position == "") position = null;
             }
             else if (isRepeatSelection)
             {
                 // For RepeatSelection: show position among options only (exclude selected copies)
                 int optionIndex, optionTotal;
                 GetRepeatSelectionPosition(card, out optionIndex, out optionTotal);
-                if (optionTotal > 1)
-                    position = $"{optionIndex} of {optionTotal}";
+                position = Strings.PositionOf(optionIndex, optionTotal); if (position == "") position = null;
             }
-            else if (_browserCards.Count > 1)
+            else
             {
-                position = $"{_currentCardIndex + 1} of {_browserCards.Count}";
+                position = Strings.PositionOf(_currentCardIndex + 1, _browserCards.Count); if (position == "") position = null;
             }
 
             string announcement;
@@ -1831,9 +1830,8 @@ namespace AccessibleArena.Core.Services
         private void AnnounceMultiZoneSelector()
         {
             string zoneName = GetCurrentZoneButtonLabel();
-            string hint = _zoneButtons.Count > 1
-                ? $", {_currentZoneButtonIndex + 1} of {_zoneButtons.Count}"
-                : "";
+            string zonePos = Strings.PositionOf(_currentZoneButtonIndex + 1, _zoneButtons.Count);
+            string hint = zonePos != "" ? $", {zonePos}" : "";
             string cardInfo = _browserCards.Count > 0 ? $", {_browserCards.Count} cards" : "";
             string announcement = $"{Strings.ZoneChange}: {zoneName}{hint}{cardInfo}";
             _announcer.Announce(announcement, AnnouncementPriority.High);
@@ -1966,7 +1964,8 @@ namespace AccessibleArena.Core.Services
             {
                 label = UITextExtractor.GetButtonText(button, button.name);
             }
-            string position = _browserButtons.Count > 1 ? $", {_currentButtonIndex + 1} of {_browserButtons.Count}" : "";
+            string pos = Strings.PositionOf(_currentButtonIndex + 1, _browserButtons.Count);
+            string position = pos != "" ? $", {pos}" : "";
 
             _announcer.Announce($"{label}{position}", AnnouncementPriority.High);
         }
@@ -3584,10 +3583,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Add position
-            if (_browserCards.Count > 1)
-            {
-                parts.Add($"{_currentCardIndex + 1} of {_browserCards.Count}");
-            }
+            string pos = Strings.PositionOf(_currentCardIndex + 1, _browserCards.Count);
+            if (pos != "") parts.Add(pos);
 
             _announcer.Announce(string.Join(", ", parts), AnnouncementPriority.High);
         }
@@ -3648,10 +3645,8 @@ namespace AccessibleArena.Core.Services
                 }
 
                 string entry = Strings.DamageAssignEntry(attackerName, power, cardCount);
-                if (_assignerTotal > 1)
-                {
-                    entry += $". {_assignerIndex} of {_assignerTotal}";
-                }
+                string pos = Strings.PositionOf(_assignerIndex, _assignerTotal);
+                if (pos != "") entry += $". {pos}";
                 return entry;
             }
             catch (Exception ex)
@@ -3908,7 +3903,8 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(displayText)) return;
 
             bool isSelected = IsKeywordSelected(_currentKeywordIndex);
-            string position = count > 1 ? $", {_currentKeywordIndex + 1} of {count}" : "";
+            string pos = Strings.PositionOf(_currentKeywordIndex + 1, count);
+            string position = pos != "" ? $", {pos}" : "";
             string selState = isSelected ? $", {Strings.KeywordSelectionSelected}" : "";
 
             _announcer.Announce($"{displayText}{selState}{position}", AnnouncementPriority.High);

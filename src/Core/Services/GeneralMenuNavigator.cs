@@ -643,7 +643,8 @@ namespace AccessibleArena.Core.Services
                 packName = "Pack";
 
             // Build the carousel label with position info
-            string label = $"{packName}, {_boosterCarouselIndex + 1} of {_boosterPackHitboxes.Count}, use left and right arrows";
+            string pos = Strings.PositionOf(_boosterCarouselIndex + 1, _boosterPackHitboxes.Count);
+            string label = $"{packName}" + (pos != "" ? $", {pos}" : "") + ", use left and right arrows";
 
             // Add as navigable element with carousel info
             var carouselInfo = new CarouselInfo
@@ -703,7 +704,8 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(packName))
                 packName = "Pack";
 
-            string announcement = $"{packName}, {_boosterCarouselIndex + 1} of {_boosterPackHitboxes.Count}";
+            string pos = Strings.PositionOf(_boosterCarouselIndex + 1, _boosterPackHitboxes.Count);
+            string announcement = packName + (pos != "" ? $", {pos}" : "");
             _announcer.Announce(announcement, Models.AnnouncementPriority.High);
 
             // Update the element label
@@ -729,7 +731,8 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(packName))
                 packName = "Pack";
 
-            string label = $"{packName}, {_boosterCarouselIndex + 1} of {_boosterPackHitboxes.Count}, use left and right arrows";
+            string pos = Strings.PositionOf(_boosterCarouselIndex + 1, _boosterPackHitboxes.Count);
+            string label = $"{packName}" + (pos != "" ? $", {pos}" : "") + ", use left and right arrows";
 
             // Find and update the carousel element in our list
             for (int i = 0; i < _elements.Count; i++)

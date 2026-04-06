@@ -25,6 +25,7 @@ namespace AccessibleArena.Core.Services
         public bool VerboseAnnouncements { get; set; } = true;
         public bool BriefCastAnnouncements { get; set; } = true;
         public bool PhaseSkipWarning { get; set; } = true;
+        public bool PositionCounts { get; set; } = true;
 
         /// <summary>
         /// Load settings from disk. Returns defaults if file doesn't exist or is corrupt.
@@ -43,7 +44,7 @@ namespace AccessibleArena.Core.Services
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                MelonLogger.Msg($"[ModSettings] Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}");
+                MelonLogger.Msg($"[ModSettings] Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}");
             }
             catch (Exception ex)
             {
@@ -137,7 +138,8 @@ namespace AccessibleArena.Core.Services
                    $"  \"TutorialMessages\": {(TutorialMessages ? "true" : "false")},\n" +
                    $"  \"VerboseAnnouncements\": {(VerboseAnnouncements ? "true" : "false")},\n" +
                    $"  \"BriefCastAnnouncements\": {(BriefCastAnnouncements ? "true" : "false")},\n" +
-                   $"  \"PhaseSkipWarning\": {(PhaseSkipWarning ? "true" : "false")}\n" +
+                   $"  \"PhaseSkipWarning\": {(PhaseSkipWarning ? "true" : "false")},\n" +
+                   $"  \"PositionCounts\": {(PositionCounts ? "true" : "false")}\n" +
                    "}";
         }
 
@@ -149,6 +151,7 @@ namespace AccessibleArena.Core.Services
             VerboseAnnouncements = ReadJsonBool(json, "VerboseAnnouncements") ?? VerboseAnnouncements;
             BriefCastAnnouncements = ReadJsonBool(json, "BriefCastAnnouncements") ?? BriefCastAnnouncements;
             PhaseSkipWarning = ReadJsonBool(json, "PhaseSkipWarning") ?? PhaseSkipWarning;
+            PositionCounts = ReadJsonBool(json, "PositionCounts") ?? PositionCounts;
         }
 
         private static string ReadJsonString(string json, string key)

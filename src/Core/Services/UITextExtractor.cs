@@ -2269,7 +2269,10 @@ namespace AccessibleArena.Core.Services
         private static string FormatDropdownText(int value, int optionCount, string optionText, string captionText, string objectName)
         {
             if (value >= 0 && value < optionCount && optionText != null)
-                return $"{CleanText(optionText)}, dropdown, {value + 1} of {optionCount}";
+            {
+                string pos = Strings.PositionOf(value + 1, optionCount);
+                return $"{CleanText(optionText)}, dropdown" + (pos != "" ? $", {pos}" : "");
+            }
 
             string label = null;
             if (!string.IsNullOrWhiteSpace(captionText))

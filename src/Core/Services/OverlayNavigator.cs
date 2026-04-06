@@ -145,7 +145,7 @@ namespace AccessibleArena.Core.Services
                 foreach (var pip in navPips)
                 {
                     int pageNum = navPips.IndexOf(pip) + 1;
-                    AddElement(pip.gameObject, $"Page {pageNum} of {totalPages}");
+                    AddElement(pip.gameObject, Strings.PageOf(pageNum, totalPages));
                     addedObjects.Add(pip.gameObject);
                 }
             }

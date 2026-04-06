@@ -1179,8 +1179,9 @@ namespace AccessibleArena.Core.Services
             string status = GetLevelStatus(level);
 
             // _currentLevelIndex starts at 1 for real levels (0 is status item)
+            string pos = Strings.PositionOf(_currentLevelIndex, _totalLevels);
             _announcer.AnnounceInterrupt(
-                $"{_currentLevelIndex} of {_totalLevels}: " +
+                (pos != "" ? $"{pos}: " : "") +
                 Strings.MasteryLevel(level.LevelNumber, reward, status));
         }
 
@@ -1196,7 +1197,10 @@ namespace AccessibleArena.Core.Services
             var tier = level.Tiers[_currentTierIndex];
             string announcement = Strings.MasteryTier(tier.TierName, tier.RewardName, tier.Quantity);
             if (level.Tiers.Count > 1)
-                announcement += $", tier {_currentTierIndex + 1} of {level.Tiers.Count}";
+            {
+                string tierPos = Strings.PositionOf(_currentTierIndex + 1, level.Tiers.Count);
+                if (tierPos != "") announcement += $", {tierPos}";
+            }
 
             _announcer.AnnounceInterrupt(announcement);
         }

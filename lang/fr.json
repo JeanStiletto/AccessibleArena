@@ -238,6 +238,7 @@
   "SettingTutorialMessages": "Messages du tutoriel",
   "SettingVerboseAnnouncements": "Annonces détaillées",
   "SettingBriefCastAnnouncements": "Annonces brèves de vos sorts",
+  "SettingPositionCounts": "Compteurs de position",
   "SettingOn": "Activé",
   "SettingOff": "Désactivé",
   "SettingChanged_Format": "{0} réglé sur {1}",

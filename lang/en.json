@@ -249,6 +249,7 @@
   "SettingVerboseAnnouncements": "Verbose announcements",
   "SettingBriefCastAnnouncements": "Brief own spell announcements",
   "SettingPhaseSkipWarning": "Warn before passing with mana available",
+  "SettingPositionCounts": "Position counts",
   "SettingOn": "On",
   "SettingOff": "Off",
   "SettingChanged_Format": "{0} set to {1}",

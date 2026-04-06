@@ -348,8 +348,9 @@ namespace AccessibleArena.Core.Services
                 string state = "";
                 if (item.IsToggle && item.ToggleComponent != null)
                     state = item.ToggleComponent.isOn ? ", on" : ", off";
-                string position = $"{_currentItemIndex + 1} of {row.Items.Count}";
-                withHint += $". {row.Name}. {item.Label}{state}, {position}";
+                string position = Strings.PositionOf(_currentItemIndex + 1, row.Items.Count);
+                withHint += $". {row.Name}. {item.Label}{state}";
+                if (position != "") withHint += $", {position}";
             }
 
             return withHint;
@@ -573,16 +574,17 @@ namespace AccessibleArena.Core.Services
                 state = item.ToggleComponent.isOn ? ", on" : ", off";
             }
 
-            string position = $"{_currentItemIndex + 1} of {row.Items.Count}";
+            string position = Strings.PositionOf(_currentItemIndex + 1, row.Items.Count);
+            string positionSuffix = position != "" ? $", {position}" : "";
 
             if (includeRowName)
             {
                 _announcer.Announce($"{row.Name}", AnnouncementPriority.High);
-                _announcer.Announce($"{item.Label}{state}, {position}", AnnouncementPriority.Normal);
+                _announcer.Announce($"{item.Label}{state}{positionSuffix}", AnnouncementPriority.Normal);
             }
             else
             {
-                _announcer.Announce($"{item.Label}{state}, {position}", AnnouncementPriority.Normal);
+                _announcer.Announce($"{item.Label}{state}{positionSuffix}", AnnouncementPriority.Normal);
             }
         }
 

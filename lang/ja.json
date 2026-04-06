@@ -238,6 +238,7 @@
   "SettingTutorialMessages": "チュートリアルメッセージ",
   "SettingVerboseAnnouncements": "詳細アナウンス",
   "SettingBriefCastAnnouncements": "自分の呪文の簡易アナウンス",
+  "SettingPositionCounts": "位置カウント",
   "SettingOn": "オン",
   "SettingOff": "オフ",
   "SettingChanged_Format": "{0}を{1}に設定しました",

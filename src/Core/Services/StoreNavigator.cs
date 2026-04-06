@@ -1163,14 +1163,16 @@ namespace AccessibleArena.Core.Services
 
                 if (item.PurchaseOptions.Count > 1)
                 {
-                    optionText += $", option {_currentPurchaseOptionIndex + 1} of {item.PurchaseOptions.Count}";
+                    string pos = Strings.PositionOf(_currentPurchaseOptionIndex + 1, item.PurchaseOptions.Count);
+                    if (pos != "") optionText += $", {pos}";
                 }
             }
 
             string descText = !string.IsNullOrEmpty(item.Description) ? $". {item.Description}" : "";
 
+            string itemPos = Strings.PositionOf(_currentItemIndex + 1, _items.Count);
             _announcer.AnnounceInterrupt(
-                $"{item.Label}{descText}{optionText}, {_currentItemIndex + 1} of {_items.Count}");
+                $"{item.Label}{descText}{optionText}" + (itemPos != "" ? $", {itemPos}" : ""));
         }
 
         private void AnnouncePurchaseOption()
@@ -1182,8 +1184,9 @@ namespace AccessibleArena.Core.Services
                 return;
 
             var option = item.PurchaseOptions[_currentPurchaseOptionIndex];
+            string pos = Strings.PositionOf(_currentPurchaseOptionIndex + 1, item.PurchaseOptions.Count);
             _announcer.AnnounceInterrupt(
-                $"{FormatPurchaseOption(option)}, option {_currentPurchaseOptionIndex + 1} of {item.PurchaseOptions.Count}");
+                $"{FormatPurchaseOption(option)}" + (pos != "" ? $", {pos}" : ""));
         }
 
         private string FormatPurchaseOption(PurchaseOption option)
@@ -2187,7 +2190,8 @@ namespace AccessibleArena.Core.Services
                 parts.Add($"times {card.Quantity}");
             if (!string.IsNullOrEmpty(card.ManaCost))
                 parts.Add(card.ManaCost);
-            parts.Add($"{index + 1} of {_detailsCards.Count}");
+            string pos = Strings.PositionOf(index + 1, _detailsCards.Count);
+            if (pos != "") parts.Add(pos);
             return string.Join(", ", parts);
         }
 
@@ -2582,7 +2586,7 @@ namespace AccessibleArena.Core.Services
             if (_modalElements.Count > 0)
             {
                 _modalElementIndex = 0;
-                _announcer.Announce($"1 of {_modalElements.Count}: {_modalElements[0].label}", AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.ItemPositionOf(1, _modalElements.Count, _modalElements[0].label), AnnouncementPriority.Normal);
             }
         }
 
@@ -2660,7 +2664,7 @@ namespace AccessibleArena.Core.Services
             }
             _modalElementIndex = newIndex;
             _announcer.AnnounceInterrupt(
-                $"{_modalElements[_modalElementIndex].label}, {_modalElementIndex + 1} of {_modalElements.Count}");
+                Strings.ItemPositionOf(_modalElementIndex + 1, _modalElements.Count, _modalElements[_modalElementIndex].label));
         }
 
         /// <summary>

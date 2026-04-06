@@ -688,7 +688,8 @@ namespace AccessibleArena.Core.Services
                 announcement = item.Label;
             }
 
-            announcement += $", {_tocIndex + 1} of {_tocItems.Count}";
+            string pos = Strings.PositionOf(_tocIndex + 1, _tocItems.Count);
+            if (pos != "") announcement += $", {pos}";
             _announcer.AnnounceInterrupt(announcement);
         }
 
@@ -877,7 +878,8 @@ namespace AccessibleArena.Core.Services
                 string firstLabel = first.IsCategory && !first.IsStandalone
                     ? $"{first.Label}, {Strings.CodexSection}"
                     : first.Label;
-                _announcer.AnnounceInterrupt($"{parentLabel}. {firstLabel}, 1 of {_tocItems.Count}");
+                string pos = Strings.PositionOf(1, _tocItems.Count);
+                _announcer.AnnounceInterrupt($"{parentLabel}. {firstLabel}" + (pos != "" ? $", {pos}" : ""));
             }
             else
             {

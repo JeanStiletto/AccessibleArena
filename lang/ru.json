@@ -238,6 +238,7 @@
   "SettingTutorialMessages": "Обучающие сообщения",
   "SettingVerboseAnnouncements": "Подробные объявления",
   "SettingBriefCastAnnouncements": "Краткие объявления своих заклинаний",
+  "SettingPositionCounts": "Счётчики позиций",
   "SettingOn": "Вкл",
   "SettingOff": "Выкл",
   "SettingChanged_Format": "{0} установлено на {1}",

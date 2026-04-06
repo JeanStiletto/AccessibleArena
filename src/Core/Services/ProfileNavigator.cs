@@ -714,7 +714,7 @@ namespace AccessibleArena.Core.Services
 
             if (_infoIndex < 0 || _infoIndex >= _infoBlocks.Count) return "";
             var block = _infoBlocks[_infoIndex];
-            return $"{block.Label}, {_infoIndex + 1}/{_infoBlocks.Count}";
+            return Strings.ItemPositionOf(_infoIndex + 1, _infoBlocks.Count, block.Label);
         }
 
         #endregion
