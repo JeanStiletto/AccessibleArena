@@ -44,6 +44,7 @@ namespace AccessibleArena.Core.Constants
         public const string CampaignGraphContentController = "CampaignGraphContentController";
         public const string LearnToPlayControllerV2 = "LearnToPlayControllerV2";
         public const string DeckManagerController = "DeckManagerController";
+        public const string DraftContentController = "DraftContentController";
 
         // --- Color Challenge Types ---
         public const string CampaignGraphTrackModule = "CampaignGraphTrackModule";

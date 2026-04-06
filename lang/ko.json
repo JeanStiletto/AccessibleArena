@@ -614,6 +614,8 @@
   "ScreenDraftPick_One": "드래프트 선택, 1장",
   "ScreenDraftPick_Format": "드래프트 선택, {0}장",
   "ScreenDraftPopup": "드래프트, 팝업",
+  "DraftPickedCount_One": "1장 선택됨",
+  "DraftPickedCount_Format": "{0}장 선택됨",
   "UpDownForMore_Format": "위아래로 {0}개 항목 탐색",
   "ScreenFriends": "친구",
   "ScreenHomeWithEvents": "홈 (이벤트 포함)",

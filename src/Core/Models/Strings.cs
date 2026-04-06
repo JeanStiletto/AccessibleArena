@@ -1198,6 +1198,8 @@ namespace AccessibleArena.Core.Models
         public static string ScreenDraftPickCount(int count) =>
             count == 1 ? L.Get("ScreenDraftPick_One") : L.Format("ScreenDraftPick_Format", count);
         public static string ScreenDraftPopup => L.Get("ScreenDraftPopup");
+        public static string DraftPickedCount(int count) =>
+            count == 1 ? L.Get("DraftPickedCount_One") : L.Format("DraftPickedCount_Format", count);
         public static string UpDownForMore(int count) => L.Format("UpDownForMore_Format", count);
         public static string ScreenFriends => L.Get("ScreenFriends");
         public static string ScreenHomeWithEvents => L.Get("ScreenHomeWithEvents");

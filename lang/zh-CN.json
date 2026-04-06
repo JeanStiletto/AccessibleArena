@@ -614,6 +614,8 @@
   "ScreenDraftPick_One": "选秀选牌，1张",
   "ScreenDraftPick_Format": "选秀选牌，{0}张",
   "ScreenDraftPopup": "选秀，弹窗",
+  "DraftPickedCount_One": "已选1张",
+  "DraftPickedCount_Format": "已选{0}张",
   "UpDownForMore_Format": "上下键浏览{0}个项目",
   "ScreenFriends": "好友",
   "ScreenHomeWithEvents": "主页（含赛事）",

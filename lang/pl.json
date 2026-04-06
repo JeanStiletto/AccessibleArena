@@ -614,6 +614,8 @@
   "ScreenDraftPick_One": "Wybór draftu, 1 karta",
   "ScreenDraftPick_Format": "Wybór draftu, {0} kart",
   "ScreenDraftPopup": "Draft, Okno",
+  "DraftPickedCount_One": "1 wybrany",
+  "DraftPickedCount_Format": "{0} wybranych",
   "UpDownForMore_Format": "Góra i Dół dla {0} elementów",
   "ScreenFriends": "Znajomi",
   "ScreenHomeWithEvents": "Strona główna z wydarzeniami",

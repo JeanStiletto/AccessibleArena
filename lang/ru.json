@@ -614,6 +614,8 @@
   "ScreenDraftPick_One": "Выбор в драфте, 1 карта",
   "ScreenDraftPick_Format": "Выбор в драфте, {0} карт",
   "ScreenDraftPopup": "Драфт, Окно",
+  "DraftPickedCount_One": "1 выбрано",
+  "DraftPickedCount_Format": "{0} выбрано",
   "UpDownForMore_Format": "Вверх и Вниз для {0} элементов",
   "ScreenFriends": "Друзья",
   "ScreenHomeWithEvents": "Главная с событиями",

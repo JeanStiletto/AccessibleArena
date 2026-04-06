@@ -614,6 +614,8 @@
   "ScreenDraftPick_One": "ドラフト選択、1枚",
   "ScreenDraftPick_Format": "ドラフト選択、{0}枚",
   "ScreenDraftPopup": "ドラフト、ポップアップ",
+  "DraftPickedCount_One": "1枚ピック済み",
+  "DraftPickedCount_Format": "{0}枚ピック済み",
   "UpDownForMore_Format": "上下キーで{0}個の項目を表示",
   "ScreenFriends": "フレンド",
   "ScreenHomeWithEvents": "ホーム（イベント付き）",
