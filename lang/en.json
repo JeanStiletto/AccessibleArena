@@ -855,6 +855,7 @@
   "Duel_SelectForBottom_One": "Select 1 card to put on bottom. {0} cards",
   "Duel_SelectForBottom_Format": "Select {0} cards to put on bottom. {1} cards",
   "Duel_SelectedForBottom_Format": "{0} of {1} selected for bottom",
+  "Duel_NeedMoreForBottom_Format": "Select {0} more for bottom before submitting",
   "Duel_OwnerPrefix_Opponent": "Opponent's ",
   "CardInfoKeywords": "Keywords",
   "NoExtendedCardInfo": "No additional information",

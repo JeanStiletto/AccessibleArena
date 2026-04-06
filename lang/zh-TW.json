@@ -842,6 +842,7 @@
   "Duel_SelectForBottom_One": "選擇1張牌放到底部。{0}張牌",
   "Duel_SelectForBottom_Format": "選擇{0}張牌放到底部。{1}張牌",
   "Duel_SelectedForBottom_Format": "{1}張中已選{0}張放底部",
+  "Duel_NeedMoreForBottom_Format": "Select {0} more for bottom before submitting",
   "Duel_OwnerPrefix_Opponent": "對手的",
   "CardInfoKeywords": "關鍵字",
   "NoExtendedCardInfo": "沒有額外資訊",

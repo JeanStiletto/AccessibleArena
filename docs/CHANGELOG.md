@@ -4,6 +4,11 @@ All notable changes to Accessible Arena.
 
 ## v0.9.1
 
+### London Mulligan (put cards on bottom)
+- Fixed getting stuck in an infinite loop when pressing Space to submit without enough cards on the bottom pile — the mod now validates the count and announces how many more cards need to be selected
+- Fixed the "Select N cards to put on bottom" instruction disappearing after a failed submit, leaving the user with no context about what to do
+- The required bottom count is now read from the game's internal data instead of the mod's own mulligan counter, fixing incorrect counts when the first mulligan was free (e.g., in best-of-three or Color Challenge)
+
 ### Combat
 - Attacking creatures now announce their target when attacking a planeswalker or battle (e.g., "attacking Jace, the Mind Sculptor") — previously only showed "attacking" without indicating the target
 

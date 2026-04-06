@@ -842,6 +842,7 @@
   "Duel_SelectForBottom_One": "下に置くカードを1枚選択。{0}枚",
   "Duel_SelectForBottom_Format": "下に置くカードを{0}枚選択。{1}枚",
   "Duel_SelectedForBottom_Format": "{1}枚中{0}枚を下に選択済み",
+  "Duel_NeedMoreForBottom_Format": "Select {0} more for bottom before submitting",
   "Duel_OwnerPrefix_Opponent": "対戦相手の",
   "CardInfoKeywords": "キーワード",
   "NoExtendedCardInfo": "追加情報なし",

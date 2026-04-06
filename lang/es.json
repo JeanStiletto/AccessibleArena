@@ -842,6 +842,7 @@
   "Duel_SelectForBottom_One": "Selecciona 1 carta para poner abajo. {0} cartas",
   "Duel_SelectForBottom_Format": "Selecciona {0} cartas para poner abajo. {1} cartas",
   "Duel_SelectedForBottom_Format": "{0} de {1} seleccionadas para abajo",
+  "Duel_NeedMoreForBottom_Format": "Select {0} more for bottom before submitting",
   "Duel_OwnerPrefix_Opponent": "Del oponente ",
   "CardInfoKeywords": "Palabras clave",
   "NoExtendedCardInfo": "Sin información adicional",

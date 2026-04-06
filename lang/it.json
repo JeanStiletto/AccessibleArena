@@ -842,6 +842,7 @@
   "Duel_SelectForBottom_One": "Seleziona 1 carta da mettere in fondo. {0} carte",
   "Duel_SelectForBottom_Format": "Seleziona {0} carte da mettere in fondo. {1} carte",
   "Duel_SelectedForBottom_Format": "{0} di {1} selezionate per il fondo",
+  "Duel_NeedMoreForBottom_Format": "Select {0} more for bottom before submitting",
   "Duel_OwnerPrefix_Opponent": "Dell'avversario ",
   "CardInfoKeywords": "Parole chiave",
   "NoExtendedCardInfo": "Nessuna informazione aggiuntiva",

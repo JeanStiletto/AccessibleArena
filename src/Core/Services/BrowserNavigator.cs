@@ -226,9 +226,15 @@ namespace AccessibleArena.Core.Services
                 else if (_pendingRescan)
                 {
                     _pendingRescan = false;
+                    // Preserve mulligan count across rescan so London phase keeps correct state
+                    int savedMulliganCount = _zoneNavigator.MulliganCount;
                     MelonLogger.Msg($"[BrowserNavigator] Re-scanning browser after confirm: {browserInfo.BrowserType}");
                     ExitBrowserMode();
                     EnterBrowserMode(browserInfo);
+                    if (savedMulliganCount > 0 && BrowserDetector.IsLondonBrowser(browserInfo.BrowserType))
+                    {
+                        _zoneNavigator.RestoreMulliganCount(savedMulliganCount);
+                    }
                 }
             }
             else
@@ -2610,9 +2616,20 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // London mulligan: click SubmitButton
+            // London mulligan: click SubmitButton (only if enough cards are on bottom)
             if (_browserInfo?.IsLondon == true)
             {
+                // Read required count from game's LondonBrowser, fallback to mod-tracked count
+                int required = _zoneNavigator.GetRequiredPutbackCount();
+                if (required <= 0) required = _zoneNavigator.MulliganCount;
+                int onBottom = _zoneNavigator.BottomCardCount;
+                if (required > 0 && onBottom < required)
+                {
+                    int remaining = required - onBottom;
+                    _announcer.Announce(Strings.Duel_NeedMoreForBottom(remaining), AnnouncementPriority.High);
+                    _pendingRescan = false; // Don't rescan — nothing changed
+                    return;
+                }
                 if (TryClickButtonByName(BrowserDetector.ButtonSubmit, out clickedLabel))
                 {
                     _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);

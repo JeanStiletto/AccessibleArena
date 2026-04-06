@@ -853,6 +853,7 @@
   "Duel_SelectForBottom_One": "Wähle 1 Karte für unten. {0} Karten",
   "Duel_SelectForBottom_Format": "Wähle {0} Karten für unten. {1} Karten",
   "Duel_SelectedForBottom_Format": "{0} von {1} für unten ausgewählt",
+  "Duel_NeedMoreForBottom_Format": "Select {0} more for bottom before submitting",
   "Duel_OwnerPrefix_Opponent": "Gegners ",
   "CardInfoKeywords": "Schlüsselwörter",
   "NoExtendedCardInfo": "Keine zusätzlichen Informationen",

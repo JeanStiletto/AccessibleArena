@@ -465,6 +465,7 @@ namespace AccessibleArena.Core.Models
         public static string Duel_SelectForBottom(int count, int cardCount) =>
             count == 1 ? L.Format("Duel_SelectForBottom_One", cardCount) : L.Format("Duel_SelectForBottom_Format", count, cardCount);
         public static string Duel_SelectedForBottom(int selected, int required) => L.Format("Duel_SelectedForBottom_Format", selected, required);
+        public static string Duel_NeedMoreForBottom(int remaining) => L.Format("Duel_NeedMoreForBottom_Format", remaining);
 
         public static string Duel_OwnerPrefix_Opponent => L.Get("Duel_OwnerPrefix_Opponent");
 

@@ -842,6 +842,7 @@
   "Duel_SelectForBottom_One": "아래에 놓을 카드 1장 선택. {0}장",
   "Duel_SelectForBottom_Format": "아래에 놓을 카드 {0}장 선택. {1}장",
   "Duel_SelectedForBottom_Format": "{1}장 중 {0}장 아래로 선택됨",
+  "Duel_NeedMoreForBottom_Format": "Select {0} more for bottom before submitting",
   "Duel_OwnerPrefix_Opponent": "상대의 ",
   "CardInfoKeywords": "키워드",
   "NoExtendedCardInfo": "추가 정보 없음",

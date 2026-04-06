@@ -144,6 +144,15 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg("[BrowserZoneNavigator] Mulligan state reset for new game");
         }
 
+        /// <summary>
+        /// Restores mulligan count after a rescan (exit/re-enter cycle) where the London browser stayed active.
+        /// </summary>
+        public void RestoreMulliganCount(int count)
+        {
+            _mulliganCount = count;
+            MelonLogger.Msg($"[BrowserZoneNavigator] Mulligan count restored to {count} after rescan");
+        }
+
         #endregion
 
         #region Input Handling
@@ -418,9 +427,12 @@ namespace AccessibleArena.Core.Services
                 string announcement = Strings.MovedTo(movedCardName, newZone) + ". " + Strings.BrowserZoneEmpty(zoneName);
 
                 // Add London progress info
-                if (BrowserDetector.IsLondonBrowser(_browserType) && _mulliganCount > 0)
+                if (BrowserDetector.IsLondonBrowser(_browserType))
                 {
-                    announcement += ". " + Strings.Duel_SelectedForBottom(_bottomCards.Count, _mulliganCount);
+                    int required = GetRequiredPutbackCount();
+                    if (required <= 0) required = _mulliganCount; // fallback
+                    if (required > 0)
+                        announcement += ". " + Strings.Duel_SelectedForBottom(_bottomCards.Count, required);
                 }
 
                 _announcer.Announce(announcement, AnnouncementPriority.Normal);
@@ -434,9 +446,12 @@ namespace AccessibleArena.Core.Services
                 string announcement = Strings.MovedTo(movedCardName, newZone) + ". " + Strings.BrowserZoneCard(currentCardName, "", _cardIndex + 1, currentList.Count);
 
                 // Add London progress info
-                if (BrowserDetector.IsLondonBrowser(_browserType) && _mulliganCount > 0)
+                if (BrowserDetector.IsLondonBrowser(_browserType))
                 {
-                    announcement += ". " + Strings.Duel_SelectedForBottom(_bottomCards.Count, _mulliganCount);
+                    int required = GetRequiredPutbackCount();
+                    if (required <= 0) required = _mulliganCount; // fallback
+                    if (required > 0)
+                        announcement += ". " + Strings.Duel_SelectedForBottom(_bottomCards.Count, required);
                 }
 
                 _announcer.Announce(announcement, AnnouncementPriority.Normal);
@@ -1140,6 +1155,30 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        /// <summary>
+        /// Reads RequiredPutbackCount from the game's LondonBrowser via reflection.
+        /// Returns 0 if the browser is not available or the property is not found.
+        /// </summary>
+        public int GetRequiredPutbackCount()
+        {
+            try
+            {
+                var browser = GetBrowserController();
+                if (browser == null) return 0;
+
+                var prop = browser.GetType().GetProperty("RequiredPutbackCount", PublicInstance);
+                if (prop != null)
+                {
+                    return (int)(uint)prop.GetValue(browser);
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[BrowserZoneNavigator] Failed to read RequiredPutbackCount: {ex.Message}");
+            }
+            return 0;
+        }
+
         #endregion
 
         #region State for BrowserNavigator
@@ -1149,6 +1188,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public string GetLondonEntryAnnouncement(int cardCount)
         {
+            int required = GetRequiredPutbackCount();
+            if (required > 0)
+            {
+                return Strings.Duel_SelectForBottom(required, cardCount);
+            }
+            // Fallback to mod-tracked count if game property not available
             if (_mulliganCount > 0)
             {
                 return Strings.Duel_SelectForBottom(_mulliganCount, cardCount);
