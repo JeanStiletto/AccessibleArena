@@ -73,8 +73,7 @@ namespace AccessibleArena.Core.Services
 
             MelonLogger.Msg($"[ExtendedInfo] Opened with {_items.Count} items");
 
-            string core = $"{Strings.ExtendedInfoTitle}. {Strings.ItemCount(_items.Count)}";
-            _announcer.AnnounceInterrupt(Strings.WithHint(core, "ExtendedInfoInstructions"));
+            AnnounceCurrentItem();
         }
 
         /// <summary>
