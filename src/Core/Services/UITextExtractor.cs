@@ -173,6 +173,15 @@ namespace AccessibleArena.Core.Services
                 return deckManagerButtonText;
             }
 
+            // For Mailbox items, try to get the mail title (skip "Neu" badge) BEFORE generic text extraction.
+            // GetComponentInChildren<TMP_Text> picks up the "Neu" badge first for unread items,
+            // so the mailbox-specific extractor must run earlier.
+            string mailboxTitle = TryGetMailboxItemTitle(gameObject);
+            if (!string.IsNullOrEmpty(mailboxTitle))
+            {
+                return mailboxTitle;
+            }
+
             // Check for input fields FIRST (they contain text children that we don't want to read directly)
             var tmpInputField = gameObject.GetComponent<TMP_InputField>();
             if (tmpInputField != null)
@@ -248,13 +257,6 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(siblingText))
             {
                 return siblingText;
-            }
-
-            // For Mailbox items, try to get the mail title (skip "Neu" badge)
-            string mailboxTitle = TryGetMailboxItemTitle(gameObject);
-            if (!string.IsNullOrEmpty(mailboxTitle))
-            {
-                return mailboxTitle;
             }
 
             // Try TooltipTrigger LocString as fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn).
@@ -1666,6 +1668,7 @@ namespace AccessibleArena.Core.Services
             var textComponents = listItemContainer.GetComponentsInChildren<TMP_Text>(true);
             string bestTitle = null;
             int bestLength = 0;
+            string badgeText = null;
 
             foreach (var tmp in textComponents)
             {
@@ -1674,10 +1677,14 @@ namespace AccessibleArena.Core.Services
                 string text = CleanText(tmp.text);
                 if (string.IsNullOrWhiteSpace(text)) continue;
 
-                // Skip common badge/indicator texts
+                // Detect badge/indicator texts but remember them for prefix
                 string lower = text.ToLower();
-                if (lower == "neu" || lower == "new" || lower == "unread" ||
-                    lower == "gelesen" || lower == "read" || text.Length <= 3)
+                if (lower == "neu" || lower == "new" || lower == "unread")
+                {
+                    badgeText = text;
+                    continue;
+                }
+                if (lower == "gelesen" || lower == "read" || text.Length <= 3)
                     continue;
 
                 // Prefer longer text (title is usually longer than other labels)
@@ -1687,6 +1694,10 @@ namespace AccessibleArena.Core.Services
                     bestLength = text.Length;
                 }
             }
+
+            // Prepend unread badge if present so the user knows the mail is new
+            if (bestTitle != null && badgeText != null)
+                return $"{badgeText}, {bestTitle}";
 
             return bestTitle;
         }

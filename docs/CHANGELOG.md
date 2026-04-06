@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9.1
 
+### Mailbox
+- Fixed unread mail items announcing only "Neu" instead of "Neu, mail title" — the unread badge text was intercepted before the mailbox-specific title extraction could run
+
 ### London Mulligan (put cards on bottom)
 - Fixed getting stuck in an infinite loop when pressing Space to submit without enough cards on the bottom pile — the mod now validates the count and announces how many more cards need to be selected
 - Fixed the "Select N cards to put on bottom" instruction disappearing after a failed submit, leaving the user with no context about what to do
