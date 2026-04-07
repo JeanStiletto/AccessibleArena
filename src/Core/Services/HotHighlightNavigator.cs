@@ -232,7 +232,7 @@ namespace AccessibleArena.Core.Services
                         string cardName = CardDetector.GetCardName(card) ?? card.name;
                         bool wasSelected = IsCardSelected(card);
                         MelonLogger.Msg($"[HotHighlightNavigator] Toggling battlefield selection: {cardName} (was selected: {wasSelected}, preCount: {preClickCount})");
-                        var result = UIActivator.SimulatePointerClick(card);
+                        var result = ClickBattlefieldCard(card);
                         if (result.Success)
                             MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount));
                         else
@@ -753,10 +753,13 @@ namespace AccessibleArena.Core.Services
                 if (selectionMode && !item.IsPlayer)
                 {
                     // Selection mode on battlefield - toggle selection with count announcement
+                    // Use position-aware click to avoid hitting wrong card in stacks
                     bool wasSelected = IsCardSelected(item.GameObject);
                     MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name} (was selected: {wasSelected})");
 
-                    var result = UIActivator.SimulatePointerClick(item.GameObject);
+                    var result = (item.Zone == "Battlefield")
+                        ? ClickBattlefieldCard(item.GameObject)
+                        : UIActivator.SimulatePointerClick(item.GameObject);
                     if (result.Success)
                         MelonCoroutines.Start(AnnounceSelectionToggleDelayed(item.Name, wasSelected, preClickCount));
                     else
@@ -826,6 +829,24 @@ namespace AccessibleArena.Core.Services
             if (isCreature) return "Creature";
             if (isLand) return "Land";
             return "Permanent";
+        }
+
+        /// <summary>
+        /// Clicks a battlefield card using its world-space position converted to screen
+        /// coordinates. Stacked cards (e.g. multiple Islands) share overlapping RectTransforms,
+        /// so the default RectTransform-based position can cause the game's position-based
+        /// raycast handler to hit the wrong card. Using Camera.main.WorldToScreenPoint on
+        /// the card's transform.position gives the correct per-card position within the stack.
+        /// This matches what BattlefieldNavigator.ActivateCurrentCard does.
+        /// </summary>
+        private static ActivationResult ClickBattlefieldCard(GameObject card)
+        {
+            if (Camera.main != null)
+            {
+                Vector2 screenPos = Camera.main.WorldToScreenPoint(card.transform.position);
+                return UIActivator.SimulatePointerClick(card, screenPos);
+            }
+            return UIActivator.SimulatePointerClick(card);
         }
 
         /// <summary>
@@ -1268,7 +1289,12 @@ namespace AccessibleArena.Core.Services
             bool wasSelected = IsCardSelected(card);
             MelonLogger.Msg($"[HotHighlightNavigator] Zone nav toggling selection: {cardName} (was selected: {wasSelected})");
 
-            var result = UIActivator.SimulatePointerClick(card);
+            // Use position-aware click for battlefield cards to avoid hitting
+            // wrong card in visual stacks (e.g. multiple Islands)
+            string zone = DetectZone(card);
+            var result = (zone == "Battlefield")
+                ? ClickBattlefieldCard(card)
+                : UIActivator.SimulatePointerClick(card);
             if (result.Success)
                 MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount));
             else
