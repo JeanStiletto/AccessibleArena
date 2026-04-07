@@ -40,6 +40,7 @@ namespace AccessibleArena.Core.Services
         private int _opponentIndex = -1;
         private bool _isActive;
         private bool _wasInSelectionMode;
+        private bool _snapshotValid;
 
         // Track last zone/row to detect zone changes on Tab
         private string _lastItemZone;
@@ -106,6 +107,7 @@ namespace AccessibleArena.Core.Services
         {
             _isActive = false;
             _wasInSelectionMode = false;
+            _snapshotValid = false;
             _items.Clear();
             _currentIndex = -1;
             _opponentIndex = -1;
@@ -129,6 +131,7 @@ namespace AccessibleArena.Core.Services
                 _currentIndex = -1;
                 _opponentIndex = -1;
                 _lastItemZone = null;
+                _snapshotValid = false;
             }
         }
 
@@ -145,7 +148,7 @@ namespace AccessibleArena.Core.Services
                 (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                DiscoverAllHighlights();
+                RefreshOrRebuildHighlights();
 
                 var opponentItems = new List<int>();
                 for (int i = 0; i < _items.Count; i++)
@@ -181,8 +184,7 @@ namespace AccessibleArena.Core.Services
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
-                // Refresh highlights on each Tab press
-                DiscoverAllHighlights();
+                RefreshOrRebuildHighlights();
 
                 if (_items.Count == 0)
                 {
@@ -231,10 +233,10 @@ namespace AccessibleArena.Core.Services
                         int preClickCount = submitInfo.Value.count;
                         string cardName = CardDetector.GetCardName(card) ?? card.name;
                         bool wasSelected = IsCardSelected(card);
-                        MelonLogger.Msg($"[HotHighlightNavigator] Toggling battlefield selection: {cardName} (was selected: {wasSelected}, preCount: {preClickCount})");
+                        MelonLogger.Msg($"[HotHighlightNavigator] Toggling battlefield selection: {cardName} on {card.name} (was selected: {wasSelected}, preCount: {preClickCount})");
                         var result = ClickBattlefieldCard(card);
                         if (result.Success)
-                            MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount));
+                            MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount, card.name));
                         else
                             _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
                         return true;
@@ -252,6 +254,7 @@ namespace AccessibleArena.Core.Services
                         _items.Clear();
                         _currentIndex = -1;
                         _opponentIndex = -1;
+                        _snapshotValid = false;
                     }
                     return false;
                 }
@@ -280,6 +283,9 @@ namespace AccessibleArena.Core.Services
                         MelonLogger.Msg($"[HotHighlightNavigator] Space pressed - clicking primary button: {buttonText}");
                         UIActivator.SimulatePointerClick(primaryButton);
                         _announcer.Announce(buttonText, AnnouncementPriority.Normal);
+                        // Invalidate snapshot so next selection phase gets a full rebuild
+                        // (e.g. discard → untap lands are completely different contexts)
+                        _snapshotValid = false;
                         return true;
                     }
                 }
@@ -328,28 +334,33 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Discovers ALL items with HotHighlight across all zones.
-        /// No zone filtering - we trust the game to highlight only what's relevant.
-        ///
-        /// Optimization: Instead of scanning every GameObject and checking children for HotHighlight,
-        /// we scan all Transforms once and look for objects NAMED "HotHighlight" — then grab their
-        /// parent (the card). This avoids child traversals on every object in the scene.
-        /// Player targets (DuelScene_AvatarView) are found in the same single pass.
+        /// Decides whether to do a full rebuild or stable refresh of highlights.
+        /// Full rebuild on first discovery, selection mode change, or after invalidation.
+        /// Stable refresh preserves Tab order when cards move due to selection animations.
         /// </summary>
-        private void DiscoverAllHighlights()
+        private void RefreshOrRebuildHighlights()
         {
-            _items.Clear();
-            var addedIds = new HashSet<int>();
-
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", "Discovering highlights...");
-
-            // Pre-check selection mode once (expensive call, don't repeat per-object)
             bool selectionMode = IsSelectionModeActive();
-            CheckSelectionModeTransition(selectionMode);
+            bool modeChanged = (selectionMode != _wasInSelectionMode);
 
-            // Diagnostic counters - always tracked (cheap), only logged on change
-            int handHighlights = 0;
-            int battlefieldHighlights = 0;
+            if (_items.Count == 0 || !_snapshotValid || modeChanged)
+            {
+                DiscoverAllHighlights();
+            }
+            else
+            {
+                RefreshHighlightsStable();
+            }
+        }
+
+        /// <summary>
+        /// Scans the scene for all currently highlighted objects (cards, avatars, selected).
+        /// Returns a dictionary keyed by instance ID. Does not modify _items.
+        /// Shared scanning logic used by both full discovery and stable refresh.
+        /// </summary>
+        private Dictionary<int, HighlightedItem> ScanCurrentHighlights(bool selectionMode)
+        {
+            var result = new Dictionary<int, HighlightedItem>();
 
             // Cache avatar views once, then reuse (only 2 per duel)
             if (_cachedAvatarViews.Count == 0 || _cachedAvatarViews.Any(v => v == null))
@@ -360,7 +371,6 @@ namespace AccessibleArena.Core.Services
             }
 
             // Single scene scan: find HotHighlight objects by name, then walk up to the card
-            // Much faster than old approach of checking every GameObject's children for HotHighlight
             foreach (var t in GameObject.FindObjectsOfType<Transform>())
             {
                 if (t == null) continue;
@@ -368,7 +378,6 @@ namespace AccessibleArena.Core.Services
 
                 string highlightName = t.gameObject.name;
 
-                // Walk up the hierarchy to find the card that owns this HotHighlight
                 Transform ancestor = t.parent;
                 GameObject cardGo = null;
                 while (ancestor != null)
@@ -383,18 +392,11 @@ namespace AccessibleArena.Core.Services
                 if (cardGo == null) continue;
 
                 int id = cardGo.GetInstanceID();
-                if (addedIds.Contains(id)) continue;
+                if (result.ContainsKey(id)) continue;
 
                 var item = CreateHighlightedItem(cardGo, highlightName);
                 if (item != null)
-                {
-                    _items.Add(item);
-                    addedIds.Add(id);
-
-                    // Diagnostic tracking (uses zone from CreateHighlightedItem's DetectZone)
-                    if (item.Zone == "Hand") handHighlights++;
-                    else if (item.Zone == "Battlefield") battlefieldHighlights++;
-                }
+                    result[id] = item;
             }
 
             // Check cached player avatars for highlight state (2 objects, no scene scan needed)
@@ -402,20 +404,57 @@ namespace AccessibleArena.Core.Services
             {
                 foreach (var avatar in _cachedAvatarViews)
                 {
-                    if (avatar != null && avatar.gameObject.activeInHierarchy)
-                        TryAddPlayerTarget(avatar, addedIds);
+                    if (avatar == null || !avatar.gameObject.activeInHierarchy) continue;
+                    var item = CreateAvatarTargetItem(avatar);
+                    if (item != null)
+                    {
+                        int id = item.GameObject.GetInstanceID();
+                        if (!result.ContainsKey(id))
+                            result[id] = item;
+                    }
                 }
             }
 
             // Selection mode fallback: find cards that lost HotHighlight after being selected
-            // (game removes HotHighlight from selected cards, making them un-navigable)
-            // Not limited to hand — sacrifice/exile effects can select battlefield cards too
             if (selectionMode)
             {
-                DiscoverSelectedCards(addedIds);
+                foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+                {
+                    if (go == null || !go.activeInHierarchy) continue;
+                    if (!CardDetector.IsCard(go)) continue;
+
+                    int id = go.GetInstanceID();
+                    if (result.ContainsKey(id)) continue;
+                    if (!IsCardSelected(go)) continue;
+
+                    var item = CreateHighlightedItem(go, "Selected");
+                    if (item != null)
+                        result[id] = item;
+                }
             }
 
-            // Only log diagnostic summary when counts change
+            return result;
+        }
+
+        /// <summary>
+        /// Full discovery: clears items, scans scene, sorts by zone/position.
+        /// Used on first Tab press or when snapshot is invalidated.
+        /// </summary>
+        private void DiscoverAllHighlights()
+        {
+            _items.Clear();
+
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", "Discovering highlights (full rebuild)...");
+
+            bool selectionMode = IsSelectionModeActive();
+            CheckSelectionModeTransition(selectionMode);
+
+            var scanned = ScanCurrentHighlights(selectionMode);
+            _items.AddRange(scanned.Values);
+
+            // Diagnostic counters
+            int handHighlights = _items.Count(i => i.Zone == "Hand");
+            int battlefieldHighlights = _items.Count(i => i.Zone == "Battlefield");
             if (handHighlights != _lastDiagHandHighlighted ||
                 battlefieldHighlights != _lastDiagBattlefieldHighlighted)
             {
@@ -426,9 +465,7 @@ namespace AccessibleArena.Core.Services
 
             // When no card/player highlights, check for prompt button choices
             if (_items.Count == 0)
-            {
                 DiscoverPromptButtons();
-            }
 
             // Sort: Hand cards first, then your permanents, then opponent's, then players
             _items = _items
@@ -443,35 +480,52 @@ namespace AccessibleArena.Core.Services
             // Reset indices if out of range
             if (_currentIndex >= _items.Count)
                 _currentIndex = _items.Count > 0 ? 0 : -1;
-            // _opponentIndex is validated at use site against filtered list
+
+            _snapshotValid = true;
         }
 
         /// <summary>
-        /// Selection mode fallback: finds cards that are selected but lost their HotHighlight.
-        /// The game removes HotHighlight from selected cards, making them un-navigable via the
-        /// main scan. This re-adds them so the user can deselect.
-        /// Scans all GameObjects (not just hand) to cover sacrifice/exile selection on battlefield.
+        /// Stable refresh: validates existing items and adds new ones at the end.
+        /// Preserves the sort order established by DiscoverAllHighlights.
+        /// Cards that moved position (e.g. after selection animation) keep their
+        /// place in the Tab order, preventing the user from missing or revisiting cards.
         /// </summary>
-        private void DiscoverSelectedCards(HashSet<int> addedIds)
+        private void RefreshHighlightsStable()
         {
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", "Refreshing highlights (stable snapshot)...");
+
+            bool selectionMode = IsSelectionModeActive();
+            CheckSelectionModeTransition(selectionMode);
+
+            var scanned = ScanCurrentHighlights(selectionMode);
+
+            // Remove items that are no longer valid (destroyed or lost highlight)
+            var survivingIds = new HashSet<int>();
+            _items.RemoveAll(item =>
             {
-                if (go == null || !go.activeInHierarchy) continue;
-                if (!CardDetector.IsCard(go)) continue;
+                if (item.GameObject == null) return true;
+                int id = item.GameObject.GetInstanceID();
+                if (!scanned.ContainsKey(id)) return true;
+                survivingIds.Add(id);
+                return false;
+            });
 
-                int id = go.GetInstanceID();
-                if (addedIds.Contains(id)) continue;
-
-                // Only check cards we haven't already found via HotHighlight
-                if (!IsCardSelected(go)) continue;
-
-                var item = CreateHighlightedItem(go, "Selected");
-                if (item != null)
-                {
-                    _items.Add(item);
-                    addedIds.Add(id);
-                }
+            // Append new items at end (preserves existing order)
+            foreach (var kvp in scanned)
+            {
+                if (!survivingIds.Contains(kvp.Key))
+                    _items.Add(kvp.Value);
             }
+
+            // Prompt buttons if empty
+            if (_items.Count == 0)
+                DiscoverPromptButtons();
+
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Stable refresh: {_items.Count} items ({survivingIds.Count} kept, {_items.Count - survivingIds.Count} new)");
+
+            // Fix index bounds
+            if (_currentIndex >= _items.Count)
+                _currentIndex = _items.Count > 0 ? 0 : -1;
         }
 
         /// <summary>
@@ -493,18 +547,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Attempts to add a player avatar as a target if it has a valid highlight.
+        /// Creates a HighlightedItem for a player avatar if it has a valid highlight.
+        /// Returns null if no valid highlight.
         /// </summary>
-        private void TryAddPlayerTarget(MonoBehaviour avatarView, HashSet<int> addedIds)
+        private HighlightedItem CreateAvatarTargetItem(MonoBehaviour avatarView)
         {
             var highlightSystem = _highlightSystemField?.GetValue(avatarView);
-            if (highlightSystem == null) return;
+            if (highlightSystem == null) return null;
 
             int highlightValue = (int)_currentHighlightField.GetValue(highlightSystem);
 
             // Accept Hot(3), Tepid(2), Cold(1) — skip None(0), Selected(5), others
             if (highlightValue != 1 && highlightValue != 2 && highlightValue != 3)
-                return;
+                return null;
 
             bool isLocal = (bool)_isLocalPlayerProp.GetValue(avatarView);
 
@@ -512,26 +567,21 @@ namespace AccessibleArena.Core.Services
             if (portraitButton == null)
             {
                 DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"AvatarView has highlight={highlightValue} but no PortraitButton");
-                return;
+                return null;
             }
 
-            GameObject clickable = portraitButton.gameObject;
-            int id = clickable.GetInstanceID();
-            if (addedIds.Contains(id)) return;
-
             string name = isLocal ? Strings.You : Strings.Opponent;
-            _items.Add(new HighlightedItem
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Added {(isLocal ? "local" : "opponent")} player as target (highlight={highlightValue})");
+            return new HighlightedItem
             {
-                GameObject = clickable,
+                GameObject = portraitButton.gameObject,
                 Name = name,
                 Zone = "Player",
                 HighlightType = $"AvatarHighlight({highlightValue})",
                 IsOpponent = !isLocal,
                 IsPlayer = true,
                 CardType = "Player"
-            });
-            addedIds.Add(id);
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Added {(isLocal ? "local" : "opponent")} player as target (highlight={highlightValue})");
+            };
         }
 
         /// <summary>
@@ -703,6 +753,7 @@ namespace AccessibleArena.Core.Services
                 }
                 _items.Clear();
                 _currentIndex = -1;
+                _snapshotValid = false;
                 return;
             }
 
@@ -755,13 +806,13 @@ namespace AccessibleArena.Core.Services
                     // Selection mode on battlefield - toggle selection with count announcement
                     // Use position-aware click to avoid hitting wrong card in stacks
                     bool wasSelected = IsCardSelected(item.GameObject);
-                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name} (was selected: {wasSelected})");
+                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name} on {item.GameObject.name} (was selected: {wasSelected})");
 
                     var result = (item.Zone == "Battlefield")
                         ? ClickBattlefieldCard(item.GameObject)
                         : UIActivator.SimulatePointerClick(item.GameObject);
                     if (result.Success)
-                        MelonCoroutines.Start(AnnounceSelectionToggleDelayed(item.Name, wasSelected, preClickCount));
+                        MelonCoroutines.Start(AnnounceSelectionToggleDelayed(item.Name, wasSelected, preClickCount, item.Zone == "Battlefield" ? item.GameObject.name : null));
                     else
                         _announcer.Announce(Strings.CouldNotSelect(item.Name), AnnouncementPriority.High);
                 }
@@ -792,6 +843,7 @@ namespace AccessibleArena.Core.Services
             _items.Clear();
             _currentIndex = -1;
             _opponentIndex = -1;
+            _snapshotValid = false;
         }
 
         /// <summary>
@@ -832,15 +884,55 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Clicks a battlefield card using its world-space position converted to screen
-        /// coordinates. Stacked cards (e.g. multiple Islands) share overlapping RectTransforms,
-        /// so the default RectTransform-based position can cause the game's position-based
-        /// raycast handler to hit the wrong card. Using Camera.main.WorldToScreenPoint on
-        /// the card's transform.position gives the correct per-card position within the stack.
-        /// This matches what BattlefieldNavigator.ActivateCurrentCard does.
+        /// Clicks a battlefield card by finding and invoking CardInput directly.
+        /// CardInput (the game's click handler) may be on a child object (e.g. collider child),
+        /// not the CDC root. ExecuteEvents.Execute only searches the target object, not children,
+        /// so sending events to the CDC root misses CardInput entirely. Instead, we find the
+        /// actual IPointerClickHandler in the hierarchy and send events directly to its GameObject.
+        /// CardInput uses its cached _cardViewCache (the DuelScene_CDC) to identify the card,
+        /// NOT the pointer position, so this correctly selects the intended card even in stacks.
         /// </summary>
         private static ActivationResult ClickBattlefieldCard(GameObject card)
         {
+            // Find the actual click handler (CardInput) which may be on a child object
+            var clickHandler = card.GetComponentInChildren<IPointerClickHandler>();
+            if (clickHandler != null)
+            {
+                var handlerGo = (clickHandler as MonoBehaviour)?.gameObject ?? card;
+
+                // Use a valid screen position (only needed for CardInput's ScreenRect bounds check)
+                Vector2 screenPos = Camera.main != null
+                    ? (Vector2)Camera.main.WorldToScreenPoint(card.transform.position)
+                    : new Vector2(Screen.width / 2f, Screen.height / 2f);
+
+                var pointer = new PointerEventData(EventSystem.current)
+                {
+                    button = PointerEventData.InputButton.Left,
+                    clickCount = 1,
+                    pointerPress = handlerGo,
+                    pointerEnter = handlerGo,
+                    position = screenPos,
+                    pressPosition = screenPos
+                };
+
+                MelonLogger.Msg($"[HotHighlightNavigator] Direct CardInput click: handler on {handlerGo.name} for card {card.name}");
+
+                // Set EventSystem selection to CDC root for mod's focus tracking
+                var eventSystem = EventSystem.current;
+                if (eventSystem != null)
+                    eventSystem.SetSelectedGameObject(card);
+
+                // Send full click sequence to the handler's GameObject
+                ExecuteEvents.Execute(handlerGo, pointer, ExecuteEvents.pointerEnterHandler);
+                ExecuteEvents.Execute(handlerGo, pointer, ExecuteEvents.pointerDownHandler);
+                ExecuteEvents.Execute(handlerGo, pointer, ExecuteEvents.pointerUpHandler);
+                ExecuteEvents.Execute(handlerGo, pointer, ExecuteEvents.pointerClickHandler);
+
+                return new ActivationResult(true, Strings.ActivatedBare, ActivationType.PointerClick);
+            }
+
+            // Fallback: standard click if no CardInput found
+            MelonLogger.Warning($"[HotHighlightNavigator] No IPointerClickHandler found on {card.name}, using fallback click");
             if (Camera.main != null)
             {
                 Vector2 screenPos = Camera.main.WorldToScreenPoint(card.transform.position);
@@ -1109,9 +1201,13 @@ namespace AccessibleArena.Core.Services
         /// <param name="cardName">Name of the card that was toggled</param>
         /// <param name="wasSelected">Whether the card was selected before the click</param>
         /// <param name="preClickCount">The submit button count before the click (-1 if unknown)</param>
-        private IEnumerator AnnounceSelectionToggleDelayed(string cardName, bool wasSelected, int preClickCount = -1)
+        private IEnumerator AnnounceSelectionToggleDelayed(string cardName, bool wasSelected, int preClickCount = -1, string clickedCdcName = null)
         {
             yield return new WaitForSeconds(0.2f);
+
+            // Diagnostic: log which CDCs have selection indicators after the click
+            if (clickedCdcName != null)
+                LogSelectionIndicatorScan(clickedCdcName);
 
             var info = GetSubmitButtonInfo();
             if (info != null)
@@ -1165,6 +1261,29 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Diagnostic: after clicking a battlefield card for selection, scan all battlefield CDCs
+        /// to log which ones have selection indicators. Helps trace click-targeting mismatches
+        /// where the game selects a different card than what we clicked.
+        /// </summary>
+        private void LogSelectionIndicatorScan(string clickedCdcName)
+        {
+            var battlefieldHolder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
+            if (battlefieldHolder == null) return;
+
+            var selected = new List<string>();
+            foreach (Transform child in battlefieldHolder.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+                if (!CardDetector.IsCard(child.gameObject)) continue;
+
+                if (IsCardSelected(child.gameObject))
+                    selected.Add(child.gameObject.name);
+            }
+
+            MelonLogger.Msg($"[HotHighlightNavigator] DIAG click-target: clicked={clickedCdcName}, cards with selection indicators: [{string.Join(", ", selected)}]");
         }
 
         /// <summary>
@@ -1287,7 +1406,7 @@ namespace AccessibleArena.Core.Services
             int preClickCount = GetSubmitButtonInfo()?.count ?? -1;
             string cardName = CardDetector.GetCardName(card) ?? card.name;
             bool wasSelected = IsCardSelected(card);
-            MelonLogger.Msg($"[HotHighlightNavigator] Zone nav toggling selection: {cardName} (was selected: {wasSelected})");
+            MelonLogger.Msg($"[HotHighlightNavigator] Zone nav toggling selection: {cardName} on {card.name} (was selected: {wasSelected})");
 
             // Use position-aware click for battlefield cards to avoid hitting
             // wrong card in visual stacks (e.g. multiple Islands)
@@ -1296,7 +1415,7 @@ namespace AccessibleArena.Core.Services
                 ? ClickBattlefieldCard(card)
                 : UIActivator.SimulatePointerClick(card);
             if (result.Success)
-                MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount));
+                MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount, zone == "Battlefield" ? card.name : null));
             else
                 _announcer.Announce(Strings.CouldNotSelect(cardName), AnnouncementPriority.High);
 

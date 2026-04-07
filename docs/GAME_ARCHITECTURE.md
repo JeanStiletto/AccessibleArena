@@ -80,6 +80,50 @@ The game marks playable and targetable cards by adding a child GameObject with "
 - The game adds/removes these dynamically as game state changes (priority, mana, targets)
 - Player avatars do NOT use HotHighlight — they use `HighlightSystem` sprite swapping instead (see DuelScene_AvatarView section)
 
+### Card Click Interaction Chain
+
+When a card is clicked on the battlefield, the game processes it through a multi-layer chain. Understanding this is critical for the mod's `ClickBattlefieldCard` which simulates clicks via `ExecuteEvents.Execute`.
+
+**CardInput** (`CardInput`, root namespace, Core.dll):
+- MonoBehaviour on every CDC GameObject, implements `IPointerClickHandler` and all pointer interfaces
+- `_cardViewCache` (DuelScene_CDC) set in `OnEnable()` via `GetComponent<DuelScene_CDC>()` — this is the card's identity
+- `OnPointerClick` → `HandleClick(eventData)` → `ProcessInteraction(interactionType)` → `GameManager.InteractionSystem.OnCardClicked(_cardViewCache, interactionType)`
+- `HandleClick` guard: `if (!_cardViewCache || !_cardViewCache.IsVisible || !ScreenRect.Contains(eventData.position)) return` — position only checked against full screen bounds (`Rect(0,0,Screen.width,Screen.height)`)
+- For hand cards: delegates to `BaseHandCardHolder.HandleClick(eventData, this)` instead
+
+**GameInteractionSystem** (`InteractionSystem.GameInteractionSystem`, Core.dll):
+- `OnCardClicked(cardView, interactionType)` — **deferred**: stores in `_currentInteraction`, does NOT process immediately. If `_currentInteraction` is already set, subsequent clicks are silently dropped
+- `ProcessInteraction()` — called once per frame, dispatches via `HandleCardViewClick`
+- `HandleCardViewClick` processing order:
+  1. Browser visible → `ICardBrowser.OnCardViewSelected(cardView)` (returns)
+  2. Reveal holder → switches to browser (returns)
+  3. Dragging clicked card → ends drag (returns)
+  4. **`UniversalBattlefieldCardHolder.HandleCardClick(cardView)`** → if returns true, click consumed (returns)
+  5. Stack with >1 attachment/exile AND clicked card is NOT stack parent → opens attachment browser (returns)
+  6. **`currentWorkflow.CanClick/OnClick`** → normal selection/targeting (returns)
+  7. Fallback: drag, graveyard/library viewer, examine view, or invalid click sound
+
+**UniversalBattlefieldCardHolder.HandleCardClick** (step 4 above):
+- Delegates to `UniversalBattlefieldLayout` → `UniversalBattlefieldRegion.HandleCardClick`
+- Skipped during `DeclareAttackersWorkflow` and `DeclareBlockersWorkflow` (returns false)
+- For collapsed groups: expands the group and **consumes** the click (returns true)
+- For target cards in stacks: checks `ITargetCDCListProviderWorkflow.GetTargetCDCs()` to determine if clicked card is a valid target. If only 1 target in stack → passes through. If multiple targets with attachments → expands stack and consumes click
+- For non-target cards: if stack has attachments → expands and consumes. Otherwise → passes through
+
+**BattlefieldSecondaryRaycaster** (`BattlefieldSecondaryRaycaster`, root namespace, Core.dll):
+- Runs in `Update()` every frame, parallel to EventSystem
+- Uses `Physics.Raycast` with `Input.mousePosition` (real cursor position, NOT simulated)
+- Dispatches `OnPointerEnter/OnPointerClick` to whatever 3D object is under the real cursor
+- Only fires click events on `Input.GetMouseButtonUp(0)` — keyboard-driven mod clicks do NOT trigger this
+- Purpose: handles 3D card hover/click on battlefield (standard EventSystem only handles 2D/UI raycasting)
+
+**Mod's ClickBattlefieldCard approach:**
+- Finds `IPointerClickHandler` (CardInput) on the CDC GameObject
+- Computes screen position via `Camera.main.WorldToScreenPoint(card.transform.position)`
+- Creates `PointerEventData` with the card as both `pointerPress` and `pointerEnter`
+- Fires full sequence: `pointerEnterHandler` → `pointerDownHandler` → `pointerUpHandler` → `pointerClickHandler`
+- Sets `EventSystem.SetSelectedGameObject(card)` for mod's focus tracking (does not affect game selection logic)
+
 ## Key Game Classes
 
 From decompiled Core.dll:

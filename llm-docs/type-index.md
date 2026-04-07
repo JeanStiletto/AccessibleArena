@@ -69,6 +69,9 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | CardBrowserCardHolder | CardBrowserCardHolder | Core |
 | ListMetaCardHolder | ListMetaCardHolder | Core |
 | UniversalBattlefieldStack | UniversalBattlefieldStack | Core |
+| UniversalBattlefieldCardHolder | Wotc.Mtga.DuelScene.Universal.UniversalBattlefieldCardHolder | Core |
+| UniversalBattlefieldLayout | Wotc.Mtga.DuelScene.Universal.UniversalBattlefieldLayout | Core |
+| UniversalBattlefieldRegion | Wotc.Mtga.DuelScene.Universal.UniversalBattlefieldRegion | Core |
 | CardBrowserBase | Wotc.Mtga.DuelScene.Browsers.CardBrowserBase | Core |
 | SelectCardsBrowser | Wotc.Mtga.DuelScene.Browsers.SelectCardsBrowser | Core |
 | SelectCardsWorkflow\<T\> | Wotc.Mtga.DuelScene.Interactions.SelectN.SelectCardsWorkflow\<T\> | Core |
@@ -171,6 +174,9 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 |---|---|---|
 | UXEventQueue | Wotc.Mtga.DuelScene.UXEvents.UXEventQueue | Core |
 | UXEvent | Wotc.Mtga.DuelScene.UXEvents.UXEvent | Core |
+| CardInput | CardInput | Core |
+| GameInteractionSystem | InteractionSystem.GameInteractionSystem | Core |
+| BattlefieldSecondaryRaycaster | BattlefieldSecondaryRaycaster | Core |
 | ButtonPhaseLadder | ButtonPhaseLadder | Core |
 | ManaColorSelector | ManaColorSelector | Core |
 | View_ChooseXInterface | View_ChooseXInterface | Core |
@@ -344,3 +350,8 @@ Some types have members that are fields (not properties) - reflection with `GetP
 - **SelectCardsBrowser** (extends CardBrowserBase): selection tracked via `currentSelections` list (List\<DuelScene_CDC\>) on workflow, NOT on CDC. But `GetBrowserHighlights()` sets `HighlightType.Selected` on selected CDCs, so `CurrentHighlight()` reliably reflects toggle state.
 - **SelectCardsWorkflow\<T\>**: generic type, cannot be decompiled with ilspycmd 8.x. Maintains `selectable`, `currentSelections`, `nonSelectable` lists. Toggle logic in `CardBrowser_OnCardViewSelected`. `GetBrowserHighlights()` maps: selectable→Hot, nonSelectable→None, currentSelections→Selected.
 - **MatchManager**: accessed via `GameManager.MatchManager` (public property). Has `LocalPlayerInfo` and `OpponentInfo` (public properties → nested `PlayerInfo` class). `PlayerInfo.CommanderGrpIds` (`IReadOnlyList<uint>`, property) — commander GrpIds, available from match start even for opponents. MTGA never fires zone transfer events for opponent commanders, so this is the only reliable source.
+- **CardInput**: MonoBehaviour on every CDC root. `_cardViewCache` (DuelScene_CDC) set in `OnEnable()`. Implements all pointer interfaces. `OnPointerClick` → `HandleClick` (checks `IsVisible` + `ScreenRect.Contains`) → `ProcessInteraction` → `GameManager.InteractionSystem.OnCardClicked(_cardViewCache)`. For hand cards, delegates to `BaseHandCardHolder.HandleClick` instead.
+- **GameInteractionSystem** (`InteractionSystem.GameInteractionSystem`): `OnCardClicked` is **deferred** — stores in `_currentInteraction` (dropped if already set). `ProcessInteraction()` dispatches per frame via `HandleCardViewClick`. Processing order: browser → reveal → drag → `UniversalBattlefieldCardHolder.HandleCardClick` → stack attachment browser → `workflow.OnClick` → fallbacks. `HandleHover(cardView, hoverTarget)` controls visual hover only.
+- **BattlefieldSecondaryRaycaster**: Runs in `Update()`, uses `Physics.Raycast` with `Input.mousePosition` (real cursor). Dispatches `OnPointerEnter`/`OnPointerClick` to 3D objects under cursor. Only fires clicks on `Input.GetMouseButtonUp(0)` — does NOT interfere with keyboard-simulated clicks.
+- **UniversalBattlefieldCardHolder**: `HandleCardClick(cardView)` delegates to `UniversalBattlefieldLayout.HandleCardClick(cardView, currentWorkflow)`. Can consume clicks for collapsed group expansion or stack attachment viewing before the workflow sees them.
+- **UniversalBattlefieldRegion.HandleCardClick**: Skipped for DeclareAttackers/DeclareBlockers workflows. Checks `ITargetCDCListProviderWorkflow.GetTargetCDCs()` to determine if card is a valid target. Single target in stack → passes through. Multiple targets with attachments → expands stack, consumes click. Non-target with attachments → expands, consumes. Non-target without attachments → passes through.

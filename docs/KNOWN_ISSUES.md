@@ -128,6 +128,21 @@ Steam's default overlay hotkey (Shift+Tab) conflicts with the mod's backward nav
 
 ## Monitoring
 
+### Multi-Select of Identical Battlefield Cards (Hastige Suche / Frantic Search)
+
+Selecting multiple identical cards on the battlefield (e.g., 3 basic lands for Hastige Suche's "untap up to 3 lands") previously caused wrong-card selection. The snapshot Tab navigation fix (freeze item order at first Tab, validate without re-sorting on subsequent Tabs) resolved the root cause: cards moving during selection animations changed x-positions, causing the sort-on-every-Tab approach to skip or revisit cards.
+
+**Current status:** Tested working with 3 lands (Hastige Suche). All 3 clicks targeted the correct CDC, confirmed by DIAG scan of selection indicators. The Tab order includes all highlighted cards (player + opponent) sorted by x-position, so player lands may interleave with opponent lands in Tab order.
+
+**Monitor for:**
+- Effects requiring selection of 3+ identical tokens (e.g., sacrifice 3 Goblin tokens) — tokens share positions in stacks, which may still cause issues
+- Effects with large numbers of selectable targets (5+) where animation-induced position changes could exceed the stable snapshot's validation window
+- Interactions where `UniversalBattlefieldCardHolder.HandleCardClick` consumes the click before the workflow processes it (see GAME_ARCHITECTURE.md § Card Click Interaction Chain)
+
+**Files:** `HotHighlightNavigator.cs` (DiscoverAllHighlights, RefreshHighlightsStable, RefreshOrRebuildHighlights, ClickBattlefieldCard, LogSelectionIndicatorScan)
+
+---
+
 ### SelectGroup Browser Pile Selection (Fact or Fiction)
 
 In the SelectGroup browser (e.g. Curator of Destinies / Fact or Fiction pile selection), Enter and Space now activate the focused pile button. Previously, Enter activated a face-down card instead of the pile button, and Space fell through to PromptButton_Primary ("Opponent's Turn"), accidentally passing the turn.
