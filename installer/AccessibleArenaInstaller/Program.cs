@@ -435,6 +435,13 @@ namespace AccessibleArenaInstaller
                 return alternatePath;
             }
 
+            // Check Steam install location
+            string steamPath = Path.Combine(programFilesX86, "Steam", "steamapps", "common", "MTGA");
+            if (IsValidMtgaPath(steamPath))
+            {
+                return steamPath;
+            }
+
             return null;
         }
 
