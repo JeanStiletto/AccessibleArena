@@ -34,7 +34,13 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | Short Name | Full Namespace | DLL |
 |---|---|---|
 | CardData | GreClient.CardData.CardData | Gre |
-| CardPrintingData | Wotc.Mtga.Cards.Database.CardPrintingData | Shared |
+| CardPrintingData | GreClient.CardData.CardPrintingData | Shared |
+| AbilityPrintingData | GreClient.CardData.AbilityPrintingData | Shared |
+| AbilityPrintingRecord | GreClient.CardData.AbilityPrintingRecord | Shared |
+| DynamicAbilityPrintingData | GreClient.CardData.DynamicAbilityPrintingData | Shared |
+| AbilityTextProvider | Wotc.Mtga.Cards.Database.AbilityTextProvider | Shared |
+| CardNameTextProvider | Wotc.Mtga.Cards.Database.CardNameTextProvider | Shared |
+| DynamicAbilityDataProvider | Wotc.Mtga.Cards.Database.DynamicAbilityDataProvider | Shared |
 | CardDatabase | Wotc.Mtga.Cards.Database.CardDatabase | Shared |
 | MtgCardInstance | (runtime only, not easily decompiled) | Core |
 | DuelScene_CDC | DuelScene_CDC | Core |

@@ -991,7 +991,7 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(text))
                 return text;
 
-            // Pattern 1: {oX} format with curly braces
+            // Pattern 1: {oX} format with curly braces (MTGA internal notation)
             // Examples: {oT}, {oR}, {oW}, {oU}, {oB}, {oG}, {oC}, {o1}, {o2}, {oX}, {oS}, {oP}, {oE}
             // Also handles hybrid like {oW/U}, {oR/G}, {o2/W}
             text = Regex.Replace(text, @"\{o([^}]+)\}", match =>
@@ -1007,6 +1007,15 @@ namespace AccessibleArena.Core.Services
             {
                 string fullCost = match.Groups[1].Value;
                 return ParseBareManaSequence(fullCost) + ":";
+            });
+
+            // Pattern 3: Standard MTG mana notation {X} (used in ability text from localization DB)
+            // Examples: {2}, {W}, {U}, {B}, {R}, {G}, {C}, {X}, {W/U}, {2/W}, {W/P}
+            // Ward costs come through as e.g. "Ward {2}" or "Ward—{W}"
+            text = Regex.Replace(text, @"\{([0-9XYWUBRGCTS][0-9WUBRGCP/]*)\}", match =>
+            {
+                string symbol = match.Groups[1].Value;
+                return ConvertManaSymbolToText(symbol);
             });
 
             return text;
