@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9
 
+### Riot Ability Dialog Fix
+- Fixed Riot ability dialog (e.g. Gruul Spellbreaker) not responding to keyboard: Space and Enter now correctly select Counter or Haste, and Tab cycles between the card preview and the two choices
+
 ### SelectGroup Browser Fix (untested)
 - Fixed Fact or Fiction / Curator of Destinies pile selection browser: Enter and Space now correctly activate the focused pile button instead of clicking a random card or falling through to "Opponent's Turn"
 

@@ -261,7 +261,9 @@ namespace AccessibleArena.Core.Services
 
         public static bool IsOptionalActionBrowser(string browserType)
         {
-            return browserType != null && browserType.Contains("Optional");
+            if (browserType == null) return false;
+            // Riot uses the same 2-button scaffold pattern as OptionalAction browsers
+            return browserType.Contains("Optional") || browserType == "Riot";
         }
 
         /// <summary>
