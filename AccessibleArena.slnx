@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AccessibleArena.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AccessibleArena.Tests/AccessibleArena.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/stubs/">
+    <Project Path="tests/stubs/MelonLoader/MelonLoader.csproj" />
+    <Project Path="tests/stubs/UnityEngineCore/UnityEngineCore.csproj" />
+  </Folder>
+</Solution>

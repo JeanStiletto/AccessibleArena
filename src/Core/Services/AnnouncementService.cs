@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
@@ -7,9 +8,24 @@ namespace AccessibleArena.Core.Services
 {
     public class AnnouncementService : IAnnouncementService
     {
+        private readonly IScreenReaderOutput _output;
+        private readonly Func<bool> _verboseEnabled;
         private bool _enabled = true;
         private string _lastAnnouncement;
         private readonly List<string> _history = new List<string>();
+
+        /// <summary>Production constructor — uses real screen reader and live settings.</summary>
+        public AnnouncementService()
+            : this(new ScreenReaderAdapter(),
+                   () => AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false)
+        { }
+
+        /// <summary>Testable constructor — inject output and verbose flag.</summary>
+        internal AnnouncementService(IScreenReaderOutput output, Func<bool> verboseEnabled)
+        {
+            _output = output;
+            _verboseEnabled = verboseEnabled;
+        }
 
         public IReadOnlyList<string> History => _history;
 
@@ -30,7 +46,7 @@ namespace AccessibleArena.Core.Services
 
             // Only Immediate priority interrupts - let Tolk queue everything else
             bool interrupt = priority == AnnouncementPriority.Immediate;
-            ScreenReaderOutput.Speak(message, interrupt);
+            _output.Speak(message, interrupt);
         }
 
         public void AnnounceInterrupt(string message)
@@ -40,19 +56,19 @@ namespace AccessibleArena.Core.Services
 
         public void AnnounceVerbose(string message, AnnouncementPriority priority = AnnouncementPriority.Normal)
         {
-            if (AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false)
+            if (_verboseEnabled())
                 Announce(message, priority);
         }
 
         public void AnnounceInterruptVerbose(string message)
         {
-            if (AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false)
+            if (_verboseEnabled())
                 Announce(message, AnnouncementPriority.Immediate);
         }
 
         public void Silence()
         {
-            ScreenReaderOutput.Silence();
+            _output.Silence();
         }
 
         public void SetEnabled(bool enabled)
@@ -64,7 +80,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!string.IsNullOrEmpty(_lastAnnouncement))
             {
-                ScreenReaderOutput.Speak(_lastAnnouncement, true);
+                _output.Speak(_lastAnnouncement, true);
             }
         }
 

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <Nullable>disable</Nullable>
+    <!-- Suppress warning about stubs shadowing framework types -->
+    <NoWarn>CS0436</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="NSubstitute" Version="5.1.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Stubs must come first so they win type resolution over any transitive references -->
+    <ProjectReference Include="..\stubs\MelonLoader\MelonLoader.csproj" />
+    <ProjectReference Include="..\stubs\UnityEngineCore\UnityEngineCore.csproj" />
+    <!-- Main mod project — its Private=false game DLL refs are not copied, stubs fill the gap -->
+    <ProjectReference Include="..\..\src\AccessibleArena.csproj" />
+  </ItemGroup>
+</Project>

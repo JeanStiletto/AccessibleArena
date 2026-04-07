@@ -114,5 +114,24 @@ namespace AccessibleArena.Core.Services
         {
             DebugEnabled = false;
         }
+
+        /// <summary>
+        /// Reset all state to defaults. Used in unit tests to prevent state bleed between tests.
+        /// </summary>
+        internal static void Reset()
+        {
+            DebugEnabled = true;
+            LogNavigation = true;
+            LogPanelDetection = true;
+            LogFocusTracking = true;
+            LogCardInfo = true;
+            LogActivation = true;
+            LogAnnouncements = true;
+            LogPatches = true;
+            LogPanelOverlapDiagnostic = true;
+            _recentWriteIndex = 0;
+            _recentCount = 0;
+            System.Array.Clear(_recentEntries, 0, MaxRecentEntries);
+        }
     }
 }
