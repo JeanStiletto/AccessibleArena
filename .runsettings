@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Include>[AccessibleArena]*</Include>
+          <Exclude>[AccessibleArena.Tests]*;[MelonLoader]*;[UnityEngine.CoreModule]*</Exclude>
+          <ExcludeByFile>**/obj/**/*.cs;**/AssemblyInfo.cs</ExcludeByFile>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

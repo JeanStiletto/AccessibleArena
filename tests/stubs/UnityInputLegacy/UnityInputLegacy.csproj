@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>UnityEngine.InputLegacyModule</AssemblyName>
+    <RootNamespace>UnityEngine</RootNamespace>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\UnityEngineCore\UnityEngineCore.csproj" />
+  </ItemGroup>
+</Project>

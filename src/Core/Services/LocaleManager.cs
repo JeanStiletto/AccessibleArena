@@ -53,6 +53,21 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Create a LocaleManager pre-populated with test data, bypassing file I/O.
+        /// </summary>
+        internal static LocaleManager CreateForTesting(
+            Dictionary<string, string> activeStrings,
+            Dictionary<string, string> fallbackStrings = null,
+            string language = "en")
+        {
+            var lm = new LocaleManager();
+            lm._activeStrings = activeStrings ?? new Dictionary<string, string>();
+            lm._fallbackStrings = fallbackStrings ?? new Dictionary<string, string>();
+            lm._activeLanguage = language;
+            return lm;
+        }
+
+        /// <summary>
         /// Switch to a different language. Reloads strings and fires OnLanguageChanged.
         /// </summary>
         public void SetLanguage(string code)
@@ -107,10 +122,10 @@ namespace AccessibleArena.Core.Services
                     chosenKey = baseKey + "_Format";
                     break;
                 case PluralRule.Slavic:
-                    // Slavic: 1 = One, 2-4 (not 12-14) = Few, else = Format
+                    // Slavic: mod10==1 (not 11) = One, mod10 2-4 (not 12-14) = Few, else = Format
                     int mod10 = count % 10;
                     int mod100 = count % 100;
-                    if (count == 1)
+                    if (mod10 == 1 && mod100 != 11)
                         chosenKey = baseKey + "_One";
                     else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14))
                         chosenKey = HasKey(baseKey + "_Few") ? baseKey + "_Few" : baseKey + "_Format";
@@ -245,7 +260,7 @@ namespace AccessibleArena.Core.Services
         /// Parse a flat JSON object { "key": "value", ... } into the dictionary.
         /// Handles escaped characters in values.
         /// </summary>
-        private static void ParseFlatJson(string json, Dictionary<string, string> dict)
+        internal static void ParseFlatJson(string json, Dictionary<string, string> dict)
         {
             int i = 0;
             int len = json.Length;

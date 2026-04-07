@@ -54,6 +54,12 @@ tools/
 
 # Logs
 logs/
+Latest.log
+AccessibleArena_test.dll
+
+# Test coverage output
+coverage-results/
+coverage-report/
 
 # Personal notes (German)
 nützliche soforters.txt
