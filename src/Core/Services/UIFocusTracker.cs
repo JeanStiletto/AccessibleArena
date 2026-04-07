@@ -464,7 +464,8 @@ namespace AccessibleArena.Core.Services
             if (!_customDropdownTypeResolved)
             {
                 _customDropdownScanType = FindType(T.CustomTMPDropdown);
-                _customDropdownTypeResolved = true;
+                if (_customDropdownScanType != null)
+                    _customDropdownTypeResolved = true;
             }
 
             if (_customDropdownScanType != null)
