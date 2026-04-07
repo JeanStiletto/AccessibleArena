@@ -250,6 +250,7 @@ namespace AccessibleArena.Core.Models
             if (typeName.Contains("Dungeon")) return L.Get("Browser_ChooseDungeonRoom");
             if (typeName.Contains("Mutate")) return L.Get("Browser_MutateChoice");
             if (typeName.Contains("YesNo")) return L.Get("Browser_ChooseYesOrNo");
+            if (typeName == "Riot") return L.Get("Browser_RiotChoice");
             if (typeName.Contains("Optional")) return L.Get("Browser_OptionalAction");
             if (typeName.Contains("Informational")) return L.Get("Browser_Information");
             if (typeName.Contains("Workflow")) return L.Get("Browser_ChooseAction");

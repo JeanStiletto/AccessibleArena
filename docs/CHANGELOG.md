@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9.1
 
+### Riot Ability Dialog Fix (PR #65 by blindndangerous)
+- Fixed Riot ability dialog (e.g. Gruul Spellbreaker) not responding to keyboard: Space and Enter now correctly select Counter or Haste, and Tab cycles between the card preview and the two choices
+
 ### Browsers
 - Direct-choice browsers (SelectGroup, ChoiceList, OptionalAction) now treat Space and Enter identically — both activate the focused option. Previously Space could fall through to unrelated duel buttons, accidentally passing the turn or accepting/declining without intent.
 
