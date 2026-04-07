@@ -35,7 +35,8 @@ $managedDir = $null
 
 if (Test-Path $localPropsPath) {
     $xml = [xml](Get-Content $localPropsPath)
-    $overridePath = $xml.SelectSingleNode("//MtgaPath")?.InnerText
+    $mtgaNode = $xml.SelectSingleNode("//MtgaPath")
+    $overridePath = if ($mtgaNode) { $mtgaNode.InnerText } else { $null }
     if ($overridePath) {
         $managedDir = "$overridePath\MTGA_Data\Managed"
         Write-Host "  [INFO] Using MtgaPath from local.props: $overridePath" -ForegroundColor DarkCyan
