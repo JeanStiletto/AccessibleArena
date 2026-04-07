@@ -22,6 +22,11 @@ namespace UnityEngine
         // Function keys
         F1  = 282, F2  = 283, F3  = 284, F4  = 285, F5  = 286, F6  = 287,
         F7  = 288, F8  = 289, F9  = 290, F10 = 291, F11 = 292, F12 = 293,
+        // Arrow keys
+        UpArrow    = 273,
+        DownArrow  = 274,
+        RightArrow = 275,
+        LeftArrow  = 276,
         // Modifiers
         RightShift   = 303,
         LeftShift    = 304,
@@ -32,15 +37,20 @@ namespace UnityEngine
     }
 
     /// <summary>
-    /// Stub for UnityEngine.Time. In tests, set <see cref="time"/> directly to control timing.
+    /// Stub for UnityEngine.Time. In tests, set fields directly to control timing.
     /// </summary>
     public static class Time
     {
-        /// <summary>
-        /// Writable in tests (unlike the real Unity property which is engine-driven).
-        /// </summary>
-        public static float time;
+        // Backing fields — writable by tests
+        private static float _time;
+        private static float _unscaledDeltaTime;
+
+        /// <summary>Settable in tests via the property setter.</summary>
+        public static float time { get => _time; set => _time = value; }
+        /// <summary>Settable in tests via the property setter.</summary>
+        public static float unscaledDeltaTime { get => _unscaledDeltaTime; set => _unscaledDeltaTime = value; }
     }
+
 
     /// <summary>Minimal stub so any code that references GameObject compiles.</summary>
     public class GameObject { }

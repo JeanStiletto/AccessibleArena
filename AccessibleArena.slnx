@@ -8,5 +8,6 @@
   <Folder Name="/tests/stubs/">
     <Project Path="tests/stubs/MelonLoader/MelonLoader.csproj" />
     <Project Path="tests/stubs/UnityEngineCore/UnityEngineCore.csproj" />
+    <Project Path="tests/stubs/UnityInputLegacy/UnityInputLegacy.csproj" />
   </Folder>
 </Solution>

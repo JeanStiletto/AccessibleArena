@@ -260,7 +260,7 @@ namespace AccessibleArena.Core.Services
         /// Parse a flat JSON object { "key": "value", ... } into the dictionary.
         /// Handles escaped characters in values.
         /// </summary>
-        private static void ParseFlatJson(string json, Dictionary<string, string> dict)
+        internal static void ParseFlatJson(string json, Dictionary<string, string> dict)
         {
             int i = 0;
             int len = json.Length;
