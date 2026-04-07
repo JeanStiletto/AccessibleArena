@@ -29,8 +29,32 @@ if ((Test-Path $userDotnet) -and -not $env:DOTNET_ROOT) {
     $env:DOTNET_ROOT = $userDotnet
 }
 
-# Paths
-$managedDir = "C:\Program Files\Wizards of the Coast\MTGA\MTGA_Data\Managed"
+# Paths - detect game install (prefer local.props override, then WotC, then Steam)
+$localPropsPath = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "src\local.props"
+$managedDir = $null
+
+if (Test-Path $localPropsPath) {
+    $xml = [xml](Get-Content $localPropsPath)
+    $overridePath = $xml.SelectSingleNode("//MtgaPath")?.InnerText
+    if ($overridePath) {
+        $managedDir = "$overridePath\MTGA_Data\Managed"
+        Write-Host "  [INFO] Using MtgaPath from local.props: $overridePath" -ForegroundColor DarkCyan
+    }
+}
+
+if (-not $managedDir -or -not (Test-Path $managedDir)) {
+    $wotcPath = "C:\Program Files\Wizards of the Coast\MTGA\MTGA_Data\Managed"
+    $steamPath = "C:\Program Files (x86)\Steam\steamapps\common\MTGA\MTGA_Data\Managed"
+    if (Test-Path $wotcPath) {
+        $managedDir = $wotcPath
+    } elseif (Test-Path $steamPath) {
+        $managedDir = $steamPath
+        Write-Host "  [INFO] WotC path not found, using Steam install" -ForegroundColor DarkCyan
+    } else {
+        Write-Error "MTGA managed directory not found. Create src/local.props with the correct MtgaPath."
+        exit 1
+    }
+}
 $ilspycmd = "$env:USERPROFILE\.dotnet\tools\ilspycmd.exe"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 

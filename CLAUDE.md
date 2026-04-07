@@ -69,16 +69,24 @@ LLM reference documentation in `llm-docs/`:
 ## Quick Reference
 
 ### Game Location
-`C:\Program Files\Wizards of the Coast\MTGA`
+- WotC (default): `C:\Program Files\Wizards of the Coast\MTGA`
+- Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA`
+
+If you use the Steam version, create `src/local.props` (gitignored) to override the default:
+```xml
+<Project>
+  <PropertyGroup>
+    <MtgaPath>C:\Program Files (x86)\Steam\steamapps\common\MTGA</MtgaPath>
+  </PropertyGroup>
+</Project>
+```
 
 ### Build & Deploy
 ```bash
-# Build
+# Build and auto-deploy to Mods folder (game must be closed)
 dotnet build src/AccessibleArena.csproj
-
-# Deploy (game must be closed)
-powershell -NoProfile -Command "Copy-Item -Path 'C:\Users\fabia\Dev\arena\src\bin\Debug\net472\AccessibleArena.dll' -Destination 'C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll' -Force"
 ```
+The build auto-copies the DLL to `$(MtgaPath)\Mods\`. Default is the WotC path; override with `src/local.props` (see above).
 
 ### Release
 ```bash
@@ -88,12 +96,12 @@ powershell -NoProfile -File installer/release.ps1
 Before running: update `ModVersion` in `src/Directory.Build.props` and add a `## vX.Y` section to `docs/CHANGELOG.md`, then commit.
 
 ### MelonLoader Logs
-- Latest: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
-- All logs: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Logs\`
+- Latest: `<MtgaPath>\MelonLoader\Latest.log`
+- All logs: `<MtgaPath>\MelonLoader\Logs\`
 - Use the Read tool to read files in the MTGA folder (permission pre-configured in settings.local.json)
 
 ### Deployment Paths
-- Mod DLL: `C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll`
+- Mod DLL: `<MtgaPath>\Mods\AccessibleArena.dll`
 - Tolk DLLs in game root
 
 ### Key Utilities (always use these)

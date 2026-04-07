@@ -38,7 +38,9 @@ Accessibility mod for Magic: The Gathering Arena that enables blind and visually
 
 1. Install MelonLoader into your MTGA folder (https://github.com/LavaGang/MelonLoader)
 2. Download `AccessibleArena.dll` from the latest release
-3. Copy the DLL to: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
+3. Copy the DLL to your MTGA Mods folder:
+   - WotC install: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
+   - Steam install: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
 4. Ensure `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder
 5. Launch MTG Arena
 
@@ -128,7 +130,9 @@ Include the following information:
 - What you expected to happen
 - What actually happened
 - Your screen reader and version
-- Attach the MelonLoader log file from: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
+- Attach the MelonLoader log file from your MTGA folder:
+  - WotC: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
+  - Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\MelonLoader\Latest.log`
 
 ## Known issues
 
@@ -143,12 +147,12 @@ For the full list, see docs/KNOWN_ISSUES.md.
 **No speech output after launching the game**
 - Make sure your screen reader is running before launching MTG Arena
 - Check that `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder (the installer places them automatically)
-- Check the MelonLoader log at `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log` for errors
+- Check the MelonLoader log in your MTGA folder (`MelonLoader\Latest.log`) for errors
 
 **Game crashes on startup or mod not loading**
 - Make sure MelonLoader is installed.
 - If the game updated recently, MelonLoader or the mod may need to be reinstalled. Run the installer again.
-- Check that `AccessibleArena.dll` is in `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
+- Check that `AccessibleArena.dll` is in the `Mods\` folder inside your MTGA installation
 
 **Mod was working but stopped after a game update**
 - MTG Arena updates can overwrite MelonLoader files. Run the installer again to reinstall both MelonLoader and the mod.

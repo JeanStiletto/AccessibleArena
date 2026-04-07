@@ -45,7 +45,9 @@ From MTGA_Data\Managed, copy to libs folder:
 ### Step 1: Install MelonLoader
 1. Download MelonLoader installer
 2. Run installer
-3. Select MTGA.exe at: C:\Program Files\Wizards of the Coast\MTGA\MTGA.exe
+3. Select MTGA.exe — typical locations:
+   - WotC: `C:\Program Files\Wizards of the Coast\MTGA\MTGA.exe`
+   - Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\MTGA.exe`
 4. Click Install
 5. Run MTGA once to generate MelonLoader folders
 
@@ -69,10 +71,11 @@ After first run, check for these folders:
 
 ## File Locations Summary
 
-Game install: C:\Program Files\Wizards of the Coast\MTGA
+Game install (WotC): C:\Program Files\Wizards of the Coast\MTGA
+Game install (Steam): C:\Program Files (x86)\Steam\steamapps\common\MTGA
 Game assemblies: MTGA_Data\Managed
 Mod output: MTGA\Mods (after MelonLoader install)
-Project folder: C:\Users\fabia\arena
+Project folder: wherever you cloned this repo
 
 ## Next Steps After Setup
 
