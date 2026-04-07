@@ -31,18 +31,26 @@ namespace AccessibleArena.Core.Services
 
         // Cache for IsExpanded property lookup (reflection is expensive)
         private static System.Reflection.PropertyInfo _cachedIsExpandedProperty;
-        private static System.Type _cachedDropdownType;
+        private static System.Type _cachedDropdownType; // used by GetIsExpandedProperty
+
+        // Resolved type for FindObjectsOfType scan — separate from _cachedDropdownType to
+        // avoid conflict with GetIsExpandedProperty's per-instance type caching.
+        private static System.Type _customDropdownScanType;
+        private static bool _customDropdownTypeResolved;
 
         // Cache for IsAnyInputFieldFocused fallback scan (mouse-clicked fields)
         private static bool _cachedInputFieldFallback;
         private static float _cachedInputFieldFallbackTime = -1f;
-        private const float InputFieldCacheExpiry = 0.5f;
+        // Increased from 0.5s: input field focus only changes when user explicitly clicks/tabs,
+        // so 2s of staleness has no observable effect and halves scan frequency.
+        private const float InputFieldCacheExpiry = 2.0f;
 
         // Cache for IsAnyDropdownExpanded / GetExpandedDropdown scans
         private static bool _cachedDropdownExpanded;
         private static GameObject _cachedExpandedDropdown;
         private static float _cachedDropdownTime = -1f;
-        private const float DropdownCacheExpiry = 0.25f;
+        // Increased from 0.25s: dropdowns open/close at human interaction speed, 0.5s is safe.
+        private const float DropdownCacheExpiry = 0.5f;
 
         /// <summary>
         /// When true, UIFocusTracker skips announcements because an active navigator handles them.
@@ -449,12 +457,23 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static GameObject ScanForExpandedDropdown()
         {
-            // Check cTMP_Dropdown (MTGA's custom dropdown) - most common in MTGA
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            // Check cTMP_Dropdown (MTGA's custom dropdown) - most common in MTGA.
+            // Resolve the type once via FindType and cache it; FindObjectsOfType(Type) is far
+            // cheaper than iterating every MonoBehaviour and calling GetType().Name on each.
+            // Uses _customDropdownScanType (not _cachedDropdownType which is owned by GetIsExpandedProperty).
+            if (!_customDropdownTypeResolved)
             {
-                if (mb == null) continue;
-                if (mb.GetType().Name == T.CustomTMPDropdown && GetIsExpandedProperty(mb))
-                    return mb.gameObject;
+                _customDropdownScanType = FindType(T.CustomTMPDropdown);
+                _customDropdownTypeResolved = true;
+            }
+
+            if (_customDropdownScanType != null)
+            {
+                foreach (UnityEngine.Object obj in GameObject.FindObjectsOfType(_customDropdownScanType))
+                {
+                    if (obj is MonoBehaviour mb && GetIsExpandedProperty(mb))
+                        return mb.gameObject;
+                }
             }
 
             // Check standard TMP_Dropdown
