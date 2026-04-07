@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEngine;
 using AccessibleArena.Core.Services;
 
 namespace AccessibleArena.Tests
@@ -8,14 +9,12 @@ namespace AccessibleArena.Tests
     public class LetterSearchHandlerTests
     {
         private LetterSearchHandler _handler;
-        private float _time;
 
         [SetUp]
         public void SetUp()
         {
-            _time = 0f;
+            Time.time = 0f;
             _handler = new LetterSearchHandler();
-            _handler.GetTime = () => _time;
         }
 
         private static readonly IReadOnlyList<string> Fruits = new[]
@@ -68,7 +67,7 @@ namespace AccessibleArena.Tests
             _handler.HandleKey('s', Fruits, 0);
 
             // Advance time past timeout
-            _time = 2.0f;
+            Time.time = 2.0f;
 
             // Press 'T' — buffer should reset, searching "T" alone (no match in Fruits)
             int idx = _handler.HandleKey('t', Fruits, 0);
@@ -79,7 +78,7 @@ namespace AccessibleArena.Tests
         public void BufferPreserved_WithinTimeout()
         {
             _handler.HandleKey('s', Fruits, 0);
-            _time = 0.5f; // within 1s timeout
+            Time.time = 0.5f; // within 1s timeout
             int idx = _handler.HandleKey('t', Fruits, 0);
             // "ST" prefix → Strawberry (4) or Stone Fruit (5)
             Assert.AreEqual(4, idx);

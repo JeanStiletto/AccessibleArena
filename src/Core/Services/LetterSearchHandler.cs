@@ -16,12 +16,6 @@ namespace AccessibleArena.Core.Services
         private float _lastKeyTime;
         private const float BufferTimeoutSeconds = 1.0f;
 
-        /// <summary>
-        /// Time source — defaults to Unity Time.time.
-        /// Replace in tests to control timing without needing a running Unity engine.
-        /// </summary>
-        internal Func<float> GetTime = () => Time.time;
-
         public string Buffer => _buffer;
 
         /// <summary>
@@ -29,7 +23,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public int HandleKey(char letter, IReadOnlyList<string> labels, int currentIndex)
         {
-            float now = GetTime();
+            float now = Time.time;
             if (now - _lastKeyTime > BufferTimeoutSeconds)
                 _buffer = "";
             _lastKeyTime = now;
