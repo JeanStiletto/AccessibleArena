@@ -357,24 +357,6 @@ All notable changes to Accessible Arena.
 - Intermediate loading steps suppressed — only "Loading" announced once
 - Matchmaking screen ("Suche nach Gegner") announced once instead of 4 times during scene transitions
 
-
-### Fix: Phase-skip warning before passing priority with untapped lands (PR #25)
-- When in Main Phase 1 or 2 with untapped lands and full control is off, pressing Space now warns "You have untapped lands. Press Space again to pass priority."
-- A second Space press confirms and passes as normal.
-- Warning is suppressed during full control mode (locked or temporary).
-
-### Fix: Repeated L press now re-announces life totals (PR #26)
-- Pressing L multiple times in a row now always reads life totals, even when they haven't changed between presses.
-
-### Polish: Duel startup announcement is now brief (PR #27)
-- Removed the long keybindings hint from the duel start announcement.
-- Now says only "Duel started. N cards in hand."
-- Full keybindings reference remains accessible via F1.
-
-### Fix: Duplicate graveyard announcement suppressed (PR #28)
-- When a creature died or a card was discarded, two announcements fired: a generic "Card went to your graveyard" and the specific "Lightning Strike died."
-- Generic announcement removed; only the specific named announcement now plays.
-
 ## v0.8.5
 
 ### Fix: Stale browser announcement after confirming modal spell mode
