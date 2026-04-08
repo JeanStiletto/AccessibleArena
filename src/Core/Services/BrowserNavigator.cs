@@ -3112,15 +3112,7 @@ namespace AccessibleArena.Core.Services
                 pileName = Strings.SelectGroupPile1; // fallback
             }
 
-            string announcement;
-            if (pileTotal <= 1)
-            {
-                announcement = $"{cardName}, {pileName}";
-            }
-            else
-            {
-                announcement = Strings.SelectGroupCardInPile(cardName, pileName, pileIndex, pileTotal);
-            }
+            string announcement = Strings.SelectGroupCardInPile(cardName, pileName, pileIndex, pileTotal);
 
             _announcer.Announce(announcement, AnnouncementPriority.High);
 

@@ -40,7 +40,6 @@ All notable changes to Accessible Arena.
 - All "X of Y" position announcements are now localized instead of hardcoded English — they use the correct format for each language (e.g., "3 von 7" in German, "3 sur 7" in French)
 - Added a "Position counts" toggle in the F2 settings menu to show or hide position announcements globally
 - Position counts in duels and browsers are now always spoken regardless of the setting — zone card counts, browser options, battlefield positions, and targeting info are too critical for navigation to hide
-- Position counts are now consistently suppressed when there is only one item (no more "1 of 1")
 - Fixed ProfileNavigator using "/" format ("2/5") instead of "of" — now uses the same localized format as all other navigators
 
 ### Settings Menu
@@ -53,6 +52,9 @@ All notable changes to Accessible Arena.
 
 ### Popups
 - Home and End keys now work in popups to jump to the first or last element
+
+### Draft
+- Improved draft navigator — smoother navigation with fewer unnecessary rescans, and cards now announce how many copies you have already picked
 
 ### Deck Builder
 - Fixed "Deck creation failed" popup when pressing Done or Backspace to exit the deck builder — the Done button was being activated twice (pointer click + direct method call), causing a duplicate server submission
