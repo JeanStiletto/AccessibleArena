@@ -635,7 +635,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Enter selects/toggles a card (picks it for drafting)
+            // Enter selects/toggles a card, or confirms if on the confirm button
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
                 if (IsValidIndex)
@@ -643,15 +643,26 @@ namespace AccessibleArena.Core.Services
                     var elem = _elements[_currentIndex];
                     MelonLogger.Msg($"[{NavigatorId}] Enter pressed on: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
 
-                    // Directly click the card via UIActivator (bypasses CardInfoNavigator redirect)
+                    // Check if this is the confirm button — use confirm rescan path
+                    string label = elem.Label?.ToLowerInvariant() ?? "";
+                    bool isConfirmButton = label.Contains("confirm") || label.Contains("bestätigen");
+
                     UIActivator.Activate(elem.GameObject);
 
-                    // Trigger a quick quiet rescan to pick up selection state changes
                     _rescanPending = true;
                     _rescanFrameCounter = 0;
-                    _isToggleRescan = true;
-                    _isConfirmRescan = false;
-                    _currentRescanDelay = ToggleRescanDelayFrames;
+                    if (isConfirmButton)
+                    {
+                        _isToggleRescan = false;
+                        _isConfirmRescan = true;
+                        _currentRescanDelay = ConfirmRescanDelayFrames;
+                    }
+                    else
+                    {
+                        _isToggleRescan = true;
+                        _isConfirmRescan = false;
+                        _currentRescanDelay = ToggleRescanDelayFrames;
+                    }
                 }
                 return;
             }
