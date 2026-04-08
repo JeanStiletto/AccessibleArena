@@ -794,8 +794,9 @@ namespace AccessibleArena.Core.Services
                     if (_isToggleRescan)
                     {
                         // Quick quiet rescan after Enter (toggle selection)
+                        // Only announce selection status, not full label with picked count
                         MelonLogger.Msg($"[{NavigatorId}] Quiet rescan after toggle");
-                        QuietRescan();
+                        QuietRescan(announceSelectionOnly: true);
                         _isToggleRescan = false;
                     }
                     else if (_isConfirmRescan)
@@ -881,9 +882,10 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Quiet rescan: rediscover elements without full activation announcement.
         /// Restores cursor position by matching the current GameObject.
-        /// Announces the current card with its updated selection state.
         /// </summary>
-        private void QuietRescan()
+        /// <param name="announceSelectionOnly">If true, only announce selection status change (after Enter toggle).
+        /// If false, announce the full element label (after confirm/popup).</param>
+        private void QuietRescan(bool announceSelectionOnly = false)
         {
             if (!_isActive) return;
 
@@ -916,13 +918,52 @@ namespace AccessibleArena.Core.Services
             UpdateEventSystemSelection();
             UpdateCardNavigation();
 
-            // Announce current element with its updated state (e.g., "CardName, Creature, selected")
-            AnnounceCurrentElement();
-
-            // If card count changed significantly, also announce the new count
-            if (_totalCards != oldCount && _totalCards > 0 && oldCount > 0)
+            if (announceSelectionOnly)
             {
-                // Don't double-announce - the count change will be evident from full rescan on next pack
+                // After Enter toggle: only announce selection status, not full label with picked count
+                AnnounceSelectionStatus();
+            }
+            else
+            {
+                AnnounceCurrentElement();
+            }
+        }
+
+        /// <summary>
+        /// Announce just the selection status of the current card (selected/deselected).
+        /// Used after Enter toggle so the player doesn't hear the picked count again.
+        /// </summary>
+        private void AnnounceSelectionStatus()
+        {
+            if (!IsValidIndex) return;
+
+            var elem = _elements[_currentIndex];
+            if (elem.GameObject == null) return;
+
+            // Get the card view MonoBehaviour to check selection state
+            MonoBehaviour cardViewMb = null;
+            foreach (var mb in elem.GameObject.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == T.DraftPackCardView)
+                {
+                    cardViewMb = mb;
+                    break;
+                }
+            }
+
+            if (cardViewMb == null)
+            {
+                // Not a card (e.g., confirm button) - announce full label
+                AnnounceCurrentElement();
+                return;
+            }
+
+            var draftDeckManager = GetDraftDeckManager();
+            string status = GetCardSelectedStatus(draftDeckManager, cardViewMb);
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                _announcer.AnnounceInterrupt(status);
             }
         }
 
