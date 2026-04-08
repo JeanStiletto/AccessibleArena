@@ -138,6 +138,7 @@ namespace AccessibleArena.Core.Services
         protected override void OnActivated()
         {
             base.OnActivated();
+            EnablePopupDetection();
 
             // Disable SocialUI selectables so Unity's EventSystem doesn't auto-navigate to them.
             // During friend challenge duels, the SocialUI (DontDestroyOnLoad) persists with an
