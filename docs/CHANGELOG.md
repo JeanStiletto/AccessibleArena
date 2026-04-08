@@ -9,6 +9,10 @@ All notable changes to Accessible Arena.
 
 ### Browsers
 - Direct-choice browsers (SelectGroup, ChoiceList, OptionalAction) now treat Space and Enter identically — both activate the focused option. Previously Space could fall through to unrelated duel buttons, accidentally passing the turn or accepting/declining without intent.
+- MultiZone browsers (e.g. Rebound triggers) now require a double Space press to confirm — prevents accidentally declining when the browser has a single option that must be selected with Enter first
+
+### Battlefield Selection
+- Fixed Tab navigation during battlefield card selection mixing own and opponent cards — own cards are now always grouped first, and the Tab order stays stable when cards change state during selection (e.g. untapping lands with Hastige Suche / Frantic Search)
 
 ### Mailbox
 - Fixed unread mail items announcing only "Neu" instead of "Neu, mail title" — the unread badge text was intercepted before the mailbox-specific title extraction could run

@@ -128,18 +128,20 @@ Steam's default overlay hotkey (Shift+Tab) conflicts with the mod's backward nav
 
 ## Monitoring
 
-### Multi-Select of Identical Battlefield Cards (Hastige Suche / Frantic Search)
+### Tab Navigation Index Mismatch During Battlefield Selection
 
-Selecting multiple identical cards on the battlefield (e.g., 3 basic lands for Hastige Suche's "untap up to 3 lands") previously caused wrong-card selection. The snapshot Tab navigation fix (freeze item order at first Tab, validate without re-sorting on subsequent Tabs) resolved the root cause: cards moving during selection animations changed x-positions, causing the sort-on-every-Tab approach to skip or revisit cards.
+When HotHighlightNavigator delegates to BattlefieldNavigator for battlefield cards (via `NavigateToSpecificCard`), the position announced ("X von Y") reflects the card's position within its BattlefieldNavigator row (e.g., PlayerLands), not its position in the HotHighlightNavigator's Tab order. This can cause confusing announcements — e.g., two consecutive Tab presses both announce "2 von 3" for different cards if one card was selected and the row re-scanned.
 
-**Current status:** Tested working with 3 lands (Hastige Suche). All 3 clicks targeted the correct CDC, confirmed by DIAG scan of selection indicators. The Tab order includes all highlighted cards (player + opponent) sorted by x-position, so player lands may interleave with opponent lands in Tab order.
+**Root cause:** Two navigation systems with different indices. HotHighlightNavigator owns the Tab order (sorted by ownership group), but BattlefieldNavigator announces the row position when focus delegates to it. After a card changes state (selected/deselected), the BattlefieldNavigator row may recount, shifting positions.
+
+**Observed in:** Hastige Suche (Frantic Search) untap phase — selecting 3 lands from a mixed battlefield. Own cards correctly grouped before opponent cards, selection worked, but row position announcements were inconsistent.
 
 **Monitor for:**
-- Effects requiring selection of 3+ identical tokens (e.g., sacrifice 3 Goblin tokens) — tokens share positions in stacks, which may still cause issues
-- Effects with large numbers of selectable targets (5+) where animation-induced position changes could exceed the stable snapshot's validation window
-- Interactions where `UniversalBattlefieldCardHolder.HandleCardClick` consumes the click before the workflow processes it (see GAME_ARCHITECTURE.md § Card Click Interaction Chain)
+- Whether the index mismatch causes actual navigation confusion (wrong card activated) vs. just confusing announcements
+- Effects with large numbers of selectable targets (5+) where the discrepancy becomes more noticeable
+- Whether a unified position announcement (from HotHighlightNavigator's own index) would be clearer
 
-**Files:** `HotHighlightNavigator.cs` (DiscoverAllHighlights, RefreshHighlightsStable, RefreshOrRebuildHighlights, ClickBattlefieldCard, LogSelectionIndicatorScan)
+**Files:** `HotHighlightNavigator.cs` (AnnounceCurrentItem — delegates to BattlefieldNavigator), `BattlefieldNavigator.cs` (NavigateToSpecificCard)
 
 ---
 

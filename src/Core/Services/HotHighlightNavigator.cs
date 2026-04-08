@@ -485,10 +485,12 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Stable refresh: validates existing items and adds new ones at the end.
-        /// Preserves the sort order established by DiscoverAllHighlights.
-        /// Cards that moved position (e.g. after selection animation) keep their
-        /// place in the Tab order, preventing the user from missing or revisiting cards.
+        /// Stable refresh: validates existing items and inserts new ones at the
+        /// correct sorted position.  Preserves the Tab order established by
+        /// DiscoverAllHighlights — existing items never move, so selection
+        /// animations cannot cause cards to be skipped or revisited.
+        /// New items are inserted into the correct ownership group so that
+        /// own cards always come before opponent cards.
         /// </summary>
         private void RefreshHighlightsStable()
         {
@@ -510,22 +512,61 @@ namespace AccessibleArena.Core.Services
                 return false;
             });
 
-            // Append new items at end (preserves existing order)
+            // Insert new items at the correct sorted position (preserves grouping)
+            int newCount = 0;
             foreach (var kvp in scanned)
             {
-                if (!survivingIds.Contains(kvp.Key))
-                    _items.Add(kvp.Value);
+                if (survivingIds.Contains(kvp.Key)) continue;
+                int insertAt = FindSortedInsertionIndex(kvp.Value);
+                _items.Insert(insertAt, kvp.Value);
+                // Adjust _currentIndex if insertion was before or at current position
+                if (_currentIndex >= 0 && insertAt <= _currentIndex)
+                    _currentIndex++;
+                newCount++;
             }
 
             // Prompt buttons if empty
             if (_items.Count == 0)
                 DiscoverPromptButtons();
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Stable refresh: {_items.Count} items ({survivingIds.Count} kept, {_items.Count - survivingIds.Count} new)");
+            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Stable refresh: {_items.Count} items ({survivingIds.Count} kept, {newCount} new)");
 
             // Fix index bounds
             if (_currentIndex >= _items.Count)
                 _currentIndex = _items.Count > 0 ? 0 : -1;
+        }
+
+        /// <summary>
+        /// Returns a sort key tuple matching the order used in DiscoverAllHighlights.
+        /// Lower values come first: Hand before Battlefield, own before opponent, etc.
+        /// Position.x is NOT included — existing items keep their snapshot position,
+        /// new items just need to land in the correct ownership group.
+        /// </summary>
+        private static (int zone, int player, int opponent) GetSortKey(HighlightedItem item)
+        {
+            return (
+                item.Zone == "Hand" ? 0 : 1,
+                item.IsPlayer ? 1 : 0,
+                item.IsOpponent ? 1 : 0
+            );
+        }
+
+        /// <summary>
+        /// Finds the index at which a new item should be inserted to maintain
+        /// the sort order (Hand → own cards → opponent cards → players).
+        /// Scans existing items and returns the first index where the new item's
+        /// sort key is less than or equal to the existing item's key.
+        /// </summary>
+        private int FindSortedInsertionIndex(HighlightedItem newItem)
+        {
+            var newKey = GetSortKey(newItem);
+            for (int i = 0; i < _items.Count; i++)
+            {
+                var existingKey = GetSortKey(_items[i]);
+                if (newKey.CompareTo(existingKey) < 0)
+                    return i;
+            }
+            return _items.Count;
         }
 
         /// <summary>
