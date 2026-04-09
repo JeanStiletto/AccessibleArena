@@ -248,7 +248,7 @@
   "SettingOn": "Ativado",
   "SettingOff": "Desativado",
   "SettingChanged_Format": "{0} definido para {1}",
-  "SettingItemPosition_Format": "{0} de {1}: {2}",
+  "SettingItemPosition_Format": "{2}, {0} de {1}",
   "HelpMenuTitle": "Menu de Ajuda",
   "HelpMenuInstructions": "Setas para cima e para baixo para navegar, Backspace ou F1 para fechar",
   "HelpItemPosition_Format": "{2}, {0} de {1}",

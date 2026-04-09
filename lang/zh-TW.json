@@ -248,7 +248,7 @@
   "SettingOn": "開",
   "SettingOff": "關",
   "SettingChanged_Format": "{0}已設定為{1}",
-  "SettingItemPosition_Format": "第{0}項，共{1}項：{2}",
+  "SettingItemPosition_Format": "{2}，第{0}項，共{1}項",
   "HelpMenuTitle": "說明選單",
   "HelpMenuInstructions": "上下方向鍵導覽，Backspace或F1關閉",
   "HelpItemPosition_Format": "{2}，第{0}項，共{1}項",

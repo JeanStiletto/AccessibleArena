@@ -248,7 +248,7 @@
   "SettingOn": "켜기",
   "SettingOff": "끄기",
   "SettingChanged_Format": "{0}을(를) {1}(으)로 설정했습니다",
-  "SettingItemPosition_Format": "{1}개 중 {0}번째: {2}",
+  "SettingItemPosition_Format": "{2}, {1}개 중 {0}번째",
   "HelpMenuTitle": "도움말 메뉴",
   "HelpMenuInstructions": "위아래 방향키로 이동, Backspace 또는 F1으로 닫기",
   "HelpItemPosition_Format": "{2}, {1}개 중 {0}번째",

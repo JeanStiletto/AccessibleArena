@@ -248,7 +248,7 @@
   "SettingOn": "オン",
   "SettingOff": "オフ",
   "SettingChanged_Format": "{0}を{1}に設定しました",
-  "SettingItemPosition_Format": "{1}件中{0}件目: {2}",
+  "SettingItemPosition_Format": "{2}、{1}件中{0}件目",
   "HelpMenuTitle": "ヘルプメニュー",
   "HelpMenuInstructions": "上下矢印キーで移動、BackspaceまたはF1で閉じる",
   "HelpItemPosition_Format": "{2}、{1}件中{0}件目",

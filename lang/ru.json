@@ -248,7 +248,7 @@
   "SettingOn": "Вкл",
   "SettingOff": "Выкл",
   "SettingChanged_Format": "{0} установлено на {1}",
-  "SettingItemPosition_Format": "{0} из {1}: {2}",
+  "SettingItemPosition_Format": "{2}, {0} из {1}",
   "HelpMenuTitle": "Меню справки",
   "HelpMenuInstructions": "Стрелки вверх и вниз для навигации, Backspace или F1 для закрытия",
   "HelpItemPosition_Format": "{2}, {0} из {1}",

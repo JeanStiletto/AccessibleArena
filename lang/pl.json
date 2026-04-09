@@ -248,7 +248,7 @@
   "SettingOn": "Włączone",
   "SettingOff": "Wyłączone",
   "SettingChanged_Format": "{0} ustawiono na {1}",
-  "SettingItemPosition_Format": "{0} z {1}: {2}",
+  "SettingItemPosition_Format": "{2}, {0} z {1}",
   "HelpMenuTitle": "Menu pomocy",
   "HelpMenuInstructions": "Strzałka w górę i w dół do nawigacji, Backspace lub F1 do zamknięcia",
   "HelpItemPosition_Format": "{2}, {0} z {1}",

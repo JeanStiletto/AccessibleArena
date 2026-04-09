@@ -248,7 +248,7 @@
   "SettingOn": "Activado",
   "SettingOff": "Desactivado",
   "SettingChanged_Format": "{0} establecido a {1}",
-  "SettingItemPosition_Format": "{0} de {1}: {2}",
+  "SettingItemPosition_Format": "{2}, {0} de {1}",
   "HelpMenuTitle": "Menú de ayuda",
   "HelpMenuInstructions": "Flecha arriba y abajo para navegar, Retroceso o F1 para cerrar",
   "HelpItemPosition_Format": "{2}, {0} de {1}",

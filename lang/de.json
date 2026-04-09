@@ -259,7 +259,7 @@
   "SettingOn": "An",
   "SettingOff": "Aus",
   "SettingChanged_Format": "{0} auf {1} gesetzt",
-  "SettingItemPosition_Format": "{0} von {1}: {2}",
+  "SettingItemPosition_Format": "{2}, {0} von {1}",
   "HelpMenuTitle": "Hilfemenü",
   "HelpMenuInstructions": "Pfeil hoch und runter zum Navigieren, Rücktaste oder F1 zum Schließen",
   "HelpItemPosition_Format": "{2}, {0} von {1}",
