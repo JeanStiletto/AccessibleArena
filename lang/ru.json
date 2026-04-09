@@ -157,7 +157,7 @@
   "GamesWon_Format": "{0} игр выиграно",
   "WinsNotAvailable": "Победы недоступны",
   "RankNotAvailable": "Ранг недоступен",
-  "RankWinsProgress_Format": "{0} из {1} побед",
+  "RankStepsProgress_Format": "{0} из {1} шагов",
   "RankUp_Format": "Повышение! {0}",
   "RankDown_Format": "Понижение. {0}",
   "RankMythicPercent_Format": "Мифический {0}%",

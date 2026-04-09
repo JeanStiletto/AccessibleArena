@@ -649,7 +649,7 @@ namespace AccessibleArena.Core.Models
         public static string WinsNotAvailable => L.Get("WinsNotAvailable");
         public static string Rank(string rank) => rank;
         public static string RankNotAvailable => L.Get("RankNotAvailable");
-        public static string RankWinsProgress(int current, int total) => L.Format("RankWinsProgress_Format", current, total);
+        public static string RankStepsProgress(int current, int total) => L.Format("RankStepsProgress_Format", current, total);
         public static string RankUp(string newRank) => L.Format("RankUp_Format", newRank);
         public static string RankDown(string newRank) => L.Format("RankDown_Format", newRank);
         public static string RankMythicPercent(int percent) => L.Format("RankMythicPercent_Format", percent);

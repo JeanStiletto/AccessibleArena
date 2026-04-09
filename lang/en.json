@@ -167,7 +167,7 @@
   "GamesWon_Format": "{0} games won",
   "WinsNotAvailable": "Wins not available",
   "RankNotAvailable": "Rank not available",
-  "RankWinsProgress_Format": "{0} of {1} wins",
+  "RankStepsProgress_Format": "{0} of {1} steps",
   "RankUp_Format": "Rank up! {0}",
   "RankDown_Format": "Rank down. {0}",
   "RankMythicPercent_Format": "Mythic {0}%",

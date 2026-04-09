@@ -157,7 +157,7 @@
   "GamesWon_Format": "{0}승",
   "WinsNotAvailable": "승리 수를 가져올 수 없습니다",
   "RankNotAvailable": "랭크를 가져올 수 없습니다",
-  "RankWinsProgress_Format": "{1}승 중 {0}승",
+  "RankStepsProgress_Format": "{1}단계 중 {0}단계",
   "RankUp_Format": "승급! {0}",
   "RankDown_Format": "강등. {0}",
   "RankMythicPercent_Format": "미식 {0}%",

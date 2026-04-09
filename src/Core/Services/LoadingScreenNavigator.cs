@@ -1294,9 +1294,9 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Normal case: show wins progress (newStep of maxPips)
+                // Normal case: show steps progress (newStep of maxPips)
                 if (maxPips > 0)
-                    return Strings.RankWinsProgress(newStep, maxPips);
+                    return Strings.RankStepsProgress(newStep, maxPips);
 
                 return null;
             }

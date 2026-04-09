@@ -157,7 +157,7 @@
   "GamesWon_Format": "贏了{0}局",
   "WinsNotAvailable": "無法取得勝利數",
   "RankNotAvailable": "無法取得排名",
-  "RankWinsProgress_Format": "{0}/{1}勝",
+  "RankStepsProgress_Format": "{0}/{1}步",
   "RankUp_Format": "晉級！{0}",
   "RankDown_Format": "降級。{0}",
   "RankMythicPercent_Format": "秘稀 {0}%",

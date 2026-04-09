@@ -157,7 +157,7 @@
   "GamesWon_Format": "{0}勝",
   "WinsNotAvailable": "勝利数を取得できません",
   "RankNotAvailable": "ランクを取得できません",
-  "RankWinsProgress_Format": "{1}勝中{0}勝",
+  "RankStepsProgress_Format": "{1}ステップ中{0}ステップ",
   "RankUp_Format": "ランクアップ！ {0}",
   "RankDown_Format": "ランクダウン。{0}",
   "RankMythicPercent_Format": "ミシック {0}%",

@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9.2
 
+### Match End Screen
+- Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
+
 ## v0.9.1
 
 ### Riot Ability Dialog Fix (PR #65 by blindndangerous)
