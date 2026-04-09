@@ -29,17 +29,20 @@ Thanks for your interest in making MTG Arena more accessible.
    - MelonLoader.dll (from `MelonLoader/net35/` in your MTGA folder)
    - 0Harmony.dll (from the same location)
 
-4. Build:
+4. Build and deploy (game must be closed):
    ```
    dotnet build src/AccessibleArena.csproj
    ```
-
-5. Deploy for testing (game must be closed):
+   The build automatically copies the DLL to your MTGA `Mods\` folder. If your game is installed via Steam instead of the default WotC path, create `src/local.props` to override:
+   ```xml
+   <Project>
+     <PropertyGroup>
+       <MtgaPath>C:\Program Files (x86)\Steam\steamapps\common\MTGA</MtgaPath>
+     </PropertyGroup>
+   </Project>
    ```
-   copy src\bin\Debug\net472\AccessibleArena.dll "C:\Program Files\Wizards of the Coast\MTGA\Mods\"
-   ```
 
-6. Launch MTG Arena and check the MelonLoader log: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
+5. Launch MTG Arena and check the MelonLoader log: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
 
 ## Project structure
 
@@ -56,23 +59,32 @@ src/
       UITextExtractor.cs         Text extraction from UI elements
       CardDetector.cs            Card detection and info extraction
       CardModelProvider.cs       Card data from game models via reflection
+      CardTextProvider.cs        Ability text, flavor text, localized lookups
+      CardStateProvider.cs       Attachments, combat state, counters
       InputManager.cs            Keyboard input handling
       AnnouncementService.cs     Speech output management
+      ShortcutRegistry.cs        Keyboard shortcut definitions
+      DuelHolderCache.cs         Cached holder lookups for duel zones
 
       BaseNavigator.cs           Abstract base for all screen navigators
       NavigatorManager.cs        Navigator lifecycle and priority
 
       GeneralMenuNavigator.cs    Menus, login, home screen
       DuelNavigator.cs           Duel gameplay (delegates to zone/combat navigators)
+      BattlefieldNavigator.cs    Battlefield card navigation
+      ZoneNavigator.cs           Hand, graveyard, exile zone navigation
+      CombatNavigator.cs         Combat phase (attackers/blockers)
+      BrowserNavigator.cs        Scry, surveil, mulligan browsers
       StoreNavigator.cs          Store screen
       MasteryNavigator.cs        Mastery/rewards screen
-      BrowserNavigator.cs        Scry, surveil, mulligan browsers
+      CodexNavigator.cs          Codex of the Multiverse
+      DraftNavigator.cs          Draft event navigation
       ...                        Other screen-specific navigators
 
       ElementGrouping/           Hierarchical menu navigation
       PanelDetection/            Panel/popup state tracking
 
-  Patches/                       Harmony patches for game event interception
+  Patches/                       Harmony patches for game event interception (5 patches)
 
 installer/                       Installer source code
 libs/                            Reference assemblies (not checked in)
