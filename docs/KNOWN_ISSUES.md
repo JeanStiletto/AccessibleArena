@@ -385,12 +385,11 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 - Explain that creatures heal at the end of each turn — damage doesn't persist across turns, which is non-obvious for new players and important for combat decisions
 3. Auto-advancing browsers can silently decline options — in browsers where selecting a card immediately advances (e.g. Rebound triggers), pressing Space without first selecting a card clicks the confirm/decline button, silently skipping the option. Needs either a safeguard (e.g. "no card selected, press Space again to decline" warning, similar to the phase skip confirmation) or a structural redesign so these browsers follow the standard Enter-to-select, Space-to-confirm pattern more safely.
 4. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
-
-### Low Priority / v1.1
-
-1. Auto version checking and auto update - check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
-2. Cube and other draft event accessibility - make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event)
-3. Ctrl+key shortcuts for navigating opponent's cards - additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-4. Replace Tolk with Prism library - Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
-
+5. Spend spheres screen in mastery navigator needs massive improvement — current accessibility support is insufficient and requires a thorough rework.
+6. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
+7. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
+8. Auto version checking and auto update — check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
+9. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
+10. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
+11. Replace Tolk with Prism library — Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
 
