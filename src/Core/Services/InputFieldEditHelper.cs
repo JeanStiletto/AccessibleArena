@@ -157,6 +157,7 @@ namespace AccessibleArena.Core.Services
             // Escape: exit edit mode
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                PreserveTextOnEscape();
                 ExitEditMode();
                 _announcer?.Announce(Strings.ExitedEditMode, AnnouncementPriority.Normal);
                 return true;
@@ -479,6 +480,34 @@ namespace AccessibleArena.Core.Services
                     ? Strings.InputFieldEmptyWithLabel(label)
                     : Strings.InputFieldContent(label, content);
                 _announcer?.AnnounceInterrupt(announcement);
+            }
+        }
+
+        #endregion
+
+        #region Escape Text Preservation
+
+        /// <summary>
+        /// Restore the last known edited text to the input field before exiting edit mode.
+        /// TMP_InputField reverts text to m_OriginalText when Escape is processed in
+        /// OnUpdateSelected (which runs before MelonLoader's OnUpdate). Call this before
+        /// ExitEditMode so the user's edits are preserved, matching Tab behavior.
+        /// </summary>
+        public void PreserveTextOnEscape()
+        {
+            if (_editingField == null) return;
+
+            var tmpInput = _editingField.GetComponent<TMP_InputField>();
+            if (tmpInput != null)
+            {
+                tmpInput.text = _prevText;
+                return;
+            }
+
+            var legacyInput = _editingField.GetComponent<InputField>();
+            if (legacyInput != null)
+            {
+                legacyInput.text = _prevText;
             }
         }
 

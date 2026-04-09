@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9.2
 
+### Input Fields
+- Fixed Escape discarding text edits in login/registration input fields — pressing Escape now preserves your changes like Tab does, instead of reverting to the original text (fixes #59)
+
 ### Settings Menu
 - Fixed popup navigation broken in Settings menu (e.g. Logout confirmation) — a delayed rescan was wiping popup elements, so arrow keys moved through the settings items behind the popup instead of the popup buttons
 - Added the same popup-mode rescan guard to DraftNavigator to prevent the same issue during drafts

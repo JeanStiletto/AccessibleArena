@@ -702,6 +702,7 @@ namespace AccessibleArena.Core.Services
             // Escape exits edit mode by deactivating the input field
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                _inputFieldHelper.PreserveTextOnEscape();
                 ExitInputFieldEditMode();
                 _announcer.Announce(Strings.ExitedEditMode, AnnouncementPriority.Normal);
                 return;
