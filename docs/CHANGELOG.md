@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9.2
 
+### Extended Card Info (I Menu)
+- Fixed missing keyword descriptions for parameterized keywords like Cycling (Umwandlung), Plot (Aushecken), and similar cost-based keywords — these are now read with full explanations in the I menu
+
 ### Match End Screen
 - Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
 

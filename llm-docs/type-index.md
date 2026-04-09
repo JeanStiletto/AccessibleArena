@@ -316,7 +316,17 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | Pantry | Wizards.Mtga.Pantry | Core |
 | ICardRolloverZoom | Wotc.Mtga.ICardRolloverZoom | Core |
 | AbilityHangerBaseConfigProvider | Wotc.Mtga.Hangers.AbilityHangers.AbilityHangerBaseConfigProvider | Core |
+| AbilityHangerConfigProvider | Wotc.Mtga.Hangers.AbilityHangers.AbilityHangerConfigProvider | Core |
 | AbilityHangerBase | AbilityHangerBase | Core |
+| AbilityHanger | AbilityHanger | Core |
+| ParameterizedHangerConfigProvider | Wotc.Mtga.Hangers.ParameterizedHangerConfigProvider | Core |
+| ALTQueryProvider | Wotc.Mtga.Hangers.AbilityHangers.ALTQueryProvider | Core |
+| IHangerLookupProvider | Wotc.Mtga.Hangers.AbilityHangers.IHangerLookupProvider | Core |
+| HangerConfig | Wotc.Mtga.Hangers.HangerConfig | Core |
+| HangerUtilities | Wotc.Mtga.Hangers.HangerUtilities | Core |
+| HangerPayload | Wotc.Mtga.Hangers.AbilityHangers.HangerPayload | Core |
+| AbilityBadgeUtil | AbilityBadgeUtil | Core |
+| AbilityHangerData | AbilityHangerData | Core |
 
 ## Critical Field/Property Notes
 

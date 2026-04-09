@@ -27,6 +27,10 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _getHangerConfigsForCardMethod;
         private static MethodInfo _hangerProviderCleanupMethod;
 
+        // Cache for parameterized hanger provider (Cycling, Plot, etc.)
+        private static object _parameterizedHangerProvider;
+        private static MethodInfo _getParamHangerConfigsMethod;
+
         // Cache for duel-scene CardDataProvider
         private static object _duelCardDataProvider;
         private static MethodInfo _duelGetCardPrintingMethod;
@@ -57,6 +61,8 @@ namespace AccessibleArena.Core.Services
             _abilityHangerProvider = null;
             _getHangerConfigsForCardMethod = null;
             _hangerProviderCleanupMethod = null;
+            _parameterizedHangerProvider = null;
+            _getParamHangerConfigsMethod = null;
             _duelCardDataProvider = null;
             _duelGetCardPrintingMethod = null;
             _duelCardDataProviderSearched = false;
@@ -138,44 +144,14 @@ namespace AccessibleArena.Core.Services
                 var configs = _getHangerConfigsForCardMethod.Invoke(
                     _abilityHangerProvider, new object[] { model, holderType, metadata });
 
-                if (configs is IEnumerable configEnum)
-                {
-                    var seen = new HashSet<string>();
-                    foreach (var config in configEnum)
-                    {
-                        if (config == null) continue;
-                        var configType = config.GetType();
-
-                        // HangerConfig is a struct with public readonly fields
-                        var headerField = configType.GetField("Header");
-                        var detailsField = configType.GetField("Details");
-
-                        string header = headerField?.GetValue(config)?.ToString() ?? "";
-                        string details = detailsField?.GetValue(config)?.ToString() ?? "";
-
-                        if (string.IsNullOrEmpty(header) && string.IsNullOrEmpty(details)) continue;
-
-                        // Format: "Header: Details"
-                        string text;
-                        if (!string.IsNullOrEmpty(header) && !string.IsNullOrEmpty(details))
-                            text = $"{header}: {details}";
-                        else if (!string.IsNullOrEmpty(header))
-                            text = header;
-                        else
-                            text = details;
-
-                        // Parse mana symbols
-                        text = CardModelProvider.ParseManaSymbolsInText(text);
-
-                        MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Hanger: '{text}'");
-
-                        if (seen.Add(text))
-                            result.Add(text);
-                    }
-                }
+                var seen = new HashSet<string>();
+                CollectHangerConfigs(configs, result, seen);
 
                 // Cleanup provider internal state
                 _hangerProviderCleanupMethod?.Invoke(_abilityHangerProvider, null);
+
+                // Also query parameterized hanger provider (Cycling, Plot, etc.)
+                QueryParameterizedHangers(model, result, seen);
 
                 MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] GetKeywordDescriptions: {result.Count} entries");
             }
@@ -255,39 +231,14 @@ namespace AccessibleArena.Core.Services
                 var configs = _papaGetConfigsMethod.Invoke(
                     _papaHangerProvider, new object[] { cardAdapter, _holderTypeHand, metadata });
 
-                if (configs is IEnumerable configEnum)
-                {
-                    var seen = new HashSet<string>();
-                    foreach (var config in configEnum)
-                    {
-                        if (config == null) continue;
-                        var configType = config.GetType();
-
-                        var headerField = configType.GetField("Header");
-                        var detailsField = configType.GetField("Details");
-
-                        string header = headerField?.GetValue(config)?.ToString() ?? "";
-                        string details = detailsField?.GetValue(config)?.ToString() ?? "";
-
-                        if (string.IsNullOrEmpty(header) && string.IsNullOrEmpty(details)) continue;
-
-                        string text;
-                        if (!string.IsNullOrEmpty(header) && !string.IsNullOrEmpty(details))
-                            text = $"{header}: {details}";
-                        else if (!string.IsNullOrEmpty(header))
-                            text = header;
-                        else
-                            text = details;
-
-                        text = CardModelProvider.ParseManaSymbolsInText(text);
-
-                        if (seen.Add(text))
-                            result.Add(text);
-                    }
-                }
+                var seen = new HashSet<string>();
+                CollectHangerConfigs(configs, result, seen);
 
                 // Cleanup provider internal state
                 _papaCleanupMethod?.Invoke(_papaHangerProvider, null);
+
+                // Also query parameterized hanger provider (Cycling, Plot, etc.)
+                QueryParameterizedHangers(cardAdapter, result, seen);
 
                 MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions: {result.Count} entries for GrpId {grpId}");
             }
@@ -671,6 +622,26 @@ namespace AccessibleArena.Core.Services
                 // Log method signature for debugging
                 var ps = getConfigsMethod.GetParameters();
                 MelonLogger.Msg($"[ExtendedCardInfoProvider] GetHangerConfigsForCard({string.Join(", ", ps.Select(p => $"{p.ParameterType.Name} {p.Name}"))})");
+
+                // Also extract _parameterizedHangers (handles Cycling, Plot, etc.)
+                var paramField = type.GetField("_parameterizedHangers",
+                    PrivateInstance | BindingFlags.FlattenHierarchy);
+                if (paramField != null)
+                {
+                    var paramProvider = paramField.GetValue(obj);
+                    if (paramProvider != null)
+                    {
+                        var paramProviderType = paramProvider.GetType();
+                        var getConfigsParam = paramProviderType.GetMethod("GetHangerConfigs");
+                        if (getConfigsParam != null)
+                        {
+                            _parameterizedHangerProvider = paramProvider;
+                            _getParamHangerConfigsMethod = getConfigsParam;
+                            MelonLogger.Msg($"[ExtendedCardInfoProvider] Found ParameterizedHangerProvider: {paramProviderType.Name}");
+                        }
+                    }
+                }
+
                 return;
             }
 
@@ -710,6 +681,66 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[ExtendedCardInfoProvider] Error creating CDCViewMetadata: {ex.Message}");
             }
             return null;
+        }
+
+        /// <summary>
+        /// Extracts Header/Details from HangerConfig results and adds formatted strings to the result list.
+        /// Shared by both duel and PAPA paths to avoid duplication.
+        /// </summary>
+        private static void CollectHangerConfigs(object configs, List<string> result, HashSet<string> seen)
+        {
+            if (!(configs is IEnumerable configEnum)) return;
+
+            foreach (var config in configEnum)
+            {
+                if (config == null) continue;
+                var configType = config.GetType();
+
+                var headerField = configType.GetField("Header");
+                var detailsField = configType.GetField("Details");
+
+                string header = headerField?.GetValue(config)?.ToString() ?? "";
+                string details = detailsField?.GetValue(config)?.ToString() ?? "";
+
+                if (string.IsNullOrEmpty(header) && string.IsNullOrEmpty(details)) continue;
+
+                string text;
+                if (!string.IsNullOrEmpty(header) && !string.IsNullOrEmpty(details))
+                    text = $"{header}: {details}";
+                else if (!string.IsNullOrEmpty(header))
+                    text = header;
+                else
+                    text = details;
+
+                text = CardModelProvider.ParseManaSymbolsInText(text);
+
+                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Hanger: '{text}'");
+
+                if (seen.Add(text))
+                    result.Add(text);
+            }
+        }
+
+        /// <summary>
+        /// Queries the ParameterizedHangerConfigProvider for keyword descriptions (Cycling, Plot, etc.).
+        /// These use a separate ALT tree from the main AbilityHangerBaseConfigProvider.
+        /// </summary>
+        private static void QueryParameterizedHangers(object model, List<string> result, HashSet<string> seen)
+        {
+            if (_parameterizedHangerProvider == null || _getParamHangerConfigsMethod == null || model == null)
+                return;
+
+            try
+            {
+                var configs = _getParamHangerConfigsMethod.Invoke(
+                    _parameterizedHangerProvider, new object[] { model });
+
+                CollectHangerConfigs(configs, result, seen);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Parameterized hanger query failed: {ex.Message}");
+            }
         }
 
         /// <summary>
