@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.9.2
 
+### Settings Menu
+- Fixed popup navigation broken in Settings menu (e.g. Logout confirmation) — a delayed rescan was wiping popup elements, so arrow keys moved through the settings items behind the popup instead of the popup buttons
+- Added the same popup-mode rescan guard to DraftNavigator to prevent the same issue during drafts
+
 ### Extended Card Info (I Menu)
 - Fixed missing keyword descriptions for parameterized keywords like Cycling (Umwandlung), Plot (Aushecken), and similar cost-based keywords — these are now read with full explanations in the I menu
 - Stripped card-specific mana costs from keyword headers so only the generic keyword name is announced

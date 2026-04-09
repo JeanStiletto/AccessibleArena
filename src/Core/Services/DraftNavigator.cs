@@ -783,7 +783,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Rescan after card selection or confirmation
-            if (_isActive && _rescanPending)
+            // Skip while popup is active - base popup mode owns element discovery
+            if (_isActive && _rescanPending && !IsInPopupMode)
             {
                 _rescanFrameCounter++;
                 if (_rescanFrameCounter >= _currentRescanDelay)

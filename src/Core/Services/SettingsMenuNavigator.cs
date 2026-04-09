@@ -1029,6 +1029,14 @@ namespace AccessibleArena.Core.Services
 
         private void PerformRescan()
         {
+            // Skip rescan while popup is active - base popup mode owns element discovery
+            if (IsInPopupMode)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Skipping rescan - popup active");
+                _silentRescan = false;
+                return;
+            }
+
             MelonLogger.Msg($"[{NavigatorId}] Performing rescan");
 
             // Remember current selection
