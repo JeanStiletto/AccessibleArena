@@ -110,19 +110,13 @@ The "Invite Friend to Challenge" popup contains a `cTMP_Dropdown` (DropdownHitbo
 
 Steam's default overlay hotkey (Shift+Tab) conflicts with the mod's backward navigation (Shift+Tab for previous item, previous color in mana picker, etc.). When pressed, the Steam overlay opens instead of navigating. The overlay is not accessible to screen readers, so blind users must dismiss it and lose their navigation context.
 
-**Current mitigation:** `Application.isFocused` guard in `OnUpdate()` prevents the mod from processing phantom inputs while the overlay is active. This doesn't prevent the overlay from opening but avoids state corruption.
+**Current mitigation:** The mod detects Steam on startup and announces a spoken warning with instructions to disable the overlay manually. The warning uses `Critical` announcement priority so it cannot be interrupted by loading screen messages. Additionally, `Application.isFocused` guard in `OnUpdate()` prevents the mod from processing phantom inputs while the overlay is active.
 
-**Shelved approach — WH_KEYBOARD_LL hook:** A low-level Windows keyboard hook that intercepts Shift+Tab at the OS message level before Steam sees it, while Unity's `Input.GetKeyDown` still works via Raw Input (separate delivery path). Fully implemented and tested to compile. Shelved due to concerns:
-- Global keyboard hook is a classic keylogger/malware signature — AV false positive risk
-- Operates outside normal modding boundaries (Harmony/MelonLoader scope) — stands out to anti-cheat review
-- Hook intercepts ALL keystrokes system-wide (filters most through, but the footprint is large)
-- Stability edge cases: Windows silently removes hooks with slow callbacks (>300ms), leaked hooks on crash
+**User action required:** Disable Steam overlay for MTGA: right-click MTGA in Steam library → Properties → uncheck "Enable Steam Overlay while in-game". Alternatively, rebind Steam's overlay key: Steam → Settings → In-Game → Overlay Shortcut Keys.
 
-**Shelved code:** `src/Core/Services/old/SteamOverlayBlocker.cs` — ready to restore if risks are deemed acceptable.
+**Why programmatic disable doesn't work:** Steam's `localconfig.vdf` stores per-game overlay settings (`OverlayAppEnable`), but Steam overwrites this file from memory on shutdown. Entries not created through Steam's own UI are discarded. A keyboard hook (WH_KEYBOARD_LL) approach was also tried but abandoned because it adds latency to all keystrokes, disrupting NVDA's modifier key timing, and Steam doesn't use the LL hook chain for overlay detection anyway.
 
-**To restore:** Move file back to `src/Core/Services/`, add `SteamOverlayBlocker.Install()` in `OnInitializeMelon()` after `InitializeHarmonyPatches()`, add `SteamOverlayBlocker.Uninstall()` in `OnApplicationQuit()` before `_settings?.Save()`.
-
-**Alternative for users:** Disable Steam overlay for MTGA (Steam > right-click game > Properties > uncheck "Enable Steam Overlay") or rebind Steam's overlay key (Steam > Settings > In-Game > Overlay Shortcut Keys).
+**Files:** `SteamOverlayBlocker.cs` (detection + VDF check), `AccessibleArenaMod.cs` (Critical announcement)
 
 ---
 

@@ -32,6 +32,7 @@ namespace AccessibleArena.Core.Models
         // GENERAL / SYSTEM
         // ===========================================
         public static string ModLoaded(string version) => L.Format("ModLoaded_Format", version);
+        public static string SteamOverlayWarning => L.Get("SteamOverlayWarning");
         public static string Back => L.Get("Back");
         public static string NoSelection => L.Get("NoSelection");
         public static string NoAlternateAction => L.Get("NoAlternateAction");

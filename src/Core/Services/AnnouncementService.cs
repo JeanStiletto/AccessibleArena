@@ -14,6 +14,11 @@ namespace AccessibleArena.Core.Services
         private string _lastAnnouncement;
         private readonly List<string> _history = new List<string>();
 
+        // Critical messages cannot be interrupted by lower-priority messages.
+        // This tracks when the critical protection window expires.
+        private DateTime _criticalActiveUntil = DateTime.MinValue;
+        private const double CriticalCooldownSeconds = 15.0;
+
         /// <summary>Production constructor — uses real screen reader and live settings.</summary>
         public AnnouncementService()
             : this(new ScreenReaderAdapter(),
@@ -44,9 +49,25 @@ namespace AccessibleArena.Core.Services
             // Log what we're speaking
             MelonLogger.Msg($"[Announce] {priority}: {message}");
 
-            // Only Immediate priority interrupts - let Tolk queue everything else
-            bool interrupt = priority == AnnouncementPriority.Immediate;
-            _output.Speak(message, interrupt);
+            bool isCriticalActive = DateTime.UtcNow < _criticalActiveUntil;
+
+            if (priority == AnnouncementPriority.Critical)
+            {
+                // Critical: interrupt and protect from future interrupts
+                _criticalActiveUntil = DateTime.UtcNow.AddSeconds(CriticalCooldownSeconds);
+                _output.Speak(message, true);
+            }
+            else if (priority >= AnnouncementPriority.Immediate && !isCriticalActive)
+            {
+                // Immediate: interrupt only if no critical message is playing
+                _output.Speak(message, true);
+            }
+            else
+            {
+                // Normal/High: queue without interrupting.
+                // Also used for Immediate when a critical message is still playing.
+                _output.Speak(message, false);
+            }
         }
 
         public void AnnounceInterrupt(string message)

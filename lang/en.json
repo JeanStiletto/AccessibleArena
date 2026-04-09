@@ -1083,5 +1083,6 @@
   "ProfileItemSelected": "selected",
   "ProfileItemDefault": "default",
   "ProfileItemEquipped": "equipped",
-  "ProfileItemStore": "available in store"
+  "ProfileItemStore": "available in store",
+  "SteamOverlayWarning": "Warning: Steam overlay is active. Shift plus Tab will open the Steam overlay instead of navigating backwards. To fix this, right-click MTGA in your Steam library, select Properties, and uncheck Enable Steam Overlay while in-game."
 }

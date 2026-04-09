@@ -57,11 +57,15 @@ namespace AccessibleArena
             InitializeServices();
             RegisterGlobalShortcuts();
             InitializeHarmonyPatches();
+            SteamOverlayBlocker.Install();
 
             _initialized = true;
 
             LoggerInstance.Msg("Accessible Arena initialized");
             _announcer.Announce(Strings.ModLoaded(Info.Version), AnnouncementPriority.High);
+
+            if (SteamOverlayBlocker.IsSteam && !SteamOverlayBlocker.OverlayDisabled)
+                _announcer.Announce(Strings.SteamOverlayWarning, AnnouncementPriority.Critical);
         }
 
         private void InitializeHarmonyPatches()
@@ -403,6 +407,7 @@ namespace AccessibleArena
         public override void OnApplicationQuit()
         {
             LoggerInstance.Msg("Accessible Arena shutting down...");
+            SteamOverlayBlocker.Uninstall();
             _settings?.Save();
             ScreenReaderOutput.Shutdown();
         }

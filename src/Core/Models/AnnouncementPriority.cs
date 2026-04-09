@@ -5,6 +5,7 @@ namespace AccessibleArena.Core.Models
         Low = 0,
         Normal = 1,
         High = 2,
-        Immediate = 3
+        Immediate = 3,
+        Critical = 4
     }
 }

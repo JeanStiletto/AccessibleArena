@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.9.2
 
+### Steam Overlay
+- Added Steam overlay detection and spoken warning on startup — when running under Steam with the overlay still enabled, the mod announces instructions to disable it (right-click MTGA in Steam library → Properties → uncheck "Enable Steam Overlay while in-game")
+- Warning uses new Critical announcement priority that cannot be interrupted by loading screen or menu announcements
+
 ### Input Fields
 - Fixed Escape discarding text edits in login/registration input fields — pressing Escape now preserves your changes like Tab does, instead of reverting to the original text (fixes #59)
 
