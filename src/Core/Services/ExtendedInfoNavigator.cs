@@ -229,7 +229,7 @@ namespace AccessibleArena.Core.Services
             if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
             string item = _items[_currentIndex];
-            string announcement = Strings.HelpItemPosition(_currentIndex + 1, _items.Count, item, force: true);
+            string announcement = Strings.HelpItemPosition(_currentIndex + 1, _items.Count, item);
             _announcer.AnnounceInterrupt(announcement);
         }
     }

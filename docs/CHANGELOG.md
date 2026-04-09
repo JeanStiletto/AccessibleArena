@@ -6,6 +6,8 @@ All notable changes to Accessible Arena.
 
 ### Extended Card Info (I Menu)
 - Fixed missing keyword descriptions for parameterized keywords like Cycling (Umwandlung), Plot (Aushecken), and similar cost-based keywords — these are now read with full explanations in the I menu
+- Stripped card-specific mana costs from keyword headers so only the generic keyword name is announced
+- Position counts in the I menu now respect the "Position counts" setting instead of always being shown
 
 ### Match End Screen
 - Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
