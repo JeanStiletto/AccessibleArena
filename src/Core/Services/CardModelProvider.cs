@@ -1003,13 +1003,21 @@ namespace AccessibleArena.Core.Services
             // Pattern 2: Bare format for activated ability costs (e.g., "2oW:", "oT:", "3oRoR:")
             // This handles patterns like: [number]o[color] at the start of ability text
             // Pattern breakdown: (optional number)(one or more oX sequences)(colon)
-            text = Regex.Replace(text, @"^((\d*)(?:o([WUBRGCTXSE]))+):", match =>
+            text = Regex.Replace(text, @"^((\d*)(?:o(\d+|[WUBRGCTXSE]))+):", match =>
             {
                 string fullCost = match.Groups[1].Value;
                 return ParseBareManaSequence(fullCost) + ":";
             });
 
-            // Pattern 3: Standard MTG mana notation {X} (used in ability text from localization DB)
+            // Pattern 3: Bare mana sequences anywhere in text (from parameterized hanger tooltips)
+            // Examples: "Umwandlung o2oW:", "Du kannst o3oW zahlen"
+            // Matches: one or more o(digit|color) tokens, not inside words
+            text = Regex.Replace(text, @"(?<!\w)((?:o(?:\d+|[WUBRGCTXSE]))+)(?!\w)", match =>
+            {
+                return ParseBareManaSequence(match.Groups[1].Value);
+            });
+
+            // Pattern 4: Standard MTG mana notation {X} (used in ability text from localization DB)
             // Examples: {2}, {W}, {U}, {B}, {R}, {G}, {C}, {X}, {W/U}, {2/W}, {W/P}
             // Ward costs come through as e.g. "Ward {2}" or "Ward—{W}"
             text = Regex.Replace(text, @"\{([0-9XYWUBRGCTS][0-9WUBRGCP/]*)\}", match =>
@@ -1022,7 +1030,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Parses a bare mana sequence like "2oW" or "oToRoR" into readable text.
+        /// Parses a bare mana sequence like "2oW", "o2oW", or "oToRoR" into readable text.
+        /// Handles both leading-number format (2oW) and o-prefix format (o2oW) for generic mana.
         /// </summary>
         private static string ParseBareManaSequence(string sequence)
         {
@@ -1031,7 +1040,7 @@ namespace AccessibleArena.Core.Services
 
             var parts = new List<string>();
 
-            // Extract leading number if present (generic mana)
+            // Extract leading number if present (generic mana without 'o' prefix, e.g. "2oW")
             var numberMatch = Regex.Match(sequence, @"^(\d+)");
             if (numberMatch.Success)
             {
@@ -1039,8 +1048,8 @@ namespace AccessibleArena.Core.Services
                 sequence = sequence.Substring(numberMatch.Length);
             }
 
-            // Extract all oX patterns
-            var symbolMatches = Regex.Matches(sequence, @"o([WUBRGCTXSE])");
+            // Extract all o(digit+|letter) patterns — handles both o2 (generic) and oW (color)
+            var symbolMatches = Regex.Matches(sequence, @"o(\d+|[WUBRGCTXSE])");
             foreach (Match m in symbolMatches)
             {
                 string symbol = m.Groups[1].Value;

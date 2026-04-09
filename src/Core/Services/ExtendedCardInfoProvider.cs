@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
@@ -701,6 +702,11 @@ namespace AccessibleArena.Core.Services
 
                 string header = headerField?.GetValue(config)?.ToString() ?? "";
                 string details = detailsField?.GetValue(config)?.ToString() ?? "";
+
+                // Strip trailing bare mana costs from header (parameterized hangers
+                // append card-specific costs like "Umwandlung o2oW" — the user already
+                // sees the cost in the rules text, the I menu should just explain the keyword)
+                header = Regex.Replace(header, @"\s+(?:o(?:\d+|[WUBRGCTXSE/]))+\s*$", "").Trim();
 
                 if (string.IsNullOrEmpty(header) && string.IsNullOrEmpty(details)) continue;
 
