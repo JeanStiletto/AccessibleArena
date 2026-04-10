@@ -189,6 +189,7 @@ namespace AccessibleArena.Core.Services
             _pendingPhaseAnnouncement = null;
             DuelHolderCache.Clear();
             _instanceIdToName.Clear();
+            _creatureDamage.Clear();
         }
 
         /// <summary>
