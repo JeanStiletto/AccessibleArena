@@ -7,6 +7,8 @@ All notable changes to Accessible Arena.
 ### Steam Overlay
 - Added Steam overlay detection and spoken warning on startup — when running under Steam with the overlay still enabled, the mod announces instructions to disable it (right-click MTGA in Steam library → Properties → uncheck "Enable Steam Overlay while in-game")
 - Warning uses new Critical announcement priority that cannot be interrupted by loading screen or menu announcements
+- "Change payment method" button now announces that payment methods are managed through Steam (the game's own handler is a no-op on Steam)
+- Real-money purchase buttons (gems, bundles) now announce a Critical-priority warning that the Steam overlay is required for payment and not accessible to screen readers — user needs OCR or sighted assistance
 
 ### Input Fields
 - Fixed Escape discarding text edits in login/registration input fields — pressing Escape now preserves your changes like Tab does, instead of reverting to the original text (fixes #59)

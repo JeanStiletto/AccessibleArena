@@ -42,6 +42,20 @@ Event-specific quests (e.g. special event objectives) display English text inste
 
 ## Game Behavior (Not Fixable by Mod)
 
+### Steam Overlay Inaccessible to Screen Readers
+
+The Steam overlay is not accessible to screen readers. This causes two problems for blind Steam users:
+
+1. **Shift+Tab conflict:** Steam's overlay hotkey (Shift+Tab) intercepts the mod's backward navigation. Users must disable the overlay in Steam (right-click MTGA → Properties → uncheck "Enable Steam Overlay while in-game") or rebind the overlay hotkey in Steam settings.
+
+2. **Real-money purchases require the overlay:** Buying gems, bundles, or other real-money items opens a payment dialog inside the Steam overlay. With the overlay disabled, the purchase silently hangs. With the overlay enabled, the dialog is inaccessible. Either way, blind users need OCR or sighted assistance to complete real-money purchases on Steam.
+
+**Mitigations:** The mod warns on startup if the overlay is active (Shift+Tab conflict), announces that "Change payment method" is managed through Steam, and shows a Critical-priority warning before any real-money purchase explaining the overlay limitation.
+
+**Files:** `SteamOverlayBlocker.cs`, `StoreNavigator.cs`, `AccessibleArenaMod.cs`
+
+---
+
 ### Resolution Dropdown Shows Native Display Resolution Until Changed
 
 The resolution dropdown in Settings > Graphics always shows the native display resolution (e.g., "2880x1800") instead of the game's actual render resolution (e.g., "1920x1080") until the user interacts with it and selects a value.
@@ -105,18 +119,6 @@ The "Invite Friend to Challenge" popup contains a `cTMP_Dropdown` (DropdownHitbo
 **Files:** `DropdownEditHelper.cs`, `GeneralMenuNavigator.cs` (popup mode)
 
 ---
-
-### Steam Overlay Hijacks Shift+Tab
-
-Steam's default overlay hotkey (Shift+Tab) conflicts with the mod's backward navigation (Shift+Tab for previous item, previous color in mana picker, etc.). When pressed, the Steam overlay opens instead of navigating. The overlay is not accessible to screen readers, so blind users must dismiss it and lose their navigation context.
-
-**Current mitigation:** The mod detects Steam on startup and announces a spoken warning with instructions to disable the overlay manually. The warning uses `Critical` announcement priority so it cannot be interrupted by loading screen messages. Additionally, `Application.isFocused` guard in `OnUpdate()` prevents the mod from processing phantom inputs while the overlay is active.
-
-**User action required:** Disable Steam overlay for MTGA: right-click MTGA in Steam library → Properties → uncheck "Enable Steam Overlay while in-game". Alternatively, rebind Steam's overlay key: Steam → Settings → In-Game → Overlay Shortcut Keys.
-
-**Why programmatic disable doesn't work:** Steam's `localconfig.vdf` stores per-game overlay settings (`OverlayAppEnable`), but Steam overwrites this file from memory on shutdown. Entries not created through Steam's own UI are discarded. A keyboard hook (WH_KEYBOARD_LL) approach was also tried but abandoned because it adds latency to all keystrokes, disrupting NVDA's modifier key timing, and Steam doesn't use the LL hook chain for overlay detection anyway.
-
-**Files:** `SteamOverlayBlocker.cs` (detection + VDF check), `AccessibleArenaMod.cs` (Critical announcement)
 
 ---
 
@@ -300,12 +302,6 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 
 ---
 
-### Check Payment Method Browser Not Loading
-
-For some users, the "Check Payment Method" browser does not load or display correctly. Exact symptoms and reproduction steps unknown.
-
----
-
 ## Technical Debt
 
 ### Code Archaeology
@@ -373,6 +369,7 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 1. Improve Challenge Friend screen workflow communication — currently unclear for blind users. Consider adding a dedicated Ready button, more contextual hints, or custom strings to guide through the challenge setup flow.
 2. Draft navigator polish — reduce unnecessary rescans, add a key to check how many copies of the focused card are already in the player's collection, and correctly announce and read the selected/picked state of cards during drafting.
+3. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
 
 #### Tutorial Improvements
 - Add mana cost explanation (how mana payment works, color picker for any-color sources)

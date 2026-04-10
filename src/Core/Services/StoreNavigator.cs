@@ -2423,18 +2423,29 @@ namespace AccessibleArena.Core.Services
         private void ActivateUtilityElement(TabInfo tab)
         {
             // Payment button: call OnButton_PaymentSetup() directly on controller
-            // Note: UIActivator on TextButton_PaymentInfo also works - revert to UIActivator if reflection causes issues
-            if (tab.DisplayName == "Change payment method" && _onButtonPaymentSetupMethod != null && _controller != null)
+            // On Steam, OpenPaymentSetup() is a no-op (GeneralStoreManager doesn't override it).
+            // Payment methods are managed through Steam itself, so announce that to the user.
+            if (tab.DisplayName == "Change payment method")
             {
-                try
+                if (SteamOverlayBlocker.IsSteam)
                 {
-                    MelonLogger.Msg("[Store] Calling OnButton_PaymentSetup() via reflection");
-                    _onButtonPaymentSetupMethod.Invoke(_controller, null);
+                    MelonLogger.Msg("[Store] Payment setup not available on Steam");
+                    _announcer.AnnounceInterrupt(Strings.SteamPaymentNotAvailable);
                     return;
                 }
-                catch (Exception ex)
+
+                if (_onButtonPaymentSetupMethod != null && _controller != null)
                 {
-                    MelonLogger.Msg($"[Store] Error calling OnButton_PaymentSetup: {ex.Message}");
+                    try
+                    {
+                        MelonLogger.Msg("[Store] Calling OnButton_PaymentSetup() via reflection");
+                        _onButtonPaymentSetupMethod.Invoke(_controller, null);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Msg($"[Store] Error calling OnButton_PaymentSetup: {ex.Message}");
+                    }
                 }
             }
 
@@ -2634,6 +2645,12 @@ namespace AccessibleArena.Core.Services
                     }
                     else
                     {
+                        // Warn Steam users about inaccessible payment overlay for real-money purchases
+                        if (SteamOverlayBlocker.IsSteam && elem.obj.name.StartsWith("Cash"))
+                        {
+                            MelonLogger.Msg("[Store] Steam real-money purchase — announcing overlay warning");
+                            _announcer.Announce(Strings.SteamPurchaseWarning, AnnouncementPriority.Critical);
+                        }
                         UIActivator.Activate(elem.obj);
                     }
                 }

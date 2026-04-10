@@ -1082,5 +1082,7 @@
   "ProfileItemDefault": "Standard",
   "ProfileItemEquipped": "ausgerüstet",
   "ProfileItemStore": "im Shop erhältlich",
-  "SteamOverlayWarning": "Warnung: Steam-Overlay ist aktiv. Umschalt plus Tab öffnet das Steam-Overlay statt rückwärts zu navigieren. Klicken Sie in Ihrer Steam-Bibliothek mit rechts auf MTGA, wählen Sie Eigenschaften und deaktivieren Sie Steam-Overlay im Spiel aktivieren."
+  "SteamOverlayWarning": "Warnung: Steam-Overlay ist aktiv. Umschalt plus Tab öffnet das Steam-Overlay statt rückwärts zu navigieren. Klicken Sie in Ihrer Steam-Bibliothek mit rechts auf MTGA, wählen Sie Eigenschaften und deaktivieren Sie Steam-Overlay im Spiel aktivieren.",
+  "SteamPaymentNotAvailable": "Zahlungsmethoden werden über Steam verwaltet. Öffne Steam, um deine Zahlungseinstellungen zu ändern.",
+  "SteamPurchaseWarning": "Warnung: Dieser Kauf öffnet das Steam-Overlay, das für Screenreader nicht zugänglich ist. Du benötigst OCR oder sehende Hilfe, um die Zahlung abzuschließen."
 }
