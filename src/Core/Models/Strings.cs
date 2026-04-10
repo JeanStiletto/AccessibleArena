@@ -1135,6 +1135,11 @@ namespace AccessibleArena.Core.Models
         public static string Toggled(string label) => L.Format("Toggled_Format", label);
         public static string FirstPack => L.Get("FirstPack");
         public static string LastPack => L.Get("LastPack");
+
+        // Pack type labels (appended to pack name in booster carousel)
+        public static string PackTypeMythic => L.Get("PackTypeMythic");
+        public static string PackTypeAlchemy => L.Get("PackTypeAlchemy");
+        public static string PackTypeBonus => L.Get("PackTypeBonus");
         public static string ExitedInputField => L.Get("ExitedInputField");
         public static string PageOf(int current, int total) => L.Format("Page_Format", current, total);
         public static string PageLabel(string label) => L.Format("PageLabel_Format", label);
