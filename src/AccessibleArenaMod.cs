@@ -316,8 +316,9 @@ namespace AccessibleArena
             if (!_initialized)
                 return;
 
-            // Skip all input processing when game doesn't have focus
-            // (e.g., Steam overlay, Alt+Tab, other overlays)
+            // Skip all input processing when game doesn't have focus (e.g., Alt+Tab)
+            // Note: Steam overlay does NOT affect isFocused — it intercepts input at a lower
+            // level before Unity sees it, so this guard only helps with Alt+Tab scenarios.
             if (!Application.isFocused)
                 return;
 
