@@ -501,7 +501,7 @@ namespace AccessibleArena.Core.Services
                         if (_browserCards.Count > 0)
                         {
                             int firstIdx = FindFirstSelectableCard();
-                            _currentCardIndex = firstIdx >= 0 ? firstIdx : 0;
+                            _currentCardIndex = firstIdx; // -1 if none selectable; guard in AnnounceCurrentCard handles it
                             _currentButtonIndex = -1;
                             AnnounceCurrentCard();
                         }
@@ -524,7 +524,7 @@ namespace AccessibleArena.Core.Services
                         else if (_browserCards.Count > 0)
                         {
                             int lastIdx = FindLastSelectableCard();
-                            _currentCardIndex = lastIdx >= 0 ? lastIdx : _browserCards.Count - 1;
+                            _currentCardIndex = lastIdx; // -1 if none selectable; guard in AnnounceCurrentCard handles it
                             AnnounceCurrentCard();
                         }
                     }
@@ -1425,7 +1425,7 @@ namespace AccessibleArena.Core.Services
             {
                 // Start on first selectable card (skips non-selectable in filtered browsers)
                 int firstIdx = FindFirstSelectableCard();
-                _currentCardIndex = firstIdx >= 0 ? firstIdx : 0;
+                _currentCardIndex = firstIdx; // -1 if none selectable; guard in AnnounceCurrentCard handles it
                 AnnounceCurrentCard();
             }
             else if (buttonCount > 0)
