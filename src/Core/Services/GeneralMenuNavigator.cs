@@ -5979,7 +5979,16 @@ namespace AccessibleArena.Core.Services
                 var elem = _elements[i];
                 if (string.IsNullOrEmpty(elem.Label)) continue;
 
-                if (trackSummaries.TryGetValue(elem.Label, out string summary))
+                // Try exact match first, then try the label prefix before the role suffix
+                // (e.g. "Weiß, Schalter" → try "Weiß" when TutorialMessages appends role labels)
+                string matchKey = elem.Label;
+                if (!trackSummaries.ContainsKey(matchKey))
+                {
+                    int commaIdx = elem.Label.IndexOf(',');
+                    matchKey = commaIdx > 0 ? elem.Label.Substring(0, commaIdx).Trim() : null;
+                }
+
+                if (matchKey != null && trackSummaries.TryGetValue(matchKey, out string summary))
                 {
                     elem.Label = $"{elem.Label}, {summary}";
                     _elements[i] = elem;

@@ -11,6 +11,9 @@ All notable changes to Accessible Arena.
 ### Input Fields
 - Fixed Escape discarding text edits in login/registration input fields — pressing Escape now preserves your changes like Tab does, instead of reverting to the original text (fixes #59)
 
+### Color Challenge
+- Fixed progress info not showing on color buttons when TutorialMessages is enabled (the default) — the role suffix (e.g. ", Schalter") appended to labels prevented matching against track summary keys
+
 ### Settings Menu
 - Fixed popup navigation broken in Settings menu (e.g. Logout confirmation) — a delayed rescan was wiping popup elements, so arrow keys moved through the settings items behind the popup instead of the popup buttons
 - Added the same popup-mode rescan guard to DraftNavigator to prevent the same issue during drafts
