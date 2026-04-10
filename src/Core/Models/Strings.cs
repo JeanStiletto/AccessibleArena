@@ -513,6 +513,9 @@ namespace AccessibleArena.Core.Models
         public static string AbilityActivated => L.Get("AbilityActivated");
         public static string AbilityUnknown => L.Get("AbilityUnknown");
 
+        // Commander tax (Brawl/Commander — additional cost per prior command zone return)
+        public static string CommanderTax(int taxCount) => L.Format("CommanderTax_Format", taxCount * 2);
+
         // ===========================================
         // DISCARD
         // ===========================================

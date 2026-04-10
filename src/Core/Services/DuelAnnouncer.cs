@@ -62,6 +62,11 @@ namespace AccessibleArena.Core.Services
         // Maps GrpId -> isOpponent, set when cards first enter the Command zone
         private readonly Dictionary<uint, bool> _commandZoneGrpIds = new Dictionary<uint, bool>();
 
+        // Track how many times each local commander has been returned to the command zone.
+        // Each return adds 2 to the casting cost (commander tax).
+        // Only tracked for the local player — opponent commanders never fire zone transfer events.
+        private readonly Dictionary<uint, int> _commanderTaxCount = new Dictionary<uint, int>();
+
         // Reflection cache for reading CommanderGrpIds from MatchManager
         private static PropertyInfo _mmProp;       // GameManager.MatchManager
         private static PropertyInfo _localPIProp;  // MatchManager.LocalPlayerInfo
@@ -167,6 +172,7 @@ namespace AccessibleArena.Core.Services
             _localPlayerId = localPlayerId;
             _zoneCounts.Clear();
             _commandZoneGrpIds.Clear();
+            _commanderTaxCount.Clear();
             _userTurnCount = 0;
 
             // Seed commander GrpIds from MatchManager (works for both local and opponent).
@@ -1473,6 +1479,18 @@ namespace AccessibleArena.Core.Services
                 {
                     _commandZoneGrpIds[grpId] = isOpponent;
                     MelonLogger.Msg($"[DuelAnnouncer] Tracking commander from zone event: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
+                }
+
+                // Track commander tax for the local player.
+                // Any zone transfer TO the command zone means the commander was returned after dying —
+                // initial placement never generates zone transfer events, so this is always a re-entry.
+                // Opponent commanders never fire zone transfer events so only local ones are tracked.
+                if (toZoneTypeStr == "Command" && grpId != 0
+                    && _commandZoneGrpIds.TryGetValue(grpId, out bool taxIsOpponent) && !taxIsOpponent)
+                {
+                    _commanderTaxCount.TryGetValue(grpId, out int prevTax);
+                    _commanderTaxCount[grpId] = prevTax + 1;
+                    MelonLogger.Msg($"[DuelAnnouncer] Commander tax: GrpId={grpId} ({cardName}), returns={prevTax + 1}, extra cost={( prevTax + 1) * 2}");
                 }
 
                 // Determine announcement based on zone transfer type
@@ -2970,6 +2988,30 @@ namespace AccessibleArena.Core.Services
 
                 if (!string.IsNullOrEmpty(info.PowerToughness))
                     parts.Add(info.PowerToughness);
+
+                // Announce mana cost (printed cost from card UI)
+                if (!string.IsNullOrEmpty(info.ManaCost))
+                    parts.Add(info.ManaCost);
+
+                // Announce commander tax if this is a local commander with prior returns
+                try
+                {
+                    var cdc = CardModelProvider.GetDuelSceneCDC(cardObj);
+                    if (cdc != null)
+                    {
+                        var model = CardModelProvider.GetCardModel(cdc);
+                        if (model != null)
+                        {
+                            var grpIdObj = CardModelProvider.GetModelPropertyValue(model, model.GetType(), "GrpId");
+                            if (grpIdObj is uint castGrpId && castGrpId != 0
+                                && _commanderTaxCount.TryGetValue(castGrpId, out int taxCount) && taxCount > 0)
+                            {
+                                parts.Add(Strings.CommanderTax(taxCount));
+                            }
+                        }
+                    }
+                }
+                catch { /* commander tax is best-effort */ }
             }
 
             // Brief mode: skip rules text for own and/or opponent cards based on settings
