@@ -239,6 +239,15 @@ namespace AccessibleArena.Core.Services
         {
             if (obj == null) return label;
 
+            // Re-read objective text live — quest progress updates async after the home page
+            // finishes its server round-trip, so cached labels from rescan time are stale.
+            if (obj.name == "ObjectiveGraphics")
+            {
+                string freshText = UITextExtractor.GetText(obj);
+                if (!string.IsNullOrEmpty(freshText))
+                    return freshText;
+            }
+
             // Update state for toggles - replace cached checkbox state with current state
             var toggle = obj.GetComponent<Toggle>();
             if (toggle != null && (role == UIElementClassifier.ElementRole.Toggle || role == UIElementClassifier.ElementRole.Unknown))
