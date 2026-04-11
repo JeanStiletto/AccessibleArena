@@ -22,12 +22,6 @@ Pressing Escape while editing an input field (e.g. registration form) clears the
 
 ---
 
-### Registration Does Not Auto-Advance After Account Confirmation
-
-After successfully sending the account confirmation email during registration, the game does not automatically advance to the tutorial. Under investigation — requires deep investigation by project owner.
-
----
-
 ### Adding Duplicate Cards in Deck Builder Causes Focus Glitch
 
 Adding more of the same card to a deck causes focus to jump to the wrong card, resulting in adding an incorrect card. Most likely the first add changes the card pool indices, and the mod's focused index now points to a different card.
@@ -151,18 +145,6 @@ In the SelectGroup browser (e.g. Curator of Destinies / Fact or Fiction pile sel
 
 ---
 
-### NPE Tutorial Combat Cancel Lock
-
-During the first NPE tutorial fight (Game01, Turn 4), pressing Backspace to cancel attacks after the NPE prompted "attack with your creatures" caused a locked state. The NPE script doesn't handle attack cancellation at this stage — no highlights reappear, the primary button has empty text, and the game becomes unresponsive until a system message popup (timeout/disconnect) appears.
-
-**Root cause:** The CombatNavigator clicked buttons with empty text (Space on an empty primary button) which sent spurious pointer events and desynced the game state. The subsequent Backspace cancel then put the NPE into an unrecoverable state.
-
-**Fix applied:** `HandleInput()` now checks `HasPrimaryButtonText()` before processing any Space/Backspace during Declare Attackers and Declare Blockers. If the primary button has no text (UI in transition), the key is consumed but no button is clicked. This prevents both the spurious clicks and the cancel-in-broken-state scenario. When the NPE later expects cancellation, buttons will have proper text and Backspace will work normally.
-
-**Files:** `CombatNavigator.cs` (HandleInput, HasPrimaryButtonText)
-
----
-
 ### SelectCards Browser Confirm with 2-Button Layout
 
 SelectCards browsers that require explicit confirmation (e.g. choosing which counterspell to cast from 4 options) may use a `2Button_Left`/`2Button_Right` scaffold layout instead of `SubmitButton`/`SingleButton`. The 2-button names don't match `ConfirmPatterns`. A workflow reflection fallback was added to handle this by submitting via `WorkflowController.CurrentInteraction` — monitor whether this reliably confirms in all SelectCards scenarios or causes issues in other scaffold types.
@@ -272,12 +254,6 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 
 ---
 
-### NPE Screen Present During Tutorial Battles
-
-The NPE (tutorial) screen elements appear to remain present or interfere during tutorial duel scenes. Exact symptoms and reproduction steps unknown.
-
----
-
 ### Settings Menu While Declared Attackers
 
 Opening the settings menu (F2) during the declare attackers phase causes issues. Exact symptoms and reproduction steps unknown.
@@ -372,7 +348,6 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 3. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
 
 #### Tutorial Improvements
-- Add mana cost explanation (how mana payment works, color picker for any-color sources)
 - Explain that creatures heal at the end of each turn — damage doesn't persist across turns, which is non-obvious for new players and important for combat decisions
 3. Auto-advancing browsers can silently decline options — in browsers where selecting a card immediately advances (e.g. Rebound triggers), pressing Space without first selecting a card clicks the confirm/decline button, silently skipping the option. Needs either a safeguard (e.g. "no card selected, press Space again to decline" warning, similar to the phase skip confirmation) or a structural redesign so these browsers follow the standard Enter-to-select, Space-to-confirm pattern more safely.
 4. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.

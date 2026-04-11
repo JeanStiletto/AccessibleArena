@@ -4,6 +4,11 @@ All notable changes to Accessible Arena.
 
 ## v0.9.2
 
+### Tutorial
+- Added hint when registration does not auto-advance after account confirmation
+- Added mana cost explanation and creature-specific cast hints to tutorial battles
+- Fixed tutorial hints firing too early — NPE events are now announced at execution time instead of enqueue time, matching on-screen presentation
+
 ### Steam Overlay
 - Added Steam overlay detection and spoken warning on startup — when running under Steam with the overlay still enabled, the mod announces instructions to disable it (right-click MTGA in Steam library → Properties → uncheck "Enable Steam Overlay while in-game")
 - Warning uses new Critical announcement priority that cannot be interrupted by loading screen or menu announcements
