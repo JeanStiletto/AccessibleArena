@@ -3,7 +3,9 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using MelonLoader;
+using System.Collections;
 using System.Reflection;
+using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
@@ -60,8 +62,8 @@ namespace AccessibleArena.Patches
                 MelonLogger.Warning("[EventSystemPatch] Could not find NewInputHandler type");
             }
 
-            // DIAGNOSTIC: Patch RegistrationPanel.OnButton_SubmitRegistration to log every call
-            // with stack trace, so we can identify which path triggers registration.
+            // Patch RegistrationPanel.OnButton_SubmitRegistration to log calls and announce
+            // guidance if the post-registration auto-login fails (known 403 with MelonLoader).
             var regPanelType = FindType("Wotc.Mtga.Login.RegistrationPanel");
             if (regPanelType != null)
             {
@@ -92,13 +94,41 @@ namespace AccessibleArena.Patches
         }
 
         /// <summary>
-        /// DIAGNOSTIC: Log every call to RegistrationPanel.OnButton_SubmitRegistration()
-        /// with a stack trace to identify which path triggers registration.
+        /// Prefix for RegistrationPanel.OnButton_SubmitRegistration().
+        /// Logs the call for diagnostics and starts a delayed guidance announcement
+        /// in case the post-registration auto-login fails (known 403 issue with MelonLoader).
         /// </summary>
         public static void SubmitRegistrationDiagnostic_Prefix()
         {
             MelonLogger.Msg("[EventSystemPatch] >>> OnButton_SubmitRegistration CALLED <<<");
             MelonLogger.Msg($"[EventSystemPatch] Stack: {System.Environment.StackTrace}");
+
+            // Start a coroutine that waits and then announces guidance if the game
+            // hasn't auto-advanced (ConnectToFrontDoor returns 403 with MelonLoader present).
+            MelonCoroutines.Start(AnnounceRegistrationGuidanceAfterDelay());
+        }
+
+        /// <summary>
+        /// Wait after registration submission. If the game hasn't left the Login scene
+        /// (indicating the auto-login failed), announce guidance to the user.
+        /// </summary>
+        private static IEnumerator AnnounceRegistrationGuidanceAfterDelay()
+        {
+            yield return new WaitForSeconds(8f);
+
+            // If the game auto-advanced to a different scene, no guidance needed
+            if (SceneManager.GetActiveScene().name != SceneNames.Login)
+                yield break;
+
+            var announcer = AccessibleArenaMod.Instance?.Announcer;
+            if (announcer == null)
+                yield break;
+
+            string message = LocaleManager.Instance?.Get("RegistrationSubmitted")
+                ?? "Registration submitted. Please check your email to activate your account, then press Backspace to return to the login screen.";
+
+            MelonLogger.Msg($"[EventSystemPatch] Registration did not auto-advance, announcing guidance");
+            announcer.Announce(message, AnnouncementPriority.High);
         }
 
         /// <summary>
@@ -112,6 +142,11 @@ namespace AccessibleArena.Patches
         /// block, Unity's Tab cycling auto-opens dropdowns and moves focus to elements
         /// in Unity's spatial navigation order (which differs from our element list order).
         /// Our mod handles all Tab navigation via BaseNavigator.HandleInput().
+        ///
+        /// Also blocks ALL move events when on a toggle, dropdown, or Login-scene element
+        /// (BlockSubmitForToggle). Without this, Unity processes Move events independently
+        /// of the mod's navigator — e.g. after toggling a checkbox, the EventSystem can
+        /// navigate to an input field, triggering unwanted edit mode.
         /// </summary>
         [HarmonyPatch(typeof(StandaloneInputModule), "SendMoveEventToSelectedObject")]
         [HarmonyPrefix]
@@ -126,6 +161,16 @@ namespace AccessibleArena.Patches
             // Our mod handles Tab exclusively - without this, Unity processes Tab first
             // and auto-opens dropdowns or cycles through selectables in the wrong order.
             if (Input.GetKey(KeyCode.Tab))
+            {
+                return false;
+            }
+
+            // Block move events when on a toggle, dropdown, or Login-scene element.
+            // The mod controls all navigation for these elements via its own element list.
+            // Without this, EventSystem processes Move events independently and can
+            // navigate to input fields after toggle state changes, causing FocusTracker
+            // to enter edit mode for a field the user never intended to edit.
+            if (InputManager.BlockSubmitForToggle)
             {
                 return false;
             }
