@@ -480,10 +480,7 @@ namespace AccessibleArena.Core.Services
                 if (IsDuplicateAnnouncement(announcement)) return;
 
                 var priority = GetPriority(eventType);
-                if (IsNPEEvent(eventType))
-                    MelonCoroutines.Start(DelayedAnnounce(announcement, priority));
-                else
-                    AnnounceToLog(announcement, priority);
+                AnnounceToLog(announcement, priority);
                 _lastAnnouncement = announcement;
                 _lastAnnouncementTime = DateTime.Now;
             }
@@ -2413,22 +2410,6 @@ namespace AccessibleArena.Core.Services
 
         #region NPE Tutorial Handlers
 
-        private const float NPE_ANNOUNCE_DELAY = 0.5f;
-
-        private IEnumerator DelayedAnnounce(string message, AnnouncementPriority priority)
-        {
-            yield return new WaitForSeconds(NPE_ANNOUNCE_DELAY);
-            AnnounceToLog(message, priority);
-        }
-
-        private static bool IsNPEEvent(DuelEventType eventType)
-        {
-            return eventType == DuelEventType.NPEDialog
-                || eventType == DuelEventType.NPEReminder
-                || eventType == DuelEventType.NPETooltip
-                || eventType == DuelEventType.NPEWarning;
-        }
-
         // Suppress duplicate NPE BlockingReminder in same blockers phase
         private bool _shownBlockingReminderThisStep;
 
@@ -2639,7 +2620,7 @@ namespace AccessibleArena.Core.Services
                 // DominariaFall fires at the very start of the first tutorial duel,
                 // overlapping with NPC intro dialogs and matchup info — suppress it.
                 // Combat fires right after "Du wurdest geblockt!" dialog which has its own hint.
-                // Mana fires after playing first land — mana hint already played on Sparky_05 dialog.
+                // Mana fires after playing first land — mana hint already delivered via Sparky_05 dialog.
                 if (tooltipType == "DominariaFall" || tooltipType == "Combat" || tooltipType == "Mana") return null;
 
                 // Check for custom tooltip text (visual-only popups replaced with keyboard hints)

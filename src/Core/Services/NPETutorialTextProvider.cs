@@ -46,7 +46,7 @@ namespace AccessibleArena.Core.Services
 
         // Maps DeluxeTooltipType enum names to mod localization keys.
         // These are visual-only tutorial popups (animations, card demos) with no text for screen readers.
-        // Note: Mana tooltip is suppressed (hint delivered via Sparky_05 dialog instead).
+        // Note: Mana tooltip is suppressed (hint delivered via Sparky_05 dialog at execute time).
         private static readonly Dictionary<string, string> TooltipTypeToModKey = new Dictionary<string, string>
         {
         };
@@ -56,7 +56,7 @@ namespace AccessibleArena.Core.Services
         // Key = game's loc key (e.g. "NPE/Game01/Turn02/Dialog_3"), Value = mod locale key.
         private static readonly Dictionary<string, string> DialogKeyToModKey = new Dictionary<string, string>
         {
-            // "Für Zaubersprüche musst du Mana aus Ländern ziehen" - mana explanation at duel start
+            // "Für Zaubersprüche musst du Mana aus Ländern ziehen" - mana explanation
             { "NPE/Game01/Turn01/Sparky_05", "NPE_Tooltip_Mana" },
             // "Fahre für alle Infos mit der Maus über die Karte" - mouse hover hint, replace with keyboard
             { "NPE/Game01/g1_142", "NPE_DialogHint_CardDetails" },

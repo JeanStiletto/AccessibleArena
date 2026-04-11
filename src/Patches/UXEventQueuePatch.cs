@@ -14,11 +14,24 @@ namespace AccessibleArena.Patches
     ///
     /// IMPORTANT: This patch only READS events - it does not modify game state.
     /// We only announce publicly visible information (no hidden info like opponent's hand contents).
+    ///
+    /// Non-NPE events are intercepted at EnqueuePending time (immediate — correct for game state changes).
+    /// NPE events are intercepted at Execute time (when the event actually plays — correct for
+    /// dialog/reminder/tooltip timing that must match on-screen presentation).
     /// </summary>
     public static class UXEventQueuePatch
     {
         private static bool _patchApplied = false;
         private static int _eventCount = 0;
+
+        // NPE event type names — these are processed at Execute() time, not EnqueuePending time
+        private static readonly HashSet<string> _npeEventTypeNames = new HashSet<string>
+        {
+            "NPEDialogUXEvent",
+            "NPEReminderUXEvent",
+            "NPEDismissableDeluxeTooltipUXEvent",
+            "NPEWarningUXEvent",
+        };
 
         /// <summary>
         /// Manually applies the Harmony patch after game assemblies are loaded.
@@ -97,6 +110,10 @@ namespace AccessibleArena.Patches
                     MelonLogger.Warning("[UXEventQueuePatch] Could not find multi-event EnqueuePending");
                 }
 
+                // Patch NPE event Execute() methods — these fire at the correct time
+                // (when the event actually plays on screen), not at enqueue time
+                PatchNPEExecuteMethods(harmony);
+
                 _patchApplied = true;
                 MelonLogger.Msg("[UXEventQueuePatch] Harmony patches applied successfully");
             }
@@ -106,10 +123,68 @@ namespace AccessibleArena.Patches
             }
         }
 
-        // FindType provided by ReflectionUtils via using static
+        /// <summary>
+        /// Patches Execute() on NPE event types so we announce them when they actually play,
+        /// not when they're batched into the pending queue.
+        /// </summary>
+        private static void PatchNPEExecuteMethods(HarmonyLib.Harmony harmony)
+        {
+            var npeTypeNames = new[]
+            {
+                "Wotc.Mtga.DuelScene.UXEvents.NPEDialogUXEvent",
+                "Wotc.Mtga.DuelScene.UXEvents.NPEReminderUXEvent",
+                "Wotc.Mtga.DuelScene.UXEvents.NPEDismissableDeluxeTooltipUXEvent",
+                "Wotc.Mtga.DuelScene.UXEvents.NPEWarningUXEvent",
+            };
+
+            var postfix = typeof(UXEventQueuePatch).GetMethod(nameof(NPEExecutePostfix),
+                BindingFlags.Static | BindingFlags.Public);
+
+            int patchCount = 0;
+            foreach (var typeName in npeTypeNames)
+            {
+                var type = FindType(typeName);
+                if (type == null)
+                {
+                    MelonLogger.Warning($"[UXEventQueuePatch] Could not find NPE type: {typeName}");
+                    continue;
+                }
+
+                var executeMethod = type.GetMethod("Execute", PublicInstance);
+                if (executeMethod == null || executeMethod.DeclaringType != type)
+                {
+                    MelonLogger.Warning($"[UXEventQueuePatch] Could not find Execute() on {type.Name}");
+                    continue;
+                }
+
+                harmony.Patch(executeMethod, postfix: new HarmonyMethod(postfix));
+                patchCount++;
+            }
+
+            MelonLogger.Msg($"[UXEventQueuePatch] Patched {patchCount} NPE Execute() methods");
+        }
 
         /// <summary>
-        /// Postfix for single-event EnqueuePending(UXEvent evt)
+        /// Postfix for NPE event Execute() methods. Fires when the event actually plays on screen.
+        /// </summary>
+        public static void NPEExecutePostfix(object __instance)
+        {
+            try
+            {
+                if (__instance == null) return;
+
+                var announcer = Core.Services.DuelAnnouncer.Instance;
+                announcer?.OnGameEvent(__instance);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[UXEventQueuePatch] Error processing NPE execute: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Postfix for single-event EnqueuePending(UXEvent evt).
+        /// Skips NPE events (handled at Execute time instead).
         /// </summary>
         public static void EnqueuePendingSinglePostfix(object __0) // __0 is the UXEvent parameter
         {
@@ -124,6 +199,9 @@ namespace AccessibleArena.Patches
                     MelonLogger.Msg($"[UXEventQueuePatch] Single event #{_eventCount}: {__0.GetType().Name}");
                 }
 
+                // Skip NPE events — they are processed at Execute() time for correct timing
+                if (_npeEventTypeNames.Contains(__0.GetType().Name)) return;
+
                 // Pass to DuelAnnouncer for processing
                 var announcer = Core.Services.DuelAnnouncer.Instance;
                 announcer?.OnGameEvent(__0);
@@ -135,7 +213,8 @@ namespace AccessibleArena.Patches
         }
 
         /// <summary>
-        /// Postfix for multi-event EnqueuePending(IEnumerable<UXEvent> evts)
+        /// Postfix for multi-event EnqueuePending(IEnumerable<UXEvent> evts).
+        /// Skips NPE events (handled at Execute time instead).
         /// </summary>
         public static void EnqueuePendingMultiPostfix(object __0) // __0 is IEnumerable<UXEvent>
         {
@@ -157,6 +236,9 @@ namespace AccessibleArena.Patches
                     {
                         MelonLogger.Msg($"[UXEventQueuePatch] Multi event #{_eventCount}: {evt.GetType().Name}");
                     }
+
+                    // Skip NPE events — they are processed at Execute() time for correct timing
+                    if (_npeEventTypeNames.Contains(evt.GetType().Name)) continue;
 
                     // Pass to DuelAnnouncer for processing
                     var announcer = Core.Services.DuelAnnouncer.Instance;
