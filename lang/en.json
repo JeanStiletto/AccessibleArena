@@ -1064,7 +1064,7 @@
   "NPE_DialogHint_ManaCosts": "Each spell has a mana cost. It combines colorless and colored mana. Colorless mana can be paid with any color. Colored mana must be paid with that specific color. Both together make the total cost. You can read the mana cost of a card in its details with Arrow Up and Down.",
   "NPE_DialogHint_LandSummary": "Hint: Press M to see your land summary and Shift+M for the opponent's. The number of untapped lands shows the available mana.",
   "NPE_DialogHint_OpponentCounts": "Hint: Press Shift+C to see the number of opponent's hand cards. Press Shift+D for the opponent's library count.",
-  "NPE_DialogHint_CastCombatTrick": "Press Tab to find the highlighted spell in your hand, then Enter to cast it. This is your chance to power up your blocker with a combat trick.",
+  "NPE_DialogHint_CastCombatTrick": "Press Tab to find the highlighted spell in your hand, then Enter to cast it. This is your chance to power up your creature with a combat trick.",
   "NPE_DialogHint_Attachments": "Battlefield cards can be attached to other cards. Attachments are shown on the card but listed separately. Press Shift+R to find opponent's non-creatures like enchantments.",
   "NPE_DialogHint_Keywords": "Cards can have keywords like Flying. Read their rules text with Arrow Up and Down, or press I for a menu with keyword descriptions and other card details.",
   "NPE_DialogHint_CreatureHealing": "Creatures heal at the end of each turn. Damage does not reduce toughness permanently. A creature that took damage but survived will be at full health next turn.",
