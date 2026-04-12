@@ -2638,7 +2638,9 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Popup: activating: {elem.Label}");
                 _announcer?.AnnounceInterrupt(Strings.Activating(elem.Label));
-                UIActivator.Activate(elem.GameObject);
+                // Use CustomButton.Click() directly — popup buttons are keyboard-navigated
+                // and SimulatePointerClick fails on first press because _mouseOver is false.
+                UIActivator.ActivateViaCustomButtonClick(elem.GameObject);
             }
         }
 
