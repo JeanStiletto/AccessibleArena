@@ -212,13 +212,15 @@ namespace AccessibleArena.Core.Services
                     return acceptResult;
 
                 // Special handling for SystemMessageButtonView (popup dialog buttons)
-                // Click() triggers callback, ClearMessageQueue() closes popup
+                // Click() triggers the button's callback and starts the game's Hide() animation.
+                // The game handles dismissal itself via _onHide -> DismissCurrentMessage().
+                // Do NOT call ClearMessageQueue() — it would destroy any follow-up popup
+                // queued by the callback (e.g. "Unlock All Modes" has two chained confirmations).
                 var systemMsgButton = FindComponentByName(element, "SystemMessageButtonView");
                 if (systemMsgButton != null)
                 {
                     Log($"SystemMessageButtonView detected on: {element.name}");
                     TryInvokeMethod(systemMsgButton, "Click");
-                    TryDismissViaSystemMessageManager();
                     return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
 

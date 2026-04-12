@@ -2376,10 +2376,39 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Validate that the popup is still active.
+        /// Also detects content changes (chained popups reusing the same view):
+        /// when the game calls CreateButtons(), old button GOs are Destroy()ed
+        /// and become null by the next frame — triggering re-discovery.
         /// </summary>
         private bool ValidatePopup()
         {
-            return _popupGameObject != null && _popupGameObject.activeInHierarchy;
+            if (_popupGameObject == null || !_popupGameObject.activeInHierarchy)
+                return false;
+
+            // Check if any interactive element's GO was destroyed (content changed)
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].GameObject == null &&
+                    _elements[i].Role != UIElementClassifier.ElementRole.TextBlock)
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup element destroyed, re-discovering (chained popup)");
+                    _elements.Clear();
+                    _currentIndex = -1;
+                    DiscoverPopupElements(_popupGameObject);
+                    if (_elements.Count > 0)
+                    {
+                        int firstActionable = _elements.FindIndex(e =>
+                            e.Role == UIElementClassifier.ElementRole.Button ||
+                            e.Role == UIElementClassifier.ElementRole.TextField ||
+                            e.Role == UIElementClassifier.ElementRole.Dropdown);
+                        _currentIndex = firstActionable >= 0 ? firstActionable : 0;
+                        AnnouncePopupOpen();
+                    }
+                    break;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
