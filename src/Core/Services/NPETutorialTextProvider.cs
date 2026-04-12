@@ -74,6 +74,12 @@ namespace AccessibleArena.Core.Services
             { "NPE/Game03/Turn04/g3_t4_145", "NPE_DialogHint_OpponentCounts" },
             // "Mach dich bereit." - opponent's blockers phase, player should cast combat trick
             { "NPE/Game04/Turn07/Sparky_07", "NPE_DialogHint_CastCombatTrick" },
+            // Game 3 (aura deck) - "Alles hängt zusammen" - after opponent's creature gets enchanted
+            { "NPE/Game03/Turn02/Calubi_04", "NPE_DialogHint_Attachments" },
+            // "Der Vogel kann alle Blocker am Boden überfliegen" - explain keywords
+            { "NPE/Game03/Turn02/Sparky_01", "NPE_DialogHint_Keywords" },
+            // "Manchmal ist Ab durch die Mitte am besten" - after attacking the 0/4 crab and getting blocked
+            { "NPE/Game03/Turn03/Calubi_08", "NPE_DialogHint_CreatureHealing" },
         };
 
         /// <summary>
