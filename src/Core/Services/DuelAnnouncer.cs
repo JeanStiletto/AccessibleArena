@@ -2912,6 +2912,7 @@ namespace AccessibleArena.Core.Services
             yield return null;
             yield return null;
             yield return null;
+            if (!_isActive) yield break;
 
             GameObject stackCard = GetTopStackCard();
 
@@ -2922,6 +2923,7 @@ namespace AccessibleArena.Core.Services
             else
             {
                 yield return new WaitForSeconds(0.2f);
+                if (!_isActive) yield break;
                 stackCard = GetTopStackCard();
 
                 if (stackCard != null)
