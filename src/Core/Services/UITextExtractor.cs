@@ -663,6 +663,7 @@ namespace AccessibleArena.Core.Services
             string setCode = null;
             string setName = null;
             string packCount = null;
+            string packType = null; // "Mythic", "Alchemy", "Bonus", or null for regular
 
             foreach (var mb in carouselBooster.GetComponents<MonoBehaviour>())
             {
@@ -689,6 +690,36 @@ namespace AccessibleArena.Core.Services
                         if (quantityText != null && !string.IsNullOrEmpty(quantityText.text))
                         {
                             packCount = quantityText.text.Trim();
+                        }
+                    }
+
+                    // Detect pack type.
+                    // The golden bonus pack has a fixed collation ID (900980).
+                    // Mythic and Alchemy packs are identified via their background texture
+                    // path, which is set synchronously in SealedBoosterView.Refresh() and
+                    // contains type-specific segments like "mythic" or "alchemy".
+                    var collationIdProp = mbType.GetProperty("CollationId", flags);
+                    if (collationIdProp != null)
+                    {
+                        var collationId = collationIdProp.GetValue(mb);
+                        if (collationId is int cid && cid == 900980)
+                            packType = Strings.PackTypeBonus;
+                    }
+
+                    if (packType == null)
+                    {
+                        var bgPathField = mbType.GetField("_boosterBackgroundTexturePath", flags);
+                        if (bgPathField != null)
+                        {
+                            var bgPath = bgPathField.GetValue(mb) as string;
+                            if (!string.IsNullOrEmpty(bgPath))
+                            {
+                                string bgLower = bgPath.ToLowerInvariant();
+                                if (bgLower.Contains("mythic"))
+                                    packType = Strings.PackTypeMythic;
+                                else if (bgLower.Contains("alchemy"))
+                                    packType = Strings.PackTypeAlchemy;
+                            }
                         }
                     }
 
@@ -740,10 +771,16 @@ namespace AccessibleArena.Core.Services
 
             if (!string.IsNullOrEmpty(packName))
             {
+                // Append pack type (Mythic, Alchemy, Bonus) so blind players get the same
+                // information sighted players see from the pack's visual appearance.
+                string displayName = string.IsNullOrEmpty(packType)
+                    ? packName
+                    : $"{packName}, {packType}";
+
                 // Include count if available
                 if (!string.IsNullOrEmpty(packCount))
-                    return $"{packName} ({packCount})";
-                return packName;
+                    return $"{displayName} ({packCount})";
+                return displayName;
             }
 
             return null;
