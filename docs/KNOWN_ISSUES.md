@@ -6,25 +6,9 @@ For resolved issues and investigation history, see docs/old/RESOLVED_ISSUES.md.
 
 ## Active Bugs
 
-### Escape in Input Fields Wipes Text Content
+### First Card Not Recognized After Filtering in Deck Builder
 
-Pressing Escape while editing an input field (e.g. registration form) clears the text the user just typed. The user must press Enter or Tab to "save" the text before pressing Escape, which is unintuitive. Tab works correctly because the mod explicitly fires `onEndEdit` on the old field with the correct text before deactivating.
-
-**Root cause:** Unity's `TMP_InputField` natively handles Escape by reverting text to the original value from when the field was activated. This happens in Unity's internal processing *before* our `HandleInputFieldNavigation` runs. By the time we call `DeactivateFocusedInputField`, the field's `.text` has already been reverted.
-
-**Possible fix:** Consume the Escape key before it reaches Unity's `TMP_InputField` — save the current text, call `ExitEditMode()`, then restore the text. This would preserve content on Escape, matching Tab/Enter behavior.
-
-**On hold:** This would further extend our custom input field handling, which already significantly overrides Unity's standard behavior (custom edit mode, Tab interception, onEndEdit management, field reactivation). Before investing more in this pattern, evaluating how other game accessibility mods (e.g. Hearthstone Access) handle input fields to decide whether to continue with our approach or adopt a different paradigm.
-
-**Issue:** [#59](https://github.com/FabianWilworeit/accessible-arena/issues/59)
-
-**Files:** `InputFieldEditHelper.cs` (HandleEditing — Escape handler), `UIFocusTracker.cs` (DeactivateFocusedInputField)
-
----
-
-### Adding Duplicate Cards in Deck Builder Causes Focus Glitch
-
-Adding more of the same card to a deck causes focus to jump to the wrong card, resulting in adding an incorrect card. Most likely the first add changes the card pool indices, and the mod's focused index now points to a different card.
+After a filter is applied in the deck builder (collection or deck side), the first card in the results is not correctly recognized as a card. This causes issues when adding cards — the mod may not detect the card properly, leading to wrong card additions or focus glitches.
 
 ---
 
@@ -229,21 +213,6 @@ Only tested on Windows 11 with NVDA. Other Windows versions (Windows 10) and oth
 
 ---
 
-### NPE Deck Reward Screen
-
-After completing all 5 NPE tutorial stages, the game shows a deck reward screen with deck boxes instead of individual cards. NPERewardNavigator was extended to detect deck prefabs (children with `Hitbox_LidOpen`) and navigate them. Needs testing:
-- Does "Decks Unlocked, N decks" announce correctly?
-- Can Left/Right navigate between deck boxes?
-- Does Enter open a deck box (clicks `Hitbox_LidOpen`)?
-- Does Backspace activate the Continue button (`NullClaimButton`)?
-- Does `UITextExtractor.GetText()` extract deck names, or does it fall back to "Deck 1", "Deck 2", etc.?
-
-### Skip Tutorial Confirmation Button Not Working
-
-Pressing "Yes" on the "Are you sure?" confirmation popup when trying to skip the tutorial (Color Challenge) does nothing. The popup appears correctly but the confirm button cannot be activated.
-
-**Issue:** [#69](https://github.com/JeanStiletto/AccessibleArena/issues/69)
-
 ---
 
 ## Not Reproducible Yet
@@ -343,17 +312,15 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 2. Display counters on players - announce counters like poison, energy, experience, etc. on players
 ### Polish
 
-1. Improve Challenge Friend screen workflow communication — currently unclear for blind users. Consider adding a dedicated Ready button, more contextual hints, or custom strings to guide through the challenge setup flow.
-2. Draft navigator polish — reduce unnecessary rescans, add a key to check how many copies of the focused card are already in the player's collection, and correctly announce and read the selected/picked state of cards during drafting.
-3. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
-
-3. Auto-advancing browsers can silently decline options — in browsers where selecting a card immediately advances (e.g. Rebound triggers), pressing Space without first selecting a card clicks the confirm/decline button, silently skipping the option. Needs either a safeguard (e.g. "no card selected, press Space again to decline" warning, similar to the phase skip confirmation) or a structural redesign so these browsers follow the standard Enter-to-select, Space-to-confirm pattern more safely.
-4. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
-5. Spend spheres screen in mastery navigator needs massive improvement — current accessibility support is insufficient and requires a thorough rework.
-6. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
-7. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
-8. Auto version checking and auto update — check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
-9. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
-10. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-11. Replace Tolk with Prism library — Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
+1. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
+2. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
+3. Spend spheres screen in mastery navigator needs massive improvement — current accessibility support is insufficient and requires a thorough rework.
+4. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
+5. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
+6. Auto version checking and auto update — check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
+7. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
+8. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
+9. Replace Tolk with Prism library — Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
+10. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
+11. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
 

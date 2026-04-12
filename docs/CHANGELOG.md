@@ -33,6 +33,12 @@ All notable changes to Accessible Arena.
 - Stripped card-specific mana costs from keyword headers so only the generic keyword name is announced
 - Position counts in the I menu now respect the "Position counts" setting instead of always being shown
 
+### Quest Progress (reported by patricus3, PR #75 by blindndangerous)
+- Fixed dailies/weeklies not reflecting updated progress after returning from a duel — the mod was caching objective labels before the game finished its async server update, so quest counts stayed at pre-duel values until a manual rescan
+
+### Booster Pack Types (reported by patricus3, PR #77 by blindndangerous)
+- Pack type (Mythic Pack, Alchemy Pack, Bonus Pack) is now announced in the booster carousel — previously all packs just read as the set name with no way to distinguish them
+
 ### Mana Cost Display
 - Added two new settings to configure mana cost announcements: "Mana cost colorless label" (says "3 colorless" vs just "3") and "Group mana colors" (says "2 White" vs "White, White") — both default to on, turning both off restores the pre-0.9.1 format
 
