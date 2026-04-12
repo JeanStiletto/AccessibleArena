@@ -108,6 +108,20 @@ namespace AccessibleArena.Core.Services
                     GetValue = () => _settings.PositionCounts ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.PositionCounts = !_settings.PositionCounts,
                     Description = Strings.SettingPositionCountsDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingManaColorlessLabel,
+                    GetValue = () => _settings.ManaColorlessLabel ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.ManaColorlessLabel = !_settings.ManaColorlessLabel,
+                    Description = Strings.SettingManaColorlessLabelDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingManaGroupColors,
+                    GetValue = () => _settings.ManaGroupColors ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.ManaGroupColors = !_settings.ManaGroupColors,
+                    Description = Strings.SettingManaGroupColorsDesc
                 }
             };
         }

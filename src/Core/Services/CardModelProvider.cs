@@ -1226,15 +1226,26 @@ namespace AccessibleArena.Core.Services
 
             var parts = new List<string>();
 
-            // Generic mana first, labeled "colorless" (e.g. "3 colorless" instead of bare "3")
-            if (genericCount > 0)
-                parts.Add($"{genericCount} {Strings.ManaColorless}");
+            bool colorlessLabel = AccessibleArenaMod.Instance?.Settings?.ManaColorlessLabel != false;
+            bool groupColors = AccessibleArenaMod.Instance?.Settings?.ManaGroupColors != false;
 
-            // Grouped simple colors (e.g. "2 black", "1 blue")
+            // Generic mana first
+            if (genericCount > 0)
+                parts.Add(colorlessLabel ? $"{genericCount} {Strings.ManaColorless}" : $"{genericCount}");
+
+            // Simple colors
             foreach (var symbol in colorOrder)
             {
                 int cnt = colorCounts[symbol];
-                parts.Add(cnt > 1 ? $"{cnt} {symbol}" : symbol);
+                if (groupColors)
+                {
+                    parts.Add(cnt > 1 ? $"{cnt} {symbol}" : symbol);
+                }
+                else
+                {
+                    for (int i = 0; i < cnt; i++)
+                        parts.Add(symbol);
+                }
             }
 
             // Complex symbols (hybrid, phyrexian) appended individually

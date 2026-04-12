@@ -33,6 +33,9 @@ All notable changes to Accessible Arena.
 - Stripped card-specific mana costs from keyword headers so only the generic keyword name is announced
 - Position counts in the I menu now respect the "Position counts" setting instead of always being shown
 
+### Mana Cost Display
+- Added two new settings to configure mana cost announcements: "Mana cost colorless label" (says "3 colorless" vs just "3") and "Group mana colors" (says "2 White" vs "White, White") — both default to on, turning both off restores the pre-0.9.1 format
+
 ### Match End Screen
 - Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
 

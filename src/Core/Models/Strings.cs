@@ -867,6 +867,10 @@ namespace AccessibleArena.Core.Models
         public static string SettingPhaseSkipWarning => L.Get("SettingPhaseSkipWarning");
         public static string SettingPositionCounts => L.Get("SettingPositionCounts");
         public static string SettingPositionCountsDesc => L.Get("SettingPositionCountsDesc");
+        public static string SettingManaColorlessLabel => L.Get("SettingManaColorlessLabel");
+        public static string SettingManaColorlessLabelDesc => L.Get("SettingManaColorlessLabelDesc");
+        public static string SettingManaGroupColors => L.Get("SettingManaGroupColors");
+        public static string SettingManaGroupColorsDesc => L.Get("SettingManaGroupColorsDesc");
         public static string SettingOn => L.Get("SettingOn");
         public static string SettingOff => L.Get("SettingOff");
         public static string SettingChanged(string name, string value) => L.Format("SettingChanged_Format", name, value);
