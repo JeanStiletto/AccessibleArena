@@ -8,6 +8,8 @@ All notable changes to Accessible Arena.
 - Added hint when registration does not auto-advance after account confirmation
 - Added mana cost explanation and creature-specific cast hints to tutorial battles
 - Fixed tutorial hints firing too early — NPE events are now announced at execution time instead of enqueue time, matching on-screen presentation
+- Fixed deck reward screen at end of tutorial being completely stuck — closed deck boxes were filtered out so the navigator never activated; now detects and labels them correctly
+- Fixed unique new-account reward popup showing only a stale "Back to Arena" button — a timeout bug prevented the reward popup navigator from ever activating when content wasn't immediately available
 
 ### Steam Overlay
 - Added Steam overlay detection and spoken warning on startup — when running under Steam with the overlay still enabled, the mod announces instructions to disable it (right-click MTGA in Steam library → Properties → uncheck "Enable Steam Overlay while in-game")

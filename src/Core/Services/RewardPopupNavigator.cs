@@ -78,12 +78,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Find the rewards controller - it should have ContentController and Rewards in its name
+            bool foundMatchingChild = false;
             foreach (Transform child in screenspacePopups.transform)
             {
                 if (!child.name.Contains("ContentController") || !child.name.Contains("Rewards") ||
                     !child.gameObject.activeInHierarchy)
                     continue;
 
+                foundMatchingChild = true;
                 _activePopup = child.gameObject;
 
                 // Read season end state from controller
@@ -143,9 +145,13 @@ namespace AccessibleArena.Core.Services
                 continue;
             }
 
-            // End of foreach — no matching child returned true.
-            // Do NOT call ClearPopupState here: we may have found a popup but are still
-            // waiting (stillRevealing or timeout). Pack names must survive across frames.
+            if (foundMatchingChild)
+            {
+                // Popup found but not ready yet — preserve timeout and pack name state
+                return false;
+            }
+
+            // No matching popup found — clear everything
             _activePopup = null;
             _seasonEndState = 0;
             _popupDetectedTime = -1f;
