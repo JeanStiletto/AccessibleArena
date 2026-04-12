@@ -1221,11 +1221,24 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_lastNavigationWasTab)
                     {
-                        // Tab navigation - enter edit mode immediately
                         _lastNavigationWasTab = false;
-                        _inputFieldHelper.SetEditingFieldSilently(info.GameObject);
-                        HandleInputFieldNavigation();
-                        return;
+
+                        // Only auto-enter edit mode if our navigator's current element is
+                        // actually an input field. On the Login screen, Tab to the Login button
+                        // can cause the EventSystem to redirect focus to the email input field.
+                        // Without this guard, we'd auto-enter edit mode on the wrong element.
+                        bool currentIsInputField = IsValidIndex && UIFocusTracker.IsInputField(_elements[_currentIndex].GameObject);
+                        if (currentIsInputField)
+                        {
+                            _inputFieldHelper.SetEditingFieldSilently(info.GameObject);
+                            HandleInputFieldNavigation();
+                            return;
+                        }
+
+                        // Not an input field — deactivate the rogue field and fall through
+                        DeactivateInputFieldOnElement(info.GameObject);
+                        var es = EventSystem.current;
+                        if (es != null) es.SetSelectedGameObject(null);
                     }
                     else
                     {

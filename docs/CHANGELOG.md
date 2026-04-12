@@ -19,6 +19,7 @@ All notable changes to Accessible Arena.
 
 ### Input Fields
 - Fixed Escape discarding text edits in login/registration input fields — pressing Escape now preserves your changes like Tab does, instead of reverting to the original text (fixes #59)
+- Fixed login not working — Tab to the Login button was intercepted by the game's Panel.OnNext() which redirected focus back to the email field
 
 ### Color Challenge
 - Fixed progress info not showing on color buttons when TutorialMessages is enabled (the default) — the role suffix (e.g. ", Schalter") appended to labels prevented matching against track summary keys

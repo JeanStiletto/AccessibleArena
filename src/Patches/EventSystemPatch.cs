@@ -62,6 +62,31 @@ namespace AccessibleArena.Patches
                 MelonLogger.Warning("[EventSystemPatch] Could not find NewInputHandler type");
             }
 
+            // Patch NewInputHandler.OnNext/OnPrevious to block the game's Tab/Shift+Tab
+            // navigation on the Login scene. Without this, Panel.OnNext() detects the
+            // Login button is selected and redirects focus to SelectOnLoad (the email field),
+            // overriding our mod's Tab navigation.
+            if (newInputType != null)
+            {
+                var onNextMethod = newInputType.GetMethod("OnNext", PublicInstance);
+                if (onNextMethod != null)
+                {
+                    var prefix = typeof(EventSystemPatch).GetMethod(nameof(NewInputHandlerOnNextPrevious_Prefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onNextMethod, prefix: new HarmonyMethod(prefix));
+                    MelonLogger.Msg("[EventSystemPatch] Patched NewInputHandler.OnNext()");
+                }
+
+                var onPreviousMethod = newInputType.GetMethod("OnPrevious", PublicInstance);
+                if (onPreviousMethod != null)
+                {
+                    var prefix = typeof(EventSystemPatch).GetMethod(nameof(NewInputHandlerOnNextPrevious_Prefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onPreviousMethod, prefix: new HarmonyMethod(prefix));
+                    MelonLogger.Msg("[EventSystemPatch] Patched NewInputHandler.OnPrevious()");
+                }
+            }
+
             // Patch RegistrationPanel.OnButton_SubmitRegistration to log calls and announce
             // guidance if the post-registration auto-login fails (known 403 with MelonLoader).
             var regPanelType = FindType("Wotc.Mtga.Login.RegistrationPanel");
@@ -87,6 +112,21 @@ namespace AccessibleArena.Patches
         {
             if (SceneManager.GetActiveScene().name == SceneNames.Login
                 && !InputManager.AllowNativeEnterOnLogin)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Block NewInputHandler.OnNext()/OnPrevious() on the Login scene.
+        /// Our mod handles all Tab/Shift+Tab navigation. Without this, Panel.OnNext()
+        /// redirects focus from the Login button back to SelectOnLoad (the email field),
+        /// trapping the user in a loop.
+        /// </summary>
+        public static bool NewInputHandlerOnNextPrevious_Prefix()
+        {
+            if (SceneManager.GetActiveScene().name == SceneNames.Login)
             {
                 return false;
             }
