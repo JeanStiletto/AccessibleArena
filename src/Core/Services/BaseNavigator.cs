@@ -2223,7 +2223,17 @@ namespace AccessibleArena.Core.Services
         protected void EnablePopupDetection()
         {
             if (PanelStateManager.Instance != null)
+            {
                 PanelStateManager.Instance.OnPanelChanged += OnPopupPanelChanged;
+
+                // Check if a popup is already active (opened while a different navigator was active)
+                var activePanel = PanelStateManager.Instance.ActivePanel;
+                if (activePanel != null && !_isInPopupMode && !IsPopupExcluded(activePanel) && IsPopupPanel(activePanel))
+                {
+                    MelonLogger.Msg($"[{NavigatorId}] Popup already active on subscribe: {activePanel.Name}");
+                    OnPopupDetected(activePanel);
+                }
+            }
         }
 
         /// <summary>
