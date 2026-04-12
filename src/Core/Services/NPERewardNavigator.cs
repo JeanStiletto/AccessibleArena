@@ -19,6 +19,7 @@ namespace AccessibleArena.Core.Services
         private int _totalCards;
         private bool _isDeckReward;
         private string _lastDetectState;
+        private int _discoveredDeckBoxCount;
 
         public override string NavigatorId => "NPEReward";
         public override string ScreenName => GetScreenName();
@@ -111,9 +112,7 @@ namespace AccessibleArena.Core.Services
                 else if (child.gameObject.activeInHierarchy)
                 {
                     var hitbox = FindChildByName(child, "Hitbox_LidOpen");
-                    // Only count opened deck boxes (Hitbox_LidOpen inactive = lid opened, content visible)
-                    // Closed boxes (Hitbox_LidOpen active) are the preview phase with placeholder text
-                    if (hitbox != null && !hitbox.activeInHierarchy)
+                    if (hitbox != null)
                         deckCount++;
                 }
             }
@@ -186,6 +185,10 @@ namespace AccessibleArena.Core.Services
 
             // Find take reward button
             FindTakeRewardButton(addedObjects);
+
+            // Track deck box count for change detection in ValidateElements
+            if (_isDeckReward)
+                _discoveredDeckBoxCount = CountDeckBoxes();
 
             Log($"=== DISCOVERY COMPLETE: {_elements.Count} elements ===");
             for (int i = 0; i < _elements.Count; i++)
@@ -354,22 +357,22 @@ namespace AccessibleArena.Core.Services
                         Log($"      - {deckChild.name} (active={deckChild.gameObject.activeInHierarchy})");
                 }
 
-                // Skip closed deck boxes (Hitbox_LidOpen active = lid still clickable, box not opened yet)
-                if (hitboxObj.activeInHierarchy)
-                {
-                    Log($"    SKIPPED: Hitbox_LidOpen still active (box closed, preview phase)");
-                    continue;
-                }
-
                 if (addedObjects.Contains(hitboxObj))
                 {
                     Log($"    SKIPPED: already added");
                     continue;
                 }
 
-                // Try to extract deck name from the prefab
-                string deckName = UITextExtractor.GetText(child.gameObject);
-                if (string.IsNullOrEmpty(deckName))
+                // Extract deck name: only from opened boxes (closed ones have placeholder text like "Enter deck name...")
+                string deckName;
+                bool isBoxOpen = !hitboxObj.activeInHierarchy;
+                if (isBoxOpen)
+                {
+                    deckName = UITextExtractor.GetText(child.gameObject);
+                    if (string.IsNullOrEmpty(deckName))
+                        deckName = Strings.DeckNumber(deckEntries.Count + 1);
+                }
+                else
                 {
                     deckName = Strings.DeckNumber(deckEntries.Count + 1);
                 }
@@ -676,7 +679,42 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
+            // For deck rewards, force re-detection when deck box count changes
+            // (handles animation where boxes appear one-by-one, and boxes opening after click)
+            if (_isDeckReward)
+            {
+                int currentCount = CountDeckBoxes();
+                if (currentCount != _discoveredDeckBoxCount)
+                {
+                    Log($"ValidateElements: Deck box count changed {_discoveredDeckBoxCount} -> {currentCount}, forcing re-detection");
+                    return false;
+                }
+            }
+
             return true;
+        }
+
+        /// <summary>
+        /// Counts active deck box children in RewardsCONTAINER that have a Hitbox_LidOpen descendant.
+        /// Used to detect when new boxes appear (animation) or boxes open (user click).
+        /// </summary>
+        private int CountDeckBoxes()
+        {
+            if (_rewardsContainer == null) return 0;
+            var activeContainer = _rewardsContainer.transform.Find("ActiveContainer");
+            if (activeContainer == null) return 0;
+            var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
+            if (rewardsContainer == null) return 0;
+
+            int count = 0;
+            foreach (Transform child in rewardsContainer)
+            {
+                if (!child.gameObject.activeInHierarchy) continue;
+                if (child.name.Contains("NPERewardPrefab_IndividualCard")) continue;
+                if (FindChildByName(child, "Hitbox_LidOpen") != null)
+                    count++;
+            }
+            return count;
         }
 
         public override void OnSceneChanged(string sceneName)
@@ -689,6 +727,7 @@ namespace AccessibleArena.Core.Services
             _rewardsContainer = null;
             _isDeckReward = false;
             _lastDetectState = null;
+            _discoveredDeckBoxCount = 0;
         }
     }
 }
