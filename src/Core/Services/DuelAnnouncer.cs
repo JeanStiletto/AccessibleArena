@@ -2294,6 +2294,7 @@ namespace AccessibleArena.Core.Services
             yield return null;
             yield return null;
             yield return null;
+            if (!_isActive) yield break;
             AnnounceToLog(message, AnnouncementPriority.Normal);
         }
 
