@@ -41,6 +41,17 @@ namespace AccessibleArena.Core.Services
         // Used for 2s timeout fallback. -1 means not tracking.
         private float _popupDetectedTime = -1f;
 
+        // True after the timeout fallback fired once. If the next detection cycle still
+        // finds no content, return false (give up) instead of looping forever.
+        private bool _timeoutFallbackFired = false;
+
+        // True if we ever saw _stillDisplayingSubpagesForRewardItem == true for the
+        // current popup. Only allow the timeout fallback when this is set — it means
+        // the game actually started a reveal cycle. Without this, the preloaded empty
+        // Rewards controller (always active at startup / during Prize Wall) triggers
+        // a false positive.
+        private bool _revealingWasSeen = false;
+
         // Cache to avoid logging spam
         private bool _lastRewardsPopupState = false;
 
@@ -107,6 +118,7 @@ namespace AccessibleArena.Core.Services
                     // Coroutine is actively revealing rewards — wait
                     // Extract pack names now while ToAdd queue is still populated
                     // (queue is cleared after a 1-frame delay inside RevealRewards)
+                    _revealingWasSeen = true;
                     ExtractPackSetNames();
                     _popupDetectedTime = -1f;
                     continue;
@@ -127,16 +139,37 @@ namespace AccessibleArena.Core.Services
                 if (hasContent)
                 {
                     _popupDetectedTime = -1f;
+                    _timeoutFallbackFired = false;
                     return true;
                 }
 
-                // No content yet — start/check timeout for fallback
+                // No content yet. Only use the timeout fallback if we previously saw
+                // the revealing flag (_stillDisplayingSubpagesForRewardItem == true),
+                // meaning the game actually started a reward reveal cycle.
+                // Without this gate, the preloaded empty Rewards controller (always
+                // active at startup / during Prize Wall) causes false positives.
+                if (!_revealingWasSeen)
+                {
+                    // Controller is active but never started revealing — it's just the
+                    // preloaded shell. Don't start a timeout, don't activate.
+                    continue;
+                }
+
+                // The timeout fallback already fired once and found no elements —
+                // stop retrying to prevent an infinite loop.
+                if (_timeoutFallbackFired)
+                {
+                    return false;
+                }
+
+                // Start/check timeout for fallback (revealing was seen, prefabs may be slow)
                 if (_popupDetectedTime < 0f)
                     _popupDetectedTime = Time.time;
 
                 if (Time.time - _popupDetectedTime >= 2.0f)
                 {
-                    // Timeout: activate anyway (DiscoverElements will use controller data fallback)
+                    // Timeout: try once (DiscoverElements will use controller data fallback).
+                    _timeoutFallbackFired = true;
                     MelonLogger.Msg($"[{NavigatorId}] Content timeout — activating with controller data fallback");
                     return true;
                 }
@@ -168,6 +201,8 @@ namespace AccessibleArena.Core.Services
             _activePopup = null;
             _seasonEndState = 0;
             _popupDetectedTime = -1f;
+            _timeoutFallbackFired = false;
+            _revealingWasSeen = false;
             _packSetNames.Clear();
             _packSetNameIndex = 0;
             _seasonDisplayText = null;
@@ -1312,6 +1347,8 @@ namespace AccessibleArena.Core.Services
             _activePopup = null;
             _seasonEndState = 0;
             _popupDetectedTime = -1f;
+            _timeoutFallbackFired = false;
+            _revealingWasSeen = false;
         }
 
         #endregion

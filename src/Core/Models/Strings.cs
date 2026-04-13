@@ -1074,6 +1074,7 @@ namespace AccessibleArena.Core.Models
             L.Format("PrizeWallItem_Format", index, total, name);
         public static string PrizeWallSphereStatus(string spheres) =>
             L.Format("PrizeWallSphereStatus_Format", spheres);
+        public static string PrizeWallSphereCost => L.Get("PrizeWallSphereCost");
         public static string PopupCancel => L.Get("PopupCancel");
 
         // ===========================================

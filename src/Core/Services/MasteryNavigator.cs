@@ -51,10 +51,18 @@ namespace AccessibleArena.Core.Services
         // PrizeWall state
         private MonoBehaviour _prizeWallController;
         private GameObject _prizeWallGameObject;
-        private List<(GameObject obj, string label)> _prizeWallItems = new List<(GameObject, string)>();
+        private List<PrizeWallItemData> _prizeWallItems = new List<PrizeWallItemData>();
         private int _prizeWallIndex;
         private string _sphereCount;
         private GameObject _prizeWallBackButton;
+
+        private struct PrizeWallItemData
+        {
+            public GameObject Obj;
+            public string Label;       // Item name from UITextExtractor
+            public string Cost;        // e.g., "2" (sphere count on button)
+            public bool IsOwned;       // Button not interactable or item claimed
+        }
 
         #endregion
 
@@ -138,6 +146,17 @@ namespace AccessibleArena.Core.Services
         private FieldInfo _currencyQuantityField;            // TMP_Text _currencyQuantity
         private bool _prizeWallReflectionInitialized;
         private GameObject _confirmationModalGameObject;     // Cached modal GO for polling
+
+        // StoreItemBase purchase button reflection (for extracting cost + owned status)
+        private Type _storeItemBaseType;
+        private FieldInfo _siBlueButtonField;     // BlueButton (PurchaseButton struct)
+        private FieldInfo _siOrangeButtonField;   // OrangeButton
+        private FieldInfo _siClearButtonField;    // ClearButton
+        private FieldInfo _siGreenButtonField;    // GreenButton
+        private Type _purchaseButtonType;
+        private FieldInfo _pbButtonField;         // Button (CustomButton)
+        private FieldInfo _pbContainerField;      // ButtonContainer (GameObject)
+        private bool _storeItemReflectionInitialized;
 
         #endregion
 
@@ -295,7 +314,9 @@ namespace AccessibleArena.Core.Services
             string name = panel.Name;
             // ObjectivePopup: daily quest overlay
             // FullscreenZFBrowser: embedded browser canvas
-            return name.Contains("ObjectivePopup") || name.Contains("FullscreenZFBrowser");
+            // Rewards: empty Rewards controller active alongside Prize Wall confirmation modal
+            return name.Contains("ObjectivePopup") || name.Contains("FullscreenZFBrowser") ||
+                   name.Contains("Rewards");
         }
 
         protected override void OnPopupClosed()
@@ -458,6 +479,31 @@ namespace AccessibleArena.Core.Services
                 $"Layout={_prizeWallLayoutGroupField != null}, " +
                 $"CurrencyQty={_currencyQuantityField != null}, " +
                 $"ConfirmModal={_prizeWallConfirmModalField != null}");
+        }
+
+        private void EnsureStoreItemReflectionCached(Type storeItemType)
+        {
+            if (_storeItemReflectionInitialized && _storeItemBaseType == storeItemType) return;
+
+            _storeItemBaseType = storeItemType;
+            var flags = AllInstanceFlags;
+
+            _siBlueButtonField = storeItemType.GetField("BlueButton", flags);
+            _siOrangeButtonField = storeItemType.GetField("OrangeButton", flags);
+            _siClearButtonField = storeItemType.GetField("ClearButton", flags);
+            _siGreenButtonField = storeItemType.GetField("GreenButton", flags);
+
+            // PurchaseButton struct type from BlueButton field
+            if (_siBlueButtonField != null)
+            {
+                _purchaseButtonType = _siBlueButtonField.FieldType;
+                _pbButtonField = _purchaseButtonType.GetField("Button", flags);
+                _pbContainerField = _purchaseButtonType.GetField("ButtonContainer", flags);
+            }
+
+            _storeItemReflectionInitialized = true;
+            MelonLogger.Msg($"[Mastery] StoreItemBase reflection cached. PurchaseButton={_purchaseButtonType != null}, " +
+                $"PbButton={_pbButtonField != null}");
         }
 
         #endregion
@@ -872,28 +918,33 @@ namespace AccessibleArena.Core.Services
             if (layoutParent != null)
             {
                 // Find all active StoreItemBase children - these are the purchasable items
-                var discovered = new List<(GameObject obj, string label, float sortOrder)>();
+                var discovered = new List<(PrizeWallItemData data, float sortOrder)>();
 
                 foreach (var mb in layoutParent.GetComponentsInChildren<MonoBehaviour>(false))
                 {
                     if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                     if (mb.GetType().Name != "StoreItemBase") continue;
 
-                    string label = ExtractStoreItemLabel(mb.gameObject);
+                    EnsureStoreItemReflectionCached(mb.GetType());
+                    var itemData = ExtractPrizeWallItemData(mb);
 
                     var pos = mb.transform.position;
                     // Sort by Y descending (top first), then X ascending (left first)
-                    discovered.Add((mb.gameObject, label, -pos.y * 1000 + pos.x));
+                    discovered.Add((itemData, -pos.y * 1000 + pos.x));
                 }
 
-                foreach (var (obj, label, _) in discovered.OrderBy(x => x.sortOrder))
+                foreach (var (data, _) in discovered.OrderBy(x => x.sortOrder))
                 {
-                    _prizeWallItems.Add((obj, label));
+                    _prizeWallItems.Add(data);
                 }
             }
 
             // Insert virtual sphere status item at position 0
-            _prizeWallItems.Insert(0, (null, Strings.PrizeWallSphereStatus(_sphereCount)));
+            _prizeWallItems.Insert(0, new PrizeWallItemData
+            {
+                Obj = null,
+                Label = Strings.PrizeWallSphereStatus(_sphereCount)
+            });
 
             // Cache confirmation modal GameObject for polling
             _confirmationModalGameObject = null;
@@ -919,65 +970,97 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Extract a descriptive label from a StoreItemBase including item name and sphere cost.
+        /// Extract rich item data from a StoreItemBase: label, cost, and owned status.
+        /// Uses UITextExtractor.TryGetStoreItemLabel() for the name, then reads purchase
+        /// buttons via reflection (same pattern as StoreNavigator).
         /// </summary>
-        private string ExtractStoreItemLabel(GameObject storeItemGo)
+        private PrizeWallItemData ExtractPrizeWallItemData(MonoBehaviour storeItemBase)
         {
-            // Collect all visible TMP_Text that aren't under purchase buttons
-            var allTexts = storeItemGo.GetComponentsInChildren<TMPro.TMP_Text>(false);
-            string itemName = null;
-            string costText = null;
+            var data = new PrizeWallItemData { Obj = storeItemBase.gameObject };
 
-            foreach (var tmp in allTexts)
+            // 1. Get item name via centralized UITextExtractor
+            string label = UITextExtractor.TryGetStoreItemLabel(storeItemBase.gameObject);
+            if (string.IsNullOrEmpty(label))
             {
-                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
-                string text = tmp.text?.Trim();
-                if (string.IsNullOrEmpty(text)) continue;
+                label = UITextExtractor.GetText(storeItemBase.gameObject);
+                if (string.IsNullOrEmpty(label))
+                    label = storeItemBase.gameObject.name;
+                label = UITextExtractor.StripRichText(label).Trim();
+            }
+            data.Label = label;
 
-                // Clean rich text tags
-                text = UITextExtractor.StripRichText(text).Trim();
-                if (string.IsNullOrEmpty(text)) continue;
+            // 2. Extract cost and owned status from purchase buttons
+            data.Cost = null;
+            data.IsOwned = true; // Assume owned unless we find an active purchase button
 
-                // Check if this TMP is inside a purchase button (MainButtonGreen/Blue/Orange/Clear)
-                bool isPurchaseButton = false;
-                var parent = tmp.transform.parent;
-                while (parent != null && parent != storeItemGo.transform)
+            FieldInfo[] buttonFields = { _siGreenButtonField, _siBlueButtonField, _siOrangeButtonField, _siClearButtonField };
+            foreach (var bf in buttonFields)
+            {
+                if (bf == null || _purchaseButtonType == null) continue;
+
+                try
                 {
-                    string pName = parent.name;
-                    if (pName.Contains("MainButton") || pName.Contains("BlueButton") ||
-                        pName.Contains("OrangeButton") || pName.Contains("ClearButton"))
+                    var buttonStruct = bf.GetValue(storeItemBase);
+                    if (buttonStruct == null) continue;
+
+                    // Check container visibility
+                    if (_pbContainerField != null)
                     {
-                        isPurchaseButton = true;
-                        break;
+                        var container = _pbContainerField.GetValue(buttonStruct) as GameObject;
+                        if (container != null && !container.activeInHierarchy)
+                            continue;
                     }
-                    parent = parent.parent;
-                }
 
-                if (isPurchaseButton)
-                {
-                    // This is a cost label (e.g., "2" for 2 spheres)
-                    if (costText == null)
-                        costText = text;
+                    // Get the CustomButton
+                    var customButton = _pbButtonField?.GetValue(buttonStruct) as MonoBehaviour;
+                    if (customButton == null || customButton.gameObject == null ||
+                        !customButton.gameObject.activeInHierarchy)
+                        continue;
+
+                    // Found an active purchase button — item is NOT owned
+                    data.IsOwned = false;
+
+                    // Extract price text
+                    if (data.Cost == null)
+                    {
+                        var tmpText = customButton.GetComponentInChildren<TMPro.TMP_Text>(true);
+                        if (tmpText != null)
+                        {
+                            string price = UITextExtractor.StripRichText(tmpText.text)?.Trim();
+                            if (!string.IsNullOrEmpty(price))
+                                data.Cost = price;
+                        }
+                    }
                 }
-                else if (itemName == null && text.Length > 1)
-                {
-                    // First non-button text is the item name
-                    itemName = text;
-                }
+                catch { /* Reflection may fail on different game versions */ }
             }
 
-            if (string.IsNullOrEmpty(itemName))
+            // 3. Fallback: if no purchase button fields found, check for any CustomButton
+            if (!_storeItemReflectionInitialized || _purchaseButtonType == null)
             {
-                itemName = UITextExtractor.GetText(storeItemGo);
-                if (string.IsNullOrEmpty(itemName)) itemName = storeItemGo.name;
-                itemName = UITextExtractor.StripRichText(itemName).Trim();
+                foreach (var mb in storeItemBase.GetComponentsInChildren<MonoBehaviour>(false))
+                {
+                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                    if (mb.GetType().Name != "CustomButton") continue;
+
+                    // Found an active button — not owned
+                    data.IsOwned = false;
+
+                    if (data.Cost == null)
+                    {
+                        var tmpText = mb.GetComponentInChildren<TMPro.TMP_Text>(true);
+                        if (tmpText != null)
+                        {
+                            string price = UITextExtractor.StripRichText(tmpText.text)?.Trim();
+                            if (!string.IsNullOrEmpty(price))
+                                data.Cost = price;
+                        }
+                    }
+                    break;
+                }
             }
 
-            // Append sphere cost if found
-            if (!string.IsNullOrEmpty(costText))
-                return $"{itemName}, {costText} spheres";
-
-            return itemName;
+            return data;
         }
 
         #endregion
@@ -1403,6 +1486,13 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Popup input is handled by base.Update() → HandleInput() → HandlePopupInput()
+            if (IsInPopupMode)
+            {
+                base.Update();
+                return;
+            }
+
             HandleMasteryInput();
         }
 
@@ -1420,10 +1510,6 @@ namespace AccessibleArena.Core.Services
 
         private void HandleMasteryInput()
         {
-            // Popup input is handled by base popup mode infrastructure
-            if (IsInPopupMode)
-                return;
-
             if (_mode == MasteryMode.PrizeWall)
             {
                 HandlePrizeWallInput();
@@ -1694,8 +1780,16 @@ namespace AccessibleArena.Core.Services
             if (_prizeWallIndex < 0 || _prizeWallIndex >= _prizeWallItems.Count) return;
 
             var item = _prizeWallItems[_prizeWallIndex];
+
+            // Build rich description: "Label, 2 spheres, owned"
+            string description = item.Label;
+            if (!string.IsNullOrEmpty(item.Cost))
+                description += $", {item.Cost} {Strings.PrizeWallSphereCost}";
+            if (item.IsOwned && item.Obj != null) // Obj null = virtual status item
+                description += $", {Strings.ProfileItemOwned}";
+
             _announcer.AnnounceInterrupt(
-                Strings.PrizeWallItem(_prizeWallIndex + 1, _prizeWallItems.Count, item.label));
+                Strings.PrizeWallItem(_prizeWallIndex + 1, _prizeWallItems.Count, description));
         }
 
         private void ActivatePrizeWallItem()
@@ -1704,16 +1798,23 @@ namespace AccessibleArena.Core.Services
 
             var item = _prizeWallItems[_prizeWallIndex];
 
-            // Virtual status item (obj=null) - just re-announce
-            if (item.obj == null)
+            // Virtual status item (Obj=null) - just re-announce
+            if (item.Obj == null)
             {
                 AnnouncePrizeWallItem();
                 return;
             }
 
+            // Skip activation for already-owned items
+            if (item.IsOwned)
+            {
+                _announcer.AnnounceInterrupt($"{item.Label}, {Strings.ProfileItemOwned}");
+                return;
+            }
+
             // Find the first active CustomButton under this StoreItemBase (the purchase button)
             GameObject buttonToClick = null;
-            foreach (var mb in item.obj.GetComponentsInChildren<MonoBehaviour>(false))
+            foreach (var mb in item.Obj.GetComponentsInChildren<MonoBehaviour>(false))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                 if (mb.GetType().Name == "CustomButton")
@@ -1725,14 +1826,14 @@ namespace AccessibleArena.Core.Services
 
             if (buttonToClick != null)
             {
-                _announcer.AnnounceInterrupt(Strings.Activating(item.label));
+                _announcer.AnnounceInterrupt(Strings.Activating(item.Label));
                 UIActivator.Activate(buttonToClick);
             }
             else
             {
                 // Fallback: activate the item itself
-                _announcer.AnnounceInterrupt(Strings.Activating(item.label));
-                UIActivator.Activate(item.obj);
+                _announcer.AnnounceInterrupt(Strings.Activating(item.Label));
+                UIActivator.Activate(item.Obj);
             }
         }
 
