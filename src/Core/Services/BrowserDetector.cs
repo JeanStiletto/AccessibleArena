@@ -41,6 +41,7 @@ namespace AccessibleArena.Core.Services
         public const string ButtonKeep = "KeepButton";
         public const string ButtonMulligan = "MulliganButton";
         public const string ButtonSubmit = "SubmitButton";
+        public const string ButtonSingle = "SingleButton";
         public const string PromptButtonPrimaryPrefix = "PromptButton_Primary";
         public const string PromptButtonSecondaryPrefix = "PromptButton_Secondary";
 

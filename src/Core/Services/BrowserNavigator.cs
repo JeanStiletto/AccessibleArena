@@ -2779,9 +2779,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // SelectCards/SelectCardsMultiZone: SingleButton is the Decline option (see 5046b62)
+            if (_isHighlightFilteredBrowser && TryClickButtonByName(BrowserDetector.ButtonSingle, out clickedLabel))
+            {
+                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // Third priority: PromptButton_Secondary
-            // Skip for OptionalAction and choice-list browsers — would click unrelated duel phase buttons
-            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
+            // Skip for OptionalAction, choice-list, SelectCards browsers — would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && !_isHighlightFilteredBrowser && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update

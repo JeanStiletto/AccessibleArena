@@ -47,6 +47,9 @@ All notable changes to Accessible Arena.
 - Added full confirmation modal navigation with card details, purchase buttons, and cancel option — previously only Escape worked, Enter on cancel did nothing, and no item details were shown
 - Fixed currency names not announced in purchase confirmation modals — purchase buttons now read "2 spheres" or "500 Gold" instead of just the number (also fixed in Store confirmation modals)
 
+### Browsers
+- Fixed Backspace not cancelling SelectCards ability-choice browsers (e.g. All-Cheese Pizza) — the scaffold's SingleButton ("Decline") was not matched by cancel patterns, so Backspace clicked an unrelated combat prompt instead
+
 ### Match End Screen
 - Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
 
