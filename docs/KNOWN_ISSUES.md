@@ -314,7 +314,6 @@ We run a parallel navigation system alongside Unity's EventSystem, selectively m
 
 1. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
 2. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
-3. Spend spheres screen in mastery navigator needs massive improvement — current accessibility support is insufficient and requires a thorough rework.
 4. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
 5. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
 6. Auto version checking and auto update — check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.

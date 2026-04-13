@@ -42,6 +42,11 @@ All notable changes to Accessible Arena.
 ### Mana Cost Display
 - Added two new settings to configure mana cost announcements: "Mana cost colorless label" (says "3 colorless" vs just "3") and "Group mana colors" (says "2 White" vs "White, White") — both default to on, turning both off restores the pre-0.9.1 format
 
+### Prize Wall (Mastery)
+- Fixed purchasing Prize Wall items freezing the mod — the reward popup navigator entered an infinite detection loop when the confirmation modal opened; now excluded during active confirmation modals
+- Added full confirmation modal navigation with card details, purchase buttons, and cancel option — previously only Escape worked, Enter on cancel did nothing, and no item details were shown
+- Fixed currency names not announced in purchase confirmation modals — purchase buttons now read "2 spheres" or "500 Gold" instead of just the number (also fixed in Store confirmation modals)
+
 ### Match End Screen
 - Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
 

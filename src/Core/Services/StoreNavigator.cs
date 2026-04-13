@@ -941,10 +941,10 @@ namespace AccessibleArena.Core.Services
         {
             var options = new List<PurchaseOption>();
 
-            AddPurchaseOption(options, storeItemBase, _blueButtonField, "Gems");
-            AddPurchaseOption(options, storeItemBase, _orangeButtonField, "Gold");
+            AddPurchaseOption(options, storeItemBase, _blueButtonField, Strings.CurrencyGems);
+            AddPurchaseOption(options, storeItemBase, _orangeButtonField, Strings.CurrencyGold);
             AddPurchaseOption(options, storeItemBase, _clearButtonField, "");
-            AddPurchaseOption(options, storeItemBase, _greenButtonField, "Token");
+            AddPurchaseOption(options, storeItemBase, _greenButtonField, "");
 
             return options;
         }
@@ -2514,13 +2514,22 @@ namespace AccessibleArena.Core.Services
                     if (string.IsNullOrEmpty(priceText))
                         priceText = UITextExtractor.GetText(customButton.gameObject) ?? customButton.gameObject.name;
 
-                    _modalElements.Add((customButton.gameObject, $"{priceText}, button"));
+                    // Derive currency name from field name (icon-only in game, invisible to screen readers)
+                    string currencyName = "";
+                    string fieldName = field.Name ?? "";
+                    if (fieldName.Contains("Gem")) currencyName = Strings.CurrencyGems;
+                    else if (fieldName.Contains("Coin")) currencyName = Strings.CurrencyGold;
+
+                    string buttonLabel = !string.IsNullOrEmpty(currencyName) && !string.IsNullOrEmpty(priceText)
+                        ? $"{priceText} {currencyName}" : priceText;
+
+                    _modalElements.Add((customButton.gameObject, $"{buttonLabel}, {Strings.RoleButton}"));
                 }
                 catch { /* Reflection may fail on different game versions */ }
             }
 
             // Add Cancel option
-            _modalElements.Add((null, "Cancel"));
+            _modalElements.Add((null, Strings.PopupCancel));
 
             MelonLogger.Msg($"[Store] Found {_modalElements.Count} confirmation modal elements");
         }
