@@ -227,7 +227,8 @@ namespace AccessibleArena.Core.Services
 
                 if (faceGrpId == 0) return null;
 
-                var faceData = GetCardDataFromGrpIdDuelScene(faceGrpId);
+                var faceData = GetCardDataFromGrpIdDuelScene(faceGrpId)
+                    ?? GetCardPrintingDataFromPAPA(faceGrpId);
                 if (faceData == null) return null;
 
                 var faceInfo = CardModelProvider.ExtractCardInfoFromObject(faceData);
@@ -1126,17 +1127,23 @@ namespace AccessibleArena.Core.Services
 
             var modelType = model.GetType();
 
-            // Get Printing sub-object from model
+            // Get AbilityIdToLinkedTokenPrinting — either via Printing sub-object (CardData)
+            // or directly on model (CardPrintingData)
+            object tokenPrintingDict = null;
             var printing = CardModelProvider.GetModelPropertyValue(model, modelType, "Printing");
-            if (printing == null) return result;
-
-            var printingType = printing.GetType();
-
-            // Get AbilityIdToLinkedTokenPrinting property
-            var tokenPrintingProp = printingType.GetProperty("AbilityIdToLinkedTokenPrinting", PublicInstance);
-            if (tokenPrintingProp == null) return result;
-
-            var tokenPrintingDict = tokenPrintingProp.GetValue(printing);
+            if (printing != null)
+            {
+                var tokenProp = printing.GetType().GetProperty("AbilityIdToLinkedTokenPrinting", PublicInstance);
+                if (tokenProp != null)
+                    tokenPrintingDict = tokenProp.GetValue(printing);
+            }
+            if (tokenPrintingDict == null)
+            {
+                // CardPrintingData has AbilityIdToLinkedTokenPrinting directly
+                var directProp = modelType.GetProperty("AbilityIdToLinkedTokenPrinting", PublicInstance);
+                if (directProp != null)
+                    tokenPrintingDict = directProp.GetValue(model);
+            }
             if (tokenPrintingDict == null) return result;
 
             // It's IReadOnlyDictionary<uint, IReadOnlyList<CardPrintingData>>
