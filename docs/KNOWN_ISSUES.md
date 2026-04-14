@@ -2,8 +2,7 @@
 
 Active bugs, limitations, and planned work for Accessible Arena.
 
-For resolved issues and investigation history, see docs/old/RESOLVED_ISSUES.md.
-
+ 
 ## Active Bugs
 
 ### First Card Not Recognized After Filtering in Deck Builder
@@ -247,79 +246,22 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 
 ---
 
-## Technical Debt
-
-### Code Archaeology
-
-Accumulated defensive fallback code needs review:
-- `ActivateBackButton()` has 4 activation methods - test which are needed
-- `LogAvailableUIElements()` (~150 lines) only runs once per screen in DetectScreen (removed from PerformRescan)
-- Extensive logging throughout - review what's still needed
-
-**Priority:** Low
-
----
-
-
-## Design Decisions
-
-### Panel Detection Architecture
-
-Hybrid approach using three detectors:
-- **HarmonyPanelDetector** - Event-driven for PlayBlade, Settings, Blades (critical for PlayBlade which uses SLIDE animation, not alpha fade)
-- **ReflectionPanelDetector** - Polls IsOpen properties for Login panels, PopupBase
-- **AlphaPanelDetector** - Watches CanvasGroup alpha for dialogs, modals, popups
-
-`GetCurrentForeground()` is single source of truth for both element filtering and backspace navigation.
-
----
-
-### Tab and Arrow Navigation
-
-Both Tab and Arrow keys navigate menu elements identically. Unity's EventSystem was unreliable. May simplify to arrow-only in future.
-
----
-
-### Hybrid Navigation System (EventSystem Management)
-
-We run a parallel navigation system alongside Unity's EventSystem, selectively managing when Unity is allowed to participate. This creates complexity but is necessary for screen reader support.
-
-**What we do:**
-- Maintain our own navigation state (`_currentIndex`, `_elements` list)
-- Announce elements via screen reader (Unity doesn't do this)
-- Consume/block keys to prevent Unity/MTGA from also processing them
-- Clear or set `EventSystem.currentSelectedGameObject` strategically
-
-**Why it's necessary:**
-1. Unity's navigation has no screen reader support
-2. MTGA's navigation is inconsistent and has gaps
-3. Some elements auto-activate when selected (input fields, toggles)
-4. MTGA's KeyboardManager intercepts keys for game shortcuts
-
-**Problem areas requiring special handling:**
-- **Input fields:** MTGA auto-focuses them asynchronously, so we deactivate or clear EventSystem selection for arrow navigation
-- **Toggles:** Unity/MTGA re-toggles when EventSystem selection is set, so we clear selection for arrow navigation
-- **Dropdowns:** Unity handles internal arrow navigation; Enter is blocked from game and handled by mod (silent selection via reflection, dropdown stays open); index re-synced on close
-
-**Files:** `BaseNavigator.cs`, `UIFocusTracker.cs`, `KeyboardManagerPatch.cs`, `EventSystemPatch.cs`, `DropdownStateManager.cs`
 
 ## Planned Features
 
 ### Upcoming
-
-1. ~~Manual trigger ordering~~ — Implemented in v0.8.7 (OrderCards/TriggerOrderCards browser support)
-
-2. Display counters on players - announce counters like poison, energy, experience, etc. on players
+ 
+1. Display player state information - announce counters (poison, energy, experience, rad, etc.), emblems, and modified properties (max hand size, extra turns, etc.) on players
 ### Polish
 
 1. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
 2. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
-4. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
-5. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
-6. Auto version checking and auto update — check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
-7. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
-8. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-9. Replace Tolk with Prism library — Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
-10. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
-11. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
+3. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
+4. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
+5. Auto version checking and auto update — check for new mod versions on launch and optionally auto-update. May be too problematic to implement reliably.
+6. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
+7. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
+8. Replace Tolk with Prism library — Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
+9. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
+10. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
 

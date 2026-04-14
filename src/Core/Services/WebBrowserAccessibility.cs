@@ -40,6 +40,7 @@ namespace AccessibleArena.Core.Services
         private List<WebElement> _elements = new List<WebElement>();
         private int _currentIndex;
         private bool _isEditingField;
+        private bool _useNativeInput; // Use native CEF keyboard input (for fields that reject JS events)
         private bool _isLoading;
         private int _lastWebElementCount; // Track for silent rescan comparison
 
@@ -347,7 +348,11 @@ namespace AccessibleArena.Core.Services
                     try {{ if (el._valueTracker) el._valueTracker.setValue(valueBefore); }} catch(e2) {{}}
                     try {{ el.dispatchEvent(new win.Event('input', {{bubbles: true}})); }} catch(e3) {{}}
                     try {{ el.dispatchEvent(new win.Event('change', {{bubbles: true}})); }} catch(e4) {{}}
-                }} else {{
+                    // Re-check: framework (e.g. PayPal React) may revert value during
+                    // synchronous event handling after SPA navigation
+                    if (el.value === valueBefore) method = 'none';
+                }}
+                if (method === 'none') {{
                     // Approach 2: keyboard events per character (for masked inputs)
                     var text = '{escaped}';
                     for (var ci = 0; ci < text.length; ci++) {{
@@ -372,8 +377,18 @@ namespace AccessibleArena.Core.Services
                     if (el.value !== valueBefore) {{
                         method = 'keyboard_events';
                     }} else {{
-                        // Approach 3: direct value set + events
-                        try {{ el.value = valueBefore + text; }} catch(e) {{}}
+                        // Approach 3: native value setter + React tracker reset
+                        // Use the native HTMLInputElement.prototype.value setter to bypass
+                        // React's synthetic value interception on controlled components
+                        var newVal = valueBefore + text;
+                        try {{
+                            var nativeSetter = Object.getOwnPropertyDescriptor(
+                                win.HTMLInputElement.prototype, 'value').set;
+                            nativeSetter.call(el, newVal);
+                        }} catch(e) {{
+                            try {{ el.value = newVal; }} catch(e2) {{}}
+                        }}
+                        try {{ if (el._valueTracker) el._valueTracker.setValue(valueBefore); }} catch(e) {{}}
                         try {{
                             el.dispatchEvent(new win.InputEvent('input', {{
                                 data: text, inputType: 'insertText', bubbles: true, cancelable: false, composed: true
@@ -928,26 +943,34 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Backspace — delete last character via JS
+            // Backspace — delete last character
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 if (_currentIndex >= 0 && _currentIndex < _elements.Count)
                 {
                     var elem = _elements[_currentIndex];
-                    _browser.EvalJSCSP(BackspaceScript(elem.Index))
-                        .Then(result =>
-                        {
-                            string val = (string)result;
-                            if (val == "not_found")
-                                _announcer.AnnounceInterrupt(Strings.WebBrowser_FieldNotFound);
-                        })
-                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] Backspace error: {ex.Message}"));
+                    if (_useNativeInput)
+                    {
+                        _browser.PressKey(KeyCode.Backspace);
+                        MelonLogger.Msg($"[WebBrowser] Backspace (native) in element {elem.Index}: {elem.Text}");
+                    }
+                    else
+                    {
+                        _browser.EvalJSCSP(BackspaceScript(elem.Index))
+                            .Then(result =>
+                            {
+                                string val = (string)result;
+                                if (val == "not_found")
+                                    _announcer.AnnounceInterrupt(Strings.WebBrowser_FieldNotFound);
+                            })
+                            .Catch(ex => MelonLogger.Msg($"[WebBrowser] Backspace error: {ex.Message}"));
+                    }
                 }
                 return;
             }
 
-            // Printable characters — append via JS
+            // Printable characters — append text
             string inputStr = Input.inputString;
             if (!string.IsNullOrEmpty(inputStr))
             {
@@ -964,14 +987,33 @@ namespace AccessibleArena.Core.Services
                 {
                     var elem = _elements[_currentIndex];
                     string chars = filtered.ToString();
-                    MelonLogger.Msg($"[WebBrowser] Typing '{chars}' into element {elem.Index}: {elem.Text}");
-                    _browser.EvalJSCSP(AppendTextScript(elem.Index, chars))
-                        .Then(result =>
-                        {
-                            string res = (string)result;
-                            MelonLogger.Msg($"[WebBrowser] TypeText result: {res}");
-                        })
-                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] TypeText error: {ex.Message}"));
+                    if (_useNativeInput)
+                    {
+                        // Native CEF input — sends isTrusted keyboard events
+                        _browser.TypeText(chars);
+                        MelonLogger.Msg($"[WebBrowser] TypeText (native): {(elem.InputType == "password" ? "***" : chars)}");
+                    }
+                    else
+                    {
+                        MelonLogger.Msg($"[WebBrowser] Typing '{chars}' into element {elem.Index}: {elem.Text}");
+                        _browser.EvalJSCSP(AppendTextScript(elem.Index, chars))
+                            .Then(result =>
+                            {
+                                string res = (string)result;
+                                MelonLogger.Msg($"[WebBrowser] TypeText result: {res}");
+                                // Detect JS input failure: execCommand reports success but value is empty
+                                // This happens on sites like PayPal that reject non-trusted events
+                                if (res != null && res.StartsWith("execCommand:") && res == "execCommand:"
+                                    || res != null && res == "all_failed:")
+                                {
+                                    MelonLogger.Msg($"[WebBrowser] JS input failed, switching to native CEF input");
+                                    _useNativeInput = true;
+                                    // Re-send the failed characters via native input
+                                    _browser.TypeText(chars);
+                                }
+                            })
+                            .Catch(ex => MelonLogger.Msg($"[WebBrowser] TypeText error: {ex.Message}"));
+                    }
                 }
             }
         }
@@ -979,6 +1021,7 @@ namespace AccessibleArena.Core.Services
         private void ExitEditMode()
         {
             _isEditingField = false;
+            _useNativeInput = false;
         }
 
         private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0, int cursorJump = int.MinValue)
