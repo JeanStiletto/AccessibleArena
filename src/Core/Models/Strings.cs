@@ -1183,8 +1183,27 @@ namespace AccessibleArena.Core.Models
         public static string Continuing => L.Get("Continuing");
         public static string FoundRewards(int count) => L.Format("FoundRewards_Format", count);
         public static string Characters(int count) => L.Format("Characters_Format", count);
+        public static string HasCharacters(int count) => L.Format("HasCharacters_Format", count);
         public static string PaymentPage(int count) => L.Format("PaymentPage_Format", count);
         public static string DropdownOpened => L.Get("DropdownOpened");
+
+        // Web browser accessibility (payment popup / embedded Chromium)
+        public static string WebBrowser_PaymentPage => L.Get("WebBrowser_PaymentPage");
+        public static string WebBrowser_WebContent => L.Get("WebBrowser_WebContent");
+        public static string WebBrowser_ElementCount(string context, int count) => L.Format("WebBrowser_ElementCount_Format", context, count);
+        public static string WebBrowser_LoadingElements(string context) => L.Format("WebBrowser_LoadingElements_Format", context);
+        public static string WebBrowser_ContextLoading(string context) => L.Format("WebBrowser_ContextLoading_Format", context);
+        public static string WebBrowser_PageLoaded => L.Get("WebBrowser_PageLoaded");
+        public static string WebBrowser_NoBrowserFound => L.Get("WebBrowser_NoBrowserFound");
+        public static string WebBrowser_CouldNotRead => L.Get("WebBrowser_CouldNotRead");
+        public static string WebBrowser_ElementNotFound => L.Get("WebBrowser_ElementNotFound");
+        public static string WebBrowser_FieldNotFound => L.Get("WebBrowser_FieldNotFound");
+        public static string WebBrowser_Submitted => L.Get("WebBrowser_Submitted");
+        public static string WebBrowser_NoBackButton => L.Get("WebBrowser_NoBackButton");
+        public static string WebBrowser_Editing(string name, string fieldType) => L.Format("WebBrowser_Editing_Format", name, fieldType);
+        public static string WebBrowser_CaptchaWarning => L.Get("WebBrowser_CaptchaWarning");
+        public static string WebBrowser_PasswordStar => L.Get("WebBrowser_PasswordStar");
+        public static string WebBrowser_SpaceChar => L.Get("WebBrowser_SpaceChar");
         public static string CouldNotMove(string name) => L.Format("CouldNotMove_Format", name);
         public static string MovedTo(string card, string zone) => L.Format("MovedTo_Format", card, zone);
         public static string ZoneEntry(string zoneName, int count, string cardName) =>
@@ -1476,6 +1495,14 @@ namespace AccessibleArena.Core.Models
         public static string RoleScrollbar => L.Get("RoleScrollbar");
         public static string RoleProgress => L.Get("RoleProgress");
         public static string RoleControl => L.Get("RoleControl");
+        public static string RolePasswordField => L.Get("RolePasswordField");
+        public static string RoleEmailField => L.Get("RoleEmailField");
+        public static string RoleNumberField => L.Get("RoleNumberField");
+        public static string RoleRadioButton => L.Get("RoleRadioButton");
+        public static string RoleHeading => L.Get("RoleHeading");
+        public static string RoleText => L.Get("RoleText");
+        public static string RoleTab => L.Get("RoleTab");
+        public static string RoleMenuItem => L.Get("RoleMenuItem");
         public static string HintUseLeftRightArrows => L.Get("HintUseLeftRightArrows");
 
         /// <summary>Combined checkbox state: "checkbox, checked" or "checkbox, unchecked"</summary>

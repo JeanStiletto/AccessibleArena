@@ -50,6 +50,13 @@ All notable changes to Accessible Arena.
 ### Browsers
 - Fixed Backspace not cancelling SelectCards ability-choice browsers (e.g. All-Cheese Pizza) — the scaffold's SingleButton ("Decline") was not matched by cancel patterns, so Backspace clicked an unrelated combat prompt instead
 
+### Web Browser / Payment Methods
+- Fixed payment method selection buttons (PayPal, card, paysafecard) not appearing — Xsolla now loads these dynamically via JavaScript after the initial page skeleton renders; added MutationObserver-based detection that re-extracts page elements when the DOM changes instead of relying on fixed-delay rescans
+- Fixed potential double-activation of payment buttons — added click cooldown (1.5s for buttons/submit, 0.5s for checkboxes) that blocks Enter/Space while still allowing navigation
+- Localized all screen reader announcements — role names (text field, password field, dropdown, etc.), status messages (page loaded, submitted, etc.), edit mode instructions, and the CAPTCHA warning are now fully localized instead of hardcoded English
+- "Back to Arena" button now reads the actual localized game label instead of hardcoded English text
+- Character-by-character reading in web form fields now uses the central character name system (announces "dot", "at", "space" etc. in the active language)
+
 ### Match End Screen
 - Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
 

@@ -55,6 +55,7 @@ namespace AccessibleArena.Core.Services
 
         // "Back to Arena" button (Unity button outside the browser)
         private GameObject _backToArenaButton;
+        private string _backToArenaLabel;
 
         // CAPTCHA / security check detection
         private int _emptyRescanCount;
@@ -511,7 +512,7 @@ namespace AccessibleArena.Core.Services
 
             _browserPanel = panel;
             _announcer = announcer;
-            _contextLabel = contextLabel ?? "Payment page";
+            _contextLabel = contextLabel ?? Strings.WebBrowser_PaymentPage;
             _currentIndex = 0;
             _isEditingField = false;
             _isLoading = true;
@@ -531,7 +532,7 @@ namespace AccessibleArena.Core.Services
             if (_browser == null)
             {
                 MelonLogger.Msg("[WebBrowser] No Browser component found in panel");
-                _announcer.AnnounceInterrupt("Browser panel opened. No browser found.");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_NoBrowserFound);
                 _isActive = false;
                 return;
             }
@@ -551,12 +552,12 @@ namespace AccessibleArena.Core.Services
 
             if (_browser.IsLoaded)
             {
-                _announcer.AnnounceInterrupt($"{_contextLabel}. Loading elements...");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_LoadingElements(_contextLabel));
                 ExtractElements();
             }
             else
             {
-                _announcer.AnnounceInterrupt($"{_contextLabel} loading...");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
             }
         }
 
@@ -586,6 +587,7 @@ namespace AccessibleArena.Core.Services
             _hasInteractiveElements = false;
             _elements.Clear();
             _backToArenaButton = null;
+            _backToArenaLabel = null;
 
             // Release Escape blocking
             KeyboardManagerPatch.BlockEscape = false;
@@ -835,7 +837,7 @@ namespace AccessibleArena.Core.Services
             {
                 InputManager.ConsumeKey(KeyCode.Escape);
                 ExitEditMode();
-                _announcer.AnnounceInterrupt("Stopped editing");
+                _announcer.AnnounceInterrupt(Strings.ExitedInputField);
                 return;
             }
 
@@ -860,7 +862,7 @@ namespace AccessibleArena.Core.Services
                         .Catch(ex => MelonLogger.Msg($"[WebBrowser] Submit error: {ex.Message}"));
                 }
                 ExitEditMode();
-                _announcer.AnnounceInterrupt("Submitted");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_Submitted);
                 StartClickCooldown(ClickCooldownSeconds);
                 ScheduleRescan(RescanDelayClick);
                 _secondRescanTimer = RescanDelaySecond;
@@ -898,7 +900,7 @@ namespace AccessibleArena.Core.Services
                         {
                             string val = (string)result;
                             if (val == "not_found")
-                                _announcer.AnnounceInterrupt("Field not found");
+                                _announcer.AnnounceInterrupt(Strings.WebBrowser_FieldNotFound);
                         })
                         .Catch(ex => MelonLogger.Msg($"[WebBrowser] Backspace error: {ex.Message}"));
                 }
@@ -982,13 +984,12 @@ namespace AccessibleArena.Core.Services
 
                         if (elem.InputType == "password")
                         {
-                            _announcer.AnnounceInterrupt("star");
+                            _announcer.AnnounceInterrupt(Strings.WebBrowser_PasswordStar);
                         }
                         else
                         {
                             char c = _editFieldValue[_editCursorPos];
-                            string charName = c == ' ' ? "space" : c.ToString();
-                            _announcer.AnnounceInterrupt(charName);
+                            _announcer.AnnounceInterrupt(Strings.GetCharacterName(c));
                         }
                     }
                 })
@@ -1033,7 +1034,7 @@ namespace AccessibleArena.Core.Services
             if (result == null || result.Type != JSONNode.NodeType.Array)
             {
                 MelonLogger.Msg($"[WebBrowser] Extraction returned non-array: {result?.Type}");
-                _announcer.AnnounceInterrupt("Could not read page elements.");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_CouldNotRead);
                 return;
             }
 
@@ -1073,7 +1074,7 @@ namespace AccessibleArena.Core.Services
                 _elements.Add(new WebElement
                 {
                     Tag = "button",
-                    Text = "Back to Arena",
+                    Text = _backToArenaLabel ?? Strings.WebBrowser_PaymentPage,
                     Role = "button",
                     InputType = "",
                     Placeholder = "",
@@ -1122,7 +1123,7 @@ namespace AccessibleArena.Core.Services
 
                 MelonLogger.Msg("[WebBrowser] No web elements found, scheduling rescan for iframe content");
                 ScheduleRescan(1.5f);
-                _announcer.AnnounceInterrupt($"{_contextLabel} loading...");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
                 return;
             }
 
@@ -1136,7 +1137,7 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg("[WebBrowser] No interactive elements found, installing MutationObserver to watch for dynamic content");
                 InstallMutationObserver();
-                _announcer.AnnounceInterrupt($"{_contextLabel} loading...");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
                 return;
             }
 
@@ -1158,7 +1159,7 @@ namespace AccessibleArena.Core.Services
 
             // Reset to first element
             _currentIndex = 0;
-            _announcer.AnnounceInterrupt($"{_contextLabel}. {_elements.Count} elements.");
+            _announcer.AnnounceInterrupt(Strings.WebBrowser_ElementCount(_contextLabel, _elements.Count));
 
             if (_elements.Count > 0)
             {
@@ -1170,7 +1171,7 @@ namespace AccessibleArena.Core.Services
         {
             _isLoading = false;
             MelonLogger.Msg($"[WebBrowser] Extraction error: {ex.Message}");
-            _announcer.AnnounceInterrupt("Could not read page elements.");
+            _announcer.AnnounceInterrupt(Strings.WebBrowser_CouldNotRead);
         }
 
         #endregion
@@ -1261,7 +1262,7 @@ namespace AccessibleArena.Core.Services
 
             _isEditingField = false;
             _isLoading = false; // Reset in case a previous extraction never resolved
-            _announcer.AnnounceInterrupt("Page loaded. Reading elements...");
+            _announcer.AnnounceInterrupt(Strings.WebBrowser_PageLoaded);
             ExtractElements();
         }
 
@@ -1368,17 +1369,17 @@ namespace AccessibleArena.Core.Services
                     if (elem.InputType == "password")
                     {
                         extra = string.IsNullOrEmpty(elem.Value)
-                            ? ", empty"
-                            : $", has {elem.Value.Length} characters";
+                            ? $", {Strings.InputFieldEmpty}"
+                            : $", {Strings.HasCharacters(elem.Value.Length)}";
                     }
                     else
                     {
-                        extra = string.IsNullOrEmpty(elem.Value) ? ", empty" : $", {elem.Value}";
+                        extra = string.IsNullOrEmpty(elem.Value) ? $", {Strings.InputFieldEmpty}" : $", {elem.Value}";
                     }
                     break;
                 case "checkbox":
                 case "radio":
-                    extra = elem.IsChecked ? ", checked" : ", unchecked";
+                    extra = $", {(elem.IsChecked ? Strings.RoleChecked : Strings.RoleUnchecked)}";
                     break;
                 case "combobox":
                     if (!string.IsNullOrEmpty(elem.Value))
@@ -1397,20 +1398,20 @@ namespace AccessibleArena.Core.Services
         {
             switch (elem.Role)
             {
-                case "button": return "button";
-                case "link": return "link";
+                case "button": return Strings.RoleButton;
+                case "link": return Strings.RoleLink;
                 case "textbox":
-                    if (elem.InputType == "password") return "password field";
-                    if (elem.InputType == "email") return "email field";
-                    if (elem.InputType == "number") return "number field";
-                    return "text field";
-                case "combobox": return "dropdown";
-                case "checkbox": return "checkbox";
-                case "radio": return "radio button";
-                case "heading": return "heading";
-                case "text": return "text";
-                case "tab": return "tab";
-                case "menuitem": return "menu item";
+                    if (elem.InputType == "password") return Strings.RolePasswordField;
+                    if (elem.InputType == "email") return Strings.RoleEmailField;
+                    if (elem.InputType == "number") return Strings.RoleNumberField;
+                    return Strings.TextField;
+                case "combobox": return Strings.RoleDropdown;
+                case "checkbox": return Strings.RoleCheckbox;
+                case "radio": return Strings.RoleRadioButton;
+                case "heading": return Strings.RoleHeading;
+                case "text": return Strings.RoleText;
+                case "tab": return Strings.RoleTab;
+                case "menuitem": return Strings.RoleMenuItem;
                 default: return elem.Role;
             }
         }
@@ -1481,8 +1482,8 @@ namespace AccessibleArena.Core.Services
             _browser.EvalJSCSP(FocusScript(elem.Index))
                 .Catch(ex => MelonLogger.Msg($"[WebBrowser] Focus error: {ex.Message}"));
 
-            string fieldType = elem.InputType == "password" ? "password field" : "text field";
-            _announcer.AnnounceInterrupt($"Editing {elem.Text}, {fieldType}. Type to enter text, Escape to exit.");
+            string fieldType = elem.InputType == "password" ? Strings.RolePasswordField : Strings.TextField;
+            _announcer.AnnounceInterrupt(Strings.WebBrowser_Editing(elem.Text, fieldType));
         }
 
         private void ClickElement(WebElement elem)
@@ -1494,7 +1495,7 @@ namespace AccessibleArena.Core.Services
                     if (res == "not_found")
                     {
                         MelonLogger.Msg($"[WebBrowser] Element {elem.Index} not found for click");
-                        _announcer.AnnounceInterrupt("Element not found. Page may have changed.");
+                        _announcer.AnnounceInterrupt(Strings.WebBrowser_ElementNotFound);
                         ScheduleRescan(0.2f);
                     }
                     else
@@ -1563,18 +1564,14 @@ namespace AccessibleArena.Core.Services
                     {
                         _captchaDetected = true;
                         MelonLogger.Msg("[WebBrowser] CAPTCHA detected! Stopping rescan loop.");
-                        _announcer.AnnounceInterrupt(
-                            "Security verification detected. " +
-                            "This is a visual CAPTCHA that cannot be solved without sight. " +
-                            "PayPal does not provide an audio alternative. " +
-                            "Please ask someone for sighted assistance, or press Backspace to go back and try a different payment method.");
+                        _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
                     }
                     else
                     {
                         // Not a CAPTCHA — keep retrying a few more times
                         MelonLogger.Msg("[WebBrowser] No CAPTCHA indicators found, continuing rescans");
                         ScheduleRescan(1.5f);
-                        _announcer.AnnounceInterrupt($"{_contextLabel} loading...");
+                        _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
                     }
                 })
                 .Catch(ex =>
@@ -1584,16 +1581,12 @@ namespace AccessibleArena.Core.Services
                     if (urlSuspicious)
                     {
                         _captchaDetected = true;
-                        _announcer.AnnounceInterrupt(
-                            "Security verification detected. " +
-                            "This is a visual CAPTCHA that cannot be solved without sight. " +
-                            "PayPal does not provide an audio alternative. " +
-                            "Please ask someone for sighted assistance, or press Backspace to go back and try a different payment method.");
+                        _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
                     }
                     else
                     {
                         ScheduleRescan(1.5f);
-                        _announcer.AnnounceInterrupt($"{_contextLabel} loading...");
+                        _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
                     }
                 });
         }
@@ -1605,6 +1598,7 @@ namespace AccessibleArena.Core.Services
         private void FindBackToArenaButton(GameObject panel)
         {
             _backToArenaButton = null;
+            _backToArenaLabel = null;
 
             // Look for a Unity Button that isn't part of the Browser itself
             // Typically labeled "Back" or has a back/close icon
@@ -1617,14 +1611,16 @@ namespace AccessibleArena.Core.Services
                 if (_browser != null && btn.transform.IsChildOf(_browser.transform)) continue;
 
                 string name = btn.gameObject.name.ToLowerInvariant();
-                string label = UITextExtractor.GetText(btn.gameObject)?.ToLowerInvariant() ?? "";
+                string label = UITextExtractor.GetText(btn.gameObject) ?? "";
+                string labelLower = label.ToLowerInvariant();
 
                 if (name.Contains("back") || name.Contains("close") || name.Contains("return") ||
-                    label.Contains("back") || label.Contains("close") || label.Contains("return") ||
-                    label.Contains("arena"))
+                    labelLower.Contains("back") || labelLower.Contains("close") || labelLower.Contains("return") ||
+                    labelLower.Contains("arena"))
                 {
                     _backToArenaButton = btn.gameObject;
-                    MelonLogger.Msg($"[WebBrowser] Found Back to Arena button: {btn.gameObject.name}");
+                    _backToArenaLabel = !string.IsNullOrEmpty(label) ? label : btn.gameObject.name;
+                    MelonLogger.Msg($"[WebBrowser] Found Back to Arena button: {btn.gameObject.name}, label: {_backToArenaLabel}");
                     break;
                 }
             }
@@ -1638,7 +1634,9 @@ namespace AccessibleArena.Core.Services
                     if (_browser != null && btn.transform.IsChildOf(_browser.transform)) continue;
 
                     _backToArenaButton = btn.gameObject;
-                    MelonLogger.Msg($"[WebBrowser] Using fallback Back button: {btn.gameObject.name}");
+                    string label = UITextExtractor.GetText(btn.gameObject) ?? "";
+                    _backToArenaLabel = !string.IsNullOrEmpty(label) ? label : btn.gameObject.name;
+                    MelonLogger.Msg($"[WebBrowser] Using fallback Back button: {btn.gameObject.name}, label: {_backToArenaLabel}");
                     break;
                 }
             }
@@ -1649,13 +1647,13 @@ namespace AccessibleArena.Core.Services
             if (_backToArenaButton != null)
             {
                 MelonLogger.Msg("[WebBrowser] Clicking Back to Arena");
-                _announcer.AnnounceInterrupt("Back to Arena");
+                _announcer.AnnounceInterrupt(_backToArenaLabel ?? Strings.WebBrowser_PaymentPage);
                 UIActivator.Activate(_backToArenaButton);
             }
             else
             {
                 MelonLogger.Msg("[WebBrowser] No Back to Arena button found");
-                _announcer.AnnounceInterrupt("No back button found");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_NoBackButton);
             }
         }
 

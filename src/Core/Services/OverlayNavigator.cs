@@ -31,7 +31,7 @@ namespace AccessibleArena.Core.Services
         {
             return _overlayType switch
             {
-                "WebBrowser" => "Web content",
+                "WebBrowser" => Strings.WebBrowser_WebContent,
                 "WhatsNew" => Strings.ScreenWhatsNew,
                 "Announcement" => Strings.ScreenAnnouncement,
                 "Reward" => Strings.ScreenRewardPopup,
@@ -125,7 +125,7 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverWebBrowserElements()
         {
-            _webBrowser.Activate(_browserCanvas, _announcer, "Web content");
+            _webBrowser.Activate(_browserCanvas, _announcer, Strings.WebBrowser_WebContent);
             // Add placeholder element so TryActivate passes the Count > 0 check
             AddElement(_browserCanvas, "Web browser");
         }
