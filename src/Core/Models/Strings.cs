@@ -1149,6 +1149,7 @@ namespace AccessibleArena.Core.Models
         public static string PackTypeAlchemy => L.Get("PackTypeAlchemy");
         public static string PackTypeBonus => L.Get("PackTypeBonus");
         public static string ExitedInputField => L.Get("ExitedInputField");
+        public static string AllSelected => L.Get("AllSelected");
         public static string PageOf(int current, int total) => L.Format("Page_Format", current, total);
         public static string PageLabel(string label) => L.Format("PageLabel_Format", label);
         public static string FilterLabel(string label, string state) => L.Format("FilterLabel_Format", label, state);

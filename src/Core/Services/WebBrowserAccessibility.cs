@@ -305,6 +305,12 @@ namespace AccessibleArena.Core.Services
             return FindElementFunc + $" var el = findEl({index}); if (el) {{ el.focus(); return 'ok'; }} return 'not_found';";
         }
 
+        // Select all text in an input field (Ctrl+A equivalent)
+        private static string SelectAllScript(int index)
+        {
+            return FindElementFunc + $" var el = findEl({index}); if (el) {{ el.focus(); try {{ el.select(); }} catch(e) {{}} return 'ok'; }} return 'not_found';";
+        }
+
         // Read current value of a text input by its data-aa-idx
         private static string ReadValueScript(int index)
         {
@@ -335,6 +341,12 @@ namespace AccessibleArena.Core.Services
                 try {{ ok = doc.execCommand('insertText', false, '{escaped}'); }} catch(e) {{}}
                 if (ok && el.value !== valueBefore) {{
                     method = 'execCommand';
+                    // Sync React/framework state — execCommand modifies the DOM but
+                    // bypasses React's value tracker, so onChange never fires.
+                    // Reset the tracker and dispatch events so the framework sees the change.
+                    try {{ if (el._valueTracker) el._valueTracker.setValue(valueBefore); }} catch(e2) {{}}
+                    try {{ el.dispatchEvent(new win.Event('input', {{bubbles: true}})); }} catch(e3) {{}}
+                    try {{ el.dispatchEvent(new win.Event('change', {{bubbles: true}})); }} catch(e4) {{}}
                 }} else {{
                     // Approach 2: keyboard events per character (for masked inputs)
                     var text = '{escaped}';
@@ -393,7 +405,10 @@ namespace AccessibleArena.Core.Services
                 var ok = false;
                 try {{ ok = doc.execCommand('delete', false); }} catch(e) {{}}
                 if (ok && el.value !== valueBefore) {{
-                    // worked
+                    // Sync React/framework state (same as AppendTextScript)
+                    try {{ if (el._valueTracker) el._valueTracker.setValue(valueBefore); }} catch(e2) {{}}
+                    try {{ el.dispatchEvent(new win.Event('input', {{bubbles: true}})); }} catch(e3) {{}}
+                    try {{ el.dispatchEvent(new win.Event('change', {{bubbles: true}})); }} catch(e4) {{}}
                 }} else {{
                     // Approach 2: keyboard event for Backspace
                     var bsInit = {{key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8, bubbles: true, cancelable: true, composed: true}};
@@ -888,6 +903,31 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Home/End — jump to beginning/end of field
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                RefreshAndReadFieldValue(readFull: false, cursorJump: 0);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                RefreshAndReadFieldValue(readFull: false, cursorJump: -1);
+                return;
+            }
+
+            // Ctrl+A — select all text in field (so next keystroke replaces it)
+            if (Input.GetKeyDown(KeyCode.A) && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+            {
+                if (_currentIndex >= 0 && _currentIndex < _elements.Count)
+                {
+                    var elem = _elements[_currentIndex];
+                    _browser.EvalJSCSP(SelectAllScript(elem.Index))
+                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] SelectAll error: {ex.Message}"));
+                    _announcer.AnnounceInterrupt(Strings.AllSelected);
+                }
+                return;
+            }
+
             // Backspace — delete last character via JS
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
@@ -941,7 +981,7 @@ namespace AccessibleArena.Core.Services
             _isEditingField = false;
         }
 
-        private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0)
+        private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0, int cursorJump = int.MinValue)
         {
             if (_currentIndex < 0 || _currentIndex >= _elements.Count) return;
             var elem = _elements[_currentIndex];
@@ -970,14 +1010,19 @@ namespace AccessibleArena.Core.Services
                     }
                     else
                     {
-                        // Left/Right: read character at cursor
+                        // Left/Right/Home/End: read character at cursor
                         if (string.IsNullOrEmpty(_editFieldValue))
                         {
                             _announcer.AnnounceInterrupt(Strings.InputFieldEmpty);
                             return;
                         }
 
-                        _editCursorPos += cursorDelta;
+                        // Home/End: jump to absolute position (-1 = end)
+                        if (cursorJump != int.MinValue)
+                            _editCursorPos = cursorJump < 0 ? _editFieldValue.Length - 1 : cursorJump;
+                        else
+                            _editCursorPos += cursorDelta;
+
                         if (_editCursorPos < 0) _editCursorPos = 0;
                         if (_editCursorPos >= _editFieldValue.Length)
                             _editCursorPos = _editFieldValue.Length - 1;
@@ -1251,11 +1296,37 @@ namespace AccessibleArena.Core.Services
 
             if (!_isActive) return;
 
+            // Check for CAPTCHA / auth-failure URL patterns BEFORE resetting state.
+            // PayPal does rapid redirect chains (login → CAPTCHA → back to login) that
+            // complete in ~3 seconds. The old approach of waiting for 3 empty rescans
+            // (~4.5s) never triggered because each OnPageLoad reset the counter.
+            string url = _browser?.Url ?? "";
+            if (IsCaptchaUrl(url))
+            {
+                MelonLogger.Msg("[WebBrowser] CAPTCHA/security URL detected on page load, announcing warning");
+                _captchaDetected = true;
+                _pendingRescan = false;
+                _secondRescanTimer = 0;
+                _mutationObserverActive = false;
+                _isEditingField = false;
+                _isLoading = false;
+                _elements.Clear();
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
+                return;
+            }
+
+            // If a previous page in the redirect chain already detected CAPTCHA,
+            // don't reset — the redirect back to the login page should keep the warning active
+            if (_captchaDetected)
+            {
+                MelonLogger.Msg("[WebBrowser] CAPTCHA already detected, ignoring redirect page load");
+                return;
+            }
+
             // Cancel any pending rescan timers — they were for the previous page
             _pendingRescan = false;
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
-            _captchaDetected = false;
             _clickCooldownUntil = 0; // New page = new buttons, clear cooldown
             _mutationObserverActive = false; // Will be re-installed after extraction
             _hasInteractiveElements = false;
@@ -1513,13 +1584,41 @@ namespace AccessibleArena.Core.Services
 
         #region CAPTCHA Detection
 
+        /// <summary>
+        /// Quick URL-based check for CAPTCHA / security verification pages.
+        /// Called on every page load for immediate detection.
+        /// </summary>
+        private static bool IsCaptchaUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+            string lower = url.ToLowerInvariant();
+
+            // PayPal: Base64 "adsddcaptcha" param added to failed login redirects
+            // e.g. &YWRzZGRjYXB0Y2hh=1
+            if (lower.Contains("ywrzzgrjyxb0y2hh"))
+                return true;
+
+            // PayPal: step-up auth flow combined with login failure
+            // e.g. /signin/return?flowFrom=anw-stepup&...&failedBecause=invalid_input
+            if (lower.Contains("stepup") && lower.Contains("failedbecause"))
+                return true;
+
+            // Generic CAPTCHA / challenge page patterns (single keyword is too broad,
+            // but these specific paths are reliable indicators)
+            if (lower.Contains("/challenge") || lower.Contains("/captcha"))
+                return true;
+
+            return false;
+        }
+
         private void CheckForCaptcha()
         {
             MelonLogger.Msg("[WebBrowser] Checking for CAPTCHA / security verification...");
 
             // Check the URL for known security step-up patterns
             string url = _browser?.Url?.ToLowerInvariant() ?? "";
-            bool urlSuspicious = url.Contains("authflow") || url.Contains("challenge") ||
+            bool urlSuspicious = IsCaptchaUrl(url) ||
+                                 url.Contains("authflow") || url.Contains("challenge") ||
                                  url.Contains("captcha") || url.Contains("stepup") ||
                                  url.Contains("security") || url.Contains("verify");
 

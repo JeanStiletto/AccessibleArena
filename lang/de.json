@@ -462,6 +462,7 @@
   "FirstPack": "Erstes Paket",
   "LastPack": "Letztes Paket",
   "ExitedInputField": "Eingabefeld verlassen",
+  "AllSelected": "Alles markiert",
   "Page_Format": "Seite {0} von {1}",
   "PageLabel_Format": "{0} Seite",
   "FilterLabel_Format": "{0}: {1}",
