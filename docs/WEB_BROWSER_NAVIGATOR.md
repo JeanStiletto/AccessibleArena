@@ -76,14 +76,36 @@ The `EvalJSCSP` Promise can fail to resolve when:
 - `_isLoading` guard prevents concurrent extractions
 - Page load events cancel pending rescan timers from previous pages
 
+### Dynamic content detection (MutationObserver)
+Payment pages like Xsolla load their interactive content (payment method buttons, form fields) dynamically via JavaScript after the initial HTML skeleton renders. Without detection, the mod would only see static text elements and miss all buttons.
+
+**Two-layer detection:**
+
+1. **No interactive elements check**: After extraction, if elements were found but none are interactive (no buttons, links, inputs — only text/headings), the page is considered incomplete. A MutationObserver is installed to watch for new DOM nodes.
+
+2. **MutationObserver polling**: A standard `MutationObserver` is injected into the page via `EvalJSCSP`. It watches `document.body` (and same-origin iframe bodies) for `childList` changes with `subtree: true`. When changes occur, it sets `window.__aa_domChanged = true`. The mod polls this flag every 0.5s from `Update()` and re-extracts when set.
+
+**Self-terminating**: Once the DOM is stable for 8 seconds with no changes, polling stops. If interactive elements are found, polling also stops immediately. If the DOM stabilizes without interactive elements, it falls through to CAPTCHA detection (the page may be a security challenge).
+
+**Why MutationObserver, not timers**: Previous implementation used magic-number delays (e.g., "rescan after 2 seconds"). These fail when pages load faster or slower than expected. MutationObserver is event-driven from the DOM — we re-extract exactly when content actually changes.
+
 ### Why rescans after clicks
-After clicking a button/link, the page content often changes (new form, new page section). Since we can't reliably detect all DOM mutations, we schedule timed rescans:
+After clicking a button/link, the page content often changes (new form, new page section). Since we can't reliably detect all DOM mutations from clicks (the observer may already be stopped), we schedule timed rescans:
 - **1.2s** after button/link clicks (first rescan)
 - **3.0s** after button/link clicks (second rescan, catches slow transitions)
 - **0.3s** after checkbox/radio clicks (quick state change)
 - **1.5s** retry when 0 web elements found (iframes still loading)
 
 Silent rescan: if the element count hasn't changed, the rescan result is discarded silently (no re-announcement).
+
+### Click cooldown (double-activation protection)
+After clicking any interactive element (button, link, checkbox, etc.) or submitting a form, a cooldown blocks further activation (Enter/Space) for a short period:
+- **1.5s** for buttons, links, tabs, menuitems, comboboxes, and form submits
+- **0.5s** for checkboxes and radio buttons (faster toggle feedback needed)
+
+During cooldown, navigation keys (Up/Down/Tab/Home/End) still work so the user can browse elements, but Enter and Space are consumed without effect. Backspace (Back to Arena) always works. The cooldown is cleared on page load events (new page = new buttons).
+
+This prevents blind users from accidentally double-clicking payment submit buttons (a common habit when UI feedback is uncertain), which could confuse the payment provider.
 
 ### Why IsReady instead of IsLoaded
 `browser.IsLoaded` returns false whenever any iframe on the page is still loading. Since payment pages have multiple iframes loading at different times, `IsLoaded` is unreliable — it would keep the browser in "loading" state indefinitely. `browser.IsReady` only checks if the native browser ID exists, which is sufficient for our purposes.

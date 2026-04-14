@@ -61,6 +61,19 @@ namespace AccessibleArena.Core.Services
         private bool _captchaDetected;
         private const int MaxEmptyRescansBeforeCheck = 3; // ~4.5 seconds of empty rescans
 
+        // Click cooldown — prevents double-activation of payment buttons
+        private float _clickCooldownUntil;
+        private const float ClickCooldownSeconds = 1.5f;
+        private const float CheckboxCooldownSeconds = 0.5f;
+
+        // MutationObserver polling — detects dynamically loaded content (e.g. payment method buttons)
+        private bool _mutationObserverActive;
+        private float _mutationPollTimer;
+        private float _mutationStableTime;           // Time since last DOM change (for auto-stop)
+        private bool _hasInteractiveElements;         // Whether current extraction found any interactive elements
+        private const float MutationPollInterval = 0.5f;
+        private const float MutationStableTimeout = 8f; // Stop polling after DOM is stable for this long
+
         #endregion
 
         #region WebElement
@@ -427,6 +440,40 @@ namespace AccessibleArena.Core.Services
                 return 'key_enter';";
         }
 
+        // Installs a MutationObserver on document.body (and same-origin iframe bodies)
+        // that sets window.__aa_domChanged = true when child nodes are added/removed.
+        // Idempotent — skips if already installed.
+        private const string InstallMutationObserverScript = @"
+            if (!window.__aa_observer) {
+                window.__aa_domChanged = false;
+                var cb = function() { window.__aa_domChanged = true; };
+                var opts = {childList: true, subtree: true};
+                window.__aa_observer = new MutationObserver(cb);
+                if (document.body) window.__aa_observer.observe(document.body, opts);
+                // Also observe same-origin iframe bodies
+                try {
+                    var iframes = document.querySelectorAll('iframe');
+                    for (var i = 0; i < iframes.length; i++) {
+                        try {
+                            var d = iframes[i].contentDocument;
+                            if (d && d.body) {
+                                var mo = new MutationObserver(cb);
+                                mo.observe(d.body, opts);
+                            }
+                        } catch(e) {}
+                    }
+                } catch(e) {}
+            }
+            return 'ok';
+        ";
+
+        // Checks if DOM changed since last reset and resets the flag
+        private const string PollMutationScript = @"
+            var changed = window.__aa_domChanged || false;
+            window.__aa_domChanged = false;
+            return changed;
+        ";
+
         // Detects cross-origin iframes (CAPTCHA signature: content is in unreachable iframe)
         private const string DetectCrossOriginIframesScript = @"
             var iframes = document.querySelectorAll('iframe');
@@ -456,6 +503,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void Activate(GameObject panel, IAnnouncementService announcer, string contextLabel = null)
         {
+            // Clean up previous session if still active (prevents dangling onLoad handlers)
+            if (_isActive && _browser != null)
+            {
+                _browser.onLoad -= OnPageLoad;
+            }
+
             _browserPanel = panel;
             _announcer = announcer;
             _contextLabel = contextLabel ?? "Payment page";
@@ -466,6 +519,11 @@ namespace AccessibleArena.Core.Services
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
             _captchaDetected = false;
+            _clickCooldownUntil = 0;
+            _mutationObserverActive = false;
+            _mutationPollTimer = 0;
+            _mutationStableTime = 0;
+            _hasInteractiveElements = false;
             _elements.Clear();
 
             // Find ZFBrowser.Browser component
@@ -521,6 +579,11 @@ namespace AccessibleArena.Core.Services
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
             _captchaDetected = false;
+            _clickCooldownUntil = 0;
+            _mutationObserverActive = false;
+            _mutationPollTimer = 0;
+            _mutationStableTime = 0;
+            _hasInteractiveElements = false;
             _elements.Clear();
             _backToArenaButton = null;
 
@@ -565,13 +628,24 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Second rescan timer (catches slow page transitions)
+            // Second rescan timer (catches slow page transitions after clicks)
             if (_secondRescanTimer > 0)
             {
                 _secondRescanTimer -= Time.deltaTime;
                 if (_secondRescanTimer <= 0)
                 {
                     ExtractElements();
+                }
+            }
+
+            // MutationObserver polling — detect dynamically loaded page content
+            if (_mutationObserverActive && !_isLoading && !_pendingRescan)
+            {
+                _mutationPollTimer -= Time.deltaTime;
+                if (_mutationPollTimer <= 0)
+                {
+                    _mutationPollTimer = MutationPollInterval;
+                    PollMutationObserver();
                 }
             }
         }
@@ -595,6 +669,33 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // During click cooldown, allow navigation and Backspace but block activation
+            if (IsClickOnCooldown())
+            {
+                // Consume Enter/Space so they don't leak to the game
+                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                {
+                    InputManager.ConsumeKey(KeyCode.Return);
+                    InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                    return;
+                }
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    InputManager.ConsumeKey(KeyCode.Space);
+                    return;
+                }
+                // Allow Backspace to exit
+                if (Input.GetKeyDown(KeyCode.Backspace))
+                {
+                    InputManager.ConsumeKey(KeyCode.Backspace);
+                    ClickBackToArena();
+                    return;
+                }
+                // Allow navigation keys (Up/Down/Tab/Home/End) during cooldown
+                HandleNavigationOnlyInput();
+                return;
+            }
+
             if (_isEditingField)
             {
                 HandleEditModeInput();
@@ -605,9 +706,48 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        private bool IsClickOnCooldown()
+        {
+            return Time.realtimeSinceStartup < _clickCooldownUntil;
+        }
+
+        private void StartClickCooldown(float seconds)
+        {
+            _clickCooldownUntil = Time.realtimeSinceStartup + seconds;
+        }
+
         #endregion
 
         #region Navigation Input
+
+        /// <summary>
+        /// Navigation-only input during click cooldown. Allows moving between elements
+        /// but blocks all activation keys (Enter/Space are consumed in HandleInput).
+        /// </summary>
+        private void HandleNavigationOnlyInput()
+        {
+            if (Input.GetKeyDown(KeyCode.UpArrow)) { MoveElement(-1); return; }
+            if (Input.GetKeyDown(KeyCode.DownArrow)) { MoveElement(1); return; }
+            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                // Don't auto-enter edit mode during cooldown — just navigate
+                MoveElement(shift ? -1 : 1);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.Home) && _elements.Count > 0)
+            {
+                _currentIndex = 0;
+                AnnounceCurrentElement();
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.End) && _elements.Count > 0)
+            {
+                _currentIndex = _elements.Count - 1;
+                AnnounceCurrentElement();
+                return;
+            }
+        }
 
         private void HandleNavigationInput()
         {
@@ -721,6 +861,7 @@ namespace AccessibleArena.Core.Services
                 }
                 ExitEditMode();
                 _announcer.AnnounceInterrupt("Submitted");
+                StartClickCooldown(ClickCooldownSeconds);
                 ScheduleRescan(RescanDelayClick);
                 _secondRescanTimer = RescanDelaySecond;
                 return;
@@ -946,9 +1087,22 @@ namespace AccessibleArena.Core.Services
 
             // Count web elements (excluding Back to Arena)
             int webElementCount = _elements.Count - (_backToArenaButton != null ? 1 : 0);
-            MelonLogger.Msg($"[WebBrowser] Extracted {_elements.Count} elements ({webElementCount} from page)");
 
-            // If we found no web elements, iframes may still be loading — schedule retry
+            // Check if we found any interactive elements (buttons, links, inputs, etc.)
+            bool foundInteractive = false;
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].IsInteractive && !_elements[i].IsBackToArena)
+                {
+                    foundInteractive = true;
+                    break;
+                }
+            }
+            _hasInteractiveElements = foundInteractive;
+
+            MelonLogger.Msg($"[WebBrowser] Extracted {_elements.Count} elements ({webElementCount} from page, interactive={foundInteractive})");
+
+            // Layer 1: No web elements at all — iframes may still be loading
             if (webElementCount == 0 && !_pendingRescan)
             {
                 _emptyRescanCount++;
@@ -975,6 +1129,17 @@ namespace AccessibleArena.Core.Services
             // Reset empty counter when we find elements
             _emptyRescanCount = 0;
 
+            // Layer 2: Found text but no interactive elements — page skeleton loaded
+            // but dynamic content (buttons, inputs) hasn't rendered yet.
+            // Install MutationObserver to detect when they appear.
+            if (!foundInteractive && !_mutationObserverActive)
+            {
+                MelonLogger.Msg("[WebBrowser] No interactive elements found, installing MutationObserver to watch for dynamic content");
+                InstallMutationObserver();
+                _announcer.AnnounceInterrupt($"{_contextLabel} loading...");
+                return;
+            }
+
             // If element count hasn't changed, this is likely a silent rescan — don't re-announce
             if (webElementCount == _lastWebElementCount)
             {
@@ -983,6 +1148,13 @@ namespace AccessibleArena.Core.Services
             }
 
             _lastWebElementCount = webElementCount;
+
+            // If we now have interactive elements, stop the MutationObserver
+            if (foundInteractive && _mutationObserverActive)
+            {
+                MelonLogger.Msg("[WebBrowser] Interactive elements found, stopping MutationObserver");
+                _mutationObserverActive = false;
+            }
 
             // Reset to first element
             _currentIndex = 0;
@@ -1003,6 +1175,73 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region MutationObserver
+
+        /// <summary>
+        /// Inject a MutationObserver into the page that sets a flag when DOM nodes change.
+        /// </summary>
+        private void InstallMutationObserver()
+        {
+            if (_browser == null || !_browser.IsReady) return;
+
+            _browser.EvalJSCSP(InstallMutationObserverScript)
+                .Then(result =>
+                {
+                    _mutationObserverActive = true;
+                    _mutationPollTimer = MutationPollInterval;
+                    _mutationStableTime = 0;
+                    MelonLogger.Msg("[WebBrowser] MutationObserver installed");
+                })
+                .Catch(ex =>
+                {
+                    MelonLogger.Msg($"[WebBrowser] MutationObserver install error: {ex.Message}");
+                });
+        }
+
+        /// <summary>
+        /// Poll the MutationObserver flag. If DOM changed, re-extract.
+        /// If DOM has been stable long enough, stop polling.
+        /// </summary>
+        private void PollMutationObserver()
+        {
+            if (_browser == null || !_browser.IsReady || !_mutationObserverActive) return;
+
+            _browser.EvalJSCSP(PollMutationScript)
+                .Then(result =>
+                {
+                    if (!_mutationObserverActive) return; // Deactivated while polling
+
+                    bool changed = result != null && (bool)result;
+                    if (changed)
+                    {
+                        _mutationStableTime = 0;
+                        MelonLogger.Msg("[WebBrowser] DOM changed, re-extracting");
+                        ExtractElements();
+                    }
+                    else
+                    {
+                        _mutationStableTime += MutationPollInterval;
+                        if (_mutationStableTime >= MutationStableTimeout)
+                        {
+                            MelonLogger.Msg("[WebBrowser] DOM stable, stopping MutationObserver polling");
+                            _mutationObserverActive = false;
+
+                            // If we still have no interactive elements after timeout, warn user
+                            if (!_hasInteractiveElements && !_captchaDetected)
+                            {
+                                CheckForCaptcha();
+                            }
+                        }
+                    }
+                })
+                .Catch(ex =>
+                {
+                    MelonLogger.Msg($"[WebBrowser] MutationObserver poll error: {ex.Message}");
+                });
+        }
+
+        #endregion
+
         #region Page Load Handling
 
         private void OnPageLoad(JSONNode loadData)
@@ -1016,6 +1255,9 @@ namespace AccessibleArena.Core.Services
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
             _captchaDetected = false;
+            _clickCooldownUntil = 0; // New page = new buttons, clear cooldown
+            _mutationObserverActive = false; // Will be re-installed after extraction
+            _hasInteractiveElements = false;
 
             _isEditingField = false;
             _isLoading = false; // Reset in case a previous extraction never resolved
@@ -1201,6 +1443,7 @@ namespace AccessibleArena.Core.Services
                 case "checkbox":
                 case "radio":
                     ClickElement(elem);
+                    StartClickCooldown(CheckboxCooldownSeconds);
                     ScheduleRescan(RescanDelayCheckbox);
                     break;
 
@@ -1209,6 +1452,7 @@ namespace AccessibleArena.Core.Services
                 case "tab":
                 case "menuitem":
                     ClickElement(elem);
+                    StartClickCooldown(ClickCooldownSeconds);
                     ScheduleRescan(RescanDelayClick);
                     _secondRescanTimer = RescanDelaySecond;
                     break;
@@ -1216,6 +1460,7 @@ namespace AccessibleArena.Core.Services
                 case "combobox":
                     // Click to open native dropdown, let browser handle arrow keys
                     ClickElement(elem);
+                    StartClickCooldown(ClickCooldownSeconds);
                     _announcer.AnnounceInterrupt(Strings.DropdownOpened);
                     break;
 
