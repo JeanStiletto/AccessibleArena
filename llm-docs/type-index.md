@@ -58,7 +58,7 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | StaticColumnMetaCardHolder | StaticColumnMetaCardHolder | Core |
 | StaticColumnMetaCardView | StaticColumnMetaCardView | Core |
 | CDCViewMetadata | Wotc.Mtga.CardParts.CDCViewMetadata | Core |
-| CardHolderType | Wotc.Mtga.CardParts.CardHolderType | Core |
+| CardHolderType | CardHolderType | Shared (root namespace) |
 
 ## Card Holders & Browsers
 

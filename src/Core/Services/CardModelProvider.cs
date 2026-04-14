@@ -2003,8 +2003,10 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Try menu-scene path first, then fall back to duel-scene path
-                var cardData = GetCardDataFromGrpId(grpId) ?? ExtendedCardInfoProvider.GetCardDataFromGrpIdDuelScene(grpId);
+                // Try menu-scene path first, then duel-scene, then PAPA fallback
+                var cardData = GetCardDataFromGrpId(grpId)
+                    ?? ExtendedCardInfoProvider.GetCardDataFromGrpIdDuelScene(grpId)
+                    ?? ExtendedCardInfoProvider.GetCardPrintingDataFromPAPA(grpId);
                 if (cardData == null) return null;
 
                 var info = ExtractCardInfoFromCardData(cardData, grpId);

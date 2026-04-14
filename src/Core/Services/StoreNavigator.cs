@@ -2143,7 +2143,7 @@ namespace AccessibleArena.Core.Services
                         GrpId = grpId,
                         Quantity = quantity,
                         Name = name,
-                        ManaCost = !string.IsNullOrEmpty(manaCost) ? FormatManaForScreenReader(manaCost) : null,
+                        ManaCost = !string.IsNullOrEmpty(manaCost) ? CardModelProvider.ParseManaSymbolsInText(manaCost) : null,
                         CardDataObj = cardData
                     });
                 }
@@ -2188,7 +2188,7 @@ namespace AccessibleArena.Core.Services
                         GrpId = grpId,
                         Quantity = 1,
                         Name = name,
-                        ManaCost = !string.IsNullOrEmpty(manaCost) ? FormatManaForScreenReader(manaCost) : null,
+                        ManaCost = !string.IsNullOrEmpty(manaCost) ? CardModelProvider.ParseManaSymbolsInText(manaCost) : null,
                         CardDataObj = cardData
                     });
                 }
@@ -2209,45 +2209,31 @@ namespace AccessibleArena.Core.Services
             return string.Join(", ", parts);
         }
 
-        private static string FormatManaForScreenReader(string manaText)
-        {
-            if (string.IsNullOrEmpty(manaText)) return "";
-
-            // Convert "{2}{B}{B}" -> "2, B, B"
-            var parts = new List<string>();
-            int i = 0;
-            while (i < manaText.Length)
-            {
-                if (manaText[i] == '{')
-                {
-                    int end = manaText.IndexOf('}', i);
-                    if (end > i)
-                    {
-                        string symbol = manaText.Substring(i + 1, end - i - 1);
-                        // Expand common shorthand
-                        switch (symbol.ToUpper())
-                        {
-                            case "W": parts.Add(Strings.ManaWhite); break;
-                            case "U": parts.Add(Strings.ManaBlue); break;
-                            case "B": parts.Add(Strings.ManaBlack); break;
-                            case "R": parts.Add(Strings.ManaRed); break;
-                            case "G": parts.Add(Strings.ManaGreen); break;
-                            case "C": parts.Add(Strings.ManaColorless); break;
-                            case "X": parts.Add(Strings.ManaX); break;
-                            default: parts.Add(symbol); break;
-                        }
-                        i = end + 1;
-                        continue;
-                    }
-                }
-                i++;
-            }
-
-            return parts.Count > 0 ? string.Join(", ", parts) : manaText;
-        }
-
         private void HandleDetailsInput()
         {
+            // Extended info navigator takes over when active (I key menu)
+            var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
+            if (extInfoNav != null && extInfoNav.IsActive)
+            {
+                extInfoNav.HandleInput();
+                return;
+            }
+
+            // I key: open extended card info (keywords, linked faces, tokens)
+            if (Input.GetKeyDown(KeyCode.I))
+            {
+                if (extInfoNav != null && _detailsCards.Count > 0 &&
+                    _detailsCardIndex >= 0 && _detailsCardIndex < _detailsCards.Count)
+                {
+                    extInfoNav.Open(_detailsCards[_detailsCardIndex].GrpId);
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
+                }
+                return;
+            }
+
             // Left/Right: navigate between cards (hold-to-repeat)
             if (_holdRepeater.Check(KeyCode.LeftArrow, () => {
                 int b = _detailsCardIndex; MoveDetailsCard(-1); return _detailsCardIndex != b;
@@ -2419,6 +2405,9 @@ namespace AccessibleArena.Core.Services
 
         private void CloseDetailsView()
         {
+            // Close extended info if open
+            AccessibleArenaMod.Instance?.ExtendedInfoNavigator?.Close();
+
             _isDetailsViewActive = false;
             _detailsCards.Clear();
             _detailsCardBlocks.Clear();

@@ -165,6 +165,113 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets keyword descriptions for a card identified by GrpId (no GameObject needed).
+        /// Uses the PAPA provider path, falling back to ability text extraction from card data.
+        /// </summary>
+        public static List<string> GetKeywordDescriptions(uint grpId)
+        {
+            var result = GetKeywordDescriptionsFromPAPA(grpId);
+            if (result.Count > 0)
+                return result;
+            return GetAbilityTextsFromCardData(grpId);
+        }
+
+        /// <summary>
+        /// Gets linked face info for a card identified by GrpId (no GameObject needed).
+        /// </summary>
+        public static (string label, CardInfo faceInfo)? GetLinkedFaceInfo(uint grpId)
+        {
+            if (grpId == 0) return null;
+
+            try
+            {
+                var cardData = CardModelProvider.GetCardDataFromGrpId(grpId)
+                    ?? GetCardDataFromGrpIdDuelScene(grpId)
+                    ?? GetCardPrintingDataFromPAPA(grpId);
+                if (cardData == null) return null;
+
+                var objType = cardData.GetType();
+
+                if (!_linkedFaceTypePropSearched)
+                {
+                    _linkedFaceTypePropSearched = true;
+                    _linkedFaceTypeProp = objType.GetProperty("LinkedFaceType", PublicInstance);
+                }
+                if (_linkedFaceTypeProp == null) return null;
+
+                var linkedFaceVal = _linkedFaceTypeProp.GetValue(cardData);
+                if (linkedFaceVal == null) return null;
+
+                int linkedFaceInt = (int)Convert.ChangeType(linkedFaceVal, typeof(int));
+                if (linkedFaceInt == 0) return null;
+
+                if (!_linkedFaceGrpIdsPropSearched)
+                {
+                    _linkedFaceGrpIdsPropSearched = true;
+                    _linkedFaceGrpIdsProp = objType.GetProperty("LinkedFaceGrpIds", PublicInstance);
+                }
+                if (_linkedFaceGrpIdsProp == null) return null;
+
+                var grpIdsVal = _linkedFaceGrpIdsProp.GetValue(cardData);
+                if (grpIdsVal == null) return null;
+
+                uint faceGrpId = 0;
+                if (grpIdsVal is IEnumerable grpIdsEnum)
+                {
+                    foreach (var item in grpIdsEnum)
+                    {
+                        if (item is uint uid && uid > 0) { faceGrpId = uid; break; }
+                        if (item is int iid && iid > 0) { faceGrpId = (uint)iid; break; }
+                    }
+                }
+
+                if (faceGrpId == 0) return null;
+
+                var faceData = GetCardDataFromGrpIdDuelScene(faceGrpId);
+                if (faceData == null) return null;
+
+                var faceInfo = CardModelProvider.ExtractCardInfoFromObject(faceData);
+                if (!faceInfo.IsValid) return null;
+
+                return (GetLinkedFaceLabel(linkedFaceInt), faceInfo);
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                    $"Error getting linked face info for GrpId {grpId}: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets linked token information for a card identified by GrpId (no GameObject needed).
+        /// </summary>
+        public static List<CardInfo> GetLinkedTokenInfos(uint grpId)
+        {
+            var result = new List<CardInfo>();
+            if (grpId == 0) return result;
+
+            try
+            {
+                var cardData = CardModelProvider.GetCardDataFromGrpId(grpId)
+                    ?? GetCardDataFromGrpIdDuelScene(grpId)
+                    ?? GetCardPrintingDataFromPAPA(grpId);
+                if (cardData == null) return result;
+
+                // Delegate to the existing model-based extraction
+                return GetLinkedTokenInfosFromModel(cardData);
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                    $"Error getting linked tokens for GrpId {grpId}: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Gets keyword descriptions in non-duel context by constructing an AbilityHangerBaseConfigProvider
         /// from PAPA's services. This gives the same Header+Details keyword tooltips as in duels.
         /// Returns empty list if construction fails (caller falls back to GetAbilityTextsFromCardModel).
@@ -246,6 +353,52 @@ namespace AccessibleArena.Core.Services
             catch (Exception ex)
             {
                 MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions failed: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets keyword descriptions from PAPA for a card identified by GrpId (no GameObject needed).
+        /// </summary>
+        private static List<string> GetKeywordDescriptionsFromPAPA(uint grpId)
+        {
+            var result = new List<string>();
+            if (grpId == 0) return result;
+
+            try
+            {
+                if (!_papaProviderSearched)
+                {
+                    _papaProviderSearched = true;
+                    ConstructProviderFromPAPA();
+                }
+
+                if (_papaHangerProvider == null || _papaGetConfigsMethod == null)
+                    return result;
+
+                var cardAdapter = CreateCardDataAdapter(grpId);
+                if (cardAdapter == null) return result;
+
+                var metadata = CreateCDCViewMetadata(null);
+                if (metadata == null || _holderTypeHand == null)
+                    return result;
+
+                var configs = _papaGetConfigsMethod.Invoke(
+                    _papaHangerProvider, new object[] { cardAdapter, _holderTypeHand, metadata });
+
+                var seen = new HashSet<string>();
+                CollectHangerConfigs(configs, result, seen);
+
+                _papaCleanupMethod?.Invoke(_papaHangerProvider, null);
+
+                QueryParameterizedHangers(cardAdapter, result, seen);
+
+                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions (GrpId): {result.Count} entries for GrpId {grpId}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions (GrpId) failed: {ex.Message}");
             }
 
             return result;
@@ -349,12 +502,17 @@ namespace AccessibleArena.Core.Services
                 _papaCleanupMethod = providerType.GetMethod("Cleanup");
                 _papaHangerProvider = provider;
 
-                // Find CardHolderType.Hand enum value
-                Type holderTypeEnum = FindType("Wotc.Mtga.CardParts.CardHolderType");
-                if (holderTypeEnum != null)
+                // Get CardHolderType enum from the method's second parameter
+                // (avoids FindType ambiguity — multiple classes named CardHolderType exist in Core.dll)
+                if (_papaGetConfigsMethod != null)
                 {
-                    try { _holderTypeHand = Enum.Parse(holderTypeEnum, "Hand"); }
-                    catch { _holderTypeHand = Enum.ToObject(holderTypeEnum, 1); }
+                    var methodParams = _papaGetConfigsMethod.GetParameters();
+                    if (methodParams.Length >= 2 && methodParams[1].ParameterType.IsEnum)
+                    {
+                        Type holderTypeEnum = methodParams[1].ParameterType;
+                        try { _holderTypeHand = Enum.Parse(holderTypeEnum, "Hand"); }
+                        catch { _holderTypeHand = Enum.ToObject(holderTypeEnum, 3); }
+                    }
                 }
 
                 // Find CardData constructor and CreateInstance method for adapter creation
@@ -372,7 +530,7 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                Type printingDataType = FindType("Wotc.Mtga.Cards.Database.CardPrintingData");
+                Type printingDataType = FindType("GreClient.CardData.CardPrintingData");
                 if (printingDataType != null)
                 {
                     _createInstanceMethod = printingDataType.GetMethod("CreateInstance");
@@ -387,6 +545,41 @@ namespace AccessibleArena.Core.Services
             catch (Exception ex)
             {
                 MelonLogger.Error($"[ExtendedCardInfoProvider] ConstructProviderFromPAPA failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Gets CardPrintingData from GrpId via PAPA's CardDataProvider.
+        /// Unlike CreateCardDataAdapter, does NOT require CreateInstance or CardData constructor —
+        /// works even when those reflection lookups fail (e.g., store context).
+        /// Returns null if PAPA is not available or GrpId not found.
+        /// </summary>
+        internal static object GetCardPrintingDataFromPAPA(uint grpId)
+        {
+            if (_papaCardDataProvider == null || _getCardPrintingByIdMethod == null)
+            {
+                // Ensure PAPA is constructed
+                if (!_papaProviderSearched)
+                {
+                    _papaProviderSearched = true;
+                    ConstructProviderFromPAPA();
+                }
+                if (_papaCardDataProvider == null || _getCardPrintingByIdMethod == null)
+                    return null;
+            }
+
+            try
+            {
+                var methodParams = _getCardPrintingByIdMethod.GetParameters();
+                if (methodParams.Length == 1)
+                    return _getCardPrintingByIdMethod.Invoke(_papaCardDataProvider, new object[] { grpId });
+                else
+                    return _getCardPrintingByIdMethod.Invoke(_papaCardDataProvider, new object[] { grpId, null });
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[ExtendedCardInfoProvider] GetCardPrintingDataFromPAPA failed for GrpId {grpId}: {ex.Message}");
+                return null;
             }
         }
 
@@ -412,8 +605,13 @@ namespace AccessibleArena.Core.Services
 
                 if (printing == null) return null;
 
-                // Create MtgCardInstance via CardPrintingData.CreateInstance()
-                var instance = _createInstanceMethod.Invoke(printing, null);
+                // Create MtgCardInstance via CardPrintingData.CreateInstance(GameObjectType)
+                // Pass default parameter value (optional param requires explicit value via reflection)
+                var createParams = _createInstanceMethod.GetParameters();
+                var args = createParams.Length > 0 && createParams[0].HasDefaultValue
+                    ? new object[] { createParams[0].DefaultValue }
+                    : null;
+                var instance = _createInstanceMethod.Invoke(printing, args);
                 if (instance == null) return null;
 
                 // Construct CardData(MtgCardInstance, CardPrintingData)
@@ -561,6 +759,55 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Extracts ability texts for a card identified by GrpId (no GameObject needed).
+        /// Uses GetCardDataFromGrpId to get the card data, then iterates abilities.
+        /// </summary>
+        private static List<string> GetAbilityTextsFromCardData(uint grpId)
+        {
+            var result = new List<string>();
+            if (grpId == 0) return result;
+
+            try
+            {
+                var cardData = CardModelProvider.GetCardDataFromGrpId(grpId)
+                    ?? GetCardDataFromGrpIdDuelScene(grpId)
+                    ?? GetCardPrintingDataFromPAPA(grpId);
+                if (cardData == null) return result;
+
+                var cardType = cardData.GetType();
+                var abilitiesProp = cardType.GetProperty("Abilities") ?? cardType.GetProperty("IntrinsicAbilities");
+                if (abilitiesProp == null) return result;
+
+                var abilities = abilitiesProp.GetValue(cardData) as IEnumerable;
+                if (abilities == null) return result;
+
+                var seen = new HashSet<string>();
+                foreach (var ability in abilities)
+                {
+                    if (ability == null) continue;
+                    var aType = ability.GetType();
+                    var idProp = aType.GetProperty("Id");
+                    if (idProp == null) continue;
+
+                    var abilityId = (uint)idProp.GetValue(ability);
+                    var abilityText = CardTextProvider.GetAbilityTextFromProvider(grpId, abilityId, null, 0);
+                    if (!string.IsNullOrEmpty(abilityText))
+                    {
+                        abilityText = CardModelProvider.ParseManaSymbolsInText(abilityText);
+                        if (seen.Add(abilityText))
+                            result.Add(abilityText);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Error extracting ability texts for GrpId {grpId}: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Finds and caches the AbilityHangerBaseConfigProvider from an AbilityHangerBase MonoBehaviour.
         /// Uses Resources.FindObjectsOfTypeAll to include inactive GameObjects.
         /// This provider generates the keyword tooltip data (Header + Details) shown when hovering cards.
@@ -662,16 +909,19 @@ namespace AccessibleArena.Core.Services
                 if (metadataType == null) return null;
 
                 // Try constructor that takes BASE_CDC (or any base type of cdc)
-                var cdcType = cdc.GetType();
-                while (cdcType != null && cdcType != typeof(object))
+                if (cdc != null)
                 {
-                    var ctor = metadataType.GetConstructor(new[] { cdcType });
-                    if (ctor != null)
-                        return ctor.Invoke(new object[] { cdc });
-                    cdcType = cdcType.BaseType;
+                    var cdcType = cdc.GetType();
+                    while (cdcType != null && cdcType != typeof(object))
+                    {
+                        var ctor = metadataType.GetConstructor(new[] { cdcType });
+                        if (ctor != null)
+                            return ctor.Invoke(new object[] { cdc });
+                        cdcType = cdcType.BaseType;
+                    }
                 }
 
-                // Fallback: use bool constructor with safe defaults
+                // Fallback: use bool constructor with safe defaults (also used when cdc is null)
                 var boolCtor = metadataType.GetConstructor(new[] {
                     typeof(bool), typeof(bool), typeof(bool), typeof(bool), typeof(bool) });
                 if (boolCtor != null)
@@ -840,8 +1090,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static List<CardInfo> GetLinkedTokenInfos(GameObject card)
         {
-            var result = new List<CardInfo>();
-            if (card == null) return result;
+            if (card == null) return new List<CardInfo>();
 
             try
             {
@@ -856,68 +1105,80 @@ namespace AccessibleArena.Core.Services
                     if (metaView != null)
                         model = CardModelProvider.GetMetaCardModel(metaView);
                 }
-                if (model == null) return result;
+                if (model == null) return new List<CardInfo>();
 
-                var modelType = model.GetType();
-
-                // Get Printing sub-object from model
-                var printing = CardModelProvider.GetModelPropertyValue(model, modelType, "Printing");
-                if (printing == null) return result;
-
-                var printingType = printing.GetType();
-
-                // Get AbilityIdToLinkedTokenPrinting property
-                var tokenPrintingProp = printingType.GetProperty("AbilityIdToLinkedTokenPrinting", PublicInstance);
-                if (tokenPrintingProp == null) return result;
-
-                var tokenPrintingDict = tokenPrintingProp.GetValue(printing);
-                if (tokenPrintingDict == null) return result;
-
-                // It's IReadOnlyDictionary<uint, IReadOnlyList<CardPrintingData>>
-                // Iterate all values, flatten, deduplicate by GrpId
-                var seenGrpIds = new HashSet<uint>();
-                var valuesProperty = tokenPrintingDict.GetType().GetProperty("Values");
-                if (valuesProperty == null) return result;
-
-                var values = valuesProperty.GetValue(tokenPrintingDict) as IEnumerable;
-                if (values == null) return result;
-
-                foreach (var tokenList in values)
-                {
-                    if (tokenList == null) continue;
-                    var tokenListEnum = tokenList as IEnumerable;
-                    if (tokenListEnum == null) continue;
-
-                    foreach (var tokenData in tokenListEnum)
-                    {
-                        if (tokenData == null) continue;
-
-                        // Get GrpId to deduplicate
-                        var tokenType = tokenData.GetType();
-                        var grpIdProp = tokenType.GetProperty("GrpId");
-                        uint grpId = 0;
-                        if (grpIdProp != null)
-                        {
-                            var grpIdVal = grpIdProp.GetValue(tokenData);
-                            if (grpIdVal is uint gid) grpId = gid;
-                            else if (grpIdVal is int gidInt && gidInt > 0) grpId = (uint)gidInt;
-                        }
-
-                        if (grpId > 0 && !seenGrpIds.Add(grpId))
-                            continue; // Already processed this token
-
-                        var tokenInfo = CardModelProvider.ExtractCardInfoFromCardData(tokenData, grpId);
-                        if (tokenInfo.IsValid)
-                        {
-                            result.Add(tokenInfo);
-                            MelonLogger.Msg($"[ExtendedCardInfoProvider] Token: {tokenInfo.Name} (GrpId {grpId})");
-                        }
-                    }
-                }
+                return GetLinkedTokenInfosFromModel(model);
             }
             catch (Exception ex)
             {
                 MelonLogger.Msg($"[ExtendedCardInfoProvider] Error getting linked token infos: {ex.Message}");
+            }
+
+            return new List<CardInfo>();
+        }
+
+        /// <summary>
+        /// Extracts linked token info from a card data/model object (shared by GameObject and GrpId paths).
+        /// </summary>
+        private static List<CardInfo> GetLinkedTokenInfosFromModel(object model)
+        {
+            var result = new List<CardInfo>();
+
+            var modelType = model.GetType();
+
+            // Get Printing sub-object from model
+            var printing = CardModelProvider.GetModelPropertyValue(model, modelType, "Printing");
+            if (printing == null) return result;
+
+            var printingType = printing.GetType();
+
+            // Get AbilityIdToLinkedTokenPrinting property
+            var tokenPrintingProp = printingType.GetProperty("AbilityIdToLinkedTokenPrinting", PublicInstance);
+            if (tokenPrintingProp == null) return result;
+
+            var tokenPrintingDict = tokenPrintingProp.GetValue(printing);
+            if (tokenPrintingDict == null) return result;
+
+            // It's IReadOnlyDictionary<uint, IReadOnlyList<CardPrintingData>>
+            // Iterate all values, flatten, deduplicate by GrpId
+            var seenGrpIds = new HashSet<uint>();
+            var valuesProperty = tokenPrintingDict.GetType().GetProperty("Values");
+            if (valuesProperty == null) return result;
+
+            var values = valuesProperty.GetValue(tokenPrintingDict) as IEnumerable;
+            if (values == null) return result;
+
+            foreach (var tokenList in values)
+            {
+                if (tokenList == null) continue;
+                var tokenListEnum = tokenList as IEnumerable;
+                if (tokenListEnum == null) continue;
+
+                foreach (var tokenData in tokenListEnum)
+                {
+                    if (tokenData == null) continue;
+
+                    // Get GrpId to deduplicate
+                    var tokenType = tokenData.GetType();
+                    var grpIdProp = tokenType.GetProperty("GrpId");
+                    uint grpId = 0;
+                    if (grpIdProp != null)
+                    {
+                        var grpIdVal = grpIdProp.GetValue(tokenData);
+                        if (grpIdVal is uint gid) grpId = gid;
+                        else if (grpIdVal is int gidInt && gidInt > 0) grpId = (uint)gidInt;
+                    }
+
+                    if (grpId > 0 && !seenGrpIds.Add(grpId))
+                        continue; // Already processed this token
+
+                    var tokenInfo = CardModelProvider.ExtractCardInfoFromCardData(tokenData, grpId);
+                    if (tokenInfo.IsValid)
+                    {
+                        result.Add(tokenInfo);
+                        MelonLogger.Msg($"[ExtendedCardInfoProvider] Token: {tokenInfo.Name} (GrpId {grpId})");
+                    }
+                }
             }
 
             return result;

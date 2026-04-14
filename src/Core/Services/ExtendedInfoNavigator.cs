@@ -109,6 +109,96 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Opens the extended info menu for a card identified by GrpId (no GameObject needed).
+        /// Used by store details view and other data-only card contexts.
+        /// </summary>
+        public void Open(uint grpId)
+        {
+            if (grpId == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.NoExtendedCardInfo);
+                return;
+            }
+
+            _items.Clear();
+
+            var keywords = ExtendedCardInfoProvider.GetKeywordDescriptions(grpId);
+
+            var keywordNames = new HashSet<string>();
+            foreach (var kw in keywords)
+            {
+                int colonIdx = kw.IndexOf(": ");
+                if (colonIdx > 0)
+                    keywordNames.Add(kw.Substring(0, colonIdx));
+            }
+
+            // Build set of keyword texts to avoid duplicating them as rules lines
+            var keywordTexts = new HashSet<string>(keywords);
+
+            var cardInfo = CardModelProvider.GetCardInfoFromGrpId(grpId);
+            if (cardInfo.HasValue && cardInfo.Value.RulesLines != null && cardInfo.Value.RulesLines.Count > 1)
+            {
+                foreach (var line in cardInfo.Value.RulesLines)
+                {
+                    if (!keywordNames.Contains(line) && !keywordTexts.Contains(line))
+                        _items.Add(line);
+                }
+            }
+
+            var linkedFace = ExtendedCardInfoProvider.GetLinkedFaceInfo(grpId);
+            if (linkedFace.HasValue)
+            {
+                var (label, faceInfo) = linkedFace.Value;
+                if (!string.IsNullOrEmpty(faceInfo.Name))
+                    _items.Add($"{label}: {faceInfo.Name}");
+                if (!string.IsNullOrEmpty(faceInfo.ManaCost))
+                    _items.Add($"{Strings.CardInfoManaCost}: {faceInfo.ManaCost}");
+                if (!string.IsNullOrEmpty(faceInfo.TypeLine))
+                    _items.Add($"{Strings.CardInfoType}: {faceInfo.TypeLine}");
+                if (!string.IsNullOrEmpty(faceInfo.PowerToughness))
+                    _items.Add($"{Strings.CardInfoPowerToughness}: {faceInfo.PowerToughness}");
+                if (!string.IsNullOrEmpty(faceInfo.RulesText))
+                    _items.Add($"{Strings.CardInfoRules}: {faceInfo.RulesText}");
+            }
+
+            var tokenInfos = ExtendedCardInfoProvider.GetLinkedTokenInfos(grpId);
+            foreach (var tokenInfo in tokenInfos)
+            {
+                if (!string.IsNullOrEmpty(tokenInfo.Name))
+                    _items.Add($"{Strings.LinkedToken}: {tokenInfo.Name}");
+                if (!string.IsNullOrEmpty(tokenInfo.TypeLine))
+                    _items.Add($"{Strings.CardInfoType}: {tokenInfo.TypeLine}");
+                if (!string.IsNullOrEmpty(tokenInfo.RulesText))
+                    _items.Add($"{Strings.CardInfoRules}: {tokenInfo.RulesText}");
+                if (!string.IsNullOrEmpty(tokenInfo.PowerToughness))
+                    _items.Add($"{Strings.CardInfoPowerToughness}: {tokenInfo.PowerToughness}");
+            }
+
+            // Add keywords, skipping any that are already present as rules lines
+            // (happens when PAPA keyword provider is unavailable and GetKeywordDescriptions
+            // falls back to raw ability texts, which overlap with RulesLines)
+            var existing = new HashSet<string>(_items);
+            foreach (var kw in keywords)
+            {
+                if (!existing.Contains(kw))
+                    _items.Add(kw);
+            }
+
+            if (_items.Count == 0)
+            {
+                _announcer.AnnounceInterrupt(Strings.NoExtendedCardInfo);
+                return;
+            }
+
+            _isActive = true;
+            _currentIndex = 0;
+
+            MelonLogger.Msg($"[ExtendedInfo] Opened with {_items.Count} items for GrpId {grpId}");
+
+            AnnounceCurrentItem();
+        }
+
+        /// <summary>
         /// Closes the extended info menu.
         /// </summary>
         public void Close()
