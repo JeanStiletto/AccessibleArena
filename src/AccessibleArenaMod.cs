@@ -379,12 +379,12 @@ namespace AccessibleArena
                 }
                 // Input not handled (e.g., Tab) - continue to let other handlers process
             }
-            else if (_cardInfoNavigator != null &&
+            else if (_cardInfoNavigator?.CurrentCard != null &&
                      (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.UpArrow) ||
                       UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.DownArrow)))
             {
                 DebugConfig.LogIf(DebugConfig.LogFocusTracking, "CardInfo",
-                    $"Up/Down pressed but CardInfoNavigator.IsActive={_cardInfoNavigator.IsActive}, CurrentCard={(_cardInfoNavigator.CurrentCard != null ? _cardInfoNavigator.CurrentCard.name : "null")}");
+                    $"Up/Down pressed but CardInfoNavigator.IsActive=False, CurrentCard={_cardInfoNavigator.CurrentCard.name}");
             }
 
             _inputHandler?.OnUpdate();
