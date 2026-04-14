@@ -610,11 +610,16 @@ namespace AccessibleArena.Core.Services
                     if (tabMb == null || tabMb.gameObject == null || !tabMb.gameObject.activeInHierarchy)
                         continue;
 
+                    // Read localized tab name from the Localize component; fall back to English
+                    string tabName = UITextExtractor.GetText(tabMb.gameObject);
+                    if (string.IsNullOrWhiteSpace(tabName))
+                        tabName = TabDisplayNames[i];
+
                     _tabs.Add(new TabInfo
                     {
                         TabComponent = tabMb,
                         GameObject = tabMb.gameObject,
-                        DisplayName = TabDisplayNames[i],
+                        DisplayName = tabName,
                         FieldIndex = i,
                         IsUtility = false
                     });
@@ -647,11 +652,15 @@ namespace AccessibleArena.Core.Services
                         var redeemMb = redeemObj as MonoBehaviour;
                         if (redeemMb != null && redeemMb.gameObject != null && redeemMb.gameObject.activeInHierarchy)
                         {
+                            string redeemLabel = UITextExtractor.GetText(redeemMb.gameObject);
+                            if (string.IsNullOrWhiteSpace(redeemLabel))
+                                redeemLabel = "Redeem code";
+
                             _tabs.Add(new TabInfo
                             {
                                 TabComponent = null,
                                 GameObject = redeemMb.gameObject,
-                                DisplayName = "Redeem code",
+                                DisplayName = redeemLabel,
                                 FieldIndex = -1,
                                 IsUtility = true
                             });
@@ -722,7 +731,7 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private void AddUtilityElement(FieldInfo field, string displayName)
+        private void AddUtilityElement(FieldInfo field, string fallbackName)
         {
             if (field == null || _controller == null) return;
 
@@ -731,11 +740,16 @@ namespace AccessibleArena.Core.Services
                 var obj = field.GetValue(_controller) as GameObject;
                 if (obj != null && obj.activeInHierarchy)
                 {
+                    // Read localized label from the element; fall back to English
+                    string label = UITextExtractor.GetText(obj);
+                    if (string.IsNullOrWhiteSpace(label))
+                        label = fallbackName;
+
                     _tabs.Add(new TabInfo
                     {
                         TabComponent = null,
                         GameObject = obj,
-                        DisplayName = displayName,
+                        DisplayName = label,
                         FieldIndex = -1,
                         IsUtility = true
                     });
