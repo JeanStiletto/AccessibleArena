@@ -39,6 +39,7 @@ namespace AccessibleArena.Core.Services
         private int _rescanAttempt;
         private const int MaxRescanAttempts = 20; // ~10 seconds total
         private bool _rescanDone;
+        private bool _allCardsFound; // Once all expected cards found, only update labels (don't rebuild)
 
         // Delayed rescan after close action
         private bool _closeTriggered;
@@ -1062,10 +1063,22 @@ namespace AccessibleArena.Core.Services
         /// Override ForceRescan to preserve cursor position and suppress redundant announcements.
         /// The base implementation resets to index 0 and re-announces the full activation text
         /// on every rescan, which is disruptive during periodic polling.
+        ///
+        /// Once all expected cards are found, switches to label-only updates to prevent the game's
+        /// card holder cleanup from removing already-revealed cards from the navigation list.
         /// </summary>
         public override void ForceRescan()
         {
             if (!_isActive) return;
+
+            // Once all cards found, only update labels - don't rebuild element list.
+            // The game destroys card holders after reveal animations, which would cause
+            // cards to disappear from navigation. Safe across packs: OnActivated resets this flag.
+            if (_allCardsFound)
+            {
+                UpdateCardLabelsInPlace();
+                return;
+            }
 
             int oldCount = _elements.Count;
             int oldIndex = _currentIndex;
@@ -1122,6 +1135,12 @@ namespace AccessibleArena.Core.Services
                         _announcer.AnnounceInterrupt(newLabel);
                 }
 
+                // Lock card list once all expected cards are found
+                if (_totalCards >= _expectedCardCount && _expectedCardCount > 0)
+                {
+                    _allCardsFound = true;
+                }
+
                 // Update card navigation so Up/Down works immediately after reveal
                 UpdateCardNavigation();
             }
@@ -1129,6 +1148,55 @@ namespace AccessibleArena.Core.Services
             {
                 MelonLogger.Msg($"[{NavigatorId}] Rescan found no elements");
             }
+        }
+
+        /// <summary>
+        /// Update labels on existing card elements without rebuilding the list.
+        /// Called after all cards are found to prevent the game's holder cleanup
+        /// from removing revealed cards from navigation.
+        /// </summary>
+        private void UpdateCardLabelsInPlace()
+        {
+            string oldLabel = IsValidIndex ? _elements[_currentIndex].Label : null;
+
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var elem = _elements[i];
+                if (elem.GameObject == null) continue;
+
+                // Skip button elements (Close, etc.)
+                if (elem.Label != null && elem.Label.EndsWith(", button")) continue;
+
+                // Check if this card was hidden and is now revealed
+                if (elem.Label == Strings.HiddenCard && !IsCardHidden(elem.GameObject))
+                {
+                    var cardInfo = CardDetector.ExtractCardInfo(elem.GameObject);
+                    string cardName = ExtractCardName(elem.GameObject);
+
+                    string displayName;
+                    if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
+                        displayName = cardInfo.Name;
+                    else if (!string.IsNullOrEmpty(cardName))
+                        displayName = cardName;
+                    else
+                        continue; // Not ready yet, keep as hidden
+
+                    string newLabel = displayName;
+                    if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
+                        newLabel += $", {cardInfo.TypeLine}";
+
+                    elem.Label = newLabel;
+                    _elements[i] = elem;
+                }
+            }
+
+            // Announce label change on current element (card just revealed)
+            if (IsValidIndex && oldLabel != null && _elements[_currentIndex].Label != oldLabel)
+            {
+                _announcer.AnnounceInterrupt(_elements[_currentIndex].Label);
+            }
+
+            UpdateCardNavigation();
         }
 
         #region Periodic rescan until cards are found
@@ -1195,6 +1263,7 @@ namespace AccessibleArena.Core.Services
             _rescanFrameCounter = 0;
             _rescanAttempt = 0;
             _rescanDone = false;
+            _allCardsFound = false;
             _animSkipped = false;
             _closeTriggered = false;
             _closeRescanCounter = 0;

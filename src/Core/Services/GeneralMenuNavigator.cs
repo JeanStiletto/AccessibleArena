@@ -1351,8 +1351,9 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
 
-                // Booster carousel navigation (packs screen)
-                if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
+                // Booster carousel navigation (packs screen) - only when focused on a carousel element
+                if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0
+                    && IsValidIndex && _boosterPackHitboxes.Contains(_elements[_currentIndex].GameObject))
                 {
                     if (HandleBoosterCarouselNavigation(isRight))
                         return true;
