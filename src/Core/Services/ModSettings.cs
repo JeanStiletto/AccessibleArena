@@ -29,6 +29,7 @@ namespace AccessibleArena.Core.Services
         public bool PositionCounts { get; set; } = true;
         public bool ManaColorlessLabel { get; set; } = true;
         public bool ManaGroupColors { get; set; } = true;
+        public bool CheckForUpdates { get; set; } = true;
 
         /// <summary>
         /// Load settings from disk. Returns defaults if file doesn't exist or is corrupt.
@@ -47,7 +48,7 @@ namespace AccessibleArena.Core.Services
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                MelonLogger.Msg($"[ModSettings] Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}");
+                MelonLogger.Msg($"[ModSettings] Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, CheckForUpdates={settings.CheckForUpdates}");
             }
             catch (Exception ex)
             {
@@ -145,7 +146,8 @@ namespace AccessibleArena.Core.Services
                    $"  \"PhaseSkipWarning\": {(PhaseSkipWarning ? "true" : "false")},\n" +
                    $"  \"PositionCounts\": {(PositionCounts ? "true" : "false")},\n" +
                    $"  \"ManaColorlessLabel\": {(ManaColorlessLabel ? "true" : "false")},\n" +
-                   $"  \"ManaGroupColors\": {(ManaGroupColors ? "true" : "false")}\n" +
+                   $"  \"ManaGroupColors\": {(ManaGroupColors ? "true" : "false")},\n" +
+                   $"  \"CheckForUpdates\": {(CheckForUpdates ? "true" : "false")}\n" +
                    "}";
         }
 
@@ -161,6 +163,7 @@ namespace AccessibleArena.Core.Services
             PositionCounts = ReadJsonBool(json, "PositionCounts") ?? PositionCounts;
             ManaColorlessLabel = ReadJsonBool(json, "ManaColorlessLabel") ?? ManaColorlessLabel;
             ManaGroupColors = ReadJsonBool(json, "ManaGroupColors") ?? ManaGroupColors;
+            CheckForUpdates = ReadJsonBool(json, "CheckForUpdates") ?? CheckForUpdates;
         }
 
         private static string ReadJsonString(string json, string key)

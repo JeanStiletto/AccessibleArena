@@ -1072,5 +1072,14 @@
   "ProfileItemSelected": "\uc120\ud0dd\ub428",
   "ProfileItemDefault": "\uae30\ubcf8",
   "ProfileItemEquipped": "\uc7a5\ucc29\ub428",
-  "ProfileItemStore": "\uc0c1\uc810\uc5d0\uc11c \uad6c\ub9e4 \uac00\ub2a5"
+  "ProfileItemStore": "\uc0c1\uc810\uc5d0\uc11c \uad6c\ub9e4 \uac00\ub2a5",
+  "UpdateAvailable_Format": "Update available: v{0}. Press F5 in a menu to update.",
+  "UpdateDownloading": "Downloading update...",
+  "UpdateDownloaded": "Update downloaded. Restarting game...",
+  "UpdateFailed": "Update download failed. Try again later.",
+  "UpdateNotAvailable_Format": "No update available. You are on version {0}.",
+  "UpdateNotInMenu": "Update can only be started from menu screens.",
+  "SettingCheckForUpdates": "Check for updates",
+  "SettingCheckForUpdatesDesc": "Check for new mod versions on startup",
+  "HelpF5Update": "F5: Update mod (from menu screens)"
 }

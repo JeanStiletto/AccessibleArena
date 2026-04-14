@@ -43,6 +43,9 @@
       <Private>false</Private>
     </Reference>
 
+    <!-- .NET Framework -->
+    <Reference Include="System.Net.Http" />
+
     <!-- Unity -->
     <Reference Include="UnityEngine">
       <HintPath>$(MtgaManagedPath)\UnityEngine.dll</HintPath>

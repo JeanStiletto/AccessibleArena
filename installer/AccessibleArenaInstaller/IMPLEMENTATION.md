@@ -275,7 +275,6 @@ Common errors handled:
 ## Future Enhancements
 
 Not yet implemented:
-- In-mod update checker (notify user on game launch if update available)
 - Code signing (reduces Windows SmartScreen warnings)
 - Checksum verification of downloads
 - Fix for "Launch MTGA" admin context issue (see Known Issues)
@@ -401,6 +400,128 @@ No arguments needed. The script reads the version from `src/Directory.Build.prop
 - Game must be installed (DLLs referenced during build)
 
 Keep `Directory.Build.props` reasonably current for local dev builds (e.g., bump to `0.8.1-dev` after releasing `0.8`).
+
+## In-Mod Auto-Updater
+
+The mod includes its own update checker and updater, independent of the installer. This allows users who already have the mod installed to update without re-running the installer.
+
+### Overview
+
+- **Version check:** Background HTTP call to GitHub API on mod startup
+- **User trigger:** F5 key from menu screens downloads and installs the update
+- **Elevation:** File copy to Program Files requires UAC elevation via a minimal batch script
+- **Relaunch:** Game is relaunched as the normal (non-elevated) user after the update
+
+### Architecture
+
+All update logic lives in a single static class: `src/Core/Services/UpdateChecker.cs`
+
+**Fields (volatile for thread safety):**
+- `_updateAvailable`, `_latestVersion` — result of the background version check
+- `_checkComplete`, `_announced` — state flags for one-time announcement
+- `_downloadTask`, `_downloadComplete`, `_downloadFailed`, `_downloadedPath` — download state
+- `_releaseJson` — cached GitHub API response (reused for download URL extraction)
+
+### Startup Version Check Flow
+
+1. `OnInitializeMelon()` calls `UpdateChecker.CheckInBackground(Info.Version)` if `Settings.CheckForUpdates` is true
+2. `Task.Run` performs HTTPS GET to `https://api.github.com/repos/{owner}/{repo}/releases/latest`
+3. Parses `tag_name` from JSON response via regex (same pattern as installer's `GitHubClient`)
+4. Compares with current version using `NormalizeVersion` (same logic as installer's `Program.NormalizeVersion`)
+5. If newer: sets `_updateAvailable = true`, caches `_latestVersion`
+6. On next `OnUpdate()` frame: announces once via screen reader ("Update available: vX.Y. Press F5 to update.")
+7. If check fails (no internet, timeout, error): silently logs warning, no user-facing announcement
+
+**Timeout:** 5 seconds for the version check (fast fail on bad connections).
+
+### F5 Update Flow
+
+1. User presses F5
+2. `HandleUpdateShortcut()` checks active navigator — only allows on `LoadingScreenNavigator`, `GeneralMenuNavigator`, `AssetPrepNavigator`, or when no navigator is active (early boot). Otherwise announces "Update can only be started from menu screens."
+3. If no update available: announces "No update available. You are on version X.Y."
+4. Announces "Downloading update..."
+5. `Task.Run` downloads the DLL asset from the GitHub release to `%TEMP%\AccessibleArena.dll`
+6. On download completion (polled in `OnUpdate`): announces "Update downloaded. Restarting game..."
+7. `PerformUpdate()` executes the two-step update (see below)
+
+### Two-Step Update (Elevation + Relaunch)
+
+The mod DLL is in `C:\Program Files\...\MTGA\Mods\`, which requires admin rights to write. The game itself runs as a normal user. This creates a challenge: we need elevation for the file copy but must relaunch the game as the normal user.
+
+**Solution: Split into two processes.**
+
+**Step 1 — Elevated batch for file copy:**
+A minimal batch script is written to `%TEMP%\aa_update.bat` via `File.WriteAllLines()` (not string interpolation — avoids `%` and `""` escaping issues). The batch:
+1. Waits for `MTGA.exe` to exit (polls `tasklist` every 2 seconds)
+2. Copies the downloaded DLL to the Mods folder
+3. Self-deletes
+
+The batch is launched with `Verb = "runas"` (triggers UAC prompt) and `WindowStyle = ProcessWindowStyle.Hidden`.
+
+**Step 2 — Non-elevated relaunch from C#:**
+Before calling `Application.Quit()`, the mod spawns a non-elevated `cmd.exe` process:
+```
+cmd.exe /c timeout /t 8 /nobreak >nul & start "" "path\to\MTGALauncher.exe"
+```
+This inherits the game's normal-user token (not elevated), waits 8 seconds for the batch to finish the copy, then launches the game via the MTGA launcher.
+
+**Why not do everything in the batch?**
+Processes started from an elevated batch inherit the elevation. There is no reliable way to de-elevate from within a batch script. `explorer.exe "file.bat"` doesn't reliably execute batch files, and `start ""` from an elevated context launches elevated. The cleanest approach is to keep the batch minimal (copy only) and handle the relaunch from C# where we control the process token.
+
+### Path Detection
+
+Both `modsPath` and the launcher path are derived from the running assembly:
+```
+Assembly.GetExecutingAssembly().Location
+  → C:\Program Files\...\MTGA\Mods\AccessibleArena.dll
+  → Parent: Mods\        (target for copy)
+  → Grandparent: MTGA\   (game root)
+  → MTGA\MTGALauncher\MTGALauncher.exe  (launcher, with MTGA.exe fallback)
+```
+This works for both WotC and Steam installations without hardcoded paths.
+
+### Batch Script Generation
+
+**Important lesson:** Never generate batch scripts using C# string interpolation (`$@"..."` or `$"..."`). The interaction between C#'s `""` escaping, batch `%` variables (like `%~f0`), and nested quoting creates bugs that are extremely hard to diagnose. Instead, use `File.WriteAllLines()` with a plain string array:
+
+```csharp
+var batchLines = new[]
+{
+    "@echo off",
+    ":wait",
+    "tasklist /fi \"imagename eq MTGA.exe\" 2>nul | find /i \"MTGA.exe\" >nul",
+    "if not errorlevel 1 (",
+    "    timeout /t 2 /nobreak >nul",
+    "    goto wait",
+    ")",
+    $"copy /y \"{downloadedDllPath}\" \"{targetPath}\"",
+    // ... error handling ...
+    $"del \"{batchPath}\""
+};
+File.WriteAllLines(batchPath, batchLines);
+```
+
+### Settings Integration
+
+- `ModSettings.CheckForUpdates` (bool, default `true`) — controls whether the startup check runs
+- Toggle available in mod settings menu (F2)
+- F5 still works manually even when the startup check is disabled
+
+### Adapting for Other Mods
+
+To reuse this auto-updater for a different MelonLoader mod:
+
+1. Copy `UpdateChecker.cs` into your mod project
+2. Update the constants:
+   - `GitHubApiUrl` — point to your repo's releases API
+   - `ModDllAssetName` — your DLL filename
+3. Add `System.Net.Http` reference to your csproj
+4. Call `CheckInBackground(currentVersion)` from `OnInitializeMelon()`
+5. Call `Update(announcer)` from `OnUpdate()`
+6. Wire up F5 (or your preferred key) to `HandleF5(announcer)`
+7. The `NormalizeVersion`, `FindLauncher`, and batch generation work unchanged for any MTGA mod
+
+For non-MTGA Unity games, update `FindLauncher()` and the `tasklist` process name in the batch template.
 
 ## Localization
 

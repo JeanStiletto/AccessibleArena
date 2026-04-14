@@ -1073,5 +1073,14 @@
   "ProfileItemDefault": "\u30c7\u30d5\u30a9\u30eb\u30c8",
   "ProfileItemEquipped": "\u88c5\u5099\u4e2d",
   "ProfileItemStore": "\u30b7\u30e7\u30c3\u30d7\u3067\u8cfc\u5165\u53ef\u80fd"
+  "UpdateAvailable_Format": "Update available: v{0}. Press F5 in a menu to update.",
+  "UpdateDownloading": "Downloading update...",
+  "UpdateDownloaded": "Update downloaded. Restarting game...",
+  "UpdateFailed": "Update download failed. Try again later.",
+  "UpdateNotAvailable_Format": "No update available. You are on version {0}.",
+  "UpdateNotInMenu": "Update can only be started from menu screens.",
+  "SettingCheckForUpdates": "Check for updates",
+  "SettingCheckForUpdatesDesc": "Check for new mod versions on startup",
+  "HelpF5Update": "F5: Update mod (from menu screens)"
 }
 

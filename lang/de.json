@@ -1123,5 +1123,14 @@
   "SteamOverlayWarning": "Warnung: Steam-Overlay ist aktiv. Umschalt plus Tab öffnet das Steam-Overlay statt rückwärts zu navigieren. Klicken Sie in Ihrer Steam-Bibliothek mit rechts auf MTGA, wählen Sie Eigenschaften und deaktivieren Sie Steam-Overlay im Spiel aktivieren.",
   "SteamPaymentNotAvailable": "Zahlungsmethoden werden über Steam verwaltet. Öffne Steam, um deine Zahlungseinstellungen zu ändern.",
   "SteamPurchaseWarning": "Warnung: Dieser Kauf öffnet das Steam-Overlay, das für Screenreader nicht zugänglich ist. Du benötigst OCR oder sehende Hilfe, um die Zahlung abzuschließen.",
-  "RegistrationSubmitted": "Registrierung abgesendet. Bitte prüfe dein E-Mail-Postfach und aktiviere dein Konto über den Bestätigungslink. Drücke danach Rücktaste, um zum Anmeldebildschirm zurückzukehren und dich mit deinen Zugangsdaten anzumelden."
+  "RegistrationSubmitted": "Registrierung abgesendet. Bitte prüfe dein E-Mail-Postfach und aktiviere dein Konto über den Bestätigungslink. Drücke danach Rücktaste, um zum Anmeldebildschirm zurückzukehren und dich mit deinen Zugangsdaten anzumelden.",
+  "UpdateAvailable_Format": "Update verfügbar: v{0}. F5 im Menü drücken zum Aktualisieren.",
+  "UpdateDownloading": "Update wird heruntergeladen...",
+  "UpdateDownloaded": "Update heruntergeladen. Spiel wird neu gestartet...",
+  "UpdateFailed": "Update-Download fehlgeschlagen. Versuche es später erneut.",
+  "UpdateNotAvailable_Format": "Kein Update verfügbar. Aktuelle Version: {0}.",
+  "UpdateNotInMenu": "Update kann nur von Menübildschirmen gestartet werden.",
+  "SettingCheckForUpdates": "Auf Updates prüfen",
+  "SettingCheckForUpdatesDesc": "Beim Start nach neuen Mod-Versionen suchen",
+  "HelpF5Update": "F5: Mod aktualisieren (von Menübildschirmen)"
 }

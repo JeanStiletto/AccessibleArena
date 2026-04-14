@@ -64,6 +64,9 @@ namespace AccessibleArena
             LoggerInstance.Msg("Accessible Arena initialized");
             _announcer.Announce(Strings.ModLoaded(Info.Version), AnnouncementPriority.High);
 
+            if (_settings.CheckForUpdates)
+                UpdateChecker.CheckInBackground(Info.Version);
+
             if (SteamOverlayBlocker.IsSteam && !SteamOverlayBlocker.OverlayDisabled)
                 _announcer.Announce(Strings.SteamOverlayWarning, AnnouncementPriority.Critical);
         }
@@ -217,6 +220,7 @@ namespace AccessibleArena
             _shortcuts.RegisterShortcut(KeyCode.F1, KeyCode.LeftControl, AnnounceTutorialHint, "Repeat tutorial hint");
             _shortcuts.RegisterShortcut(KeyCode.F3, AnnounceCurrentScreen, "Announce current screen");
             _shortcuts.RegisterShortcut(KeyCode.F12, KeyCode.LeftShift, SpeakDebugLog, "Speak recent debug log entries");
+            _shortcuts.RegisterShortcut(KeyCode.F5, HandleUpdateShortcut, "Check for update / start update");
         }
 
         private void ToggleHelpMenu()
@@ -254,6 +258,19 @@ namespace AccessibleArena
             {
                 _announcer.AnnounceInterrupt(nav.GetTutorialHint());
             }
+        }
+
+        private void HandleUpdateShortcut()
+        {
+            var active = _navigatorManager?.ActiveNavigator;
+            // Allow on loading screens, general menu, or when no navigator is active yet (early boot)
+            if (active != null && !(active is LoadingScreenNavigator || active is GeneralMenuNavigator || active is AssetPrepNavigator))
+            {
+                _announcer.AnnounceInterrupt(Strings.UpdateNotInMenu);
+                return;
+            }
+
+            UpdateChecker.HandleF5(_announcer);
         }
 
         private void SpeakDebugLog()
@@ -403,6 +420,9 @@ namespace AccessibleArena
 
             // Poll for incoming chat messages (global, works from any screen)
             _chatMessageWatcher?.Update();
+
+            // Poll auto-update background tasks (version check announcement, download completion)
+            UpdateChecker.Update(_announcer);
         }
 
         public override void OnApplicationQuit()

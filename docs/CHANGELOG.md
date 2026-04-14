@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v0.9.2
 
+### Auto-Update
+- Added automatic version check on startup — the mod queries GitHub releases in the background and announces when a new version is available
+- Added F5 shortcut to download and install updates from menu screens — downloads the new DLL, replaces it via elevated batch script, and relaunches the game
+- Added "Check for updates" toggle in mod settings (F2) to disable the startup check
+- F5 is only active on loading screens and menu screens to prevent accidental game closure mid-duel
+
 ### Tutorial
 - Added hint when registration does not auto-advance after account confirmation
 - Added mana cost explanation and creature-specific cast hints to tutorial battles

@@ -122,6 +122,13 @@ namespace AccessibleArena.Core.Services
                     GetValue = () => _settings.ManaGroupColors ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.ManaGroupColors = !_settings.ManaGroupColors,
                     Description = Strings.SettingManaGroupColorsDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingCheckForUpdates,
+                    GetValue = () => _settings.CheckForUpdates ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.CheckForUpdates = !_settings.CheckForUpdates,
+                    Description = Strings.SettingCheckForUpdatesDesc
                 }
             };
         }

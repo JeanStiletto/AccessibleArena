@@ -1072,5 +1072,14 @@
   "ProfileItemSelected": "selezionato",
   "ProfileItemDefault": "predefinito",
   "ProfileItemEquipped": "equipaggiato",
-  "ProfileItemStore": "disponibile nel negozio"
+  "ProfileItemStore": "disponibile nel negozio",
+  "UpdateAvailable_Format": "Update available: v{0}. Press F5 in a menu to update.",
+  "UpdateDownloading": "Downloading update...",
+  "UpdateDownloaded": "Update downloaded. Restarting game...",
+  "UpdateFailed": "Update download failed. Try again later.",
+  "UpdateNotAvailable_Format": "No update available. You are on version {0}.",
+  "UpdateNotInMenu": "Update can only be started from menu screens.",
+  "SettingCheckForUpdates": "Check for updates",
+  "SettingCheckForUpdatesDesc": "Check for new mod versions on startup",
+  "HelpF5Update": "F5: Update mod (from menu screens)"
 }
