@@ -3,7 +3,6 @@ using MelonLoader;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using AccessibleArena.Core.Models;
@@ -79,10 +78,46 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Extracts GrpId from a card GameObject via CDC model or MetaCardView model.
+        /// Shared helper for the GameObject overloads that delegate to GrpId-based methods.
+        /// </summary>
+        private static uint GetGrpIdFromCard(GameObject card)
+        {
+            if (card == null) return 0;
+
+            object model = null;
+
+            var cdc = CardModelProvider.GetDuelSceneCDC(card);
+            if (cdc != null)
+                model = CardModelProvider.GetCardModel(cdc);
+
+            if (model == null)
+            {
+                var metaCardView = CardModelProvider.GetMetaCardView(card);
+                if (metaCardView == null)
+                {
+                    var parent = card.transform.parent;
+                    int maxLevels = 5;
+                    while (metaCardView == null && parent != null && maxLevels-- > 0)
+                    {
+                        metaCardView = CardModelProvider.GetMetaCardView(parent.gameObject);
+                        parent = parent.parent;
+                    }
+                }
+                if (metaCardView != null)
+                    model = CardModelProvider.GetMetaCardModel(metaCardView);
+            }
+
+            if (model == null) return 0;
+
+            var grpIdObj = CardModelProvider.GetModelPropertyValue(model, model.GetType(), "GrpId");
+            return grpIdObj is uint gid ? gid : 0;
+        }
+
+        /// <summary>
         /// Gets keyword ability descriptions for the focused card.
-        /// Uses the game's AbilityHangerBaseConfigProvider (from AbilityHangerBase MonoBehaviour)
-        /// to get the same keyword tooltips shown when hovering cards in-game.
-        /// Returns Header + Details pairs like "Fliegend: Diese Kreatur kann nur..."
+        /// In duel context, uses the scene's AbilityHangerBaseConfigProvider for accurate tooltips.
+        /// In non-duel context, delegates to the GrpId-based path (PAPA provider + ability text fallback).
         /// </summary>
         public static List<string> GetKeywordDescriptions(GameObject card)
         {
@@ -91,16 +126,12 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // We need a CDC to call the hanger provider
+                // In duel context, use the live scene's hanger provider for accurate keyword tooltips
                 var cdc = CardModelProvider.GetDuelSceneCDC(card);
                 if (cdc == null)
                 {
-                    // Non-duel context: try PAPA-constructed provider for keyword descriptions
-                    var papaResult = GetKeywordDescriptionsFromPAPA(card);
-                    if (papaResult.Count > 0)
-                        return papaResult;
-                    // Fallback: extract individual ability texts from card model
-                    return GetAbilityTextsFromCardModel(card);
+                    // Non-duel context: delegate to GrpId-based path
+                    return GetKeywordDescriptions(GetGrpIdFromCard(card));
                 }
 
                 // Ensure hanger provider is cached (retry if not found previously)
@@ -137,7 +168,6 @@ namespace AccessibleArena.Core.Services
 
                 if (holderType == null || metadata == null)
                 {
-                    MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Missing holderType={holderType != null} metadata={metadata != null}");
                     return result;
                 }
 
@@ -154,7 +184,8 @@ namespace AccessibleArena.Core.Services
                 // Also query parameterized hanger provider (Cycling, Plot, etc.)
                 QueryParameterizedHangers(model, result, seen);
 
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] GetKeywordDescriptions: {result.Count} entries");
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                    $"GetKeywordDescriptions (duel): {result.Count} entries");
             }
             catch (Exception ex)
             {
@@ -273,93 +304,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets keyword descriptions in non-duel context by constructing an AbilityHangerBaseConfigProvider
-        /// from PAPA's services. This gives the same Header+Details keyword tooltips as in duels.
-        /// Returns empty list if construction fails (caller falls back to GetAbilityTextsFromCardModel).
-        /// </summary>
-        private static List<string> GetKeywordDescriptionsFromPAPA(GameObject card)
-        {
-            var result = new List<string>();
-            if (card == null) return result;
-
-            try
-            {
-                // Ensure PAPA provider is constructed
-                if (!_papaProviderSearched)
-                {
-                    _papaProviderSearched = true;
-                    ConstructProviderFromPAPA();
-                }
-
-                if (_papaHangerProvider == null || _papaGetConfigsMethod == null)
-                    return result;
-
-                // Get GrpId from the card's model
-                uint grpId = 0;
-                var metaCardView = CardModelProvider.GetMetaCardView(card);
-                if (metaCardView == null)
-                {
-                    var parent = card.transform.parent;
-                    int maxLevels = 5;
-                    while (metaCardView == null && parent != null && maxLevels-- > 0)
-                    {
-                        metaCardView = CardModelProvider.GetMetaCardView(parent.gameObject);
-                        parent = parent.parent;
-                    }
-                }
-                if (metaCardView != null)
-                {
-                    var model = CardModelProvider.GetMetaCardModel(metaCardView);
-                    if (model != null)
-                    {
-                        var grpIdObj = CardModelProvider.GetModelPropertyValue(model, model.GetType(), "GrpId");
-                        if (grpIdObj is uint gid) grpId = gid;
-                    }
-                }
-
-                if (grpId == 0)
-                {
-                    MelonLogger.Msg("[ExtendedCardInfoProvider] [ExtInfo] PAPA path: No GrpId found");
-                    return result;
-                }
-
-                // Create ICardDataAdapter from GrpId
-                var cardAdapter = CreateCardDataAdapter(grpId);
-                if (cardAdapter == null)
-                {
-                    MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA path: Could not create adapter for GrpId {grpId}");
-                    return result;
-                }
-
-                // Create CDCViewMetadata with defaults (no CDC available)
-                var metadata = CreateCDCViewMetadata(null);
-                if (metadata == null || _holderTypeHand == null)
-                    return result;
-
-                // Call GetHangerConfigsForCard(adapter, holderType, metadata)
-                var configs = _papaGetConfigsMethod.Invoke(
-                    _papaHangerProvider, new object[] { cardAdapter, _holderTypeHand, metadata });
-
-                var seen = new HashSet<string>();
-                CollectHangerConfigs(configs, result, seen);
-
-                // Cleanup provider internal state
-                _papaCleanupMethod?.Invoke(_papaHangerProvider, null);
-
-                // Also query parameterized hanger provider (Cycling, Plot, etc.)
-                QueryParameterizedHangers(cardAdapter, result, seen);
-
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions: {result.Count} entries for GrpId {grpId}");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions failed: {ex.Message}");
-            }
-
-            return result;
-        }
-
-        /// <summary>
         /// Gets keyword descriptions from PAPA for a card identified by GrpId (no GameObject needed).
         /// </summary>
         private static List<string> GetKeywordDescriptionsFromPAPA(uint grpId)
@@ -395,7 +339,8 @@ namespace AccessibleArena.Core.Services
 
                 QueryParameterizedHangers(cardAdapter, result, seen);
 
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions (GrpId): {result.Count} entries for GrpId {grpId}");
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                    $"PAPA keyword descriptions: {result.Count} entries for GrpId {grpId}");
             }
             catch (Exception ex)
             {
@@ -537,11 +482,7 @@ namespace AccessibleArena.Core.Services
                     _createInstanceMethod = printingDataType.GetMethod("CreateInstance");
                 }
 
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] PAPA provider constructed: " +
-                    $"Provider={_papaHangerProvider != null}, GetConfigs={_papaGetConfigsMethod != null}, " +
-                    $"CardDataProvider={_papaCardDataProvider != null}, GetPrintingById={_getCardPrintingByIdMethod != null}, " +
-                    $"CardDataCtor={_cardDataCtor != null}, CreateInstance={_createInstanceMethod != null}, " +
-                    $"HolderType={_holderTypeHand != null}");
+                MelonLogger.Msg("[ExtendedCardInfoProvider] PAPA provider constructed successfully");
             }
             catch (Exception ex)
             {
@@ -626,140 +567,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Fallback for non-duel contexts: extracts individual ability texts from the card model.
-        /// Returns each ability as a separate navigable item for the extended info menu.
-        /// </summary>
-        private static List<string> GetAbilityTextsFromCardModel(GameObject card)
-        {
-            var result = new List<string>();
-            if (card == null) return result;
-
-            try
-            {
-                // Get the card model (same path as ExtractCardInfoFromModel)
-                object model = null;
-
-                var metaCardView = CardModelProvider.GetMetaCardView(card);
-                if (metaCardView == null)
-                {
-                    var parent = card.transform.parent;
-                    int maxLevels = 5;
-                    while (metaCardView == null && parent != null && maxLevels-- > 0)
-                    {
-                        metaCardView = CardModelProvider.GetMetaCardView(parent.gameObject);
-                        parent = parent.parent;
-                    }
-                }
-
-                if (metaCardView != null)
-                    model = CardModelProvider.GetMetaCardModel(metaCardView);
-
-                if (model == null)
-                {
-                    MelonLogger.Msg("[ExtendedCardInfoProvider] [ExtInfo] No model found for non-duel card");
-                    return result;
-                }
-
-                var objType = model.GetType();
-
-                // Get GrpId and TitleId for ability text lookup
-                uint cardGrpId = 0;
-                var grpIdObj = CardModelProvider.GetModelPropertyValue(model, objType, "GrpId");
-                if (grpIdObj is uint gid) cardGrpId = gid;
-
-                uint cardTitleId = 0;
-                var titleIdObj = CardModelProvider.GetModelPropertyValue(model, objType, "TitleId");
-                if (titleIdObj is uint tid) cardTitleId = tid;
-
-                // Get all ability IDs for context
-                var abilityIdsVal = CardModelProvider.GetModelPropertyValue(model, objType, "AbilityIds");
-                uint[] abilityIds = null;
-                if (abilityIdsVal is IEnumerable<uint> aidEnum)
-                    abilityIds = aidEnum.ToArray();
-                else if (abilityIdsVal is uint[] aidArray)
-                    abilityIds = aidArray;
-
-                // Extract abilities
-                var abilities = CardModelProvider.GetModelPropertyValue(model, objType, "Abilities");
-                if (abilities is IEnumerable abilityEnum)
-                {
-                    var seen = new HashSet<string>();
-                    foreach (var ability in abilityEnum)
-                    {
-                        if (ability == null) continue;
-                        var abilityType = ability.GetType();
-
-                        uint abilityId = 0;
-                        var idProp = abilityType.GetProperty("Id", PublicInstance);
-                        if (idProp != null)
-                        {
-                            var idVal = idProp.GetValue(ability);
-                            if (idVal is uint aid) abilityId = aid;
-                        }
-
-                        var textValue = CardTextProvider.GetAbilityText(ability, abilityType, cardGrpId, abilityId, abilityIds, cardTitleId);
-                        if (!string.IsNullOrEmpty(textValue))
-                        {
-                            textValue = CardModelProvider.ParseManaSymbolsInText(textValue);
-                            if (seen.Add(textValue))
-                            {
-                                result.Add(textValue);
-                                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Ability: '{textValue}'");
-                            }
-                        }
-                    }
-                }
-
-                // Also try CardPrintingData path if model didn't have abilities
-                if (result.Count == 0 && cardGrpId > 0)
-                {
-                    var cardData = CardModelProvider.GetCardDataFromGrpId(cardGrpId) ?? GetCardDataFromGrpIdDuelScene(cardGrpId);
-                    if (cardData != null)
-                    {
-                        var cardType = cardData.GetType();
-                        var abilitiesProp = cardType.GetProperty("Abilities") ?? cardType.GetProperty("IntrinsicAbilities");
-                        if (abilitiesProp != null)
-                        {
-                            var abilitiesFromData = abilitiesProp.GetValue(cardData) as IEnumerable;
-                            if (abilitiesFromData != null)
-                            {
-                                var seen = new HashSet<string>();
-                                foreach (var ability in abilitiesFromData)
-                                {
-                                    if (ability == null) continue;
-                                    var aType = ability.GetType();
-                                    var idProp = aType.GetProperty("Id");
-                                    if (idProp != null)
-                                    {
-                                        var abilityId = (uint)idProp.GetValue(ability);
-                                        var abilityText = CardTextProvider.GetAbilityTextFromProvider(cardGrpId, abilityId, null, 0);
-                                        if (!string.IsNullOrEmpty(abilityText))
-                                        {
-                                            abilityText = CardModelProvider.ParseManaSymbolsInText(abilityText);
-                                            if (seen.Add(abilityText))
-                                            {
-                                                result.Add(abilityText);
-                                                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Ability (data): '{abilityText}'");
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] GetAbilityTextsFromCardModel: {result.Count} entries");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Error extracting ability texts: {ex.Message}");
-            }
-
-            return result;
-        }
-
-        /// <summary>
         /// Extracts ability texts for a card identified by GrpId (no GameObject needed).
         /// Uses GetCardDataFromGrpId to get the card data, then iterates abilities.
         /// </summary>
@@ -824,7 +631,8 @@ namespace AccessibleArena.Core.Services
             {
                 // FindObjectsOfTypeAll includes inactive GameObjects
                 instances = Resources.FindObjectsOfTypeAll(ahbType);
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] Found {instances.Length} AbilityHangerBase instances (including inactive)");
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                    $"Found {instances.Length} AbilityHangerBase instances");
             }
             else
             {
@@ -866,11 +674,8 @@ namespace AccessibleArena.Core.Services
                 _getHangerConfigsForCardMethod = getConfigsMethod;
                 _hangerProviderCleanupMethod = cleanupMethod;
 
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] Found AbilityHangerProvider: {providerType.Name} from {type.Name}");
-
-                // Log method signature for debugging
-                var ps = getConfigsMethod.GetParameters();
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] GetHangerConfigsForCard({string.Join(", ", ps.Select(p => $"{p.ParameterType.Name} {p.Name}"))})");
+                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                    $"Found AbilityHangerProvider: {providerType.Name} from {type.Name}");
 
                 // Also extract _parameterizedHangers (handles Cycling, Plot, etc.)
                 var paramField = type.GetField("_parameterizedHangers",
@@ -886,7 +691,8 @@ namespace AccessibleArena.Core.Services
                         {
                             _parameterizedHangerProvider = paramProvider;
                             _getParamHangerConfigsMethod = getConfigsParam;
-                            MelonLogger.Msg($"[ExtendedCardInfoProvider] Found ParameterizedHangerProvider: {paramProviderType.Name}");
+                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                                $"Found ParameterizedHangerProvider: {paramProviderType.Name}");
                         }
                     }
                 }
@@ -971,8 +777,6 @@ namespace AccessibleArena.Core.Services
 
                 text = CardModelProvider.ParseManaSymbolsInText(text);
 
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Hanger: '{text}'");
-
                 if (seen.Add(text))
                     result.Add(text);
             }
@@ -1002,120 +806,22 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Gets linked face information for double-faced, split, adventure, and room cards.
-        /// Returns a label (e.g. "Other face") and full CardInfo for the linked face, or null if none.
+        /// Extracts GrpId from the card and delegates to the GrpId-based overload.
         /// </summary>
         public static (string label, CardInfo faceInfo)? GetLinkedFaceInfo(GameObject card)
         {
             if (card == null) return null;
-
-            try
-            {
-                // Get model
-                object model = null;
-                var cdc = CardModelProvider.GetDuelSceneCDC(card);
-                if (cdc != null)
-                    model = CardModelProvider.GetCardModel(cdc);
-                if (model == null)
-                {
-                    var metaView = CardModelProvider.GetMetaCardView(card);
-                    if (metaView != null)
-                        model = CardModelProvider.GetMetaCardModel(metaView);
-                }
-                if (model == null) return null;
-
-                var objType = model.GetType();
-
-                // Get LinkedFaceType (enum stored as int)
-                if (!_linkedFaceTypePropSearched)
-                {
-                    _linkedFaceTypePropSearched = true;
-                    _linkedFaceTypeProp = objType.GetProperty("LinkedFaceType", PublicInstance);
-                }
-                if (_linkedFaceTypeProp == null) return null;
-
-                var linkedFaceVal = _linkedFaceTypeProp.GetValue(model);
-                if (linkedFaceVal == null) return null;
-
-                int linkedFaceInt = (int)Convert.ChangeType(linkedFaceVal, typeof(int));
-                if (linkedFaceInt == 0) return null; // None
-
-                // Get LinkedFaceGrpIds
-                if (!_linkedFaceGrpIdsPropSearched)
-                {
-                    _linkedFaceGrpIdsPropSearched = true;
-                    _linkedFaceGrpIdsProp = objType.GetProperty("LinkedFaceGrpIds", PublicInstance);
-                }
-                if (_linkedFaceGrpIdsProp == null) return null;
-
-                var grpIdsVal = _linkedFaceGrpIdsProp.GetValue(model);
-                if (grpIdsVal == null) return null;
-
-                // Extract first GrpId from the list
-                uint faceGrpId = 0;
-                if (grpIdsVal is IEnumerable grpIdsEnum)
-                {
-                    foreach (var item in grpIdsEnum)
-                    {
-                        if (item is uint uid && uid > 0) { faceGrpId = uid; break; }
-                        if (item is int iid && iid > 0) { faceGrpId = (uint)iid; break; }
-                    }
-                }
-
-                if (faceGrpId == 0) return null;
-
-                // Look up card data for the linked face GrpId
-                var faceData = GetCardDataFromGrpIdDuelScene(faceGrpId);
-                if (faceData == null) return null;
-
-                var faceInfo = CardModelProvider.ExtractCardInfoFromObject(faceData);
-                if (!faceInfo.IsValid) return null;
-
-                // Map linked face type to label
-                string label = GetLinkedFaceLabel(linkedFaceInt);
-
-                return (label, faceInfo);
-            }
-            catch (Exception ex)
-            {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
-                    $"Error getting linked face info: {ex.Message}");
-            }
-
-            return null;
+            return GetLinkedFaceInfo(GetGrpIdFromCard(card));
         }
 
         /// <summary>
-        /// Gets linked token information for cards that create tokens (e.g., Roles, complex tokens).
-        /// Reads AbilityIdToLinkedTokenPrinting from the card's Printing sub-object,
-        /// deduplicates by GrpId, and extracts CardInfo for each unique token.
+        /// Gets linked token information for cards that create tokens.
+        /// Extracts GrpId from the card and delegates to the GrpId-based overload.
         /// </summary>
         public static List<CardInfo> GetLinkedTokenInfos(GameObject card)
         {
             if (card == null) return new List<CardInfo>();
-
-            try
-            {
-                // Get model (same approach as GetLinkedFaceInfo)
-                object model = null;
-                var cdc = CardModelProvider.GetDuelSceneCDC(card);
-                if (cdc != null)
-                    model = CardModelProvider.GetCardModel(cdc);
-                if (model == null)
-                {
-                    var metaView = CardModelProvider.GetMetaCardView(card);
-                    if (metaView != null)
-                        model = CardModelProvider.GetMetaCardModel(metaView);
-                }
-                if (model == null) return new List<CardInfo>();
-
-                return GetLinkedTokenInfosFromModel(model);
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] Error getting linked token infos: {ex.Message}");
-            }
-
-            return new List<CardInfo>();
+            return GetLinkedTokenInfos(GetGrpIdFromCard(card));
         }
 
         /// <summary>
@@ -1181,10 +887,7 @@ namespace AccessibleArena.Core.Services
 
                     var tokenInfo = CardModelProvider.ExtractCardInfoFromCardData(tokenData, grpId);
                     if (tokenInfo.IsValid)
-                    {
                         result.Add(tokenInfo);
-                        MelonLogger.Msg($"[ExtendedCardInfoProvider] Token: {tokenInfo.Name} (GrpId {grpId})");
-                    }
                 }
             }
 
@@ -1220,18 +923,14 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets CardData from a GrpId using the duel-scene CardDatabase.
-        /// Separate from CardModelProvider.GetCardDataFromGrpId() which requires _cachedDeckHolder (menu-only).
+        /// Gets CardData from a GrpId using the duel-scene CardDatabase (GameManager.CardDatabase).
+        /// Callers should try CardModelProvider.GetCardDataFromGrpId() first (menu-scene path).
         /// </summary>
         internal static object GetCardDataFromGrpIdDuelScene(uint grpId)
         {
             if (grpId == 0) return null;
 
-            // First try the menu-scene path (works if _cachedDeckHolder is available)
-            var menuResult = CardModelProvider.GetCardDataFromGrpId(grpId);
-            if (menuResult != null) return menuResult;
-
-            // Try duel-scene path via GameManager.CardDatabase.CardDataProvider
+            // Duel-scene path via GameManager.CardDatabase.CardDataProvider
             if (!_duelCardDataProviderSearched)
             {
                 _duelCardDataProviderSearched = true;

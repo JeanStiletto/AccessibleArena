@@ -60,6 +60,11 @@ All notable changes to Accessible Arena.
 ### Match End Screen
 - Changed rank progress display from "wins" to "steps" to match official terminology — previously "4 of 6 wins" was confusing because a single win can advance multiple steps
 
+### Code Cleanup
+- Consolidated duplicate GameObject/GrpId code paths in ExtendedCardInfoProvider — GameObject overloads now extract GrpId and delegate to the unified GrpId-based methods, removing ~200 lines of redundant reflection and fallback logic
+- Fixed redundant card data lookup in GetCardDataFromGrpIdDuelScene that re-tried the menu-scene path already attempted by every caller
+- Reduced verbose diagnostic logging to DebugConfig-gated output
+
 ## v0.9.1
 
 ### Riot Ability Dialog Fix (PR #65 by blindndangerous)
