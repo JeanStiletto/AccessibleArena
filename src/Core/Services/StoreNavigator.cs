@@ -375,8 +375,11 @@ namespace AccessibleArena.Core.Services
 
         protected override void OnPopupClosed()
         {
-            _modalElements.Clear();
-            ReannounceStorePosition();
+            // Re-announce confirmation modal if still active, otherwise return to store
+            if (_isConfirmationModalActive)
+                AnnounceConfirmationModal();
+            else
+                ReannounceStorePosition();
         }
 
         private void ReannounceStorePosition()
@@ -1327,17 +1330,20 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // If base popup mode is active (e.g. error dialog on top of confirmation modal),
+            // it takes visual priority — handle its input first
+            if (IsInPopupMode)
+            {
+                base.HandleInput();
+                return;
+            }
+
             // If confirmation modal is active, route to custom handler
-            // (generic popups are handled by base popup mode infrastructure)
             if (_isConfirmationModalActive)
             {
                 HandleConfirmationModalInput();
                 return;
             }
-
-            // If base popup mode is active, input is handled by base
-            if (IsInPopupMode)
-                return;
 
             switch (_navLevel)
             {
@@ -1501,7 +1507,8 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        // Override base HandleInput to do nothing (we handle everything in HandleStoreInput)
+        // Override base HandleInput to do nothing — Store routes input through HandleStoreInput().
+        // Popup mode is handled via explicit base.HandleInput() call in HandleStoreInput().
         protected override void HandleInput() { }
 
         // Override HandleCustomInput since base calls it
