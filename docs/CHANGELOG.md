@@ -56,6 +56,9 @@ All notable changes to Accessible Arena.
 ### Store
 - Fixed mastery pass purchase popup not navigable — the BattlePassPurchaseConfirmation popup activates its content panes via a delayed coroutine, so immediate element discovery found no buttons; popup mode now waits for content to load before discovering elements
 
+### Reward Popup
+- Added Pet and Token reward type handling — pets now announce their name (e.g. "Pet: Leonardo") instead of internal codenames, and draft tokens read their localized title instead of "TokenDisplayContainer"
+
 ### Browsers
 - Fixed Backspace not cancelling SelectCards ability-choice browsers (e.g. All-Cheese Pizza) — the scaffold's SingleButton ("Decline") was not matched by cancel patterns, so Backspace clicked an unrelated combat prompt instead
 

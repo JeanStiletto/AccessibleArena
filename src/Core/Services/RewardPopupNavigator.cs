@@ -534,8 +534,10 @@ namespace AccessibleArena.Core.Services
                     rewardType = "Avatar";
                 else if (name.Contains("Emote"))
                     rewardType = "Emote";
+                else if (name.Contains("Token"))
+                    rewardType = "Token";
                 else
-                    rewardType = "Reward";
+                    rewardType = DetectRewardTypeByComponent(child.gameObject);
 
                 // Sort by horizontal position (left to right)
                 float sortOrder = child.position.x;
@@ -547,19 +549,19 @@ namespace AccessibleArena.Core.Services
 
             foreach (var (prefab, rewardType, sortOrder) in rewardPrefabs)
             {
+                // Find click target early to skip duplicates (e.g. nested token prefabs)
+                GameObject clickTarget = FindRewardClickTarget(prefab.gameObject, rewardType);
+                if (clickTarget == null)
+                    clickTarget = prefab.gameObject;
+
+                if (addedObjects.Contains(clickTarget)) continue;
+
                 _rewardCount++;
 
                 // Debug: dump reward prefab structure
                 DumpRewardPrefabStructure(prefab.gameObject, rewardType, _rewardCount);
 
                 string label = ExtractRewardLabel(prefab.gameObject, rewardType, _rewardCount);
-
-                // Find a clickable element for this reward
-                GameObject clickTarget = FindRewardClickTarget(prefab.gameObject, rewardType);
-                if (clickTarget == null)
-                    clickTarget = prefab.gameObject;
-
-                if (addedObjects.Contains(clickTarget)) continue;
 
                 // Debug: log card detection info for card rewards
                 bool isCard = CardDetector.IsCard(clickTarget);
@@ -1004,6 +1006,33 @@ namespace AccessibleArena.Core.Services
                     }
                     return $"Avatar {index}";
 
+                case "Pet":
+                    var petTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in petTexts)
+                    {
+                        if (text != null && text.gameObject.name == "Text_Quantity")
+                        {
+                            string petName = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(petName))
+                                return $"Pet: {petName}";
+                        }
+                    }
+                    return $"Pet {index}";
+
+                case "Token":
+                    var tokenTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
+                    foreach (var text in tokenTexts)
+                    {
+                        if (text != null && text.gameObject.activeInHierarchy &&
+                            text.gameObject.name == "Text_Title")
+                        {
+                            string tokenTitle = text.text?.Trim();
+                            if (!string.IsNullOrEmpty(tokenTitle))
+                                return tokenTitle;
+                        }
+                    }
+                    return $"Token {index}";
+
                 default:
                     // Try to extract name from Text_Note (may be inactive, e.g. Mastery Orb)
                     string rewardName = null;
@@ -1042,6 +1071,23 @@ namespace AccessibleArena.Core.Services
 
                     return $"Reward {index}";
             }
+        }
+
+        /// <summary>
+        /// Detect reward type by checking component types when prefab name doesn't match known patterns.
+        /// Used for rewards like pets whose prefab names vary (e.g. RewardPrefab_M20Tentpole_Base).
+        /// </summary>
+        private static string DetectRewardTypeByComponent(GameObject prefab)
+        {
+            foreach (var mb in prefab.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null) continue;
+                switch (mb.GetType().Name)
+                {
+                    case "PetRewardDisplay": return "Pet";
+                }
+            }
+            return "Reward";
         }
 
         // TryGetPackNameFromReward removed - NotificationPopupReward has no reward data fields.
