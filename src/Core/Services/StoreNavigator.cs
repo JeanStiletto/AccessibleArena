@@ -46,8 +46,6 @@ namespace AccessibleArena.Core.Services
         }
 
         private NavigationLevel _navLevel = NavigationLevel.Tabs;
-        private int _currentTabIndex;
-        private int _currentItemIndex;
         private int _currentPurchaseOptionIndex;
         private bool _waitingForTabLoad;
         private float _loadCheckTimer;
@@ -361,7 +359,7 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg("[Store] Web browser closed, returning to store");
                 _webBrowser.Deactivate();
                 _isWebBrowserActive = false;
-                ReannounceStorePosition();
+                AnnounceCurrentElement();
             }
         }
 
@@ -375,21 +373,12 @@ namespace AccessibleArena.Core.Services
 
         protected override void OnPopupClosed()
         {
-            // Re-announce confirmation modal if still active, otherwise return to store
             if (_isConfirmationModalActive)
                 AnnounceConfirmationModal();
-            else
-                ReannounceStorePosition();
-        }
-
-        private void ReannounceStorePosition()
-        {
-            if (_navLevel == NavigationLevel.Items && _items.Count > 0)
-                AnnounceCurrentItem();
-            else if (_navLevel == NavigationLevel.SetFilter && _setFilterModels.Count > 0)
+            else if (_navLevel == NavigationLevel.SetFilter)
                 AnnounceSetFilter();
-            else if (_navLevel == NavigationLevel.Tabs && _tabs.Count > 0)
-                AnnounceCurrentTab();
+            else
+                AnnounceCurrentElement();
         }
 
         private static bool IsWebBrowserPanel(PanelInfo panel)
@@ -579,15 +568,93 @@ namespace AccessibleArena.Core.Services
 
         protected override void DiscoverElements()
         {
-            // StoreNavigator manages its own element lists (_tabs, _items)
-            // but we need at least one element in _elements for BaseNavigator validation
             DiscoverTabs();
+            if (_tabs.Count == 0) return;
 
-            if (_tabs.Count > 0)
+            // Determine initial level based on active tab
+            int activeTab = FindActiveTabIndex();
+            if (activeTab < 0) activeTab = 0;
+
+            // Packs tab → SetFilter level
+            if (activeTab < _tabs.Count && IsPacksTab(_tabs[activeTab]))
             {
-                // Add a dummy element for BaseNavigator validation
-                AddElement(_controllerGameObject, "Store");
+                DiscoverSetFilters();
+                if (_setFilterModels.Count > 0)
+                {
+                    _navLevel = NavigationLevel.SetFilter;
+                    // SetFilter is fully custom (HandleEarlyInput) — add a dummy element
+                    // so BaseNavigator's _elements.Count > 0 check passes during TryActivate
+                    _elements.Add(new NavigableElement
+                    {
+                        GameObject = _controllerGameObject,
+                        Label = "SetFilter",
+                        Role = UIElementClassifier.ElementRole.Unknown
+                    });
+                    return;
+                }
             }
+
+            // Try Items level
+            DiscoverItems();
+            if (_items.Count > 0)
+            {
+                _navLevel = NavigationLevel.Items;
+                PopulateLevelElements();
+                return;
+            }
+
+            // Fallback: Tabs level
+            _navLevel = NavigationLevel.Tabs;
+            PopulateLevelElements();
+        }
+
+        /// <summary>
+        /// Clear _elements and populate for the current navigation level.
+        /// Tabs and Items use base navigation; SetFilter is fully custom (HandleEarlyInput).
+        /// </summary>
+        private void PopulateLevelElements()
+        {
+            _elements.Clear();
+            _currentIndex = -1;
+
+            switch (_navLevel)
+            {
+                case NavigationLevel.Tabs:
+                    foreach (var tab in _tabs)
+                        _elements.Add(new NavigableElement
+                        {
+                            GameObject = tab.GameObject,
+                            Label = tab.DisplayName,
+                            Role = tab.IsUtility
+                                ? UIElementClassifier.ElementRole.Button
+                                : UIElementClassifier.ElementRole.Unknown
+                        });
+                    break;
+
+                case NavigationLevel.Items:
+                    foreach (var item in _items)
+                        _elements.Add(new NavigableElement
+                        {
+                            GameObject = item.GameObject,
+                            Label = item.Label,
+                            Role = UIElementClassifier.ElementRole.Unknown
+                        });
+                    break;
+
+                case NavigationLevel.SetFilter:
+                    // SetFilter is handled by HandleEarlyInput, not base navigation.
+                    // Add a placeholder so ValidateElements doesn't deactivate us.
+                    _elements.Add(new NavigableElement
+                    {
+                        GameObject = _controllerGameObject,
+                        Label = "SetFilter",
+                        Role = UIElementClassifier.ElementRole.Unknown
+                    });
+                    break;
+            }
+
+            if (_elements.Count > 0)
+                _currentIndex = 0;
         }
 
         #endregion
@@ -1013,17 +1080,17 @@ namespace AccessibleArena.Core.Services
 
         protected override void OnActivated()
         {
-            _navLevel = NavigationLevel.Tabs;
             _waitingForTabLoad = false;
-
-            // Find which tab is currently active
-            _currentTabIndex = FindActiveTabIndex();
-            if (_currentTabIndex < 0 && _tabs.Count > 0)
-                _currentTabIndex = 0;
-
-            _currentItemIndex = 0;
             _currentPurchaseOptionIndex = 0;
             _wasConfirmationModalOpen = false;
+
+            // Adjust _currentIndex for the level determined by DiscoverElements
+            if (_navLevel == NavigationLevel.Tabs)
+            {
+                int activeTab = FindActiveTabIndex();
+                if (activeTab >= 0 && activeTab < _elements.Count)
+                    _currentIndex = activeTab;
+            }
 
             // Subscribe to panel changes for popup detection + web browser detection
             EnablePopupDetection();
@@ -1101,75 +1168,60 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            // If on Packs tab, enter SetFilter level
-            if (_currentTabIndex >= 0 && _currentTabIndex < _tabs.Count &&
-                IsPacksTab(_tabs[_currentTabIndex]))
+            switch (_navLevel)
             {
-                DiscoverSetFilters();
-                if (_setFilterModels.Count > 0)
-                {
-                    _navLevel = NavigationLevel.SetFilter;
+                case NavigationLevel.SetFilter:
                     string setName = GetSetFilterName(_currentSetFilterIndex);
                     return $"Store, Packs. {Strings.StoreSetFilterPosition(setName, _currentSetFilterIndex + 1, _setFilterModels.Count)}";
-                }
+
+                case NavigationLevel.Items:
+                    _currentPurchaseOptionIndex = 0;
+                    int activeTab = FindActiveTabIndex();
+                    string tabName = (activeTab >= 0 && activeTab < _tabs.Count)
+                        ? _tabs[activeTab].DisplayName : "Store";
+                    string core = $"Store, {tabName}. {_items.Count} items";
+                    return Strings.WithHint(core, "StoreItemsHint");
+
+                default: // Tabs
+                    int realTabCount = _tabs.Count(t => !t.IsUtility);
+                    string tabCore = $"Store. {realTabCount} tabs";
+                    return Strings.WithHint(tabCore, "NavigateHint");
             }
-
-            // Auto-enter items for the currently active tab
-            _navLevel = NavigationLevel.Items;
-            DiscoverItems();
-
-            if (_items.Count > 0)
-            {
-                _currentItemIndex = 0;
-                _currentPurchaseOptionIndex = 0;
-
-                string tabName = (_currentTabIndex >= 0 && _currentTabIndex < _tabs.Count)
-                    ? _tabs[_currentTabIndex].DisplayName
-                    : "Store";
-
-                string core = $"Store, {tabName}. {_items.Count} items";
-                return Strings.WithHint(core, "StoreItemsHint");
-            }
-
-            // No items - stay at tab level
-            _navLevel = NavigationLevel.Tabs;
-            int realTabCount = _tabs.Count(t => !t.IsUtility);
-            string tabCore = $"Store. {realTabCount} tabs";
-            return Strings.WithHint(tabCore, "NavigateHint");
         }
 
         protected override string GetElementAnnouncement(int index)
         {
-            // This won't be used directly since we handle announcements ourselves
-            return "";
+            switch (_navLevel)
+            {
+                case NavigationLevel.Tabs:
+                    return FormatTabAnnouncement(index);
+                case NavigationLevel.Items:
+                    return FormatItemAnnouncement(index);
+                default:
+                    return base.GetElementAnnouncement(index);
+            }
         }
 
-        private void AnnounceCurrentTab()
+        private string FormatTabAnnouncement(int index)
         {
-            if (_currentTabIndex < 0 || _currentTabIndex >= _tabs.Count) return;
+            if (index < 0 || index >= _tabs.Count) return "";
 
-            var tab = _tabs[_currentTabIndex];
-
+            var tab = _tabs[index];
             if (tab.IsUtility)
-            {
-                _announcer.AnnounceInterrupt($"{tab.DisplayName}, button");
-            }
-            else
-            {
-                int tabCount = _tabs.Count(t => !t.IsUtility);
-                bool isActive = IsTabActive(tab);
-                string activeIndicator = isActive ? ", active" : "";
-                _announcer.AnnounceInterrupt(
-                    Strings.TabPositionOf(_currentTabIndex + 1, tabCount,
-                        $"{tab.DisplayName}{activeIndicator}"));
-            }
+                return $"{tab.DisplayName}, button";
+
+            int tabCount = _tabs.Count(t => !t.IsUtility);
+            bool isActive = IsTabActive(tab);
+            string activeIndicator = isActive ? ", active" : "";
+            return Strings.TabPositionOf(index + 1, tabCount,
+                $"{tab.DisplayName}{activeIndicator}");
         }
 
-        private void AnnounceCurrentItem()
+        private string FormatItemAnnouncement(int index)
         {
-            if (_currentItemIndex < 0 || _currentItemIndex >= _items.Count) return;
+            if (index < 0 || index >= _items.Count) return "";
 
-            var item = _items[_currentItemIndex];
+            var item = _items[index];
             string optionText = "";
 
             if (item.PurchaseOptions.Count > 0)
@@ -1186,24 +1238,8 @@ namespace AccessibleArena.Core.Services
             }
 
             string descText = !string.IsNullOrEmpty(item.Description) ? $". {item.Description}" : "";
-
-            string itemPos = Strings.PositionOf(_currentItemIndex + 1, _items.Count);
-            _announcer.AnnounceInterrupt(
-                $"{item.Label}{descText}{optionText}" + (itemPos != "" ? $", {itemPos}" : ""));
-        }
-
-        private void AnnouncePurchaseOption()
-        {
-            if (_currentItemIndex < 0 || _currentItemIndex >= _items.Count) return;
-
-            var item = _items[_currentItemIndex];
-            if (_currentPurchaseOptionIndex < 0 || _currentPurchaseOptionIndex >= item.PurchaseOptions.Count)
-                return;
-
-            var option = item.PurchaseOptions[_currentPurchaseOptionIndex];
-            string pos = Strings.PositionOf(_currentPurchaseOptionIndex + 1, item.PurchaseOptions.Count);
-            _announcer.AnnounceInterrupt(
-                $"{FormatPurchaseOption(option)}" + (pos != "" ? $", {pos}" : ""));
+            string itemPos = Strings.PositionOf(index + 1, _items.Count);
+            return $"{item.Label}{descText}{optionText}" + (itemPos != "" ? $", {itemPos}" : "");
         }
 
         private string FormatPurchaseOption(PurchaseOption option)
@@ -1236,18 +1272,16 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Check if store is still open
             if (!IsControllerOpenAndReady(_controller))
             {
                 Deactivate();
                 return;
             }
 
-            // Check if confirmation modal opened - handle with custom element list
+            // Confirmation modal transitions (must run before base processes input)
             bool modalOpen = IsConfirmationModalOpen(_controller);
             if (modalOpen && !_wasConfirmationModalOpen)
             {
-                // Modal just opened
                 _wasConfirmationModalOpen = true;
                 var modalObj = GetConfirmationModalGameObject();
                 if (modalObj != null)
@@ -1262,7 +1296,6 @@ namespace AccessibleArena.Core.Services
             }
             else if (!modalOpen && _wasConfirmationModalOpen)
             {
-                // Modal just closed - return to store
                 _wasConfirmationModalOpen = false;
                 if (_isConfirmationModalActive)
                 {
@@ -1270,11 +1303,11 @@ namespace AccessibleArena.Core.Services
                     _isConfirmationModalActive = false;
                     _modalElements.Clear();
                     _confirmationModalMb = null;
-                    ReannounceStorePosition();
+                    AnnounceCurrentElement();
                 }
             }
 
-            // Update web browser accessibility (handles rescan timer)
+            // Web browser updates
             if (_isWebBrowserActive)
             {
                 _webBrowser.Update();
@@ -1282,11 +1315,11 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg("[Store] Web browser became inactive, returning to store");
                     _isWebBrowserActive = false;
-                    ReannounceStorePosition();
+                    AnnounceCurrentElement();
                 }
             }
 
-            // Handle loading state
+            // Loading state suppresses all input
             if (_waitingForTabLoad)
             {
                 _loadCheckTimer -= Time.deltaTime;
@@ -1298,15 +1331,15 @@ namespace AccessibleArena.Core.Services
                         OnTabLoadComplete();
                     }
                 }
-                return; // Don't process input while loading
+                return;
             }
 
-            HandleStoreInput();
+            // Delegate to base for standard navigation (calls HandleInput → our hooks)
+            base.Update();
         }
 
         protected override bool ValidateElements()
         {
-            // Override to check our own state instead of _elements
             return _controller != null && _controllerGameObject != null && _controllerGameObject.activeInHierarchy;
         }
 
@@ -1314,237 +1347,136 @@ namespace AccessibleArena.Core.Services
 
         #region Input Handling
 
-        private void HandleStoreInput()
+        /// <summary>
+        /// Intercept input before base navigation for custom modes:
+        /// web browser, confirmation modal, details view, and set filter level.
+        /// </summary>
+        protected override bool HandleEarlyInput()
         {
-            // Web browser takes full control when active
             if (_isWebBrowserActive)
             {
                 _webBrowser.HandleInput();
-                return;
+                return true;
             }
 
-            // Let base handle input field editing if active
-            if (UIFocusTracker.IsEditingInputField())
-            {
-                HandleInputFieldNavigation();
-                return;
-            }
-
-            // If base popup mode is active (e.g. error dialog on top of confirmation modal),
-            // it takes visual priority — handle its input first
-            if (IsInPopupMode)
-            {
-                base.HandleInput();
-                return;
-            }
-
-            // If confirmation modal is active, route to custom handler
             if (_isConfirmationModalActive)
             {
                 HandleConfirmationModalInput();
-                return;
+                return true;
             }
 
-            switch (_navLevel)
-            {
-                case NavigationLevel.Tabs:
-                    HandleTabInput();
-                    break;
-                case NavigationLevel.SetFilter:
-                    HandleSetFilterInput();
-                    break;
-                case NavigationLevel.Items:
-                    HandleItemInput();
-                    break;
-            }
-        }
-
-        private void HandleTabInput()
-        {
-            // Up/Down navigate tabs (hold-to-repeat)
-            if (_holdRepeater.Check(KeyCode.UpArrow, () => {
-                int b = _currentTabIndex; MoveTab(-1); return _currentTabIndex != b;
-            })) return;
-
-            if (_holdRepeater.Check(KeyCode.DownArrow, () => {
-                int b = _currentTabIndex; MoveTab(1); return _currentTabIndex != b;
-            })) return;
-
-            // Tab/Shift+Tab for navigation
-            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
-            {
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveTab(shiftTab ? -1 : 1);
-                return;
-            }
-
-            // Home/End
-            if (Input.GetKeyDown(KeyCode.Home))
-            {
-                if (_tabs.Count > 0)
-                {
-                    _currentTabIndex = 0;
-                    AnnounceCurrentTab();
-                }
-                return;
-            }
-
-            if (Input.GetKeyDown(KeyCode.End))
-            {
-                if (_tabs.Count > 0)
-                {
-                    _currentTabIndex = _tabs.Count - 1;
-                    AnnounceCurrentTab();
-                }
-                return;
-            }
-
-            // Enter activates tab
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-            bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
-            if (enterPressed || spacePressed)
-            {
-                InputManager.ConsumeKey(KeyCode.Return);
-                InputManager.ConsumeKey(KeyCode.KeypadEnter);
-                ActivateCurrentTab();
-                return;
-            }
-
-            // Backspace goes back
-            if (Input.GetKeyDown(KeyCode.Backspace))
-            {
-                InputManager.ConsumeKey(KeyCode.Backspace);
-                HandleBackFromStore();
-                return;
-            }
-        }
-
-        private void HandleItemInput()
-        {
-            // Details view takes over input when active
             if (_isDetailsViewActive)
             {
                 HandleDetailsInput();
-                return;
+                return true;
             }
 
-            // Up/Down navigate items (hold-to-repeat)
-            if (_holdRepeater.Check(KeyCode.UpArrow, () => {
-                int b = _currentItemIndex; MoveItem(-1); return _currentItemIndex != b;
-            })) return;
-
-            if (_holdRepeater.Check(KeyCode.DownArrow, () => {
-                int b = _currentItemIndex; MoveItem(1); return _currentItemIndex != b;
-            })) return;
-
-            // Tab/Shift+Tab for navigation
-            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
+            // SetFilter level is fully custom (every move changes game state + triggers loading)
+            if (_navLevel == NavigationLevel.SetFilter)
             {
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveItem(shiftTab ? -1 : 1);
-                return;
+                HandleSetFilterInput();
+                return true;
             }
 
-            // Left/Right cycle purchase options (hold-to-repeat)
-            if (_holdRepeater.Check(KeyCode.LeftArrow, () => {
-                int b = _currentPurchaseOptionIndex; CyclePurchaseOption(-1); return _currentPurchaseOptionIndex != b;
-            })) return;
+            return false;
+        }
 
-            if (_holdRepeater.Check(KeyCode.RightArrow, () => {
-                int b = _currentPurchaseOptionIndex; CyclePurchaseOption(1); return _currentPurchaseOptionIndex != b;
-            })) return;
-
-            // Home/End
-            if (Input.GetKeyDown(KeyCode.Home))
+        /// <summary>
+        /// Handle keys that base doesn't cover: Backspace (back navigation)
+        /// and Left/Right (purchase option cycling at Items level).
+        /// Runs after base's Up/Down/Tab/Home/End but before Enter/Left/Right.
+        /// </summary>
+        protected override bool HandleCustomInput()
+        {
+            // Left/Right: cycle purchase options at Items level
+            if (_navLevel == NavigationLevel.Items)
             {
-                if (_items.Count > 0)
-                {
-                    _currentItemIndex = 0;
-                    _currentPurchaseOptionIndex = 0;
-                    AnnounceCurrentItem();
-                }
-                return;
+                if (_holdRepeater.Check(KeyCode.LeftArrow, () => {
+                    int b = _currentPurchaseOptionIndex; CyclePurchaseOption(-1); return _currentPurchaseOptionIndex != b;
+                })) return true;
+
+                if (_holdRepeater.Check(KeyCode.RightArrow, () => {
+                    int b = _currentPurchaseOptionIndex; CyclePurchaseOption(1); return _currentPurchaseOptionIndex != b;
+                })) return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
-            {
-                if (_items.Count > 0)
-                {
-                    _currentItemIndex = _items.Count - 1;
-                    _currentPurchaseOptionIndex = 0;
-                    AnnounceCurrentItem();
-                }
-                return;
-            }
-
-            // Enter activates purchase option
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-            bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
-            if (enterPressed || spacePressed)
-            {
-                InputManager.ConsumeKey(KeyCode.Return);
-                InputManager.ConsumeKey(KeyCode.KeypadEnter);
-                ActivateCurrentPurchaseOption();
-                return;
-            }
-
-            // Backspace goes back (to SetFilter for Packs, otherwise to Tabs)
+            // Backspace: back navigation per level
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
 
-                // If on Packs tab with set filters, return to SetFilter level
-                if (_currentTabIndex >= 0 && _currentTabIndex < _tabs.Count &&
-                    IsPacksTab(_tabs[_currentTabIndex]) && _setFilterModels.Count > 0)
+                switch (_navLevel)
                 {
-                    ReturnToSetFilter();
+                    case NavigationLevel.Tabs:
+                        HandleBackFromStore();
+                        break;
+                    case NavigationLevel.Items:
+                        int activeTab = FindActiveTabIndex();
+                        if (activeTab >= 0 && activeTab < _tabs.Count &&
+                            IsPacksTab(_tabs[activeTab]) && _setFilterModels.Count > 0)
+                            ReturnToSetFilter();
+                        else
+                            ReturnToTabs();
+                        break;
                 }
-                else
-                {
-                    ReturnToTabs();
-                }
-                return;
+                return true;
             }
+
+            return false;
         }
 
-        // Override base HandleInput to do nothing — Store routes input through HandleStoreInput().
-        // Popup mode is handled via explicit base.HandleInput() call in HandleStoreInput().
-        protected override void HandleInput() { }
+        /// <summary>
+        /// Handle Enter activation per level. Return true to suppress base's default activation.
+        /// </summary>
+        protected override bool OnElementActivated(int index, GameObject element)
+        {
+            switch (_navLevel)
+            {
+                case NavigationLevel.Tabs:
+                    ActivateCurrentTab();
+                    return true;
 
-        // Override HandleCustomInput since base calls it
-        protected override bool HandleCustomInput() => false;
+                case NavigationLevel.Items:
+                    ActivateCurrentPurchaseOption();
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Reset purchase option index when moving between items.
+        /// </summary>
+        protected override void Move(int direction)
+        {
+            if (_navLevel == NavigationLevel.Items)
+                _currentPurchaseOptionIndex = 0;
+            base.Move(direction);
+        }
+
+        protected override void MoveFirst()
+        {
+            if (_navLevel == NavigationLevel.Items)
+                _currentPurchaseOptionIndex = 0;
+            base.MoveFirst();
+        }
+
+        protected override void MoveLast()
+        {
+            if (_navLevel == NavigationLevel.Items)
+                _currentPurchaseOptionIndex = 0;
+            base.MoveLast();
+        }
 
         #endregion
 
         #region Tab Navigation
 
-        private void MoveTab(int direction)
-        {
-            if (_tabs.Count == 0) return;
-
-            int newIndex = _currentTabIndex + direction;
-
-            if (newIndex < 0)
-            {
-                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
-                return;
-            }
-
-            if (newIndex >= _tabs.Count)
-            {
-                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
-                return;
-            }
-
-            _currentTabIndex = newIndex;
-            AnnounceCurrentTab();
-        }
-
         private void ActivateCurrentTab()
         {
-            if (_currentTabIndex < 0 || _currentTabIndex >= _tabs.Count) return;
+            if (_currentIndex < 0 || _currentIndex >= _tabs.Count) return;
 
-            var tab = _tabs[_currentTabIndex];
+            var tab = _tabs[_currentIndex];
 
             // Utility entries are activated directly (not store tabs)
             if (tab.IsUtility)
@@ -1564,6 +1496,8 @@ namespace AccessibleArena.Core.Services
                     if (_setFilterModels.Count > 0)
                     {
                         _navLevel = NavigationLevel.SetFilter;
+                        PopulateLevelElements();
+                        _currentSetFilterIndex = 0;
                         AnnounceSetFilter();
                         return;
                     }
@@ -1574,15 +1508,16 @@ namespace AccessibleArena.Core.Services
 
                 if (_items.Count > 0)
                 {
-                    _currentItemIndex = 0;
                     _currentPurchaseOptionIndex = 0;
+                    PopulateLevelElements();
                     _announcer.AnnounceInterrupt(Strings.TabItems(tab.DisplayName, _items.Count));
-                    AnnounceCurrentItem();
+                    AnnounceCurrentElement();
                 }
                 else
                 {
                     _announcer.AnnounceInterrupt(Strings.NoItemsAvailable(tab.DisplayName));
                     _navLevel = NavigationLevel.Tabs;
+                    PopulateLevelElements();
                 }
                 return;
             }
@@ -1661,7 +1596,7 @@ namespace AccessibleArena.Core.Services
 
             // Refresh tab discovery in case tabs changed
             DiscoverTabs();
-            _currentTabIndex = FindActiveTabIndex();
+            int activeTab = FindActiveTabIndex();
 
             // If this was a set filter change, stay at SetFilter level
             if (_waitingForSetChange)
@@ -1672,17 +1607,20 @@ namespace AccessibleArena.Core.Services
                 string setName = GetSetFilterName(_currentSetFilterIndex);
                 _announcer.AnnounceInterrupt(Strings.StoreSetFilterItems(setName, itemCount));
                 _navLevel = NavigationLevel.SetFilter;
-                _items.Clear(); // Don't need items at SetFilter level
+                PopulateLevelElements();
+                _items.Clear();
                 return;
             }
 
             // Packs tab: enter SetFilter level instead of Items
-            if (_currentTabIndex >= 0 && _currentTabIndex < _tabs.Count && IsPacksTab(_tabs[_currentTabIndex]))
+            if (activeTab >= 0 && activeTab < _tabs.Count && IsPacksTab(_tabs[activeTab]))
             {
                 DiscoverSetFilters();
                 if (_setFilterModels.Count > 0)
                 {
                     _navLevel = NavigationLevel.SetFilter;
+                    PopulateLevelElements();
+                    _currentSetFilterIndex = 0;
                     AnnounceSetFilter();
                     return;
                 }
@@ -1694,24 +1632,24 @@ namespace AccessibleArena.Core.Services
 
             if (_items.Count > 0)
             {
-                _currentItemIndex = 0;
                 _currentPurchaseOptionIndex = 0;
+                PopulateLevelElements();
 
-                string tabName = (_currentTabIndex >= 0 && _currentTabIndex < _tabs.Count)
-                    ? _tabs[_currentTabIndex].DisplayName
-                    : "Store";
+                string tabName = (activeTab >= 0 && activeTab < _tabs.Count)
+                    ? _tabs[activeTab].DisplayName : "Store";
 
                 _announcer.AnnounceInterrupt(Strings.TabItems(tabName, _items.Count));
-                AnnounceCurrentItem();
+                AnnounceCurrentElement();
             }
             else
             {
-                string tabName = (_currentTabIndex >= 0 && _currentTabIndex < _tabs.Count)
-                    ? _tabs[_currentTabIndex].DisplayName
-                    : "tab";
+                string tabName = (activeTab >= 0 && activeTab < _tabs.Count)
+                    ? _tabs[activeTab].DisplayName : "tab";
 
                 _announcer.AnnounceInterrupt(Strings.TabNoItems(tabName));
                 _navLevel = NavigationLevel.Tabs;
+                PopulateLevelElements();
+                _currentIndex = activeTab >= 0 ? activeTab : 0;
             }
         }
 
@@ -1843,15 +1781,16 @@ namespace AccessibleArena.Core.Services
 
             if (_items.Count > 0)
             {
-                _currentItemIndex = 0;
                 _currentPurchaseOptionIndex = 0;
-                AnnounceCurrentItem();
+                PopulateLevelElements();
+                AnnounceCurrentElement();
             }
             else
             {
                 string setName = GetSetFilterName(_currentSetFilterIndex);
                 _announcer.AnnounceInterrupt(Strings.NoItemsAvailable(setName));
                 _navLevel = NavigationLevel.SetFilter;
+                PopulateLevelElements();
             }
         }
 
@@ -1863,6 +1802,7 @@ namespace AccessibleArena.Core.Services
             _detailsDescription = null;
             _navLevel = NavigationLevel.SetFilter;
             _items.Clear();
+            PopulateLevelElements();
 
             AnnounceSetFilter();
         }
@@ -1871,34 +1811,11 @@ namespace AccessibleArena.Core.Services
 
         #region Item Navigation
 
-        private void MoveItem(int direction)
-        {
-            if (_items.Count == 0) return;
-
-            int newIndex = _currentItemIndex + direction;
-
-            if (newIndex < 0)
-            {
-                _announcer.AnnounceVerbose(Strings.BeginningOfList, AnnouncementPriority.Normal);
-                return;
-            }
-
-            if (newIndex >= _items.Count)
-            {
-                _announcer.AnnounceVerbose(Strings.EndOfList, AnnouncementPriority.Normal);
-                return;
-            }
-
-            _currentItemIndex = newIndex;
-            _currentPurchaseOptionIndex = 0;
-            AnnounceCurrentItem();
-        }
-
         private void CyclePurchaseOption(int direction)
         {
-            if (_currentItemIndex < 0 || _currentItemIndex >= _items.Count) return;
+            if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
-            var item = _items[_currentItemIndex];
+            var item = _items[_currentIndex];
             if (item.PurchaseOptions.Count <= 1)
             {
                 _announcer.Announce(
@@ -1922,14 +1839,19 @@ namespace AccessibleArena.Core.Services
             }
 
             _currentPurchaseOptionIndex = newIndex;
-            AnnouncePurchaseOption();
+
+            // Announce just the purchase option
+            var option = item.PurchaseOptions[_currentPurchaseOptionIndex];
+            string pos = Strings.PositionOf(_currentPurchaseOptionIndex + 1, item.PurchaseOptions.Count);
+            _announcer.AnnounceInterrupt(
+                $"{FormatPurchaseOption(option)}" + (pos != "" ? $", {pos}" : ""));
         }
 
         private void ActivateCurrentPurchaseOption()
         {
-            if (_currentItemIndex < 0 || _currentItemIndex >= _items.Count) return;
+            if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
 
-            var item = _items[_currentItemIndex];
+            var item = _items[_currentIndex];
             if (item.PurchaseOptions.Count == 0)
             {
                 _announcer.Announce(Strings.NoPurchaseOption, AnnouncementPriority.Normal);
@@ -2424,7 +2346,7 @@ namespace AccessibleArena.Core.Services
             _detailsBlockIndex = 0;
 
             // Re-announce current item
-            AnnounceCurrentItem();
+            AnnounceCurrentElement();
         }
 
         #endregion
@@ -2742,12 +2664,12 @@ namespace AccessibleArena.Core.Services
 
             // Refresh tabs in case something changed
             DiscoverTabs();
-            _currentTabIndex = FindActiveTabIndex();
-            if (_currentTabIndex < 0 && _tabs.Count > 0)
-                _currentTabIndex = 0;
+            PopulateLevelElements();
+            int activeTab = FindActiveTabIndex();
+            _currentIndex = (activeTab >= 0 && activeTab < _elements.Count) ? activeTab : 0;
 
             _announcer.AnnounceInterrupt(Strings.TabsCount(_tabs.Count(t => !t.IsUtility)));
-            AnnounceCurrentTab();
+            AnnounceCurrentElement();
         }
 
         private void HandleBackFromStore()
