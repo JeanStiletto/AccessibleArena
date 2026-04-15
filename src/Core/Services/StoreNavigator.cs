@@ -368,7 +368,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override bool IsPopupExcluded(PanelInfo panel)
         {
-            return IsWebBrowserPanel(panel);
+            if (IsWebBrowserPanel(panel)) return true;
+            // Confirmation modal is handled with custom elements, not base popup mode
+            if (panel.Name != null && panel.Name.Contains("ConfirmationModal")) return true;
+            return false;
         }
 
         protected override void OnPopupClosed()
@@ -1317,6 +1320,14 @@ namespace AccessibleArena.Core.Services
                     _isWebBrowserActive = false;
                     AnnounceCurrentElement();
                 }
+            }
+
+            // Confirmation modal active: handle input directly, skip base popup mode
+            // (same pattern as MasteryNavigator — modal is custom, not base popup)
+            if (_isConfirmationModalActive)
+            {
+                HandleConfirmationModalInput();
+                return;
             }
 
             // Loading state suppresses all input
