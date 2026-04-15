@@ -59,6 +59,9 @@ All notable changes to Accessible Arena.
 ### Reward Popup
 - Added Pet and Token reward type handling — pets now announce their name (e.g. "Pet: Leonardo") instead of internal codenames, and draft tokens read their localized title instead of "TokenDisplayContainer"
 
+### Booster Open
+- Fixed pack-specific music stopping when opening a pack — the game's opening animation clears the hover audio state, so the mod now restores the Wwise RTPC values via AudioManager to keep the set-specific music playing while viewing cards
+
 ### Browsers
 - Fixed Backspace not cancelling SelectCards ability-choice browsers (e.g. All-Cheese Pizza) — the scaffold's SingleButton ("Decline") was not matched by cancel patterns, so Backspace clicked an unrelated combat prompt instead
 

@@ -33,6 +33,12 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _stopAnimMethod;
         private static FieldInfo _autoRevealField;
 
+        // Pack music: game's opening animation calls ConditionalHoverOff() which stops
+        // the pack-specific music. We restore it by calling AudioManager.SetRTPCValue directly.
+        private static MethodInfo _setRTPCMethod;
+        private static FieldInfo _chamberSetCodeField;
+        private bool _packMusicRestored;
+
         // Periodic rescan until cards are found (animation event spawns cards ~2.5s after detection)
         private int _rescanFrameCounter;
         private const int RescanIntervalFrames = 30; // ~0.5 seconds at 60fps
@@ -844,6 +850,58 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Restore pack-specific music after the game's opening animation stops it.
+        /// The SealedBoosterView.ConditionalHoverOff() runs during the OpenOutro animation,
+        /// resetting the RTPC values to 0. We re-set them to 100 via AudioManager.
+        /// </summary>
+        private void RestorePackMusic()
+        {
+            if (_packMusicRestored) return;
+
+            // Find BoosterChamberController to read the current set code
+            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
+            if (boosterChamber == null) return;
+
+            Component chamberController = null;
+            foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "BoosterChamberController")
+                {
+                    chamberController = mb;
+                    break;
+                }
+            }
+            if (chamberController == null) return;
+
+            // Read _setCode from the controller
+            if (_chamberSetCodeField == null)
+                _chamberSetCodeField = chamberController.GetType().GetField("_setCode", PrivateInstance);
+            if (_chamberSetCodeField == null) return;
+
+            string setCode = _chamberSetCodeField.GetValue(chamberController) as string;
+            if (string.IsNullOrEmpty(setCode)) return;
+
+            // Find AudioManager.SetRTPCValue(string, float) static method
+            if (_setRTPCMethod == null)
+            {
+                var audioManagerType = FindType("AudioManager");
+                if (audioManagerType != null)
+                    _setRTPCMethod = audioManagerType.GetMethod("SetRTPCValue",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                        null, new[] { typeof(string), typeof(float) }, null);
+            }
+            if (_setRTPCMethod == null) return;
+
+            // Set RTPC values to restore pack-specific music (dashes → underscores for Wwise)
+            string audioSetCode = setCode.Replace("-", "_");
+            _setRTPCMethod.Invoke(null, new object[] { "booster_packrollover", 100f });
+            _setRTPCMethod.Invoke(null, new object[] { "boosterpack_" + audioSetCode, 100f });
+            _packMusicRestored = true;
+
+            MelonLogger.Msg($"[{NavigatorId}] Restored pack music for set: {setCode}");
+        }
+
+        /// <summary>
         /// Try to close the pack contents view.
         /// Prefers the BoosterChamberController's DismissCards (proper full cleanup),
         /// then falls back to the scroll list controller.
@@ -1214,6 +1272,11 @@ namespace AccessibleArena.Core.Services
                     _rescanAttempt++;
                     int oldCount = _totalCards;
 
+                    // Restore pack-specific music that the opening animation stopped.
+                    // Called on early rescan ticks to handle ConditionalHoverOff timing.
+                    if (_rescanAttempt <= 3)
+                        RestorePackMusic();
+
                     // Try to skip animation first - makes all cards available at once
                     TrySkipAnimation();
 
@@ -1267,6 +1330,7 @@ namespace AccessibleArena.Core.Services
             _animSkipped = false;
             _closeTriggered = false;
             _closeRescanCounter = 0;
+            _packMusicRestored = false;
         }
 
         /// <summary>
