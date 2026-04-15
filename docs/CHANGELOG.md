@@ -53,6 +53,9 @@ All notable changes to Accessible Arena.
 - Added full confirmation modal navigation with card details, purchase buttons, and cancel option — previously only Escape worked, Enter on cancel did nothing, and no item details were shown
 - Fixed currency names not announced in purchase confirmation modals — purchase buttons now read "2 spheres" or "500 Gold" instead of just the number (also fixed in Store confirmation modals)
 
+### Store
+- Fixed mastery pass purchase popup not navigable — the BattlePassPurchaseConfirmation popup activates its content panes via a delayed coroutine, so immediate element discovery found no buttons; popup mode now waits for content to load before discovering elements
+
 ### Browsers
 - Fixed Backspace not cancelling SelectCards ability-choice browsers (e.g. All-Cheese Pizza) — the scaffold's SingleButton ("Decline") was not matched by cancel patterns, so Backspace clicked an unrelated combat prompt instead
 

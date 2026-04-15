@@ -68,6 +68,11 @@ namespace AccessibleArena.Core.Services
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
         private bool _isWebBrowserActive;
 
+        // BattlePass purchase confirmation popup (delayed activation)
+        private GameObject _pendingBattlePassPopup;
+        private float _battlePassPopupTimer;
+        private const float BattlePassPopupMaxWait = 1.5f;
+
         // Details view state
         private bool _isDetailsViewActive;
         private string _detailsDescription;              // Tooltip description (announced on open, re-read with D)
@@ -376,12 +381,65 @@ namespace AccessibleArena.Core.Services
 
         protected override void OnPopupClosed()
         {
+            _pendingBattlePassPopup = null;
             if (_isConfirmationModalActive)
                 AnnounceConfirmationModal();
             else if (_navLevel == NavigationLevel.SetFilter)
                 AnnounceSetFilter();
             else
                 AnnounceCurrentElement();
+        }
+
+        /// <summary>
+        /// Delay popup mode for BattlePassPurchaseConfirmation — its content panes
+        /// activate after a 0.5s coroutine, so immediate discovery finds nothing.
+        /// </summary>
+        protected override void OnPopupDetected(PanelInfo panel)
+        {
+            if (panel?.GameObject != null && HasBattlePassConfirmation(panel.GameObject))
+            {
+                MelonLogger.Msg("[Store] BattlePass popup detected, waiting for content to activate");
+                _pendingBattlePassPopup = panel.GameObject;
+                _battlePassPopupTimer = BattlePassPopupMaxWait;
+                return;
+            }
+
+            base.OnPopupDetected(panel);
+        }
+
+        private static bool HasBattlePassConfirmation(GameObject go)
+        {
+            foreach (var mb in go.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "BattlePassPurchaseConfirmation")
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if the BattlePass popup's content pane has activated.
+        /// The popup has Content_PurchasePass and Content_PurchaseXP children under CenterMenu.
+        /// RecalculateVisuals() activates one of them after 0.5s.
+        /// </summary>
+        private static bool IsBattlePassContentReady(GameObject popup)
+        {
+            // Walk: SettingsPopup > Group - Vertical > Middle > CenterMenu
+            var settingsPopup = popup.transform.Find("SettingsPopup");
+            if (settingsPopup == null) return false;
+            var group = settingsPopup.Find("Group - Vertical");
+            if (group == null) return false;
+            var middle = group.Find("Middle");
+            if (middle == null) return false;
+            var centerMenu = middle.Find("CenterMenu");
+            if (centerMenu == null) return false;
+
+            for (int i = 0; i < centerMenu.childCount; i++)
+            {
+                if (centerMenu.GetChild(i).gameObject.activeInHierarchy)
+                    return true;
+            }
+            return false;
         }
 
         private static bool IsWebBrowserPanel(PanelInfo panel)
@@ -1308,6 +1366,26 @@ namespace AccessibleArena.Core.Services
                     _confirmationModalMb = null;
                     AnnounceCurrentElement();
                 }
+            }
+
+            // BattlePass popup: wait for content pane to activate before entering popup mode
+            if (_pendingBattlePassPopup != null)
+            {
+                _battlePassPopupTimer -= UnityEngine.Time.deltaTime;
+                if (_pendingBattlePassPopup == null || !_pendingBattlePassPopup.activeInHierarchy)
+                {
+                    // Popup was dismissed externally
+                    MelonLogger.Msg("[Store] BattlePass popup gone while waiting");
+                    _pendingBattlePassPopup = null;
+                }
+                else if (IsBattlePassContentReady(_pendingBattlePassPopup) || _battlePassPopupTimer <= 0)
+                {
+                    MelonLogger.Msg($"[Store] BattlePass popup content ready (timeout={_battlePassPopupTimer <= 0})");
+                    var popup = _pendingBattlePassPopup;
+                    _pendingBattlePassPopup = null;
+                    EnterPopupMode(popup);
+                }
+                return; // Block input while waiting
             }
 
             // Web browser updates
