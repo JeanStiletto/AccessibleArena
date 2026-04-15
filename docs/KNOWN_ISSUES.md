@@ -5,6 +5,12 @@ Active bugs, limitations, and planned work for Accessible Arena.
  
 ## Active Bugs
 
+### Phase Stop System Breaks During Mulligan
+
+Pressing phase stop keys (1-0) during the mulligan phase breaks the phase stop system. Exact symptoms and reproduction steps to be documented.
+
+---
+
 ### First Card Not Recognized After Filtering in Deck Builder
 
 After a filter is applied in the deck builder (collection or deck side), the first card in the results is not correctly recognized as a card. This causes issues when adding cards — the mod may not detect the card properly, leading to wrong card additions or focus glitches.
@@ -238,15 +244,17 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 ### Upcoming
  
 1. Display player state information - announce counters (poison, energy, experience, rad, etc.), emblems, and modified properties (max hand size, extra turns, etc.) on players
+2. Sylvan Library support — the card has a unique draw-then-choose UI that needs accessible navigation. Planned for when Strixhaven Remastered releases on Arena. Reference: https://magic.wizards.com/en/news/mtg-arena/dev-diary-sylvan-library
 ### Polish
 
-1. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
-2. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
-3. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
-4. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
-5. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
-6. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-7. Replace Tolk with Prism library — Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
-8. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
-9. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
+1. Unify E and T shortcut announcements — make the announcement style consistent between the two shortcuts.
+2. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
+3. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
+4. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
+5. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
+6. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
+7. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
+8. Replace Tolk with Prism library — Tolk is Windows-only (NVDA/JAWS/Narrator). Prism supports multiple platforms (macOS VoiceOver, Linux Orca, etc.), which would enable multi-OS accessibility if MTGA ever runs on other platforms or via Proton/Wine.
+9. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
+10. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
 

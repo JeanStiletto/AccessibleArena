@@ -1076,7 +1076,7 @@
   "NPE_Hint_PlayCard": "左右キーでカード間を移動、またはTabで提案されたカードにジャンプ。Enterキーでプレイします。",
   "NPE_Hint_AssignBlocker": "左右キーでクリーチャー間を移動、またはTabで提案されたカードにジャンプ。Enterキーでクリーチャーをブロッカーとして選択。複数のブロッカーを選択できます。その後、攻撃クリーチャーに移動してEnterで選択したブロッカーを割り当てます。",
   "NPE_Hint_ConfirmBlocks": "スペースキーでブロックを確定。ブロッカーを選択していない場合はブロッカーフェーズをスキップします。",
-  "NPE_Hint_AssignAttacker": "左右キーでクリーチャー間を移動、またはTabで提案されたカードにジャンプ。Enterキーで攻撃クリーチャーとして選択します。",
+  "NPE_Hint_AssignAttacker": "左右キーでクリーチャー間を移動、Tabで提案カードにジャンプ。Enterで攻撃切替。Spaceで全員攻撃または選択を確定。",
   "NPE_Hint_ConfirmAttackers": "スペースキーで攻撃クリーチャーを確定します。",
   "NPE_Hint_SkipAttack": "Backspaceキーでこのターンの攻撃をスキップします。",
   "NPE_Hint_SelectCard": "左右キーでカード間を移動、またはTabで提案されたカードにジャンプ。Enterキーで選択します。",

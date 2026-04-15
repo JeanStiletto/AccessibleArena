@@ -1078,7 +1078,7 @@
   "NPE_Hint_PlayCard": "Use Left and Right to navigate between cards, or Tab to jump to the suggested card. Press Enter to play it.",
   "NPE_Hint_AssignBlocker": "Use Left and Right to navigate between creatures, or Tab to jump to the suggested card. Press Enter on a creature to select it for blocking. You can select multiple blockers. Then navigate to the attacking creature and press Enter to assign the selected blockers.",
   "NPE_Hint_ConfirmBlocks": "Press Space to confirm your blocks, or to skip the blocker phase if you did not select any blockers.",
-  "NPE_Hint_AssignAttacker": "Use Left and Right to navigate between creatures, or Tab to jump to the suggested card. Press Enter to select it as an attacker.",
+  "NPE_Hint_AssignAttacker": "Left and Right to navigate creatures, Tab to jump to the suggested card. Enter to toggle attacker. Space to select all attackers or confirm your selection.",
   "NPE_Hint_ConfirmAttackers": "Press Space to confirm your attackers.",
   "NPE_Hint_SkipAttack": "Press Backspace to skip attacking this turn.",
   "NPE_Hint_SelectCard": "Use Left and Right to navigate between cards, or Tab to jump to the suggested card. Press Enter to select it.",

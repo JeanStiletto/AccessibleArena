@@ -1076,7 +1076,7 @@
   "NPE_Hint_PlayCard": "Use Esquerda e Direita para navegar entre cartas, ou Tab para ir à carta sugerida. Pressione Enter para jogá-la.",
   "NPE_Hint_AssignBlocker": "Use Esquerda e Direita para navegar entre criaturas, ou Tab para ir à carta sugerida. Pressione Enter em uma criatura para selecioná-la como bloqueadora. Você pode selecionar vários bloqueadores. Em seguida, navegue até a criatura atacante e pressione Enter para atribuir os bloqueadores selecionados.",
   "NPE_Hint_ConfirmBlocks": "Pressione Espaço para confirmar os bloqueios, ou para pular a fase de bloqueio se você não selecionou nenhum bloqueador.",
-  "NPE_Hint_AssignAttacker": "Use Esquerda e Direita para navegar entre criaturas, ou Tab para ir à carta sugerida. Pressione Enter para selecioná-la como atacante.",
+  "NPE_Hint_AssignAttacker": "Esquerda e Direita para navegar entre criaturas, Tab para a carta sugerida. Enter para alternar atacante. Espaço para todos os atacantes ou confirmar sua seleção.",
   "NPE_Hint_ConfirmAttackers": "Pressione Espaço para confirmar os atacantes.",
   "NPE_Hint_SkipAttack": "Pressione Backspace para pular o ataque neste turno.",
   "NPE_Hint_SelectCard": "Use Esquerda e Direita para navegar entre cartas, ou Tab para ir à carta sugerida. Pressione Enter para selecioná-la.",

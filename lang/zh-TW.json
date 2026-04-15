@@ -1076,7 +1076,7 @@
   "NPE_Hint_PlayCard": "左右方向鍵在卡牌間導航，或按Tab跳轉到建議的牌。按Enter鍵使用它。",
   "NPE_Hint_AssignBlocker": "左右方向鍵在生物間導航，或按Tab跳轉到建議的牌。在生物上按Enter鍵選擇它為阻擋者。可以選擇多個阻擋者。然後導航到攻擊生物並按Enter鍵分配已選擇的阻擋者。",
   "NPE_Hint_ConfirmBlocks": "按空白鍵確認阻擋，或在未選擇阻擋者時跳過阻擋階段。",
-  "NPE_Hint_AssignAttacker": "左右方向鍵在生物間導航，或按Tab跳轉到建議的牌。按Enter鍵選為攻擊者。",
+  "NPE_Hint_AssignAttacker": "左右方向鍵在生物間導航，Tab跳轉到建議的牌。Enter切換攻擊者。空白鍵選擇全部攻擊者或確認選擇。",
   "NPE_Hint_ConfirmAttackers": "按空白鍵確認攻擊者。",
   "NPE_Hint_SkipAttack": "按Backspace鍵跳過本回合的攻擊。",
   "NPE_Hint_SelectCard": "左右方向鍵在卡牌間導航，或按Tab跳轉到建議的牌。按Enter鍵選擇。",

@@ -1076,7 +1076,7 @@
   "NPE_Hint_PlayCard": "左右方向键在卡牌间导航，或按Tab跳转到建议的牌。按回车键使用它。",
   "NPE_Hint_AssignBlocker": "左右方向键在生物间导航，或按Tab跳转到建议的牌。在生物上按回车键选择它为阻挡者。可以选择多个阻挡者。然后导航到攻击生物并按回车键分配已选择的阻挡者。",
   "NPE_Hint_ConfirmBlocks": "按空格键确认阻挡，或在未选择阻挡者时跳过阻挡阶段。",
-  "NPE_Hint_AssignAttacker": "左右方向键在生物间导航，或按Tab跳转到建议的牌。按回车键选为攻击者。",
+  "NPE_Hint_AssignAttacker": "左右方向键在生物间导航，Tab跳转到建议的牌。回车切换攻击者。空格选择全部攻击者或确认选择。",
   "NPE_Hint_ConfirmAttackers": "按空格键确认攻击者。",
   "NPE_Hint_SkipAttack": "按退格键跳过本回合的攻击。",
   "NPE_Hint_SelectCard": "左右方向键在卡牌间导航，或按Tab跳转到建议的牌。按回车键选择。",

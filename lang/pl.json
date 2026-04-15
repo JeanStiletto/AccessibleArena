@@ -1076,7 +1076,7 @@
   "NPE_Hint_PlayCard": "Strzałki lewo i prawo do nawigacji między kartami, lub Tab aby przejść do sugerowanej karty. Enter aby zagrać.",
   "NPE_Hint_AssignBlocker": "Strzałki lewo i prawo do nawigacji między stworzeniami, lub Tab aby przejść do sugerowanej karty. Enter na stworzeniu, aby wybrać je jako blokera. Możesz wybrać kilku blokerów. Następnie przejdź do atakującego stworzenia i naciśnij Enter, aby przypisać wybranych blokerów.",
   "NPE_Hint_ConfirmBlocks": "Naciśnij Spację, aby potwierdzić bloki, lub aby pominąć fazę blokowania, jeśli nie wybrałeś żadnych blokerów.",
-  "NPE_Hint_AssignAttacker": "Strzałki lewo i prawo do nawigacji między stworzeniami, lub Tab aby przejść do sugerowanej karty. Enter aby wybrać jako atakującego.",
+  "NPE_Hint_AssignAttacker": "Lewo i prawo do nawigacji między stworzeniami, Tab do sugerowanej karty. Enter aby przełączyć atakującego. Spacja aby wybrać wszystkich atakujących lub potwierdzić wybór.",
   "NPE_Hint_ConfirmAttackers": "Naciśnij Spację, aby potwierdzić atakujących.",
   "NPE_Hint_SkipAttack": "Naciśnij Backspace, aby pominąć atak w tej turze.",
   "NPE_Hint_SelectCard": "Strzałki lewo i prawo do nawigacji między kartami, lub Tab aby przejść do sugerowanej karty. Enter aby wybrać.",
