@@ -1279,6 +1279,7 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg("[Store] Web browser became inactive, returning to store");
                     _isWebBrowserActive = false;
+                    ReannounceStorePosition();
                 }
             }
 

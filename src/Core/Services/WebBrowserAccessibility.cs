@@ -43,6 +43,7 @@ namespace AccessibleArena.Core.Services
         private bool _useNativeInput; // Use native CEF keyboard input (for fields that reject JS events)
         private bool _isLoading;
         private int _lastWebElementCount; // Track for silent rescan comparison
+        private string _lastContentFingerprint = ""; // Detect AJAX content changes (same count, different text)
 
         // Edit mode cursor tracking for character-by-character reading
         private string _editFieldValue = "";
@@ -74,7 +75,9 @@ namespace AccessibleArena.Core.Services
         private float _mutationStableTime;           // Time since last DOM change (for auto-stop)
         private bool _hasInteractiveElements;         // Whether current extraction found any interactive elements
         private const float MutationPollInterval = 0.5f;
-        private const float MutationStableTimeout = 8f; // Stop polling after DOM is stable for this long
+        private const float MutationStableTimeout = 8f;          // Default: stop polling after DOM is stable for this long
+        private const float MutationStableTimeoutPostClick = 45f; // After button click: payment processing can take 30+ seconds
+        private float _mutationCurrentTimeout = MutationStableTimeout;
 
         #endregion
 
@@ -554,7 +557,10 @@ namespace AccessibleArena.Core.Services
             _mutationObserverActive = false;
             _mutationPollTimer = 0;
             _mutationStableTime = 0;
+            _mutationCurrentTimeout = MutationStableTimeout;
             _hasInteractiveElements = false;
+            _lastWebElementCount = 0;
+            _lastContentFingerprint = "";
             _elements.Clear();
 
             // Find ZFBrowser.Browser component
@@ -1224,19 +1230,30 @@ namespace AccessibleArena.Core.Services
             if (!foundInteractive && !_mutationObserverActive)
             {
                 MelonLogger.Msg("[WebBrowser] No interactive elements found, installing MutationObserver to watch for dynamic content");
+                _mutationCurrentTimeout = MutationStableTimeout;
                 InstallMutationObserver();
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
                 return;
             }
 
-            // If element count hasn't changed, this is likely a silent rescan — don't re-announce
-            if (webElementCount == _lastWebElementCount)
+            // Build content fingerprint to detect AJAX page changes (same element count, different text)
+            var fingerprint = ComputeContentFingerprint();
+
+            // If neither count nor content changed, this is a silent rescan — don't re-announce
+            if (webElementCount == _lastWebElementCount && fingerprint == _lastContentFingerprint)
             {
                 MelonLogger.Msg("[WebBrowser] Element count unchanged, silent rescan");
                 return;
             }
 
+            bool contentChangedOnly = webElementCount == _lastWebElementCount && fingerprint != _lastContentFingerprint;
+            if (contentChangedOnly)
+            {
+                MelonLogger.Msg("[WebBrowser] Element count unchanged but content changed (AJAX update detected)");
+            }
+
             _lastWebElementCount = webElementCount;
+            _lastContentFingerprint = fingerprint;
 
             // If we now have interactive elements, stop the MutationObserver
             if (foundInteractive && _mutationObserverActive)
@@ -1260,6 +1277,22 @@ namespace AccessibleArena.Core.Services
             _isLoading = false;
             MelonLogger.Msg($"[WebBrowser] Extraction error: {ex.Message}");
             _announcer.AnnounceInterrupt(Strings.WebBrowser_CouldNotRead);
+        }
+
+        /// <summary>
+        /// Build a fingerprint from element texts to detect AJAX content changes
+        /// (e.g. payment success pages that replace content without navigation).
+        /// </summary>
+        private string ComputeContentFingerprint()
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                if (_elements[i].IsBackToArena) continue;
+                sb.Append(_elements[i].Text);
+                sb.Append('|');
+            }
+            return sb.ToString();
         }
 
         #endregion
@@ -1310,7 +1343,7 @@ namespace AccessibleArena.Core.Services
                     else
                     {
                         _mutationStableTime += MutationPollInterval;
-                        if (_mutationStableTime >= MutationStableTimeout)
+                        if (_mutationStableTime >= _mutationCurrentTimeout)
                         {
                             MelonLogger.Msg("[WebBrowser] DOM stable, stopping MutationObserver polling");
                             _mutationObserverActive = false;
@@ -1373,6 +1406,8 @@ namespace AccessibleArena.Core.Services
             _clickCooldownUntil = 0; // New page = new buttons, clear cooldown
             _mutationObserverActive = false; // Will be re-installed after extraction
             _hasInteractiveElements = false;
+            _lastWebElementCount = 0;
+            _lastContentFingerprint = "";
 
             _isEditingField = false;
             _isLoading = false; // Reset in case a previous extraction never resolved
@@ -1570,6 +1605,12 @@ namespace AccessibleArena.Core.Services
                     StartClickCooldown(ClickCooldownSeconds);
                     ScheduleRescan(RescanDelayClick);
                     _secondRescanTimer = RescanDelaySecond;
+                    // Monitor for slow AJAX transitions (e.g. payment processing can take 30+ seconds).
+                    // The two fixed rescans at 1.2s and 3.0s catch fast transitions; the MutationObserver
+                    // catches slow ones by polling for DOM changes until the page is stable.
+                    _mutationCurrentTimeout = MutationStableTimeoutPostClick;
+                    _mutationStableTime = 0; // Reset in case observer was already running
+                    InstallMutationObserver();
                     break;
 
                 case "combobox":
