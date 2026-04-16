@@ -500,7 +500,7 @@
   "WebBrowser_Submitted": "Abgesendet",
   "WebBrowser_NoBackButton": "Keine Zurück-Schaltfläche gefunden",
   "WebBrowser_Editing_Format": "Bearbeitung von {0}, {1}. Text eingeben, Escape zum Beenden.",
-  "WebBrowser_CaptchaWarning": "Sicherheitsüberprüfung erkannt. Dies ist ein visuelles CAPTCHA, das ohne Sehvermögen nicht gelöst werden kann. PayPal bietet keine Audio-Alternative. Bitten Sie jemanden um sehende Hilfe oder drücken Sie Rücktaste, um zurückzugehen und eine andere Zahlungsmethode zu wählen.",
+  "WebBrowser_CaptchaWarning": "Sicherheitsüberprüfung erkannt. Dies ist ein visuelles CAPTCHA, das ohne Sehvermögen nicht gelöst werden kann. PayPal verstößt gegen Barrierefreiheitsgesetze, indem keine Audio-Alternative bereitgestellt wird. Bitten Sie jemanden um sehende Hilfe oder drücken Sie Rücktaste, um zurückzugehen und eine andere Zahlungsmethode zu wählen.",
   "WebBrowser_PasswordStar": "Stern",
   "WebBrowser_SpaceChar": "Leerzeichen",
   "CouldNotMove_Format": "{0} konnte nicht verschoben werden",

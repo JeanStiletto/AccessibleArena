@@ -245,6 +245,8 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
  
 1. Display player state information - announce counters (poison, energy, experience, rad, etc.), emblems, and modified properties (max hand size, extra turns, etc.) on players
 2. Sylvan Library support — the card has a unique draw-then-choose UI that needs accessible navigation. Planned for when Strixhaven Remastered releases on Arena. Reference: https://magic.wizards.com/en/news/mtg-arena/dev-diary-sylvan-library
+3. Emote system improvements — fix and improve the emote system so emotes can be sent and received correctly, with proper screen reader announcements for incoming opponent emotes. Add the ability to mute the opponent's emotes.
+
 ### Polish
 
 1. Unify E and T shortcut announcements — make the announcement style consistent between the two shortcuts.

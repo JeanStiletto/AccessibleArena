@@ -500,7 +500,7 @@
   "WebBrowser_Submitted": "已送出",
   "WebBrowser_NoBackButton": "未找到返回按鈕",
   "WebBrowser_Editing_Format": "正在編輯{0}，{1}。輸入文字，按Escape離開。",
-  "WebBrowser_CaptchaWarning": "偵測到安全驗證。這是一個視覺驗證碼，無法在沒有視力的情況下完成。PayPal不提供音訊替代方案。請向看得見的人尋求幫助，或按Backspace返回並嘗試其他付款方式。",
+  "WebBrowser_CaptchaWarning": "偵測到安全驗證。這是一個視覺驗證碼，無法在沒有視力的情況下完成。PayPal未提供音訊替代方案，違反了無障礙法律。請向看得見的人尋求幫助，或按Backspace返回並嘗試其他付款方式。",
   "WebBrowser_PasswordStar": "星號",
   "WebBrowser_SpaceChar": "空白",
   "CouldNotMove_Format": "無法移動{0}",

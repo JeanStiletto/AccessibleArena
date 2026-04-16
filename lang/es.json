@@ -500,7 +500,7 @@
   "WebBrowser_Submitted": "Enviado",
   "WebBrowser_NoBackButton": "No se encontró botón de retroceso",
   "WebBrowser_Editing_Format": "Editando {0}, {1}. Escriba texto, Escape para salir.",
-  "WebBrowser_CaptchaWarning": "Verificación de seguridad detectada. Es un CAPTCHA visual que no se puede resolver sin vista. PayPal no ofrece alternativa de audio. Pida ayuda a alguien que pueda ver, o pulse Retroceso para volver e intentar otro método de pago.",
+  "WebBrowser_CaptchaWarning": "Verificación de seguridad detectada. Es un CAPTCHA visual que no se puede resolver sin vista. PayPal está infringiendo las leyes de accesibilidad al no ofrecer una alternativa de audio. Pida ayuda a alguien que pueda ver, o pulse Retroceso para volver e intentar otro método de pago.",
   "WebBrowser_PasswordStar": "estrella",
   "WebBrowser_SpaceChar": "espacio",
   "CouldNotMove_Format": "No se pudo mover {0}",

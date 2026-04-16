@@ -500,7 +500,7 @@
   "WebBrowser_Submitted": "送信済み",
   "WebBrowser_NoBackButton": "戻るボタンが見つかりません",
   "WebBrowser_Editing_Format": "{0}を編集中、{1}。テキストを入力、Escapeで終了。",
-  "WebBrowser_CaptchaWarning": "セキュリティ認証が検出されました。これは視覚的なCAPTCHAで、視力なしでは解決できません。PayPalは音声の代替手段を提供していません。見える方に助けを求めるか、Backspaceを押して戻り、別の支払い方法を試してください。",
+  "WebBrowser_CaptchaWarning": "セキュリティ認証が検出されました。これは視覚的なCAPTCHAで、視力なしでは解決できません。PayPalは音声の代替手段を提供せず、アクセシビリティに関する法律に違反しています。見える方に助けを求めるか、Backspaceを押して戻り、別の支払い方法を試してください。",
   "WebBrowser_PasswordStar": "星",
   "WebBrowser_SpaceChar": "スペース",
   "CouldNotMove_Format": "{0}を移動できませんでした",

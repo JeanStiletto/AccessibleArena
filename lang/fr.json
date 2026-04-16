@@ -500,7 +500,7 @@
   "WebBrowser_Submitted": "Envoyé",
   "WebBrowser_NoBackButton": "Bouton retour non trouvé",
   "WebBrowser_Editing_Format": "Édition de {0}, {1}. Tapez pour saisir du texte, Échap pour quitter.",
-  "WebBrowser_CaptchaWarning": "Vérification de sécurité détectée. Il s'agit d'un CAPTCHA visuel qui ne peut pas être résolu sans la vue. PayPal ne fournit pas d'alternative audio. Veuillez demander l'aide d'une personne voyante, ou appuyez sur Retour arrière pour revenir et essayer un autre moyen de paiement.",
+  "WebBrowser_CaptchaWarning": "Vérification de sécurité détectée. Il s'agit d'un CAPTCHA visuel qui ne peut pas être résolu sans la vue. PayPal enfreint les lois sur l'accessibilité en ne fournissant pas d'alternative audio. Veuillez demander l'aide d'une personne voyante, ou appuyez sur Retour arrière pour revenir et essayer un autre moyen de paiement.",
   "WebBrowser_PasswordStar": "étoile",
   "WebBrowser_SpaceChar": "espace",
   "CouldNotMove_Format": "Impossible de déplacer {0}",
