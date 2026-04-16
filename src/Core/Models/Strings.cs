@@ -658,6 +658,21 @@ namespace AccessibleArena.Core.Models
         public static string RankMythicPercent(int percent) => L.Format("RankMythicPercent_Format", percent);
         public static string RankMythicPlacement(int placement) => L.Format("RankMythicPlacement_Format", placement);
 
+        // Player effects
+        public static string PlayerEffects => L.Get("PlayerEffects");
+        public static string NoActiveEffects => L.Get("NoActiveEffects");
+        public static string LifeCounter(int count, string type) => L.Format("LifeCounter_Format", count, type);
+        public static string DesignationMonarch => L.Get("Designation_Monarch");
+        public static string DesignationSpeed(int level) => L.Format("Designation_Speed_Format", level);
+        public static string DesignationDay => L.Get("Designation_Day");
+        public static string DesignationNight => L.Get("Designation_Night");
+        public static string DesignationCitysBlessing => L.Get("Designation_CitysBlessing");
+        public static string PlayerAbilityCount(int count) =>
+            count == 1 ? L.Get("PlayerAbilityCount_One") : L.Format("PlayerAbilityCount_Format", count);
+        public static string DungeonStatus(string dungeon, string room) => L.Format("Dungeon_Format", dungeon, room);
+        public static string DungeonsCompleted(int count) =>
+            count == 1 ? L.Get("DungeonsCompleted_One") : L.Format("DungeonsCompleted_Format", count);
+
         // Emote menu
         public static string Emotes => L.Get("Emotes");
         public static string EmoteSent(string emoteName) => L.Format("EmoteSent_Format", emoteName);

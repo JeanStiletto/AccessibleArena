@@ -5,6 +5,8 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using TMPro;
@@ -29,8 +31,8 @@ namespace AccessibleArena.Core.Services
         private int _currentPropertyIndex = 0;
 
         // Property list for cycling (Username merged into Life announcement)
-        private enum PlayerProperty { Life, Timer, Timeouts, Wins, Rank }
-        private const int PropertyCount = 5;
+        private enum PlayerProperty { Life, Effects, Timer, Timeouts, Wins, Rank }
+        private const int PropertyCount = 6;
 
         // Emote navigation
         private System.Collections.Generic.List<GameObject> _emoteButtons = new System.Collections.Generic.List<GameObject>();
@@ -77,6 +79,13 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _mythicPercentileField;
         private static FieldInfo _mythicPlacementField;
         private static bool _rankReflectionInitialized;
+
+        // MtgEntity/MtgPlayer reflection cache (counters, designations, abilities, dungeon)
+        private static FieldInfo _countersField; // MtgEntity.Counters (Dictionary<CounterType, int>)
+        private static FieldInfo _designationsField; // MtgEntity.Designations (List<DesignationData>)
+        private static FieldInfo _abilitiesField; // MtgEntity.Abilities (List<AbilityPrintingData>)
+        private static FieldInfo _dungeonStateField; // MtgPlayer.DungeonState (DungeonData)
+        private static bool _entityReflectionInitialized;
 
         // Focus management - store previous focus to restore on exit
         private GameObject _previousFocus;
@@ -337,12 +346,13 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Up/Down cycles through properties
+            // Up/Down cycles through properties (skipping rows where neither player has content)
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
-                if (_currentPropertyIndex < PropertyCount - 1)
+                int next = FindNextVisibleProperty(_currentPropertyIndex, forward: true);
+                if (next >= 0)
                 {
-                    _currentPropertyIndex++;
+                    _currentPropertyIndex = next;
                     var value = GetPropertyValue((PlayerProperty)_currentPropertyIndex);
                     _announcer.Announce(value, AnnouncementPriority.High);
                 }
@@ -355,9 +365,10 @@ namespace AccessibleArena.Core.Services
 
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
-                if (_currentPropertyIndex > 0)
+                int next = FindNextVisibleProperty(_currentPropertyIndex, forward: false);
+                if (next >= 0)
                 {
-                    _currentPropertyIndex--;
+                    _currentPropertyIndex = next;
                     var value = GetPropertyValue((PlayerProperty)_currentPropertyIndex);
                     _announcer.Announce(value, AnnouncementPriority.High);
                 }
@@ -449,14 +460,17 @@ namespace AccessibleArena.Core.Services
                 case PlayerProperty.Life:
                     var (localLife, opponentLife) = GetLifeTotals();
                     int life = isOpponent ? opponentLife : localLife;
-                    string lifeText = life >= 0 ? Strings.Life(life) : Strings.LifeNotAvailable;
+                    string lifeWithCounters = BuildLifeWithCounters(life, isOpponent);
                     // Include username in life announcement
                     string username = GetPlayerUsername(isOpponent);
                     if (!string.IsNullOrEmpty(username))
                     {
-                        return $"{username}, {lifeText}";
+                        return $"{username}, {lifeWithCounters}";
                     }
-                    return lifeText;
+                    return lifeWithCounters;
+
+                case PlayerProperty.Effects:
+                    return GetPlayerEffects(isOpponent);
 
                 case PlayerProperty.Timer:
                     var timerStr = GetTimerFromModel(isOpponent);
@@ -482,6 +496,124 @@ namespace AccessibleArena.Core.Services
                 default:
                     return "Unknown property";
             }
+        }
+
+        /// <summary>
+        /// Checks whether a property has meaningful content for at least one player.
+        /// If neither player has content, the property row should be skipped during navigation.
+        /// </summary>
+        private bool IsPropertyVisible(PlayerProperty property)
+        {
+            // Life is always visible
+            if (property == PlayerProperty.Life) return true;
+
+            switch (property)
+            {
+                case PlayerProperty.Effects:
+                    // Visible if either player has active effects
+                    return HasEffectsContent(false) || HasEffectsContent(true);
+
+                case PlayerProperty.Timer:
+                    // Visible if either player has a match clock or rope timer
+                    return GetTimerFromModel(false) != null || GetTimerFromModel(true) != null
+                        || GetRopeTimerFromModel(false) != null || GetRopeTimerFromModel(true) != null;
+
+                case PlayerProperty.Wins:
+                    // Visible if either player has won a game (Bo3)
+                    return GetWinCount(false) > 0 || GetWinCount(true) > 0;
+
+                case PlayerProperty.Rank:
+                    // Visible if either player has rank info
+                    return !string.IsNullOrEmpty(GetPlayerRank(false)) || !string.IsNullOrEmpty(GetPlayerRank(true));
+
+                default:
+                    // Timeouts and any others: always visible
+                    return true;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a player has active effects (designations, abilities, or dungeon state).
+        /// Cheaper than building the full effects string.
+        /// </summary>
+        private bool HasEffectsContent(bool isOpponent)
+        {
+            var player = GetMtgPlayer(isOpponent);
+            if (player == null) return false;
+
+            if (!_entityReflectionInitialized)
+                InitializeEntityReflection(player);
+
+            try
+            {
+                if (_designationsField != null)
+                {
+                    var designations = _designationsField.GetValue(player) as IList;
+                    if (designations != null)
+                    {
+                        foreach (var desig in designations)
+                        {
+                            var typeField = desig.GetType().GetField("Type");
+                            if (typeField == null) continue;
+                            string typeName = typeField.GetValue(desig).ToString();
+                            if (FormatDesignation(typeName, desig, desig.GetType()) != null)
+                                return true;
+                        }
+                    }
+                }
+
+                if (_abilitiesField != null)
+                {
+                    var abilities = _abilitiesField.GetValue(player) as IList;
+                    if (abilities != null && abilities.Count > 0)
+                        return true;
+                }
+
+                if (_dungeonStateField != null)
+                {
+                    var dungeonState = _dungeonStateField.GetValue(player);
+                    if (dungeonState != null)
+                    {
+                        var dungeonGrpIdField = dungeonState.GetType().GetField("DungeonGrpId");
+                        if (dungeonGrpIdField != null)
+                        {
+                            uint dungeonGrpId = (uint)dungeonGrpIdField.GetValue(dungeonState);
+                            if (dungeonGrpId > 0) return true;
+                        }
+                        var completedField = dungeonState.GetType().GetField("CompletedDungeons");
+                        if (completedField != null)
+                        {
+                            var completed = completedField.GetValue(dungeonState) as uint[];
+                            if (completed != null && completed.Length > 0) return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error checking effects content: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Finds the next visible property index when navigating forward or backward.
+        /// Returns -1 if no visible property exists in the given direction.
+        /// </summary>
+        private int FindNextVisibleProperty(int currentIndex, bool forward)
+        {
+            int step = forward ? 1 : -1;
+            int next = currentIndex + step;
+
+            while (next >= 0 && next < PropertyCount)
+            {
+                if (IsPropertyVisible((PlayerProperty)next))
+                    return next;
+                next += step;
+            }
+
+            return -1; // No visible property found
         }
 
         /// <summary>
@@ -884,26 +1016,48 @@ namespace AccessibleArena.Core.Services
         {
             var (localLife, opponentLife) = GetLifeTotals();
 
+            string localText = BuildLifeWithCounters(localLife, false);
+            string opponentText = BuildLifeWithCounters(opponentLife, true);
+
             string announcement;
             if (localLife >= 0 && opponentLife >= 0)
             {
-                announcement = $"You {localLife} life. Opponent {opponentLife} life";
+                announcement = $"{Strings.You} {localText}. {Strings.Opponent} {opponentText}";
             }
             else if (localLife >= 0)
             {
-                announcement = $"You {localLife} life. Opponent life unknown";
+                announcement = $"{Strings.You} {localText}. {Strings.Opponent} {Strings.LifeNotAvailable}";
             }
             else if (opponentLife >= 0)
             {
-                announcement = $"Your life unknown. Opponent {opponentLife} life";
+                announcement = $"{Strings.You} {Strings.LifeNotAvailable}. {Strings.Opponent} {opponentText}";
             }
             else
             {
-                announcement = "Life totals not available";
+                announcement = Strings.LifeNotAvailable;
             }
 
             // High priority so repeated L presses always re-announce (bypasses duplicate suppression)
             _announcer.Announce(announcement, AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Builds a life string with optional counter suffix.
+        /// E.g. "20 life, 3 Poison, 4 Energy" or just "20 life" if no counters.
+        /// </summary>
+        private string BuildLifeWithCounters(int life, bool isOpponent)
+        {
+            if (life < 0) return Strings.LifeNotAvailable;
+
+            string lifeText = Strings.Life(life);
+            var player = GetMtgPlayer(isOpponent);
+            if (player == null) return lifeText;
+
+            var counters = GetPlayerCounters(player);
+            string counterSuffix = FormatCountersForLife(counters);
+            if (string.IsNullOrEmpty(counterSuffix)) return lifeText;
+
+            return $"{lifeText}, {counterSuffix}";
         }
 
         /// <summary>
@@ -1071,6 +1225,308 @@ namespace AccessibleArena.Core.Services
             }
 
             return -1;
+        }
+
+        /// <summary>
+        /// Gets the raw MtgPlayer object for a player via GameManager -> GameState -> LocalPlayer/Opponent.
+        /// Returns null if not available.
+        /// </summary>
+        private object GetMtgPlayer(bool isOpponent)
+        {
+            try
+            {
+                MonoBehaviour gameManager = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == T.GameManager)
+                    {
+                        gameManager = mb;
+                        break;
+                    }
+                }
+                if (gameManager == null) return null;
+
+                var gmType = gameManager.GetType();
+                object gameState = gmType.GetProperty("CurrentGameState")?.GetValue(gameManager);
+                if (gameState == null)
+                    gameState = gmType.GetProperty("LatestGameState")?.GetValue(gameManager);
+                if (gameState == null) return null;
+
+                var gsType = gameState.GetType();
+                string propName = isOpponent ? "Opponent" : "LocalPlayer";
+                return gsType.GetProperty(propName)?.GetValue(gameState);
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error getting MtgPlayer: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Initializes reflection cache for MtgEntity/MtgPlayer fields (counters, designations, abilities, dungeon).
+        /// </summary>
+        private static void InitializeEntityReflection(object player)
+        {
+            try
+            {
+                var playerType = player.GetType();
+
+                // Counters, Designations, Abilities are on MtgEntity (base class)
+                // Walk up type hierarchy to find them
+                var type = playerType;
+                while (type != null)
+                {
+                    if (_countersField == null)
+                        _countersField = type.GetField("Counters", PublicInstance);
+                    if (_designationsField == null)
+                        _designationsField = type.GetField("Designations", PublicInstance);
+                    if (_abilitiesField == null)
+                        _abilitiesField = type.GetField("Abilities", PublicInstance);
+                    type = type.BaseType;
+                }
+
+                // DungeonState is on MtgPlayer directly
+                _dungeonStateField = playerType.GetField("DungeonState", PublicInstance);
+
+                _entityReflectionInitialized = true;
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait",
+                    $"Entity reflection initialized: Counters={_countersField != null}, " +
+                    $"Designations={_designationsField != null}, Abilities={_abilitiesField != null}, " +
+                    $"DungeonState={_dungeonStateField != null}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PlayerPortrait] Failed to initialize entity reflection: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Gets player counters (poison, energy, experience, etc.) from MtgEntity.Counters.
+        /// Returns list of (typeName, count) tuples with count > 0.
+        /// </summary>
+        private List<(string typeName, int count)> GetPlayerCounters(object player)
+        {
+            var result = new List<(string, int)>();
+            if (player == null) return result;
+
+            if (!_entityReflectionInitialized)
+                InitializeEntityReflection(player);
+            if (_countersField == null) return result;
+
+            try
+            {
+                var countersObj = _countersField.GetValue(player);
+                if (countersObj == null) return result;
+
+                // Iterate via IEnumerable (Dictionary<CounterType, int>)
+                var enumerable = countersObj as IEnumerable;
+                if (enumerable == null) return result;
+
+                foreach (var entry in enumerable)
+                {
+                    var entryType = entry.GetType();
+                    var keyProp = entryType.GetProperty("Key");
+                    var valueProp = entryType.GetProperty("Value");
+                    if (keyProp == null || valueProp == null) continue;
+
+                    var key = keyProp.GetValue(entry);
+                    int count = (int)valueProp.GetValue(entry);
+
+                    if (count > 0)
+                    {
+                        result.Add((CardStateProvider.FormatCounterTypeName(key.ToString()), count));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading player counters: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Formats a list of counters as a comma-separated suffix for life announcements.
+        /// E.g. "3 Poison, 4 Energy". Returns empty string if no counters.
+        /// </summary>
+        private static string FormatCountersForLife(List<(string typeName, int count)> counters)
+        {
+            if (counters == null || counters.Count == 0) return "";
+            var parts = new List<string>();
+            foreach (var (typeName, count) in counters)
+            {
+                parts.Add(Strings.LifeCounter(count, typeName));
+            }
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>
+        /// Gets player effects (designations, abilities, dungeon state) for the Effects property.
+        /// Returns a formatted string, or Strings.NoActiveEffects if nothing active.
+        /// </summary>
+        private string GetPlayerEffects(bool isOpponent)
+        {
+            var player = GetMtgPlayer(isOpponent);
+            if (player == null) return Strings.NoActiveEffects;
+
+            if (!_entityReflectionInitialized)
+                InitializeEntityReflection(player);
+
+            var parts = new List<string>();
+
+            // Read designations
+            try
+            {
+                if (_designationsField != null)
+                {
+                    var designations = _designationsField.GetValue(player) as IList;
+                    if (designations != null && designations.Count > 0)
+                    {
+                        foreach (var desig in designations)
+                        {
+                            var desigType = desig.GetType();
+                            var typeField = desigType.GetField("Type");
+                            if (typeField == null) continue;
+
+                            string typeName = typeField.GetValue(desig).ToString();
+                            string text = FormatDesignation(typeName, desig, desigType);
+                            if (text != null)
+                                parts.Add(text);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading designations: {ex.Message}");
+            }
+
+            // Read abilities
+            try
+            {
+                if (_abilitiesField != null)
+                {
+                    var abilities = _abilitiesField.GetValue(player) as IList;
+                    if (abilities != null && abilities.Count > 0)
+                    {
+                        int abilityCount = 0;
+                        foreach (var ability in abilities)
+                        {
+                            var abilityType = ability.GetType();
+                            var idProp = abilityType.GetProperty("Id", PublicInstance);
+                            if (idProp == null) continue;
+
+                            uint abilityId = (uint)idProp.GetValue(ability);
+                            string abilityText = CardTextProvider.GetAbilityText(
+                                ability, abilityType, 0, abilityId, System.Array.Empty<uint>(), 0);
+
+                            if (!string.IsNullOrEmpty(abilityText))
+                            {
+                                parts.Add(abilityText);
+                            }
+                            else
+                            {
+                                abilityCount++;
+                            }
+                        }
+
+                        // If some abilities had no text, report count
+                        if (abilityCount > 0 && parts.Count == 0)
+                        {
+                            parts.Add(Strings.PlayerAbilityCount(abilityCount));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading abilities: {ex.Message}");
+            }
+
+            // Read dungeon state
+            try
+            {
+                if (_dungeonStateField != null)
+                {
+                    var dungeonState = _dungeonStateField.GetValue(player);
+                    if (dungeonState != null)
+                    {
+                        var dsType = dungeonState.GetType();
+                        var dungeonGrpIdField = dsType.GetField("DungeonGrpId");
+                        var currentRoomField = dsType.GetField("CurrentRoomGrpId");
+                        var completedField = dsType.GetField("CompletedDungeons");
+
+                        if (dungeonGrpIdField != null)
+                        {
+                            uint dungeonGrpId = (uint)dungeonGrpIdField.GetValue(dungeonState);
+                            if (dungeonGrpId > 0)
+                            {
+                                string dungeonName = CardModelProvider.GetNameFromGrpId(dungeonGrpId) ?? dungeonGrpId.ToString();
+                                string roomName = null;
+                                if (currentRoomField != null)
+                                {
+                                    uint roomGrpId = (uint)currentRoomField.GetValue(dungeonState);
+                                    if (roomGrpId > 0)
+                                        roomName = CardModelProvider.GetNameFromGrpId(roomGrpId) ?? roomGrpId.ToString();
+                                }
+                                parts.Add(Strings.DungeonStatus(dungeonName, roomName ?? "?"));
+                            }
+                        }
+
+                        if (completedField != null)
+                        {
+                            var completed = completedField.GetValue(dungeonState) as uint[];
+                            if (completed != null && completed.Length > 0)
+                            {
+                                parts.Add(Strings.DungeonsCompleted(completed.Length));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading dungeon state: {ex.Message}");
+            }
+
+            if (parts.Count == 0)
+                return Strings.NoActiveEffects;
+
+            string label = $"{Strings.PlayerEffects}: ";
+            return label + string.Join(". ", parts);
+        }
+
+        /// <summary>
+        /// Formats a Designation enum value into a localized display string.
+        /// Returns null for card-level designations that aren't relevant to player display.
+        /// </summary>
+        private static string FormatDesignation(string typeName, object desig, System.Type desigType)
+        {
+            switch (typeName)
+            {
+                case "Monarch":
+                    return Strings.DesignationMonarch;
+                case "PlayerSpeed":
+                    var valueField = desigType.GetField("Value");
+                    if (valueField != null)
+                    {
+                        var val = valueField.GetValue(desig);
+                        if (val is uint speedVal && speedVal > 0)
+                            return Strings.DesignationSpeed((int)speedVal);
+                    }
+                    return Strings.DesignationSpeed(0);
+                case "Day":
+                    return Strings.DesignationDay;
+                case "Night":
+                    return Strings.DesignationNight;
+                case "CitysBlessing":
+                    return Strings.DesignationCitysBlessing;
+                default:
+                    // Skip card-level designations (Commander, Companion, Monstrous, Renowned, etc.)
+                    return null;
+            }
         }
 
         private string GetTimerText(GameObject timerObj)
