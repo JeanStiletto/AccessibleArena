@@ -4,6 +4,10 @@ All notable changes to Accessible Arena.
 
 ## v0.9.3
 
+### Pack Opening
+- Refactored pack opening internally to read all cards from the game's data list instead of only viewport-visible cards — Open All packs now reveal all cards (e.g., 16 of 16 in an ECL pack) instead of only the ~12 that fit on screen
+- Fixed booster carousel getting permanently stuck after closing an Open All pack opening — unrevealed off-screen cards left the game's animator in an invalid state, now force-revealed before dismiss
+
 ### Player Counters & Effects
 - Player counters (poison, energy, experience, etc.) are now appended to life total announcements (L key and V key Life property) — e.g., "Sparky, 15 Leben, 2 Gift"
 - Added new "Effects" property to the V key player info cycle — shows designations (Monarch, Speed, Day/Night, City's Blessing), player abilities (Ring levels), and dungeon state; empty rows are automatically skipped when neither player has active effects

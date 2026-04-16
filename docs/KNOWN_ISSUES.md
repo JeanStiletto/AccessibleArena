@@ -180,6 +180,19 @@ Claiming certain mailbox rewards (e.g. TMNT promo) opens a `FullscreenZFBrowserC
 
 ---
 
+### Off-Screen Cards in Open All Pack Opening May Lack Full Card Info
+
+When opening many packs at once (Open All), the game's virtualized scroll list only renders ~12 physical card slots. Cards beyond the viewport are represented as text-only entries with name and type from GrpId lookup. Arrow Up/Down card info (mana cost, rules text, P/T, etc.) is now provided via GrpId-based lookup for these off-screen cards, but this has not been tested in-game yet.
+
+**Monitor for:**
+- Whether off-screen cards actually show full Arrow Up/Down info (mana cost, type, rules text, rarity, etc.)
+- Whether scrolling the viewport (if possible) correctly transitions cards between text-only and full GO elements
+- Whether the card info blocks match what on-screen cards show
+
+**Files:** `BoosterOpenNavigator.cs` (UpdateCardInfoForOffScreenCard, Move/MoveFirst/MoveLast overrides)
+
+---
+
 ### Season Rewards Popup (Monthly Reset)
 
 Season end rewards popup now uses content-gated detection (NPE-style): the navigator stays inactive until actual content is loaded, and activates once with a clean announcement. Season rank display phases (old rank, new rank) extract title, subtitle, and per-format rank details from `SeasonEndRankDisplay` components. ForceRescan suppresses duplicate announcements by tracking element count. Monitor whether:

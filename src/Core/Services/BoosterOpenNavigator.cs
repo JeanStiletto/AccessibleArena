@@ -587,6 +587,49 @@ namespace AccessibleArena.Core.Services
             return 0; // Not found or not a card (e.g., vault progress)
         }
 
+        /// <summary>
+        /// Provide card info for off-screen cards (TextBlocks) via GrpId lookup.
+        /// Base UpdateCardNavigation deactivates CardInfoNavigator for null-GO elements,
+        /// but off-screen booster cards have full data available via GrpId.
+        /// </summary>
+        private void UpdateCardInfoForOffScreenCard()
+        {
+            if (!IsValidIndex) return;
+            var elem = _elements[_currentIndex];
+            if (elem.GameObject != null) return; // On-screen card handled by base UpdateCardNavigation
+
+            int dataIndex = (_currentIndex < _elementDataIndex.Count) ? _elementDataIndex[_currentIndex] : -1;
+            if (dataIndex < 0) return; // Not a card element (e.g., button)
+
+            var cardInfo = GetCardInfoFromData(dataIndex);
+            if (!cardInfo.HasValue || !cardInfo.Value.IsValid) return;
+
+            var blocks = CardDetector.BuildInfoBlocks(cardInfo.Value);
+            if (blocks.Count > 0)
+            {
+                var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+                cardNavigator?.PrepareForCardInfo(blocks, cardInfo.Value.Name ?? "Card");
+            }
+        }
+
+        protected override void Move(int direction)
+        {
+            base.Move(direction);
+            UpdateCardInfoForOffScreenCard();
+        }
+
+        protected override void MoveFirst()
+        {
+            base.MoveFirst();
+            UpdateCardInfoForOffScreenCard();
+        }
+
+        protected override void MoveLast()
+        {
+            base.MoveLast();
+            UpdateCardInfoForOffScreenCard();
+        }
+
         public override string GetTutorialHint() => LocaleManager.Instance.Get("BoosterOpenHint");
 
         protected override string GetActivationAnnouncement()
@@ -1238,6 +1281,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 UpdateCardNavigation();
+                UpdateCardInfoForOffScreenCard();
             }
             else
             {
