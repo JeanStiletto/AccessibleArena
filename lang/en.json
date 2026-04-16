@@ -106,6 +106,7 @@
   "AbilityTriggered": "triggered",
   "AbilityActivated": "activated",
   "AbilityUnknown": "Ability",
+  "CommanderTax_Format": "+{0} commander tax",
   "NoSubmitButtonFound": "No submit button found",
   "CouldNotSubmitDiscard": "Could not submit discard",
   "DiscardCount_One": "Discard 1 card",
