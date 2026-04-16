@@ -204,6 +204,10 @@ Only tested on Windows 11 with NVDA. Other Windows versions (Windows 10) and oth
 
 ---
 
+### Emblems in Command Zone
+
+Emblems created by planeswalkers live in the Command zone (`ZoneType.Command`) as `GameObjectType.Emblem`. It is unclear whether the current W key (Command Zone navigator) already picks them up, or if additional detection is needed. Needs in-game testing with emblem-producing planeswalkers.
+
 ---
 
 ## Not Reproducible Yet
@@ -243,7 +247,7 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 
 ### Upcoming
  
-1. Display player state information - announce counters (poison, energy, experience, rad, etc.), emblems, and modified properties (max hand size, extra turns, etc.) on players
+1. Display emblems in command zone and modified player properties (max hand size, extra turns, etc.)
 2. Sylvan Library support — the card has a unique draw-then-choose UI that needs accessible navigation. Planned for when Strixhaven Remastered releases on Arena. Reference: https://magic.wizards.com/en/news/mtg-arena/dev-diary-sylvan-library
 3. Emote system improvements — fix and improve the emote system so emotes can be sent and received correctly, with proper screen reader announcements for incoming opponent emotes. Add the ability to mute the opponent's emotes.
 

@@ -536,6 +536,26 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets the localized name for a CounterType enum value using the game's GreLocProvider.
+        /// Falls back to FormatCounterTypeName if localization is unavailable.
+        /// Call with the raw enum object from the Counters dictionary key.
+        /// </summary>
+        public static string GetLocalizedCounterTypeName(object counterTypeEnum)
+        {
+            if (counterTypeEnum == null) return "";
+
+            // Resolve via client loc provider: "Enum/CounterType/CounterType_{name}"
+            string enumName = counterTypeEnum.ToString();
+            string locKey = $"Enum/CounterType/CounterType_{enumName}";
+            string localized = UITextExtractor.ResolveLocKey(locKey);
+            if (!string.IsNullOrEmpty(localized))
+                return localized;
+
+            // Fall back to English enum name formatting (e.g., P1P1 -> +1/+1)
+            return FormatCounterTypeName(counterTypeEnum.ToString());
+        }
+
+        /// <summary>
         /// Gets all counters on a card from its model's Instance.Counters dictionary.
         /// Returns a list of (typeName, count) tuples for counters with count > 0.
         /// Chains: GetDuelSceneCDC -> GetCardModel -> Instance -> Counters.
@@ -594,7 +614,7 @@ namespace AccessibleArena.Core.Services
 
                     if (count > 0)
                     {
-                        result.Add((FormatCounterTypeName(key.ToString()), count));
+                        result.Add((GetLocalizedCounterTypeName(key), count));
                     }
                 }
             }

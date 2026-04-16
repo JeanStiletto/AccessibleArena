@@ -1335,7 +1335,7 @@ namespace AccessibleArena.Core.Services
 
                     if (count > 0)
                     {
-                        result.Add((CardStateProvider.FormatCounterTypeName(key.ToString()), count));
+                        result.Add((CardStateProvider.GetLocalizedCounterTypeName(key), count));
                     }
                 }
             }

@@ -1754,7 +1754,7 @@ namespace AccessibleArena.Core.Services
                                 if (value is int ci) count = ci;
                                 else if (int.TryParse(value.ToString(), out int parsed)) count = parsed;
                                 if (count > 0)
-                                    ptParts.Add($"{count} {CardStateProvider.FormatCounterTypeName(key.ToString())}");
+                                    ptParts.Add($"{count} {CardStateProvider.GetLocalizedCounterTypeName(key)}");
                             }
                         }
                     }

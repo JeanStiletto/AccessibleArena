@@ -4,6 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v0.9.3
 
+### Player Counters & Effects
+- Player counters (poison, energy, experience, etc.) are now appended to life total announcements (L key and V key Life property) — e.g., "Sparky, 15 Leben, 2 Gift"
+- Added new "Effects" property to the V key player info cycle — shows designations (Monarch, Speed, Day/Night, City's Blessing), player abilities (Ring levels), and dungeon state; empty rows are automatically skipped when neither player has active effects
+
+### Counter Localization
+- Named counters on cards and players now display localized names instead of English enum names — e.g., "Gift" instead of "Poison" in German, resolved via the game's client localization provider
+
 ## v0.9.2
 
 ### Auto-Update
