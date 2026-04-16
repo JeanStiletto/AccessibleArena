@@ -14,7 +14,9 @@ namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Navigator for the booster pack card list that appears after opening a pack.
-    /// Uses the controller's _cardsToOpen field as the authoritative source for detection.
+    /// Uses the controller's _cardsToOpen field as the authoritative source for detection
+    /// and GrpId-based lookup for card names (data-driven, immune to UI text timing).
+    /// Does NOT skip the pack animation — skipping corrupted the booster carousel state.
     /// </summary>
     public class BoosterOpenNavigator : BaseNavigator
     {
@@ -22,16 +24,20 @@ namespace AccessibleArena.Core.Services
         private GameObject _revealAllButton;
         private int _totalCards;
         private int _expectedCardCount;
-        private bool _animSkipped;
 
         // Cached reflection info (types don't change between scenes)
         private static FieldInfo _cardsToOpenField;
         private static PropertyInfo _hiddenProp;
         private static FieldInfo _onScreenHoldersField;
         private static PropertyInfo _cardViewsProp;
-        private static FieldInfo _animActiveField;
-        private static MethodInfo _stopAnimMethod;
-        private static FieldInfo _autoRevealField;
+        private static FieldInfo _autoRevealField;  // CardDataAndRevealStatus.AutoReveal
+
+        // Data-driven card info: read GrpId from _cardsToOpen entries
+        private static FieldInfo _cardDataField;    // CardDataAndRevealStatus.CardData
+        private static PropertyInfo _grpIdProp;     // CardData.GrpId
+        private static PropertyInfo _revealedProp;  // CardDataAndRevealStatus.Revealed
+        private Dictionary<GameObject, int> _cardDataIndices = new Dictionary<GameObject, int>();
+        private List<int> _elementDataIndex = new List<int>(); // parallel to _elements: _cardsToOpen index, -1 for non-card
 
         // Pack music: game's opening animation calls ConditionalHoverOff() which stops
         // the pack-specific music. We restore it by calling AudioManager.SetRTPCValue directly.
@@ -45,7 +51,6 @@ namespace AccessibleArena.Core.Services
         private int _rescanAttempt;
         private const int MaxRescanAttempts = 20; // ~10 seconds total
         private bool _rescanDone;
-        private bool _allCardsFound; // Once all expected cards found, only update labels (don't rebuild)
 
         // Delayed rescan after close action
         private bool _closeTriggered;
@@ -136,16 +141,21 @@ namespace AccessibleArena.Core.Services
         protected override void DiscoverElements()
         {
             _totalCards = 0;
+            _elementDataIndex.Clear();
+            _cardDataIndices.Clear();
             var addedObjects = new HashSet<GameObject>();
 
-            // Find RevealAll button first
+            // Find RevealAll button first (hidden from nav, no element added)
             FindRevealAllButton(addedObjects);
 
-            // Find card entries
+            // Find card entries from _cardsToOpen data (all cards, not just viewport)
             FindCardEntries(addedObjects);
 
             // Find dismiss/continue button
+            int preDismiss = _elements.Count;
             FindDismissButton(addedObjects);
+            for (int i = preDismiss; i < _elements.Count; i++)
+                _elementDataIndex.Add(-1);
         }
 
         private void FindRevealAllButton(HashSet<GameObject> addedObjects)
@@ -170,130 +180,105 @@ namespace AccessibleArena.Core.Services
 
         private void FindCardEntries(HashSet<GameObject> addedObjects)
         {
-            var cardEntries = new List<(GameObject obj, float sortOrder)>();
+            var cards = GetCardsToOpen(_controller);
+            if (cards == null || cards.Count == 0) return;
 
-            // Primary: read on-screen card holders from controller's dictionary
-            FindCardsFromController(cardEntries, addedObjects);
+            // Get on-screen card holders for activation (viewport-limited, ~12 of 24)
+            var onScreenDict = GetOnScreenHolders();
 
-            // Fallback: search for BoosterCardHolder components in the scene
-            if (cardEntries.Count == 0)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] No cards from controller, searching by component type");
-                FindCardsByComponentType(cardEntries, addedObjects);
-            }
+            MelonLogger.Msg($"[{NavigatorId}] Building card list from {cards.Count} data entries ({onScreenDict?.Count ?? 0} on-screen)");
 
-            // Sort cards by descending index (common cards first, rare last)
-            cardEntries = cardEntries.OrderByDescending(x => x.sortOrder).ToList();
+            // Sort by descending index (common cards first in navigation, matches scroll layout)
+            var sortedIndices = Enumerable.Range(0, cards.Count).OrderByDescending(i => i).ToList();
 
-            MelonLogger.Msg($"[{NavigatorId}] Found {cardEntries.Count} entries (cards + vault progress)");
-
-            // Add cards to navigation
             int cardNum = 1;
-            foreach (var (cardObj, _) in cardEntries)
+            foreach (int dataIndex in sortedIndices)
             {
-                // Check if card is face-down (hidden) via BoosterCardHolder.Hidden
-                bool isHidden = IsCardHidden(cardObj);
+                var entry = cards[dataIndex];
+                if (entry == null) continue;
 
-                var cardInfo = CardDetector.ExtractCardInfo(cardObj);
-                string cardName = ExtractCardName(cardObj);
+                bool isRevealed = IsEntryRevealed(entry);
 
-                // Prefer model-based name (authoritative, immune to stale/not-yet-populated UI text)
-                // Fall back to UI-extracted name only when model has no data (e.g., vault progress entries)
-                string displayName;
-                if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
-                    displayName = cardInfo.Name;
-                else if (!string.IsNullOrEmpty(cardName))
-                    displayName = cardName;
-                else
-                    displayName = "Unknown card";
+                // Get card info from GrpId (data-driven, works for all cards regardless of viewport)
+                var cardInfo = GetCardInfoFromData(dataIndex) ?? default(CardInfo);
 
-                // Log unknown cards for debugging (use F11 on this card for full details)
-                if (displayName == "Unknown card" && !isHidden)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Card {cardNum} extraction failed: {cardObj.name} - press F11 while focused for details");
-                }
+                // Check for on-screen holder (has visual card with flip sound)
+                Component holder = null;
+                onScreenDict?.TryGetValue(dataIndex, out holder);
+                GameObject cardObj = (holder != null) ? GetFirstCardView(holder) ?? (holder as MonoBehaviour)?.gameObject : null;
 
-                // Check if this is vault progress (not a real card)
-                bool isVaultProgress = displayName.Contains("Vault Progress");
-
+                // Build label
                 string label;
-                if (isHidden)
+                if (!isRevealed)
                 {
-                    // Face-down card - always show as hidden, regardless of other text
                     label = Strings.HiddenCard;
-                    cardNum++;
-                }
-                else if (isVaultProgress)
-                {
-                    label = displayName;
                 }
                 else
                 {
-                    // Just card name and type, no "Card X:" prefix
+                    string displayName = null;
+                    if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
+                        displayName = cardInfo.Name;
+
+                    // For on-screen cards, fall back to UI text extraction (vault progress, etc.)
+                    if (string.IsNullOrEmpty(displayName) && cardObj != null)
+                        displayName = ExtractCardName(cardObj);
+
+                    if (string.IsNullOrEmpty(displayName))
+                        displayName = "Unknown card";
+
                     label = displayName;
                     if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
-                    {
                         label += $", {cardInfo.TypeLine}";
-                    }
-                    cardNum++;
                 }
 
-                AddElement(cardObj, label);
+                // Add to navigation: real GO for on-screen cards, TextBlock for off-screen
+                int preCount = _elements.Count;
+                if (cardObj != null && !addedObjects.Contains(cardObj))
+                {
+                    AddElement(cardObj, label);
+                    addedObjects.Add(cardObj);
+                    _cardDataIndices[cardObj] = dataIndex;
+                }
+                else if (cardObj == null)
+                {
+                    AddTextBlock(label);
+                }
+
+                if (_elements.Count > preCount)
+                    _elementDataIndex.Add(dataIndex);
+
+                cardNum++;
             }
 
-            // Set total cards count (excluding vault progress)
             _totalCards = cardNum - 1;
-            MelonLogger.Msg($"[{NavigatorId}] Total: {_totalCards} cards");
+            MelonLogger.Msg($"[{NavigatorId}] Total: {_totalCards} cards ({_elements.Count} elements, {onScreenDict?.Count ?? 0} with holders)");
         }
 
         /// <summary>
-        /// Primary card discovery: read on-screen card holders from the controller's
-        /// _onScreenboosterCardHoldersWithIndex dictionary (Dictionary of int, BoosterCardHolder).
-        /// Uses CardViews[0] (BoosterMetaCardView) as the navigable element for card info extraction.
+        /// Read on-screen card holders from the controller's _onScreenboosterCardHoldersWithIndex dictionary.
+        /// Returns a Dictionary mapping _cardsToOpen index → BoosterCardHolder component.
+        /// Only contains cards currently visible in the viewport (~12 of 24 for Open All packs).
         /// </summary>
-        private void FindCardsFromController(List<(GameObject obj, float sortOrder)> cardEntries, HashSet<GameObject> addedObjects)
+        private Dictionary<int, Component> GetOnScreenHolders()
         {
-            if (_controller == null) return;
+            if (_controller == null) return null;
 
             if (_onScreenHoldersField == null)
                 _onScreenHoldersField = _controller.GetType().GetField("_onScreenboosterCardHoldersWithIndex", PrivateInstance);
-
-            if (_onScreenHoldersField == null)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] _onScreenboosterCardHoldersWithIndex field not found");
-                return;
-            }
+            if (_onScreenHoldersField == null) return null;
 
             var holdersObj = _onScreenHoldersField.GetValue(_controller);
             var dict = holdersObj as System.Collections.IDictionary;
-            if (dict == null || dict.Count == 0)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] No on-screen card holders (count={dict?.Count ?? -1})");
-                return;
-            }
+            if (dict == null || dict.Count == 0) return null;
 
-            MelonLogger.Msg($"[{NavigatorId}] Found {dict.Count} on-screen card holders");
-
+            var result = new Dictionary<int, Component>();
             foreach (DictionaryEntry entry in dict)
             {
-                int index = (int)entry.Key;
                 var holder = entry.Value as Component;
-                if (holder == null) continue;
-
-                // Get the first CardView from the holder - needed for card info extraction
-                var cardObj = GetFirstCardView(holder);
-                if (cardObj == null)
-                {
-                    cardObj = holder.gameObject;
-                    MelonLogger.Msg($"[{NavigatorId}] No CardView for index {index}, using holder");
-                }
-
-                if (!addedObjects.Contains(cardObj))
-                {
-                    cardEntries.Add((cardObj, (float)index));
-                    addedObjects.Add(cardObj);
-                }
+                if (holder != null)
+                    result[(int)entry.Key] = holder;
             }
+            return result;
         }
 
         /// <summary>
@@ -315,28 +300,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
             return null;
-        }
-
-        /// <summary>
-        /// Fallback: search entire scene for BoosterCardHolder components by type name.
-        /// </summary>
-        private void FindCardsByComponentType(List<(GameObject obj, float sortOrder)> cardEntries, HashSet<GameObject> addedObjects)
-        {
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name != T.BoosterCardHolder) continue;
-
-                var cardObj = GetFirstCardView(mb);
-                if (cardObj == null) cardObj = mb.gameObject;
-                if (addedObjects.Contains(cardObj)) continue;
-
-                float sortOrder = mb.transform.position.x;
-                cardEntries.Add((cardObj, sortOrder));
-                addedObjects.Add(cardObj);
-            }
-
-            MelonLogger.Msg($"[{NavigatorId}] Found {cardEntries.Count} cards by component type search");
         }
 
         private string ExtractCardName(GameObject cardObj)
@@ -464,7 +427,22 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
-        protected override bool IsCurrentCardHidden(GameObject cardElement) => IsCardHidden(cardElement);
+        protected override bool IsCurrentCardHidden(GameObject cardElement)
+        {
+            // For off-screen cards (null GO), check data reveal status
+            if (cardElement == null && IsValidIndex && _currentIndex < _elementDataIndex.Count)
+            {
+                int dataIndex = _elementDataIndex[_currentIndex];
+                if (dataIndex >= 0)
+                {
+                    var cards = GetCardsToOpen(_controller);
+                    if (cards != null && dataIndex < cards.Count)
+                        return !IsEntryRevealed(cards[dataIndex]);
+                }
+                return false;
+            }
+            return IsCardHidden(cardElement);
+        }
 
         /// <summary>
         /// Find the parent BoosterCardHolder GameObject for a card view.
@@ -712,7 +690,7 @@ namespace AccessibleArena.Core.Services
                         TriggerCloseRescan();
                         return;
                     }
-                    // Hidden card: activate the parent BoosterCardHolder (has the CustomButton)
+                    // Hidden card with on-screen holder: activate BoosterCardHolder
                     // to trigger OnClick() -> PlayFlipSound() + RevealCard()
                     if (elem.GameObject != null && elem.Label == Strings.HiddenCard)
                     {
@@ -721,7 +699,18 @@ namespace AccessibleArena.Core.Services
                         {
                             MelonLogger.Msg($"[{NavigatorId}] Revealing hidden card via BoosterCardHolder");
                             UIActivator.Activate(holder);
-                            // Rescan after flip animation to update label with card name
+                            _rescanDone = false;
+                            _rescanFrameCounter = 0;
+                            return;
+                        }
+                    }
+                    // Hidden card off-screen (TextBlock, no GO): reveal via data
+                    if (elem.GameObject == null && elem.Label == Strings.HiddenCard)
+                    {
+                        int dataIdx = (_currentIndex < _elementDataIndex.Count) ? _elementDataIndex[_currentIndex] : -1;
+                        if (dataIdx >= 0)
+                        {
+                            RevealCardByData(dataIdx);
                             _rescanDone = false;
                             _rescanFrameCounter = 0;
                             return;
@@ -753,6 +742,13 @@ namespace AccessibleArena.Core.Services
         {
             // Stop pack music by sending PointerExit to the pack hitbox
             StopPackMusic();
+
+            // Force-reveal all unrevealed cards and update the game's reveal tracking.
+            // ClearAutoReveal prevents the game from auto-revealing most cards, and the
+            // viewport only shows ~12 of 24 cards — so the game thinks cards are unrevealed.
+            // This ensures CardsRevealed=true on the animator before dismiss, preventing
+            // the booster carousel from getting stuck in an invalid state.
+            ForceRevealAllCards();
 
             // Primary: Call DismissCards on BoosterChamberController (the canonical close path)
             if (TryCloseChamberController())
@@ -851,6 +847,69 @@ namespace AccessibleArena.Core.Services
             _packMusicRestored = true;
 
             MelonLogger.Msg($"[{NavigatorId}] Restored pack music for set: {setCode}");
+        }
+
+        /// <summary>
+        /// Force-reveal all unrevealed cards in _cardsToOpen and call UpdateRevealed() on
+        /// BoosterChamberController. This puts the game in the same state as if the user had
+        /// manually revealed every card, ensuring clean dismiss transitions.
+        /// </summary>
+        private void ForceRevealAllCards()
+        {
+            var cards = GetCardsToOpen(_controller);
+            if (cards == null || cards.Count == 0) return;
+
+            int revealed = 0;
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                if (!IsEntryRevealed(card))
+                {
+                    if (_revealedProp == null)
+                        _revealedProp = card.GetType().GetProperty("Revealed", PublicInstance);
+                    if (_revealedProp != null)
+                    {
+                        _revealedProp.SetValue(card, true);
+                        revealed++;
+                    }
+                }
+            }
+
+            if (revealed > 0)
+            {
+                MelonLogger.Msg($"[{NavigatorId}] Force-revealed {revealed}/{cards.Count} cards before close");
+                CallUpdateRevealed();
+            }
+        }
+
+        /// <summary>
+        /// Call UpdateRevealed() on BoosterChamberController to sync CardsRevealed bool
+        /// on the booster chamber animator. GetUnrevealedCardCount() should return 0 after
+        /// ForceRevealAllCards(), causing CardsRevealed=true.
+        /// </summary>
+        private void CallUpdateRevealed()
+        {
+            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
+            if (boosterChamber == null) return;
+
+            Component chamberController = null;
+            foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "BoosterChamberController")
+                {
+                    chamberController = mb;
+                    break;
+                }
+            }
+            if (chamberController == null) return;
+
+            var updateMethod = chamberController.GetType().GetMethod("UpdateRevealed",
+                PrivateInstance | System.Reflection.BindingFlags.Public);
+            if (updateMethod != null && updateMethod.GetParameters().Length == 0)
+            {
+                updateMethod.Invoke(chamberController, null);
+                MelonLogger.Msg($"[{NavigatorId}] Called UpdateRevealed on BoosterChamberController");
+            }
         }
 
         /// <summary>
@@ -994,51 +1053,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Auto-skip the card reveal animation so all cards appear at once (face-down).
-        /// AutoReveal is already cleared in DetectScreen before the animation starts.
-        /// </summary>
-        private void TrySkipAnimation()
-        {
-            if (_animSkipped || _controller == null) return;
-
-            // Read _animationSequenceActiveField (private bool)
-            if (_animActiveField == null)
-                _animActiveField = _controller.GetType().GetField("_animationSequenceActiveField", PrivateInstance);
-
-            if (_animActiveField == null) return;
-
-            bool isActive = (bool)_animActiveField.GetValue(_controller);
-            if (!isActive) return;
-
-            // Animation is active - skip it to spawn all cards immediately
-            if (_stopAnimMethod == null)
-            {
-                foreach (var m in _controller.GetType().GetMethods(PublicInstance))
-                {
-                    if (m.Name == "StopBoosterOpenAnimationSequence" && m.GetParameters().Length == 0)
-                    {
-                        _stopAnimMethod = m;
-                        break;
-                    }
-                }
-            }
-
-            if (_stopAnimMethod != null)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Auto-skipping pack animation for accessibility");
-                try
-                {
-                    _stopAnimMethod.Invoke(_controller, null);
-                    _animSkipped = true;
-                }
-                catch (System.Exception ex)
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Failed to skip animation: {ex.Message}");
-                }
-            }
-        }
-
-        /// <summary>
         /// Set AutoReveal = false on all cards in _cardsToOpen so they spawn face-down.
         /// AutoReveal is a public bool field on CardDataAndRevealStatus.
         /// </summary>
@@ -1070,29 +1084,108 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Get GrpId from a _cardsToOpen entry via reflection.
+        /// CardDataAndRevealStatus.CardData (public field) → CardData.GrpId (public property).
+        /// </summary>
+        private uint GetGrpIdFromEntry(object entry)
+        {
+            if (entry == null) return 0;
+
+            if (_cardDataField == null)
+                _cardDataField = entry.GetType().GetField("CardData", PublicInstance);
+            if (_cardDataField == null) return 0;
+
+            var cardData = _cardDataField.GetValue(entry);
+            if (cardData == null) return 0;
+
+            if (_grpIdProp == null)
+                _grpIdProp = cardData.GetType().GetProperty("GrpId", PublicInstance);
+            if (_grpIdProp == null) return 0;
+
+            var val = _grpIdProp.GetValue(cardData);
+            return val is uint grpId ? grpId : 0;
+        }
+
+        /// <summary>
+        /// Check if a _cardsToOpen entry has been revealed (face-up).
+        /// Uses the CardDataAndRevealStatus.Revealed property (data-driven, not UI-based).
+        /// </summary>
+        private bool IsEntryRevealed(object entry)
+        {
+            if (entry == null) return false;
+
+            if (_revealedProp == null)
+                _revealedProp = entry.GetType().GetProperty("Revealed", PublicInstance);
+            if (_revealedProp == null) return false;
+
+            var val = _revealedProp.GetValue(entry);
+            return val is bool revealed && revealed;
+        }
+
+        /// <summary>
+        /// Get card info from _cardsToOpen data by index, using GrpId-based lookup.
+        /// Returns null if the card data is not available or GrpId lookup fails.
+        /// </summary>
+        private CardInfo? GetCardInfoFromData(int dataIndex)
+        {
+            var cards = GetCardsToOpen(_controller);
+            if (cards == null || dataIndex < 0 || dataIndex >= cards.Count) return null;
+
+            var entry = cards[dataIndex];
+            uint grpId = GetGrpIdFromEntry(entry);
+            if (grpId == 0) return null;
+
+            return CardModelProvider.GetCardInfoFromGrpId(grpId);
+        }
+
+        /// <summary>
+        /// Reveal an off-screen card by setting Revealed=true on its _cardsToOpen data entry.
+        /// No flip sound (card has no on-screen BoosterCardHolder), but announces the card name.
+        /// </summary>
+        private void RevealCardByData(int dataIndex)
+        {
+            var cards = GetCardsToOpen(_controller);
+            if (cards == null || dataIndex < 0 || dataIndex >= cards.Count) return;
+
+            var entry = cards[dataIndex];
+            if (entry == null || IsEntryRevealed(entry)) return;
+
+            if (_revealedProp == null)
+                _revealedProp = entry.GetType().GetProperty("Revealed", PublicInstance);
+            if (_revealedProp == null) return;
+
+            _revealedProp.SetValue(entry, true);
+            MelonLogger.Msg($"[{NavigatorId}] Revealed off-screen card at data index {dataIndex}");
+
+            // Announce the card name
+            var cardInfo = GetCardInfoFromData(dataIndex);
+            if (cardInfo.HasValue && cardInfo.Value.IsValid && !string.IsNullOrEmpty(cardInfo.Value.Name))
+            {
+                string label = cardInfo.Value.Name;
+                if (!string.IsNullOrEmpty(cardInfo.Value.TypeLine))
+                    label += $", {cardInfo.Value.TypeLine}";
+                _announcer.AnnounceInterrupt(label);
+            }
+
+            // Trigger rescan to update navigation labels
+            _rescanDone = false;
+            _rescanFrameCounter = 0;
+        }
+
+        /// <summary>
         /// Override ForceRescan to preserve cursor position and suppress redundant announcements.
         /// The base implementation resets to index 0 and re-announces the full activation text
         /// on every rescan, which is disruptive during periodic polling.
-        ///
-        /// Once all expected cards are found, switches to label-only updates to prevent the game's
-        /// card holder cleanup from removing already-revealed cards from the navigation list.
+        /// Uses _elementDataIndex for stable position restore across GO ↔ TextBlock transitions
+        /// (cards moving on/off screen as the viewport changes).
         /// </summary>
         public override void ForceRescan()
         {
             if (!_isActive) return;
 
-            // Once all cards found, only update labels - don't rebuild element list.
-            // The game destroys card holders after reveal animations, which would cause
-            // cards to disappear from navigation. Safe across packs: OnActivated resets this flag.
-            if (_allCardsFound)
-            {
-                UpdateCardLabelsInPlace();
-                return;
-            }
-
             int oldCount = _elements.Count;
             int oldIndex = _currentIndex;
-            GameObject oldObj = IsValidIndex ? _elements[_currentIndex].GameObject : null;
+            int oldDataIndex = (oldIndex >= 0 && oldIndex < _elementDataIndex.Count) ? _elementDataIndex[oldIndex] : -1;
             string oldLabel = IsValidIndex ? _elements[_currentIndex].Label : null;
 
             _elements.Clear();
@@ -1102,13 +1195,13 @@ namespace AccessibleArena.Core.Services
 
             if (_elements.Count > 0)
             {
-                // Restore position by matching the same GameObject (stable across label changes)
+                // Restore position by matching data index (stable across GO ↔ TextBlock transitions)
                 int restored = -1;
-                if (oldObj != null)
+                if (oldDataIndex >= 0)
                 {
-                    for (int i = 0; i < _elements.Count; i++)
+                    for (int i = 0; i < _elementDataIndex.Count; i++)
                     {
-                        if (_elements[i].GameObject == oldObj)
+                        if (_elementDataIndex[i] == oldDataIndex)
                         {
                             restored = i;
                             break;
@@ -1116,7 +1209,6 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Fall back to old index (clamped) or 0
                 if (restored >= 0)
                     _currentIndex = restored;
                 else if (oldIndex >= 0 && oldIndex < _elements.Count)
@@ -1138,75 +1230,19 @@ namespace AccessibleArena.Core.Services
                     _announcer.AnnounceInterrupt(GetActivationAnnouncement());
                 }
                 // Card revealed (label changed): announce card name
-                else if (restored >= 0 && oldObj != null)
+                else if (restored >= 0)
                 {
                     string newLabel = _elements[restored].Label;
                     if (newLabel != oldLabel)
                         _announcer.AnnounceInterrupt(newLabel);
                 }
 
-                // Lock card list once all expected cards are found
-                if (_totalCards >= _expectedCardCount && _expectedCardCount > 0)
-                {
-                    _allCardsFound = true;
-                }
-
-                // Update card navigation so Up/Down works immediately after reveal
                 UpdateCardNavigation();
             }
             else
             {
                 MelonLogger.Msg($"[{NavigatorId}] Rescan found no elements");
             }
-        }
-
-        /// <summary>
-        /// Update labels on existing card elements without rebuilding the list.
-        /// Called after all cards are found to prevent the game's holder cleanup
-        /// from removing revealed cards from navigation.
-        /// </summary>
-        private void UpdateCardLabelsInPlace()
-        {
-            string oldLabel = IsValidIndex ? _elements[_currentIndex].Label : null;
-
-            for (int i = 0; i < _elements.Count; i++)
-            {
-                var elem = _elements[i];
-                if (elem.GameObject == null) continue;
-
-                // Skip button elements (Close, etc.)
-                if (elem.Label != null && elem.Label.EndsWith(", button")) continue;
-
-                // Check if this card was hidden and is now revealed
-                if (elem.Label == Strings.HiddenCard && !IsCardHidden(elem.GameObject))
-                {
-                    var cardInfo = CardDetector.ExtractCardInfo(elem.GameObject);
-                    string cardName = ExtractCardName(elem.GameObject);
-
-                    string displayName;
-                    if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
-                        displayName = cardInfo.Name;
-                    else if (!string.IsNullOrEmpty(cardName))
-                        displayName = cardName;
-                    else
-                        continue; // Not ready yet, keep as hidden
-
-                    string newLabel = displayName;
-                    if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
-                        newLabel += $", {cardInfo.TypeLine}";
-
-                    elem.Label = newLabel;
-                    _elements[i] = elem;
-                }
-            }
-
-            // Announce label change on current element (card just revealed)
-            if (IsValidIndex && oldLabel != null && _elements[_currentIndex].Label != oldLabel)
-            {
-                _announcer.AnnounceInterrupt(_elements[_currentIndex].Label);
-            }
-
-            UpdateCardNavigation();
         }
 
         #region Periodic rescan until cards are found
@@ -1229,8 +1265,10 @@ namespace AccessibleArena.Core.Services
                     if (_rescanAttempt <= 3)
                         RestorePackMusic();
 
-                    // Try to skip animation first - makes all cards available at once
-                    TrySkipAnimation();
+                    // No animation skip — let the game's animation play naturally.
+                    // Skipping corrupted the _openingBoosterPackAnimator state, breaking
+                    // carousel interaction after closing the pack. Cards appear face-down
+                    // (AutoReveal cleared in DetectScreen) and rescans pick them up gradually.
 
                     MelonLogger.Msg($"[{NavigatorId}] Rescanning for cards (attempt {_rescanAttempt}/{MaxRescanAttempts}, current: {oldCount})");
                     ForceRescan();
@@ -1278,11 +1316,11 @@ namespace AccessibleArena.Core.Services
             _rescanFrameCounter = 0;
             _rescanAttempt = 0;
             _rescanDone = false;
-            _allCardsFound = false;
-            _animSkipped = false;
             _closeTriggered = false;
             _closeRescanCounter = 0;
             _packMusicRestored = false;
+            _cardDataIndices.Clear();
+            _elementDataIndex.Clear();
         }
 
         /// <summary>
