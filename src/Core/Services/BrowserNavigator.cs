@@ -946,10 +946,13 @@ namespace AccessibleArena.Core.Services
 
             DiscoverCardsInHolders();
 
-            // OrderCards: filter out placeholder cards (InstanceId == 0) used as library boundary markers
+            // OrderCards: filter out placeholder cards (InstanceId == 0) used as library boundary markers,
+            // then reverse so that position 1 (leftmost) = top of stack = resolves first.
+            // The game's CardViews[0] is bottom of stack (resolves last); we invert for LIFO display.
             if (_isOrderCards)
             {
                 FilterPlaceholderCards();
+                _browserCards.Reverse();
             }
 
             // Scope button discovery to the scaffold when available.
@@ -4406,6 +4409,9 @@ namespace AccessibleArena.Core.Services
 
                 _browserCards.Add(cdcComp.gameObject);
             }
+
+            // Reverse so position 1 (leftmost) = top of stack = resolves first
+            _browserCards.Reverse();
         }
 
         /// <summary>

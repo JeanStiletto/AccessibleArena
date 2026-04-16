@@ -548,10 +548,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Sort cards by position (left to right) for spatially-arranged zones.
-            // Graveyards are stacked (all same x position), so reverse the hierarchy order
-            // to show newest first, matching hand/battlefield convention.
+            // Graveyards and stack are LIFO — reverse hierarchy order so the
+            // top item (newest/next-to-resolve) is position 1 (leftmost).
             bool isGraveyard = zone.Type == ZoneType.Graveyard || zone.Type == ZoneType.OpponentGraveyard;
-            if (isGraveyard)
+            bool isStack = zone.Type == ZoneType.Stack;
+            if (isGraveyard || isStack)
                 zone.Cards.Reverse();
             else
                 zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
