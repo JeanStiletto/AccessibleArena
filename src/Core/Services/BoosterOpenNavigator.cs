@@ -744,49 +744,30 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Close the pack properly using the game's expected flow.
-        /// Priority: Dismiss_MainButton (Weiter) > controller DismissCards > ModalFade
-        /// ModalFade alone doesn't properly reset the UI state.
+        /// Close the pack properly by calling BoosterChamberController.DismissCards() via reflection.
+        /// This is the same method the game's own dismiss button invokes (through the scroll list
+        /// controller delegate chain). It resets ThereIsABoosterOpened, triggers the dismiss
+        /// animation, refreshes the carousel, and cleans up audio — the full proper close sequence.
         /// </summary>
         private void ClosePackProperly()
         {
             // Stop pack music by sending PointerExit to the pack hitbox
             StopPackMusic();
 
-            // Priority 1: Find and click Dismiss_MainButton (the proper "Continue/Weiter" button)
-            // This triggers the game's full close sequence
-            foreach (var elem in _elements)
+            // Primary: Call DismissCards on BoosterChamberController (the canonical close path)
+            if (TryCloseChamberController())
             {
-                if (elem.GameObject != null && elem.GameObject.name.Contains("Dismiss_MainButton"))
-                {
-                    MelonLogger.Msg($"[{NavigatorId}] Clicking proper close button: {elem.GameObject.name}");
-                    UIActivator.Activate(elem.GameObject);
-                    return; // Game will handle the rest
-                }
-            }
-
-            // Priority 2: If Dismiss_MainButton not available, click RevealAll first to trigger reveal
-            // This puts the game in the correct state for closing
-            // The _revealAllButton field tracks the RevealAll button
-            if (_revealAllButton != null && _revealAllButton.activeInHierarchy)
-            {
-                MelonLogger.Msg($"[{NavigatorId}] Clicking RevealAll first to enable proper close: {_revealAllButton.name}");
-                UIActivator.Activate(_revealAllButton);
-                // After revealing, we need to wait for Dismiss_MainButton to appear
-                // Start a coroutine to click it after a short delay
-                MelonLoader.MelonCoroutines.Start(ClickDismissAfterDelay());
+                MelonLogger.Msg($"[{NavigatorId}] Closed via BoosterChamberController.DismissCards");
                 return;
             }
 
-            // Priority 3: Fallback - try controller's DismissCards method
-            MelonLogger.Msg($"[{NavigatorId}] No Dismiss_MainButton or RevealAll found, using controller fallback");
+            // Fallback: Try scroll list controller's DismissCards or other close methods
             if (TryClosePackContents())
             {
                 return;
             }
 
-            // Priority 4: Last resort - click ModalFade (background close)
-            // This may not fully reset UI state but at least dismisses visually
+            // Last resort: click ModalFade (background dismiss area)
             foreach (var elem in _elements)
             {
                 if (elem.GameObject != null && elem.GameObject.name.Contains("ModalFade"))
@@ -798,35 +779,6 @@ namespace AccessibleArena.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] No close mechanism found");
-        }
-
-        /// <summary>
-        /// Coroutine to click the Dismiss_MainButton after RevealAll animation completes.
-        /// Retries multiple times since "Open All" with many cards can have long reveal animations.
-        /// </summary>
-        private System.Collections.IEnumerator ClickDismissAfterDelay()
-        {
-            const int maxAttempts = 10; // Up to 5 seconds total (10 × 0.5s)
-            for (int attempt = 0; attempt < maxAttempts; attempt++)
-            {
-                yield return new WaitForSeconds(0.5f);
-
-                // Find and click Dismiss_MainButton
-                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-                {
-                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                    if (mb.GetType().Name == T.CustomButton && mb.gameObject.name.Contains("Dismiss_MainButton"))
-                    {
-                        MelonLogger.Msg($"[{NavigatorId}] Delayed click on Dismiss_MainButton (attempt {attempt + 1}): {mb.gameObject.name}");
-                        UIActivator.Activate(mb.gameObject);
-                        yield break;
-                    }
-                }
-            }
-
-            // If still no Dismiss_MainButton after all retries, use chamber controller fallback
-            MelonLogger.Msg($"[{NavigatorId}] Dismiss_MainButton not found after {maxAttempts} attempts, using controller fallback");
-            TryCloseChamberController();
         }
 
         /// <summary>
