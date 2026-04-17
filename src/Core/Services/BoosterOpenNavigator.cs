@@ -429,8 +429,11 @@ namespace AccessibleArena.Core.Services
 
         protected override bool IsCurrentCardHidden(GameObject cardElement)
         {
-            // For off-screen cards (null GO), check data reveal status
-            if (cardElement == null && IsValidIndex && _currentIndex < _elementDataIndex.Count)
+            // Prefer data-driven check (CardDataAndRevealStatus.Revealed) over the visual
+            // BoosterCardHolder.Hidden property. When the first card is revealed via data
+            // (RevealCardByData) before SpawnCard runs, the holder's Hidden flag can stay
+            // stale while the card spawns face-up. The Revealed flag is the source of truth.
+            if (IsValidIndex && _currentIndex < _elementDataIndex.Count)
             {
                 int dataIndex = _elementDataIndex[_currentIndex];
                 if (dataIndex >= 0)
@@ -441,7 +444,7 @@ namespace AccessibleArena.Core.Services
                 }
                 return false;
             }
-            return IsCardHidden(cardElement);
+            return cardElement != null && IsCardHidden(cardElement);
         }
 
         /// <summary>
