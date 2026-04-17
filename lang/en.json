@@ -604,6 +604,7 @@
   "ChallengeOpponent": "Opponent",
   "ChallengeNotInvited": "Not invited",
   "ChallengeInvited": "Invited",
+  "ChallengeInviteRecentOpponents": "Recent opponents",
   "ChallengeSettingsLocked": "Settings controlled by host",
   "ChallengeLocked_Format": "Locked: {0}",
   "ChallengeOpponentJoined_Format": "Opponent joined: {0}",

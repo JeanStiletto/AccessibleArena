@@ -589,6 +589,7 @@
   "ChallengeOpponent": "対戦相手",
   "ChallengeNotInvited": "未招待",
   "ChallengeInvited": "招待済み",
+  "ChallengeInviteRecentOpponents": "最近の対戦相手",
   "ChallengeSettingsLocked": "設定はホストが管理しています",
   "ChallengeLocked_Format": "ロック中: {0}",
   "ChallengeOpponentJoined_Format": "対戦相手が参加: {0}",

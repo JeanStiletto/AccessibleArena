@@ -589,6 +589,7 @@
   "ChallengeOpponent": "Противник",
   "ChallengeNotInvited": "Не приглашён",
   "ChallengeInvited": "Приглашён",
+  "ChallengeInviteRecentOpponents": "Недавние противники",
   "ChallengeSettingsLocked": "Настройки контролируются хостом",
   "ChallengeLocked_Format": "Заблокировано: {0}",
   "ChallengeOpponentJoined_Format": "Оппонент присоединился: {0}",

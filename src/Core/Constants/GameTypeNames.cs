@@ -83,6 +83,9 @@ namespace AccessibleArena.Core.Constants
         public const string BlockTile = "BlockTile";
         public const string IncomingChallengeRequestTile = "IncomingChallengeRequestTile";
         public const string CurrentChallengeTile = "CurrentChallengeTile";
+        public const string ChallengeInviteWindowPopup = "ChallengeInviteWindowPopup";
+        public const string ChallengeInviteWindowEntityPlayer = "ChallengeInviteWindowEntityPlayer";
+        public const string ChallengeInviteWindowEntityInvited = "ChallengeInviteWindowEntityInvited";
         public const string FriendsWidget = "FriendsWidget";
         public const string ChatWindow = "ChatWindow";
         public const string ChatManager = "ChatManager";

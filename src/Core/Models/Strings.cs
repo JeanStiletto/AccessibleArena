@@ -1309,6 +1309,7 @@ namespace AccessibleArena.Core.Models
         public static string ChallengeOpponent => L.Get("ChallengeOpponent");
         public static string ChallengeNotInvited => L.Get("ChallengeNotInvited");
         public static string ChallengeInvited => L.Get("ChallengeInvited");
+        public static string ChallengeInviteRecentOpponents => L.Get("ChallengeInviteRecentOpponents");
         public static string ChallengeSettingsLocked => L.Get("ChallengeSettingsLocked");
         public static string ChallengeLocked(string label) => L.Format("ChallengeLocked_Format", label);
         public static string ChallengeOpponentJoined(string name) => L.Format("ChallengeOpponentJoined_Format", name);

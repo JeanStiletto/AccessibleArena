@@ -589,6 +589,7 @@
   "ChallengeOpponent": "Adversaire",
   "ChallengeNotInvited": "Non invité",
   "ChallengeInvited": "Invité",
+  "ChallengeInviteRecentOpponents": "Adversaires récents",
   "ChallengeSettingsLocked": "Paramètres contrôlés par l'hôte",
   "ChallengeLocked_Format": "Verrouillé : {0}",
   "ChallengeOpponentJoined_Format": "Adversaire rejoint : {0}",

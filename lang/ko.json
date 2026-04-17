@@ -589,6 +589,7 @@
   "ChallengeOpponent": "상대",
   "ChallengeNotInvited": "초대 안 됨",
   "ChallengeInvited": "초대됨",
+  "ChallengeInviteRecentOpponents": "최근 상대",
   "ChallengeSettingsLocked": "호스트가 설정을 관리합니다",
   "ChallengeLocked_Format": "잠김: {0}",
   "ChallengeOpponentJoined_Format": "상대 참가: {0}",

@@ -202,10 +202,12 @@ namespace AccessibleArena.Patches
         [HarmonyPrefix]
         public static bool PublishKeyUp_Prefix(KeyCode key)
         {
-            // Block Enter KeyUp when a popup was just opened by our mod on KeyDown.
-            // The game's PopupManager.HandleKeyUp calls _activePopup.OnEnter() on Enter KeyUp,
-            // which auto-triggers craft on the CardViewerController.
-            if ((key == KeyCode.Return || key == KeyCode.KeypadEnter) && InputManager.BlockNextEnterKeyUp)
+            // Block Enter KeyUp throughout popup mode. The game's PopupManager.HandleKeyUp
+            // calls _activePopup.OnEnter() on Enter KeyUp, which submits the popup.
+            // For ChallengeInviteWindowPopup this fires OnInviteButtonPressed and closes
+            // the popup even when the user only meant to toggle a friend tile.
+            if ((key == KeyCode.Return || key == KeyCode.KeypadEnter) &&
+                (InputManager.BlockNextEnterKeyUp || InputManager.PopupModeActive))
             {
                 InputManager.BlockNextEnterKeyUp = false;
                 return false;

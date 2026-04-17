@@ -589,6 +589,7 @@
   "ChallengeOpponent": "對手",
   "ChallengeNotInvited": "未邀請",
   "ChallengeInvited": "已邀請",
+  "ChallengeInviteRecentOpponents": "最近對手",
   "ChallengeSettingsLocked": "設定由主持人控制",
   "ChallengeLocked_Format": "已鎖定：{0}",
   "ChallengeOpponentJoined_Format": "對手加入：{0}",
