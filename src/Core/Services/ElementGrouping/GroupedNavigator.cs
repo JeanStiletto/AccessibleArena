@@ -1855,6 +1855,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
 
             MelonLogger.Msg($"[GroupedNavigator] Group '{group.DisplayName}': {Strings.ItemCount(group.Count)}");
+            if (group.Group.IsFriendSectionGroup())
+                return $"{group.DisplayName} {group.Count}";
             return group.DisplayName;
         }
 

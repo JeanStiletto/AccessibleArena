@@ -15,6 +15,9 @@ All notable changes to Accessible Arena.
 ### Counter Localization
 - Named counters on cards and players now display localized names instead of English enum names — e.g., "Gift" instead of "Poison" in German, resolved via the game's client localization provider
 
+### Friends Panel
+- Friend panel section headers (Friends, Incoming, Outgoing, Blocked, Challenges) now announce their entry count — e.g., "Friends 5"
+
 ## v0.9.2
 
 ### Auto-Update
