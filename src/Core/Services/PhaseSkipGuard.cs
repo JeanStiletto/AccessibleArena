@@ -41,6 +41,23 @@ namespace AccessibleArena.Core.Services
         public static void SetModalNavigatorCheck(Func<bool> check) => _isModalNavigatorActive = check;
 
         /// <summary>
+        /// Per-frame release poll. Must be called every frame (from OnUpdate) so
+        /// `_waitingForRelease` clears even when none of the hook-driven paths
+        /// (PublishKeyUp, SendSubmit, GetKeyDown) happen to fire on the release frame.
+        /// Without this, blocking `Input.GetKeyDown(Space)` globally can prevent MTGA's
+        /// KeyboardManager from tracking the press, so it never fires a matching KeyUp,
+        /// and `_waitingForRelease` stays stuck until the turn timer forces a phase change.
+        /// </summary>
+        public static void Poll()
+        {
+            if (_waitingForRelease && !Input.GetKey(KeyCode.Space))
+            {
+                _waitingForRelease = false;
+                MelonLogger.Msg("[PhaseSkipGuard] Space released (polled) — next press will confirm");
+            }
+        }
+
+        /// <summary>
         /// Called from SendSubmitEventToSelectedObject prefix and GetKeyDown postfix.
         /// Returns true if Space should be blocked (warning shown or key still held).
         /// Returns false if Space should pass through (not applicable, or confirming press).

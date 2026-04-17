@@ -3705,28 +3705,28 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                _keywordFilterType = FindType("Wotc.Mtga.DuelScene.Interactions.KeywordFilter");
+                // Game renamed KeywordFilter → ChoiceFilter (nested Keyword → Choice)
+                _keywordFilterType = FindType("Wotc.Mtga.DuelScene.Interactions.ChoiceFilter");
                 if (_keywordFilterType == null)
                 {
-                    MelonLogger.Warning("[BrowserNavigator] KeywordFilter type not found");
+                    MelonLogger.Warning("[BrowserNavigator] ChoiceFilter type not found");
                     return;
                 }
 
-                _kf_filteredKeywords = _keywordFilterType.GetField("_filteredKeywords", PrivateInstance);
-                _kf_selectedKeywords = _keywordFilterType.GetField("_selectedKeywords", PrivateInstance);
+                _kf_filteredKeywords = _keywordFilterType.GetField("_filteredChoices", PrivateInstance);
+                _kf_selectedKeywords = _keywordFilterType.GetField("_selectedChoices", PrivateInstance);
                 _kf_filterInput = _keywordFilterType.GetField("FilterInput", PrivateInstance);
-                _kf_showAllField = _keywordFilterType.GetField("_showAllKeywords", PrivateInstance);
+                _kf_showAllField = _keywordFilterType.GetField("_showAllChoices", PrivateInstance);
                 _kf_onFilterSubmitted = _keywordFilterType.GetMethod("OnFilterSubmitted", PrivateInstance);
 
-                // Get the nested Keyword struct type
-                var keywordType = _keywordFilterType.GetNestedType("Keyword", BindingFlags.Public);
+                var keywordType = _keywordFilterType.GetNestedType("Choice", BindingFlags.Public);
                 if (keywordType != null)
                 {
                     _keyword_DisplayText = keywordType.GetField("DisplayText", PublicInstance);
                     _keyword_SearchText = keywordType.GetField("SearchText", PublicInstance);
                 }
 
-                MelonLogger.Msg($"[BrowserNavigator] KeywordFilter reflection initialized: " +
+                MelonLogger.Msg($"[BrowserNavigator] ChoiceFilter reflection initialized: " +
                     $"filtered={_kf_filteredKeywords != null}, selected={_kf_selectedKeywords != null}, " +
                     $"filterInput={_kf_filterInput != null}, displayText={_keyword_DisplayText != null}");
             }
@@ -3775,12 +3775,12 @@ namespace AccessibleArena.Core.Services
 
                 if (_keywordFilterRef == null)
                 {
-                    MelonLogger.Warning("[BrowserNavigator] KeywordFilter component not found");
+                    MelonLogger.Warning("[BrowserNavigator] ChoiceFilter component not found");
                     _isKeywordSelection = false;
                     return;
                 }
 
-                MelonLogger.Msg($"[BrowserNavigator] Found KeywordFilter: {_keywordFilterRef.gameObject.name}");
+                MelonLogger.Msg($"[BrowserNavigator] Found ChoiceFilter: {_keywordFilterRef.gameObject.name}");
 
                 // Deactivate the TMP_InputField to prevent it from stealing keyboard focus
                 DeactivateKeywordInputField();

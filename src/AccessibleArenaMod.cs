@@ -339,6 +339,11 @@ namespace AccessibleArena
             if (!Application.isFocused)
                 return;
 
+            // Poll release every frame — the hook-driven paths miss the release frame
+            // in edge cases, which would leave `_waitingForRelease` stuck until the
+            // turn timer expires.
+            PhaseSkipGuard.Poll();
+
             // Tell KeyboardManagerPatch to block Escape from reaching the game
             // when a mod menu is open (persistent flag avoids timing issues with per-frame consume)
             InputManager.ModMenuActive = (_helpNavigator?.IsActive == true)
