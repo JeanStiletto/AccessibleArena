@@ -2766,7 +2766,7 @@ namespace AccessibleArena.Core.Services
 
             // Phase 0: Challenge invite friend tiles (must run before text blocks so their
             // TMP_Text children are skipped via IsInsideChallengeInviteTile)
-            DiscoverChallengeInviteTiles(popup, addedObjects);
+            DiscoverChallengeInviteTiles(popup, addedObjects, skipTransforms);
 
             // Phase 1: Discover text blocks
             DiscoverPopupTextBlocks(popup, hasDeckCosts, skipTransforms);
@@ -2976,7 +2976,7 @@ namespace AccessibleArena.Core.Services
         /// (triggering OnInviteToggleChanged → Player.Invited = true). Already-invited
         /// entries become read-only text blocks.
         /// </summary>
-        private void DiscoverChallengeInviteTiles(GameObject popup, HashSet<GameObject> addedObjects)
+        private void DiscoverChallengeInviteTiles(GameObject popup, HashSet<GameObject> addedObjects, List<Transform> skipTransforms)
         {
             // Pass 1: Already-invited read-only entries
             var invitedDiscovered = new List<(string label, float sortOrder)>();
@@ -2993,6 +2993,25 @@ namespace AccessibleArena.Core.Services
                 invitedDiscovered.Add((label, -pos.y * 1000 + pos.x));
                 addedObjects.Add(mb.gameObject);
             }
+
+            // Emit the "Eingeladen:" section heading BEFORE the invited entries, but only
+            // when entries exist. This keeps the heading grouped with the list it labels
+            // instead of appearing as a dangling text block further down.
+            if (invitedDiscovered.Count > 0)
+            {
+                string headingText = Strings.ChallengeInvited + ":";
+                var headingObj = FindInvitedSectionHeading(popup, headingText);
+                _elements.Add(new NavigableElement
+                {
+                    GameObject = null,
+                    Label = headingText,
+                    Role = UIElementClassifier.ElementRole.TextBlock
+                });
+                MelonLogger.Msg($"[{NavigatorId}] Popup: invited section heading: {headingText}");
+                if (headingObj != null)
+                    skipTransforms.Add(headingObj.transform);
+            }
+
             foreach (var (label, _) in invitedDiscovered.OrderBy(x => x.sortOrder))
             {
                 _elements.Add(new NavigableElement
@@ -3084,6 +3103,25 @@ namespace AccessibleArena.Core.Services
                 current = current.parent;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Finds the TMP_Text serving as the "Eingeladen:" section heading in the invite popup
+        /// by content match against the localized ChallengeInvited + ":" string. Returns null
+        /// if no such text exists (e.g. non-invite popup, or first-open with no heading rendered).
+        /// </summary>
+        private static GameObject FindInvitedSectionHeading(GameObject popup, string headingText)
+        {
+            if (popup == null || string.IsNullOrEmpty(headingText)) return null;
+            foreach (var tmp in popup.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+                string text = UITextExtractor.CleanText(tmp.text);
+                if (string.IsNullOrEmpty(text)) continue;
+                if (string.Equals(text.Trim(), headingText, StringComparison.Ordinal))
+                    return tmp.gameObject;
+            }
+            return null;
         }
 
         /// <summary>

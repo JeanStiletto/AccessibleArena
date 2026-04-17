@@ -74,21 +74,6 @@ Combining set filters (Advanced Filters) with a text search in the deck builder 
 
 ## Under Investigation
 
-### Challenge Invite Popup — Dropdown Only Shows 1 Friend
-
-The "Invite Friend to Challenge" popup contains a `cTMP_Dropdown` (DropdownHitbox) that only has 1 option (a single friend name), even when the user has multiple friends. The dropdown genuinely contains only 1 Toggle item — this is how the game populates it, not a mod bug.
-
-**Open questions:**
-- Does the dropdown show only online friends? Only the most recent? Only 1 by design?
-- Is the dropdown useful at all, or is the input field ("Opponent") the intended way to select a friend?
-- Should the mod skip the dropdown in this popup and guide users to the input field instead?
-
-**Current behavior:** The mod correctly handles it as a single-item dropdown (arrow keys re-announce the one item, Enter selects it). The input field works for typing any friend's display name.
-
-**Files:** `DropdownEditHelper.cs`, `GeneralMenuNavigator.cs` (popup mode)
-
----
-
 ---
 
 ## Monitoring
@@ -240,12 +225,6 @@ Opening the settings menu (F2) during the declare attackers phase causes issues.
 ### Adding Cards to Deck Exits Collection Group
 
 Adding cards to a deck reportedly moves the user out of the Collection group to the upper group level. Exact reproduction steps unknown.
-
----
-
-### Challenge Friends Sometimes Not Working
-
-Challenging friends sometimes fails: deck selection not available and screen elements auto-change unexpectedly. Exact reproduction steps unknown.
 
 ---
 

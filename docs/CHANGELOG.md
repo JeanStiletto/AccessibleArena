@@ -18,6 +18,13 @@ All notable changes to Accessible Arena.
 ### Friends Panel
 - Friend panel section headers (Friends, Incoming, Outgoing, Blocked, Challenges) now announce their entry count — e.g., "Friends 5"
 
+### Challenge Invite Popup
+- Friend tiles in the challenge invite popup are now navigable as Toggle elements — each friend reads their name and current invite state, Enter/Space toggles them
+- Already-invited players appear under a dedicated "Eingeladen:" / "Invited:" section heading that's announced before the entries it labels, giving the list proper screen-reader structure
+- Labeled the recent-challenges dropdown with a localized "Recent opponents" prefix in all 12 supported languages (was previously reading just the first name with no context)
+- Fixed popup auto-closing after toggling a friend — the game's PopupManager fires the popup's OnEnter on Return KeyUp, which submitted the invite immediately; Return/KeypadEnter KeyUp is now blocked from game subscribers throughout popup mode
+- EventSystem focus now follows the mod's popup navigation cursor so focus stays on the item the user is actually on, preventing side effects like input-field onEndEdit firing when Enter leaves the text field
+
 ## v0.9.2
 
 ### Auto-Update
