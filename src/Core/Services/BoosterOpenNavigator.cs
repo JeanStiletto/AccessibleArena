@@ -35,6 +35,7 @@ namespace AccessibleArena.Core.Services
         // Data-driven card info: read GrpId from _cardsToOpen entries
         private static FieldInfo _cardDataField;    // CardDataAndRevealStatus.CardData
         private static PropertyInfo _grpIdProp;     // CardData.GrpId
+        private static PropertyInfo _rarityProp;    // CardData.Rarity
         private static PropertyInfo _revealedProp;  // CardDataAndRevealStatus.Revealed
         private Dictionary<GameObject, int> _cardDataIndices = new Dictionary<GameObject, int>();
         private List<int> _elementDataIndex = new List<int>(); // parallel to _elements: _cardsToOpen index, -1 for non-card
@@ -42,6 +43,7 @@ namespace AccessibleArena.Core.Services
         // Pack music: game's opening animation calls ConditionalHoverOff() which stops
         // the pack-specific music. We restore it by calling AudioManager.SetRTPCValue directly.
         private static MethodInfo _setRTPCMethod;
+        private static MethodInfo _playAudioStringMethod; // AudioManager.PlayAudio(string, GameObject)
         private static FieldInfo _chamberSetCodeField;
         private bool _packMusicRestored;
 
@@ -594,6 +596,8 @@ namespace AccessibleArena.Core.Services
         /// Provide card info for off-screen cards (TextBlocks) via GrpId lookup.
         /// Base UpdateCardNavigation deactivates CardInfoNavigator for null-GO elements,
         /// but off-screen booster cards have full data available via GrpId.
+        /// For unrevealed off-screen cards, expose only a single "Hidden card" block so
+        /// Arrow Up/Down doesn't leak card details before the player reveals them.
         /// </summary>
         private void UpdateCardInfoForOffScreenCard()
         {
@@ -604,14 +608,29 @@ namespace AccessibleArena.Core.Services
             int dataIndex = (_currentIndex < _elementDataIndex.Count) ? _elementDataIndex[_currentIndex] : -1;
             if (dataIndex < 0) return; // Not a card element (e.g., button)
 
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+            if (cardNavigator == null) return;
+
+            var cards = GetCardsToOpen(_controller);
+            bool revealed = cards != null && dataIndex < cards.Count && IsEntryRevealed(cards[dataIndex]);
+
+            if (!revealed)
+            {
+                var hiddenBlocks = new List<CardInfoBlock>
+                {
+                    new CardInfoBlock("", Strings.HiddenCard, isVerbose: false)
+                };
+                cardNavigator.PrepareForCardInfo(hiddenBlocks, Strings.HiddenCard);
+                return;
+            }
+
             var cardInfo = GetCardInfoFromData(dataIndex);
             if (!cardInfo.HasValue || !cardInfo.Value.IsValid) return;
 
             var blocks = CardDetector.BuildInfoBlocks(cardInfo.Value);
             if (blocks.Count > 0)
             {
-                var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
-                cardNavigator?.PrepareForCardInfo(blocks, cardInfo.Value.Name ?? "Card");
+                cardNavigator.PrepareForCardInfo(blocks, cardInfo.Value.Name ?? "Card");
             }
         }
 
@@ -1186,7 +1205,8 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Reveal an off-screen card by setting Revealed=true on its _cardsToOpen data entry.
-        /// No flip sound (card has no on-screen BoosterCardHolder), but announces the card name.
+        /// Plays the flip sound manually (no on-screen BoosterCardHolder to run OnClick) and
+        /// announces the card name.
         /// </summary>
         private void RevealCardByData(int dataIndex)
         {
@@ -1203,6 +1223,9 @@ namespace AccessibleArena.Core.Services
             _revealedProp.SetValue(entry, true);
             MelonLogger.Msg($"[{NavigatorId}] Revealed off-screen card at data index {dataIndex}");
 
+            // Mirror BoosterCardHolder.PlayFlipSound: pick the Wwise event by card rarity.
+            PlayFlipSoundForEntry(entry);
+
             // Announce the card name
             var cardInfo = GetCardInfoFromData(dataIndex);
             if (cardInfo.HasValue && cardInfo.Value.IsValid && !string.IsNullOrEmpty(cardInfo.Value.Name))
@@ -1216,6 +1239,44 @@ namespace AccessibleArena.Core.Services
             // Trigger rescan to update navigation labels
             _rescanDone = false;
             _rescanFrameCounter = 0;
+        }
+
+        /// <summary>
+        /// Play the booster flip sound for a card by rarity, mirroring
+        /// BoosterCardHolder.PlayFlipSound. Used for off-screen reveals where there's
+        /// no holder to run OnClick().
+        /// </summary>
+        private void PlayFlipSoundForEntry(object entry)
+        {
+            if (_cardDataField == null)
+                _cardDataField = entry.GetType().GetField("CardData", PublicInstance);
+            var cardData = _cardDataField?.GetValue(entry);
+            if (cardData == null) return;
+
+            if (_rarityProp == null)
+                _rarityProp = cardData.GetType().GetProperty("Rarity", PublicInstance);
+            var rarity = _rarityProp?.GetValue(cardData);
+            string rarityName = rarity?.ToString() ?? "";
+
+            string eventName;
+            if (rarityName == "MythicRare") eventName = "sfx_ui_boost_card_flip_mythic_rare";
+            else if (rarityName == "Rare") eventName = "sfx_ui_boost_card_flip_rare";
+            else eventName = "sfx_ui_boost_card_flip_common";
+
+            if (_playAudioStringMethod == null)
+            {
+                var audioManagerType = FindType("AudioManager");
+                if (audioManagerType != null)
+                    _playAudioStringMethod = audioManagerType.GetMethod("PlayAudio",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                        null, new[] { typeof(string), typeof(GameObject) }, null);
+            }
+            if (_playAudioStringMethod == null) return;
+
+            var target = (_controller as MonoBehaviour)?.gameObject;
+            if (target == null) return;
+
+            _playAudioStringMethod.Invoke(null, new object[] { eventName, target });
         }
 
         /// <summary>
