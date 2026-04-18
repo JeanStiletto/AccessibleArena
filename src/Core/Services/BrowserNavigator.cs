@@ -75,6 +75,8 @@ namespace AccessibleArena.Core.Services
         private bool _isKeywordSelection;
         private MonoBehaviour _keywordFilterRef;
         private int _currentKeywordIndex = -1;
+        // Letter-jump (menu-style A-Z) for KeywordSelection's show-all phase
+        private readonly LetterSearchHandler _keywordLetterSearch = new LetterSearchHandler();
 
         // KeywordFilter reflection cache
         private static Type _keywordFilterType;
@@ -371,6 +373,7 @@ namespace AccessibleArena.Core.Services
             _isKeywordSelection = false;
             _keywordFilterRef = null;
             _currentKeywordIndex = -1;
+            _keywordLetterSearch.Clear();
 
             // Clear highlight filter state
             _isHighlightFilteredBrowser = false;
@@ -3821,6 +3824,25 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// True when the KeywordSelection browser is in its "Show All" phase
+        /// (ShowAllButton was activated, list expanded from shortlist to full set).
+        /// Reads the language-agnostic <c>_showAllChoices</c> bool on ChoiceFilter.
+        /// </summary>
+        private bool IsKeywordShowAllActive()
+        {
+            if (!_isKeywordSelection || _keywordFilterRef == null || _kf_showAllField == null)
+                return false;
+            try
+            {
+                return _kf_showAllField.GetValue(_keywordFilterRef) is bool b && b;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Gets the count of currently filtered keywords.
         /// </summary>
         private int GetKeywordCount()
@@ -3953,10 +3975,12 @@ namespace AccessibleArena.Core.Services
         private bool HandleKeywordSelectionInput()
         {
             int kwCount = GetKeywordCount();
+            bool showAll = IsKeywordShowAllActive();
 
             // Tab: cycle through keywords → buttons → wrap
             if (Input.GetKeyDown(KeyCode.Tab))
             {
+                _keywordLetterSearch.Clear();
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
                 if (shift)
@@ -4060,6 +4084,7 @@ namespace AccessibleArena.Core.Services
             // Left/Right: navigate within keywords or buttons
             if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
+                _keywordLetterSearch.Clear();
                 if (_currentKeywordIndex > 0)
                 {
                     _currentKeywordIndex--;
@@ -4074,6 +4099,7 @@ namespace AccessibleArena.Core.Services
             }
             if (Input.GetKeyDown(KeyCode.RightArrow))
             {
+                _keywordLetterSearch.Clear();
                 if (_currentKeywordIndex >= 0 && _currentKeywordIndex < kwCount - 1)
                 {
                     _currentKeywordIndex++;
@@ -4090,6 +4116,7 @@ namespace AccessibleArena.Core.Services
             // Home/End: jump to first/last keyword
             if (Input.GetKeyDown(KeyCode.Home))
             {
+                _keywordLetterSearch.Clear();
                 if (kwCount > 0)
                 {
                     _currentKeywordIndex = 0;
@@ -4100,6 +4127,7 @@ namespace AccessibleArena.Core.Services
             }
             if (Input.GetKeyDown(KeyCode.End))
             {
+                _keywordLetterSearch.Clear();
                 if (kwCount > 0)
                 {
                     _currentKeywordIndex = kwCount - 1;
@@ -4146,7 +4174,56 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // Show-all phase: consume A-Z for menu-style first-letter jump and
+            // prevent zone/battlefield shortcuts (C/G/X/S/W, B/A/R, etc.) from
+            // falling through to zone navigators. Shortlist phase preserves
+            // normal zone navigation — letter keys are not touched there.
+            if (showAll && HandleKeywordLetterJump())
+                return true;
+
             return false;
+        }
+
+        /// <summary>
+        /// Menu-style buffered A-Z jump over the current keyword list.
+        /// Consumes any A-Z keydown (with or without Shift) when the show-all
+        /// phase is active. Returns true if a letter key was pressed (consumed)
+        /// regardless of whether a match was found, so zone hotkeys stay blocked.
+        /// </summary>
+        private bool HandleKeywordLetterJump()
+        {
+            KeyCode pressed = KeyCode.None;
+            for (KeyCode k = KeyCode.A; k <= KeyCode.Z; k++)
+            {
+                if (Input.GetKeyDown(k)) { pressed = k; break; }
+            }
+            if (pressed == KeyCode.None) return false;
+
+            int count = GetKeywordCount();
+            if (count == 0) return true;
+
+            var labels = new List<string>(count);
+            for (int i = 0; i < count; i++)
+                labels.Add(GetKeywordDisplayText(i) ?? "");
+
+            char letter = (char)('A' + (pressed - KeyCode.A));
+            int target = _keywordLetterSearch.HandleKey(letter, labels, _currentKeywordIndex);
+
+            if (target >= 0 && target != _currentKeywordIndex)
+            {
+                _currentKeywordIndex = target;
+                _currentButtonIndex = -1;
+                AnnounceCurrentKeyword();
+            }
+            else if (target >= 0)
+            {
+                AnnounceCurrentKeyword();
+            }
+            else
+            {
+                _announcer.AnnounceInterrupt(Strings.LetterSearchNoMatch(_keywordLetterSearch.Buffer));
+            }
+            return true;
         }
 
         #endregion

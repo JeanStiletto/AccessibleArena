@@ -534,7 +534,7 @@
   "BrowserHint_OptionalAction": "Tab pour naviguer. Entrée ou Espace pour sélectionner",
   "BrowserHint_SplitCards": "C pour première pile, D pour deuxième pile. Gauche Droite pour naviguer. Entrée pour déplacer. Espace pour confirmer",
   "BrowserHint_AssignDamage": "Gauche Droite pour naviguer. Haut Bas pour ajuster les dégâts. Espace pour soumettre. Retour pour annuler",
-  "BrowserHint_KeywordSelection": "Tab pour naviguer. Entrée pour basculer. Espace pour confirmer",
+  "BrowserHint_KeywordSelection": "Tab pour naviguer. Entrée pour basculer. Espace pour confirmer. Après Tout afficher : tapez une lettre pour aller à un type de créature",
   "BrowserHint_RepeatSelection": "Tab pour naviguer. Entrée pour sélectionner. Espace pour confirmer",
   "BrowserHint_Workflow": "Tab pour naviguer. Entrée ou Espace pour sélectionner",
   "BrowserHint_SelectMana": "Tab ou Droite pour couleur suivante. Shift Tab ou Gauche pour précédente. Entrée ou touche numérique pour sélectionner",

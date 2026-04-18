@@ -534,7 +534,7 @@
   "BrowserHint_OptionalAction": "Tab para navegar. Enter ou Espaço para selecionar",
   "BrowserHint_SplitCards": "C para primeira pilha, D para segunda pilha. Esquerda Direita para navegar. Enter para mover. Espaço para confirmar",
   "BrowserHint_AssignDamage": "Esquerda Direita para navegar. Cima Baixo para ajustar dano. Espaço para enviar. Backspace para desfazer",
-  "BrowserHint_KeywordSelection": "Tab para navegar. Enter para alternar. Espaço para confirmar",
+  "BrowserHint_KeywordSelection": "Tab para navegar. Enter para alternar. Espaço para confirmar. Após Mostrar tudo: digite uma letra para pular para um tipo de criatura",
   "BrowserHint_RepeatSelection": "Tab para navegar. Enter para selecionar. Espaço para confirmar",
   "BrowserHint_Workflow": "Tab para navegar. Enter ou Espaço para selecionar",
   "BrowserHint_SelectMana": "Tab ou Direita para próxima cor. Shift Tab ou Esquerda para anterior. Enter ou tecla numérica para selecionar",

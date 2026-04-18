@@ -534,7 +534,7 @@
   "BrowserHint_OptionalAction": "Tab per navigare. Invio o Spazio per selezionare",
   "BrowserHint_SplitCards": "C per prima pila, D per seconda pila. Sinistra Destra per navigare. Invio per spostare. Spazio per confermare",
   "BrowserHint_AssignDamage": "Sinistra Destra per navigare. Su Giù per regolare danno. Spazio per inviare. Backspace per annullare",
-  "BrowserHint_KeywordSelection": "Tab per navigare. Invio per alternare. Spazio per confermare",
+  "BrowserHint_KeywordSelection": "Tab per navigare. Invio per alternare. Spazio per confermare. Dopo Mostra tutto: premi una lettera per saltare a un tipo di creatura",
   "BrowserHint_RepeatSelection": "Tab per navigare. Invio per selezionare. Spazio per confermare",
   "BrowserHint_Workflow": "Tab per navigare. Invio o Spazio per selezionare",
   "BrowserHint_SelectMana": "Tab o Destra per colore successivo. Shift Tab o Sinistra per precedente. Invio o tasto numerico per selezionare",

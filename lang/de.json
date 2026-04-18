@@ -547,7 +547,7 @@
   "BrowserHint_OptionalAction": "Tab zum Navigieren. Enter oder Leertaste zum Auswählen",
   "BrowserHint_SplitCards": "C für ersten Stapel, D für zweiten Stapel. Links Rechts zum Navigieren. Enter zum Verschieben. Leertaste zum Bestätigen",
   "BrowserHint_AssignDamage": "Links Rechts zum Navigieren. Hoch Runter zum Schaden anpassen. Leertaste zum Absenden. Rücktaste zum Rückgängig",
-  "BrowserHint_KeywordSelection": "Tab zum Navigieren. Enter zum Umschalten. Leertaste zum Bestätigen",
+  "BrowserHint_KeywordSelection": "Tab zum Navigieren. Enter zum Umschalten. Leertaste zum Bestätigen. Nach Alle anzeigen: Buchstabe drücken, um zu einem Kreaturentyp zu springen",
   "BrowserHint_RepeatSelection": "Tab zum Navigieren. Enter zum Auswählen. Leertaste zum Bestätigen",
   "BrowserHint_Workflow": "Tab zum Navigieren. Enter oder Leertaste zum Auswählen",
   "BrowserHint_SelectMana": "Tab oder Rechts für nächste Farbe. Shift Tab oder Links für vorherige. Enter oder Zahlentaste zum Auswählen",

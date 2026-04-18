@@ -534,7 +534,7 @@
   "BrowserHint_OptionalAction": "Tab으로 이동. Enter 또는 Space로 선택",
   "BrowserHint_SplitCards": "C는 첫 번째 더미, D는 두 번째 더미. 좌우로 이동. Enter로 카드 이동. 스페이스로 확인",
   "BrowserHint_AssignDamage": "좌우로 이동. 위아래로 피해 조정. 스페이스로 제출. 백스페이스로 취소",
-  "BrowserHint_KeywordSelection": "Tab으로 이동. Enter로 전환. 스페이스로 확인",
+  "BrowserHint_KeywordSelection": "Tab으로 이동. Enter로 전환. 스페이스로 확인. 모두 보기 후: 문자 키를 눌러 생물 유형으로 이동",
   "BrowserHint_RepeatSelection": "Tab으로 이동. Enter로 선택. 스페이스로 확인",
   "BrowserHint_Workflow": "Tab으로 이동. Enter 또는 Space로 선택",
   "BrowserHint_SelectMana": "Tab 또는 오른쪽으로 다음 색. Shift Tab 또는 왼쪽으로 이전. Enter 또는 숫자키로 선택",

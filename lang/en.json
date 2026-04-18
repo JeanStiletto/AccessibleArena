@@ -549,7 +549,7 @@
   "BrowserHint_OptionalAction": "Tab to navigate. Enter or Space to select",
   "BrowserHint_SplitCards": "C for first pile, D for second pile. Left Right to navigate. Enter to move card. Space to confirm",
   "BrowserHint_AssignDamage": "Left Right to navigate blockers. Up Down to adjust damage. Space to submit. Backspace to undo",
-  "BrowserHint_KeywordSelection": "Tab to navigate keywords. Enter to toggle. Space to confirm",
+  "BrowserHint_KeywordSelection": "Tab to navigate keywords. Enter to toggle. Space to confirm. After Show All: type a letter to jump to a creature type",
   "BrowserHint_RepeatSelection": "Tab to navigate modes. Enter to select. Space to confirm",
   "BrowserHint_Workflow": "Tab to navigate options. Enter or Space to select",
   "BrowserHint_SelectMana": "Tab or Right for next color. Shift Tab or Left for previous. Enter or number key to select",

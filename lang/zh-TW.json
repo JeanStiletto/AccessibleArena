@@ -534,7 +534,7 @@
   "BrowserHint_OptionalAction": "Tab導航。Enter或空格選擇",
   "BrowserHint_SplitCards": "C 第一堆，D 第二堆。左右 導航。Enter 移動卡牌。空白鍵 確認",
   "BrowserHint_AssignDamage": "左右 導航阻擋者。上下 調整傷害。空白鍵 提交。退格鍵 撤銷",
-  "BrowserHint_KeywordSelection": "Tab 導航。Enter 切換。空白鍵 確認",
+  "BrowserHint_KeywordSelection": "Tab 導航。Enter 切換。空白鍵 確認。顯示全部後：按字母鍵跳轉到生物類別",
   "BrowserHint_RepeatSelection": "Tab 導航。Enter 選擇。空白鍵 確認",
   "BrowserHint_Workflow": "Tab 導航。Enter或空格選擇",
   "BrowserHint_SelectMana": "Tab 或右鍵下一顏色。Shift Tab 或左鍵上一顏色。Enter 或數字鍵選擇",

@@ -534,7 +534,7 @@
   "BrowserHint_OptionalAction": "Tab для навигации. Enter или Пробел для выбора",
   "BrowserHint_SplitCards": "C для первой стопки, D для второй. Лево Право для навигации. Enter для перемещения. Пробел для подтверждения",
   "BrowserHint_AssignDamage": "Лево Право для навигации. Верх Низ для изменения урона. Пробел для отправки. Backspace для отмены",
-  "BrowserHint_KeywordSelection": "Tab для навигации. Enter для переключения. Пробел для подтверждения",
+  "BrowserHint_KeywordSelection": "Tab для навигации. Enter для переключения. Пробел для подтверждения. После Показать все: нажмите букву для перехода к типу существа",
   "BrowserHint_RepeatSelection": "Tab для навигации. Enter для выбора. Пробел для подтверждения",
   "BrowserHint_Workflow": "Tab для навигации. Enter или Пробел для выбора",
   "BrowserHint_SelectMana": "Tab или Право для следующего цвета. Shift Tab или Лево для предыдущего. Enter или цифра для выбора",

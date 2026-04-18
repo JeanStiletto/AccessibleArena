@@ -534,7 +534,7 @@
   "BrowserHint_OptionalAction": "Tab do nawigacji. Enter lub Spacja aby wybrać",
   "BrowserHint_SplitCards": "C dla pierwszego stosu, D dla drugiego. Lewo Prawo do nawigacji. Enter aby przenieść. Spacja aby potwierdzić",
   "BrowserHint_AssignDamage": "Lewo Prawo do nawigacji. Góra Dół aby zmienić obrażenia. Spacja aby wysłać. Backspace aby cofnąć",
-  "BrowserHint_KeywordSelection": "Tab do nawigacji. Enter aby przełączyć. Spacja aby potwierdzić",
+  "BrowserHint_KeywordSelection": "Tab do nawigacji. Enter aby przełączyć. Spacja aby potwierdzić. Po Pokaż wszystko: naciśnij literę, aby przeskoczyć do typu stworzenia",
   "BrowserHint_RepeatSelection": "Tab do nawigacji. Enter aby wybrać. Spacja aby potwierdzić",
   "BrowserHint_Workflow": "Tab do nawigacji. Enter lub Spacja aby wybrać",
   "BrowserHint_SelectMana": "Tab lub Prawo dla następnego koloru. Shift Tab lub Lewo dla poprzedniego. Enter lub klawisz numeryczny aby wybrać",
