@@ -310,6 +310,151 @@ Keep these in mind when re-investigating:
   that the specific email field on `/agreements/approve` is a
   controlled component.
 
+## Session Log: hCaptcha Accessibility Cookie Investigation
+
+Investigated whether we can hand hCaptcha a "this is a screen-reader user,
+not a bot" signal by injecting hCaptcha's accessibility cookie into the
+embedded browser. Outcome: *technically feasible, practically blocked by
+the hCaptcha signup side*. Conclusion recorded here so we don't redo the
+API spelunking next time.
+
+### ZFBrowser cookie API surface
+
+ZFBrowser exposes enough to both read and write cookies:
+
+- `Browser.CookieManager` (public property) — per-browser instance.
+- `CookieManager.GetCookies()` → `IPromise<List<Cookie>>`. Reentrant guard:
+  only one fetch in flight at a time (static `currentFetch`).
+- `CookieManager.ClearAll()` → nukes everything for this browser.
+- `Cookie` class with public mutable fields: `name`, `value`, `domain`,
+  `path`, `creation`, `lastAccess`, `expires` (`DateTime?`), `secure`,
+  `httpOnly`.
+- `Cookie.Update()` → deletes any matching original, then calls
+  `BrowserNative.zfb_editCookie(id, nativeCookie, CookieAction.Create)`.
+  **This is the insertion path.**
+- `Cookie.Delete()` → `zfb_editCookie(..., CookieAction.Delete)`.
+- `BrowserNative.CookieAction` enum = `{ Delete, Create }`. No separate
+  Update/Upsert — `Create` after a `Delete` is the only upsert pattern.
+- `BrowserNative.zfb_editCookie(int id, NativeCookie cookie, CookieAction)`.
+- `BrowserNative.NativeCookie` mirrors `Cookie` but uses ISO-ish date
+  strings (`yyyy-MM-dd hh:mm:ss.fff`) and `byte` flags. `Cookie.Copy(src,
+  dest)` handles the conversion both ways.
+
+Minimal injection pattern if we ever use it:
+
+```csharp
+var c = new Cookie(browser.CookieManager) {
+    name   = "<name>",
+    value  = "<value>",
+    domain = ".hcaptcha.com",
+    path   = "/",
+    expires = DateTime.UtcNow.AddDays(1),
+    creation = DateTime.UtcNow,
+    lastAccess = DateTime.UtcNow,
+    secure = true,
+    httpOnly = true,
+};
+c.Update();
+```
+
+Cross-origin is not a problem: cookies go into the CEF cookie store keyed
+by domain, independently of the currently loaded page. We can set
+`.hcaptcha.com` cookies while PayPal is open.
+
+Decompiled references:
+
+- `llm-docs/decompiled/ZenFulcrum.EmbeddedBrowser.CookieManager.decompiled.cs`
+- `llm-docs/decompiled/ZenFulcrum.EmbeddedBrowser.Cookie.decompiled.cs`
+- `BrowserNative` dump (regenerate with `ilspycmd -t
+  ZenFulcrum.EmbeddedBrowser.BrowserNative` against `ZFBrowser.dll`) —
+  `decompile.ps1` does not know about `ZFBrowser.dll`, invoke ilspycmd
+  directly.
+
+### hCaptcha accessibility program — web research (April 2026)
+
+Researched via hCaptcha's own pages, third-party CAPTCHA-comparison sites,
+and user reports. **Sources at bottom of this section.**
+
+What hCaptcha claims (official page):
+
+- Sign up at `hcaptcha.com/accessibility` with email.
+- Receive an encrypted "accessibility cookie" / "authentication token".
+- Usable several times per day, must be re-authenticated periodically.
+- Works "with all popular browsers and ad blockers with their standard
+  settings" (their phrasing).
+- Privacy Pass integration is *future* work, not shipped.
+
+What users / independent reviews report:
+
+- **Signup reportedly unreliable.** fireborn's 2023/2024 writeup
+  ("HellCaptcha") describes the SMS verification step failing with "An
+  error has occurred" and no fallback — they never obtained a working
+  cookie. JFW mailing-list report documents users being *banned* from the
+  program for "not being blind enough".
+- **US phone number requirement.** The signup flow demands SMS to a US
+  number. Significant barrier for non-US users (relevant here — the user
+  is in Germany).
+- **Short expiry.** "Must be refreshed periodically" with no transparency
+  on the actual TTL. One friendlycaptcha comparison article suggests ~24h.
+- **Third-party-cookie restrictions** block the cookie in Firefox and
+  Brave with default settings. CEF's defaults are more permissive, so
+  ZFBrowser is unlikely to hit this in practice — but it explains why
+  desktop-browser testing may mislead us.
+- **Cookie name is not publicly documented.** Every source, including
+  hCaptcha's own, refers to it generically as "the accessibility cookie"
+  / "authentication token". No blog post, NVDA thread, or docs page I
+  found names it. My earlier guess `hc_accessibility` is a guess, not
+  confirmed — treat it as such.
+
+### Implications for the mod
+
+- **The ZFBrowser side is solved:** injecting a cookie is a three-line
+  C# exercise once we know the cookie's name, value, domain, path, and
+  flags.
+- **The external side is the blocker:** the user probably cannot obtain
+  a valid cookie in the first place (US-phone SMS + reportedly broken
+  signup + possible bans).
+- **We do not know the exact cookie name.** If we ever got one, we would
+  likely need to dump the full `.hcaptcha.com` cookie jar from a working
+  desktop-browser session (DevTools → Application → Cookies) and replay
+  every cookie, not just one named cookie.
+- **Short expiry** means this would not be a one-shot setup: the mod
+  would need a recurring workflow to refresh, or the user would keep
+  running into the dead cookie.
+- **CEF permissiveness is a small advantage.** If the cookie exists and
+  is valid, ZFBrowser is less likely to block it than Firefox/Brave
+  would. That's the one piece of good news.
+
+### Suggested alternative if revisited
+
+Rather than injecting a cookie whose name we can't verify, **navigate
+ZFBrowser to `hcaptcha.com/accessibility` directly** and let the user
+log in there inside the embedded browser. Cookies then land in the
+correct cookie store with correct scope/flags, set by hCaptcha itself.
+Then navigate back to PayPal. This avoids cookie-name guessing entirely
+but still requires the hCaptcha signup to succeed for the user (SMS,
+phone number, not being banned). If signup fails, the whole plan
+collapses — stop before writing mod code.
+
+### Recommendation
+
+Do not invest mod work here until the user confirms they can sign up
+for the hCaptcha accessibility program from a normal desktop browser.
+If that succeeds, revisit with the cookie jar captured from DevTools.
+If it fails, look elsewhere (different payment entry point that skips
+PayPal login, or accepting sighted-assistance for the CAPTCHA step as
+the supported path).
+
+### Sources consulted (April 2026)
+
+- https://www.hcaptcha.com/accessibility (official)
+- https://www.hcaptcha.com/post/accessibility-at-hcaptcha-current-and-future-plans (official blog)
+- https://fireborn.mataroa.blog/blog/hellcaptcha-accessibility-theater-at-its-worst/ (user experience report)
+- https://friendlycaptcha.com/insights/hcaptcha-accessibility/ (competitor analysis)
+- https://friendlycaptcha.com/insights/captcha-cookies/ (cookie comparison)
+- https://jfw.groups.io/g/main/topic/tech_vi_i_was_banned_from/102855340 (banned-user report)
+- https://nvda.groups.io/g/chat/topic/installing_accessibility/90476818 (NVDA user thread)
+
 ## Related Source Locations
 
 - `src/Core/Services/WebBrowserAccessibility.cs`
@@ -324,3 +469,5 @@ Keep these in mind when re-investigating:
 - `llm-docs/decompiled/ZenFulcrum.EmbeddedBrowser.BrowserNative.decompiled.cs`
 - `llm-docs/decompiled/ZenFulcrum.EmbeddedBrowser.PointerUIGUI.decompiled.cs`
 - `llm-docs/decompiled/ZenFulcrum.EmbeddedBrowser.PointerUIBase.decompiled.cs`
+- `llm-docs/decompiled/ZenFulcrum.EmbeddedBrowser.CookieManager.decompiled.cs`
+- `llm-docs/decompiled/ZenFulcrum.EmbeddedBrowser.Cookie.decompiled.cs`
