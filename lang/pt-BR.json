@@ -501,6 +501,7 @@
   "WebBrowser_NoBackButton": "Botão voltar não encontrado",
   "WebBrowser_Editing_Format": "Editando {0}, {1}. Digite para inserir texto, Escape para sair.",
   "WebBrowser_CaptchaWarning": "Verificação de segurança detectada. Este é um CAPTCHA visual que não pode ser resolvido sem visão. O PayPal está violando leis de acessibilidade ao não oferecer uma alternativa de áudio. Peça ajuda a alguém com visão, ou pressione Backspace para voltar e tentar outro método de pagamento.",
+  "WebBrowser_LoginFailed": "Falha no login. Por favor, digite sua senha novamente e tente de novo.",
   "WebBrowser_PasswordStar": "estrela",
   "WebBrowser_SpaceChar": "espaço",
   "CouldNotMove_Format": "Não foi possível mover {0}",

@@ -1231,6 +1231,7 @@ namespace AccessibleArena.Core.Models
         public static string WebBrowser_NoBackButton => L.Get("WebBrowser_NoBackButton");
         public static string WebBrowser_Editing(string name, string fieldType) => L.Format("WebBrowser_Editing_Format", name, fieldType);
         public static string WebBrowser_CaptchaWarning => L.Get("WebBrowser_CaptchaWarning");
+        public static string WebBrowser_LoginFailed => L.Get("WebBrowser_LoginFailed");
         public static string WebBrowser_PasswordStar => L.Get("WebBrowser_PasswordStar");
         public static string WebBrowser_SpaceChar => L.Get("WebBrowser_SpaceChar");
         public static string CouldNotMove(string name) => L.Format("CouldNotMove_Format", name);

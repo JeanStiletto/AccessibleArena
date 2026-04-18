@@ -342,17 +342,31 @@ namespace AccessibleArena.Core.Services
                 var win = doc.defaultView || window;
                 var valueBefore = el.value || '';
                 var method = 'none';
+                var isPassword = el.type === 'password';
 
-                // Approach 1: execCommand
+                // Approach 1: execCommand. Skipped for password fields — PayPal's
+                // React-controlled password input rejects the resulting state update
+                // (DOM value updates but controlled-component state stays empty,
+                // producing failedBecause=invalid_input on submit).
                 var ok = false;
-                try {{ ok = doc.execCommand('insertText', false, '{escaped}'); }} catch(e) {{}}
+                if (!isPassword) {{
+                    try {{ ok = doc.execCommand('insertText', false, '{escaped}'); }} catch(e) {{}}
+                }}
                 if (ok && el.value !== valueBefore) {{
                     method = 'execCommand';
                     // Sync React/framework state — execCommand modifies the DOM but
                     // bypasses React's value tracker, so onChange never fires.
                     // Reset the tracker and dispatch events so the framework sees the change.
                     try {{ if (el._valueTracker) el._valueTracker.setValue(valueBefore); }} catch(e2) {{}}
-                    try {{ el.dispatchEvent(new win.Event('input', {{bubbles: true}})); }} catch(e3) {{}}
+                    // Use InputEvent with data/inputType so React's synthetic event
+                    // handler classifies it as a real insert and runs onChange.
+                    try {{
+                        el.dispatchEvent(new win.InputEvent('input', {{
+                            data: '{escaped}', inputType: 'insertText', bubbles: true, cancelable: false, composed: true
+                        }}));
+                    }} catch(e3) {{
+                        try {{ el.dispatchEvent(new win.Event('input', {{bubbles: true}})); }} catch(e3b) {{}}
+                    }}
                     try {{ el.dispatchEvent(new win.Event('change', {{bubbles: true}})); }} catch(e4) {{}}
                     // Re-check: framework (e.g. PayPal React) may revert value during
                     // synchronous event handling after SPA navigation
@@ -1422,6 +1436,15 @@ namespace AccessibleArena.Core.Services
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
                 return;
             }
+            if (IsLoginFailureUrl(url))
+            {
+                // Soft login failure: PayPal re-prompts for credentials on the same
+                // login page rather than showing a visual CAPTCHA. Announce a retry
+                // hint but let the normal page-load flow continue so the user can
+                // re-enter the password.
+                MelonLogger.Msg("[WebBrowser] Login failure URL detected, announcing retry hint");
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_LoginFailed);
+            }
 
             // Cancel any pending rescan timers — they were for the previous page
             _pendingRescan = false;
@@ -1709,6 +1732,25 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(url)) return false;
             string lower = url.ToLowerInvariant();
 
+            // Generic CAPTCHA / challenge page patterns (single keyword is too broad,
+            // but these specific paths are reliable indicators)
+            if (lower.Contains("/challenge") || lower.Contains("/captcha"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// URL patterns PayPal uses when credentials were rejected but the user is
+        /// being bounced back to the login page to retry (not a visual CAPTCHA).
+        /// These used to be treated as hard CAPTCHA but that produced a false warning
+        /// — the user saw another login page, not a challenge.
+        /// </summary>
+        private static bool IsLoginFailureUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+            string lower = url.ToLowerInvariant();
+
             // PayPal: Base64 "adsddcaptcha" param added to failed login redirects
             // e.g. &YWRzZGRjYXB0Y2hh=1
             if (lower.Contains("ywrzzgrjyxb0y2hh"))
@@ -1717,11 +1759,6 @@ namespace AccessibleArena.Core.Services
             // PayPal: step-up auth flow combined with login failure
             // e.g. /signin/return?flowFrom=anw-stepup&...&failedBecause=invalid_input
             if (lower.Contains("stepup") && lower.Contains("failedbecause"))
-                return true;
-
-            // Generic CAPTCHA / challenge page patterns (single keyword is too broad,
-            // but these specific paths are reliable indicators)
-            if (lower.Contains("/challenge") || lower.Contains("/captcha"))
                 return true;
 
             return false;
