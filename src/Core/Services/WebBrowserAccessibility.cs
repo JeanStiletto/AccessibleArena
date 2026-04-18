@@ -32,6 +32,7 @@ namespace AccessibleArena.Core.Services
         #region State
 
         private Browser _browser;
+        private PointerUIGUI _browserInputForwarder; // Disabled while editing to prevent double key delivery
         private GameObject _browserPanel;
         private IAnnouncementService _announcer;
         private bool _isActive;
@@ -573,6 +574,8 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            _browserInputForwarder = panel.GetComponentInChildren<PointerUIGUI>(true);
+
             _isActive = true;
 
             // Block Escape from reaching the game (would open settings menu)
@@ -607,7 +610,12 @@ namespace AccessibleArena.Core.Services
                 _browser.onLoad -= OnPageLoad;
             }
 
+            // Safety net in case we're deactivating mid-edit (e.g. panel torn down).
+            if (_browserInputForwarder != null)
+                _browserInputForwarder.enableInput = true;
+
             _browser = null;
+            _browserInputForwarder = null;
             _browserPanel = null;
             _isActive = false;
             _isEditingField = false;
@@ -1028,6 +1036,8 @@ namespace AccessibleArena.Core.Services
         {
             _isEditingField = false;
             _useNativeInput = false;
+            if (_browserInputForwarder != null)
+                _browserInputForwarder.enableInput = true;
         }
 
         private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0, int cursorJump = int.MinValue)
@@ -1632,6 +1642,12 @@ namespace AccessibleArena.Core.Services
             _isEditingField = true;
             _editFieldValue = elem.Value ?? "";
             _editCursorPos = _editFieldValue.Length > 0 ? _editFieldValue.Length - 1 : 0;
+
+            // Suppress ZFBrowser's automatic Unity-input forwarding while we own the typing path.
+            // Without this, when EventSystem has WebBrowserObject selected, every keystroke
+            // is delivered twice — once by PointerUIGUI and once by our EvalJSCSP/TypeText call.
+            if (_browserInputForwarder != null)
+                _browserInputForwarder.enableInput = false;
 
             // Focus the element in the browser
             _browser.EvalJSCSP(FocusScript(elem.Index))

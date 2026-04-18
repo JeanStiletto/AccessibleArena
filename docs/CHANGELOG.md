@@ -22,6 +22,9 @@ All notable changes to Accessible Arena.
 ### Friends Panel
 - Friend panel section headers (Friends, Incoming, Outgoing, Blocked, Challenges) now announce their entry count — e.g., "Friends 5"
 
+### Web Browser / Payment Methods
+- Fixed each keystroke being delivered twice (and Backspace deleting two characters) when typing into web fields after the EventSystem had selected the WebBrowserObject — `PointerUIGUI`'s automatic Unity-input forwarding to CEF is now suppressed while our edit mode owns the typing path
+
 ### Challenge Invite Popup
 - Friend tiles in the challenge invite popup are now navigable as Toggle elements — each friend reads their name and current invite state, Enter/Space toggles them
 - Already-invited players appear under a dedicated "Eingeladen:" / "Invited:" section heading that's announced before the entries it labels, giving the list proper screen-reader structure
