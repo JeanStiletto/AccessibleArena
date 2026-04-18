@@ -7,6 +7,7 @@ All notable changes to Accessible Arena.
 ### Duel
 - Fixed creature-type / choice picker browser ("bestimme einen Kreaturentyp", Patchwork Banner etc.) announcing 0 options and getting stuck on "Alle anzeigen" — a game update renamed the underlying `KeywordFilter` class to `ChoiceFilter` (with `Keyword` → `Choice` struct and matching field renames), which broke our reflection lookup
 - Fixed rare case where the phase-skip warning could leave Space blocked until the turn timer expired — when our global `Input.GetKeyDown` block consumed the press before MTGA's KeyboardManager saw it, the matching KeyUp never fired, so the "waiting for release" state never cleared; now polled every frame as a safety net
+- Fixed phase-skip warning also firing when confirming a browser with Space — the browser closed mid-press, so by the time the guard's hook ran the modal bypass no longer applied; guard now tracks whether a modal was active at any point during the current Space hold
 
 ### Pack Opening
 - Refactored pack opening internally to read all cards from the game's data list instead of only viewport-visible cards — Open All packs now reveal all cards (e.g., 16 of 16 in an ECL pack) instead of only the ~12 that fit on screen

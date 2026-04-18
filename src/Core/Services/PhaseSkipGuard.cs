@@ -25,6 +25,7 @@ namespace AccessibleArena.Core.Services
         private static bool _waitingForRelease;
         private static bool _confirmed;       // Pass was confirmed — suppress until phase changes
         private static string _confirmedPhase;
+        private static bool _modalActiveDuringPress; // True if a modal was active at any point during the current Space hold
         private static PriorityController _priorityController;
         private static Func<bool> _isModalNavigatorActive;
 
@@ -50,7 +51,17 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static void Poll()
         {
-            if (_waitingForRelease && !Input.GetKey(KeyCode.Space))
+            bool spaceDown = Input.GetKey(KeyCode.Space);
+
+            // Track modal-active-during-press: if a modal was up at any point
+            // while Space is held, the whole press belongs to that modal. Guards
+            // against the browser-closes-mid-press race (see ShouldBlock).
+            if (!spaceDown)
+                _modalActiveDuringPress = false;
+            else if (_isModalNavigatorActive?.Invoke() == true)
+                _modalActiveDuringPress = true;
+
+            if (_waitingForRelease && !spaceDown)
             {
                 _waitingForRelease = false;
                 MelonLogger.Msg("[PhaseSkipGuard] Space released (polled) — next press will confirm");
@@ -92,8 +103,12 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Don't interfere when a modal sub-navigator (browser, chooseX) owns Space
+            // Don't interfere when a modal sub-navigator (browser, chooseX) owns Space.
+            // Also bypass if a modal was active at any point during the current Space
+            // press — the browser can confirm+close within the same press, and by the
+            // time KeyboardManager's pass-phase hook runs, IsActive is already false.
             if (_isModalNavigatorActive?.Invoke() == true) return false;
+            if (_modalActiveDuringPress) return false;
 
             var duelAnnouncer = DuelAnnouncer.Instance;
             if (duelAnnouncer == null) return false;
@@ -161,6 +176,7 @@ namespace AccessibleArena.Core.Services
             _waitingForRelease = false;
             _confirmed = false;
             _confirmedPhase = null;
+            _modalActiveDuringPress = false;
             _blockThisFrame = false;
             _lastDecisionFrame = -1;
             // Do not clear _isModalNavigatorActive — it is wired once from DuelNavigator's
