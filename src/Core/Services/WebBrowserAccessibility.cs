@@ -1382,6 +1382,15 @@ namespace AccessibleArena.Core.Services
 
             if (!_isActive) return;
 
+            // If CAPTCHA was already detected, swallow further page loads silently.
+            // PayPal's failed-login flow keeps reloading the same captcha URL ~1×/sec;
+            // without this short-circuit the warning would spam on every reload.
+            if (_captchaDetected)
+            {
+                MelonLogger.Msg("[WebBrowser] CAPTCHA already detected, ignoring redirect page load");
+                return;
+            }
+
             // Check for CAPTCHA / auth-failure URL patterns BEFORE resetting state.
             // PayPal does rapid redirect chains (login → CAPTCHA → back to login) that
             // complete in ~3 seconds. The old approach of waiting for 3 empty rescans
@@ -1398,14 +1407,6 @@ namespace AccessibleArena.Core.Services
                 _isLoading = false;
                 _elements.Clear();
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
-                return;
-            }
-
-            // If a previous page in the redirect chain already detected CAPTCHA,
-            // don't reset — the redirect back to the login page should keep the warning active
-            if (_captchaDetected)
-            {
-                MelonLogger.Msg("[WebBrowser] CAPTCHA already detected, ignoring redirect page load");
                 return;
             }
 
@@ -1719,47 +1720,21 @@ namespace AccessibleArena.Core.Services
             string url = _browser?.Url?.ToLowerInvariant() ?? "";
             bool urlSuspicious = IsCaptchaUrl(url) ||
                                  url.Contains("authflow") || url.Contains("challenge") ||
-                                 url.Contains("captcha") || url.Contains("stepup") ||
-                                 url.Contains("security") || url.Contains("verify");
+                                 url.Contains("stepup");
 
-            // Also check for cross-origin iframes (CAPTCHA content is typically in one)
+            // Inspect iframe sources for known user-facing CAPTCHA vendors only.
+            // Bare "cross-origin iframe present" was too broad: PayPal silently embeds
+            // geo.ddc.paypal.com/captcha/ for bot fingerprinting on every login load,
+            // which falsely tripped the warning before the user could enter credentials.
             _browser.EvalJSCSP(DetectCrossOriginIframesScript)
                 .Then(result =>
                 {
-                    string json = (string)result;
-                    bool hasCrossOriginIframes = false;
-                    string iframeSrcs = "";
+                    string json = (string)result ?? "";
+                    bool hasUserFacingCaptchaIframe = ContainsUserFacingCaptchaVendor(json);
 
-                    if (!string.IsNullOrEmpty(json))
-                    {
-                        try
-                        {
-                            // Simple parsing — look for crossOrigin count
-                            int coIdx = json.IndexOf("\"crossOrigin\":");
-                            if (coIdx >= 0)
-                            {
-                                int numStart = coIdx + "\"crossOrigin\":".Length;
-                                string numStr = "";
-                                while (numStart < json.Length && (char.IsDigit(json[numStart]) || json[numStart] == ' '))
-                                {
-                                    if (char.IsDigit(json[numStart]))
-                                        numStr += json[numStart];
-                                    numStart++;
-                                }
-                                int crossOriginCount;
-                                if (int.TryParse(numStr, out crossOriginCount) && crossOriginCount > 0)
-                                {
-                                    hasCrossOriginIframes = true;
-                                }
-                            }
-                            iframeSrcs = json;
-                        }
-                        catch { /* JSON parsing is best-effort; malformed response is non-fatal */ }
-                    }
+                    MelonLogger.Msg($"[WebBrowser] CAPTCHA check: urlSuspicious={urlSuspicious}, vendorIframe={hasUserFacingCaptchaIframe}, details={json}");
 
-                    MelonLogger.Msg($"[WebBrowser] CAPTCHA check: urlSuspicious={urlSuspicious}, crossOriginIframes={hasCrossOriginIframes}, details={iframeSrcs}");
-
-                    if (urlSuspicious || hasCrossOriginIframes)
+                    if (urlSuspicious || hasUserFacingCaptchaIframe)
                     {
                         _captchaDetected = true;
                         MelonLogger.Msg("[WebBrowser] CAPTCHA detected! Stopping rescan loop.");
@@ -1788,6 +1763,29 @@ namespace AccessibleArena.Core.Services
                         _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
                     }
                 });
+        }
+
+        // Hostnames/path tokens of CAPTCHA vendors that present a *user-facing* challenge.
+        // Excludes silent first-party fingerprinting endpoints (e.g. paypal.com/captcha/).
+        private static readonly string[] UserFacingCaptchaTokens =
+        {
+            "recaptcha",       // google reCAPTCHA (recaptcha.net, google.com/recaptcha, gstatic.com/recaptcha)
+            "hcaptcha",        // hCaptcha (hcaptcha.com, newassets.hcaptcha.com)
+            "arkoselabs",      // Arkose Labs / FunCaptcha
+            "funcaptcha",
+            "challenges.cloudflare.com",  // Cloudflare Turnstile / challenge platform
+            "turnstile",
+        };
+
+        private static bool ContainsUserFacingCaptchaVendor(string iframeJson)
+        {
+            if (string.IsNullOrEmpty(iframeJson)) return false;
+            string lower = iframeJson.ToLowerInvariant();
+            foreach (var token in UserFacingCaptchaTokens)
+            {
+                if (lower.Contains(token)) return true;
+            }
+            return false;
         }
 
         #endregion
