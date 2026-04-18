@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
@@ -42,6 +44,7 @@ namespace AccessibleArena.Core.Services
         private int _currentIndex;
         private bool _isEditingField;
         private bool _useNativeInput; // Use native CEF keyboard input (for fields that reject JS events)
+        private bool _passthroughMode; // Password fields: Unity→ZFBrowser keystroke forwarding, no JS interception
         private bool _isLoading;
         private int _lastWebElementCount; // Track for silent rescan comparison
         private string _lastContentFingerprint = ""; // Detect AJAX content changes (same count, different text)
@@ -207,6 +210,17 @@ namespace AccessibleArena.Core.Services
                     }
                     // Fallback to placeholder or name attribute
                     if (!text) text = placeholder || el.getAttribute('name') || '';
+
+                    // Detect password-like fields even when the HTML type isn't 'password'.
+                    // React-wrapped inputs (e.g. PayPal) often use type='text' with
+                    // autocomplete='current-password'/'new-password' — treat those as passwords
+                    // so edit mode switches to passthrough typing.
+                    if (inputType !== 'password') {
+                        var autoc = (el.getAttribute('autocomplete') || '').toLowerCase();
+                        if (autoc === 'current-password' || autoc === 'new-password') {
+                            inputType = 'password';
+                        }
+                    }
                 }
                 isInteractive = true;
             } else if (tag === 'select') {
@@ -310,6 +324,31 @@ namespace AccessibleArena.Core.Services
         private static string FocusScript(int index)
         {
             return FindElementFunc + $" var el = findEl({index}); if (el) {{ el.focus(); return 'ok'; }} return 'not_found';";
+        }
+
+        // Get an element's center coordinates (normalized 0..1 relative to the top-level browser viewport).
+        // Walks up iframe boundaries adding each frame's offset so coords map to the CEF surface.
+        // Returns CSV "cx,cy,vw,vh" in CSS pixels, or '' if element missing.
+        private static string GetBoundingBoxScript(int index)
+        {
+            return FindElementFunc + $@"
+                var el = findEl({index});
+                if (!el) return '';
+                var r = el.getBoundingClientRect();
+                var x = r.left + r.width / 2;
+                var y = r.top + r.height / 2;
+                var w = el.ownerDocument.defaultView;
+                while (w && w !== window.top) {{
+                    try {{
+                        var fe = w.frameElement;
+                        if (!fe) break;
+                        var fr = fe.getBoundingClientRect();
+                        x += fr.left;
+                        y += fr.top;
+                        w = fe.ownerDocument.defaultView;
+                    }} catch(e) {{ break; }}
+                }}
+                return x + ',' + y + ',' + window.top.innerWidth + ',' + window.top.innerHeight;";
         }
 
         // Select all text in an input field (Ctrl+A equivalent)
@@ -630,13 +669,19 @@ namespace AccessibleArena.Core.Services
 
             // Safety net in case we're deactivating mid-edit (e.g. panel torn down).
             if (_browserInputForwarder != null)
+            {
                 _browserInputForwarder.enableInput = true;
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                if (es != null && es.currentSelectedGameObject == _browserInputForwarder.gameObject)
+                    es.SetSelectedGameObject(null);
+            }
 
             _browser = null;
             _browserInputForwarder = null;
             _browserPanel = null;
             _isActive = false;
             _isEditingField = false;
+            _passthroughMode = false;
             _isLoading = false;
             _pendingRescan = false;
             _secondRescanTimer = 0;
@@ -673,6 +718,23 @@ namespace AccessibleArena.Core.Services
             {
                 Deactivate();
                 return;
+            }
+
+            // Flush any characters queued after a native click — gives CEF one frame
+            // to process the focus-change triggered by the click before keystrokes arrive.
+            if (_pendingPostClickType != null)
+            {
+                string queued = _pendingPostClickType;
+                _pendingPostClickType = null;
+                try
+                {
+                    _browser.TypeText(queued);
+                    MelonLogger.Msg($"[WebBrowser] TypeText (post-click): ***");
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg($"[WebBrowser] Post-click TypeText error: {ex.Message}");
+                }
             }
 
             // Extraction timeout — if Promise never resolved, reset and retry
@@ -896,6 +958,17 @@ namespace AccessibleArena.Core.Services
 
         private void HandleEditModeInput()
         {
+            // Passthrough mode (password fields): Unity forwards keystrokes directly
+            // to CEF via PointerUIGUI. We only intercept edit-mode control keys
+            // (Escape/Tab to exit, arrows/Home/End for readback) — everything else
+            // (printable chars, Backspace, Enter, Ctrl+A…) passes through naturally
+            // so CEF sees isTrusted=true events that bot-protected sites accept.
+            if (_passthroughMode)
+            {
+                HandlePassthroughEditModeInput();
+                return;
+            }
+
             // Escape — exit edit mode
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -1042,8 +1115,10 @@ namespace AccessibleArena.Core.Services
                                 {
                                     MelonLogger.Msg($"[WebBrowser] JS input failed, switching to native CEF input");
                                     _useNativeInput = true;
-                                    // Re-send the failed characters via native input
-                                    _browser.TypeText(chars);
+                                    // Simulate a native mouse click on the field first — gives CEF top-level
+                                    // focus to the correct iframe so TypeText's trusted keyboard events
+                                    // actually reach the input's DOM. Then re-send the failed chars.
+                                    SimulateNativeClickThenType(elem, chars);
                                 }
                             })
                             .Catch(ex => MelonLogger.Msg($"[WebBrowser] TypeText error: {ex.Message}"));
@@ -1052,12 +1127,196 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Edit-mode input for password fields (passthrough mode).
+        /// Only intercepts control keys — printable chars and Backspace flow
+        /// through Unity's OnGUI → PointerUIGUI → CEF path as native trusted events.
+        /// </summary>
+        private void HandlePassthroughEditModeInput()
+        {
+            // Escape — exit edit mode (consume so CEF doesn't see it either)
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                InputManager.ConsumeKey(KeyCode.Escape);
+                ExitEditMode();
+                _announcer.AnnounceInterrupt(Strings.ExitedInputField);
+                return;
+            }
+
+            // Tab — exit edit mode and navigate (consume so CEF doesn't steal focus)
+            if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                ExitEditMode();
+                TabNavigate(shift ? -1 : 1);
+                return;
+            }
+
+            // Enter — natural form submission passes through; schedule rescan for new page
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                ExitEditMode();
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_Submitted);
+                StartClickCooldown(ClickCooldownSeconds);
+                ScheduleRescan(RescanDelayClick);
+                _secondRescanTimer = RescanDelaySecond;
+                return;
+            }
+
+            // Arrow Up/Down — read full field content (cursor stays put in browser)
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                RefreshAndReadFieldValue(readFull: true);
+                return;
+            }
+
+            // Arrow Left/Right — read char at cursor (also moves cursor naturally in browser)
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                RefreshAndReadFieldValue(readFull: false, cursorDelta: -1);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                RefreshAndReadFieldValue(readFull: false, cursorDelta: 1);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.Home))
+            {
+                RefreshAndReadFieldValue(readFull: false, cursorJump: 0);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.End))
+            {
+                RefreshAndReadFieldValue(readFull: false, cursorJump: -1);
+                return;
+            }
+
+            // All other keys (printable chars, Backspace, Ctrl+A, Delete…) flow
+            // through Unity OnGUI → PointerUIGUI → CEF. Nothing to do here.
+        }
+
         private void ExitEditMode()
         {
             _isEditingField = false;
             _useNativeInput = false;
+            _passthroughMode = false;
             if (_browserInputForwarder != null)
+            {
                 _browserInputForwarder.enableInput = true;
+                // Deselect the browser GameObject so Unity's OnGUI stops forwarding
+                // keystrokes to CEF (KeyboardHasFocus flips back to false on Deselect).
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                if (es != null && es.currentSelectedGameObject == _browserInputForwarder.gameObject)
+                    es.SetSelectedGameObject(null);
+            }
+        }
+
+        /// <summary>
+        /// Reset edit-mode state when the page URL changes. The old DOM is gone,
+        /// so any passthrough selection + disabled input forwarder would leave
+        /// the new page with broken keyboard/mouse input.
+        /// </summary>
+        private void ResetEditSessionOnPageChange()
+        {
+            _isEditingField = false;
+            _useNativeInput = false;
+            _passthroughMode = false;
+            if (_browserInputForwarder != null)
+            {
+                _browserInputForwarder.enableInput = true;
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                if (es != null && es.currentSelectedGameObject == _browserInputForwarder.gameObject)
+                    es.SetSelectedGameObject(null);
+            }
+        }
+
+        // Cached reflection handle for Browser.browserId (protected internal int in ZFBrowser.dll).
+        private static FieldInfo _browserIdField;
+
+        private int GetBrowserId()
+        {
+            if (_browser == null) return 0;
+            if (_browserIdField == null)
+            {
+                _browserIdField = typeof(Browser).GetField(
+                    "browserId",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+            }
+            if (_browserIdField == null) return 0;
+            try { return (int)_browserIdField.GetValue(_browser); }
+            catch { return 0; }
+        }
+
+        // Inject a trusted mouse click at the field's screen position via CEF natives.
+        // Needed for login forms (PayPal etc.) that filter non-isTrusted events — JS focus()
+        // only sets DOM focus within the iframe, while native TypeText() routes keys to
+        // CEF's top-level focused frame, which may still be something else.
+        // Coords are normalized 0..1 with y top-origin (matching CEF convention).
+        private void FireNativeMouseClick(float nx, float ny)
+        {
+            int id = GetBrowserId();
+            if (id == 0) return;
+            try
+            {
+                BrowserNative.zfb_mouseMove(id, nx, ny);
+                BrowserNative.zfb_mouseButton(id, BrowserNative.MouseButton.MBT_LEFT, true, 1);
+                BrowserNative.zfb_mouseButton(id, BrowserNative.MouseButton.MBT_LEFT, false, 1);
+                MelonLogger.Msg($"[WebBrowser] Native click fired at ({nx:F3}, {ny:F3})");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg($"[WebBrowser] Native click failed: {ex.Message}");
+            }
+        }
+
+        // Look up the element's bbox and inject a native click at its center,
+        // then invoke onClicked() to continue the input sequence (e.g. TypeText).
+        private void SimulateNativeClickThenType(WebElement elem, string chars)
+        {
+            _browser.EvalJSCSP(GetBoundingBoxScript(elem.Index))
+                .Then(result =>
+                {
+                    string s = (string)result;
+                    MelonLogger.Msg($"[WebBrowser] BBox raw CSV: '{s}'");
+                    if (!TryParseBBox(s, out float nx, out float ny))
+                    {
+                        MelonLogger.Msg($"[WebBrowser] BBox lookup failed ('{s}') — sending TypeText without native click");
+                        _browser.TypeText(chars);
+                        return;
+                    }
+                    FireNativeMouseClick(nx, ny);
+                    // Delay TypeText by one frame so CEF finishes processing the mouse click
+                    // (focus change) before keystrokes are injected.
+                    _pendingPostClickType = chars;
+                })
+                .Catch(ex =>
+                {
+                    MelonLogger.Msg($"[WebBrowser] BBox error: {ex.Message} — sending TypeText without native click");
+                    _browser.TypeText(chars);
+                });
+        }
+
+        // Set by SimulateNativeClickThenType after firing the native click.
+        // Flushed on the next Update() tick so CEF has time to process the click's focus change
+        // before we inject keyboard events.
+        private string _pendingPostClickType;
+
+        private static bool TryParseBBox(string csv, out float nx, out float ny)
+        {
+            nx = ny = 0f;
+            if (string.IsNullOrEmpty(csv)) return false;
+            var parts = csv.Split(',');
+            if (parts.Length != 4) return false;
+            var inv = CultureInfo.InvariantCulture;
+            if (!float.TryParse(parts[0], NumberStyles.Float, inv, out float cx)) return false;
+            if (!float.TryParse(parts[1], NumberStyles.Float, inv, out float cy)) return false;
+            if (!float.TryParse(parts[2], NumberStyles.Float, inv, out float vw)) return false;
+            if (!float.TryParse(parts[3], NumberStyles.Float, inv, out float vh)) return false;
+            if (vw <= 0f || vh <= 0f) return false;
+            nx = Mathf.Clamp01(cx / vw);
+            ny = Mathf.Clamp01(cy / vh);
+            return true;
         }
 
         private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0, int cursorJump = int.MinValue)
@@ -1430,7 +1689,7 @@ namespace AccessibleArena.Core.Services
                 _pendingRescan = false;
                 _secondRescanTimer = 0;
                 _mutationObserverActive = false;
-                _isEditingField = false;
+                ResetEditSessionOnPageChange();
                 _isLoading = false;
                 _elements.Clear();
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
@@ -1458,7 +1717,7 @@ namespace AccessibleArena.Core.Services
             _lastWebElementCount = 0;
             _lastContentFingerprint = "";
 
-            _isEditingField = false;
+            ResetEditSessionOnPageChange();
             _isLoading = false; // Reset in case a previous extraction never resolved
             _announcer.AnnounceInterrupt(Strings.WebBrowser_PageLoaded);
             ExtractElements();
@@ -1682,17 +1941,49 @@ namespace AccessibleArena.Core.Services
             _editFieldValue = elem.Value ?? "";
             _editCursorPos = _editFieldValue.Length > 0 ? _editFieldValue.Length - 1 : 0;
 
-            // Suppress ZFBrowser's automatic Unity-input forwarding while we own the typing path.
-            // Without this, when EventSystem has WebBrowserObject selected, every keystroke
-            // is delivered twice — once by PointerUIGUI and once by our EvalJSCSP/TypeText call.
-            if (_browserInputForwarder != null)
-                _browserInputForwarder.enableInput = false;
+            // Passthrough always for password fields. Additionally, on PayPal login pages
+            // the email/username field is also a React-controlled input that rejects the
+            // JS execCommand path (same failure mode as the password field: DOM updates,
+            // React state stays empty, server rejects with invalid_input + adsddcaptcha).
+            // Scoped strictly to PayPal login URLs so card-entry forms on Xsolla and other
+            // checkout pages keep the JS path with per-character echo.
+            bool isPasswordField = elem.InputType == "password";
+            bool isPayPalLoginText = IsPayPalLoginPage(_browser?.Url)
+                && (elem.InputType == "email" || elem.InputType == "text" || elem.InputType == "tel");
+            _passthroughMode = isPasswordField || isPayPalLoginText;
 
-            // Focus the element in the browser
+            if (_passthroughMode)
+            {
+                // Passthrough: keep enableInput=true and select the browser GameObject so
+                // PointerUIGUI's OnGUI/KeyboardHasFocus path is live. Unity forwards physical
+                // keystrokes directly to CEF as native (isTrusted=true) events — no JS layer
+                // that bot-protected sites (PayPal) reject. We lose character echo during
+                // typing, but arrow keys still read the field value back.
+                if (_browserInputForwarder != null)
+                {
+                    _browserInputForwarder.enableInput = true;
+                    var es = UnityEngine.EventSystems.EventSystem.current;
+                    if (es != null)
+                        es.SetSelectedGameObject(_browserInputForwarder.gameObject);
+                }
+                string reason = isPasswordField ? "password" : "paypal-login-text";
+                MelonLogger.Msg($"[WebBrowser] Passthrough edit mode ({reason}): element {elem.Index} ({elem.Text})");
+            }
+            else
+            {
+                // Non-password fields use the JS input path — disable Unity forwarding so
+                // keystrokes don't get delivered twice (once by PointerUIGUI and once by us).
+                if (_browserInputForwarder != null)
+                    _browserInputForwarder.enableInput = false;
+            }
+
+            // Focus the element in the browser (works for both modes)
             _browser.EvalJSCSP(FocusScript(elem.Index))
                 .Catch(ex => MelonLogger.Msg($"[WebBrowser] Focus error: {ex.Message}"));
 
-            string fieldType = elem.InputType == "password" ? Strings.RolePasswordField : Strings.TextField;
+            // Use the real role label (RolePasswordField / RoleEmailField / RoleNumberField / TextField)
+            // so passthrough on email still announces "E-Mail-Feld", not "Passwortfeld".
+            string fieldType = FormatRole(elem);
             _announcer.AnnounceInterrupt(Strings.WebBrowser_Editing(elem.Text, fieldType));
         }
 
@@ -1762,6 +2053,23 @@ namespace AccessibleArena.Core.Services
                 return true;
 
             return false;
+        }
+
+        // PayPal login-form hosts where the email field is a React-controlled input.
+        // Typing via execCommand('insertText') updates the DOM but PayPal's React state
+        // stays empty → server rejects with failedBecause=invalid_input + adsddcaptcha
+        // regardless of the password. On these URLs the email field must take the same
+        // passthrough path as the password field. Scoped narrowly so unrelated paypal.com
+        // pages (and other checkout hosts like Xsolla card forms) keep the JS input path.
+        private static bool IsPayPalLoginPage(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+            string lower = url.ToLowerInvariant();
+            if (!lower.Contains("paypal.com")) return false;
+            return lower.Contains("/signin")
+                || lower.Contains("/agreements/approve")
+                || lower.Contains("/webapps/hermes")
+                || lower.Contains("/checkoutweb");
         }
 
         private void CheckForCaptcha()
