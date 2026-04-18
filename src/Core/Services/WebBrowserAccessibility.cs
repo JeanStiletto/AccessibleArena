@@ -63,6 +63,8 @@ namespace AccessibleArena.Core.Services
         // CAPTCHA / security check detection
         private int _emptyRescanCount;
         private bool _captchaDetected;
+        private bool _captchaCheckCompleted; // one-shot guard, reset on URL change
+        private bool _emptyLoadingAnnounced;  // suppress repeated "loading…" announcements on the same page
         private const int MaxEmptyRescansBeforeCheck = 3; // ~4.5 seconds of empty rescans
 
         // Click cooldown — prevents double-activation of payment buttons
@@ -554,6 +556,8 @@ namespace AccessibleArena.Core.Services
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
             _captchaDetected = false;
+            _captchaCheckCompleted = false;
+            _emptyLoadingAnnounced = false;
             _clickCooldownUntil = 0;
             _mutationObserverActive = false;
             _mutationPollTimer = 0;
@@ -624,6 +628,8 @@ namespace AccessibleArena.Core.Services
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
             _captchaDetected = false;
+            _captchaCheckCompleted = false;
+            _emptyLoadingAnnounced = false;
             _clickCooldownUntil = 0;
             _mutationObserverActive = false;
             _mutationPollTimer = 0;
@@ -1212,8 +1218,11 @@ namespace AccessibleArena.Core.Services
             {
                 _emptyRescanCount++;
 
-                // After several failed attempts, check for cross-origin CAPTCHA iframes
-                if (_emptyRescanCount >= MaxEmptyRescansBeforeCheck && !_captchaDetected)
+                // After several failed attempts, run the CAPTCHA probe once per page.
+                // _captchaCheckCompleted prevents the probe from re-firing on every
+                // subsequent empty rescan (which previously caused a spam loop on
+                // pages whose content lives entirely in a cross-origin iframe).
+                if (_emptyRescanCount >= MaxEmptyRescansBeforeCheck && !_captchaDetected && !_captchaCheckCompleted)
                 {
                     CheckForCaptcha();
                     return;
@@ -1226,8 +1235,12 @@ namespace AccessibleArena.Core.Services
                 }
 
                 MelonLogger.Msg("[WebBrowser] No web elements found, scheduling rescan for iframe content");
-                ScheduleRescan(1.5f);
-                _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
+                ScheduleRescan(_captchaCheckCompleted ? 4.0f : 1.5f);  // back off once probe is done
+                if (!_emptyLoadingAnnounced)
+                {
+                    _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
+                    _emptyLoadingAnnounced = true;
+                }
                 return;
             }
 
@@ -1414,6 +1427,8 @@ namespace AccessibleArena.Core.Services
             _pendingRescan = false;
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
+            _captchaCheckCompleted = false;  // new page → re-allow one CAPTCHA probe
+            _emptyLoadingAnnounced = false;  // new page → allow one "loading…" announcement
             _clickCooldownUntil = 0; // New page = new buttons, clear cooldown
             _mutationObserverActive = false; // Will be re-installed after extraction
             _hasInteractiveElements = false;
@@ -1734,6 +1749,7 @@ namespace AccessibleArena.Core.Services
 
                     MelonLogger.Msg($"[WebBrowser] CAPTCHA check: urlSuspicious={urlSuspicious}, vendorIframe={hasUserFacingCaptchaIframe}, details={json}");
 
+                    _captchaCheckCompleted = true;
                     if (urlSuspicious || hasUserFacingCaptchaIframe)
                     {
                         _captchaDetected = true;
@@ -1742,15 +1758,21 @@ namespace AccessibleArena.Core.Services
                     }
                     else
                     {
-                        // Not a CAPTCHA — keep retrying a few more times
-                        MelonLogger.Msg("[WebBrowser] No CAPTCHA indicators found, continuing rescans");
-                        ScheduleRescan(1.5f);
-                        _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
+                        // Not a CAPTCHA — back off to a slow poll and let the
+                        // MutationObserver / next OnPageLoad pick up real content.
+                        MelonLogger.Msg("[WebBrowser] No CAPTCHA indicators found, backing off rescan loop");
+                        ScheduleRescan(4.0f);
+                        if (!_emptyLoadingAnnounced)
+                        {
+                            _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
+                            _emptyLoadingAnnounced = true;
+                        }
                     }
                 })
                 .Catch(ex =>
                 {
                     MelonLogger.Msg($"[WebBrowser] CAPTCHA detection error: {ex.Message}");
+                    _captchaCheckCompleted = true;
                     // If the URL alone was suspicious, still warn
                     if (urlSuspicious)
                     {
@@ -1759,14 +1781,23 @@ namespace AccessibleArena.Core.Services
                     }
                     else
                     {
-                        ScheduleRescan(1.5f);
-                        _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
+                        ScheduleRescan(4.0f);
+                        if (!_emptyLoadingAnnounced)
+                        {
+                            _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
+                            _emptyLoadingAnnounced = true;
+                        }
                     }
                 });
         }
 
-        // Hostnames/path tokens of CAPTCHA vendors that present a *user-facing* challenge.
-        // Excludes silent first-party fingerprinting endpoints (e.g. paypal.com/captcha/).
+        // Hostnames/path tokens for CAPTCHA iframes.
+        // This check only runs once per page from CheckForCaptcha(), which is gated on
+        // "no extractable elements after ~4.5s of rescans". That gate means the iframe
+        // in question IS the page content, so a matching token indicates a user-facing
+        // blocker — not a silent background script. Keeps third-party vendors AND
+        // PayPal's ddc/captcha endpoint (served directly when PayPal flags the session;
+        // verified via user OCR showing "confirm you're human" on /agreements/approve).
         private static readonly string[] UserFacingCaptchaTokens =
         {
             "recaptcha",       // google reCAPTCHA (recaptcha.net, google.com/recaptcha, gstatic.com/recaptcha)
@@ -1775,6 +1806,7 @@ namespace AccessibleArena.Core.Services
             "funcaptcha",
             "challenges.cloudflare.com",  // Cloudflare Turnstile / challenge platform
             "turnstile",
+            "ddc.paypal.com/captcha",     // PayPal's device-data-collection captcha (blocker variant)
         };
 
         private static bool ContainsUserFacingCaptchaVendor(string iframeJson)
