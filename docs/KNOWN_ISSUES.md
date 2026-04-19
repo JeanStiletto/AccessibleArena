@@ -235,6 +235,13 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 ---
 
 
+## Improvements to Investigate
+
+1. Sound or text alerts for friend activities — notify the user when a friend comes online, sends a friend request, or sends a challenge invite. Needs research into which game events/callbacks fire for these, and how to surface them non-intrusively (priority, channel, opt-out).
+
+---
+
+
 ## Planned Features
 
 ### Upcoming
