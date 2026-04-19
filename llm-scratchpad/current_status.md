@@ -22,6 +22,7 @@ Notable round-1 outcomes (still in the codebase, do not redo):
 
 ## Prompts Completed
 - [x] sanity-checks-setup.md  (this file proves it)
+- [x] information-gathering-and-checking.md  (2026-04-19)
 
 ## Prompts Pre-Marked Complete (no-op by user direction)
 User confirmed both checks were completed successfully in round 1 and the
@@ -41,9 +42,45 @@ answers have not changed. Do NOT re-run these analyses; go straight to
       traversed via arrow keys), not concatenated multi-field messages.
       Round 1 confirmed this via subagent file-scan pass. Skip.
 
+## Information-Gathering Findings (2026-04-19)
+Drift fixes applied:
+- `CLAUDE.md`: patch count 4→5 + list; added GRE/SharedClientCore DLLs;
+  decompile command now shows `-Dll` flag + mentions `decompile-all.ps1`;
+  removed dead `arena accessibility backlog.txt` IGNORE note; added
+  missing shortcut entries (F4 Friends/DuelChat, F5 update, Ctrl+F1
+  tutorial hint, O Game Log, E/Shift+E timers); noted docs/ listing as
+  "primary entry points" not exhaustive.
+- `llm-docs/architecture-overview.md`: dropped volatile line-counts; added
+  TimerPatch; Update-loop priority expanded to 4 modal layers including
+  `GameLogNavigator`; added `PhaseSkipGuard` note; added Sub-Navigators
+  section (DuelChatNavigator, ChatNavigator, ChatMessageWatcher, etc.);
+  Harmony patch table converted from markdown table to bullets.
+- `llm-docs/framework-reference.md`: ilspycmd version 8.2→9.1; added
+  TimerPatch and SharedClientCore.dll; decompile section points at
+  `decompile.ps1` / `decompile-all.ps1` helpers.
+- `llm-docs/source-inventory.md`: full regeneration. 115 src files /
+  94,716 LOC (was 91 / 55,635). 12 files >2000 lines tagged `[LARGE]`
+  for the large-file-handling prompt.
+- `llm-docs/decompiled/`: removed scratch file `_core_types_order.txt`
+  (four other expected scratch names were already gone).
+
+Findings not yet acted on (flag for future prompts):
+- `GeneralMenuNavigator.cs` is 6,148 lines — candidate #1 for
+  large-file-handling.md even though round 1 said it was single-concern.
+  The file has grown 29% since then; worth re-evaluating.
+- `Strings.cs` is 1,638 lines and still growing — watch for LARGE.
+- `type-index.md` vs `decompiled/` has ~66 types without decompiled files
+  and ~160 orphan decompiled files. Not broken, just inconsistent. Could
+  be a follow-up task if desired; not blocking.
+
+False alarms verified:
+- Source-inventory subagent wondered if `src/Core/Services/old/` was
+  still compiled in. `src/AccessibleArena.csproj` line 5 has
+  `<Compile Remove="**/old/**/*.cs" />`, so it is correctly excluded.
+  Inventory labels the directory "(archived, not compiled)".
+
 ## Prompts Remaining
-- [ ] information-gathering-and-checking.md  (next)
-- [ ] code-directory-construction.md
+- [ ] code-directory-construction.md  (next)
 - [ ] large-file-handling.md
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
