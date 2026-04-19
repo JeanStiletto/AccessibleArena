@@ -85,3 +85,9 @@ docs/SET_FILTER_IMPLEMENTATION_PLAN.md
 
 # README draft
 README-1.0-draft.md
+
+# Local dotnet installer script
+dotnet-install.ps1
+
+# Local templates folder (per-user scratch)
+templates/
