@@ -40,13 +40,17 @@ Example - instead of tables, format like this:
 
 - **Game:** Magic: The Gathering Arena (Unity, .NET 4.7.2)
 - **Mod loader:** MelonLoader (entry point: `AccessibleArenaMod : MelonMod`)
-- **Patching:** Harmony 2.x for IL interception (4 patch classes in `src/Patches/`)
+- **Patching:** Harmony 2.x for IL interception (5 patch classes in `src/Patches/`: EventSystemPatch, KeyboardManagerPatch, PanelStatePatch, TimerPatch, UXEventQueuePatch)
 - **Screen reader:** Tolk library (P/Invoke to native DLL, supports NVDA/JAWS/Narrator)
-- **Game assemblies:** Located at `<game>/MTGA_Data/Managed/` — Core.dll has most types, Assembly-CSharp.dll has some UI types
+- **Game assemblies:** Located at `<game>/MTGA_Data/Managed/`
+  - Core.dll — most game types
+  - Assembly-CSharp.dll — some UI types
+  - Wizards.MDN.GreProtobuf.dll — GRE protocol enums (StopType, Phase, Step, ...)
+  - SharedClientCore.dll — card database types (CardDatabase, CardPrintingData, ...)
 
 ## Documentation
 
-Detailed documentation in `docs/`:
+Detailed documentation in `docs/` — primary entry points (the directory contains more; browse it for the full set):
 - **GAME_ARCHITECTURE.md** - Game internals, assemblies, zones, interfaces, modding tools
 - **MOD_STRUCTURE.md** - Project layout, implementation status
 - **BEST_PRACTICES.md** - Coding patterns, utilities, input handling
@@ -62,9 +66,7 @@ LLM reference documentation in `llm-docs/`:
 - **type-index.md** - Game type → full namespace + DLL mapping (check this FIRST when investigating game types)
 - **decompiled/** - Pre-decompiled game type sources (gitignored). Read these before running ilspycmd.
 
-**Investigating game types:** Always check `llm-docs/decompiled/` and `llm-docs/type-index.md` first. To decompile a new type: `powershell -NoProfile -File tools\decompile.ps1 "TypeName"`
-
-**IGNORE:** `arena accessibility backlog.txt` - outdated
+**Investigating game types:** Always check `llm-docs/decompiled/` and `llm-docs/type-index.md` first. To decompile a single new type: `powershell -NoProfile -File tools\decompile.ps1 "TypeName" [-Dll Core|Asm|Gre|Shared|Auto]` (default `Auto` tries each). After a game update, refresh everything via `powershell -NoProfile -File tools\decompile-all.ps1`.
 
 ## Quick Reference
 
@@ -169,6 +171,8 @@ T (Turn), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descrip
 K (Counter info on focused card)
 M (Your Land Summary), Shift+M (Opponent Land Summary)
 D (Your Library), Shift+D (Opponent Library), Shift+C (Opponent Hand Count)
+O (Game Log - review recent duel announcements)
+E (Your timer), Shift+E (Opponent timer)
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 
 **Duel - Full Control & Phase Stops:**
@@ -205,8 +209,11 @@ Backspace (Cancel)
 
 **Global:**
 F1 (Help Menu - navigable with Up/Down, close with Escape, Backspace, or F1)
-F2 (Settings Menu - navigable with Up/Down, Enter to change, close with Escape, Backspace, or F2)
+F2 (Mod Settings - navigable with Up/Down, Enter to change, close with Escape, Backspace, or F2)
 F3 (Current screen), Ctrl+R (Repeat)
+F4 (Friends panel from menus; Duel Chat from duels)
+F5 (Check for / start update)
+Ctrl+F1 (Repeat tutorial hint)
 Backspace (Back/Dismiss/Cancel - universal)
 
 Do NOT override: Enter, Escape
