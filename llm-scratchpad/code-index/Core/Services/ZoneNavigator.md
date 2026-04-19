@@ -1,0 +1,100 @@
+# ZoneNavigator.cs
+Path: src/Core/Services/ZoneNavigator.cs
+Lines: 1214
+
+## Top-level comments
+- Handles navigation through game zones (Hand, Battlefield, Graveyard, Exile, Stack, Library, Command, plus opponent variants and Browser). Zone holder names are discovered from game code analysis (LocalHand_Desktop_16x9, BattlefieldCardHolder, etc.). ZoneOwner enum tracks which navigator currently owns the zone selection; priority order is HotHighlightNavigator > BattlefieldNavigator > ZoneNavigator.
+
+## public enum ZoneOwner (line 17)
+- None (line 19)
+- ZoneNavigator (line 20)
+- BattlefieldNavigator (line 21)
+- HighlightNavigator (line 22) — Note: used by HotHighlightNavigator; the former TargetNavigator was merged into HotHighlightNavigator.
+
+## public class ZoneNavigator (line 39)
+### Fields
+- private readonly IAnnouncementService _announcer (line 41)
+- private Dictionary<ZoneType, ZoneInfo> _zones (line 43)
+- private ZoneType _currentZone (line 44)
+- private ZoneOwner _zoneOwner (line 45)
+- private int _cardIndexInZone (line 46)
+- private bool _isActive (line 47)
+- private bool _dirty (line 48)
+- private bool _browserReturnHintPending (line 49)
+- private static readonly Dictionary<string, ZoneType> ZoneHolderPatterns (line 52)
+- private CombatNavigator _combatNavigator (line 223)
+- private HotHighlightNavigator _hotHighlightNavigator (line 226)
+- private static readonly Dictionary<string, ZoneType> GameZoneToModZone (line 941)
+
+### Properties
+- public bool IsActive (line 67)
+- public ZoneType CurrentZone (line 68)
+- public ZoneOwner CurrentZoneOwner (line 69)
+- public int CardCount (line 70)
+- public int HandCardCount (line 71)
+- public int StackCardCount (line 76)
+
+### Methods
+- public int GetFreshStackCount() (line 83) — Note: bypasses the cached _zones dict so it reports counts even before first refresh.
+- public uint GetLocalPlayerId() (line 104)
+- public static void SetFocusedGameObject(GameObject gameObject, string caller) (line 131)
+- public void SetCurrentZone(ZoneType zone, string caller = null) (line 152)
+- public void AnnounceBrowserReturnHintIfNeeded() (line 178)
+- private ZoneOwner ParseZoneOwner(string caller) (line 190)
+- private void ReclaimZoneOwnership() (line 209)
+- public ZoneNavigator(IAnnouncementService announcer) (line 228)
+- public void SetCombatNavigator(CombatNavigator navigator) (line 236)
+- public void SetHotHighlightNavigator(HotHighlightNavigator navigator) (line 244)
+- public void MarkDirty() (line 253)
+- public void Activate() (line 261)
+- public void Deactivate() (line 270)
+- public bool HandleInput() (line 282)
+- public void DiscoverZones() (line 473)
+- private void PopulateCommandZoneFromHand() (line 506)
+- private void DiscoverCardsInZone(ZoneInfo zone) (line 528)
+- private void RefreshIfDirty() (line 577)
+- public void NavigateToZone(ZoneType zone) (line 604)
+- public bool NavigateToSpecificCard(ZoneType zone, GameObject card, bool announceZoneChange) (line 642)
+- public void NextCard() (line 669)
+- public void PreviousCard() (line 691)
+- public void FirstCard() (line 712)
+- public void LastCard() (line 732)
+- public List<GameObject> GetCardsInZone(ZoneType zone) (line 753)
+- public GameObject GetCurrentCard() (line 763)
+- public void ActivateCurrentCard() (line 778)
+- public void LogZoneSummary() (line 838)
+- private void AnnounceCurrentCard(bool includeZoneName = false, AnnouncementPriority priority = AnnouncementPriority.Normal) (line 847)
+- private string GetOriginZoneText(GameObject card) (line 957)
+- private bool HasCardsInCurrentZone() (line 973)
+- private void ClearEventSystemSelection() (line 979) — Note: sets EventSystem focus to null as an intermediate step before Left/Right nav; CardInfoNavigator must NOT deactivate on this transient null focus.
+- private void NavigateToLibraryZone(ZoneType libraryZone) (line 993)
+- private int GetLibraryTotalCount(ZoneType libraryZone) (line 1034)
+- private int GetZoneCardCount(ZoneType zone) (line 1056)
+- private void AnnounceOpponentHandCount() (line 1071)
+- private void AnnounceOpponentCommander() (line 1090)
+- private string GetZoneName(ZoneType zone) (line 1165)
+- private int ParseZoneId(string name) (line 1170)
+- private int ParseOwnerId(string name) (line 1176)
+
+## public enum ZoneType (line 1186)
+- Hand (line 1188)
+- Battlefield (line 1189)
+- Graveyard (line 1190)
+- Exile (line 1191)
+- Stack (line 1192)
+- Library (line 1193)
+- Command (line 1194)
+- OpponentHand (line 1195)
+- OpponentGraveyard (line 1196)
+- OpponentLibrary (line 1197)
+- OpponentExile (line 1198)
+- OpponentCommand (line 1199)
+- Browser (line 1200)
+
+## public class ZoneInfo (line 1206)
+### Properties
+- public ZoneType Type { get; set; } (line 1208)
+- public GameObject Holder { get; set; } (line 1209)
+- public int ZoneId { get; set; } (line 1210)
+- public int OwnerId { get; set; } (line 1211)
+- public List<GameObject> Cards { get; set; } (line 1212)

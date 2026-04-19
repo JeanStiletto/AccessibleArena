@@ -1,0 +1,196 @@
+# DuelAnnouncer.cs
+Path: src/Core/Services/DuelAnnouncer.cs
+Lines: 3245
+
+## Top-level comments
+- DuelAnnouncer announces duel events to the screen reader, receiving events from a Harmony patch on UXEventQueue.EnqueuePending; enforces privacy rules (no opponent hand contents, no library contents, only publicly visible info).
+
+## public class DuelAnnouncer (line 25)
+### Fields
+- public static DuelAnnouncer Instance { get; private set; } (line 27)
+- private readonly IAnnouncementService _announcer (line 29)
+- private bool _isActive (line 30)
+- private readonly Dictionary<string, DuelEventType> _eventTypeMap (line 39)
+- private readonly Dictionary<string, int> _zoneCounts (line 40)
+- private string _lastAnnouncement (line 42)
+- private DateTime _lastAnnouncementTime (line 43)
+- private const float DUPLICATE_THRESHOLD_SECONDS = 0.5f (line 44)
+- private uint _localPlayerId (line 46)
+- private ZoneNavigator _zoneNavigator (line 47)
+- private BattlefieldNavigator _battlefieldNavigator (line 48)
+- private DateTime _lastSpellResolvedTime (line 49)
+- private int _userTurnCount (line 52)
+- private bool _isUserTurn (line 55)
+- private string _currentPhase (line 58)
+- private string _currentStep (line 59)
+- private readonly Dictionary<uint, bool> _commandZoneGrpIds (line 63)
+- private static PropertyInfo _mmProp (line 66)
+- private static PropertyInfo _localPIProp (line 67)
+- private static PropertyInfo _opponentPIProp (line 68)
+- private static PropertyInfo _commanderGrpIdsProp (line 69)
+- private static bool _commanderReflectionInitialized (line 70)
+- private static readonly HashSet<string> _fieldLoggedLabels (line 73)
+- private static readonly Regex ZoneNamePattern (line 76)
+- private static readonly Regex ZoneCountPattern (line 77)
+- private static readonly Regex LocalPlayerPattern (line 78)
+- private string _pendingPhaseAnnouncement (line 81)
+- private float _phaseDebounceTimer (line 82)
+- private const float PHASE_DEBOUNCE_SECONDS = 0.1f (line 83)
+- private float _lastPhaseChangeTime (line 86)
+- private static HashSet<string> _loggedEventTypes (line 456)
+- private static readonly string[] AllZoneHolders (line 227)
+- private Dictionary<uint, uint> _creatureDamage (line 1249)
+- private Dictionary<uint, string> _instanceIdToName (line 2146)
+- private string _lastResolvingCardName (line 2194)
+- private uint _lastResolvingInstanceId (line 2195)
+- private bool _lastResolvingIsAbility (line 2196)
+- private static string _lastManaPool (line 2303)
+- private bool _shownBlockingReminderThisStep (line 2416)
+- private bool _suppressNextActionReminder (line 2419)
+- private static FieldInfo _npeDialogLineField (line 2422)
+- private static FieldInfo _npeReminderField (line 2423)
+- private static FieldInfo _npeReminderTextField (line 2424)
+- private static FieldInfo _npeReminderSuggestedField (line 2425)
+- private static FieldInfo _npeTooltipTypeField (line 2426)
+- private static FieldInfo _npeWarningTextField (line 2427)
+- private static FieldInfo _localizedStringKeyField (line 2428)
+- private static bool _npeReflectionInitialized (line 2429)
+- private bool _isNPETutorial (line 2675)
+- private bool _npeCheckDone (line 2676)
+- private static PropertyInfo _npeDirectorProp (line 2678)
+- private GameObject _lastHoveredNPECard (line 2717)
+- private bool _lastHoverWasStack (line 2718)
+- private static FieldInfo _hoverEventField (line 2795)
+- private static bool _hoverFieldSearched (line 2796)
+- private static readonly ConcurrentDictionary<(Type, string), MemberInfo> _reflectionCache (line 3053)
+- private static readonly HashSet<string> BasicLandNames (line 3059)
+
+### Properties
+- public float TimeSinceLastPhaseChange (line 87)
+- public string CurrentPhase (line 92)
+- public bool IsUserTurn (line 97)
+- public bool IsInDeclareAttackersPhase (line 102)
+- public bool IsInDeclareBlockersPhase (line 107)
+- public bool IsLibraryBrowserActive { get; private set; } (line 1905)
+- public string CurrentEffectType { get; private set; } (line 1910)
+- public int CurrentEffectCount { get; private set; } (line 1911)
+- public bool IsNPETutorial (line 2674)
+- public static string CurrentManaPool (line 2309)
+
+### Methods
+- private void AnnounceToLog(string message, AnnouncementPriority priority) (line 33) — Note: also appends to log history (not just announcing).
+- public string GetTurnPhaseInfo() (line 113)
+- public bool DidSpellResolveRecently(int withinMs = 500) (line 126)
+- public void SetZoneNavigator(ZoneNavigator navigator) (line 131)
+- public void SetBattlefieldNavigator(BattlefieldNavigator navigator) (line 136)
+- private void MarkNavigatorsDirty() (line 145)
+- public DuelAnnouncer(IAnnouncementService announcer) (line 151)
+- public void Activate(uint localPlayerId) (line 158) — Note: skips reset if already active for same player; also triggers NPE tutorial check.
+- public void Deactivate() (line 183) — Note: clears DuelHolderCache and internal caches.
+- public void OnTimerTimeout(bool isLocal, uint timeoutCount) (line 199)
+- private IEnumerable<GameObject> EnumerateCDCsInHolder(string nameContains) (line 214)
+- public void Update() (line 236) — Note: only flushes pending phase announcements; must be called each frame.
+- public int GetOpponentHandCount() (line 256)
+- public int GetLocalLibraryCount() (line 265)
+- public int GetOpponentLibraryCount() (line 274)
+- public uint GetOpponentCommanderGrpId() (line 283)
+- public CardInfo? GetOpponentCommanderInfo() (line 297)
+- public string GetOpponentCommanderName() (line 307)
+- public List<uint> GetAllOpponentCommanderGrpIds() (line 317)
+- private void PopulateCommandersFromMatchManager() (line 333)
+- private void PopulateCommandersForPlayer(object matchManager, PropertyInfo playerInfoProp, bool isOpponent) (line 376)
+- private static void InitializeCommanderReflection(object gameManager) (line 401)
+- public void OnGameEvent(object uxEvent) (line 461) — Note: main event entry point; logs unknown event types once for discovery.
+- private DuelEventType ClassifyEvent(object uxEvent) (line 494)
+- private string BuildAnnouncement(DuelEventType eventType, object uxEvent) (line 500)
+- private string BuildTurnChangeAnnouncement(object uxEvent) (line 555) — Note: also mutates _isUserTurn and _userTurnCount.
+- private string BuildZoneTransferAnnouncement(object uxEvent) (line 590)
+- private string HandleUpdateZoneEvent(object uxEvent) (line 598) — Note: mutates _zoneCounts, marks navigators dirty, may launch coroutines.
+- private string BuildLifeChangeAnnouncement(object uxEvent) (line 701)
+- private string BuildDamageAnnouncement(object uxEvent) (line 776)
+- private void LogEventFieldsOnce(object uxEvent, string label) (line 829)
+- private void LogEventFields(object uxEvent, string label) (line 835)
+- private string GetDamageTargetName(uint targetPlayerId, uint targetInstanceId) (line 881)
+- private string GetDamageSourceName(object uxEvent) (line 900)
+- private string GetDamageFlags(object uxEvent) (line 945)
+- private string BuildPhaseChangeAnnouncement(object uxEvent) (line 968) — Note: mutates _currentPhase/_currentStep/_lastPhaseChangeTime and toggles _shownBlockingReminderThisStep.
+- private List<string> GetAttackingCreaturesInfo() (line 1046)
+- private string BuildRevealAnnouncement(object uxEvent) (line 1080)
+- private string BuildCountersAnnouncement(object uxEvent) (line 1093)
+- private string BuildGameEndAnnouncement(object uxEvent) (line 1113)
+- private string BuildCombatAnnouncement(object uxEvent) (line 1126)
+- private string BuildAttackerDeclaredAnnouncement(object uxEvent) (line 1159)
+- private (int power, int toughness, bool isOpponent) GetCardPowerToughnessAndOwnerByInstanceId(uint instanceId) (line 1203)
+- private string HandleCardModelUpdate(object uxEvent) (line 1251) — Note: tracks creature damage deltas in _creatureDamage.
+- private string HandleZoneTransferGroup(object uxEvent) (line 1303)
+- private string ProcessZoneTransfer(object transfer) (line 1352) — Note: mutates _commandZoneGrpIds and _lastSpellResolvedTime.
+- private string ProcessBattlefieldEntry(string fromZone, string reason, string cardName, uint grpId, object cardInstance, bool isOpponent) (line 1519)
+- private string GetAttachedToName(object cardInstance) (line 1599)
+- private string ProcessGraveyardEntry(string fromZone, string reason, string cardName, string ownerPrefix, object transfer) (line 1651)
+- private string ProcessExileEntry(string fromZone, string reason, string cardName, string ownerPrefix, object transfer) (line 1692)
+- private string ProcessHandEntry(string fromZone, string reason, string cardName, bool isOpponent) (line 1728)
+- private bool IsLandByGrpId(uint grpId, object card) (line 1769)
+- private string HandleCombatFrame(object uxEvent) (line 1809)
+- private string HandleMultistepEffect(object uxEvent) (line 1913) — Note: mutates IsLibraryBrowserActive, CurrentEffectType.
+- public void OnLibraryBrowserClosed() (line 2031)
+- private DamageInfo ExtractDamageInfo(object damageEvent) (line 2047)
+- private List<DamageInfo> ExtractDamageChain(object branch) (line 2092)
+- private T GetNestedPropertyValue<T>(object obj, string propertyName) (line 2130)
+- private string GetCardNameByInstanceId(uint instanceId) (line 2148) — Note: uses _instanceIdToName cache; scans all zone holders.
+- private string HandleResolutionStarted(object uxEvent) (line 2198) — Note: stores _lastResolvingCardName for later damage correlation; returns null.
+- private string HandleResolutionEnded(object uxEvent) (line 2255) — Note: schedules delayed announcement via coroutine; returns null.
+- private IEnumerator AnnounceResolvedDelayed(string message) (line 2291)
+- private string HandleManaPoolEvent(object uxEvent) (line 2311) — Note: mutates static _lastManaPool.
+- private string ParseManaPool(object uxEvent) (line 2343)
+- private static void EnsureNPEReflection() (line 2431)
+- private string HandleNPEDialog(object uxEvent) (line 2479)
+- private string HandleNPEReminder(object uxEvent) (line 2522) — Note: mutates _shownBlockingReminderThisStep and _suppressNextActionReminder.
+- private string HandleNPETooltip(object uxEvent) (line 2608) — Note: mutates _suppressNextActionReminder.
+- private string HandleNPEWarning(object uxEvent) (line 2646)
+- public void CheckNPETutorial() (line 2684)
+- public void UpdateNPEHoverSimulation() (line 2731) — Note: fires CardHoverController.OnHoveredCardUpdated events to drive NPE director; mutates _lastHoveredNPECard/_lastHoverWasStack.
+- private static bool IsInStackHolder(GameObject go) (line 2766)
+- private static object GetDuelSceneCDCOrParent(GameObject go) (line 2783)
+- private static void FireHoveredCardUpdated(object cdc) (line 2798) — Note: invokes static event delegate via reflection.
+- private string BuildCounteredAnnouncement(string ownerPrefix, string cardName, object transfer, bool exiled) (line 2851)
+- private IEnumerator AnnounceStackCardDelayed() (line 2910)
+- private string BuildCastAnnouncement(GameObject cardObj) (line 2936)
+- private string GetCastPrefix(GameObject cardObj) (line 2979)
+- private GameObject GetTopStackCard() (line 3033)
+- private static MemberInfo LookupMember(Type type, string name) (line 3069) — Note: caches result (including null) in _reflectionCache.
+- private T GetFieldValue<T>(object obj, string fieldName) (line 3076) — Note: name is misleading — also reads properties via LookupMember.
+- private void TryUpdateLocalPlayerIdFromZoneString(string zoneStr) (line 3092) — Note: self-corrects _localPlayerId from zone strings containing "(LocalPlayer)".
+- private bool IsDuplicateAnnouncement(string announcement) (line 3109)
+- private AnnouncementPriority GetPriority(DuelEventType eventType) (line 3116)
+- private Dictionary<string, DuelEventType> BuildEventTypeMap() (line 3138)
+
+## private class DamageInfo (line 2039) — nested in DuelAnnouncer
+### Properties
+- public string SourceName { get; set; } (line 2041)
+- public string TargetName { get; set; } (line 2042)
+- public int Amount { get; set; } (line 2043)
+
+## public enum DuelEventType (line 3219)
+- Ignored (line 3221)
+- TurnChange (line 3222)
+- PhaseChange (line 3223)
+- ZoneTransfer (line 3224)
+- LifeChange (line 3225)
+- DamageDealt (line 3226)
+- CardRevealed (line 3227)
+- CountersChanged (line 3228)
+- GameEnd (line 3229)
+- Combat (line 3230)
+- TargetSelection (line 3231)
+- TargetConfirmed (line 3232)
+- ResolutionStarted (line 3233)
+- ResolutionEnded (line 3234)
+- CardModelUpdate (line 3235)
+- ZoneTransferGroup (line 3236)
+- CombatFrame (line 3237)
+- MultistepEffect (line 3238)
+- ManaPool (line 3239)
+- NPEDialog (line 3240)
+- NPEReminder (line 3241)
+- NPETooltip (line 3242)
+- NPEWarning (line 3243)

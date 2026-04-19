@@ -1,0 +1,52 @@
+# ElementGroup.cs
+Path: src/Core/Services/ElementGrouping/ElementGroup.cs
+Lines: 303
+
+## Top-level comments
+- Defines the ElementGroup enum used to categorize UI elements for grouped navigation, plus extension methods for group classification.
+
+## public enum ElementGroup (line 9)
+- Unknown = 0 (line 14)
+- Primary (line 20)
+- Play (line 27)
+- Progress (line 33)
+- Objectives (line 39)
+- Social (line 45)
+- Filters (line 50)
+- Content (line 55)
+- Settings (line 60)
+- Secondary (line 65)
+- Popup (line 71)
+- FriendsPanel (line 76)
+- PlayBladeTabs (line 81)
+- PlayBladeContent (line 87)
+- PlayBladeFolders (line 93)
+- ChallengeMain (line 99)
+- SettingsMenu (line 104)
+- NPE (line 109)
+- DeckBuilderCollection (line 114)
+- DeckBuilderDeckList (line 120)
+- DeckBuilderSideboard (line 126)
+- DeckBuilderInfo (line 132)
+- EventInfo (line 139)
+- MailboxList (line 145)
+- MailboxContent (line 151)
+- RewardsPopup (line 157)
+- FriendsPanelChallenge (line 163)
+- FriendsPanelAddFriend (line 169)
+- FriendSectionFriends (line 175)
+- FriendSectionIncoming (line 181)
+- FriendSectionOutgoing (line 187)
+- FriendSectionBlocked (line 193)
+- FriendSectionChallenges (line 199)
+- FriendsPanelProfile (line 205)
+- ChatWindow (line 211)
+
+## public static class ElementGroupExtensions (line 213)
+### Methods
+- public static bool IsOverlay(this ElementGroup group) (line 219)
+- public static bool IsFriendPanelGroup(this ElementGroup group) (line 249)
+- public static bool IsFriendSectionGroup(this ElementGroup group) (line 263)
+- public static bool IsDeckBuilderCardGroup(this ElementGroup group) (line 279)
+- public static bool IsChallengeGroup(this ElementGroup group) (line 290)
+- public static string GetDisplayName(this ElementGroup group) (line 297)

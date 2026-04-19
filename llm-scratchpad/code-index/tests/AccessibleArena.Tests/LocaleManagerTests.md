@@ -1,0 +1,30 @@
+# LocaleManagerTests.cs
+Path: tests/AccessibleArena.Tests/LocaleManagerTests.cs
+Lines: 276
+
+## public class LocaleManagerTests (line 8)
+### Methods
+- private static LocaleManager Make(Dictionary<string, string> active, Dictionary<string, string> fallback = null, string language = "en") (line 10)
+- public void Get_KeyInActive_ReturnsValue() (line 19)
+- public void Get_KeyOnlyInFallback_ReturnsFallbackValue() (line 26)
+- public void Get_KeyAbsent_ReturnsKeyName() (line 35)
+- public void Get_ActiveOverridesFallback() (line 42)
+- public void Format_SubstitutesArgument() (line 53)
+- public void Format_BadTemplate_ReturnsTemplateAsIs() (line 60)
+- public void HasKey_InActive_ReturnsTrue() (line 70)
+- public void HasKey_InFallback_ReturnsTrue() (line 77)
+- public void HasKey_Absent_ReturnsFalse() (line 86)
+- public void Plural_OneOther_CountOne_UsesOneSuffix() (line 95)
+- public void Plural_OneOther_CountZero_UsesFormatSuffix() (line 108)
+- public void Plural_OneOther_CountTwo_UsesFormatSuffix() (line 121)
+- public void Plural_Slavic_Count1_UsesOne() (line 136)
+- public void Plural_Slavic_Count2_UsesFew() (line 149)
+- public void Plural_Slavic_Count5_UsesFormat() (line 163)
+- public void Plural_Slavic_Count11_UsesFormat_NotFew() (line 178)
+- public void Plural_Slavic_Count21_UsesOne() (line 193)
+- public void Plural_NoPluralForm_Count1_UsesFormat() (line 210)
+- public void TryParseNumberWord_MatchesWholeWord() (line 224)
+- public void TryParseNumberWord_NoMatch_ReturnsMinus1() (line 234)
+- public void TryParseNumberWord_PartialWordDoesNotMatch() (line 244)
+- public void TryParseNumberWord_CaseInsensitive() (line 255)
+- public void TryParseNumberWord_EmptyText_ReturnsMinus1() (line 265)

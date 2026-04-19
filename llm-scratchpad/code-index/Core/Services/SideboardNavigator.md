@@ -1,0 +1,92 @@
+# SideboardNavigator.cs
+Path: src/Core/Services/SideboardNavigator.cs
+Lines: 1039
+
+## Top-level comments
+- Navigator for the Bo3 sideboard screen that appears between games in DuelScene. Shortcut layout: C = Pool, D = Deck, Enter = move card, Space = submit, T = timer, L = score, PageUp/Down = pool page, Backspace = toggle battlefield/deck view. Priority 72 preempts DuelNavigator (70) when sideboard is active.
+
+## public class SideboardNavigator : BaseNavigator (line 28)
+### Fields
+- private bool _isWatching (line 30)
+- private MonoBehaviour _sideboardInterface (line 31)
+- private MonoBehaviour _navBar (line 32)
+- private SideboardZone _currentZone (line 36)
+- private int _poolIndex (line 37)
+- private int _deckIndex (line 38)
+- private List<GameObject> _poolCards (line 41)
+- private List<DeckCardProvider.DeckListCardInfo> _deckCards (line 42)
+- private int _rescanFrameCountdown (line 45)
+- private const int RescanDelayFrames = 8 (line 46)
+- private static FieldInfo _deckBuilderField (line 49)
+- private static FieldInfo _showHideToggleField (line 50)
+- private static FieldInfo _navBarField (line 51)
+- private static FieldInfo _introTextField (line 52)
+- private static bool _sideboardReflectionInit (line 53)
+- private static FieldInfo _doneButtonField (line 56)
+- private static bool _deckBuilderReflectionInit (line 57)
+- private static FieldInfo _playerNameField (line 60)
+- private static FieldInfo _opponentNameField (line 61)
+- private static FieldInfo _playerWinPipsField (line 62)
+- private static FieldInfo _opponentWinPipsField (line 63)
+- private static FieldInfo _timerTextField (line 64)
+- private static bool _navBarReflectionInit (line 65)
+
+### Properties
+- public override string NavigatorId (line 67)
+- public override string ScreenName (line 68)
+- public override int Priority (line 69)
+- protected override bool AcceptSpaceKey (line 70)
+- protected override bool SupportsLetterNavigation (line 71)
+
+### Methods
+- public SideboardNavigator(IAnnouncementService announcer) (line 73)
+- public void OnDuelSceneLoaded() (line 78)
+- public override void OnSceneChanged(string sceneName) (line 84)
+- protected override bool DetectScreen() (line 95)
+- protected override bool ValidateElements() (line 101)
+- protected override void OnActivated() (line 115)
+- protected override void OnDeactivating() (line 125)
+- public override string GetTutorialHint() (line 134)
+- protected override string GetActivationAnnouncement() (line 136)
+- protected override void DiscoverElements() (line 155)
+- protected override string GetElementAnnouncement(int index) (line 169)
+- public override void Update() (line 177)
+- private new void HandleInput() (line 206) — Note: `new` hides the BaseNavigator.HandleInput rather than overriding it; sideboard uses its own zone-based key handling.
+- private void NavigateToZone(SideboardZone zone) (line 336)
+- private void AnnounceZoneEntry(SideboardZone zone) (line 370)
+- private void NavigateInZone(int direction) (line 389)
+- private void JumpToZoneEdge(bool first) (line 432)
+- private string GetCurrentCardAnnouncement() (line 455)
+- private void ActivateCardInfoForCurrent() (line 475)
+- private void PrepareDeckCardInfo(CardInfoNavigator cardNav) (line 499)
+- private void ActivateCardDetails() (line 536)
+- private GameObject GetCurrentPoolCard() (line 562)
+- private GameObject GetCurrentActivationTarget() (line 574)
+- private void ActivateCurrentCard() (line 595)
+- private void OnPostMoveRescan() (line 649)
+- private void ScrollPoolPage(bool next) (line 687)
+- private void SubmitSideboard() (line 722)
+- private void ToggleBattlefieldView() (line 735)
+- private void AnnounceTimer() (line 769)
+- private void AnnounceScore() (line 782)
+- private void AnnounceInfoZone() (line 791)
+- private void RefreshPoolCards() (line 817)
+- private void RefreshDeckCards() (line 823)
+- private bool FindSideboardInterface() (line 833)
+- private void FindNavBar() (line 857)
+- private static void EnsureSideboardReflection() (line 879)
+- private static void EnsureDeckBuilderReflection() (line 899)
+- private static void EnsureNavBarReflection() (line 913)
+- private GameObject GetDoneButton() (line 933)
+- private string GetPlayerName() (line 962)
+- private string GetOpponentName() (line 973)
+- private int GetPlayerWins() (line 984)
+- private int GetOpponentWins() (line 989)
+- private int CountActivePips(FieldInfo pipsField) (line 994)
+- private string GetTimerText() (line 1011)
+- private string GetIntroText() (line 1024)
+
+## private enum SideboardZone (line 35, nested in SideboardNavigator)
+- Pool
+- Deck
+- Info
