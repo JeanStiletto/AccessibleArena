@@ -37,7 +37,8 @@ Located at `<game>/MTGA_Data/Managed/`:
 - **Wizards.Arena.Enums.dll** — Game enumerations
 - **Wizards.Mtga.Metadata.dll** — Card and game metadata
 - **Wizards.Mtga.Interfaces.dll** — Game interfaces
-- **Wizards.MDN.GreProtobuf.dll** — GRE protocol enums (StopType, Phase, Step, etc.)
+- **Wizards.MDN.GreProtobuf.dll** — GRE protocol enums (StopType, Phase, Step, etc.) — runtime reflection only, not referenced by the csproj
+- **SharedClientCore.dll** — Card database types (CardDatabase, CardPrintingData, AbilityPrintingData, ...) — decompiled on demand
 - **ZFBrowser.dll** — Embedded web browser
 
 ### Screen Reader
@@ -74,6 +75,11 @@ Located at `<game>/MTGA_Data/Managed/`:
 - **Purpose:** Prevents Unity's EventSystem from moving focus or submitting when mod is handling input
 - **Blocks:** Arrow keys during input field editing, Tab from EventSystem, Submit on toggles/dropdowns
 
+### TimerPatch
+- **Target:** `GameManager.Update_TimerNotification` (MTGA duel timer)
+- **Type:** Postfix (read-only)
+- **Purpose:** Forwards timer-notification state changes so the mod can announce timeout warnings
+
 ## Decompilation
 
 For investigating game internals:
@@ -81,5 +87,6 @@ For investigating game internals:
 ilspycmd "<game>/MTGA_Data/Managed/Core.dll" -t "Namespace.TypeName"
 ```
 - Pipe through PowerShell for proper encoding
-- Try Core.dll first, then Assembly-CSharp.dll
-- `-l` flag does not work in ilspycmd v8.2.0.7535
+- Easier: use the workflow helpers in `tools/` — `decompile.ps1 "TypeName" [-Dll Core|Asm|Gre|Shared|Auto]` for one type, `decompile-all.ps1` to refresh every entry in `type-index.md` after a game update. Output lands in `llm-docs/decompiled/`.
+- ilspycmd installed version: **v9.1.0.7988** (requires .NET 8.0 runtime; `decompile.ps1` sets DOTNET_ROOT automatically)
+- `-l` flag does not work in this version — don't use it

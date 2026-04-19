@@ -10,8 +10,8 @@ High-level view of how Accessible Arena is structured and how systems interact.
 2. **Core services** — AnnouncementService, ShortcutRegistry, InputManager, UIFocusTracker, CardInfoNavigator, ModSettings, LocaleManager
 3. **Panel detection** — PanelStateManager (owns Harmony, Reflection, and Alpha detectors)
 4. **Navigator manager** — Manages screen navigator lifecycle
-5. **Harmony patches** — UXEventQueuePatch, PanelStatePatch, KeyboardManagerPatch, EventSystemPatch
-6. **Global shortcuts** — F1 (Help), F2 (Settings), F3 (Screen), Ctrl+R (Repeat)
+5. **Harmony patches** — UXEventQueuePatch, PanelStatePatch, KeyboardManagerPatch, EventSystemPatch, TimerPatch
+6. **Global shortcuts** — F1 (Help), F2 (Mod Settings), F3 (Screen), F4 (Friends / Duel Chat), F5 (Update check), Ctrl+R (Repeat)
 
 ## Scene Handling
 
@@ -23,28 +23,41 @@ When scenes change (`OnSceneWasLoaded`):
 
 ## Update Loop Priority
 
-`OnUpdate()` processes input in strict priority order:
-1. Help menu (F1) — blocks everything below
-2. Settings menu (F2) — blocks everything below
-3. Extended info (I key) — blocks everything below
-4. Card detail navigator (arrow keys on focused card)
-5. Active screen navigator (via NavigatorManager)
-6. Focus tracking and panel state updates
+`OnUpdate()` processes input in strict priority order. Four modal layers run before the active screen navigator gets its turn — each blocks everything below it:
+1. Help menu (F1)
+2. Mod Settings menu (F2)
+3. Extended card info (I)
+4. Game log modal (O in duels)
+5. Card detail navigator (arrow keys on focused card)
+6. Active screen navigator (via NavigatorManager)
+7. Focus tracking and panel state updates
+
+`PhaseSkipGuard` runs alongside the Duel navigator. It watches Space-key timing to prevent an accidental pass on the same frame as a rapid combat-confirm, and can veto the key before it reaches the game.
 
 ## Navigator Architecture
 
-All navigators inherit from `BaseNavigator` (2,928 lines) which provides:
+All navigators inherit from `BaseNavigator`, which provides:
 - Popup detection and handling
 - Element focus and announcement
-- Input field/dropdown editing modes
+- Input field / dropdown editing modes
 - Back navigation (Backspace)
 - Shared shortcut infrastructure
 
-Key navigators:
-- **GeneralMenuNavigator** (4,766 lines) — Main menu, deck builder, collection, store fronts
-- **DuelNavigator** — Orchestrates duel: zones, battlefield, combat, targeting, browsers
-- **BrowserNavigator** (2,177 lines) — Scry, Surveil, London Mulligan, other card selection UIs
-- **GroupedNavigator** (1,702 lines) — Hierarchical menu navigation with element grouping
+(Line counts are intentionally omitted here because they drift quickly — see `source-inventory.md` for the current sizes.)
+
+Screen navigators are selected by `NavigatorManager` based on scene / active panel:
+- **GeneralMenuNavigator** — Main menu, deck builder, collection, store fronts
+- **DuelNavigator** — Orchestrates a live duel: zones, battlefield, combat, targeting, browsers
+- **BrowserNavigator** — Scry, Surveil, London Mulligan, other card-selection workflows
+- **GroupedNavigator** — Hierarchical menu navigation with element grouping
+- Other screen navigators include ProfileNavigator, AchievementsNavigator, MasteryNavigator, StoreNavigator, BoosterOpenNavigator, SideboardNavigator, NPERewardNavigator, DraftNavigator, PreBattleNavigator, and several more.
+
+### Sub-Navigators (managed by a parent, not NavigatorManager)
+
+Some overlay-style navigators are owned by a specific parent navigator so that their state survives the parent remaining active:
+- **DuelChatNavigator** — F4 in duels; opened/closed by `DuelNavigator`, uses `HandleEarlyInput` so no duel action leaks through while chat is open.
+- **ChatNavigator** / **ChatMessageWatcher** — Chat window and a global watcher that announces incoming messages when no chat UI is visible.
+- **CardInfoNavigator**, **ExtendedInfoNavigator**, **GameLogNavigator** — Modal readouts attached to whichever navigator currently has focus.
 
 ## Input System (Two Layers)
 
@@ -68,12 +81,13 @@ All feed into `PanelStateManager` which navigators query.
 
 ## Harmony Patches
 
-| Patch | Target | Purpose |
-|-------|--------|---------|
-| UXEventQueuePatch | UXEventQueue.EnqueuePending | Read-only game event interception for duel announcements |
-| PanelStatePatch | NavContentController, SettingsMenu, blades, SocialUI | Panel open/close detection, Tab/Enter blocking |
-| KeyboardManagerPatch | KeyboardManager.PublishKeyDown/Up | Scene/context key blocking |
-| EventSystemPatch | StandaloneInputModule, Input.GetKeyDown | Block Unity EventSystem from interfering with mod navigation |
+All five live in `src/Patches/`. See `framework-reference.md` for per-patch method/target details.
+
+- **UXEventQueuePatch** — Target: `UXEventQueue.EnqueuePending`. Read-only duel-event interception forwarded to DuelAnnouncer.
+- **PanelStatePatch** — Target: NavContentController, SettingsMenu, blades, SocialUI, etc. Panel open/close detection and Tab/Enter blocking.
+- **KeyboardManagerPatch** — Target: `KeyboardManager.PublishKeyDown/Up`. Scene- and context-based key blocking.
+- **EventSystemPatch** — Target: `StandaloneInputModule`, `Input.GetKeyDown`. Blocks Unity EventSystem from stealing focus or submitting while the mod is handling input.
+- **TimerPatch** — Target: `GameManager.Update_TimerNotification`. Surfaces duel-timer state changes so the mod can announce timeout warnings.
 
 ## Reflection Patterns
 
@@ -85,12 +99,12 @@ The mod uses extensive reflection to access game internals:
 
 ## Card Data
 
-Card data was split from a single `CardModelProvider` (4,626 lines) into 5 focused files:
-- **CardModelProvider** (2,185 lines) — Core: component access, name lookup, mana parsing, card info extraction
-- **CardTextProvider** (606 lines) — Ability text, flavor text, artist names, localized text lookups (internal)
-- **CardStateProvider** (1,170 lines) — Attachments, combat state, targeting, counters, card categorization
-- **DeckCardProvider** (795 lines) — Deck list cards, sideboard cards, read-only deck cards
-- **ExtendedCardInfoProvider** (609 lines) — Keyword descriptions, linked face info
+Card data is split across 5 focused static providers (originally one oversized `CardModelProvider`):
+- **CardModelProvider** — Core: component access, name lookup, mana parsing, card info extraction
+- **CardTextProvider** — Ability text, flavor text, artist names, localized text lookups (internal)
+- **CardStateProvider** — Attachments, combat state, targeting, counters, card categorization
+- **DeckCardProvider** — Deck list cards, sideboard cards, read-only deck cards
+- **ExtendedCardInfoProvider** — Keyword descriptions, linked face info
 
 Key patterns:
 - Localized text via `GreLocProvider.GetLocalizedText(locId)` — never use enum `.ToString()`
