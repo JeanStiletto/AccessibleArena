@@ -23,6 +23,7 @@ Notable round-1 outcomes (still in the codebase, do not redo):
 ## Prompts Completed
 - [x] sanity-checks-setup.md  (this file proves it)
 - [x] information-gathering-and-checking.md  (2026-04-19)
+- [x] code-directory-construction.md  (2026-04-19)
 
 ## Prompts Pre-Marked Complete (no-op by user direction)
 User confirmed both checks were completed successfully in round 1 and the
@@ -80,8 +81,7 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] code-directory-construction.md  (next)
-- [ ] large-file-handling.md
+- [ ] large-file-handling.md  (next)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
@@ -90,6 +90,11 @@ False alarms verified:
 
 ## Scratchpad Files
 - `current_status.md` — this file
+- `code-index/` — one markdown-per-source-file index built 2026-04-19.
+  Covers all 115 src/ and 11 tests/ .cs files + 7 `src/Core/Services/old/`
+  archived files. Commit 633bee0. Downstream prompts (`large-file-handling`,
+  `high-level-cleanup`) should query this index to find declarations without
+  paging full sources through context.
 
 ## Refactoring Prompts Repo
 Cloned at `./llm-mod-refactoring-prompts/` (gitignored). At commit `abe0259
