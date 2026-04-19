@@ -674,11 +674,30 @@ namespace AccessibleArena.Core.Services
                 if (extInfoNav != null && cardNav != null && cardNav.IsActive && cardNav.CurrentCard != null)
                 {
                     extInfoNav.Open(cardNav.CurrentCard);
+                    return;
                 }
-                else
+
+                // Off-screen booster card (TextBlock, no GameObject) — use GrpId from _cardsToOpen.
+                // Only allow for revealed cards so hidden cards don't leak details.
+                if (extInfoNav != null && IsValidIndex)
                 {
-                    _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
+                    int dataIndex = (_currentIndex < _elementDataIndex.Count) ? _elementDataIndex[_currentIndex] : -1;
+                    if (dataIndex >= 0)
+                    {
+                        var cards = GetCardsToOpen(_controller);
+                        if (cards != null && dataIndex < cards.Count && IsEntryRevealed(cards[dataIndex]))
+                        {
+                            uint grpId = GetGrpIdFromEntry(cards[dataIndex]);
+                            if (grpId != 0)
+                            {
+                                extInfoNav.Open(grpId);
+                                return;
+                            }
+                        }
+                    }
                 }
+
+                _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
                 return;
             }
 
