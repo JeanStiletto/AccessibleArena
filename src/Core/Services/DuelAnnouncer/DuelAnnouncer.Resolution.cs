@@ -146,7 +146,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling multistep effect: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling multistep effect: {ex.Message}");
                 return null;
             }
         }
@@ -204,7 +204,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling resolution: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling resolution: {ex.Message}");
                 return null;
             }
         }
@@ -244,7 +244,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling resolution ended: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling resolution ended: {ex.Message}");
                 return null;
             }
         }
@@ -441,7 +441,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error getting cast prefix: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error getting cast prefix: {ex.Message}");
                 return Strings.SpellCastPrefix;
             }
         }

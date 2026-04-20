@@ -246,7 +246,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error processing event: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error processing event: {ex.Message}");
             }
         }
 
@@ -476,7 +476,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error looking up card {instanceId}: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error looking up card {instanceId}: {ex.Message}");
             }
 
             return null;
@@ -515,7 +515,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling mana event: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling mana event: {ex.Message}");
                 return null;
             }
         }
@@ -587,7 +587,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error parsing mana pool: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error parsing mana pool: {ex.Message}");
                 return null;
             }
         }

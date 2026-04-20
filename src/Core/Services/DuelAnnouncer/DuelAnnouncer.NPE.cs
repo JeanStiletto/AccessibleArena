@@ -89,7 +89,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Failed to initialize NPE reflection: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Failed to initialize NPE reflection: {ex.Message}");
             }
         }
 
@@ -131,7 +131,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE dialog: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling NPE dialog: {ex.Message}");
                 return null;
             }
         }
@@ -217,7 +217,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE reminder: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling NPE reminder: {ex.Message}");
                 return null;
             }
         }
@@ -255,7 +255,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE tooltip: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling NPE tooltip: {ex.Message}");
                 return null;
             }
         }
@@ -279,7 +279,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling NPE warning: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling NPE warning: {ex.Message}");
                 return null;
             }
         }
@@ -312,11 +312,11 @@ namespace AccessibleArena.Core.Services
                 _isNPETutorial = director != null;
 
                 if (_isNPETutorial)
-                    MelonLogger.Msg("[DuelAnnouncer] NPE tutorial detected");
+                    Log.Msg("DuelAnnouncer", "NPE tutorial detected");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error checking NPE state: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error checking NPE state: {ex.Message}");
             }
         }
 
@@ -435,7 +435,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error simulating NPE hover: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error simulating NPE hover: {ex.Message}");
             }
         }
     }

@@ -171,7 +171,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling zone transfer: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling zone transfer: {ex.Message}");
                 return null;
             }
         }
@@ -301,7 +301,7 @@ namespace AccessibleArena.Core.Services
                 if (toZoneTypeStr == "Command" && grpId != 0 && !_commandZoneGrpIds.ContainsKey(grpId))
                 {
                     _commandZoneGrpIds[grpId] = isOpponent;
-                    MelonLogger.Msg($"[DuelAnnouncer] Tracking commander from zone event: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
+                    Log.Msg("DuelAnnouncer", $"Tracking commander from zone event: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
                 }
 
                 // Determine announcement based on zone transfer type
@@ -339,7 +339,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error processing zone transfer: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error processing zone transfer: {ex.Message}");
                 return null;
             }
         }

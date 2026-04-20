@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -88,7 +89,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (gameManager == null)
                 {
-                    MelonLogger.Msg("[DuelAnnouncer] GameManager not found, skipping commander population");
+                    Log.Msg("DuelAnnouncer", "GameManager not found, skipping commander population");
                     return;
                 }
 
@@ -108,7 +109,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Failed to populate commanders from MatchManager: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Failed to populate commanders from MatchManager: {ex.Message}");
             }
         }
 
@@ -133,7 +134,7 @@ namespace AccessibleArena.Core.Services
 
                 _commandZoneGrpIds[grpId] = isOpponent;
                 string cardName = CardModelProvider.GetNameFromGrpId(grpId) ?? "Unknown";
-                MelonLogger.Msg($"[DuelAnnouncer] Commander from MatchManager: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
+                Log.Msg("DuelAnnouncer", $"Commander from MatchManager: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
             }
         }
 
@@ -148,14 +149,14 @@ namespace AccessibleArena.Core.Services
                 _mmProp = gmType.GetProperty("MatchManager", PublicInstance);
                 if (_mmProp == null)
                 {
-                    MelonLogger.Warning("[DuelAnnouncer] Could not find MatchManager property on GameManager");
+                    Log.Warn("DuelAnnouncer", "Could not find MatchManager property on GameManager");
                     return;
                 }
 
                 var mm = _mmProp.GetValue(gameManager);
                 if (mm == null)
                 {
-                    MelonLogger.Warning("[DuelAnnouncer] MatchManager is null during commander reflection init");
+                    Log.Warn("DuelAnnouncer", "MatchManager is null during commander reflection init");
                     return;
                 }
 
@@ -165,30 +166,30 @@ namespace AccessibleArena.Core.Services
 
                 if (_localPIProp == null || _opponentPIProp == null)
                 {
-                    MelonLogger.Warning("[DuelAnnouncer] Could not find player info properties on MatchManager");
+                    Log.Warn("DuelAnnouncer", "Could not find player info properties on MatchManager");
                     return;
                 }
 
                 var playerInfo = _localPIProp.GetValue(mm);
                 if (playerInfo == null)
                 {
-                    MelonLogger.Warning("[DuelAnnouncer] LocalPlayerInfo is null during commander reflection init");
+                    Log.Warn("DuelAnnouncer", "LocalPlayerInfo is null during commander reflection init");
                     return;
                 }
 
                 _commanderGrpIdsProp = playerInfo.GetType().GetProperty("CommanderGrpIds", PublicInstance);
                 if (_commanderGrpIdsProp == null)
                 {
-                    MelonLogger.Warning("[DuelAnnouncer] Could not find CommanderGrpIds property on PlayerInfo");
+                    Log.Warn("DuelAnnouncer", "Could not find CommanderGrpIds property on PlayerInfo");
                     return;
                 }
 
                 _commanderReflectionInitialized = true;
-                MelonLogger.Msg("[DuelAnnouncer] Commander reflection initialized successfully");
+                Log.Msg("DuelAnnouncer", "Commander reflection initialized successfully");
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Commander reflection init failed: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Commander reflection init failed: {ex.Message}");
             }
         }
     }

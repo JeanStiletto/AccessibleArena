@@ -75,7 +75,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error building damage announcement: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error building damage announcement: {ex.Message}");
                 return null;
             }
         }
@@ -275,7 +275,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error building attacker announcement: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error building attacker announcement: {ex.Message}");
                 return Strings.Duel_AttackerDeclared;
             }
         }
@@ -317,7 +317,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error getting P/T and owner by InstanceId: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error getting P/T and owner by InstanceId: {ex.Message}");
             }
 
             return (-1, -1, false);
@@ -368,7 +368,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling card model update: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling card model update: {ex.Message}");
                 return null;
             }
         }
@@ -458,7 +458,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Error handling combat frame: {ex.Message}");
+                Log.Warn("DuelAnnouncer", $"Error handling combat frame: {ex.Message}");
                 return null;
             }
         }
