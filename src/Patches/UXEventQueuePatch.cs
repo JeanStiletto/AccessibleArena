@@ -193,10 +193,12 @@ namespace AccessibleArena.Patches
                 if (__0 == null) return;
 
                 _eventCount++;
-                // Log every 100th event to avoid spam
                 if (_eventCount % 100 == 1)
                 {
-                    MelonLogger.Msg($"[UXEventQueuePatch] Single event #{_eventCount}: {__0.GetType().Name}");
+                    Core.Services.DebugConfig.LogIf(
+                        Core.Services.DebugConfig.LogPatches,
+                        "UXEventQueuePatch",
+                        $"Single event #{_eventCount}: {__0.GetType().Name}");
                 }
 
                 // Skip NPE events — they are processed at Execute() time for correct timing
@@ -231,10 +233,12 @@ namespace AccessibleArena.Patches
                     if (evt == null) continue;
 
                     _eventCount++;
-                    // Log every 100th event to avoid spam
                     if (_eventCount % 100 == 1)
                     {
-                        MelonLogger.Msg($"[UXEventQueuePatch] Multi event #{_eventCount}: {evt.GetType().Name}");
+                        Core.Services.DebugConfig.LogIf(
+                            Core.Services.DebugConfig.LogPatches,
+                            "UXEventQueuePatch",
+                            $"Multi event #{_eventCount}: {evt.GetType().Name}");
                     }
 
                     // Skip NPE events — they are processed at Execute() time for correct timing
