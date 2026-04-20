@@ -81,7 +81,7 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (in progress — 1/12 done)
+- [ ] large-file-handling.md  (in progress — 2/12 done)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
@@ -92,11 +92,21 @@ False alarms verified:
 
 Split 1/12: **GeneralMenuNavigator.cs** (6148 → 3427 lines, -44%) via partial
 class split into 6 topical files (Mail 299, Booster 262, Social 553,
-DeckBuilder 1063, BackNavigation 361, Collection 318). Build: 0/0, tests:
-105/105. User smoke-tested and confirmed working.
+DeckBuilder 1063, BackNavigation 361, Collection 318), moved into
+`src/Core/Services/GeneralMenuNavigator/` subfolder (namespace unchanged).
+Build: 0/0, tests: 105/105. User smoke-tested and confirmed working.
+
+Split 2/12: **BrowserNavigator.cs** (4528 → 2220 lines, -51%) via partial
+class split into 6 topical files (AssignDamage 581, Keyword 564,
+Workflow 583, OrderCards 288, SelectGroup 208, MultiZone 172), moved into
+`src/Core/Services/BrowserNavigator/` subfolder. Build: 0/0, tests: 105/105.
+
+Subfolder convention (established 2026-04-20): when splitting a class into
+partials, group all of them in a `src/Core/Services/<ClassName>/` subfolder.
+Namespace stays `AccessibleArena.Core.Services` (not updated to match path,
+to avoid ripple changes at consumer sites).
 
 Remaining candidates (still >2000 lines):
-- [ ] BrowserNavigator.cs  (4528)
 - [ ] BaseNavigator.cs     (4085)
 - [ ] DuelAnnouncer.cs     (3245)
 - [ ] StoreNavigator.cs    (2773)

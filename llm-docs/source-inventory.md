@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 121 (excluding obj/ and bin/)
+Total src files: 127 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 94,851
+Total src LOC: 94,939
 Total test LOC: 1,303
-Combined LOC: 96,154
-Large files (over 2000 lines): 11 (GeneralMenuNavigator reduced from 6148 to 3427 via partial-class split into 6 topical files)
+Combined LOC: 96,242
+Large files (over 2000 lines): 10 after splits of GeneralMenuNavigator (6148→3427, 6 new partials) and BrowserNavigator (4528→2220, 6 new partials)
 
 ---
 
@@ -61,7 +61,14 @@ Large files (over 2000 lines): 11 (GeneralMenuNavigator reduced from 6148 to 342
 - **BattlefieldNavigator.cs** (847 lines) — Navigates battlefield by 6 rows (your/enemy lands, creatures, non-creatures).
 - **BoosterOpenNavigator.cs** (1494 lines) — Navigates the booster pack reveal card list after opening a pack.
 - **BrowserDetector.cs** (806 lines) — Detects active in-duel browser type (Scry, London/Surveil, SelectCards, generic).
-- **BrowserNavigator.cs** (4528 lines) [LARGE] — Orchestrates all in-duel browser UIs (Scry/Surveil/Mulligan/SelectCards).
+- **BrowserNavigator/** (subfolder; class lives across 7 partial files, namespace stays `AccessibleArena.Core.Services`)
+  - **BrowserNavigator.cs** (2220 lines) [LARGE] — Core partial: lifecycle, input routing, discovery, navigation, announcements, activation, button scaffolding.
+  - **BrowserNavigator.AssignDamage.cs** (581 lines) — Assign-damage browser: spinner adjustments, lethal check, submit/undo, entry/card announcements.
+  - **BrowserNavigator.Keyword.cs** (564 lines) — ChoiceFilter/Keyword selection: reflection cache, filter state, toggle, letter-jump, input handling.
+  - **BrowserNavigator.Workflow.cs** (583 lines) — Workflow reflection: submit/cancel routing through game workflow + button-pattern fallback.
+  - **BrowserNavigator.OrderCards.cs** (288 lines) — Order-cards drag/drop: pickup, placement, holder sync via reflection.
+  - **BrowserNavigator.SelectGroup.cs** (208 lines) — SelectGroup (two-pile) browser: state caching, pile discovery, pile-aware announcements.
+  - **BrowserNavigator.MultiZone.cs** (172 lines) — Multi-zone selector: zone button cycling, active zone detection, zone-suffix labels.
 - **BrowserZoneNavigator.cs** (1385 lines) — Zone-based card navigation inside Scry, Surveil, and London Mulligan browsers.
 - **CardDetector.cs** (816 lines) — Static utilities: IsCard, GetCardRoot, HasValidTargetsOnBattlefield.
 - **CardInfoNavigator.cs** (287 lines) — Lazy vertical navigation through card info blocks (name, cost, type, rules, etc.).
