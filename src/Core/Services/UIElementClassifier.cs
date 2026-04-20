@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using MelonLoader;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -593,7 +594,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (System.Exception ex)
                 {
-                    MelonLogger.Warning($"[UIElementClassifier] Failed to get Interactable property: {ex.Message}");
+                    Log.Warn("UIElementClassifier", $"Failed to get Interactable property: {ex.Message}");
                 }
             }
 
@@ -610,7 +611,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (System.Exception ex)
                 {
-                    MelonLogger.Warning($"[UIElementClassifier] Failed to invoke IsHidden method: {ex.Message}");
+                    Log.Warn("UIElementClassifier", $"Failed to invoke IsHidden method: {ex.Message}");
                 }
             }
 
@@ -629,7 +630,7 @@ namespace AccessibleArena.Core.Services
                 // MTGA uses alpha < MinVisibleAlpha for hidden elements (see docs/MENU_NAVIGATION.md)
                 if (canvasGroup.alpha < MinVisibleAlpha)
                 {
-                    if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup alpha={canvasGroup.alpha}");
+                    if (debugLog) Log.Msg("UIClassifier", $"{obj.name} hidden: own CanvasGroup alpha={canvasGroup.alpha}");
                     return false;
                 }
                 // For interactable check, skip if this is a MainButton (action buttons like Submit Deck)
@@ -642,7 +643,7 @@ namespace AccessibleArena.Core.Services
                     || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
                 if (!canvasGroup.interactable && !isMainButton && !hasMeaningfulContent)
                 {
-                    if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: own CanvasGroup interactable=false");
+                    if (debugLog) Log.Msg("UIClassifier", $"{obj.name} hidden: own CanvasGroup interactable=false");
                     return false;
                 }
             }
@@ -668,7 +669,7 @@ namespace AccessibleArena.Core.Services
                                 || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
                             if (!hasMeaningfulContent)
                             {
-                                if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup alpha={parentCG.alpha}");
+                                if (debugLog) Log.Msg("UIClassifier", $"{obj.name} hidden: parent {parent.name} CanvasGroup alpha={parentCG.alpha}");
                                 return false;
                             }
                         }
@@ -680,7 +681,7 @@ namespace AccessibleArena.Core.Services
                                 || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
                             if (!hasMeaningfulContent)
                             {
-                                if (debugLog) MelonLoader.MelonLogger.Msg($"[UIClassifier] {obj.name} hidden: parent {parent.name} CanvasGroup interactable=false");
+                                if (debugLog) Log.Msg("UIClassifier", $"{obj.name} hidden: parent {parent.name} CanvasGroup interactable=false");
                                 return false;
                             }
                         }
@@ -806,25 +807,25 @@ namespace AccessibleArena.Core.Services
             // Check game properties first (most reliable)
             if (IsHiddenByGameProperties(obj))
             {
-                if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective filtered: IsHiddenByGameProperties");
+                if (isObjective) Log.Msg("UIClassifier", $"Objective filtered: IsHiddenByGameProperties");
                 return true;
             }
 
             // Check name patterns
             if (IsFilteredByNamePattern(obj, name))
             {
-                if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective filtered: IsFilteredByNamePattern");
+                if (isObjective) Log.Msg("UIClassifier", $"Objective filtered: IsFilteredByNamePattern");
                 return true;
             }
 
             // Check text content
             if (IsFilteredByTextContent(obj, name, text))
             {
-                if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective filtered: IsFilteredByTextContent, text='{text}'");
+                if (isObjective) Log.Msg("UIClassifier", $"Objective filtered: IsFilteredByTextContent, text='{text}'");
                 return true;
             }
 
-            if (isObjective) MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective NOT filtered by IsInternalElement");
+            if (isObjective) Log.Msg("UIClassifier", $"Objective NOT filtered by IsInternalElement");
             return false;
         }
 
@@ -845,7 +846,7 @@ namespace AccessibleArena.Core.Services
                 bool hasMeaningfulContent = UITextExtractor.HasActualText(obj)
                     || !string.IsNullOrEmpty(UITextExtractor.GetText(obj));
                 if (isObjective)
-                    MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective CustomButton check: interactable=false, isMainButton={isMainButton}, hasMeaningfulContent={hasMeaningfulContent}");
+                    Log.Msg("UIClassifier", $"Objective CustomButton check: interactable=false, isMainButton={isMainButton}, hasMeaningfulContent={hasMeaningfulContent}");
                 if (!isMainButton && !hasMeaningfulContent)
                     return true;
             }
@@ -854,7 +855,7 @@ namespace AccessibleArena.Core.Services
             if (!IsVisibleViaCanvasGroup(obj))
             {
                 if (isObjective)
-                    MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective hidden by CanvasGroup");
+                    Log.Msg("UIClassifier", $"Objective hidden by CanvasGroup");
                 return true;
             }
 
@@ -887,7 +888,7 @@ namespace AccessibleArena.Core.Services
             if (IsDecorativeGraphicalElement(obj))
             {
                 if (isObjective)
-                    MelonLoader.MelonLogger.Msg($"[UIClassifier] Objective hidden by IsDecorativeGraphicalElement");
+                    Log.Msg("UIClassifier", $"Objective hidden by IsDecorativeGraphicalElement");
                 return true;
             }
 

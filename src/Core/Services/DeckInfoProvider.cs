@@ -7,6 +7,7 @@ using System.Text;
 using AccessibleArena.Core.Models;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -124,7 +125,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error reading card count: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error reading card count: {ex.Message}");
             }
 
             return null;
@@ -355,7 +356,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error building mana curve entries: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error building mana curve entries: {ex.Message}");
             }
 
             return entries;
@@ -444,7 +445,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error building mana curve: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error building mana curve: {ex.Message}");
             }
 
             return null;
@@ -466,7 +467,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error reading average cost: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error reading average cost: {ex.Message}");
             }
             return null;
         }
@@ -575,7 +576,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error populating CostsDetails: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error populating CostsDetails: {ex.Message}");
             }
         }
 
@@ -654,7 +655,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error populating TypesDetails: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error populating TypesDetails: {ex.Message}");
             }
         }
 
@@ -678,7 +679,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error getting GreLocProvider: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error getting GreLocProvider: {ex.Message}");
                 return null;
             }
         }
@@ -758,7 +759,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Error reading type groups: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Error reading type groups: {ex.Message}");
             }
 
             return groups;
@@ -807,11 +808,11 @@ namespace AccessibleArena.Core.Services
                 _cardCountLabelField = type.GetField("_cardCountLabel", PrivateInstance);
                 _titlePanelReflectionInit = true;
 
-                MelonLogger.Msg($"[DeckInfoProvider] TitlePanel reflection: _cardCountLabel={_cardCountLabelField != null}");
+                Log.Msg("DeckInfoProvider", $"TitlePanel reflection: _cardCountLabel={_cardCountLabelField != null}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] TitlePanel reflection failed: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"TitlePanel reflection failed: {ex.Message}");
             }
         }
 
@@ -869,7 +870,7 @@ namespace AccessibleArena.Core.Services
 
                 _costsDetailsReflectionInit = true;
 
-                MelonLogger.Msg($"[DeckInfoProvider] CostsDetails reflection: " +
+                Log.Msg("DeckInfoProvider", $"CostsDetails reflection: " +
                     $"costBarItemType={costBarItemType?.Name ?? "null"}, " +
                     $"quantityLabel={_costBarQuantityLabelField != null}, " +
                     $"averageText={_averageTextField != null}, " +
@@ -880,7 +881,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] CostsDetails reflection failed: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"CostsDetails reflection failed: {ex.Message}");
             }
         }
 
@@ -895,7 +896,7 @@ namespace AccessibleArena.Core.Services
                 Type pantryType = FindType("Wizards.Mtga.Pantry");
                 if (pantryType == null)
                 {
-                    MelonLogger.Warning("[DeckInfoProvider] Could not find Pantry type");
+                    Log.Warn("DeckInfoProvider", "Could not find Pantry type");
                     return;
                 }
 
@@ -903,7 +904,7 @@ namespace AccessibleArena.Core.Services
                 Type modelProviderType = FindType("Core.Code.Decks.DeckBuilderModelProvider");
                 if (modelProviderType == null)
                 {
-                    MelonLogger.Warning("[DeckInfoProvider] Could not find DeckBuilderModelProvider type");
+                    Log.Warn("DeckInfoProvider", "Could not find DeckBuilderModelProvider type");
                     return;
                 }
 
@@ -926,14 +927,14 @@ namespace AccessibleArena.Core.Services
                                               ?? modelType.GetMethod("GetFilteredMainDeck", PrivateInstance);
                 }
 
-                MelonLogger.Msg($"[DeckInfoProvider] Pantry reflection: " +
+                Log.Msg("DeckInfoProvider", $"Pantry reflection: " +
                     $"pantryGet={_pantryGetModelProviderMethod != null}, " +
                     $"model={_modelProperty != null}, " +
                     $"getFilteredMainDeck={_getFilteredMainDeckMethod != null}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] Pantry reflection failed: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"Pantry reflection failed: {ex.Message}");
             }
         }
 
@@ -968,7 +969,7 @@ namespace AccessibleArena.Core.Services
 
                 _typesDetailsReflectionInit = true;
 
-                MelonLogger.Msg($"[DeckInfoProvider] TypesDetails reflection: " +
+                Log.Msg("DeckInfoProvider", $"TypesDetails reflection: " +
                     $"itemParent={_typesItemParentField != null}, " +
                     $"setDeck={_typesSetDeckMethod != null}, " +
                     $"lineItemType={_lineItemType?.Name ?? "null"}, " +
@@ -977,7 +978,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] TypesDetails reflection failed: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"TypesDetails reflection failed: {ex.Message}");
             }
         }
 
@@ -992,7 +993,7 @@ namespace AccessibleArena.Core.Services
                 Type pantryType = FindType("Wizards.Mtga.Pantry");
                 if (pantryType == null)
                 {
-                    MelonLogger.Warning("[DeckInfoProvider] Could not find Pantry type for CardDatabase");
+                    Log.Warn("DeckInfoProvider", "Could not find Pantry type for CardDatabase");
                     return;
                 }
 
@@ -1000,7 +1001,7 @@ namespace AccessibleArena.Core.Services
                 Type cardDatabaseType = FindType("Wotc.Mtga.Cards.Database.CardDatabase");
                 if (cardDatabaseType == null)
                 {
-                    MelonLogger.Warning("[DeckInfoProvider] Could not find CardDatabase type");
+                    Log.Warn("DeckInfoProvider", "Could not find CardDatabase type");
                     return;
                 }
 
@@ -1014,13 +1015,13 @@ namespace AccessibleArena.Core.Services
                 // CardDatabase.GreLocProvider property
                 _greLocProviderProperty = cardDatabaseType.GetProperty("GreLocProvider", PublicInstance);
 
-                MelonLogger.Msg($"[DeckInfoProvider] CardDatabase reflection: " +
+                Log.Msg("DeckInfoProvider", $"CardDatabase reflection: " +
                     $"pantryGetCardDb={_pantryGetCardDatabaseMethod != null}, " +
                     $"greLocProvider={_greLocProviderProperty != null}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[DeckInfoProvider] CardDatabase reflection failed: {ex.Message}");
+                Log.Error("DeckInfoProvider", $"CardDatabase reflection failed: {ex.Message}");
             }
         }
 

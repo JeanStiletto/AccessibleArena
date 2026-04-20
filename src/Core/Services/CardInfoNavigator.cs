@@ -3,6 +3,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -60,7 +61,7 @@ namespace AccessibleArena.Core.Services
 
             // Log card name for correlation with announcements
             string cardName = isHidden ? "hidden" : CardDetector.GetCardName(cardElement);
-            MelonLogger.Msg($"[CardInfo] Prepared for '{cardName}' ({cardElement.name}) in zone: {zone}");
+            Log.Msg("CardInfo", $"Prepared for '{cardName}' ({cardElement.name}) in zone: {zone}");
         }
 
         /// <summary>
@@ -82,7 +83,7 @@ namespace AccessibleArena.Core.Services
             _blocksLoaded = true;
             _currentBlockIndex = 0;
 
-            MelonLogger.Msg($"[CardInfo] Prepared for '{cardName}' from GrpId lookup with {blocks.Count} blocks");
+            Log.Msg("CardInfo", $"Prepared for '{cardName}' from GrpId lookup with {blocks.Count} blocks");
         }
 
         /// <summary>
@@ -102,13 +103,13 @@ namespace AccessibleArena.Core.Services
 
             if (_blocks.Count == 0)
             {
-                MelonLogger.Msg($"[CardInfo] No info blocks found for card");
+                Log.Msg("CardInfo", $"No info blocks found for card");
                 _isActive = false;
                 return false;
             }
 
             _isActive = true;
-            MelonLogger.Msg($"[CardInfo] Activated with {_blocks.Count} blocks for: {_blocks[0].Content}");
+            Log.Msg("CardInfo", $"Activated with {_blocks.Count} blocks for: {_blocks[0].Content}");
 
             // Announce first block (card name)
             _announcer.AnnounceInterrupt(FormatBlock(_blocks[0]));
@@ -151,13 +152,13 @@ namespace AccessibleArena.Core.Services
             {
                 // Only log occasionally to avoid spam - check if arrow pressed
                 if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
-                    MelonLogger.Msg($"[CardInfo] HandleInput: Not active, ignoring arrow key");
+                    Log.Msg("CardInfo", $"HandleInput: Not active, ignoring arrow key");
                 return false;
             }
             if (_currentCard == null && !_blocksLoaded)
             {
                 if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
-                    MelonLogger.Msg($"[CardInfo] HandleInput: CurrentCard is null and no blocks loaded, ignoring arrow key");
+                    Log.Msg("CardInfo", $"HandleInput: CurrentCard is null and no blocks loaded, ignoring arrow key");
                 return false;
             }
 
@@ -169,7 +170,7 @@ namespace AccessibleArena.Core.Services
             if (hasModifier)
             {
                 if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
-                    MelonLogger.Msg($"[CardInfo] HandleInput: Modifier key held, ignoring arrow key");
+                    Log.Msg("CardInfo", $"HandleInput: Modifier key held, ignoring arrow key");
                 return false; // Let other navigators handle modified arrow keys
             }
 
@@ -221,7 +222,7 @@ namespace AccessibleArena.Core.Services
                 };
                 _blocksLoaded = true;
                 _currentBlockIndex = 0;
-                MelonLogger.Msg("[CardInfo] Card is face-down, showing hidden block");
+                Log.Msg("CardInfo", "Card is face-down, showing hidden block");
                 return true;
             }
 
@@ -230,14 +231,14 @@ namespace AccessibleArena.Core.Services
 
             if (_blocks.Count == 0)
             {
-                MelonLogger.Msg($"[CardInfo] No info blocks found for card");
+                Log.Msg("CardInfo", $"No info blocks found for card");
                 return false;
             }
 
             // Preserve block index on reload (e.g., after InvalidateBlocks), reset on first load
             if (_currentBlockIndex < 0 || _currentBlockIndex >= _blocks.Count)
                 _currentBlockIndex = 0;
-            MelonLogger.Msg($"[CardInfo] Lazy loaded {_blocks.Count} blocks, index {_currentBlockIndex}");
+            Log.Msg("CardInfo", $"Lazy loaded {_blocks.Count} blocks, index {_currentBlockIndex}");
             return true;
         }
 

@@ -190,7 +190,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Error getting keyword descriptions: {ex.Message}");
+                Log.Msg("ExtendedCardInfoProvider", $"[ExtInfo] Error getting keyword descriptions: {ex.Message}");
             }
 
             return result;
@@ -345,7 +345,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] PAPA keyword descriptions (GrpId) failed: {ex.Message}");
+                Log.Msg("ExtendedCardInfoProvider", $"[ExtInfo] PAPA keyword descriptions (GrpId) failed: {ex.Message}");
             }
 
             return result;
@@ -372,7 +372,7 @@ namespace AccessibleArena.Core.Services
 
                 if (papa == null)
                 {
-                    MelonLogger.Msg("[ExtendedCardInfoProvider] PAPA singleton not found");
+                    Log.Msg("ExtendedCardInfoProvider", "PAPA singleton not found");
                     return;
                 }
 
@@ -385,7 +385,7 @@ namespace AccessibleArena.Core.Services
 
                 if (cardDb == null || assetLookup == null || objectPool == null)
                 {
-                    MelonLogger.Msg($"[ExtendedCardInfoProvider] PAPA services missing: CardDb={cardDb != null}, AssetLookup={assetLookup != null}, ObjectPool={objectPool != null}");
+                    Log.Msg("ExtendedCardInfoProvider", $"PAPA services missing: CardDb={cardDb != null}, AssetLookup={assetLookup != null}, ObjectPool={objectPool != null}");
                     return;
                 }
 
@@ -393,7 +393,7 @@ namespace AccessibleArena.Core.Services
                 var clientLoc = cardDb.GetType().GetProperty("ClientLocProvider", PublicInstance)?.GetValue(cardDb);
                 if (clientLoc == null)
                 {
-                    MelonLogger.Msg("[ExtendedCardInfoProvider] ClientLocProvider not found on CardDatabase");
+                    Log.Msg("ExtendedCardInfoProvider", "ClientLocProvider not found on CardDatabase");
                     return;
                 }
 
@@ -415,7 +415,7 @@ namespace AccessibleArena.Core.Services
                 Type providerType = FindType("Wotc.Mtga.Hangers.AbilityHangers.AbilityHangerBaseConfigProvider");
                 if (providerType == null)
                 {
-                    MelonLogger.Msg("[ExtendedCardInfoProvider] AbilityHangerBaseConfigProvider type not found");
+                    Log.Msg("ExtendedCardInfoProvider", "AbilityHangerBaseConfigProvider type not found");
                     return;
                 }
 
@@ -432,7 +432,7 @@ namespace AccessibleArena.Core.Services
 
                 if (ctor == null)
                 {
-                    MelonLogger.Msg("[ExtendedCardInfoProvider] 4-param constructor not found on AbilityHangerBaseConfigProvider");
+                    Log.Msg("ExtendedCardInfoProvider", "4-param constructor not found on AbilityHangerBaseConfigProvider");
                     return;
                 }
 
@@ -440,7 +440,7 @@ namespace AccessibleArena.Core.Services
                 var provider = ctor.Invoke(new[] { assetLookup, cardDb, clientLoc, objectPool });
                 if (provider == null)
                 {
-                    MelonLogger.Msg("[ExtendedCardInfoProvider] AbilityHangerBaseConfigProvider construction returned null");
+                    Log.Msg("ExtendedCardInfoProvider", "AbilityHangerBaseConfigProvider construction returned null");
                     return;
                 }
 
@@ -483,11 +483,11 @@ namespace AccessibleArena.Core.Services
                     _createInstanceMethod = printingDataType.GetMethod("CreateInstance");
                 }
 
-                MelonLogger.Msg("[ExtendedCardInfoProvider] PAPA provider constructed successfully");
+                Log.Msg("ExtendedCardInfoProvider", "PAPA provider constructed successfully");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[ExtendedCardInfoProvider] ConstructProviderFromPAPA failed: {ex.Message}");
+                Log.Error("ExtendedCardInfoProvider", $"ConstructProviderFromPAPA failed: {ex.Message}");
             }
         }
 
@@ -521,7 +521,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] GetCardPrintingDataFromPAPA failed for GrpId {grpId}: {ex.Message}");
+                Log.Msg("ExtendedCardInfoProvider", $"GetCardPrintingDataFromPAPA failed for GrpId {grpId}: {ex.Message}");
                 return null;
             }
         }
@@ -562,7 +562,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] CreateCardDataAdapter failed for GrpId {grpId}: {ex.Message}");
+                Log.Msg("ExtendedCardInfoProvider", $"CreateCardDataAdapter failed for GrpId {grpId}: {ex.Message}");
                 return null;
             }
         }
@@ -610,7 +610,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Error extracting ability texts for GrpId {grpId}: {ex.Message}");
+                Log.Msg("ExtendedCardInfoProvider", $"[ExtInfo] Error extracting ability texts for GrpId {grpId}: {ex.Message}");
             }
 
             return result;
@@ -637,7 +637,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] AbilityHangerBase type not found in assemblies, searching all MonoBehaviours...");
+                Log.Msg("ExtendedCardInfoProvider", $"AbilityHangerBase type not found in assemblies, searching all MonoBehaviours...");
                 instances = Resources.FindObjectsOfTypeAll(typeof(MonoBehaviour));
             }
 
@@ -658,7 +658,7 @@ namespace AccessibleArena.Core.Services
                 var provider = field.GetValue(obj);
                 if (provider == null)
                 {
-                    MelonLogger.Msg($"[ExtendedCardInfoProvider] Found {type.Name} but _abilityHangerProvider is null (not yet initialized)");
+                    Log.Msg("ExtendedCardInfoProvider", $"Found {type.Name} but _abilityHangerProvider is null (not yet initialized)");
                     continue;
                 }
 
@@ -701,7 +701,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            MelonLogger.Msg($"[ExtendedCardInfoProvider] AbilityHangerProvider not found (will retry on next I key press)");
+            Log.Msg("ExtendedCardInfoProvider", $"AbilityHangerProvider not found (will retry on next I key press)");
         }
 
         /// <summary>
@@ -737,7 +737,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] Error creating CDCViewMetadata: {ex.Message}");
+                Log.Msg("ExtendedCardInfoProvider", $"Error creating CDCViewMetadata: {ex.Message}");
             }
             return null;
         }
@@ -801,7 +801,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ExtendedCardInfoProvider] [ExtInfo] Parameterized hanger query failed: {ex.Message}");
+                Log.Msg("ExtendedCardInfoProvider", $"[ExtInfo] Parameterized hanger query failed: {ex.Message}");
             }
         }
 

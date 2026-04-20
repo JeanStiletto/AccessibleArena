@@ -353,7 +353,7 @@ namespace AccessibleArena.Core.Services
                         // Replace with empty event of the same type
                         var emptyEvent = System.Activator.CreateInstance(field.FieldType);
                         field.SetValue(component, emptyEvent);
-                        MelonLogger.Msg("[DropdownState] Suppressed onValueChanged on cTMP_Dropdown");
+                        Log.Msg("DropdownState", "Suppressed onValueChanged on cTMP_Dropdown");
                     }
                     return;
                 }
@@ -366,7 +366,7 @@ namespace AccessibleArena.Core.Services
                 _savedOnValueChanged = tmpDropdown.onValueChanged;
                 _suppressedDropdownComponent = tmpDropdown;
                 tmpDropdown.onValueChanged = new TMPro.TMP_Dropdown.DropdownEvent();
-                MelonLogger.Msg("[DropdownState] Suppressed onValueChanged on TMP_Dropdown");
+                Log.Msg("DropdownState", "Suppressed onValueChanged on TMP_Dropdown");
                 return;
             }
 
@@ -377,7 +377,7 @@ namespace AccessibleArena.Core.Services
                 _savedOnValueChanged = legacyDropdown.onValueChanged;
                 _suppressedDropdownComponent = legacyDropdown;
                 legacyDropdown.onValueChanged = new UnityEngine.UI.Dropdown.DropdownEvent();
-                MelonLogger.Msg("[DropdownState] Suppressed onValueChanged on legacy Dropdown");
+                Log.Msg("DropdownState", "Suppressed onValueChanged on legacy Dropdown");
             }
         }
 
@@ -395,7 +395,7 @@ namespace AccessibleArena.Core.Services
                 // Check if the component is still alive (scene may have changed)
                 if (_suppressedDropdownComponent == null || _suppressedDropdownComponent.gameObject == null)
                 {
-                    MelonLogger.Msg("[DropdownState] Suppressed dropdown was destroyed, skipping restore");
+                    Log.Msg("DropdownState", "Suppressed dropdown was destroyed, skipping restore");
                     _savedOnValueChanged = null;
                     _suppressedDropdownComponent = null;
                     return;
@@ -409,23 +409,23 @@ namespace AccessibleArena.Core.Services
                     if (field != null)
                     {
                         field.SetValue(_suppressedDropdownComponent, _savedOnValueChanged);
-                        MelonLogger.Msg("[DropdownState] Restored onValueChanged on cTMP_Dropdown");
+                        Log.Msg("DropdownState", "Restored onValueChanged on cTMP_Dropdown");
                     }
                 }
                 else if (_suppressedDropdownComponent is TMPro.TMP_Dropdown tmpDropdown)
                 {
                     tmpDropdown.onValueChanged = (TMPro.TMP_Dropdown.DropdownEvent)_savedOnValueChanged;
-                    MelonLogger.Msg("[DropdownState] Restored onValueChanged on TMP_Dropdown");
+                    Log.Msg("DropdownState", "Restored onValueChanged on TMP_Dropdown");
                 }
                 else if (_suppressedDropdownComponent is UnityEngine.UI.Dropdown legacyDropdown)
                 {
                     legacyDropdown.onValueChanged = (UnityEngine.UI.Dropdown.DropdownEvent)_savedOnValueChanged;
-                    MelonLogger.Msg("[DropdownState] Restored onValueChanged on legacy Dropdown");
+                    Log.Msg("DropdownState", "Restored onValueChanged on legacy Dropdown");
                 }
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Warning($"[DropdownState] Error restoring onValueChanged: {ex.Message}");
+                Log.Warn("DropdownState", $"Error restoring onValueChanged: {ex.Message}");
             }
 
             _savedOnValueChanged = null;
@@ -458,7 +458,7 @@ namespace AccessibleArena.Core.Services
                             if (invokeMethod != null)
                             {
                                 invokeMethod.Invoke(onValueChanged, new object[] { value });
-                                MelonLogger.Msg($"[DropdownState] Fired onValueChanged on cTMP_Dropdown with value={value}");
+                                Log.Msg("DropdownState", $"Fired onValueChanged on cTMP_Dropdown with value={value}");
                             }
                         }
                     }
@@ -466,17 +466,17 @@ namespace AccessibleArena.Core.Services
                 else if (dropdownComponent is TMPro.TMP_Dropdown tmpDropdown)
                 {
                     tmpDropdown.onValueChanged.Invoke(value);
-                    MelonLogger.Msg($"[DropdownState] Fired onValueChanged on TMP_Dropdown with value={value}");
+                    Log.Msg("DropdownState", $"Fired onValueChanged on TMP_Dropdown with value={value}");
                 }
                 else if (dropdownComponent is UnityEngine.UI.Dropdown legacyDropdown)
                 {
                     legacyDropdown.onValueChanged.Invoke(value);
-                    MelonLogger.Msg($"[DropdownState] Fired onValueChanged on legacy Dropdown with value={value}");
+                    Log.Msg("DropdownState", $"Fired onValueChanged on legacy Dropdown with value={value}");
                 }
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Warning($"[DropdownState] Error firing onValueChanged: {ex.Message}");
+                Log.Warn("DropdownState", $"Error firing onValueChanged: {ex.Message}");
             }
         }
 

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -255,7 +256,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _reflectionInitialized = true;
-            MelonLogger.Msg($"[{NavigatorId}] Reflection cached: " +
+            Log.Msg("{NavigatorId}", $"Reflection cached: " +
                 $"Controller={controllerType != null}, " +
                 $"Details={detailsType != null}, " +
                 $"Rank={rankType != null}, " +
@@ -278,7 +279,7 @@ namespace AccessibleArena.Core.Services
             if (_infoBlocks.Count > 0)
                 AddElement(_controller.gameObject, "Profile");
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_infoBlocks.Count} info blocks");
+            Log.Msg("{NavigatorId}", $"Discovered {_infoBlocks.Count} info blocks");
         }
 
         private void BuildInfoBlocks()
@@ -395,7 +396,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[{NavigatorId}] Failed to get ProfileDetailsPanel: {ex.Message}");
+                    Log.Warn("{NavigatorId}", $"Failed to get ProfileDetailsPanel: {ex.Message}");
                 }
             }
         }
@@ -634,7 +635,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Failed to add cosmetic button {cosmeticType}: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Failed to add cosmetic button {cosmeticType}: {ex.Message}");
             }
         }
 
@@ -955,14 +956,14 @@ namespace AccessibleArena.Core.Services
                         var avatarComp = item.GameObject.GetComponent(avatarSelType);
                         if (avatarComp != null && (bool)_avatarIsLockedMethod.Invoke(avatarComp, null))
                         {
-                            MelonLogger.Msg($"[{NavigatorId}] Avatar is locked, skipping persistence");
+                            Log.Msg("{NavigatorId}", $"Avatar is locked, skipping persistence");
                             return;
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[{NavigatorId}] IsLocked check failed: {ex.Message}");
+                    Log.Warn("{NavigatorId}", $"IsLocked check failed: {ex.Message}");
                 }
             }
 
@@ -972,18 +973,18 @@ namespace AccessibleArena.Core.Services
                 var panel = item.GameObject.GetComponentInParent(_avatarSelectPanelType);
                 if (panel == null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] AvatarSelectPanel not found in parent hierarchy");
+                    Log.Msg("{NavigatorId}", $"AvatarSelectPanel not found in parent hierarchy");
                     return;
                 }
 
                 _doneButtonOnClickMethod.Invoke(panel, null);
-                MelonLogger.Msg($"[{NavigatorId}] Avatar selection persisted via DoneButton_OnClick");
+                Log.Msg("{NavigatorId}", $"Avatar selection persisted via DoneButton_OnClick");
                 // Panel closes automatically via _backButton_OnClicked callback;
                 // polling will detect mode change and call ExitSubPanel()
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] DoneButton_OnClick failed: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"DoneButton_OnClick failed: {ex.Message}");
             }
         }
 
@@ -1025,7 +1026,7 @@ namespace AccessibleArena.Core.Services
 
             if (cosmeticType != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Cosmetic popup detected: {cosmeticType} ({panelName})");
+                Log.Msg("{NavigatorId}", $"Cosmetic popup detected: {cosmeticType} ({panelName})");
                 _subPanelType = cosmeticType;
                 EnterSubPanel(panel.GameObject);
             }
@@ -1094,7 +1095,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[{NavigatorId}] GoBackToPreviousMode failed: {ex.Message}");
+                    Log.Warn("{NavigatorId}", $"GoBackToPreviousMode failed: {ex.Message}");
                 }
             }
 
@@ -1132,7 +1133,7 @@ namespace AccessibleArena.Core.Services
             // If no items found under panelGo for Avatar/Emote, try scene-wide search
             if (_subPanelItems.Count == 0 && (_subPanelType == "Avatar" || _subPanelType == "Emote"))
             {
-                MelonLogger.Msg($"[{NavigatorId}] No {_subPanelType} items found under panelGo, trying scene-wide search");
+                Log.Msg("{NavigatorId}", $"No {_subPanelType} items found under panelGo, trying scene-wide search");
                 foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
                 {
                     switch (_subPanelType)
@@ -1152,7 +1153,7 @@ namespace AccessibleArena.Core.Services
             var avatarSelType = FindType("AvatarSelection");
             if (avatarSelType == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] AvatarSelection type not found, falling back to generic");
+                Log.Msg("{NavigatorId}", $"AvatarSelection type not found, falling back to generic");
                 DiscoverGenericItems(panelGo);
                 return;
             }
@@ -1503,7 +1504,7 @@ namespace AccessibleArena.Core.Services
                         string val = field.GetValue(mb) as string;
                         if (!string.IsNullOrEmpty(val))
                         {
-                            MelonLogger.Msg($"[{NavigatorId}] Sleeve field {field.Name}={val}");
+                            Log.Msg("{NavigatorId}", $"Sleeve field {field.Name}={val}");
                             if (cardBack == null)
                                 cardBack = val;
                         }
@@ -1637,7 +1638,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (!IsMonoBehaviourPanelActive(_subPanelType))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] MonoBehaviour panel closed: {_subPanelType}");
+                    Log.Msg("{NavigatorId}", $"MonoBehaviour panel closed: {_subPanelType}");
                     ExitSubPanel();
                 }
             }
@@ -1657,7 +1658,7 @@ namespace AccessibleArena.Core.Services
             var panelGo = FindCosmeticSelectorContent();
             if (panelGo != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] {_subPanelType} panel detected via mode={currentMode}");
+                Log.Msg("{NavigatorId}", $"{_subPanelType} panel detected via mode={currentMode}");
                 EnterSubPanel(panelGo);
             }
         }
@@ -1764,7 +1765,7 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (Exception ex)
                     {
-                        MelonLogger.Warning($"[{NavigatorId}] OnHandheldBackButton failed: {ex.Message}");
+                        Log.Warn("{NavigatorId}", $"OnHandheldBackButton failed: {ex.Message}");
                     }
                 }
             }
@@ -1837,14 +1838,14 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                MelonLogger.Msg($"[{NavigatorId}] {label} type: {type.FullName}");
+                Log.Msg("{NavigatorId}", $"{label} type: {type.FullName}");
                 foreach (var prop in type.GetProperties(PublicInstance))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}]   Prop: {prop.Name} ({prop.PropertyType.Name})");
+                    Log.Msg("{NavigatorId}", $"  Prop: {prop.Name} ({prop.PropertyType.Name})");
                 }
                 foreach (var field in type.GetFields(AllInstanceFlags))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}]   Field: {field.Name} ({field.FieldType.Name})");
+                    Log.Msg("{NavigatorId}", $"  Field: {field.Name} ({field.FieldType.Name})");
                 }
             }
             catch { }

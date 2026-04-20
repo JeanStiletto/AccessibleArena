@@ -101,7 +101,7 @@ namespace AccessibleArena.Core.Services
         public void Activate()
         {
             _isActive = true;
-            MelonLogger.Msg("[HotHighlightNavigator] Activated");
+            Log.Msg("HotHighlightNavigator", "Activated");
         }
 
         public void Deactivate()
@@ -116,7 +116,7 @@ namespace AccessibleArena.Core.Services
             _lastPromptButtonText = null;
             _cachedAvatarViews.Clear();
             PhaseSkipGuard.Reset();
-            MelonLogger.Msg("[HotHighlightNavigator] Deactivated");
+            Log.Msg("HotHighlightNavigator", "Deactivated");
         }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_items.Count > 0)
             {
-                MelonLogger.Msg("[HotHighlightNavigator] Clearing state due to zone navigation");
+                Log.Msg("HotHighlightNavigator", "Clearing state due to zone navigation");
                 _items.Clear();
                 _currentIndex = -1;
                 _opponentIndex = -1;
@@ -234,7 +234,7 @@ namespace AccessibleArena.Core.Services
                         int preClickCount = submitInfo.Value.count;
                         string cardName = CardDetector.GetCardName(card) ?? card.name;
                         bool wasSelected = IsCardSelected(card);
-                        MelonLogger.Msg($"[HotHighlightNavigator] Toggling battlefield selection: {cardName} on {card.name} (was selected: {wasSelected}, preCount: {preClickCount})");
+                        Log.Msg("HotHighlightNavigator", $"Toggling battlefield selection: {cardName} on {card.name} (was selected: {wasSelected}, preCount: {preClickCount})");
                         var result = ClickBattlefieldCard(card);
                         if (result.Success)
                             MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount, card.name));
@@ -251,7 +251,7 @@ namespace AccessibleArena.Core.Services
                     // We lost ownership - clear stale state and let other handlers process Enter
                     if (_items.Count > 0)
                     {
-                        MelonLogger.Msg($"[HotHighlightNavigator] Clearing stale state - zone owner is {_zoneNavigator.CurrentZoneOwner}");
+                        Log.Msg("HotHighlightNavigator", $"Clearing stale state - zone owner is {_zoneNavigator.CurrentZoneOwner}");
                         _items.Clear();
                         _currentIndex = -1;
                         _opponentIndex = -1;
@@ -281,7 +281,7 @@ namespace AccessibleArena.Core.Services
                     if (primaryButton != null)
                     {
                         string buttonText = GetPrimaryButtonText();
-                        MelonLogger.Msg($"[HotHighlightNavigator] Space pressed - clicking primary button: {buttonText}");
+                        Log.Msg("HotHighlightNavigator", $"Space pressed - clicking primary button: {buttonText}");
                         UIActivator.SimulatePointerClick(primaryButton);
                         _announcer.Announce(buttonText, AnnouncementPriority.Normal);
                         // Invalidate snapshot so next selection phase gets a full rebuild
@@ -299,7 +299,7 @@ namespace AccessibleArena.Core.Services
                 var undoButton = FindUndoButton();
                 if (undoButton != null)
                 {
-                    MelonLogger.Msg("[HotHighlightNavigator] Backspace - clicking UndoButton");
+                    Log.Msg("HotHighlightNavigator", "Backspace - clicking UndoButton");
                     UIActivator.SimulatePointerClick(undoButton);
                     _announcer.Announce(Strings.SpellCancelled, AnnouncementPriority.Normal);
                     return true;
@@ -310,7 +310,7 @@ namespace AccessibleArena.Core.Services
                 if (secondaryButton != null && IsButtonVisible(secondaryButton))
                 {
                     string text = GetButtonTextWithMana(secondaryButton);
-                    MelonLogger.Msg($"[HotHighlightNavigator] Backspace - clicking secondary button: {text}");
+                    Log.Msg("HotHighlightNavigator", $"Backspace - clicking secondary button: {text}");
                     UIActivator.SimulatePointerClick(secondaryButton);
                     _announcer.Announce(text ?? Strings.SpellCancelled, AnnouncementPriority.Normal);
                     return true;
@@ -323,7 +323,7 @@ namespace AccessibleArena.Core.Services
                     if (primaryButton != null && IsButtonVisible(primaryButton))
                     {
                         string text = GetButtonTextWithMana(primaryButton);
-                        MelonLogger.Msg($"[HotHighlightNavigator] Backspace - clicking sole primary button: {text}");
+                        Log.Msg("HotHighlightNavigator", $"Backspace - clicking sole primary button: {text}");
                         UIActivator.SimulatePointerClick(primaryButton);
                         _announcer.Announce(text ?? Strings.SpellCancelled, AnnouncementPriority.Normal);
                         return true;
@@ -670,7 +670,7 @@ namespace AccessibleArena.Core.Services
                 _highlightSystemField = avatarType.GetField("_highlightSystem", PrivateInstance);
                 if (_highlightSystemField == null)
                 {
-                    MelonLogger.Warning("[HotHighlightNavigator] Could not find _highlightSystem field on DuelScene_AvatarView");
+                    Log.Warn("HotHighlightNavigator", "Could not find _highlightSystem field on DuelScene_AvatarView");
                     return;
                 }
 
@@ -678,30 +678,30 @@ namespace AccessibleArena.Core.Services
                 _currentHighlightField = highlightSystemType.GetField("_currentHighlightType", PrivateInstance);
                 if (_currentHighlightField == null)
                 {
-                    MelonLogger.Warning($"[HotHighlightNavigator] Could not find _currentHighlightType on {highlightSystemType.Name}");
+                    Log.Warn("HotHighlightNavigator", $"Could not find _currentHighlightType on {highlightSystemType.Name}");
                     return;
                 }
 
                 _isLocalPlayerProp = avatarType.GetProperty("IsLocalPlayer", PublicInstance);
                 if (_isLocalPlayerProp == null)
                 {
-                    MelonLogger.Warning("[HotHighlightNavigator] Could not find IsLocalPlayer property on DuelScene_AvatarView");
+                    Log.Warn("HotHighlightNavigator", "Could not find IsLocalPlayer property on DuelScene_AvatarView");
                     return;
                 }
 
                 _portraitButtonField = avatarType.GetField("PortraitButton", PrivateInstance);
                 if (_portraitButtonField == null)
                 {
-                    MelonLogger.Warning("[HotHighlightNavigator] Could not find PortraitButton field on DuelScene_AvatarView");
+                    Log.Warn("HotHighlightNavigator", "Could not find PortraitButton field on DuelScene_AvatarView");
                     return;
                 }
 
                 _avatarReflectionInitialized = true;
-                MelonLogger.Msg($"[HotHighlightNavigator] Avatar reflection initialized: HighlightSystem={highlightSystemType.Name}, HighlightField={_currentHighlightField.FieldType.Name}");
+                Log.Msg("HotHighlightNavigator", $"Avatar reflection initialized: HighlightSystem={highlightSystemType.Name}, HighlightField={_currentHighlightField.FieldType.Name}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[HotHighlightNavigator] Failed to initialize avatar reflection: {ex.Message}");
+                Log.Error("HotHighlightNavigator", $"Failed to initialize avatar reflection: {ex.Message}");
             }
         }
 
@@ -763,7 +763,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Fallback: card not found in navigator lists (shouldn't happen normally)
-            MelonLogger.Warning($"[HotHighlightNavigator] Card {item.Name} not found in zone navigators, using direct announcement");
+            Log.Warn("HotHighlightNavigator", $"Card {item.Name} not found in zone navigators, using direct announcement");
             _announcer.Announce($"{item.Name}", AnnouncementPriority.High);
 
             if (item.GameObject != null)
@@ -791,7 +791,7 @@ namespace AccessibleArena.Core.Services
                 if (result.Success)
                 {
                     _announcer.Announce(item.Name, AnnouncementPriority.Normal);
-                    MelonLogger.Msg($"[HotHighlightNavigator] Clicked prompt button: {item.Name}");
+                    Log.Msg("HotHighlightNavigator", $"Clicked prompt button: {item.Name}");
                 }
                 _items.Clear();
                 _currentIndex = -1;
@@ -801,7 +801,7 @@ namespace AccessibleArena.Core.Services
 
             bool selectionMode = IsSelectionModeActive();
             int preClickCount = selectionMode ? (GetSubmitButtonInfo()?.count ?? -1) : -1;
-            MelonLogger.Msg($"[HotHighlightNavigator] Activating: {item.Name} in {item.Zone} (selection mode: {selectionMode})");
+            Log.Msg("HotHighlightNavigator", $"Activating: {item.Name} in {item.Zone} (selection mode: {selectionMode})");
 
             if (item.Zone == "Hand")
             {
@@ -810,7 +810,7 @@ namespace AccessibleArena.Core.Services
                     // Selection mode (discard, etc.) - single click to toggle selection
                     // Check current state before clicking
                     bool wasSelected = IsCardSelected(item.GameObject);
-                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name} (was selected: {wasSelected})");
+                    Log.Msg("HotHighlightNavigator", $"Toggling selection on: {item.Name} (was selected: {wasSelected})");
 
                     var result = UIActivator.SimulatePointerClick(item.GameObject);
                     if (result.Success)
@@ -830,12 +830,12 @@ namespace AccessibleArena.Core.Services
                     {
                         if (success)
                         {
-                            MelonLogger.Msg($"[HotHighlightNavigator] Card play initiated");
+                            Log.Msg("HotHighlightNavigator", $"Card play initiated");
                         }
                         else
                         {
                             _announcer.Announce(Strings.CouldNotPlay(item.Name), AnnouncementPriority.High);
-                            MelonLogger.Msg($"[HotHighlightNavigator] Card play failed: {message}");
+                            Log.Msg("HotHighlightNavigator", $"Card play failed: {message}");
                         }
                     });
                 }
@@ -848,7 +848,7 @@ namespace AccessibleArena.Core.Services
                     // Selection mode on battlefield - toggle selection with count announcement
                     // Use position-aware click to avoid hitting wrong card in stacks
                     bool wasSelected = IsCardSelected(item.GameObject);
-                    MelonLogger.Msg($"[HotHighlightNavigator] Toggling selection on: {item.Name} on {item.GameObject.name} (was selected: {wasSelected})");
+                    Log.Msg("HotHighlightNavigator", $"Toggling selection on: {item.Name} on {item.GameObject.name} (was selected: {wasSelected})");
 
                     var result = (item.Zone == "Battlefield")
                         ? ClickBattlefieldCard(item.GameObject)
@@ -866,12 +866,12 @@ namespace AccessibleArena.Core.Services
                     {
                         string announcement = item.IsPlayer ? Strings.Target_Targeted(item.Name) : Strings.Target_Selected(item.Name);
                         _announcer.Announce(announcement, AnnouncementPriority.Normal);
-                        MelonLogger.Msg($"[HotHighlightNavigator] {announcement}");
+                        Log.Msg("HotHighlightNavigator", $"{announcement}");
                     }
                     else
                     {
                         _announcer.Announce(Strings.CouldNotTarget(item.Name), AnnouncementPriority.High);
-                        MelonLogger.Warning($"[HotHighlightNavigator] Click failed: {result.Message}");
+                        Log.Warn("HotHighlightNavigator", $"Click failed: {result.Message}");
                     }
                 }
             }
@@ -957,7 +957,7 @@ namespace AccessibleArena.Core.Services
                     pressPosition = screenPos
                 };
 
-                MelonLogger.Msg($"[HotHighlightNavigator] Direct CardInput click: handler on {handlerGo.name} for card {card.name}");
+                Log.Msg("HotHighlightNavigator", $"Direct CardInput click: handler on {handlerGo.name} for card {card.name}");
 
                 // Set EventSystem selection to CDC root for mod's focus tracking
                 var eventSystem = EventSystem.current;
@@ -974,7 +974,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Fallback: standard click if no CardInput found
-            MelonLogger.Warning($"[HotHighlightNavigator] No IPointerClickHandler found on {card.name}, using fallback click");
+            Log.Warn("HotHighlightNavigator", $"No IPointerClickHandler found on {card.name}, using fallback click");
             if (Camera.main != null)
             {
                 Vector2 screenPos = Camera.main.WorldToScreenPoint(card.transform.position);
@@ -1138,7 +1138,7 @@ namespace AccessibleArena.Core.Services
                 IsPromptButton = true
             });
 
-            MelonLogger.Msg($"[HotHighlightNavigator] Added prompt buttons: '{primaryText}' and '{secondaryText}'");
+            Log.Msg("HotHighlightNavigator", $"Added prompt buttons: '{primaryText}' and '{secondaryText}'");
         }
 
         /// <summary>
@@ -1290,7 +1290,7 @@ namespace AccessibleArena.Core.Services
                 string childName = child.name.ToLower();
                 if (childName.Contains("select") || childName.Contains("chosen") || childName.Contains("pick"))
                 {
-                    MelonLogger.Msg($"[HotHighlightNavigator] Found selection indicator: {child.name} on {card.name}");
+                    Log.Msg("HotHighlightNavigator", $"Found selection indicator: {child.name} on {card.name}");
                     return true;
                 }
             }
@@ -1318,7 +1318,7 @@ namespace AccessibleArena.Core.Services
                     selected.Add(child.gameObject.name);
             }
 
-            MelonLogger.Msg($"[HotHighlightNavigator] DIAG click-target: clicked={clickedCdcName}, cards with selection indicators: [{string.Join(", ", selected)}]");
+            Log.Msg("HotHighlightNavigator", $"DIAG click-target: clicked={clickedCdcName}, cards with selection indicators: [{string.Join(", ", selected)}]");
         }
 
         /// <summary>
@@ -1336,7 +1336,7 @@ namespace AccessibleArena.Core.Services
                 string promptText = GetPromptInstructionText();
                 if (!string.IsNullOrEmpty(promptText))
                 {
-                    MelonLogger.Msg($"[HotHighlightNavigator] Selection mode entered, prompt: {promptText}");
+                    Log.Msg("HotHighlightNavigator", $"Selection mode entered, prompt: {promptText}");
                     _announcer.Announce(promptText, AnnouncementPriority.High);
                 }
                 else
@@ -1346,7 +1346,7 @@ namespace AccessibleArena.Core.Services
                     if (info != null)
                     {
                         string buttonText = UITextExtractor.GetButtonText(info.Value.button);
-                        MelonLogger.Msg($"[HotHighlightNavigator] Selection mode entered, button fallback: {buttonText}");
+                        Log.Msg("HotHighlightNavigator", $"Selection mode entered, button fallback: {buttonText}");
                         _announcer.Announce(buttonText, AnnouncementPriority.High);
                     }
                 }
@@ -1354,7 +1354,7 @@ namespace AccessibleArena.Core.Services
             else if (!isActive && _wasInSelectionMode)
             {
                 _wasInSelectionMode = false;
-                MelonLogger.Msg("[HotHighlightNavigator] Selection mode exited");
+                Log.Msg("HotHighlightNavigator", "Selection mode exited");
             }
         }
 
@@ -1441,7 +1441,7 @@ namespace AccessibleArena.Core.Services
             int preClickCount = GetSubmitButtonInfo()?.count ?? -1;
             string cardName = CardDetector.GetCardName(card) ?? card.name;
             bool wasSelected = IsCardSelected(card);
-            MelonLogger.Msg($"[HotHighlightNavigator] Zone nav toggling selection: {cardName} on {card.name} (was selected: {wasSelected})");
+            Log.Msg("HotHighlightNavigator", $"Zone nav toggling selection: {cardName} on {card.name} (was selected: {wasSelected})");
 
             // Use position-aware click for battlefield cards to avoid hitting
             // wrong card in visual stacks (e.g. multiple Islands)

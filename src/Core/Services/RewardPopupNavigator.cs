@@ -11,6 +11,7 @@ using System.Linq;
 using System.Reflection;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -67,7 +68,7 @@ namespace AccessibleArena.Core.Services
             if (result != _lastRewardsPopupState)
             {
                 _lastRewardsPopupState = result;
-                MelonLogger.Msg($"[{NavigatorId}] IsRewardsPopupOpen changed to: {result}");
+                Log.Msg("{NavigatorId}", $"IsRewardsPopupOpen changed to: {result}");
             }
 
             return result;
@@ -170,7 +171,7 @@ namespace AccessibleArena.Core.Services
                 {
                     // Timeout: try once (DiscoverElements will use controller data fallback).
                     _timeoutFallbackFired = true;
-                    MelonLogger.Msg($"[{NavigatorId}] Content timeout — activating with controller data fallback");
+                    Log.Msg("{NavigatorId}", $"Content timeout — activating with controller data fallback");
                     return true;
                 }
 
@@ -235,7 +236,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Msg($"[{NavigatorId}] GetSeasonEndState failed: {ex.Message}");
+                Log.Msg("{NavigatorId}", $"GetSeasonEndState failed: {ex.Message}");
             }
 
             return 0;
@@ -277,7 +278,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Msg($"[{NavigatorId}] HasActiveSeasonDisplay failed: {ex.Message}");
+                Log.Msg("{NavigatorId}", $"HasActiveSeasonDisplay failed: {ex.Message}");
             }
 
             return false;
@@ -307,7 +308,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[{NavigatorId}] ReadStillRevealingFlag failed: {ex.Message}");
+                Log.Msg("{NavigatorId}", $"ReadStillRevealingFlag failed: {ex.Message}");
             }
 
             return null;
@@ -374,7 +375,7 @@ namespace AccessibleArena.Core.Services
             // Also discover buttons (ClaimButton, etc.)
             DiscoverButtons(addedObjects);
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} elements ({_rewardCount} rewards, seasonState={_seasonEndState})");
+            Log.Msg("{NavigatorId}", $"Discovered {_elements.Count} elements ({_rewardCount} rewards, seasonState={_seasonEndState})");
         }
 
         /// <summary>
@@ -389,7 +390,7 @@ namespace AccessibleArena.Core.Services
 
             if (!string.IsNullOrEmpty(_seasonDisplayText))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Season rank text: {_seasonDisplayText}");
+                Log.Msg("{NavigatorId}", $"Season rank text: {_seasonDisplayText}");
                 AddElement(_activePopup, _seasonDisplayText);
                 addedObjects.Add(_activePopup);
             }
@@ -488,7 +489,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Msg($"[{NavigatorId}] ExtractSeasonRankText failed: {ex.Message}");
+                Log.Msg("{NavigatorId}", $"ExtractSeasonRankText failed: {ex.Message}");
             }
 
             return parts.Count > 0 ? string.Join(". ", parts) : null;
@@ -502,11 +503,11 @@ namespace AccessibleArena.Core.Services
         {
             if (_activePopup == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardElements: No active popup");
+                Log.Msg("{NavigatorId}", $"DiscoverRewardElements: No active popup");
                 return;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardElements: Searching entire popup '{_activePopup.name}' for reward prefabs");
+            Log.Msg("{NavigatorId}", $"DiscoverRewardElements: Searching entire popup '{_activePopup.name}' for reward prefabs");
 
             var rewardPrefabs = new List<(Transform prefab, string type, float sortOrder)>();
 
@@ -565,7 +566,7 @@ namespace AccessibleArena.Core.Services
 
                 // Debug: log card detection info for card rewards
                 bool isCard = CardDetector.IsCard(clickTarget);
-                MelonLogger.Msg($"[{NavigatorId}] Adding reward: {label} (target: {clickTarget.name}, IsCard: {isCard})");
+                Log.Msg("{NavigatorId}", $"Adding reward: {label} (target: {clickTarget.name}, IsCard: {isCard})");
 
                 AddElement(clickTarget, label);
                 addedObjects.Add(clickTarget);
@@ -578,7 +579,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardElements: Added {_rewardCount} rewards");
+            Log.Msg("{NavigatorId}", $"DiscoverRewardElements: Added {_rewardCount} rewards");
         }
 
         /// <summary>
@@ -642,14 +643,14 @@ namespace AccessibleArena.Core.Services
                 {
                     _rewardCount = rewardParts.Count;
                     string summary = string.Join(", ", rewardParts);
-                    MelonLogger.Msg($"[{NavigatorId}] Controller data fallback: {summary}");
+                    Log.Msg("{NavigatorId}", $"Controller data fallback: {summary}");
                     AddElement(_activePopup, summary);
                     addedObjects.Add(_activePopup);
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[{NavigatorId}] DiscoverRewardsFromControllerData failed: {ex.Message}");
+                Log.Msg("{NavigatorId}", $"DiscoverRewardsFromControllerData failed: {ex.Message}");
             }
         }
 
@@ -758,12 +759,12 @@ namespace AccessibleArena.Core.Services
                         : null;
 
                     _packSetNames.Add(setName ?? $"Pack #{collationId}");
-                    MelonLogger.Msg($"[{NavigatorId}] Pack set name: CollationId={collationId}, SetCode={setCode}, Name={setName}");
+                    Log.Msg("{NavigatorId}", $"Pack set name: CollationId={collationId}, SetCode={setCode}, Name={setName}");
                 }
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Msg($"[{NavigatorId}] ExtractPackSetNames failed: {ex.Message}");
+                Log.Msg("{NavigatorId}", $"ExtractPackSetNames failed: {ex.Message}");
             }
         }
 
@@ -784,7 +785,7 @@ namespace AccessibleArena.Core.Services
                 if (typeName != T.CustomButton && typeName != T.CustomButtonWithTooltip) continue;
 
                 string label = GetButtonLabel(mb.gameObject);
-                MelonLogger.Msg($"[{NavigatorId}] Adding button: {label} ({mb.gameObject.name})");
+                Log.Msg("{NavigatorId}", $"Adding button: {label} ({mb.gameObject.name})");
                 AddElement(mb.gameObject, label);
                 addedObjects.Add(mb.gameObject);
             }
@@ -815,24 +816,24 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DumpRewardPrefabStructure(GameObject rewardPrefab, string rewardType, int index)
         {
-            MelonLogger.Msg($"[{NavigatorId}] === REWARD PREFAB DEBUG #{index} ===");
-            MelonLogger.Msg($"[{NavigatorId}] Prefab name: {rewardPrefab.name}");
-            MelonLogger.Msg($"[{NavigatorId}] Detected type: {rewardType}");
+            Log.Msg("{NavigatorId}", $"=== REWARD PREFAB DEBUG #{index} ===");
+            Log.Msg("{NavigatorId}", $"Prefab name: {rewardPrefab.name}");
+            Log.Msg("{NavigatorId}", $"Detected type: {rewardType}");
 
             // List all TMP_Text components
             var texts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
-            MelonLogger.Msg($"[{NavigatorId}] TMP_Text components: {texts.Length}");
+            Log.Msg("{NavigatorId}", $"TMP_Text components: {texts.Length}");
             foreach (var text in texts)
             {
                 if (text != null)
                 {
                     string content = text.text?.Trim() ?? "(null)";
-                    MelonLogger.Msg($"[{NavigatorId}]   Text in '{text.gameObject.name}': '{content}' (active: {text.gameObject.activeInHierarchy})");
+                    Log.Msg("{NavigatorId}", $"  Text in '{text.gameObject.name}': '{content}' (active: {text.gameObject.activeInHierarchy})");
                 }
             }
 
             // List key child objects and their components
-            MelonLogger.Msg($"[{NavigatorId}] Child structure (depth 3):");
+            Log.Msg("{NavigatorId}", $"Child structure (depth 3):");
             DumpChildStructure(rewardPrefab.transform, 0, 3);
 
             // List all MonoBehaviour types
@@ -843,9 +844,9 @@ namespace AccessibleArena.Core.Services
                 if (mb != null)
                     typeNames.Add(mb.GetType().Name);
             }
-            MelonLogger.Msg($"[{NavigatorId}] Component types: {string.Join(", ", typeNames)}");
+            Log.Msg("{NavigatorId}", $"Component types: {string.Join(", ", typeNames)}");
 
-            MelonLogger.Msg($"[{NavigatorId}] === END REWARD PREFAB DEBUG #{index} ===");
+            Log.Msg("{NavigatorId}", $"=== END REWARD PREFAB DEBUG #{index} ===");
         }
 
         private void DumpChildStructure(Transform parent, int depth, int maxDepth)
@@ -857,7 +858,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (child == null) continue;
                 string activeStatus = child.gameObject.activeInHierarchy ? "" : " [INACTIVE]";
-                MelonLogger.Msg($"[{NavigatorId}]   {indent}- {child.name}{activeStatus}");
+                Log.Msg("{NavigatorId}", $"  {indent}- {child.name}{activeStatus}");
                 DumpChildStructure(child, depth + 1, maxDepth);
             }
         }
@@ -1241,12 +1242,12 @@ namespace AccessibleArena.Core.Services
                 if (IsValidIndex)
                 {
                     var elem = _elements[_currentIndex];
-                    MelonLogger.Msg($"[{NavigatorId}] Activating: {elem.Label}");
+                    Log.Msg("{NavigatorId}", $"Activating: {elem.Label}");
                     UIActivator.Activate(elem.GameObject);
 
                     // Always rescan after activation - claiming a reward destroys the
                     // GameObject, which leaves stale references in _elements
-                    MelonLogger.Msg($"[{NavigatorId}] Scheduling rescan after activation");
+                    Log.Msg("{NavigatorId}", $"Scheduling rescan after activation");
                     ForceRescan();
                 }
                 return;
@@ -1266,12 +1267,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool DismissRewardsPopup()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Dismissing rewards popup");
+            Log.Msg("{NavigatorId}", $"Dismissing rewards popup");
 
             var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
             if (screenspacePopups == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Canvas - Screenspace Popups not found");
+                Log.Msg("{NavigatorId}", $"Canvas - Screenspace Popups not found");
                 return false;
             }
 
@@ -1288,7 +1289,7 @@ namespace AccessibleArena.Core.Services
 
             if (rewardsController == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Rewards controller not found");
+                Log.Msg("{NavigatorId}", $"Rewards controller not found");
                 return false;
             }
 
@@ -1297,7 +1298,7 @@ namespace AccessibleArena.Core.Services
 
             if (clickBlocker != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Clicking Background_ClickBlocker to dismiss rewards popup");
+                Log.Msg("{NavigatorId}", $"Clicking Background_ClickBlocker to dismiss rewards popup");
                 _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
                 UIActivator.SimulatePointerClick(clickBlocker.gameObject);
                 ForceRescan();
@@ -1311,14 +1312,14 @@ namespace AccessibleArena.Core.Services
 
             if (dismissButton != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Clicking {dismissButton.name} to dismiss rewards popup");
+                Log.Msg("{NavigatorId}", $"Clicking {dismissButton.name} to dismiss rewards popup");
                 _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
                 UIActivator.Activate(dismissButton.gameObject);
                 ForceRescan();
                 return true;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] No dismiss element found in rewards popup");
+            Log.Msg("{NavigatorId}", $"No dismiss element found in rewards popup");
             return false;
         }
 
@@ -1334,7 +1335,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] ForceRescan triggered");
+            Log.Msg("{NavigatorId}", $"ForceRescan triggered");
 
             _elements.Clear();
             _currentIndex = -1;
@@ -1344,7 +1345,7 @@ namespace AccessibleArena.Core.Services
             if (_elements.Count > 0)
             {
                 _currentIndex = 0;
-                MelonLogger.Msg($"[{NavigatorId}] Rescan found {_elements.Count} elements");
+                Log.Msg("{NavigatorId}", $"Rescan found {_elements.Count} elements");
                 UpdateEventSystemSelection();
 
                 if (_elements.Count != _lastRescanElementCount)
@@ -1355,7 +1356,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                MelonLogger.Msg($"[{NavigatorId}] Rescan found no elements");
+                Log.Msg("{NavigatorId}", $"Rescan found no elements");
             }
         }
 
@@ -1373,7 +1374,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_activePopup == null || !_activePopup.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup no longer active");
+                Log.Msg("{NavigatorId}", $"Popup no longer active");
                 return false;
             }
 

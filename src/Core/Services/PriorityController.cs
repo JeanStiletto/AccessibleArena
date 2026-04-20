@@ -5,6 +5,7 @@ using System.Reflection;
 using UnityEngine;
 using MelonLoader;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -110,7 +111,7 @@ namespace AccessibleArena.Core.Services
                 if (mb != null && mb.GetType().Name == "GameManager")
                 {
                     _gameManager = mb;
-                    MelonLogger.Msg("[PriorityController] Found GameManager");
+                    Log.Msg("PriorityController", "Found GameManager");
                     return _gameManager;
                 }
             }
@@ -128,14 +129,14 @@ namespace AccessibleArena.Core.Services
             var prop = type.GetProperty("AutoRespManager", PublicInstance);
             if (prop == null)
             {
-                MelonLogger.Warning("[PriorityController] AutoRespManager property not found on GameManager");
+                Log.Warn("PriorityController", "AutoRespManager property not found on GameManager");
                 return null;
             }
 
             _autoRespManager = prop.GetValue(gm);
             if (_autoRespManager == null)
             {
-                MelonLogger.Warning("[PriorityController] AutoRespManager is null");
+                Log.Warn("PriorityController", "AutoRespManager is null");
                 return null;
             }
 
@@ -146,7 +147,7 @@ namespace AccessibleArena.Core.Services
             _fullControlEnabled = armType.GetProperty("FullControlEnabled", PublicInstance);
             _fullControlLocked = armType.GetProperty("FullControlLocked", PublicInstance);
 
-            MelonLogger.Msg($"[PriorityController] Cached AutoRespManager " +
+            Log.Msg("PriorityController", $"Cached AutoRespManager " +
                 $"(ToggleFC={_toggleFullControl != null}, ToggleLocked={_toggleLockedFullControl != null}, " +
                 $"FCEnabled={_fullControlEnabled != null}, FCLocked={_fullControlLocked != null})");
 
@@ -162,7 +163,7 @@ namespace AccessibleArena.Core.Services
             var arm = GetAutoRespManager();
             if (arm == null || _toggleFullControl == null)
             {
-                MelonLogger.Warning("[PriorityController] Cannot toggle full control - AutoRespManager not available");
+                Log.Warn("PriorityController", "Cannot toggle full control - AutoRespManager not available");
                 return null;
             }
 
@@ -173,7 +174,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PriorityController] ToggleFullControl failed: {ex.Message}");
+                Log.Warn("PriorityController", $"ToggleFullControl failed: {ex.Message}");
                 return null;
             }
         }
@@ -187,7 +188,7 @@ namespace AccessibleArena.Core.Services
             var arm = GetAutoRespManager();
             if (arm == null || _toggleLockedFullControl == null)
             {
-                MelonLogger.Warning("[PriorityController] Cannot toggle locked full control - AutoRespManager not available");
+                Log.Warn("PriorityController", "Cannot toggle locked full control - AutoRespManager not available");
                 return null;
             }
 
@@ -198,7 +199,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PriorityController] ToggleLockedFullControl failed: {ex.Message}");
+                Log.Warn("PriorityController", $"ToggleLockedFullControl failed: {ex.Message}");
                 return null;
             }
         }
@@ -255,7 +256,7 @@ namespace AccessibleArena.Core.Services
 
             if (_setAutoPassOption == null)
             {
-                MelonLogger.Warning("[PriorityController] SetAutoPassOption method not found");
+                Log.Warn("PriorityController", "SetAutoPassOption method not found");
                 return false;
             }
 
@@ -269,7 +270,7 @@ namespace AccessibleArena.Core.Services
                 _optionResolveMyStackEffects = Enum.ToObject(_autoPassOptionType, 6);
             }
 
-            MelonLogger.Msg($"[PriorityController] Cached auto-pass reflection " +
+            Log.Msg("PriorityController", $"Cached auto-pass reflection " +
                 $"(SetAutoPassOption={_setAutoPassOption != null}, AutoPassEnabled={_autoPassEnabled != null}, " +
                 $"EnumType={_autoPassOptionType?.Name})");
 
@@ -303,12 +304,12 @@ namespace AccessibleArena.Core.Services
                 bool wasEnabled = IsAutoPassActive();
                 var option = wasEnabled ? _optionResolveMyStackEffects : _optionUnlessOpponentAction;
                 _setAutoPassOption.Invoke(arm, new object[] { option, _optionResolveMyStackEffects });
-                MelonLogger.Msg($"[PriorityController] TogglePassUntilResponse: {(wasEnabled ? "cancelled" : "activated")}");
+                Log.Msg("PriorityController", $"TogglePassUntilResponse: {(wasEnabled ? "cancelled" : "activated")}");
                 return !wasEnabled;
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PriorityController] TogglePassUntilResponse failed: {ex.Message}");
+                Log.Warn("PriorityController", $"TogglePassUntilResponse failed: {ex.Message}");
                 return null;
             }
         }
@@ -328,12 +329,12 @@ namespace AccessibleArena.Core.Services
                 bool wasEnabled = IsAutoPassActive();
                 var option = wasEnabled ? _optionResolveMyStackEffects : _optionTurn;
                 _setAutoPassOption.Invoke(arm, new object[] { option, _optionResolveMyStackEffects });
-                MelonLogger.Msg($"[PriorityController] ToggleSkipTurn: {(wasEnabled ? "cancelled" : "activated")}");
+                Log.Msg("PriorityController", $"ToggleSkipTurn: {(wasEnabled ? "cancelled" : "activated")}");
                 return !wasEnabled;
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PriorityController] ToggleSkipTurn failed: {ex.Message}");
+                Log.Warn("PriorityController", $"ToggleSkipTurn failed: {ex.Message}");
                 return null;
             }
         }
@@ -359,7 +360,7 @@ namespace AccessibleArena.Core.Services
                     // ToggleTransientStop(PhaseLadderButton) is public on ButtonPhaseLadder
                     _toggleTransientStop = type.GetMethod("ToggleTransientStop", PublicInstance);
 
-                    MelonLogger.Msg($"[PriorityController] Found ButtonPhaseLadder " +
+                    Log.Msg("PriorityController", $"Found ButtonPhaseLadder " +
                         $"(PhaseIcons={_phaseIconsField != null}, ToggleTransientStop={_toggleTransientStop != null})");
                     return _phaseLadder;
                 }
@@ -397,7 +398,7 @@ namespace AccessibleArena.Core.Services
             var icons = _phaseIconsField.GetValue(ladder) as IList;
             if (icons == null || icons.Count == 0) return;
 
-            MelonLogger.Msg($"[PriorityController] Building phase stop map from {icons.Count} phase icons");
+            Log.Msg("PriorityController", $"Building phase stop map from {icons.Count} phase icons");
 
             // Build a lookup from StopType name to button (prefer non-avatar buttons)
             var stopTypeToButton = new Dictionary<string, object>();
@@ -419,7 +420,7 @@ namespace AccessibleArena.Core.Services
                     // StopState is public on PhaseLadderButton
                     _stopStateProp = btnType.GetProperty("StopState", PublicInstance);
 
-                    MelonLogger.Msg($"[PriorityController] Cached button reflection: " +
+                    Log.Msg("PriorityController", $"Cached button reflection: " +
                         $"_playerStopTypes={_playerStopTypesField != null}, " +
                         $"StopState={_stopStateProp != null}");
                 }
@@ -463,7 +464,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (kv.Value.Count > 0) populatedCount++;
             }
-            MelonLogger.Msg($"[PriorityController] Phase stop map: {populatedCount}/{_phaseStopMap.Count} keys mapped");
+            Log.Msg("PriorityController", $"Phase stop map: {populatedCount}/{_phaseStopMap.Count} keys mapped");
         }
 
         /// <summary>
@@ -480,13 +481,13 @@ namespace AccessibleArena.Core.Services
 
             if (_phaseStopMap == null || !_phaseStopMap.TryGetValue(keyIndex, out var buttons) || buttons.Count == 0)
             {
-                MelonLogger.Warning($"[PriorityController] No phase button found for index {keyIndex}");
+                Log.Warn("PriorityController", $"No phase button found for index {keyIndex}");
                 return null;
             }
 
             if (_toggleTransientStop == null || _phaseLadder == null)
             {
-                MelonLogger.Warning($"[PriorityController] Cannot toggle phase stop - ladder not available");
+                Log.Warn("PriorityController", $"Cannot toggle phase stop - ladder not available");
                 return null;
             }
 
@@ -503,7 +504,7 @@ namespace AccessibleArena.Core.Services
                     _toggleTransientStop.Invoke(_phaseLadder, new object[] { button });
 
                     bool stateAfter = IsPhaseStopSet(button);
-                    MelonLogger.Msg($"[PriorityController] Toggled phase stop index {keyIndex}: {stateBefore} -> {stateAfter}");
+                    Log.Msg("PriorityController", $"Toggled phase stop index {keyIndex}: {stateBefore} -> {stateAfter}");
 
                     if (resultState == null)
                     {
@@ -516,7 +517,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PriorityController] TogglePhaseStop failed for index {keyIndex}: {ex.Message}");
+                Log.Warn("PriorityController", $"TogglePhaseStop failed for index {keyIndex}: {ex.Message}");
                 return null;
             }
         }
@@ -538,7 +539,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PriorityController] IsPhaseStopSet failed: {ex.Message}");
+                Log.Warn("PriorityController", $"IsPhaseStopSet failed: {ex.Message}");
             }
 
             return false;
@@ -580,7 +581,7 @@ namespace AccessibleArena.Core.Services
             _playerStopTypesField = null;
             _stopStateProp = null;
             _phaseStopMap = null;
-            MelonLogger.Msg("[PriorityController] Cache cleared");
+            Log.Msg("PriorityController", "Cache cleared");
         }
     }
 }

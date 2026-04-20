@@ -7,6 +7,7 @@ using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -72,7 +73,7 @@ namespace AccessibleArena.Core.Services
             if (result != _lastPopupState)
             {
                 _lastPopupState = result;
-                MelonLogger.Msg($"[{NavigatorId}] AdvancedFiltersPopup open: {result}");
+                Log.Msg("{NavigatorId}", $"AdvancedFiltersPopup open: {result}");
             }
 
             return result;
@@ -89,11 +90,11 @@ namespace AccessibleArena.Core.Services
 
             if (_popup == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] No popup found during discovery");
+                Log.Msg("{NavigatorId}", $"No popup found during discovery");
                 return;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovering elements in AdvancedFiltersPopup");
+            Log.Msg("{NavigatorId}", $"Discovering elements in AdvancedFiltersPopup");
 
             // Build rows based on parent path patterns
             var colorsRow = new FilterRow { Name = Strings.FilterRowColors, Items = new List<FilterItem>() };
@@ -167,7 +168,7 @@ namespace AccessibleArena.Core.Services
                     setsRow.Items.Add(item);
                 }
 
-                MelonLogger.Msg($"[{NavigatorId}] Toggle: {label} - Path: {path}");
+                Log.Msg("{NavigatorId}", $"Toggle: {label} - Path: {path}");
             }
 
             // Process dropdowns (game uses cTMP_Dropdown which doesn't extend TMP_Dropdown)
@@ -194,7 +195,7 @@ namespace AccessibleArena.Core.Services
                     actionsRow.Items.Add(item);
                 }
 
-                MelonLogger.Msg($"[{NavigatorId}] Dropdown: {label} - Path: {path}");
+                Log.Msg("{NavigatorId}", $"Dropdown: {label} - Path: {path}");
             }
 
             // Process buttons (Reset, Apply/OK)
@@ -220,7 +221,7 @@ namespace AccessibleArena.Core.Services
 
                 actionsRow.Items.Add(item);
 
-                MelonLogger.Msg($"[{NavigatorId}] Button: {label} - Path: {path}");
+                Log.Msg("{NavigatorId}", $"Button: {label} - Path: {path}");
             }
 
             // Sort items within rows by horizontal position (left to right)
@@ -270,10 +271,10 @@ namespace AccessibleArena.Core.Services
                 _currentItemIndex = -1;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_rows.Count} rows, {_elements.Count} total elements");
+            Log.Msg("{NavigatorId}", $"Discovered {_rows.Count} rows, {_elements.Count} total elements");
             foreach (var row in _rows)
             {
-                MelonLogger.Msg($"[{NavigatorId}]   {row.Name}: {row.Items.Count} items");
+                Log.Msg("{NavigatorId}", $"  {row.Name}: {row.Items.Count} items");
             }
         }
 
@@ -375,7 +376,7 @@ namespace AccessibleArena.Core.Services
             if (_wasInDropdownMode)
             {
                 _wasInDropdownMode = false;
-                MelonLogger.Msg($"[{NavigatorId}] Dropdown closed, rescanning for updated filters");
+                Log.Msg("{NavigatorId}", $"Dropdown closed, rescanning for updated filters");
                 ForceRescan();
                 AnnounceCurrentPosition(true);
                 return;
@@ -639,7 +640,7 @@ namespace AccessibleArena.Core.Services
 
         private void ClosePopup()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Closing Advanced Filters popup");
+            Log.Msg("{NavigatorId}", $"Closing Advanced Filters popup");
 
             if (_popup == null)
             {
@@ -661,7 +662,7 @@ namespace AccessibleArena.Core.Services
             var blocker = FindBlockerOrBackground();
             if (blocker != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Clicking blocker to dismiss popup");
+                Log.Msg("{NavigatorId}", $"Clicking blocker to dismiss popup");
                 UIActivator.Activate(blocker);
                 _announcer.Announce(Strings.FiltersDismissed, AnnouncementPriority.Normal);
                 return;
@@ -774,7 +775,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_popup == null || !_popup.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup no longer active");
+                Log.Msg("{NavigatorId}", $"Popup no longer active");
                 return false;
             }
 

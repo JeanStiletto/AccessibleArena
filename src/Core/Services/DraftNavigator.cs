@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -105,7 +106,7 @@ namespace AccessibleArena.Core.Services
 
                             if (!hasPackCards)
                             {
-                                MelonLogger.Msg($"[{NavigatorId}] DraftContentController is open but no pack cards found (deck building mode?)");
+                                Log.Msg("{NavigatorId}", $"DraftContentController is open but no pack cards found (deck building mode?)");
                                 _draftControllerObject = null;
                                 return false;
                             }
@@ -188,14 +189,14 @@ namespace AccessibleArena.Core.Services
                     _cardDataGrpIdProp = cardDataType2.GetProperty("GrpId", PublicInstance);
                 }
 
-                MelonLogger.Msg($"[Draft] Reflection init: deckMgr={_draftDeckManagerField != null}, getDeck={_getDeckMethod != null}, " +
+                Log.Msg("Draft", $"Reflection init: deckMgr={_draftDeckManagerField != null}, getDeck={_getDeckMethod != null}, " +
                     $"reserved={_getReservedCardsMethod != null}, isReserved={_isCardAlreadyReservedMethod != null}, " +
                     $"main={_deckMainProp != null}, qty={_cardCollectionQuantityMethod != null}, " +
                     $"overlay={_useButtonOverlayProp != null}, grpId={_cardDataGrpIdProp != null}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[Draft] Reflection init error: {ex.Message}");
+                Log.Warn("Draft", $"Reflection init error: {ex.Message}");
             }
         }
 
@@ -220,7 +221,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Error getting DraftDeckManager: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Error getting DraftDeckManager: {ex.Message}");
             }
 
             return null;
@@ -305,7 +306,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Error counting drafted copies: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Error counting drafted copies: {ex.Message}");
             }
 
             return count;
@@ -353,7 +354,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Error getting GrpId: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Error getting GrpId: {ex.Message}");
             }
 
             return 0;
@@ -398,7 +399,7 @@ namespace AccessibleArena.Core.Services
             // Sort cards by position (left to right)
             cardEntries = cardEntries.OrderBy(x => x.sortOrder).ToList();
 
-            MelonLogger.Msg($"[{NavigatorId}] Found {cardEntries.Count} draft cards");
+            Log.Msg("{NavigatorId}", $"Found {cardEntries.Count} draft cards");
 
             // Get DraftDeckManager for picked count and selection state
             var draftDeckManager = GetDraftDeckManager();
@@ -437,7 +438,7 @@ namespace AccessibleArena.Core.Services
                 _totalCards++;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Total: {_totalCards} cards");
+            Log.Msg("{NavigatorId}", $"Total: {_totalCards} cards");
         }
 
         private string ExtractCardName(GameObject cardObj)
@@ -499,7 +500,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[{NavigatorId}] Reflection selection check failed, using fallback: {ex.Message}");
+                    Log.Warn("{NavigatorId}", $"Reflection selection check failed, using fallback: {ex.Message}");
                 }
             }
 
@@ -558,7 +559,7 @@ namespace AccessibleArena.Core.Services
                     string label = !string.IsNullOrEmpty(buttonText) ? buttonText : "Confirm Selection";
                     AddElement(button, $"{label}, button");
                     addedObjects.Add(button);
-                    MelonLogger.Msg($"[{NavigatorId}] Found confirm button: {name} -> {label}");
+                    Log.Msg("{NavigatorId}", $"Found confirm button: {name} -> {label}");
                 }
             }
         }
@@ -641,7 +642,7 @@ namespace AccessibleArena.Core.Services
                 if (IsValidIndex)
                 {
                     var elem = _elements[_currentIndex];
-                    MelonLogger.Msg($"[{NavigatorId}] Enter pressed on: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
+                    Log.Msg("{NavigatorId}", $"Enter pressed on: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
 
                     // Check if this is the confirm button — use confirm rescan path
                     string label = elem.Label?.ToLowerInvariant() ?? "";
@@ -677,7 +678,7 @@ namespace AccessibleArena.Core.Services
             // Backspace to go back
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Backspace pressed");
+                Log.Msg("{NavigatorId}", $"Backspace pressed");
                 ClickBackButton();
                 return;
             }
@@ -694,7 +695,7 @@ namespace AccessibleArena.Core.Services
                 string label = elem.Label?.ToLowerInvariant() ?? "";
                 if (label.Contains("confirm") || label.Contains("bestätigen"))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Clicking confirm button: {elem.GameObject.name}");
+                    Log.Msg("{NavigatorId}", $"Clicking confirm button: {elem.GameObject.name}");
                     UIActivator.Activate(elem.GameObject);
 
                     _rescanPending = true;
@@ -719,7 +720,7 @@ namespace AccessibleArena.Core.Services
                     if (name.Contains("Confirm") || name.Contains("MainButton") ||
                         (!string.IsNullOrEmpty(text) && (text.Contains("bestätigen") || text.Contains("Confirm"))))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Clicking confirm button (fallback): {name}");
+                        Log.Msg("{NavigatorId}", $"Clicking confirm button (fallback): {name}");
                         UIActivator.Activate(mb.gameObject);
                         _rescanPending = true;
                         _rescanFrameCounter = 0;
@@ -751,7 +752,7 @@ namespace AccessibleArena.Core.Services
                     name.Contains("CloseButton"))
                 {
                     string text = UITextExtractor.GetButtonText(mb.gameObject, null);
-                    MelonLogger.Msg($"[{NavigatorId}] Clicking back button: {name} ({text})");
+                    Log.Msg("{NavigatorId}", $"Clicking back button: {name} ({text})");
                     UIActivator.Activate(mb.gameObject);
                     TriggerCloseRescan();
                     return;
@@ -772,12 +773,12 @@ namespace AccessibleArena.Core.Services
                     _initialRescanDone = true;
                     int oldCount = _totalCards;
 
-                    MelonLogger.Msg($"[{NavigatorId}] Initial rescan (current count: {oldCount})");
+                    Log.Msg("{NavigatorId}", $"Initial rescan (current count: {oldCount})");
                     ForceRescan();
 
                     if (_totalCards > oldCount)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Found {_totalCards - oldCount} additional cards, {_totalCards} total");
+                        Log.Msg("{NavigatorId}", $"Found {_totalCards - oldCount} additional cards, {_totalCards} total");
                     }
                 }
             }
@@ -796,14 +797,14 @@ namespace AccessibleArena.Core.Services
                     {
                         // Quick quiet rescan after Enter (toggle selection)
                         // Only announce selection status, not full label with picked count
-                        MelonLogger.Msg($"[{NavigatorId}] Quiet rescan after toggle");
+                        Log.Msg("{NavigatorId}", $"Quiet rescan after toggle");
                         QuietRescan(announceSelectionOnly: true);
                         _isToggleRescan = false;
                     }
                     else if (_isConfirmRescan)
                     {
                         // After Space confirm: full rescan if card count changed (new pack)
-                        MelonLogger.Msg($"[{NavigatorId}] Rescan after confirm (current count: {oldCount})");
+                        Log.Msg("{NavigatorId}", $"Rescan after confirm (current count: {oldCount})");
                         _isConfirmRescan = false;
 
                         // Peek at new card count to decide rescan type
@@ -822,16 +823,16 @@ namespace AccessibleArena.Core.Services
                     else
                     {
                         // Generic rescan (e.g., after popup close)
-                        MelonLogger.Msg($"[{NavigatorId}] Quiet rescan after action");
+                        Log.Msg("{NavigatorId}", $"Quiet rescan after action");
                         QuietRescan();
                     }
 
                     if (_totalCards != oldCount)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Card count changed: {oldCount} -> {_totalCards}");
+                        Log.Msg("{NavigatorId}", $"Card count changed: {oldCount} -> {_totalCards}");
                         if (_totalCards == 0)
                         {
-                            MelonLogger.Msg($"[{NavigatorId}] No more cards - pack may be complete");
+                            Log.Msg("{NavigatorId}", $"No more cards - pack may be complete");
                         }
                     }
                 }
@@ -846,7 +847,7 @@ namespace AccessibleArena.Core.Services
                     _emptyCardCounter = 0;
                     if (!DetectScreen())
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Draft picking no longer active after timeout, deactivating");
+                        Log.Msg("{NavigatorId}", $"Draft picking no longer active after timeout, deactivating");
                         Deactivate();
                         return;
                     }
@@ -866,12 +867,12 @@ namespace AccessibleArena.Core.Services
                     _closeTriggered = false;
                     if (!DetectScreen())
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Draft screen closed, deactivating navigator");
+                        Log.Msg("{NavigatorId}", $"Draft screen closed, deactivating navigator");
                         Deactivate();
                     }
                     else
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Still on draft screen, rescanning");
+                        Log.Msg("{NavigatorId}", $"Still on draft screen, rescanning");
                         ForceRescan();
                     }
                 }
@@ -1031,7 +1032,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_draftControllerObject == null || !_draftControllerObject.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Draft controller no longer active");
+                Log.Msg("{NavigatorId}", $"Draft controller no longer active");
                 return false;
             }
 

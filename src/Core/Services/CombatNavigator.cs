@@ -5,6 +5,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -95,7 +96,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void LogAttackerRelevantChildren(GameObject card)
         {
-            MelonLogger.Msg($"[CombatNavigator] === ATTACKER DEBUG: {card.name} ===");
+            Log.Msg("CombatNavigator", $"=== ATTACKER DEBUG: {card.name} ===");
 
             foreach (Transform child in card.GetComponentsInChildren<Transform>(true))
             {
@@ -111,7 +112,7 @@ namespace AccessibleArena.Core.Services
                     childName.Contains("Is"))
                 {
                     string status = child.gameObject.activeInHierarchy ? "ACTIVE" : "inactive";
-                    MelonLogger.Msg($"[CombatNavigator]   [{status}] {childName}");
+                    Log.Msg("CombatNavigator", $"  [{status}] {childName}");
                 }
             }
         }
@@ -259,7 +260,7 @@ namespace AccessibleArena.Core.Services
                 _previousAssignedBlockerIds.Clear();
                 _previousAssignedBlockerObjects.Clear();
                 _confirmHintPending = false;
-                MelonLogger.Msg("[CombatNavigator] Entering blockers phase, tracking reset");
+                Log.Msg("CombatNavigator", "Entering blockers phase, tracking reset");
             }
             _wasInBlockersPhase = isInBlockersPhase;
 
@@ -270,7 +271,7 @@ namespace AccessibleArena.Core.Services
                 string confirmText = LocaleManager.Instance.Get("NPE_Hint_ConfirmBlocks");
                 if (!string.IsNullOrEmpty(confirmText))
                 {
-                    MelonLogger.Msg("[CombatNavigator] Announcing blocker confirm hint");
+                    Log.Msg("CombatNavigator", "Announcing blocker confirm hint");
                     _announcer.Announce(confirmText, AnnouncementPriority.High);
                 }
             }
@@ -309,7 +310,7 @@ namespace AccessibleArena.Core.Services
                 // (state change watcher on the attacker announces "blocked by X" which is more informative)
                 if (newlyAssigned.Count > 0)
                 {
-                    MelonLogger.Msg($"[CombatNavigator] Blockers assigned: {newlyAssigned.Count}");
+                    Log.Msg("CombatNavigator", $"Blockers assigned: {newlyAssigned.Count}");
                     _previousSelectedBlockerIds.Clear();
                     _previousSelectedBlockerObjects.Clear();
 
@@ -328,7 +329,7 @@ namespace AccessibleArena.Core.Services
                     {
                         var info = CardDetector.ExtractCardInfo(removedBlocker);
                         string blockerName = info.Name ?? "creature";
-                        MelonLogger.Msg($"[CombatNavigator] Blocker unassigned: {blockerName}");
+                        Log.Msg("CombatNavigator", $"Blocker unassigned: {blockerName}");
                         _announcer.Announce($"{blockerName}, {Models.Strings.Combat_CanBlock}", AnnouncementPriority.High);
                     }
                 }
@@ -370,7 +371,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var (totalPower, totalToughness) = CalculateCombinedStats(selectedNotAssigned);
                     string announcement = Models.Strings.Combat_PTBlocking(totalPower, totalToughness);
-                    MelonLogger.Msg($"[CombatNavigator] Blocker selection changed: {selectedNotAssigned.Count} blockers, {announcement}");
+                    Log.Msg("CombatNavigator", $"Blocker selection changed: {selectedNotAssigned.Count} blockers, {announcement}");
                     _announcer.Announce(announcement, AnnouncementPriority.High);
                 }
                 else if (_previousSelectedBlockerIds.Count > 0)
@@ -382,7 +383,7 @@ namespace AccessibleArena.Core.Services
                         {
                             var info = CardDetector.ExtractCardInfo(deselected);
                             string blockerName = info.Name ?? "creature";
-                            MelonLogger.Msg($"[CombatNavigator] Blocker deselected: {blockerName}");
+                            Log.Msg("CombatNavigator", $"Blocker deselected: {blockerName}");
                             _announcer.Announce($"{blockerName}, {Models.Strings.Combat_CanBlock}", AnnouncementPriority.High);
                         }
                     }
@@ -602,7 +603,7 @@ namespace AccessibleArena.Core.Services
                     // desync game state and lock the tutorial. Consume the key and wait.
                     if (!HasPrimaryButtonText())
                     {
-                        MelonLogger.Msg("[CombatNavigator] Ignoring combat input - primary button has no text (UI transitioning)");
+                        Log.Msg("CombatNavigator", "Ignoring combat input - primary button has no text (UI transitioning)");
                         return true;
                     }
 
@@ -619,7 +620,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (!HasPrimaryButtonText())
                     {
-                        MelonLogger.Msg("[CombatNavigator] Ignoring combat input - primary button has no text (UI transitioning)");
+                        Log.Msg("CombatNavigator", "Ignoring combat input - primary button has no text (UI transitioning)");
                         return true;
                     }
 
@@ -657,12 +658,12 @@ namespace AccessibleArena.Core.Services
             var button = FindPromptButton(isPrimary);
             if (button == null)
             {
-                MelonLogger.Msg($"[CombatNavigator] No {kind} button found");
+                Log.Msg("CombatNavigator", $"No {kind} button found");
                 return false;
             }
 
             string buttonText = UITextExtractor.GetButtonText(button);
-            MelonLogger.Msg($"[CombatNavigator] Clicking {kind} button: {buttonText}");
+            Log.Msg("CombatNavigator", $"Clicking {kind} button: {buttonText}");
 
             var result = UIActivator.SimulatePointerClick(button);
             if (result.Success)
@@ -671,7 +672,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            MelonLogger.Msg($"[CombatNavigator] {kind} button click failed");
+            Log.Msg("CombatNavigator", $"{kind} button click failed");
             return false;
         }
 

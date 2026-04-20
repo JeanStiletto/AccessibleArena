@@ -6,6 +6,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -100,7 +101,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[ManaColorPicker] Error checking IsOpen: {ex.Message}");
+                    Log.Warn("ManaColorPicker", $"Error checking IsOpen: {ex.Message}");
                 }
             }
 
@@ -215,7 +216,7 @@ namespace AccessibleArena.Core.Services
                 _selectionProvider = _selectionProviderField.GetValue(selector);
                 if (_selectionProvider == null)
                 {
-                    MelonLogger.Warning("[ManaColorPicker] _selectionProvider is null");
+                    Log.Warn("ManaColorPicker", "_selectionProvider is null");
                     _isActive = false;
                     return;
                 }
@@ -228,7 +229,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ManaColorPicker] Error entering: {ex.Message}");
+                Log.Warn("ManaColorPicker", $"Error entering: {ex.Message}");
                 _isActive = false;
             }
         }
@@ -271,7 +272,7 @@ namespace AccessibleArena.Core.Services
                             _primaryColorProp = element.GetType().GetProperty("PrimaryColor");
                             if (_primaryColorProp == null)
                             {
-                                MelonLogger.Warning("[ManaColorPicker] Cannot find PrimaryColor on element");
+                                Log.Warn("ManaColorPicker", "Cannot find PrimaryColor on element");
                                 continue;
                             }
                             _primaryColorIsField = false;
@@ -288,7 +289,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ManaColorPicker] Error reading colors: {ex.Message}");
+                Log.Warn("ManaColorPicker", $"Error reading colors: {ex.Message}");
             }
         }
 
@@ -301,7 +302,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ManaColorPicker] Error reading selection state: {ex.Message}");
+                Log.Warn("ManaColorPicker", $"Error reading selection state: {ex.Message}");
                 _maxSelections = 1;
                 _currentSelection = 0;
             }
@@ -378,7 +379,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ManaColorPicker] Error selecting color: {ex.Message}");
+                Log.Warn("ManaColorPicker", $"Error selecting color: {ex.Message}");
             }
         }
 
@@ -391,7 +392,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ManaColorPicker] Error cancelling: {ex.Message}");
+                Log.Warn("ManaColorPicker", $"Error cancelling: {ex.Message}");
             }
         }
 
@@ -420,18 +421,18 @@ namespace AccessibleArena.Core.Services
 
                 if (_selectorType == null)
                 {
-                    MelonLogger.Warning("[ManaColorPicker] ManaColorSelector type not found");
+                    Log.Warn("ManaColorPicker", "ManaColorSelector type not found");
                     _reflectionFailed = true;
                     return;
                 }
 
-                MelonLogger.Msg($"[ManaColorPicker] Found ManaColorSelector: {_selectorType.FullName}");
+                Log.Msg("ManaColorPicker", $"Found ManaColorSelector: {_selectorType.FullName}");
 
                 // IsOpen property (public)
                 _isOpenProp = _selectorType.GetProperty("IsOpen", PublicInstance);
                 if (_isOpenProp == null)
                 {
-                    MelonLogger.Warning("[ManaColorPicker] IsOpen property not found");
+                    Log.Warn("ManaColorPicker", "IsOpen property not found");
                     _reflectionFailed = true;
                     return;
                 }
@@ -447,7 +448,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (_selectionProviderField == null)
                 {
-                    MelonLogger.Warning("[ManaColorPicker] _selectionProvider field not found");
+                    Log.Warn("ManaColorPicker", "_selectionProvider field not found");
                     _reflectionFailed = true;
                     return;
                 }
@@ -463,7 +464,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (_selectColorMethod == null)
                 {
-                    MelonLogger.Warning("[ManaColorPicker] SelectColor method not found");
+                    Log.Warn("ManaColorPicker", "SelectColor method not found");
                     _reflectionFailed = true;
                     return;
                 }
@@ -473,7 +474,7 @@ namespace AccessibleArena.Core.Services
                     PublicInstance);
                 if (_tryCloseSelectorMethod == null)
                 {
-                    MelonLogger.Warning("[ManaColorPicker] TryCloseSelector method not found");
+                    Log.Warn("ManaColorPicker", "TryCloseSelector method not found");
                     _reflectionFailed = true;
                     return;
                 }
@@ -483,20 +484,20 @@ namespace AccessibleArena.Core.Services
                 if (parameters.Length > 0)
                 {
                     _manaColorEnum = parameters[0].ParameterType;
-                    MelonLogger.Msg($"[ManaColorPicker] ManaColor enum: {_manaColorEnum.FullName}");
+                    Log.Msg("ManaColorPicker", $"ManaColor enum: {_manaColorEnum.FullName}");
                 }
                 else
                 {
-                    MelonLogger.Warning("[ManaColorPicker] SelectColor has no parameters");
+                    Log.Warn("ManaColorPicker", "SelectColor has no parameters");
                     _reflectionFailed = true;
                     return;
                 }
 
-                MelonLogger.Msg("[ManaColorPicker] Reflection initialized successfully");
+                Log.Msg("ManaColorPicker", "Reflection initialized successfully");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ManaColorPicker] Reflection init failed: {ex.Message}");
+                Log.Warn("ManaColorPicker", $"Reflection init failed: {ex.Message}");
                 _reflectionFailed = true;
             }
         }
@@ -529,21 +530,21 @@ namespace AccessibleArena.Core.Services
                 _currentSelectionProp = FindProperty(providerInstanceType, "CurrentSelection");
 
                 if (_validSelectionsCountProp == null)
-                    MelonLogger.Warning("[ManaColorPicker] ValidSelectionCount not found");
+                    Log.Warn("ManaColorPicker", "ValidSelectionCount not found");
                 if (_getElementAtMethod == null)
-                    MelonLogger.Warning("[ManaColorPicker] GetElementAt not found");
+                    Log.Warn("ManaColorPicker", "GetElementAt not found");
                 if (_maxSelectionsProp == null)
-                    MelonLogger.Warning("[ManaColorPicker] MaxSelections not found");
+                    Log.Warn("ManaColorPicker", "MaxSelections not found");
                 if (_allSelectionsCompleteProp == null)
-                    MelonLogger.Warning("[ManaColorPicker] AllSelectionsComplete not found");
+                    Log.Warn("ManaColorPicker", "AllSelectionsComplete not found");
                 if (_currentSelectionProp == null)
-                    MelonLogger.Warning("[ManaColorPicker] CurrentSelection not found");
+                    Log.Warn("ManaColorPicker", "CurrentSelection not found");
 
-                MelonLogger.Msg($"[ManaColorPicker] Provider reflection initialized for {providerInstanceType.FullName}");
+                Log.Msg("ManaColorPicker", $"Provider reflection initialized for {providerInstanceType.FullName}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ManaColorPicker] Provider reflection init failed: {ex.Message}");
+                Log.Warn("ManaColorPicker", $"Provider reflection init failed: {ex.Message}");
             }
         }
 

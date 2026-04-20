@@ -9,6 +9,7 @@ using MelonLoader;
 using UnityEngine;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -59,7 +60,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[UpdateChecker] Version check failed: {ex.Message}");
+                    Log.Warn("UpdateChecker", $"Version check failed: {ex.Message}");
                 }
                 finally
                 {
@@ -88,7 +89,7 @@ namespace AccessibleArena.Core.Services
                 var match = Regex.Match(json, @"""tag_name""\s*:\s*""v?([^""]+)""");
                 if (!match.Success)
                 {
-                    MelonLogger.Msg("[UpdateChecker] Could not parse version from GitHub response");
+                    Log.Msg("UpdateChecker", "Could not parse version from GitHub response");
                     return;
                 }
 
@@ -100,11 +101,11 @@ namespace AccessibleArena.Core.Services
                 {
                     _updateAvailable = true;
                     _latestVersion = remoteVersion;
-                    MelonLogger.Msg($"[UpdateChecker] Update available: v{remoteVersion} (current: v{currentVersion})");
+                    Log.Msg("UpdateChecker", $"Update available: v{remoteVersion} (current: v{currentVersion})");
                 }
                 else
                 {
-                    MelonLogger.Msg($"[UpdateChecker] Up to date (current: v{currentVersion}, latest: v{remoteVersion})");
+                    Log.Msg("UpdateChecker", $"Up to date (current: v{currentVersion}, latest: v{remoteVersion})");
                 }
             }
         }
@@ -126,7 +127,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (_downloadTask.IsFaulted || _downloadFailed)
                 {
-                    MelonLogger.Warning($"[UpdateChecker] Download failed: {_downloadTask.Exception?.InnerException?.Message}");
+                    Log.Warn("UpdateChecker", $"Download failed: {_downloadTask.Exception?.InnerException?.Message}");
                     announcer.AnnounceInterrupt(Strings.UpdateFailed);
                     _downloadTask = null;
                 }
@@ -177,7 +178,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[UpdateChecker] Download error: {ex.Message}");
+                    Log.Warn("UpdateChecker", $"Download error: {ex.Message}");
                     _downloadFailed = true;
                     return (string)null;
                 }
@@ -213,7 +214,7 @@ namespace AccessibleArena.Core.Services
             string downloadUrl = match.Groups[1].Value;
             string tempPath = Path.Combine(Path.GetTempPath(), ModDllAssetName);
 
-            MelonLogger.Msg($"[UpdateChecker] Downloading from: {downloadUrl}");
+            Log.Msg("UpdateChecker", $"Downloading from: {downloadUrl}");
 
             using (var client = new HttpClient())
             {
@@ -225,7 +226,7 @@ namespace AccessibleArena.Core.Services
                 File.WriteAllBytes(tempPath, responseTask.Result);
             }
 
-            MelonLogger.Msg($"[UpdateChecker] Downloaded to: {tempPath}");
+            Log.Msg("UpdateChecker", $"Downloaded to: {tempPath}");
             _downloadedPath = tempPath;
             _downloadComplete = true;
             return tempPath;
@@ -265,7 +266,7 @@ namespace AccessibleArena.Core.Services
                 };
                 File.WriteAllLines(batchPath, batchLines);
 
-                MelonLogger.Msg($"[UpdateChecker] Batch script written to: {batchPath}");
+                Log.Msg("UpdateChecker", $"Batch script written to: {batchPath}");
 
                 // Launch elevated batch for the copy
                 var copyPsi = new ProcessStartInfo
@@ -288,14 +289,14 @@ namespace AccessibleArena.Core.Services
                 };
                 Process.Start(relaunchPsi);
 
-                MelonLogger.Msg($"[UpdateChecker] Relaunch scheduled, quitting game...");
+                Log.Msg("UpdateChecker", $"Relaunch scheduled, quitting game...");
 
                 // Quit the game so the batch can replace the DLL
                 Application.Quit();
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[UpdateChecker] Failed to launch update: {ex.Message}");
+                Log.Error("UpdateChecker", $"Failed to launch update: {ex.Message}");
             }
         }
 

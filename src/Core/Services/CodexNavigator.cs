@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -225,7 +226,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _reflectionInitialized = true;
-            MelonLogger.Msg($"[Codex] Reflection cached. Root={_learnToPlayRootField != null}, " +
+            Log.Msg("Codex", $"Reflection cached. Root={_learnToPlayRootField != null}, " +
                 $"TOC={_tableOfContentsField != null}, Topics={_tableOfContentsTopicsField != null}, " +
                 $"ContentView={_contentViewField != null}, Credits={_creditsDisplayField != null}, " +
                 $"TocSectionType={_tocSectionType != null}, LearnMoreSection={_learnMoreSectionType != null}, " +
@@ -270,7 +271,7 @@ namespace AccessibleArena.Core.Services
             AddStandaloneButton(_replayTutorialButtonField, "Replay Tutorial");
             AddStandaloneButton(_creditsButtonField, "Credits");
 
-            MelonLogger.Msg($"[Codex] Discovered {_tocItems.Count} top-level TOC items");
+            Log.Msg("Codex", $"Discovered {_tocItems.Count} top-level TOC items");
         }
 
         /// <summary>
@@ -296,7 +297,7 @@ namespace AccessibleArena.Core.Services
                 var childAnchor = GetChildAnchor(tocSection);
                 bool isCategory = childAnchor != null || HasChildSections(tocSection);
 
-                MelonLogger.Msg($"[Codex] TOC item: '{label}' isCategory={isCategory} section='{tocSection.gameObject.name}'");
+                Log.Msg("Codex", $"TOC item: '{label}' isCategory={isCategory} section='{tocSection.gameObject.name}'");
 
                 _tocItems.Add(new TocItem
                 {
@@ -339,7 +340,7 @@ namespace AccessibleArena.Core.Services
             _tocChildAnchorField = type.GetField("childAnchor", flags);
             _tocSectionField = type.GetField("section", flags);
 
-            MelonLogger.Msg($"[Codex] Cached TOC section type from fallback: " +
+            Log.Msg("Codex", $"Cached TOC section type from fallback: " +
                 $"Button={_tocButtonField != null}, Intent={_tocIntentField != null}, " +
                 $"ChildAnchor={_tocChildAnchorField != null}, Section={_tocSectionField != null}");
 
@@ -349,7 +350,7 @@ namespace AccessibleArena.Core.Services
                 _learnMoreSectionType = _tocSectionField.FieldType;
                 _sectionTitleField = _learnMoreSectionType.GetField("_title", flags);
                 _sectionIdField = _learnMoreSectionType.GetField("Id", PublicInstance);
-                MelonLogger.Msg($"[Codex] Cached LearnMoreSection type: Title={_sectionTitleField != null}, Id={_sectionIdField != null}");
+                Log.Msg("Codex", $"Cached LearnMoreSection type: Title={_sectionTitleField != null}, Id={_sectionIdField != null}");
             }
         }
 
@@ -526,7 +527,7 @@ namespace AccessibleArena.Core.Services
                 _contentParagraphs.Add(text);
             }
 
-            MelonLogger.Msg($"[Codex] Extracted {_contentParagraphs.Count} content paragraphs (skipped {skippedCards} card texts)");
+            Log.Msg("Codex", $"Extracted {_contentParagraphs.Count} content paragraphs (skipped {skippedCards} card texts)");
         }
 
         /// <summary>
@@ -589,10 +590,10 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Codex] Error extracting credits: {ex.Message}");
+                Log.Msg("Codex", $"Error extracting credits: {ex.Message}");
             }
 
-            MelonLogger.Msg($"[Codex] Extracted {_creditsParagraphs.Count} credits paragraphs");
+            Log.Msg("Codex", $"Extracted {_creditsParagraphs.Count} credits paragraphs");
         }
 
         #endregion
@@ -850,12 +851,12 @@ namespace AccessibleArena.Core.Services
             var childAnchor = GetChildAnchor(parentSection);
             if (childAnchor != null && HasActiveChildren(childAnchor.transform))
             {
-                MelonLogger.Msg($"[Codex] DrillDown: scanning childAnchor '{childAnchor.name}' ({childAnchor.transform.childCount} direct children)");
+                Log.Msg("Codex", $"DrillDown: scanning childAnchor '{childAnchor.name}' ({childAnchor.transform.childCount} direct children)");
                 ScanContainerForItems(childAnchor.transform);
             }
             else
             {
-                MelonLogger.Msg($"[Codex] DrillDown: no childAnchor (null={childAnchor == null}), trying tableOfContentsTopics");
+                Log.Msg("Codex", $"DrillDown: no childAnchor (null={childAnchor == null}), trying tableOfContentsTopics");
             }
 
             // Also scan tableOfContentsTopics if childAnchor had no results
@@ -869,7 +870,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[Codex] Drilled into '{parentLabel}': {_tocItems.Count} children, stack depth={_navStack.Count}");
+            Log.Msg("Codex", $"Drilled into '{parentLabel}': {_tocItems.Count} children, stack depth={_navStack.Count}");
 
             if (_tocItems.Count > 0)
             {
@@ -884,7 +885,7 @@ namespace AccessibleArena.Core.Services
             else
             {
                 // No children found - pop back
-                MelonLogger.Msg($"[Codex] No children found for '{parentLabel}', popping back");
+                Log.Msg("Codex", $"No children found for '{parentLabel}', popping back");
                 PopNavStack();
                 _announcer.AnnounceInterrupt(Strings.CodexNoContent);
             }
@@ -904,7 +905,7 @@ namespace AccessibleArena.Core.Services
             _tocItems.AddRange(level.Items);
             _tocIndex = level.SelectedIndex;
 
-            MelonLogger.Msg($"[Codex] Popped back to '{level.Label}' level, {_tocItems.Count} items, index={_tocIndex}");
+            Log.Msg("Codex", $"Popped back to '{level.Label}' level, {_tocItems.Count} items, index={_tocIndex}");
 
             if (_tocIndex >= 0 && _tocIndex < _tocItems.Count)
             {
@@ -1234,7 +1235,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Codex] Error closing credits: {ex.Message}");
+                    Log.Msg("Codex", $"Error closing credits: {ex.Message}");
                 }
             }
 

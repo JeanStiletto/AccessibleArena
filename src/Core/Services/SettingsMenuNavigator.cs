@@ -7,6 +7,7 @@ using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
 using System.Linq;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -128,7 +129,7 @@ namespace AccessibleArena.Core.Services
                 _webBrowser.Update();
                 if (!_webBrowser.IsActive)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Web browser became inactive, returning to settings");
+                    Log.Msg("{NavigatorId}", $"Web browser became inactive, returning to settings");
                     _isWebBrowserActive = false;
                     TriggerRescan();
                 }
@@ -156,7 +157,7 @@ namespace AccessibleArena.Core.Services
                 string currentPanelName = _settingsContentPanel.name;
                 if (_lastPanelName != currentPanelName)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Settings panel changed: {_lastPanelName} -> {currentPanelName}");
+                    Log.Msg("{NavigatorId}", $"Settings panel changed: {_lastPanelName} -> {currentPanelName}");
                     _lastPanelName = currentPanelName;
                     TriggerRescan();
                 }
@@ -181,7 +182,7 @@ namespace AccessibleArena.Core.Services
                         if (_rescanDelay <= 0)
                             TriggerRescan();
                         // If rescan already pending, it will pick up the flags
-                        MelonLogger.Msg($"[{NavigatorId}] Dropdown exit detected, scheduling value announcement");
+                        Log.Msg("{NavigatorId}", $"Dropdown exit detected, scheduling value announcement");
                     }
                 }
                 _prevInDropdownOrSuppressed = nowInDropdownOrSuppressed;
@@ -206,7 +207,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _currentIndex = _elements.Count > 0 ? 0 : -1;
 
-            MelonLogger.Msg($"[{NavigatorId}] Activated with {_elements.Count} elements");
+            Log.Msg("{NavigatorId}", $"Activated with {_elements.Count} elements");
             OnActivated();
 
             if (_elements.Count > 0)
@@ -216,7 +217,7 @@ namespace AccessibleArena.Core.Services
             else
             {
                 // No elements yet - schedule rescan, don't announce
-                MelonLogger.Msg($"[{NavigatorId}] No elements yet, scheduling rescan");
+                Log.Msg("{NavigatorId}", $"No elements yet, scheduling rescan");
                 TriggerRescan();
             }
         }
@@ -291,13 +292,13 @@ namespace AccessibleArena.Core.Services
 
             if (newPanel != null && IsWebBrowserPanel(newPanel))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Web browser panel detected: {newPanel.Name}");
+                Log.Msg("{NavigatorId}", $"Web browser panel detected: {newPanel.Name}");
                 _isWebBrowserActive = true;
                 _webBrowser.Activate(newPanel.GameObject, _announcer);
             }
             else if (_isWebBrowserActive && newPanel == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Web browser closed, returning to settings");
+                Log.Msg("{NavigatorId}", $"Web browser closed, returning to settings");
                 _webBrowser.Deactivate();
                 _isWebBrowserActive = false;
                 TriggerRescan();
@@ -378,7 +379,7 @@ namespace AccessibleArena.Core.Services
             if (exitGameElement.HasValue)
                 _elements.Add(exitGameElement.Value);
 
-            MelonLogger.Msg($"[{NavigatorId}] Quick menu: {_elements.Count} items");
+            Log.Msg("{NavigatorId}", $"Quick menu: {_elements.Count} items");
         }
 
         /// <summary>
@@ -395,10 +396,10 @@ namespace AccessibleArena.Core.Services
                 searchRoot = _settingsMenuObject;
                 if (searchRoot == null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] No settings content panel or SettingsMenu object found");
+                    Log.Msg("{NavigatorId}", $"No settings content panel or SettingsMenu object found");
                     return;
                 }
-                MelonLogger.Msg($"[{NavigatorId}] Using SettingsMenu object as fallback for element discovery");
+                Log.Msg("{NavigatorId}", $"Using SettingsMenu object as fallback for element discovery");
             }
 
             var addedObjects = new HashSet<GameObject>();
@@ -488,7 +489,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (hasDescendant)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Removing ancestor element: {candidate.name} (has navigable descendant)");
+                    Log.Msg("{NavigatorId}", $"Removing ancestor element: {candidate.name} (has navigable descendant)");
                     discoveredElements.RemoveAt(i);
                 }
             }
@@ -517,7 +518,7 @@ namespace AccessibleArena.Core.Services
                         !go.name.Replace(" ", "").Equals(label.Replace(" ", ""), System.StringComparison.OrdinalIgnoreCase))
                         continue; // Label differs from GO name - classifier found real text, keep it
 
-                    MelonLogger.Msg($"[{NavigatorId}] Removing image-only element: {go.name}");
+                    Log.Msg("{NavigatorId}", $"Removing image-only element: {go.name}");
                     discoveredElements.RemoveAt(i);
                 }
             }
@@ -546,7 +547,7 @@ namespace AccessibleArena.Core.Services
             }
 
             string searchRootName = _settingsContentPanel?.name ?? _settingsMenuObject?.name ?? "unknown";
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_elements.Count} elements in {searchRootName}");
+            Log.Msg("{NavigatorId}", $"Discovered {_elements.Count} elements in {searchRootName}");
         }
 
         /// <summary>
@@ -576,7 +577,7 @@ namespace AccessibleArena.Core.Services
                     GameObject clickableElement = FindClickableInDropdownControl(transform.gameObject);
                     if (clickableElement != null)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Found Settings dropdown: {name}");
+                        Log.Msg("{NavigatorId}", $"Found Settings dropdown: {name}");
                         tryAddElement(clickableElement);
                     }
                     continue;
@@ -614,7 +615,7 @@ namespace AccessibleArena.Core.Services
 
                 if (hasIncrement || hasDecrement)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Found Settings stepper: {name}");
+                    Log.Msg("{NavigatorId}", $"Found Settings stepper: {name}");
                     tryAddElement(transform.gameObject);
                 }
             }
@@ -678,7 +679,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (isPartOfInteractive) continue;
 
-                MelonLogger.Msg($"[{NavigatorId}] Static text block ({text.Length} chars): {text.Substring(0, System.Math.Min(60, text.Length))}...");
+                Log.Msg("{NavigatorId}", $"Static text block ({text.Length} chars): {text.Substring(0, System.Math.Min(60, text.Length))}...");
                 AddTextBlock(text);
             }
         }
@@ -749,7 +750,7 @@ namespace AccessibleArena.Core.Services
                 return false;
 
             string panelName = _settingsContentPanel.name;
-            MelonLogger.Msg($"[{NavigatorId}] Settings back from: {panelName}");
+            Log.Msg("{NavigatorId}", $"Settings back from: {panelName}");
 
             // Any panel that's not MainMenu is a submenu
             bool isInSubmenu = panelName != "Content - MainMenu";
@@ -759,7 +760,7 @@ namespace AccessibleArena.Core.Services
                 var backButton = FindSettingsBackButton();
                 if (backButton != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Activating Settings submenu back button");
+                    Log.Msg("{NavigatorId}", $"Activating Settings submenu back button");
                     _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(backButton);
                     TriggerRescan();
@@ -768,7 +769,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // On MainMenu in full settings: go back to quick menu
-            MelonLogger.Msg($"[{NavigatorId}] Returning to quick menu from full settings");
+            Log.Msg("{NavigatorId}", $"Returning to quick menu from full settings");
             _isInQuickMenu = true;
             _optionsVirtualElement = null;
             TriggerRescan();
@@ -856,7 +857,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool CloseSettingsMenu()
         {
-            MelonLogger.Msg($"[{NavigatorId}] Closing Settings menu");
+            Log.Msg("{NavigatorId}", $"Closing Settings menu");
 
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
@@ -876,12 +877,12 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (System.Exception ex)
                     {
-                        MelonLogger.Warning($"[{NavigatorId}] Error closing Settings: {ex.Message}");
+                        Log.Warn("{NavigatorId}", $"Error closing Settings: {ex.Message}");
                     }
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Could not find SettingsMenu.Close() method");
+            Log.Msg("{NavigatorId}", $"Could not find SettingsMenu.Close() method");
             return false;
         }
 
@@ -894,7 +895,7 @@ namespace AccessibleArena.Core.Services
             // Quick menu: virtual "Options" button -> switch to full settings
             if (_isInQuickMenu && element == _optionsVirtualElement)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Quick menu: Options selected, entering full settings");
+                Log.Msg("{NavigatorId}", $"Quick menu: Options selected, entering full settings");
                 _isInQuickMenu = false;
                 _optionsVirtualElement = null;
                 TriggerRescan();
@@ -904,7 +905,7 @@ namespace AccessibleArena.Core.Services
             // Check if this is a submenu button
             if (IsSettingsSubmenuButton(element))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Settings submenu button activated: {element.name}");
+                Log.Msg("{NavigatorId}", $"Settings submenu button activated: {element.name}");
                 UIActivator.Activate(element);
                 // Don't call TriggerRescan() here — the Update() panel-change detection will
                 // trigger it once the new panel is actually active, avoiding a premature rescan
@@ -935,7 +936,7 @@ namespace AccessibleArena.Core.Services
             // Invoke Click() directly which bypasses the mouseOver check.
             if (IsSettingsLinkButton(element))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Settings link activated: {element.name}");
+                Log.Msg("{NavigatorId}", $"Settings link activated: {element.name}");
                 if (TryInvokeCustomButtonClick(element))
                 {
                     TriggerRescan();
@@ -1010,7 +1011,7 @@ namespace AccessibleArena.Core.Services
                         }
                         catch (System.Exception ex)
                         {
-                            MelonLogger.Warning($"[SettingsMenu] Error invoking Click(): {ex.Message}");
+                            Log.Warn("SettingsMenu", $"Error invoking Click(): {ex.Message}");
                         }
                     }
                 }
@@ -1032,12 +1033,12 @@ namespace AccessibleArena.Core.Services
             // Skip rescan while popup is active - base popup mode owns element discovery
             if (IsInPopupMode)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Skipping rescan - popup active");
+                Log.Msg("{NavigatorId}", $"Skipping rescan - popup active");
                 _silentRescan = false;
                 return;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Performing rescan");
+            Log.Msg("{NavigatorId}", $"Performing rescan");
 
             // Remember current selection
             GameObject previousSelection = null;
@@ -1078,7 +1079,7 @@ namespace AccessibleArena.Core.Services
                         _pendingDropdownObject = null;
                         if (!string.IsNullOrEmpty(label))
                         {
-                            MelonLogger.Msg($"[{NavigatorId}] Announcing dropdown new value: {label}");
+                            Log.Msg("{NavigatorId}", $"Announcing dropdown new value: {label}");
                             _announcer.Announce(label, Models.AnnouncementPriority.High);
                         }
                         return;

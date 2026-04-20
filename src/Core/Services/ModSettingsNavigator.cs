@@ -4,6 +4,7 @@ using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -155,7 +156,7 @@ namespace AccessibleArena.Core.Services
             _currentIndex = 0;
             _isInDropdownMode = false;
 
-            MelonLogger.Msg("[ModSettingsNavigator] Opened");
+            Log.Msg("ModSettingsNavigator", "Opened");
             string core = $"{Strings.SettingsMenuTitle}. {Strings.ItemCount(_items.Count)}";
             _announcer.AnnounceInterrupt(Strings.WithHint(core, "SettingsMenuInstructions"));
         }
@@ -176,7 +177,7 @@ namespace AccessibleArena.Core.Services
 
             _settings.Save();
 
-            MelonLogger.Msg("[ModSettingsNavigator] Closed");
+            Log.Msg("ModSettingsNavigator", "Closed");
             _announcer.AnnounceInterrupt(Strings.SettingsMenuClosed);
         }
 
@@ -257,7 +258,7 @@ namespace AccessibleArena.Core.Services
                 string newValue = item.GetValue();
                 string announcement = Strings.SettingChanged(item.Name, newValue);
                 _announcer.AnnounceInterrupt(announcement);
-                MelonLogger.Msg($"[ModSettingsNavigator] {item.Name} set to {newValue}");
+                Log.Msg("ModSettingsNavigator", $"{item.Name} set to {newValue}");
             }
         }
 
@@ -274,7 +275,7 @@ namespace AccessibleArena.Core.Services
             int total = ModSettings.LanguageCodes.Length;
 
             _announcer.AnnounceInterrupt($"{Strings.DropdownOpened} {Strings.ItemPositionOf(position, total, currentName)}");
-            MelonLogger.Msg($"[ModSettingsNavigator] Language dropdown opened at {currentName}");
+            Log.Msg("ModSettingsNavigator", $"Language dropdown opened at {currentName}");
         }
 
         private void HandleDropdownInput()
@@ -372,7 +373,7 @@ namespace AccessibleArena.Core.Services
             // Fetch name AFTER language switch so it reads from the new locale
             string selectedName = ModSettings.GetLanguageDisplayName(_dropdownLanguageIndex);
             _announcer.AnnounceInterrupt(Strings.SettingChanged(Strings.SettingLanguage, selectedName));
-            MelonLogger.Msg($"[ModSettingsNavigator] Language confirmed: {selectedCode} ({selectedName})");
+            Log.Msg("ModSettingsNavigator", $"Language confirmed: {selectedCode} ({selectedName})");
         }
 
         private void CancelDropdown()
@@ -381,7 +382,7 @@ namespace AccessibleArena.Core.Services
             _dropdownLanguageIndex = ModSettings.GetLanguageIndex(_originalLanguageCode);
 
             _announcer.AnnounceInterrupt(Strings.DropdownClosed);
-            MelonLogger.Msg("[ModSettingsNavigator] Language dropdown cancelled");
+            Log.Msg("ModSettingsNavigator", "Language dropdown cancelled");
         }
 
         #endregion

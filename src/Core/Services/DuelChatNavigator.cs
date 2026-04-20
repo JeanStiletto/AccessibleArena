@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -165,7 +166,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelChat] ShowChatWindow failed: {ex.Message}");
+                Log.Warn("DuelChat", $"ShowChatWindow failed: {ex.Message}");
                 _announcer.AnnounceInterrupt(Strings.ChatUnavailable);
                 Deactivate();
                 return;
@@ -173,7 +174,7 @@ namespace AccessibleArena.Core.Services
 
             _isWaitingForChat = true;
             _waitTimer = MaxWaitTime;
-            MelonLogger.Msg("[DuelChat] Waiting for chat window to become visible...");
+            Log.Msg("DuelChat", "Waiting for chat window to become visible...");
         }
 
         /// <summary>
@@ -189,7 +190,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[DuelChat] CloseChat failed: {ex.Message}");
+                    Log.Warn("DuelChat", $"CloseChat failed: {ex.Message}");
                 }
             }
 
@@ -229,7 +230,7 @@ namespace AccessibleArena.Core.Services
                 _waitTimer -= Time.deltaTime;
                 if (_waitTimer <= 0f)
                 {
-                    MelonLogger.Warning("[DuelChat] Timed out waiting for chat visibility");
+                    Log.Warn("DuelChat", "Timed out waiting for chat visibility");
                     Deactivate();
                     _announcer.AnnounceInterrupt(Strings.ChatUnavailable);
                     return;
@@ -248,7 +249,7 @@ namespace AccessibleArena.Core.Services
             // Validate chat is still visible (game may close it externally)
             if (!IsChatVisible())
             {
-                MelonLogger.Msg("[DuelChat] Chat window closed externally");
+                Log.Msg("DuelChat", "Chat window closed externally");
                 Deactivate();
                 return;
             }
@@ -464,7 +465,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelChat] Send failed: {ex.Message}");
+                Log.Warn("DuelChat", $"Send failed: {ex.Message}");
             }
         }
 
@@ -500,7 +501,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelChat] Switch conversation failed: {ex.Message}");
+                Log.Warn("DuelChat", $"Switch conversation failed: {ex.Message}");
             }
         }
 
@@ -521,7 +522,7 @@ namespace AccessibleArena.Core.Services
             _chatWindow = FindComponentByTypeName(socialPanel, T.ChatWindow);
             if (_chatWindow == null)
             {
-                MelonLogger.Warning("[DuelChat] ChatWindow not found after visibility confirmed");
+                Log.Warn("DuelChat", "ChatWindow not found after visibility confirmed");
                 _announcer.AnnounceInterrupt(Strings.ChatUnavailable);
                 Deactivate();
                 return;
@@ -530,7 +531,7 @@ namespace AccessibleArena.Core.Services
             _chatManager = GetChatManager();
             if (_chatManager == null)
             {
-                MelonLogger.Warning("[DuelChat] ChatManager not found");
+                Log.Warn("DuelChat", "ChatManager not found");
                 _announcer.AnnounceInterrupt(Strings.ChatUnavailable);
                 Deactivate();
                 return;
@@ -540,7 +541,7 @@ namespace AccessibleArena.Core.Services
 
             if (_elements.Count == 0)
             {
-                MelonLogger.Warning("[DuelChat] No elements discovered in chat window");
+                Log.Warn("DuelChat", "No elements discovered in chat window");
                 _announcer.AnnounceInterrupt(Strings.ChatUnavailable);
                 Deactivate();
                 return;
@@ -554,7 +555,7 @@ namespace AccessibleArena.Core.Services
 
             string announcement = GetActivationAnnouncement();
             _announcer.AnnounceInterrupt(announcement);
-            MelonLogger.Msg($"[DuelChat] Activated with {_elements.Count} elements, friend: {_currentFriendName}");
+            Log.Msg("DuelChat", $"Activated with {_elements.Count} elements, friend: {_currentFriendName}");
         }
 
         private void DiscoverElements()
@@ -631,7 +632,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelChat] Failed to discover messages: {ex.Message}");
+                Log.Warn("DuelChat", $"Failed to discover messages: {ex.Message}");
             }
         }
 

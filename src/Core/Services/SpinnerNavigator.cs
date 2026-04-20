@@ -9,6 +9,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -250,7 +251,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[SpinnerNavigator] Error checking spinner: {ex.Message}");
+                    Log.Warn("SpinnerNavigator", $"Error checking spinner: {ex.Message}");
                 }
             }
             return result;
@@ -273,7 +274,7 @@ namespace AccessibleArena.Core.Services
             // Deactivate card info navigator so Up/Down controls the spinner, not card blocks
             AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
 
-            MelonLogger.Msg($"[SpinnerNavigator] Entered spinner mode ({_spinners.Count} spinners, max={_totalMax})");
+            Log.Msg("SpinnerNavigator", $"Entered spinner mode ({_spinners.Count} spinners, max={_totalMax})");
         }
 
         private void Exit()
@@ -284,7 +285,7 @@ namespace AccessibleArena.Core.Services
             _spinners.Clear();
             _currentIndex = 0;
             _totalMax = 0;
-            MelonLogger.Msg("[SpinnerNavigator] Exited spinner mode");
+            Log.Msg("SpinnerNavigator", "Exited spinner mode");
         }
 
         private void RefreshSpinners(List<MonoBehaviour> activeSpinners)
@@ -351,7 +352,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[SpinnerNavigator] Error adjusting value: {ex.Message}");
+                Log.Warn("SpinnerNavigator", $"Error adjusting value: {ex.Message}");
             }
         }
 
@@ -375,7 +376,7 @@ namespace AccessibleArena.Core.Services
                 int distributed = GetTotalDistributed();
                 UIActivator.SimulatePointerClick(selectable.gameObject);
                 _announcer.AnnounceInterrupt(Strings.SpinnerConfirmed(distributed));
-                MelonLogger.Msg($"[SpinnerNavigator] Submitted: {distributed}");
+                Log.Msg("SpinnerNavigator", $"Submitted: {distributed}");
                 return;
             }
 
@@ -393,7 +394,7 @@ namespace AccessibleArena.Core.Services
                 if (selectable.gameObject.name.Contains("PromptButton_Secondary"))
                 {
                     UIActivator.SimulatePointerClick(selectable.gameObject);
-                    MelonLogger.Msg("[SpinnerNavigator] Cancelled via secondary button");
+                    Log.Msg("SpinnerNavigator", "Cancelled via secondary button");
                     return;
                 }
             }
@@ -406,7 +407,7 @@ namespace AccessibleArena.Core.Services
                 if (button != null && button.interactable)
                 {
                     button.onClick.Invoke();
-                    MelonLogger.Msg("[SpinnerNavigator] Cancelled via UndoButton");
+                    Log.Msg("SpinnerNavigator", "Cancelled via UndoButton");
                     return;
                 }
             }
@@ -476,7 +477,7 @@ namespace AccessibleArena.Core.Services
                     if (group != null)
                     {
                         int maxVal = (int)_groupMaxValueProp.GetValue(group);
-                        MelonLogger.Msg($"[SpinnerNavigator] Read group max from _group field: {maxVal}");
+                        Log.Msg("SpinnerNavigator", $"Read group max from _group field: {maxVal}");
                         return maxVal;
                     }
                 }
@@ -488,18 +489,18 @@ namespace AccessibleArena.Core.Services
                     if (group != null)
                     {
                         int maxVal = (int)_groupMaxValueProp.GetValue(group);
-                        MelonLogger.Msg($"[SpinnerNavigator] Read group max from GetComponentInParent: {maxVal}");
+                        Log.Msg("SpinnerNavigator", $"Read group max from GetComponentInParent: {maxVal}");
                         return maxVal;
                     }
                     else
                     {
-                        MelonLogger.Warning("[SpinnerNavigator] SpinnerGroup not found via GetComponentInParent");
+                        Log.Warn("SpinnerNavigator", "SpinnerGroup not found via GetComponentInParent");
                     }
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[SpinnerNavigator] Error reading group max: {ex.Message}");
+                Log.Warn("SpinnerNavigator", $"Error reading group max: {ex.Message}");
             }
 
             return 0;
@@ -516,14 +517,14 @@ namespace AccessibleArena.Core.Services
                 _spinnerAnimatedType = FindType(T.SpinnerAnimated);
                 if (_spinnerAnimatedType == null)
                 {
-                    MelonLogger.Warning("[SpinnerNavigator] SpinnerAnimated type not found");
+                    Log.Warn("SpinnerNavigator", "SpinnerAnimated type not found");
                     _reflectionFailed = true;
                     return;
                 }
 
                 _spinnerGroupType = FindType(T.SpinnerGroup);
                 if (_spinnerGroupType == null)
-                    MelonLogger.Warning("[SpinnerNavigator] SpinnerGroup type not found");
+                    Log.Warn("SpinnerNavigator", "SpinnerGroup type not found");
 
                 // SpinnerAnimated properties (all public)
                 _instanceIdProp = _spinnerAnimatedType.GetProperty("InstanceId", PublicInstance);
@@ -536,32 +537,32 @@ namespace AccessibleArena.Core.Services
 
                 if (_instanceIdProp == null || _valueProp == null)
                 {
-                    MelonLogger.Warning("[SpinnerNavigator] Core SpinnerAnimated properties not found");
+                    Log.Warn("SpinnerNavigator", "Core SpinnerAnimated properties not found");
                     _reflectionFailed = true;
                     return;
                 }
 
                 if (_upButtonField == null || _downButtonField == null)
                 {
-                    MelonLogger.Warning("[SpinnerNavigator] SpinnerAnimated button fields not found");
+                    Log.Warn("SpinnerNavigator", "SpinnerAnimated button fields not found");
                     _reflectionFailed = true;
                     return;
                 }
 
-                MelonLogger.Msg($"[SpinnerNavigator] _groupField found: {_groupField != null}");
+                Log.Msg("SpinnerNavigator", $"_groupField found: {_groupField != null}");
 
                 // SpinnerGroup properties
                 if (_spinnerGroupType != null)
                 {
                     _groupMaxValueProp = _spinnerGroupType.GetProperty("MaxValue", PublicInstance);
-                    MelonLogger.Msg($"[SpinnerNavigator] SpinnerGroup.MaxValue prop found: {_groupMaxValueProp != null}");
+                    Log.Msg("SpinnerNavigator", $"SpinnerGroup.MaxValue prop found: {_groupMaxValueProp != null}");
                 }
 
-                MelonLogger.Msg("[SpinnerNavigator] Reflection initialized successfully");
+                Log.Msg("SpinnerNavigator", "Reflection initialized successfully");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[SpinnerNavigator] Reflection init failed: {ex.Message}");
+                Log.Warn("SpinnerNavigator", $"Reflection init failed: {ex.Message}");
                 _reflectionFailed = true;
             }
         }

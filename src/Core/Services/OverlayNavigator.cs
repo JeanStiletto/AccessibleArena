@@ -6,6 +6,7 @@ using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
 using ZenFulcrum.EmbeddedBrowser;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -52,7 +53,7 @@ namespace AccessibleArena.Core.Services
             // Determine overlay type by checking for specific elements
             DetermineOverlayType();
 
-            MelonLogger.Msg($"[{NavigatorId}] Detected overlay: {_overlayType}");
+            Log.Msg("{NavigatorId}", $"Detected overlay: {_overlayType}");
             return true;
         }
 
@@ -170,7 +171,7 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(mainContent))
             {
                 // Create a virtual element for content announcement
-                MelonLogger.Msg($"[{NavigatorId}] Found content: {mainContent}");
+                Log.Msg("{NavigatorId}", $"Found content: {mainContent}");
             }
 
             // Find navigation dots (for carousel position)
@@ -192,7 +193,7 @@ namespace AccessibleArena.Core.Services
 
             if (totalPages > 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Carousel page {currentPage} of {totalPages}");
+                Log.Msg("{NavigatorId}", $"Carousel page {currentPage} of {totalPages}");
             }
 
             // Find Continue/dismiss button - this is the main actionable element
@@ -225,13 +226,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void FindRewardCards(HashSet<GameObject> addedObjects)
         {
-            MelonLogger.Msg($"[{NavigatorId}] Searching for reward cards...");
+            Log.Msg("{NavigatorId}", $"Searching for reward cards...");
 
             // Find the rewards content controller
             var rewardsController = GameObject.Find("ContentController - Rewards_Desktop_16x9(Clone)");
             if (rewardsController == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] No rewards controller found");
+                Log.Msg("{NavigatorId}", $"No rewards controller found");
                 return;
             }
 
@@ -263,7 +264,7 @@ namespace AccessibleArena.Core.Services
 
                     if (!addedObjects.Contains(transform.gameObject))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Found potential card: {name}");
+                        Log.Msg("{NavigatorId}", $"Found potential card: {name}");
                         cardPrefabs.Add(transform.gameObject);
                     }
                 }
@@ -271,13 +272,13 @@ namespace AccessibleArena.Core.Services
 
             if (cardPrefabs.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] No reward cards found");
+                Log.Msg("{NavigatorId}", $"No reward cards found");
                 return;
             }
 
             // Sort cards by X position (left to right)
             cardPrefabs = cardPrefabs.OrderBy(c => c.transform.position.x).ToList();
-            MelonLogger.Msg($"[{NavigatorId}] Found {cardPrefabs.Count} reward card(s)");
+            Log.Msg("{NavigatorId}", $"Found {cardPrefabs.Count} reward card(s)");
 
             int cardNum = 1;
             foreach (var cardPrefab in cardPrefabs)
@@ -297,7 +298,7 @@ namespace AccessibleArena.Core.Services
                     label += $", {cardInfo.TypeLine}";
                 }
 
-                MelonLogger.Msg($"[{NavigatorId}] Adding reward card: {label}");
+                Log.Msg("{NavigatorId}", $"Adding reward card: {label}");
                 AddElement(cardPrefab, label);
                 addedObjects.Add(cardPrefab);
                 cardNum++;
@@ -473,7 +474,7 @@ namespace AccessibleArena.Core.Services
             // Check if overlay is still present
             if (_overlayBlocker == null || !_overlayBlocker.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Overlay dismissed");
+                Log.Msg("{NavigatorId}", $"Overlay dismissed");
                 return false;
             }
 
@@ -482,7 +483,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (_browserCanvas == null || !_browserCanvas.activeInHierarchy || !_webBrowser.IsActive)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Web browser dismissed");
+                    Log.Msg("{NavigatorId}", $"Web browser dismissed");
                     return false;
                 }
                 return true;

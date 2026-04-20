@@ -8,6 +8,7 @@ using TMPro;
 using AccessibleArena.Core.Models;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -207,7 +208,7 @@ namespace AccessibleArena.Core.Services
             var tile = FindFriendTile(element);
             if (tile == null)
             {
-                MelonLogger.Warning("[FriendInfoProvider] No tile found for action activation");
+                Log.Warn("FriendInfoProvider", "No tile found for action activation");
                 return false;
             }
 
@@ -266,13 +267,13 @@ namespace AccessibleArena.Core.Services
                         return ClickCustomButton(tile, cache.OpenChallengeButton);
 
                     default:
-                        MelonLogger.Warning($"[FriendInfoProvider] Unknown action: {actionId}");
+                        Log.Warn("FriendInfoProvider", $"Unknown action: {actionId}");
                         return false;
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[FriendInfoProvider] Error activating {actionId}: {ex.Message}");
+                Log.Error("FriendInfoProvider", $"Error activating {actionId}: {ex.Message}");
                 return false;
             }
         }
@@ -328,7 +329,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] Error reading local player info: {ex.Message}");
+                Log.Warn("FriendInfoProvider", $"Error reading local player info: {ex.Message}");
                 return (null, null);
             }
         }
@@ -358,7 +359,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] Error getting StatusButton: {ex.Message}");
+                Log.Warn("FriendInfoProvider", $"Error getting StatusButton: {ex.Message}");
             }
             return null;
         }
@@ -479,19 +480,19 @@ namespace AccessibleArena.Core.Services
         {
             if (buttonField == null)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] Button field not found on {tile.GetType().Name}");
+                Log.Warn("FriendInfoProvider", $"Button field not found on {tile.GetType().Name}");
                 return false;
             }
 
             var button = buttonField.GetValue(tile) as Button;
             if (button == null)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] Button value is null: {buttonField.Name}");
+                Log.Warn("FriendInfoProvider", $"Button value is null: {buttonField.Name}");
                 return false;
             }
 
             button.onClick?.Invoke();
-            MelonLogger.Msg($"[FriendInfoProvider] Clicked button: {buttonField.Name}");
+            Log.Msg("FriendInfoProvider", $"Clicked button: {buttonField.Name}");
             return true;
         }
 
@@ -502,14 +503,14 @@ namespace AccessibleArena.Core.Services
         {
             if (buttonField == null)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] CustomButton field not found on {tile.GetType().Name}");
+                Log.Warn("FriendInfoProvider", $"CustomButton field not found on {tile.GetType().Name}");
                 return false;
             }
 
             var customButton = buttonField.GetValue(tile) as Component;
             if (customButton == null)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] CustomButton value is null: {buttonField.Name}");
+                Log.Warn("FriendInfoProvider", $"CustomButton value is null: {buttonField.Name}");
                 return false;
             }
 
@@ -520,11 +521,11 @@ namespace AccessibleArena.Core.Services
             {
                 var invokeMethod = onClickEvent.GetType().GetMethod("Invoke", Type.EmptyTypes);
                 invokeMethod?.Invoke(onClickEvent, null);
-                MelonLogger.Msg($"[FriendInfoProvider] Clicked CustomButton: {buttonField.Name}");
+                Log.Msg("FriendInfoProvider", $"Clicked CustomButton: {buttonField.Name}");
                 return true;
             }
 
-            MelonLogger.Warning($"[FriendInfoProvider] Could not find OnClick on CustomButton: {buttonField.Name}");
+            Log.Warn("FriendInfoProvider", $"Could not find OnClick on CustomButton: {buttonField.Name}");
             return false;
         }
 
@@ -536,14 +537,14 @@ namespace AccessibleArena.Core.Services
         {
             if (callbackField == null)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] Callback field not found on {tile.GetType().Name}");
+                Log.Warn("FriendInfoProvider", $"Callback field not found on {tile.GetType().Name}");
                 return false;
             }
 
             var callback = callbackField.GetValue(tile);
             if (callback == null)
             {
-                MelonLogger.Warning($"[FriendInfoProvider] Callback value is null: {callbackField.Name}");
+                Log.Warn("FriendInfoProvider", $"Callback value is null: {callbackField.Name}");
                 return false;
             }
 
@@ -563,22 +564,22 @@ namespace AccessibleArena.Core.Services
                     if (entity != null)
                     {
                         invokeMethod.Invoke(callback, new[] { entity });
-                        MelonLogger.Msg($"[FriendInfoProvider] Invoked callback: {callbackField.Name} with entity");
+                        Log.Msg("FriendInfoProvider", $"Invoked callback: {callbackField.Name} with entity");
                         return true;
                     }
-                    MelonLogger.Warning($"[FriendInfoProvider] No entity found for callback parameter: {callbackField.Name}");
+                    Log.Warn("FriendInfoProvider", $"No entity found for callback parameter: {callbackField.Name}");
                     return false;
                 }
                 else
                 {
                     // Parameterless callback
                     invokeMethod.Invoke(callback, null);
-                    MelonLogger.Msg($"[FriendInfoProvider] Invoked callback: {callbackField.Name}");
+                    Log.Msg("FriendInfoProvider", $"Invoked callback: {callbackField.Name}");
                     return true;
                 }
             }
 
-            MelonLogger.Warning($"[FriendInfoProvider] Cannot invoke callback: {callbackField.Name} (type: {callback.GetType().Name})");
+            Log.Warn("FriendInfoProvider", $"Cannot invoke callback: {callbackField.Name} (type: {callback.GetType().Name})");
             return false;
         }
 
@@ -640,7 +641,7 @@ namespace AccessibleArena.Core.Services
             if (callbackField != null)
                 return InvokeCallback(tile, callbackField);
 
-            MelonLogger.Warning($"[FriendInfoProvider] No button/callback found for action '{actionId}' on {tile.GetType().Name}");
+            Log.Warn("FriendInfoProvider", $"No button/callback found for action '{actionId}' on {tile.GetType().Name}");
             return false;
         }
     }

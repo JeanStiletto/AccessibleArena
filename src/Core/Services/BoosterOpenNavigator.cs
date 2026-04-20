@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -105,7 +106,7 @@ namespace AccessibleArena.Core.Services
             // so we must clear it before any SpawnCard call happens.
             ClearAutoReveal();
 
-            MelonLogger.Msg($"[{NavigatorId}] Pack opened with {cards.Count} cards");
+            Log.Msg("{NavigatorId}", $"Pack opened with {cards.Count} cards");
             return true;
         }
 
@@ -133,7 +134,7 @@ namespace AccessibleArena.Core.Services
                 _cardsToOpenField = controller.GetType().GetField("_cardsToOpen", PrivateInstance);
                 if (_cardsToOpenField == null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] _cardsToOpen field not found");
+                    Log.Msg("{NavigatorId}", $"_cardsToOpen field not found");
                     return null;
                 }
             }
@@ -174,7 +175,7 @@ namespace AccessibleArena.Core.Services
                 {
                     addedObjects.Add(button); // Mark as processed so it's not added elsewhere
                     _revealAllButton = button;
-                    MelonLogger.Msg($"[{NavigatorId}] Found RevealAll button (hidden from nav): {name}");
+                    Log.Msg("{NavigatorId}", $"Found RevealAll button (hidden from nav): {name}");
                     return;
                 }
             }
@@ -188,7 +189,7 @@ namespace AccessibleArena.Core.Services
             // Get on-screen card holders for activation (viewport-limited, ~12 of 24)
             var onScreenDict = GetOnScreenHolders();
 
-            MelonLogger.Msg($"[{NavigatorId}] Building card list from {cards.Count} data entries ({onScreenDict?.Count ?? 0} on-screen)");
+            Log.Msg("{NavigatorId}", $"Building card list from {cards.Count} data entries ({onScreenDict?.Count ?? 0} on-screen)");
 
             // Sort by descending index (common cards first in navigation, matches scroll layout)
             var sortedIndices = Enumerable.Range(0, cards.Count).OrderByDescending(i => i).ToList();
@@ -253,7 +254,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _totalCards = cardNum - 1;
-            MelonLogger.Msg($"[{NavigatorId}] Total: {_totalCards} cards ({_elements.Count} elements, {onScreenDict?.Count ?? 0} with holders)");
+            Log.Msg("{NavigatorId}", $"Total: {_totalCards} cards ({_elements.Count} elements, {onScreenDict?.Count ?? 0} with holders)");
         }
 
         /// <summary>
@@ -393,7 +394,7 @@ namespace AccessibleArena.Core.Services
                     label = $"Vault Progress {progressQuantity}";
                 }
 
-                MelonLogger.Msg($"[{NavigatorId}] Detected vault progress: {label} (tags: {string.Join(", ", vaultTags)})");
+                Log.Msg("{NavigatorId}", $"Detected vault progress: {label} (tags: {string.Join(", ", vaultTags)})");
                 return label;
             }
 
@@ -492,7 +493,7 @@ namespace AccessibleArena.Core.Services
                     if (name.Contains("Dismiss_MainButton"))
                     {
                         addedObjects.Add(button);
-                        MelonLogger.Msg($"[{NavigatorId}] Found Dismiss button (hidden from nav): {name}");
+                        Log.Msg("{NavigatorId}", $"Found Dismiss button (hidden from nav): {name}");
                         continue;
                     }
                     // Use readable label - ModalFade is the background dismiss area
@@ -517,7 +518,7 @@ namespace AccessibleArena.Core.Services
 
                     AddElement(button, $"{label}, button");
                     addedObjects.Add(button);
-                    MelonLogger.Msg($"[{NavigatorId}] Found dismiss button: {name} -> {label}");
+                    Log.Msg("{NavigatorId}", $"Found dismiss button: {name} -> {label}");
                 }
             }
         }
@@ -746,11 +747,11 @@ namespace AccessibleArena.Core.Services
             // Enter activates (view card details or button)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Enter pressed - index={_currentIndex}, count={_elements.Count}, valid={IsValidIndex}");
+                Log.Msg("{NavigatorId}", $"Enter pressed - index={_currentIndex}, count={_elements.Count}, valid={IsValidIndex}");
                 if (IsValidIndex)
                 {
                     var elem = _elements[_currentIndex];
-                    MelonLogger.Msg($"[{NavigatorId}] Current element: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
+                    Log.Msg("{NavigatorId}", $"Current element: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
 
                     // Special handling for Skip to End / Reveal All buttons - trigger immediate rescan
                     if (elem.GameObject != null &&
@@ -760,7 +761,7 @@ namespace AccessibleArena.Core.Services
                         // Trigger rescan to pick up all revealed cards
                         _rescanDone = false;
                         _rescanFrameCounter = 0;
-                        MelonLogger.Msg($"[{NavigatorId}] Reveal/Skip activated, will rescan");
+                        Log.Msg("{NavigatorId}", $"Reveal/Skip activated, will rescan");
                         return;
                     }
                     // Check if this is a close/dismiss button
@@ -769,7 +770,7 @@ namespace AccessibleArena.Core.Services
                         (elem.GameObject.name.Contains("ModalFade") ||
                          elem.GameObject.name.Contains("Dismiss_MainButton")))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Enter on close button: {elem.GameObject.name}");
+                        Log.Msg("{NavigatorId}", $"Enter on close button: {elem.GameObject.name}");
                         ClosePackProperly();
                         TriggerCloseRescan();
                         return;
@@ -781,7 +782,7 @@ namespace AccessibleArena.Core.Services
                         var holder = FindBoosterCardHolder(elem.GameObject);
                         if (holder != null)
                         {
-                            MelonLogger.Msg($"[{NavigatorId}] Revealing hidden card via BoosterCardHolder");
+                            Log.Msg("{NavigatorId}", $"Revealing hidden card via BoosterCardHolder");
                             UIActivator.Activate(holder);
                             _rescanDone = false;
                             _rescanFrameCounter = 0;
@@ -809,7 +810,7 @@ namespace AccessibleArena.Core.Services
             // Backspace to go back/close
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Backspace pressed - attempting close");
+                Log.Msg("{NavigatorId}", $"Backspace pressed - attempting close");
                 ClosePackProperly();
                 TriggerCloseRescan();
                 return;
@@ -837,7 +838,7 @@ namespace AccessibleArena.Core.Services
             // Primary: Call DismissCards on BoosterChamberController (the canonical close path)
             if (TryCloseChamberController())
             {
-                MelonLogger.Msg($"[{NavigatorId}] Closed via BoosterChamberController.DismissCards");
+                Log.Msg("{NavigatorId}", $"Closed via BoosterChamberController.DismissCards");
                 return;
             }
 
@@ -852,13 +853,13 @@ namespace AccessibleArena.Core.Services
             {
                 if (elem.GameObject != null && elem.GameObject.name.Contains("ModalFade"))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Fallback to ModalFade: {elem.GameObject.name}");
+                    Log.Msg("{NavigatorId}", $"Fallback to ModalFade: {elem.GameObject.name}");
                     UIActivator.Activate(elem.GameObject);
                     return;
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] No close mechanism found");
+            Log.Msg("{NavigatorId}", $"No close mechanism found");
         }
 
         /// <summary>
@@ -875,7 +876,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (t != null && t.name == "Hitbox_BoosterMesh" && t.gameObject.activeInHierarchy)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Stopping pack music: PointerExit to {t.name}");
+                    Log.Msg("{NavigatorId}", $"Stopping pack music: PointerExit to {t.name}");
                     UIActivator.SimulatePointerExit(t.gameObject);
                 }
             }
@@ -930,7 +931,7 @@ namespace AccessibleArena.Core.Services
             _setRTPCMethod.Invoke(null, new object[] { "boosterpack_" + audioSetCode, 100f });
             _packMusicRestored = true;
 
-            MelonLogger.Msg($"[{NavigatorId}] Restored pack music for set: {setCode}");
+            Log.Msg("{NavigatorId}", $"Restored pack music for set: {setCode}");
         }
 
         /// <summary>
@@ -961,7 +962,7 @@ namespace AccessibleArena.Core.Services
 
             if (revealed > 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Force-revealed {revealed}/{cards.Count} cards before close");
+                Log.Msg("{NavigatorId}", $"Force-revealed {revealed}/{cards.Count} cards before close");
                 CallUpdateRevealed();
             }
         }
@@ -992,7 +993,7 @@ namespace AccessibleArena.Core.Services
             if (updateMethod != null && updateMethod.GetParameters().Length == 0)
             {
                 updateMethod.Invoke(chamberController, null);
-                MelonLogger.Msg($"[{NavigatorId}] Called UpdateRevealed on BoosterChamberController");
+                Log.Msg("{NavigatorId}", $"Called UpdateRevealed on BoosterChamberController");
             }
         }
 
@@ -1031,7 +1032,7 @@ namespace AccessibleArena.Core.Services
 
                 if (dismissCards != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Found DismissCards on scroll list controller, invoking to close");
+                    Log.Msg("{NavigatorId}", $"Found DismissCards on scroll list controller, invoking to close");
                     try
                     {
                         dismissCards.Invoke(controller, null);
@@ -1039,13 +1040,13 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (System.Exception ex)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] DismissCards failed: {ex.Message}");
+                        Log.Msg("{NavigatorId}", $"DismissCards failed: {ex.Message}");
                     }
                 }
 
                 if (closeMethod != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Invoking {closeMethod.Name}() to close");
+                    Log.Msg("{NavigatorId}", $"Invoking {closeMethod.Name}() to close");
                     try
                     {
                         closeMethod.Invoke(controller, null);
@@ -1053,12 +1054,12 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (System.Exception ex)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] {closeMethod.Name} failed: {ex.Message}");
+                        Log.Msg("{NavigatorId}", $"{closeMethod.Name} failed: {ex.Message}");
                     }
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Could not close pack contents via controller");
+            Log.Msg("{NavigatorId}", $"Could not close pack contents via controller");
             return false;
         }
 
@@ -1086,7 +1087,7 @@ namespace AccessibleArena.Core.Services
 
             if (chamberController == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] BoosterChamberController not found on chamber GO");
+                Log.Msg("{NavigatorId}", $"BoosterChamberController not found on chamber GO");
                 return false;
             }
 
@@ -1095,11 +1096,11 @@ namespace AccessibleArena.Core.Services
                 PrivateInstance | System.Reflection.BindingFlags.Public);
             if (dismissMethod == null || dismissMethod.GetParameters().Length != 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] DismissCards not found on BoosterChamberController");
+                Log.Msg("{NavigatorId}", $"DismissCards not found on BoosterChamberController");
                 return false;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Found DismissCards on BoosterChamberController, invoking");
+            Log.Msg("{NavigatorId}", $"Found DismissCards on BoosterChamberController, invoking");
             try
             {
                 dismissMethod.Invoke(chamberController, null);
@@ -1107,7 +1108,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Msg($"[{NavigatorId}] BoosterChamberController.DismissCards failed: {ex.Message}");
+                Log.Msg("{NavigatorId}", $"BoosterChamberController.DismissCards failed: {ex.Message}");
                 return false;
             }
         }
@@ -1126,13 +1127,13 @@ namespace AccessibleArena.Core.Services
                 var ctrl = FindScrollListController(boosterChamber);
                 if (ctrl != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Re-found controller: {ctrl.GetType().Name}");
+                    Log.Msg("{NavigatorId}", $"Re-found controller: {ctrl.GetType().Name}");
                     _controller = ctrl;
                     return ctrl;
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] FindBoosterController: No controller found");
+            Log.Msg("{NavigatorId}", $"FindBoosterController: No controller found");
             return null;
         }
 
@@ -1164,7 +1165,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Cleared AutoReveal on {cleared}/{cards.Count} cards");
+            Log.Msg("{NavigatorId}", $"Cleared AutoReveal on {cleared}/{cards.Count} cards");
         }
 
         /// <summary>
@@ -1240,7 +1241,7 @@ namespace AccessibleArena.Core.Services
             if (_revealedProp == null) return;
 
             _revealedProp.SetValue(entry, true);
-            MelonLogger.Msg($"[{NavigatorId}] Revealed off-screen card at data index {dataIndex}");
+            Log.Msg("{NavigatorId}", $"Revealed off-screen card at data index {dataIndex}");
 
             // Mirror BoosterCardHolder.PlayFlipSound: pick the Wwise event by card rarity.
             PlayFlipSoundForEntry(entry);
@@ -1352,7 +1353,7 @@ namespace AccessibleArena.Core.Services
                 // Cards first discovered: announce activation text
                 if (_elements.Count != oldCount && oldCount <= 2)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Rescan: {oldCount} -> {_elements.Count} elements");
+                    Log.Msg("{NavigatorId}", $"Rescan: {oldCount} -> {_elements.Count} elements");
                     _announcer.AnnounceInterrupt(GetActivationAnnouncement());
                 }
                 // Card revealed (label changed): announce card name
@@ -1368,7 +1369,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                MelonLogger.Msg($"[{NavigatorId}] Rescan found no elements");
+                Log.Msg("{NavigatorId}", $"Rescan found no elements");
             }
         }
 
@@ -1397,16 +1398,16 @@ namespace AccessibleArena.Core.Services
                     // carousel interaction after closing the pack. Cards appear face-down
                     // (AutoReveal cleared in DetectScreen) and rescans pick them up gradually.
 
-                    MelonLogger.Msg($"[{NavigatorId}] Rescanning for cards (attempt {_rescanAttempt}/{MaxRescanAttempts}, current: {oldCount})");
+                    Log.Msg("{NavigatorId}", $"Rescanning for cards (attempt {_rescanAttempt}/{MaxRescanAttempts}, current: {oldCount})");
                     ForceRescan();
 
                     if (_totalCards > 0 || _rescanAttempt >= MaxRescanAttempts)
                     {
                         _rescanDone = true;
                         if (_totalCards > 0)
-                            MelonLogger.Msg($"[{NavigatorId}] Found {_totalCards}/{_expectedCardCount} cards after {_rescanAttempt} rescans");
+                            Log.Msg("{NavigatorId}", $"Found {_totalCards}/{_expectedCardCount} cards after {_rescanAttempt} rescans");
                         else
-                            MelonLogger.Msg($"[{NavigatorId}] Timed out after {_rescanAttempt} rescans");
+                            Log.Msg("{NavigatorId}", $"Timed out after {_rescanAttempt} rescans");
                     }
                 }
             }
@@ -1418,17 +1419,17 @@ namespace AccessibleArena.Core.Services
                 if (_closeRescanCounter >= 60) // ~1 second at 60fps
                 {
                     _closeTriggered = false;
-                    MelonLogger.Msg($"[{NavigatorId}] Checking if screen is still valid after close action");
+                    Log.Msg("{NavigatorId}", $"Checking if screen is still valid after close action");
 
                     // Re-check if we're still on pack contents (CardScroller must exist)
                     if (!DetectScreen())
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Pack contents closed, deactivating navigator");
+                        Log.Msg("{NavigatorId}", $"Pack contents closed, deactivating navigator");
                         Deactivate();
                     }
                     else
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Still on pack contents, rescanning");
+                        Log.Msg("{NavigatorId}", $"Still on pack contents, rescanning");
                         ForceRescan();
                     }
                 }
@@ -1466,7 +1467,7 @@ namespace AccessibleArena.Core.Services
             // Check if controller is still valid and has cards
             if (_controller == null || !(_controller is MonoBehaviour mb) || !mb.gameObject.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Controller no longer active");
+                Log.Msg("{NavigatorId}", $"Controller no longer active");
                 return false;
             }
 
@@ -1474,7 +1475,7 @@ namespace AccessibleArena.Core.Services
             var cards = GetCardsToOpen(_controller);
             if (cards == null || cards.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Cards cleared, pack dismissed");
+                Log.Msg("{NavigatorId}", $"Cards cleared, pack dismissed");
                 return false;
             }
 

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Constants.SceneNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -112,7 +113,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void OnDuelSceneLoaded()
         {
-            MelonLogger.Msg($"[{NavigatorId}] DuelScene loaded - starting to watch for duel elements");
+            Log.Msg("{NavigatorId}", $"DuelScene loaded - starting to watch for duel elements");
             _isWatching = true;
             _hasCenteredMouse = false; // Reset so mouse gets centered when duel activates
 
@@ -126,7 +127,7 @@ namespace AccessibleArena.Core.Services
             if (eventSystem != null)
             {
                 eventSystem.SetSelectedGameObject(null);
-                MelonLogger.Msg($"[{NavigatorId}] Cleared EventSystem selection");
+                Log.Msg("{NavigatorId}", $"Cleared EventSystem selection");
             }
         }
 
@@ -150,7 +151,7 @@ namespace AccessibleArena.Core.Services
                 int centerX = Screen.width / 2;
                 int centerY = Screen.height / 2;
                 SetCursorPos(centerX, centerY);
-                MelonLogger.Msg($"[{NavigatorId}] Centered mouse cursor at ({centerX}, {centerY})");
+                Log.Msg("{NavigatorId}", $"Centered mouse cursor at ({centerX}, {centerY})");
                 _hasCenteredMouse = true;
 
                 // Schedule a matchup announcement once the HUD has fully settled
@@ -178,7 +179,7 @@ namespace AccessibleArena.Core.Services
                     string matchup = _portraitNavigator.GetMatchupText();
                     if (!string.IsNullOrEmpty(matchup))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Matchup: {matchup}");
+                        Log.Msg("{NavigatorId}", $"Matchup: {matchup}");
                         _announcer.Announce(matchup, Models.AnnouncementPriority.Normal);
                     }
                 }
@@ -223,7 +224,7 @@ namespace AccessibleArena.Core.Services
             // Deactivate if settings menu is open - let SettingsMenuNavigator handle it
             if (PanelStateManager.Instance?.IsSettingsMenuOpen == true)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Settings menu detected - deactivating to let SettingsMenuNavigator take over");
+                Log.Msg("{NavigatorId}", $"Settings menu detected - deactivating to let SettingsMenuNavigator take over");
                 return false;
             }
 
@@ -249,7 +250,7 @@ namespace AccessibleArena.Core.Services
         {
             var addedObjects = new HashSet<GameObject>();
 
-            MelonLogger.Msg($"[{NavigatorId}] === DUEL UI DISCOVERY START ===");
+            Log.Msg("{NavigatorId}", $"=== DUEL UI DISCOVERY START ===");
 
             // 1. Activate zone navigator and discover zones
             _zoneNavigator.Activate();
@@ -280,12 +281,12 @@ namespace AccessibleArena.Core.Services
             // 9. Activate portrait navigator for P key timer/portrait info
             _portraitNavigator.Activate();
 
-            MelonLogger.Msg($"[{NavigatorId}] === DUEL UI DISCOVERY END - Found {_elements.Count} elements ===");
+            Log.Msg("{NavigatorId}", $"=== DUEL UI DISCOVERY END - Found {_elements.Count} elements ===");
         }
 
         private void DiscoverSelectables(HashSet<GameObject> addedObjects)
         {
-            MelonLogger.Msg($"[{NavigatorId}] Searching Selectables...");
+            Log.Msg("{NavigatorId}", $"Searching Selectables...");
 
             foreach (var selectable in GameObject.FindObjectsOfType<Selectable>())
             {
@@ -303,7 +304,7 @@ namespace AccessibleArena.Core.Services
                 string label = GetButtonText(selectable.gameObject, name);
                 var (elementType, elementRole) = GetSelectableTypeAndRole(selectable);
 
-                MelonLogger.Msg($"[{NavigatorId}] Selectable ({typeName}): {name} - Text: '{label}'");
+                Log.Msg("{NavigatorId}", $"Selectable ({typeName}): {name} - Text: '{label}'");
 
                 AddElement(selectable.gameObject, BuildLabel(label, elementType, elementRole), default, null, null, elementRole);
                 addedObjects.Add(selectable.gameObject);
@@ -312,7 +313,7 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverCustomButtons(HashSet<GameObject> addedObjects)
         {
-            MelonLogger.Msg($"[{NavigatorId}] Searching CustomButtons...");
+            Log.Msg("{NavigatorId}", $"Searching CustomButtons...");
 
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
@@ -331,7 +332,7 @@ namespace AccessibleArena.Core.Services
                 string name = mb.gameObject.name;
                 string label = GetButtonText(mb.gameObject, name);
 
-                MelonLogger.Msg($"[{NavigatorId}] CustomButton: {name} - Text: '{label}'");
+                Log.Msg("{NavigatorId}", $"CustomButton: {name} - Text: '{label}'");
 
                 AddElement(mb.gameObject, BuildLabel(label, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button), default, null, null, UIElementClassifier.ElementRole.Button);
                 addedObjects.Add(mb.gameObject);
@@ -340,7 +341,7 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverEventTriggers(HashSet<GameObject> addedObjects)
         {
-            MelonLogger.Msg($"[{NavigatorId}] Searching EventTriggers...");
+            Log.Msg("{NavigatorId}", $"Searching EventTriggers...");
 
             foreach (var trigger in GameObject.FindObjectsOfType<EventTrigger>())
             {
@@ -361,7 +362,7 @@ namespace AccessibleArena.Core.Services
 
                 string label = GetButtonText(trigger.gameObject, CleanName(name));
 
-                MelonLogger.Msg($"[{NavigatorId}] EventTrigger: {name} - Text: '{label}'");
+                Log.Msg("{NavigatorId}", $"EventTrigger: {name} - Text: '{label}'");
 
                 AddElement(trigger.gameObject, label);
                 addedObjects.Add(trigger.gameObject);
@@ -370,7 +371,7 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverDuelSpecificElements(HashSet<GameObject> addedObjects)
         {
-            MelonLogger.Msg($"[{NavigatorId}] Searching duel-specific elements...");
+            Log.Msg("{NavigatorId}", $"Searching duel-specific elements...");
 
             string[] duelElementNames = new[]
             {
@@ -390,7 +391,7 @@ namespace AccessibleArena.Core.Services
                 if (obj != null && obj.activeInHierarchy && !addedObjects.Contains(obj))
                 {
                     string label = GetButtonText(obj, CleanName(name));
-                    MelonLogger.Msg($"[{NavigatorId}] Named element: {name} - Text: '{label}'");
+                    Log.Msg("{NavigatorId}", $"Named element: {name} - Text: '{label}'");
 
                     AddElement(obj, BuildLabel(label, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button), default, null, null, UIElementClassifier.ElementRole.Button);
                     addedObjects.Add(obj);
@@ -420,7 +421,7 @@ namespace AccessibleArena.Core.Services
             if (name.Contains("PromptButton") || name.Contains("Styled") ||
                 HasComponent(element, T.CustomButton) || HasComponent(element, "StyledButton"))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Using pointer click for: {name}");
+                Log.Msg("{NavigatorId}", $"Using pointer click for: {name}");
                 UIActivator.SimulatePointerClick(element);
                 return true;
             }
@@ -531,11 +532,11 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.P))
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MelonLogger.Msg($"[{NavigatorId}] P key pressed (shift={shift})");
+                Log.Msg("{NavigatorId}", $"P key pressed (shift={shift})");
                 if (shift)
                 {
                     var result = _priorityController.ToggleLockFullControl();
-                    MelonLogger.Msg($"[{NavigatorId}] ToggleLockFullControl result: {result}");
+                    Log.Msg("{NavigatorId}", $"ToggleLockFullControl result: {result}");
                     if (result.HasValue)
                     {
                         _announcer.AnnounceInterrupt(result.Value ? Strings.FullControl_Locked : Strings.FullControl_Unlocked);
@@ -544,7 +545,7 @@ namespace AccessibleArena.Core.Services
                 else
                 {
                     var result = _priorityController.ToggleFullControl();
-                    MelonLogger.Msg($"[{NavigatorId}] ToggleFullControl result: {result}");
+                    Log.Msg("{NavigatorId}", $"ToggleFullControl result: {result}");
                     if (result.HasValue)
                     {
                         _announcer.AnnounceInterrupt(result.Value ? Strings.FullControl_On : Strings.FullControl_Off);
@@ -756,7 +757,7 @@ namespace AccessibleArena.Core.Services
             }
 
             if (_deactivatedSocialObjects.Count > 0)
-                MelonLogger.Msg($"[{NavigatorId}] Deactivated {_deactivatedSocialObjects.Count} SocialUI selectable GOs");
+                Log.Msg("{NavigatorId}", $"Deactivated {_deactivatedSocialObjects.Count} SocialUI selectable GOs");
         }
 
         /// <summary>
@@ -778,7 +779,7 @@ namespace AccessibleArena.Core.Services
             _deactivatedSocialObjects.Clear();
 
             if (restored > 0)
-                MelonLogger.Msg($"[{NavigatorId}] Reactivated {restored} SocialUI selectable GOs");
+                Log.Msg("{NavigatorId}", $"Reactivated {restored} SocialUI selectable GOs");
         }
 
         /// <summary>

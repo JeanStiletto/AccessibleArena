@@ -6,6 +6,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -202,7 +203,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[ChooseXNavigator] Error checking view: {ex.Message}");
+                    Log.Warn("ChooseXNavigator", $"Error checking view: {ex.Message}");
                 }
             }
             return null;
@@ -219,7 +220,7 @@ namespace AccessibleArena.Core.Services
             // Deactivate card info navigator so Up/Down controls the spinner, not card blocks
             AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
 
-            MelonLogger.Msg($"[ChooseXNavigator] Entered ChooseX mode (max={_maxValue?.ToString() ?? "unknown"})");
+            Log.Msg("ChooseXNavigator", $"Entered ChooseX mode (max={_maxValue?.ToString() ?? "unknown"})");
         }
 
         private void Exit()
@@ -229,7 +230,7 @@ namespace AccessibleArena.Core.Services
             _hasAnnounced = false;
             _viewInstance = null;
             _maxValue = null;
-            MelonLogger.Msg("[ChooseXNavigator] Exited ChooseX mode");
+            Log.Msg("ChooseXNavigator", "Exited ChooseX mode");
         }
 
         private void AnnounceEntry()
@@ -295,7 +296,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChooseXNavigator] Error clicking button: {ex.Message}");
+                Log.Warn("ChooseXNavigator", $"Error clicking button: {ex.Message}");
             }
         }
 
@@ -315,11 +316,11 @@ namespace AccessibleArena.Core.Services
                 string currentValue = GetLabelText() ?? "?";
                 confirmButton.onClick.Invoke();
                 _announcer.AnnounceInterrupt(Strings.ChooseXConfirmed(currentValue));
-                MelonLogger.Msg($"[ChooseXNavigator] Submitted: {currentValue}");
+                Log.Msg("ChooseXNavigator", $"Submitted: {currentValue}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChooseXNavigator] Error submitting: {ex.Message}");
+                Log.Warn("ChooseXNavigator", $"Error submitting: {ex.Message}");
             }
         }
 
@@ -339,7 +340,7 @@ namespace AccessibleArena.Core.Services
                         {
                             button.onClick.Invoke();
                             _announcer.AnnounceInterrupt(Strings.ChooseXCancelled);
-                            MelonLogger.Msg("[ChooseXNavigator] Cancelled");
+                            Log.Msg("ChooseXNavigator", "Cancelled");
                             return;
                         }
                     }
@@ -349,7 +350,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChooseXNavigator] Error cancelling: {ex.Message}");
+                Log.Warn("ChooseXNavigator", $"Error cancelling: {ex.Message}");
             }
         }
 
@@ -369,7 +370,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChooseXNavigator] Error reading label: {ex.Message}");
+                Log.Warn("ChooseXNavigator", $"Error reading label: {ex.Message}");
             }
             return null;
         }
@@ -429,7 +430,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChooseXNavigator] Error finding max value: {ex.Message}");
+                Log.Warn("ChooseXNavigator", $"Error finding max value: {ex.Message}");
             }
 
             return null;
@@ -444,12 +445,12 @@ namespace AccessibleArena.Core.Services
                 _viewType = FindType("View_ChooseXInterface");
                 if (_viewType == null)
                 {
-                    MelonLogger.Warning("[ChooseXNavigator] View_ChooseXInterface type not found");
+                    Log.Warn("ChooseXNavigator", "View_ChooseXInterface type not found");
                     _reflectionFailed = true;
                     return;
                 }
 
-                MelonLogger.Msg($"[ChooseXNavigator] Found View_ChooseXInterface: {_viewType.FullName}");
+                Log.Msg("ChooseXNavigator", $"Found View_ChooseXInterface: {_viewType.FullName}");
 
                 _rootField = _viewType.GetField("_root", PrivateInstance);
                 _upArrowField = _viewType.GetField("_upArrowButton", PrivateInstance);
@@ -461,37 +462,37 @@ namespace AccessibleArena.Core.Services
 
                 if (_rootField == null)
                 {
-                    MelonLogger.Warning("[ChooseXNavigator] _root field not found");
+                    Log.Warn("ChooseXNavigator", "_root field not found");
                     _reflectionFailed = true;
                     return;
                 }
 
                 if (_upArrowField == null || _downArrowField == null)
                 {
-                    MelonLogger.Warning("[ChooseXNavigator] Arrow button fields not found");
+                    Log.Warn("ChooseXNavigator", "Arrow button fields not found");
                     _reflectionFailed = true;
                     return;
                 }
 
                 if (_buttonLabelField == null)
                 {
-                    MelonLogger.Warning("[ChooseXNavigator] _buttonLabel field not found");
+                    Log.Warn("ChooseXNavigator", "_buttonLabel field not found");
                     _reflectionFailed = true;
                     return;
                 }
 
                 if (_confirmButtonField == null)
                 {
-                    MelonLogger.Warning("[ChooseXNavigator] _confirmationButton field not found");
+                    Log.Warn("ChooseXNavigator", "_confirmationButton field not found");
                     _reflectionFailed = true;
                     return;
                 }
 
-                MelonLogger.Msg("[ChooseXNavigator] Reflection initialized successfully");
+                Log.Msg("ChooseXNavigator", "Reflection initialized successfully");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChooseXNavigator] Reflection init failed: {ex.Message}");
+                Log.Warn("ChooseXNavigator", $"Reflection init failed: {ex.Message}");
                 _reflectionFailed = true;
             }
         }

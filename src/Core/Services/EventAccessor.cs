@@ -6,6 +6,7 @@ using System.Reflection;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -104,7 +105,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetEventTileLabel failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetEventTileLabel failed: {ex.Message}");
                 return null;
             }
         }
@@ -121,7 +122,7 @@ namespace AccessibleArena.Core.Services
 
             _tileReflectionInit = true;
 
-            MelonLogger.Msg($"[EventAccessor] Tile reflection init: " +
+            Log.Msg("EventAccessor", $"Tile reflection init: " +
                 $"title={_tileTitleTextField != null}, rank={_tileRankImageField != null}, " +
                 $"bo3={_tileBo3IndicatorField != null}, attract={_tileAttractParentField != null}, " +
                 $"pips={_tileProgressPipsField != null}");
@@ -227,7 +228,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetEventPageTitle failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetEventPageTitle failed: {ex.Message}");
                 return null;
             }
         }
@@ -243,7 +244,7 @@ namespace AccessibleArena.Core.Services
 
             _eventPageReflectionInit = true;
 
-            MelonLogger.Msg($"[EventAccessor] EventPage reflection init: " +
+            Log.Msg("EventAccessor", $"EventPage reflection init: " +
                 $"eventContext={_currentEventContextField != null}");
         }
 
@@ -333,11 +334,11 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                MelonLogger.Msg($"[EventAccessor] GetEventPageInfoBlocks: {blocks.Count} blocks");
+                Log.Msg("EventAccessor", $"GetEventPageInfoBlocks: {blocks.Count} blocks");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetEventPageInfoBlocks failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetEventPageInfoBlocks failed: {ex.Message}");
             }
 
             return blocks;
@@ -450,7 +451,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetPacketLabel failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetPacketLabel failed: {ex.Message}");
                 return null;
             }
         }
@@ -541,7 +542,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetPacketInfoBlocks failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetPacketInfoBlocks failed: {ex.Message}");
             }
 
             return blocks;
@@ -602,7 +603,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetPacketLandGrpId failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetPacketLandGrpId failed: {ex.Message}");
             }
             return 0;
         }
@@ -656,7 +657,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (packetInput == null)
                 {
-                    MelonLogger.Warning("[EventAccessor] PacketInput not found on JumpStartPacket");
+                    Log.Warn("EventAccessor", "PacketInput not found on JumpStartPacket");
                     return false;
                 }
 
@@ -666,17 +667,17 @@ namespace AccessibleArena.Core.Services
                 if (onClickMethod != null)
                 {
                     onClickMethod.Invoke(packetInput, null);
-                    MelonLogger.Msg("[EventAccessor] Packet click invoked via PacketInput.OnClick");
+                    Log.Msg("EventAccessor", "Packet click invoked via PacketInput.OnClick");
                     return true;
                 }
                 else
                 {
-                    MelonLogger.Warning("[EventAccessor] PacketInput.OnClick method not found");
+                    Log.Warn("EventAccessor", "PacketInput.OnClick method not found");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] ClickPacket failed: {ex.Message}");
+                Log.Error("EventAccessor", $"ClickPacket failed: {ex.Message}");
             }
             return false;
         }
@@ -729,7 +730,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetPacketScreenSummary failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetPacketScreenSummary failed: {ex.Message}");
                 return null;
             }
         }
@@ -749,7 +750,7 @@ namespace AccessibleArena.Core.Services
 
             _packetReflectionInit = true;
 
-            MelonLogger.Msg($"[EventAccessor] Packet reflection init: " +
+            Log.Msg("EventAccessor", $"Packet reflection init: " +
                 $"options={_packetOptionsField != null}, selected={_selectedPackIdField != null}, " +
                 $"state={_currentStateField != null}, toId={_packetToIdField != null}, " +
                 $"header={_headerTextField != null}");
@@ -763,7 +764,7 @@ namespace AccessibleArena.Core.Services
 
             _jumpStartReflectionInit = true;
 
-            MelonLogger.Msg($"[EventAccessor] JumpStartPacket reflection init: " +
+            Log.Msg("EventAccessor", $"JumpStartPacket reflection init: " +
                 $"packTitle={_packTitleField != null}");
         }
 
@@ -817,7 +818,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetPacketColorInfo failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetPacketColorInfo failed: {ex.Message}");
                 return null;
             }
         }
@@ -921,11 +922,11 @@ namespace AccessibleArena.Core.Services
                         result[trackKey] = summary;
                 }
 
-                MelonLogger.Msg($"[EventAccessor] GetAllTrackSummaries: {result.Count} entries");
+                Log.Msg("EventAccessor", $"GetAllTrackSummaries: {result.Count} entries");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[EventAccessor] GetAllTrackSummaries failed: {ex.Message}");
+                Log.Error("EventAccessor", $"GetAllTrackSummaries failed: {ex.Message}");
             }
 
             return result;
@@ -974,7 +975,7 @@ namespace AccessibleArena.Core.Services
 
             _campaignGraphReflectionInit = true;
 
-            MelonLogger.Msg($"[EventAccessor] CampaignGraph reflection init: " +
+            Log.Msg("EventAccessor", $"CampaignGraph reflection init: " +
                 $"strategy={_campaignGraphStrategyField != null}");
         }
 

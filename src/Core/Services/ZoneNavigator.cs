@@ -106,19 +106,19 @@ namespace AccessibleArena.Core.Services
             // Try Hand zone first (most reliable)
             if (_zones.TryGetValue(ZoneType.Hand, out var handZone) && handZone.OwnerId > 0)
             {
-                MelonLogger.Msg($"[ZoneNavigator] Local player ID from Hand zone: #{handZone.OwnerId}");
+                Log.Msg("ZoneNavigator", $"Local player ID from Hand zone: #{handZone.OwnerId}");
                 return (uint)handZone.OwnerId;
             }
 
             // Fallback to Library zone
             if (_zones.TryGetValue(ZoneType.Library, out var libZone) && libZone.OwnerId > 0)
             {
-                MelonLogger.Msg($"[ZoneNavigator] Local player ID from Library zone: #{libZone.OwnerId}");
+                Log.Msg("ZoneNavigator", $"Local player ID from Library zone: #{libZone.OwnerId}");
                 return (uint)libZone.OwnerId;
             }
 
             // Default to 1 if not found
-            MelonLogger.Warning("[ZoneNavigator] Could not detect local player ID from zones, defaulting to #1");
+            Log.Warn("ZoneNavigator", "Could not detect local player ID from zones, defaulting to #1");
             return 1;
         }
 
@@ -138,7 +138,7 @@ namespace AccessibleArena.Core.Services
             {
                 string fromName = current != null ? current.name : "null";
                 string toName = gameObject != null ? gameObject.name : "null";
-                MelonLogger.Msg($"[Navigation] Focus change: {fromName} -> {toName} (by {caller})");
+                Log.Msg("Navigation", $"Focus change: {fromName} -> {toName} (by {caller})");
             }
             eventSystem.SetSelectedGameObject(gameObject);
         }
@@ -164,7 +164,7 @@ namespace AccessibleArena.Core.Services
             if (_currentZone != zone || _zoneOwner != newOwner)
             {
                 string ownerChange = _zoneOwner != newOwner ? $", owner: {_zoneOwner} -> {newOwner}" : "";
-                MelonLogger.Msg($"[ZoneNavigator] Zone change: {_currentZone} -> {zone}{ownerChange}{(caller != null ? $" (by {caller})" : "")}");
+                Log.Msg("ZoneNavigator", $"Zone change: {_currentZone} -> {zone}{ownerChange}{(caller != null ? $" (by {caller})" : "")}");
             }
 
             // Hint when navigating away from browser while it's still active
@@ -470,7 +470,7 @@ namespace AccessibleArena.Core.Services
         public void DiscoverZones()
         {
             _zones.Clear();
-            MelonLogger.Msg("[ZoneNavigator] Discovering zones...");
+            Log.Msg("ZoneNavigator", "Discovering zones...");
 
             foreach (var pattern in ZoneHolderPatterns)
             {
@@ -514,7 +514,7 @@ namespace AccessibleArena.Core.Services
                 {
                     commandZone.Cards.Add(card);
                     string cardName = CardDetector.GetCardName(card);
-                    MelonLogger.Msg($"[ZoneNavigator] Added commander {cardName} to Command zone from hand");
+                    Log.Msg("ZoneNavigator", $"Added commander {cardName} to Command zone from hand");
                 }
             }
         }
@@ -585,7 +585,7 @@ namespace AccessibleArena.Core.Services
 
             if (oldCount != newCount)
             {
-                MelonLogger.Msg($"[ZoneNavigator] Refreshed {_currentZone}: {oldCount} -> {newCount} cards");
+                Log.Msg("ZoneNavigator", $"Refreshed {_currentZone}: {oldCount} -> {newCount} cards");
             }
 
             // Clamp index to valid range
@@ -783,7 +783,7 @@ namespace AccessibleArena.Core.Services
             }
 
             string cardName = CardDetector.GetCardName(card);
-            MelonLogger.Msg($"[ZoneNavigator] Activating card: {cardName} ({card.name}) in zone {_currentZone}");
+            Log.Msg("ZoneNavigator", $"Activating card: {cardName} ({card.name}) in zone {_currentZone}");
 
             // For hand, command, and library zone cards, use the two-click approach (like sighted players)
             // Command zone cards (commander/companion) are castable just like hand cards
@@ -793,11 +793,11 @@ namespace AccessibleArena.Core.Services
                 // Check if selection mode is active (discard, exile choices, etc.)
                 if (_currentZone == ZoneType.Hand && _hotHighlightNavigator != null && _hotHighlightNavigator.TryToggleSelection(card))
                 {
-                    MelonLogger.Msg($"[ZoneNavigator] Selection toggled for {cardName}");
+                    Log.Msg("ZoneNavigator", $"Selection toggled for {cardName}");
                     return;
                 }
 
-                MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from {_currentZone} via two-click");
+                Log.Msg("ZoneNavigator", $"Playing {cardName} from {_currentZone} via two-click");
 
                 // Two-click is async, result comes via callback
                 UIActivator.PlayCardViaTwoClick(card, (success, message) =>
@@ -805,12 +805,12 @@ namespace AccessibleArena.Core.Services
                     if (success)
                     {
                         // Don't announce "Played" here - targeting mode will be discovered via Tab
-                        MelonLogger.Msg($"[ZoneNavigator] Card play succeeded");
+                        Log.Msg("ZoneNavigator", $"Card play succeeded");
                     }
                     else
                     {
                         _announcer.Announce(Strings.CouldNotPlay(cardName), AnnouncementPriority.High);
-                        MelonLogger.Msg($"[ZoneNavigator] Card play failed: {message}");
+                        Log.Msg("ZoneNavigator", $"Card play failed: {message}");
                     }
                 });
             }
@@ -822,7 +822,7 @@ namespace AccessibleArena.Core.Services
                 if (!result.Success)
                 {
                     _announcer.Announce(Strings.CannotActivate(cardName), AnnouncementPriority.High);
-                    MelonLogger.Msg($"[ZoneNavigator] Card activation failed: {result.Message}");
+                    Log.Msg("ZoneNavigator", $"Card activation failed: {result.Message}");
                 }
             }
         }
@@ -832,10 +832,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void LogZoneSummary()
         {
-            MelonLogger.Msg("[ZoneNavigator] --- Zone Summary ---");
+            Log.Msg("ZoneNavigator", "--- Zone Summary ---");
             foreach (var zone in _zones.Values.OrderBy(z => z.Type.ToString()))
             {
-                MelonLogger.Msg($"[ZoneNavigator]   {zone.Type}: {zone.Cards.Count} cards (ZoneId: #{zone.ZoneId})");
+                Log.Msg("ZoneNavigator", $"  {zone.Type}: {zone.Cards.Count} cards (ZoneId: #{zone.ZoneId})");
             }
         }
 
