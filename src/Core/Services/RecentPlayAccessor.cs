@@ -284,44 +284,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Check if the entry at the given index is an in-progress event (Fortsetzen vs Spielen).
-        /// </summary>
-        public static bool GetIsInProgress(int index)
-        {
-            if (_cachedContentView == null || _modelsField == null)
-                return false;
-
-            try
-            {
-                var models = _modelsField.GetValue(_cachedContentView) as IList;
-                if (models == null || index < 0 || index >= models.Count)
-                    return false;
-
-                var model = models[index];
-                if (model == null)
-                    return false;
-
-                var eventInfoField = model.GetType().GetField("EventInfo");
-                if (eventInfoField == null)
-                    return false;
-
-                var eventInfo = eventInfoField.GetValue(model);
-                if (eventInfo == null)
-                    return false;
-
-                var isInProgressField = eventInfo.GetType().GetField("IsInProgress");
-                if (isInProgressField != null)
-                    return (bool)isInProgressField.GetValue(eventInfo);
-
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Find the tile index for a given UI element by walking up the parent chain.
         /// Returns BLADE_VIEW_INDEX if inside the BladeView's most-recent tile.
         /// Returns -1 if the element is not inside any tile.
