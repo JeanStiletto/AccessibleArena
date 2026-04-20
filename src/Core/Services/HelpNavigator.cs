@@ -3,6 +3,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -171,7 +172,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _currentIndex = 0;
 
-            MelonLogger.Msg("[HelpNavigator] Opened");
+            Log.Msg("HelpNavigator", "Opened");
 
             // Announce title and instructions
             string core = $"{Strings.HelpMenuTitle}. {Strings.ItemCount(_helpItems.Count)}";
@@ -188,7 +189,7 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _currentIndex = 0;
 
-            MelonLogger.Msg("[HelpNavigator] Closed");
+            Log.Msg("HelpNavigator", "Closed");
             _announcer.AnnounceInterrupt(Strings.HelpMenuClosed);
         }
 

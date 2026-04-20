@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -42,17 +43,17 @@ namespace AccessibleArena.Core.Services
             {
                 if (!File.Exists(SettingsPath))
                 {
-                    MelonLogger.Msg("[ModSettings] No settings file found, using defaults");
+                    Log.Msg("ModSettings", "No settings file found, using defaults");
                     return settings;
                 }
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                MelonLogger.Msg($"[ModSettings] Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, CheckForUpdates={settings.CheckForUpdates}");
+                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, CheckForUpdates={settings.CheckForUpdates}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ModSettings] Failed to load settings, using defaults: {ex.Message}");
+                Log.Warn("ModSettings", $"Failed to load settings, using defaults: {ex.Message}");
             }
 
             return settings;
@@ -73,11 +74,11 @@ namespace AccessibleArena.Core.Services
 
                 string json = ToJson();
                 File.WriteAllText(SettingsPath, json);
-                MelonLogger.Msg("[ModSettings] Settings saved");
+                Log.Msg("ModSettings", "Settings saved");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ModSettings] Failed to save settings: {ex.Message}");
+                Log.Warn("ModSettings", $"Failed to save settings: {ex.Message}");
             }
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -222,7 +223,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _numberWords = null; // Rebuild on next use
-            MelonLogger.Msg($"[LocaleManager] Loaded language: {code} ({_activeStrings.Count} active, {_fallbackStrings.Count} fallback strings)");
+            Log.Msg("LocaleManager", $"Loaded language: {code} ({_activeStrings.Count} active, {_fallbackStrings.Count} fallback strings)");
         }
 
         /// <summary>
@@ -237,7 +238,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (!File.Exists(path))
                 {
-                    MelonLogger.Warning($"[LocaleManager] Locale file not found: {path}");
+                    Log.Warn("LocaleManager", $"Locale file not found: {path}");
                     return dict;
                 }
 
@@ -246,7 +247,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[LocaleManager] Error loading {path}: {ex.Message}");
+                Log.Warn("LocaleManager", $"Error loading {path}: {ex.Message}");
             }
 
             return dict;
@@ -363,7 +364,7 @@ namespace AccessibleArena.Core.Services
                 if (!Directory.Exists(LangDir))
                 {
                     Directory.CreateDirectory(LangDir);
-                    MelonLogger.Msg($"[LocaleManager] Created lang directory: {LangDir}");
+                    Log.Msg("LocaleManager", $"Created lang directory: {LangDir}");
                 }
 
                 var assembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -387,11 +388,11 @@ namespace AccessibleArena.Core.Services
                     }
                     count++;
                 }
-                MelonLogger.Msg($"[LocaleManager] Deployed {count} locale files");
+                Log.Msg("LocaleManager", $"Deployed {count} locale files");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[LocaleManager] Could not deploy locale files: {ex.Message}");
+                Log.Warn("LocaleManager", $"Could not deploy locale files: {ex.Message}");
             }
         }
     }

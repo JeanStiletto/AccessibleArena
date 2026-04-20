@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -70,7 +71,7 @@ namespace AccessibleArena.Core.Services
                 if (!_loggedLookupFailure && _lookupAttempted)
                 {
                     _loggedLookupFailure = true;
-                    MelonLogger.Msg("[ChatWatcher] ChatManager not available (socialManager or chatManager null)");
+                    Log.Msg("ChatWatcher", "ChatManager not available (socialManager or chatManager null)");
                 }
                 return;
             }
@@ -121,12 +122,12 @@ namespace AccessibleArena.Core.Services
                 if (cm == null) return null; // Transient - no chat session yet
 
                 _chatManager = cm;
-                MelonLogger.Msg($"[ChatWatcher] ChatManager found, monitoring conversations");
+                Log.Msg("ChatWatcher", $"ChatManager found, monitoring conversations");
                 return _chatManager;
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChatWatcher] Lookup error: {ex.Message}");
+                Log.Warn("ChatWatcher", $"Lookup error: {ex.Message}");
                 _lookupFailed = true;
                 return null;
             }
@@ -185,7 +186,7 @@ namespace AccessibleArena.Core.Services
                 if (!_loggedFirstPoll)
                 {
                     _loggedFirstPoll = true;
-                    MelonLogger.Warning($"[ChatWatcher] Reflection fields null: conversations={_conversationsField != null}, messageHistory={_messageHistoryField != null}");
+                    Log.Warn("ChatWatcher", $"Reflection fields null: conversations={_conversationsField != null}, messageHistory={_messageHistoryField != null}");
                 }
                 return;
             }
@@ -198,7 +199,7 @@ namespace AccessibleArena.Core.Services
                     if (!_loggedFirstPoll)
                     {
                         _loggedFirstPoll = true;
-                        MelonLogger.Msg("[ChatWatcher] Conversations field returned null or not IList");
+                        Log.Msg("ChatWatcher", "Conversations field returned null or not IList");
                     }
                     return;
                 }
@@ -206,7 +207,7 @@ namespace AccessibleArena.Core.Services
                 if (!_loggedFirstPoll)
                 {
                     _loggedFirstPoll = true;
-                    MelonLogger.Msg($"[ChatWatcher] First poll: {conversations.Count} conversations");
+                    Log.Msg("ChatWatcher", $"First poll: {conversations.Count} conversations");
                 }
 
                 foreach (var conversation in conversations)
@@ -223,7 +224,7 @@ namespace AccessibleArena.Core.Services
                         // Known conversation - check for count increase
                         if (currentCount > knownCount)
                         {
-                            MelonLogger.Msg($"[ChatWatcher] Messages changed: {knownCount} -> {currentCount}");
+                            Log.Msg("ChatWatcher", $"Messages changed: {knownCount} -> {currentCount}");
                             for (int i = knownCount; i < currentCount; i++)
                             {
                                 var message = history[i];
@@ -238,7 +239,7 @@ namespace AccessibleArena.Core.Services
                     {
                         // New conversation appeared after first poll - likely created by incoming message.
                         // Check all its messages instead of silently recording baseline.
-                        MelonLogger.Msg($"[ChatWatcher] New conversation detected with {currentCount} messages");
+                        Log.Msg("ChatWatcher", $"New conversation detected with {currentCount} messages");
                         for (int i = 0; i < currentCount; i++)
                         {
                             var message = history[i];
@@ -257,7 +258,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[ChatWatcher] Poll error: {ex.Message}");
+                Log.Warn("ChatWatcher", $"Poll error: {ex.Message}");
             }
         }
 

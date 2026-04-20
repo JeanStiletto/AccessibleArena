@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using AccessibleArena.Core.Models;
 using MelonLoader;
 using Microsoft.Win32;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -36,18 +37,18 @@ namespace AccessibleArena.Core.Services
             IsSteam = IsSteamLoaded();
             if (!IsSteam)
             {
-                MelonLogger.Msg("[SteamOverlayBlocker] Steam not detected, skipping");
+                Log.Msg("SteamOverlayBlocker", "Steam not detected, skipping");
                 return;
             }
 
             OverlayDisabled = IsOverlayDisabledInVdf();
             if (OverlayDisabled)
             {
-                MelonLogger.Msg("[SteamOverlayBlocker] Steam detected, overlay already disabled for MTGA");
+                Log.Msg("SteamOverlayBlocker", "Steam detected, overlay already disabled for MTGA");
             }
             else
             {
-                MelonLogger.Warning("[SteamOverlayBlocker] Steam detected, overlay NOT disabled - Shift+Tab will open Steam overlay");
+                Log.Warn("SteamOverlayBlocker", "Steam detected, overlay NOT disabled - Shift+Tab will open Steam overlay");
             }
         }
 
@@ -74,7 +75,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[SteamOverlayBlocker] Error checking modules: {ex.Message}");
+                Log.Warn("SteamOverlayBlocker", $"Error checking modules: {ex.Message}");
             }
 
             return false;
@@ -90,7 +91,7 @@ namespace AccessibleArena.Core.Services
                 string steamRoot = GetSteamRoot();
                 if (steamRoot == null)
                 {
-                    MelonLogger.Msg("[SteamOverlayBlocker] Could not determine Steam root path");
+                    Log.Msg("SteamOverlayBlocker", "Could not determine Steam root path");
                     return false;
                 }
 
@@ -114,7 +115,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[SteamOverlayBlocker] Error checking VDF: {ex.Message}");
+                Log.Warn("SteamOverlayBlocker", $"Error checking VDF: {ex.Message}");
             }
 
             return false;

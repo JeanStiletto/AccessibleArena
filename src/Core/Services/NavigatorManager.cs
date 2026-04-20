@@ -2,6 +2,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -35,7 +36,7 @@ namespace AccessibleArena.Core.Services
             _navigators.Add(navigator);
             // Sort by priority descending
             _navigators.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-            MelonLogger.Msg($"[NavigatorManager] Registered: {navigator.NavigatorId} (priority {navigator.Priority})");
+            Log.Msg("NavigatorManager", $"Registered: {navigator.NavigatorId} (priority {navigator.Priority})");
         }
 
         /// <summary>Register multiple navigators</summary>
@@ -68,7 +69,7 @@ namespace AccessibleArena.Core.Services
 
                     if (navigator.IsActive)
                     {
-                        MelonLogger.Msg($"[NavigatorManager] {navigator.NavigatorId} preempting {_activeNavigator.NavigatorId}");
+                        Log.Msg("NavigatorManager", $"{navigator.NavigatorId} preempting {_activeNavigator.NavigatorId}");
                         _activeNavigator.Deactivate();
                         _activeNavigator = navigator;
                         return;
@@ -83,7 +84,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_activeNavigator != null)
                     {
-                        MelonLogger.Msg($"[NavigatorManager] {_activeNavigator.NavigatorId} deactivated");
+                        Log.Msg("NavigatorManager", $"{_activeNavigator.NavigatorId} deactivated");
                         _activeNavigator = null;
                     }
                 }
@@ -98,7 +99,7 @@ namespace AccessibleArena.Core.Services
                 if (navigator.IsActive)
                 {
                     _activeNavigator = navigator;
-                    MelonLogger.Msg($"[NavigatorManager] {navigator.NavigatorId} activated");
+                    Log.Msg("NavigatorManager", $"{navigator.NavigatorId} activated");
                     return;
                 }
             }
@@ -163,7 +164,7 @@ namespace AccessibleArena.Core.Services
             var target = GetNavigator(navigatorId);
             if (target == null)
             {
-                MelonLogger.Warning($"[NavigatorManager] RequestActivation: navigator '{navigatorId}' not found");
+                Log.Warn("NavigatorManager", $"RequestActivation: navigator '{navigatorId}' not found");
                 return false;
             }
 
@@ -172,7 +173,7 @@ namespace AccessibleArena.Core.Services
             // Deactivate current navigator
             if (_activeNavigator != null && _activeNavigator != target)
             {
-                MelonLogger.Msg($"[NavigatorManager] RequestActivation: deactivating {_activeNavigator.NavigatorId} for {navigatorId}");
+                Log.Msg("NavigatorManager", $"RequestActivation: deactivating {_activeNavigator.NavigatorId} for {navigatorId}");
                 _activeNavigator.Deactivate();
                 _activeNavigator = null;
             }
@@ -183,21 +184,21 @@ namespace AccessibleArena.Core.Services
             if (target.IsActive)
             {
                 _activeNavigator = target;
-                MelonLogger.Msg($"[NavigatorManager] RequestActivation: {navigatorId} activated successfully");
+                Log.Msg("NavigatorManager", $"RequestActivation: {navigatorId} activated successfully");
                 return true;
             }
 
             // Target didn't activate - restore previous navigator so we don't leave a gap
             if (previous != null && previous != target)
             {
-                MelonLogger.Msg($"[NavigatorManager] RequestActivation: {navigatorId} did not activate, restoring {previous.NavigatorId}");
+                Log.Msg("NavigatorManager", $"RequestActivation: {navigatorId} did not activate, restoring {previous.NavigatorId}");
                 previous.Update(); // Re-poll so it can reactivate
                 if (previous.IsActive)
                     _activeNavigator = previous;
             }
             else
             {
-                MelonLogger.Msg($"[NavigatorManager] RequestActivation: {navigatorId} did not activate");
+                Log.Msg("NavigatorManager", $"RequestActivation: {navigatorId} did not activate");
             }
 
             return false;

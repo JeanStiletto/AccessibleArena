@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -312,7 +313,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _reflectionInitialized = true;
-            MelonLogger.Msg($"[{NavigatorId}] Reflection cached: " +
+            Log.Msg("{NavigatorId}", $"Reflection cached: " +
                 $"Card={_achievementCardType != null}, " +
                 $"Group={_groupDisplayType != null}, " +
                 $"Set={_setItemType != null}, " +
@@ -335,7 +336,7 @@ namespace AccessibleArena.Core.Services
             if (_overviewEntries.Count > 0)
                 AddElement(_controller.gameObject, "Achievements");
 
-            MelonLogger.Msg($"[{NavigatorId}] Discovered {_overviewEntries.Count} overview entries");
+            Log.Msg("{NavigatorId}", $"Discovered {_overviewEntries.Count} overview entries");
         }
 
         private void DiscoverOverview()
@@ -363,7 +364,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Pantry.Get<IAchievementManager> failed: {ex.InnerException?.Message ?? ex.Message}");
+                Log.Warn("{NavigatorId}", $"Pantry.Get<IAchievementManager> failed: {ex.InnerException?.Message ?? ex.Message}");
                 return;
             }
 
@@ -470,7 +471,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_groupDisplayType == null)
             {
-                MelonLogger.Warning($"[{NavigatorId}] AchievementGroupDisplay type not found");
+                Log.Warn("{NavigatorId}", $"AchievementGroupDisplay type not found");
                 return;
             }
 
@@ -482,7 +483,7 @@ namespace AccessibleArena.Core.Services
                     groupDisplays.Add(mb);
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Found {groupDisplays.Count} group displays");
+            Log.Msg("{NavigatorId}", $"Found {groupDisplays.Count} group displays");
 
             foreach (var groupDisplay in groupDisplays)
             {
@@ -904,7 +905,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[{NavigatorId}] SelectSet error: {ex.InnerException?.Message ?? ex.Message}");
+                    Log.Warn("{NavigatorId}", $"SelectSet error: {ex.InnerException?.Message ?? ex.Message}");
                     return;
                 }
             }
@@ -1091,7 +1092,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] SetFavorite error: {ex.InnerException?.Message ?? ex.Message}");
+                Log.Warn("{NavigatorId}", $"SetFavorite error: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
 
@@ -1103,13 +1104,13 @@ namespace AccessibleArena.Core.Services
                 var toggleMethod = comp.GetType().GetMethod("ToggleFoldout", BindingFlags.Public | BindingFlags.Instance);
                 if (toggleMethod != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] ToggleFoldout via {comp.GetType().FullName}");
+                    Log.Msg("{NavigatorId}", $"ToggleFoldout via {comp.GetType().FullName}");
                     try { toggleMethod.Invoke(comp, null); }
-                    catch (Exception ex) { MelonLogger.Warning($"[{NavigatorId}] ToggleFoldout error: {ex.InnerException?.Message ?? ex.Message}"); }
+                    catch (Exception ex) { Log.Warn("{NavigatorId}", $"ToggleFoldout error: {ex.InnerException?.Message ?? ex.Message}"); }
                     return;
                 }
             }
-            MelonLogger.Warning($"[{NavigatorId}] No ToggleFoldout found on {groupObject.name}");
+            Log.Warn("{NavigatorId}", $"No ToggleFoldout found on {groupObject.name}");
         }
 
         private void ScheduleRescan(float delay)

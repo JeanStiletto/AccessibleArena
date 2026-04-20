@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -205,7 +206,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[RecentPlayAccessor] ReadEventTitleFromTile failed: {ex.Message}");
+                Log.Error("RecentPlayAccessor", $"ReadEventTitleFromTile failed: {ex.Message}");
             }
 
             return null;
@@ -225,12 +226,12 @@ namespace AccessibleArena.Core.Services
 
                 _reflectionInitialized = true;
 
-                MelonLogger.Msg($"[RecentPlayAccessor] Reflection init: " +
+                Log.Msg("RecentPlayAccessor", $"Reflection init: " +
                     $"_tiles={_tilesField != null}, _models={_modelsField != null}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[RecentPlayAccessor] Reflection init failed: {ex.Message}");
+                Log.Error("RecentPlayAccessor", $"Reflection init failed: {ex.Message}");
             }
         }
 
@@ -278,7 +279,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[RecentPlayAccessor] GetEventTitle({index}) failed: {ex.Message}");
+                Log.Error("RecentPlayAccessor", $"GetEventTitle({index}) failed: {ex.Message}");
                 return null;
             }
         }
@@ -313,7 +314,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Error($"[RecentPlayAccessor] FindTileIndexForElement (content) failed: {ex.Message}");
+                    Log.Error("RecentPlayAccessor", $"FindTileIndexForElement (content) failed: {ex.Message}");
                 }
             }
 
@@ -328,7 +329,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Error($"[RecentPlayAccessor] FindTileIndexForElement (blade) failed: {ex.Message}");
+                    Log.Error("RecentPlayAccessor", $"FindTileIndexForElement (blade) failed: {ex.Message}");
                 }
             }
 
@@ -365,7 +366,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[RecentPlayAccessor] FindAllButtonsInTile({index}) failed: {ex.Message}");
+                Log.Error("RecentPlayAccessor", $"FindAllButtonsInTile({index}) failed: {ex.Message}");
             }
 
             return result;
@@ -402,7 +403,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[RecentPlayAccessor] FindPlayButtonInTile({index}) failed: {ex.Message}");
+                Log.Error("RecentPlayAccessor", $"FindPlayButtonInTile({index}) failed: {ex.Message}");
                 return null;
             }
         }

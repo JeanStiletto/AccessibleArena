@@ -209,7 +209,7 @@ namespace AccessibleArena.Core.Services
                     if (holderComponent == null)
                         continue;
 
-                    MelonLogger.Msg($"[DeckCardProvider] Found sideboard holder: '{child.name}' with component {holderComponent.GetType().Name}");
+                    Log.Msg("DeckCardProvider", $"Found sideboard holder: '{child.name}' with component {holderComponent.GetType().Name}");
 
                     // Get CardViews property (same pattern as GetDeckListCards)
                     var holderType = holderComponent.GetType();
@@ -226,7 +226,7 @@ namespace AccessibleArena.Core.Services
 
                 if (_cachedSideboardCards.Count > 0)
                 {
-                    MelonLogger.Msg($"[DeckCardProvider] Found {_cachedSideboardCards.Count} sideboard card(s)");
+                    Log.Msg("DeckCardProvider", $"Found {_cachedSideboardCards.Count} sideboard card(s)");
                 }
             }
             catch (Exception ex)
@@ -664,7 +664,7 @@ namespace AccessibleArena.Core.Services
                         holders.Add(mb);
                 }
 
-                MelonLogger.Msg($"[DeckCardProvider] Found {holders.Count} ListCommanderHolder(s)");
+                Log.Msg("DeckCardProvider", $"Found {holders.Count} ListCommanderHolder(s)");
                 if (holders.Count == 0)
                     return _cachedCommanderCards;
 
@@ -680,7 +680,7 @@ namespace AccessibleArena.Core.Services
                     if (isEmptyProp != null)
                         isEmpty = (bool)isEmptyProp.GetValue(holder);
 
-                    MelonLogger.Msg($"[DeckCardProvider] ListCommanderHolder '{holderName}' active={active} isEmpty={isEmpty}");
+                    Log.Msg("DeckCardProvider", $"ListCommanderHolder '{holderName}' active={active} isEmpty={isEmpty}");
 
                     if (!active || isEmpty)
                         continue;
@@ -689,18 +689,18 @@ namespace AccessibleArena.Core.Services
                     var cardInstanceField = holderType.GetField("_cardInstance", BindingFlags.NonPublic | BindingFlags.Instance);
                     if (cardInstanceField == null)
                     {
-                        MelonLogger.Msg($"[DeckCardProvider]   _cardInstance field NOT FOUND");
+                        Log.Msg("DeckCardProvider", $"  _cardInstance field NOT FOUND");
                         continue;
                     }
 
                     var cardView = cardInstanceField.GetValue(holder);
                     if (cardView == null)
                     {
-                        MelonLogger.Msg($"[DeckCardProvider]   _cardInstance is null");
+                        Log.Msg("DeckCardProvider", $"  _cardInstance is null");
                         continue;
                     }
 
-                    MelonLogger.Msg($"[DeckCardProvider]   _cardInstance type={cardView.GetType().Name}");
+                    Log.Msg("DeckCardProvider", $"  _cardInstance type={cardView.GetType().Name}");
 
                     // ListCommanderView extends ListMetaCardView_Expanding — same extraction as deck list
                     var info = new CommanderCardInfo();
@@ -746,16 +746,16 @@ namespace AccessibleArena.Core.Services
                     if (partnerField != null)
                         info.IsPartner = (bool)partnerField.GetValue(holder);
 
-                    MelonLogger.Msg($"[DeckCardProvider]   Extracted: GrpId={info.GrpId}, Qty={info.Quantity}, Tile={info.TileButton?.name}, Tag={info.TagButton?.name}, Valid={info.IsValid}");
+                    Log.Msg("DeckCardProvider", $"  Extracted: GrpId={info.GrpId}, Qty={info.Quantity}, Tile={info.TileButton?.name}, Tag={info.TagButton?.name}, Valid={info.IsValid}");
                     if (info.IsValid)
                         _cachedCommanderCards.Add(info);
                 }
 
-                MelonLogger.Msg($"[DeckCardProvider] Commander cards found: {_cachedCommanderCards.Count}");
+                Log.Msg("DeckCardProvider", $"Commander cards found: {_cachedCommanderCards.Count}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[DeckCardProvider] Error getting commander cards: {ex.Message}\n{ex.StackTrace}");
+                Log.Msg("DeckCardProvider", $"Error getting commander cards: {ex.Message}\n{ex.StackTrace}");
             }
 
             return _cachedCommanderCards;

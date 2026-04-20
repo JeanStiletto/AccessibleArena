@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -279,7 +280,7 @@ namespace AccessibleArena.Core.Services
                 var deckListInfo = DeckCardProvider.ExtractDeckListCardInfo(cardObj);
                 if (deckListInfo.HasValue && deckListInfo.Value.IsValid)
                 {
-                    MelonLogger.Msg($"[CardDetector] Using DECK LIST extraction: {deckListInfo.Value.Name} (Qty: {deckListInfo.Value.Quantity})");
+                    Log.Msg("CardDetector", $"Using DECK LIST extraction: {deckListInfo.Value.Name} (Qty: {deckListInfo.Value.Quantity})");
                     return deckListInfo.Value;
                 }
 
@@ -287,7 +288,7 @@ namespace AccessibleArena.Core.Services
                 var sideboardInfo = DeckCardProvider.ExtractSideboardCardInfo(cardObj);
                 if (sideboardInfo.HasValue && sideboardInfo.Value.IsValid)
                 {
-                    MelonLogger.Msg($"[CardDetector] Using SIDEBOARD extraction: {sideboardInfo.Value.Name} (Qty: {sideboardInfo.Value.Quantity})");
+                    Log.Msg("CardDetector", $"Using SIDEBOARD extraction: {sideboardInfo.Value.Name} (Qty: {sideboardInfo.Value.Quantity})");
                     return sideboardInfo.Value;
                 }
 
@@ -295,7 +296,7 @@ namespace AccessibleArena.Core.Services
                 var commanderInfo = DeckCardProvider.ExtractCommanderCardInfo(cardObj);
                 if (commanderInfo.HasValue && commanderInfo.Value.IsValid)
                 {
-                    MelonLogger.Msg($"[CardDetector] Using COMMANDER extraction: {commanderInfo.Value.Name}");
+                    Log.Msg("CardDetector", $"Using COMMANDER extraction: {commanderInfo.Value.Name}");
                     return commanderInfo.Value;
                 }
 
@@ -303,7 +304,7 @@ namespace AccessibleArena.Core.Services
                 var readOnlyInfo = DeckCardProvider.ExtractReadOnlyDeckCardInfo(cardObj);
                 if (readOnlyInfo.HasValue && readOnlyInfo.Value.IsValid)
                 {
-                    MelonLogger.Msg($"[CardDetector] Using READ-ONLY DECK extraction: {readOnlyInfo.Value.Name} (Qty: {readOnlyInfo.Value.Quantity})");
+                    Log.Msg("CardDetector", $"Using READ-ONLY DECK extraction: {readOnlyInfo.Value.Name} (Qty: {readOnlyInfo.Value.Quantity})");
                     return readOnlyInfo.Value;
                 }
             }

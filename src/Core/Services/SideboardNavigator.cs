@@ -10,6 +10,7 @@ using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Constants.SceneNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -77,7 +78,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void OnDuelSceneLoaded()
         {
-            MelonLogger.Msg($"[{NavigatorId}] DuelScene loaded - watching for sideboard");
+            Log.Msg("{NavigatorId}", $"DuelScene loaded - watching for sideboard");
             _isWatching = true;
         }
 
@@ -677,7 +678,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Post-move rescan: pool={_poolCards.Count}, deck={_deckCards.Count}");
+            Log.Msg("{NavigatorId}", $"Post-move rescan: pool={_poolCards.Count}, deck={_deckCards.Count}");
         }
 
         #endregion
@@ -690,7 +691,7 @@ namespace AccessibleArena.Core.Services
             CardPoolAccessor.FindCardPoolHolder();
             if (!CardPoolAccessor.IsValid())
             {
-                MelonLogger.Msg($"[{NavigatorId}] No valid pool holder for paging");
+                Log.Msg("{NavigatorId}", $"No valid pool holder for paging");
                 return;
             }
 
@@ -724,7 +725,7 @@ namespace AccessibleArena.Core.Services
             var doneButton = GetDoneButton();
             if (doneButton == null)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Done button not found");
+                Log.Warn("{NavigatorId}", $"Done button not found");
                 return;
             }
 
@@ -758,7 +759,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[{NavigatorId}] ToggleBattlefieldView failed: {ex.Message}");
+                Log.Error("{NavigatorId}", $"ToggleBattlefieldView failed: {ex.Message}");
             }
         }
 
@@ -871,7 +872,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Error($"[{NavigatorId}] FindNavBar failed: {ex.Message}");
+                    Log.Error("{NavigatorId}", $"FindNavBar failed: {ex.Message}");
                 }
             }
         }
@@ -889,7 +890,7 @@ namespace AccessibleArena.Core.Services
             _navBarField = type.GetField("_navBar", PrivateInstance);
             _introTextField = type.GetField("_sideboardIntroText", PrivateInstance);
 
-            MelonLogger.Msg($"[SideboardNavigator] Reflection init: " +
+            Log.Msg("SideboardNavigator", $"Reflection init: " +
                 $"_deckBuilder={_deckBuilderField != null}, " +
                 $"_showHideToggle={_showHideToggleField != null}, " +
                 $"_navBar={_navBarField != null}, " +
@@ -906,7 +907,7 @@ namespace AccessibleArena.Core.Services
 
             _doneButtonField = type.GetField("_doneButton", PrivateInstance);
 
-            MelonLogger.Msg($"[SideboardNavigator] DeckBuilder reflection: " +
+            Log.Msg("SideboardNavigator", $"DeckBuilder reflection: " +
                 $"_doneButton={_doneButtonField != null}");
         }
 
@@ -924,7 +925,7 @@ namespace AccessibleArena.Core.Services
             _opponentWinPipsField = type.GetField("OpponentWinPips", PublicInstance);
             _timerTextField = type.GetField("TimerText", PublicInstance);
 
-            MelonLogger.Msg($"[SideboardNavigator] NavBar reflection: " +
+            Log.Msg("SideboardNavigator", $"NavBar reflection: " +
                 $"PlayerName={_playerNameField != null}, OpponentName={_opponentNameField != null}, " +
                 $"PlayerWinPips={_playerWinPipsField != null}, OpponentWinPips={_opponentWinPipsField != null}, " +
                 $"TimerText={_timerTextField != null}");
@@ -950,7 +951,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[{NavigatorId}] GetDoneButton failed: {ex.Message}");
+                Log.Error("{NavigatorId}", $"GetDoneButton failed: {ex.Message}");
             }
             return null;
         }

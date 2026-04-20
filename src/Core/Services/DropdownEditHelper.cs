@@ -5,6 +5,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -46,7 +47,7 @@ namespace AccessibleArena.Core.Services
             UIActivator.Activate(dropdown);
             DropdownStateManager.OnDropdownOpened(dropdown);
             _announcer?.Announce(Strings.DropdownOpened, AnnouncementPriority.Normal);
-            MelonLogger.Msg($"[{_navigatorId}] DropdownEditHelper: entered edit mode for {dropdown.name}");
+            Log.Msg("{_navigatorId}", $"DropdownEditHelper: entered edit mode for {dropdown.name}");
         }
 
         /// <summary>
@@ -59,7 +60,7 @@ namespace AccessibleArena.Core.Services
             // Auto-exit if dropdown closed itself (e.g., user clicked outside)
             if (!DropdownStateManager.IsInDropdownMode)
             {
-                MelonLogger.Msg($"[{_navigatorId}] DropdownEditHelper: dropdown closed externally, exiting edit mode");
+                Log.Msg("{_navigatorId}", $"DropdownEditHelper: dropdown closed externally, exiting edit mode");
                 ClearState();
                 return false;
             }
@@ -205,7 +206,7 @@ namespace AccessibleArena.Core.Services
             _needsInitialFocus = false;
 
             eventSystem.SetSelectedGameObject(firstItem);
-            MelonLogger.Msg($"[{_navigatorId}] DropdownEditHelper: focused first item '{firstItem.name}' ({count} total)");
+            Log.Msg("{_navigatorId}", $"DropdownEditHelper: focused first item '{firstItem.name}' ({count} total)");
         }
 
         /// <summary>

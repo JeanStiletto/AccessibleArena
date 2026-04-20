@@ -7,6 +7,7 @@ using AccessibleArena.Core.Models;
 using System;
 using TMPro;
 using static AccessibleArena.Core.Constants.SceneNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -86,7 +87,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] DetectScreen error (safe to ignore): {ex.Message}");
+                Log.Warn("{NavigatorId}", $"DetectScreen error (safe to ignore): {ex.Message}");
                 return false;
             }
         }
@@ -134,11 +135,11 @@ namespace AccessibleArena.Core.Services
                     _withoutDownloadButton = withoutField.GetValue(_assetPrepScreenComponent) as Button;
                 }
 
-                MelonLogger.Msg($"[{NavigatorId}] Found UI elements - InfoText:{_infoText != null}, Version:{_buildVersionText != null}, Download:{_downloadButton != null}, Retry:{_retryButton != null}, Without:{_withoutDownloadButton != null}");
+                Log.Msg("{NavigatorId}", $"Found UI elements - InfoText:{_infoText != null}, Version:{_buildVersionText != null}, Download:{_downloadButton != null}, Retry:{_retryButton != null}, Without:{_withoutDownloadButton != null}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] TryGetUIElements error: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"TryGetUIElements error: {ex.Message}");
             }
         }
 
@@ -189,7 +190,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] TryFindTextElementsFallback error: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"TryFindTextElementsFallback error: {ex.Message}");
                 return false;
             }
         }
@@ -216,7 +217,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] DiscoverElements error: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"DiscoverElements error: {ex.Message}");
             }
         }
 
@@ -258,7 +259,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] RefreshButtons error: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"RefreshButtons error: {ex.Message}");
             }
         }
 
@@ -301,7 +302,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] GetActivationAnnouncement error: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"GetActivationAnnouncement error: {ex.Message}");
                 return ScreenName;
             }
         }
@@ -343,7 +344,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Update error: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Update error: {ex.Message}");
             }
         }
 
@@ -382,7 +383,7 @@ namespace AccessibleArena.Core.Services
             // Deactivate when leaving AssetPrep scene
             if (_isActive && sceneName != AssetPrep)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Scene changed to {sceneName}, deactivating");
+                Log.Msg("{NavigatorId}", $"Scene changed to {sceneName}, deactivating");
                 Deactivate();
             }
         }

@@ -3,6 +3,7 @@ using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -64,7 +65,7 @@ namespace AccessibleArena.Core.Services
             if (_waitingForRelease && !spaceDown)
             {
                 _waitingForRelease = false;
-                MelonLogger.Msg("[PhaseSkipGuard] Space released (polled) — next press will confirm");
+                Log.Msg("PhaseSkipGuard", "Space released (polled) — next press will confirm");
             }
         }
 
@@ -96,7 +97,7 @@ namespace AccessibleArena.Core.Services
                 if (!Input.GetKey(KeyCode.Space))
                 {
                     _waitingForRelease = false;
-                    MelonLogger.Msg("[PhaseSkipGuard] Space released — next press will confirm");
+                    Log.Msg("PhaseSkipGuard", "Space released — next press will confirm");
                 }
                 // Block whether still held OR just released (require new press to confirm)
                 _blockThisFrame = true;
@@ -143,7 +144,7 @@ namespace AccessibleArena.Core.Services
                 _warningPhase = null;
                 _confirmed = true;
                 _confirmedPhase = phase;
-                MelonLogger.Msg("[PhaseSkipGuard] Confirmed — allowing pass");
+                Log.Msg("PhaseSkipGuard", "Confirmed — allowing pass");
                 return false;
             }
 
@@ -162,7 +163,7 @@ namespace AccessibleArena.Core.Services
 
             var announcer = AccessibleArenaMod.Instance?.Announcer;
             announcer?.Announce(Strings.PhaseSkipGuard_Warning, AnnouncementPriority.High);
-            MelonLogger.Msg("[PhaseSkipGuard] Warning shown — blocking until Space released and pressed again");
+            Log.Msg("PhaseSkipGuard", "Warning shown — blocking until Space released and pressed again");
             return true;
         }
 

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -57,7 +58,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (_blockSubmitForToggle != value)
                 {
-                    MelonLogger.Msg($"[InputManager] BlockSubmitForToggle changed: {_blockSubmitForToggle} -> {value}");
+                    Log.Msg("InputManager", $"BlockSubmitForToggle changed: {_blockSubmitForToggle} -> {value}");
                     _blockSubmitForToggle = value;
                 }
             }
@@ -124,7 +125,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _consumedKeysThisFrame.Add(key);
-            MelonLogger.Msg($"[InputManager] Consumed key: {key}");
+            Log.Msg("InputManager", $"Consumed key: {key}");
         }
 
         /// <summary>

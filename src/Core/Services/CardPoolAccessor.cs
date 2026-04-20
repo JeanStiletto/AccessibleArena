@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -136,7 +137,7 @@ namespace AccessibleArena.Core.Services
 
                 _reflectionInitialized = true;
 
-                MelonLogger.Msg($"[CardPoolAccessor] Reflection init on {type.Name}: " +
+                Log.Msg("CardPoolAccessor", $"Reflection init on {type.Name}: " +
                     $"_pages={_pagesField != null}, _currentPage={_currentPageField != null}, " +
                     $"_isScrolling={_isScrollingField != null}, " +
                     $"ScrollNext={_scrollNextMethod != null}, ScrollPrev={_scrollPreviousMethod != null}, " +
@@ -145,7 +146,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[CardPoolAccessor] Reflection init failed: {ex.Message}");
+                Log.Error("CardPoolAccessor", $"Reflection init failed: {ex.Message}");
             }
         }
 
@@ -186,7 +187,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[CardPoolAccessor] GetCurrentPageCards failed: {ex.Message}");
+                Log.Error("CardPoolAccessor", $"GetCurrentPageCards failed: {ex.Message}");
             }
 
             return result;
@@ -216,7 +217,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[CardPoolAccessor] ScrollNext failed: {ex.Message}");
+                Log.Error("CardPoolAccessor", $"ScrollNext failed: {ex.Message}");
                 return false;
             }
         }
@@ -244,7 +245,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[CardPoolAccessor] ScrollPrevious failed: {ex.Message}");
+                Log.Error("CardPoolAccessor", $"ScrollPrevious failed: {ex.Message}");
                 return false;
             }
         }

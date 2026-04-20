@@ -4,6 +4,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Constants.SceneNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -34,7 +35,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void OnDuelSceneLoaded()
         {
-            MelonLogger.Msg($"[{NavigatorId}] DuelScene loaded - starting to watch for buttons");
+            Log.Msg("{NavigatorId}", $"DuelScene loaded - starting to watch for buttons");
             _isWatching = true;
             _waitingForTransition = false;
             _activationTime = 0;
@@ -81,20 +82,20 @@ namespace AccessibleArena.Core.Services
                         Label = $"{label}, button",
                         Carousel = default
                     });
-                    MelonLogger.Msg($"[{NavigatorId}] Found primary button: {label}");
+                    Log.Msg("{NavigatorId}", $"Found primary button: {label}");
                 }
                 else if (name.Contains("PromptButton_Secondary"))
                 {
                     string label = GetButtonText(selectable.gameObject, "Cancel");
                     AddElement(selectable.gameObject, $"{label}, button");
-                    MelonLogger.Msg($"[{NavigatorId}] Found secondary button: {label}");
+                    Log.Msg("{NavigatorId}", $"Found secondary button: {label}");
                 }
                 else if (name.Contains("PromptButton"))
                 {
                     // Handle other prompt buttons (Tertiary, Options, etc.)
                     string label = GetButtonText(selectable.gameObject, "Option");
                     AddElement(selectable.gameObject, $"{label}, button");
-                    MelonLogger.Msg($"[{NavigatorId}] Found other prompt button '{name}': {label}");
+                    Log.Msg("{NavigatorId}", $"Found other prompt button '{name}': {label}");
                 }
             }
 
@@ -118,7 +119,7 @@ namespace AccessibleArena.Core.Services
             // Check if prompt buttons disappeared while active
             if (_isActive && !HasPromptButtons())
             {
-                MelonLogger.Msg($"[{NavigatorId}] Prompt buttons gone - deactivating");
+                Log.Msg("{NavigatorId}", $"Prompt buttons gone - deactivating");
                 FullDeactivate();
                 return;
             }
@@ -136,7 +137,7 @@ namespace AccessibleArena.Core.Services
 
             // Timeout - no scene change, button didn't work
             // Re-enable navigation silently by re-discovering elements without announcing
-            MelonLogger.Msg($"[{NavigatorId}] Transition timeout - re-enabling navigation silently");
+            Log.Msg("{NavigatorId}", $"Transition timeout - re-enabling navigation silently");
             _waitingForTransition = false;
 
             // Re-discover elements to avoid stale references
@@ -147,14 +148,14 @@ namespace AccessibleArena.Core.Services
             {
                 _isActive = true;
                 _currentIndex = 0;
-                MelonLogger.Msg($"[{NavigatorId}] Re-discovered {_elements.Count} elements");
+                Log.Msg("{NavigatorId}", $"Re-discovered {_elements.Count} elements");
             }
         }
 
         protected override bool OnElementActivated(int index, GameObject element)
         {
             // StyledButton responds to pointer events, not onClick
-            MelonLogger.Msg($"[{NavigatorId}] Using pointer click for: {element.name}");
+            Log.Msg("{NavigatorId}", $"Using pointer click for: {element.name}");
             UIActivator.SimulatePointerClick(element);
 
             // Start waiting for transition

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -97,7 +98,7 @@ namespace AccessibleArena.Core.Services
                 string exactReplacement = LocaleManager.Instance.Get(exactModKey);
                 if (!string.IsNullOrEmpty(exactReplacement))
                 {
-                    MelonLogger.Msg($"[NPETutorialText] Replaced exact key '{npeLocKey}' with mod text");
+                    Log.Msg("NPETutorialText", $"Replaced exact key '{npeLocKey}' with mod text");
                     return exactReplacement;
                 }
             }
@@ -111,7 +112,7 @@ namespace AccessibleArena.Core.Services
                 string replacement = LocaleManager.Instance.Get(modKey);
                 if (!string.IsNullOrEmpty(replacement))
                 {
-                    MelonLogger.Msg($"[NPETutorialText] Replaced '{prefix}' (key: {npeLocKey}) with mod text");
+                    Log.Msg("NPETutorialText", $"Replaced '{prefix}' (key: {npeLocKey}) with mod text");
                     return replacement;
                 }
             }
@@ -134,7 +135,7 @@ namespace AccessibleArena.Core.Services
                 string text = LocaleManager.Instance.Get(modKey);
                 if (!string.IsNullOrEmpty(text))
                 {
-                    MelonLogger.Msg($"[NPETutorialText] Tooltip '{tooltipType}' replaced with mod text");
+                    Log.Msg("NPETutorialText", $"Tooltip '{tooltipType}' replaced with mod text");
                     return text;
                 }
             }
@@ -158,7 +159,7 @@ namespace AccessibleArena.Core.Services
                 string hint = LocaleManager.Instance.Get(modKey);
                 if (!string.IsNullOrEmpty(hint))
                 {
-                    MelonLogger.Msg($"[NPETutorialText] Dialog hint for key: {dialogLocKey}");
+                    Log.Msg("NPETutorialText", $"Dialog hint for key: {dialogLocKey}");
                     return hint;
                 }
             }

@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -344,7 +345,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[Chat] Failed to discover messages: {ex.Message}");
+                Log.Warn("Chat", $"Failed to discover messages: {ex.Message}");
             }
         }
 
@@ -562,7 +563,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[Chat] Failed to switch conversation: {ex.Message}");
+                Log.Warn("Chat", $"Failed to switch conversation: {ex.Message}");
             }
         }
 
@@ -602,7 +603,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[Chat] Failed to close chat and return to friends: {ex.Message}");
+                Log.Warn("Chat", $"Failed to close chat and return to friends: {ex.Message}");
             }
         }
 
@@ -621,7 +622,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[Chat] Failed to send message: {ex.Message}");
+                Log.Warn("Chat", $"Failed to send message: {ex.Message}");
             }
         }
 
@@ -649,7 +650,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[Chat] Failed to set up message monitoring: {ex.Message}");
+                Log.Warn("Chat", $"Failed to set up message monitoring: {ex.Message}");
             }
         }
 

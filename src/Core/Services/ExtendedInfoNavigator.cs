@@ -3,6 +3,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -138,7 +139,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _currentIndex = 0;
 
-            MelonLogger.Msg($"[ExtendedInfo] Opened with {_items.Count} items{logSuffix}");
+            Log.Msg("ExtendedInfo", $"Opened with {_items.Count} items{logSuffix}");
 
             AnnounceCurrentItem();
         }
@@ -153,7 +154,7 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _currentIndex = 0;
 
-            MelonLogger.Msg("[ExtendedInfo] Closed");
+            Log.Msg("ExtendedInfo", "Closed");
             _announcer.AnnounceInterrupt(Strings.ExtendedInfoClosed);
         }
 

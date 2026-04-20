@@ -6,6 +6,7 @@ using AccessibleArena.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -93,7 +94,7 @@ namespace AccessibleArena.Core.Services
 
             if (oldCount != newCount)
             {
-                MelonLogger.Msg($"[BattlefieldNavigator] Refreshed {_currentRow}: {oldCount} -> {newCount} cards");
+                Log.Msg("BattlefieldNavigator", $"Refreshed {_currentRow}: {oldCount} -> {newCount} cards");
             }
 
             // Clamp index to valid range
@@ -279,7 +280,7 @@ namespace AccessibleArena.Core.Services
 
             if (battlefieldHolder == null)
             {
-                MelonLogger.Msg("[BattlefieldNavigator] Battlefield holder not found");
+                Log.Msg("BattlefieldNavigator", "Battlefield holder not found");
                 return;
             }
 
@@ -358,7 +359,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Log summary
-            MelonLogger.Msg("[BattlefieldNavigator] Categorized cards:");
+            Log.Msg("BattlefieldNavigator", "Categorized cards:");
             foreach (var kvp in _rows)
             {
                 if (kvp.Value.Count > 0)
@@ -449,7 +450,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Warning($"[BattlefieldNavigator] NavigateToSpecificCard: card not found in any row");
+            Log.Warn("BattlefieldNavigator", $"NavigateToSpecificCard: card not found in any row");
             return false;
         }
 
@@ -598,7 +599,7 @@ namespace AccessibleArena.Core.Services
 
             string cardName = CardDetector.GetCardName(card);
             string stateBefore = GetCardStateSnapshot(card);
-            MelonLogger.Msg($"[BattlefieldNavigator] Clicking card: {cardName} (state: {stateBefore})");
+            Log.Msg("BattlefieldNavigator", $"Clicking card: {cardName} (state: {stateBefore})");
 
             // Use the card's actual screen position to avoid hitting wrong overlapping token
             if (Camera.main != null)
@@ -629,7 +630,7 @@ namespace AccessibleArena.Core.Services
             // Timeout
             if (Time.time - _watchStartTime > WatchTimeoutSeconds)
             {
-                MelonLogger.Msg("[BattlefieldNavigator] State watch timed out");
+                Log.Msg("BattlefieldNavigator", "State watch timed out");
                 _watchedCard = null;
                 return;
             }
@@ -642,7 +643,7 @@ namespace AccessibleArena.Core.Services
             string stateAfter = GetCardStateSnapshot(_watchedCard);
             if (stateAfter != _watchedStateBefore)
             {
-                MelonLogger.Msg($"[BattlefieldNavigator] State changed: '{_watchedStateBefore}' -> '{stateAfter}'");
+                Log.Msg("BattlefieldNavigator", $"State changed: '{_watchedStateBefore}' -> '{stateAfter}'");
                 if (!string.IsNullOrEmpty(stateAfter))
                 {
                     // Announce just the state (trim leading ", ")

@@ -3,6 +3,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -46,7 +47,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _currentIndex = 0;
 
-            MelonLogger.Msg($"[GameLog] Opened with {_items.Count} items");
+            Log.Msg("GameLog", $"Opened with {_items.Count} items");
 
             string core = $"{Strings.GameLogTitle}. {Strings.ItemCount(_items.Count)}";
             _announcer.AnnounceInterrupt(Strings.WithHint(core, "GameLogInstructions"));
@@ -62,7 +63,7 @@ namespace AccessibleArena.Core.Services
             _isActive = false;
             _currentIndex = 0;
 
-            MelonLogger.Msg("[GameLog] Closed");
+            Log.Msg("GameLog", "Closed");
             _announcer.AnnounceInterrupt(Strings.GameLogClosed);
         }
 
