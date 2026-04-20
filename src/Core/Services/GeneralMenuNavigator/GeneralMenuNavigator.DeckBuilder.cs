@@ -72,7 +72,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HandleDeckBuilderBack()
         {
-            LogDebug($"[{NavigatorId}] Deck Builder detected, looking for Done button");
+            Log.Nav(NavigatorId, $"Deck Builder detected, looking for Done button");
 
             // Find MainButton within DeckBuilderWidget (not the Home page's MainButton)
             // The deck builder's button is at: DeckBuilderWidget_Desktop_16x9/BottomRight/Buttons/MainButton
@@ -82,21 +82,21 @@ namespace AccessibleArena.Core.Services
                 var mainButton = deckBuilderWidget.transform.Find("BottomRight/Buttons/MainButton");
                 if (mainButton != null && mainButton.gameObject.activeInHierarchy)
                 {
-                    LogDebug($"[{NavigatorId}] Found deck builder Done button: {mainButton.name}");
+                    Log.Nav(NavigatorId, $"Found deck builder Done button: {mainButton.name}");
                     _announcer.Announce(Models.Strings.ExitingDeckBuilder, Models.AnnouncementPriority.High);
                     UIActivator.Activate(mainButton.gameObject);
                     TriggerRescan();
                     return true;
                 }
-                LogDebug($"[{NavigatorId}] DeckBuilderWidget found but MainButton not at expected path");
+                Log.Nav(NavigatorId, $"DeckBuilderWidget found but MainButton not at expected path");
             }
             else
             {
-                LogDebug($"[{NavigatorId}] DeckBuilderWidget_Desktop_16x9 not found");
+                Log.Nav(NavigatorId, $"DeckBuilderWidget_Desktop_16x9 not found");
             }
 
             // Fallback: navigate to Home if MainButton not found
-            LogDebug($"[{NavigatorId}] Deck Builder Done button not found, navigating to Home");
+            Log.Nav(NavigatorId, $"Deck Builder Done button not found, navigating to Home");
             return NavigateToHome();
         }
 
@@ -385,7 +385,7 @@ namespace AccessibleArena.Core.Services
                         var cardElement = _elements[i];
                         _elements.RemoveAt(i);
                         _elements.Insert(0, cardElement);
-                        LogDebug($"[{NavigatorId}] Moved unlocked card to first position: {cardElement.Label}");
+                        Log.Nav(NavigatorId, $"Moved unlocked card to first position: {cardElement.Label}");
                     }
                     _currentIndex = 0;
                     break;
@@ -413,7 +413,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_activeContentController == T.WrapperDeckBuilder)
             {
-                LogDebug($"[{NavigatorId}] Deck builder card activated - scheduling rescan to update lists");
+                Log.Nav(NavigatorId, $"Deck builder card activated - scheduling rescan to update lists");
                 // _deckCountBeforeActivation already captured by OnDeckBuilderCardCountCapture
                 _announceDeckCountOnRescan = true;
                 TriggerRescan();
@@ -435,7 +435,7 @@ namespace AccessibleArena.Core.Services
             if (!_screenDetector.IsNPERewardsScreenActive())
                 return;
 
-            LogDebug($"[{NavigatorId}] NPE Rewards screen detected, searching for reward cards...");
+            Log.Nav(NavigatorId, $"NPE Rewards screen detected, searching for reward cards...");
 
             // Debug: Log the RewardsCONTAINER specifically (where the actual cards are)
             var npeContainer = GameObject.Find("NPE-Rewards_Container");
@@ -447,13 +447,13 @@ namespace AccessibleArena.Core.Services
                     var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
                     if (rewardsContainer != null)
                     {
-                        LogDebug($"[{NavigatorId}] RewardsCONTAINER hierarchy (depth 6):");
-                        if (DebugLogging) LogHierarchy(rewardsContainer, "  ", 6);
+                        Log.Nav(NavigatorId, $"RewardsCONTAINER hierarchy (depth 6):");
+                        if (Log.LogNavigation) LogHierarchy(rewardsContainer, "  ", 6);
                     }
                     else
                     {
-                        LogDebug($"[{NavigatorId}] ActiveContainer hierarchy (depth 5):");
-                        if (DebugLogging) LogHierarchy(activeContainer, "  ", 5);
+                        Log.Nav(NavigatorId, $"ActiveContainer hierarchy (depth 5):");
+                        if (Log.LogNavigation) LogHierarchy(activeContainer, "  ", 5);
                     }
                 }
             }
@@ -484,7 +484,7 @@ namespace AccessibleArena.Core.Services
                         name.Contains(T.MetaCardView) ||
                         name.Contains("CDC"))
                     {
-                        LogDebug($"[{NavigatorId}] Found potential NPE card element: {name} at {path}");
+                        Log.Nav(NavigatorId, $"Found potential NPE card element: {name} at {path}");
                         if (!addedObjects.Contains(transform.gameObject))
                         {
                             cardPrefabs.Add(transform.gameObject);
@@ -495,14 +495,14 @@ namespace AccessibleArena.Core.Services
 
             if (cardPrefabs.Count == 0)
             {
-                LogDebug($"[{NavigatorId}] No NPE reward cards found in NPE-Rewards_Container");
+                Log.Nav(NavigatorId, $"No NPE reward cards found in NPE-Rewards_Container");
                 return;
             }
 
             // Sort cards by X position (left to right)
             cardPrefabs = cardPrefabs.OrderBy(c => c.transform.position.x).ToList();
 
-            LogDebug($"[{NavigatorId}] Found {cardPrefabs.Count} NPE reward card(s)");
+            Log.Nav(NavigatorId, $"Found {cardPrefabs.Count} NPE reward card(s)");
 
             int cardNum = 1;
             foreach (var cardPrefab in cardPrefabs)
@@ -526,7 +526,7 @@ namespace AccessibleArena.Core.Services
                     label += $", {cardInfo.TypeLine}";
                 }
 
-                LogDebug($"[{NavigatorId}] Adding NPE reward card: {label}");
+                Log.Nav(NavigatorId, $"Adding NPE reward card: {label}");
 
                 // Add as navigable element (even though it's not a button)
                 // Using the card prefab so arrow up/down can read card info blocks
@@ -554,22 +554,22 @@ namespace AccessibleArena.Core.Services
 
                 if (claimButton != null && !addedObjects.Contains(claimButton.gameObject))
                 {
-                    LogDebug($"[{NavigatorId}] Adding NullClaimButton as 'Take reward' button (path: {GetFullPath(claimButton)})");
+                    Log.Nav(NavigatorId, $"Adding NullClaimButton as 'Take reward' button (path: {GetFullPath(claimButton)})");
                     AddElement(claimButton.gameObject, "Take reward, button");
                     addedObjects.Add(claimButton.gameObject);
                 }
                 else if (claimButton == null)
                 {
-                    LogDebug($"[{NavigatorId}] NullClaimButton not found in NPE-Rewards_Container hierarchy");
+                    Log.Nav(NavigatorId, $"NullClaimButton not found in NPE-Rewards_Container hierarchy");
                 }
                 else
                 {
-                    LogDebug($"[{NavigatorId}] NullClaimButton already in addedObjects (ID:{claimButton.gameObject.GetInstanceID()})");
+                    Log.Nav(NavigatorId, $"NullClaimButton already in addedObjects (ID:{claimButton.gameObject.GetInstanceID()})");
                 }
             }
             else
             {
-                LogDebug($"[{NavigatorId}] NPE-Rewards_Container not found for NullClaimButton lookup");
+                Log.Nav(NavigatorId, $"NPE-Rewards_Container not found for NullClaimButton lookup");
             }
         }
 
@@ -584,13 +584,13 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
-            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for collection cards via CardPoolAccessor...");
+            Log.Nav(NavigatorId, $"Deck Builder detected, searching for collection cards via CardPoolAccessor...");
 
             // Try direct API access via CardPoolAccessor
             var poolHolder = CardPoolAccessor.FindCardPoolHolder();
             if (poolHolder == null)
             {
-                LogDebug($"[{NavigatorId}] CardPoolHolder not found, falling back to hierarchy scan");
+                Log.Nav(NavigatorId, $"CardPoolHolder not found, falling back to hierarchy scan");
                 FindPoolHolderCardsFallback(addedObjects);
                 return;
             }
@@ -599,13 +599,13 @@ namespace AccessibleArena.Core.Services
             var cardObjects = CardPoolAccessor.GetCurrentPageCards();
             if (cardObjects == null || cardObjects.Count == 0)
             {
-                LogDebug($"[{NavigatorId}] No cards on current page");
+                Log.Nav(NavigatorId, $"No cards on current page");
                 return;
             }
 
             int pageIndex = CardPoolAccessor.GetCurrentPageIndex();
             int pageCount = CardPoolAccessor.GetPageCount();
-            LogDebug($"[{NavigatorId}] Page {pageIndex + 1} of {pageCount}: {cardObjects.Count} card view(s)");
+            Log.Nav(NavigatorId, $"Page {pageIndex + 1} of {pageCount}: {cardObjects.Count} card view(s)");
 
             int cardNum = 1;
             int skippedCount = 0;
@@ -643,7 +643,7 @@ namespace AccessibleArena.Core.Services
 
             if (skippedCount > 0)
             {
-                LogDebug($"[{NavigatorId}] Skipped {skippedCount} placeholder cards");
+                Log.Nav(NavigatorId, $"Skipped {skippedCount} placeholder cards");
             }
         }
 
@@ -656,7 +656,7 @@ namespace AccessibleArena.Core.Services
             var poolHolderObj = GameObject.Find("PoolHolder");
             if (poolHolderObj == null)
             {
-                LogDebug($"[{NavigatorId}] PoolHolder not found");
+                Log.Nav(NavigatorId, $"PoolHolder not found");
                 return;
             }
 
@@ -681,12 +681,12 @@ namespace AccessibleArena.Core.Services
 
             if (cardViews.Count == 0)
             {
-                LogDebug($"[{NavigatorId}] No collection cards found in PoolHolder (fallback)");
+                Log.Nav(NavigatorId, $"No collection cards found in PoolHolder (fallback)");
                 return;
             }
 
             cardViews = cardViews.OrderBy(c => c.sortOrder).ToList();
-            LogDebug($"[{NavigatorId}] Found {cardViews.Count} collection card(s) in PoolHolder (fallback)");
+            Log.Nav(NavigatorId, $"Found {cardViews.Count} collection card(s) in PoolHolder (fallback)");
 
             foreach (var (cardObj, _) in cardViews)
             {
@@ -741,7 +741,7 @@ namespace AccessibleArena.Core.Services
                     : Models.Strings.DeckBuilderCommander;
                 string label = $"{prefix}: {cardName}";
 
-                LogDebug($"[{NavigatorId}] Adding commander card: {label}");
+                Log.Nav(NavigatorId, $"Adding commander card: {label}");
 
                 AddElement(tileBtn, label);
                 addedObjects.Add(tileBtn);
@@ -760,17 +760,17 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
-            LogDebug($"[{NavigatorId}] Deck Builder detected, searching for deck list cards...");
+            Log.Nav(NavigatorId, $"Deck Builder detected, searching for deck list cards...");
 
             // Get deck list cards from CardModelProvider
             var deckCards = DeckCardProvider.GetDeckListCards();
             if (deckCards.Count == 0)
             {
-                LogDebug($"[{NavigatorId}] No deck list cards found");
+                Log.Nav(NavigatorId, $"No deck list cards found");
                 return;
             }
 
-            LogDebug($"[{NavigatorId}] Found {deckCards.Count} deck list card(s)");
+            Log.Nav(NavigatorId, $"Found {deckCards.Count} deck list card(s)");
 
             int cardNum = 1;
             foreach (var deckCard in deckCards)
@@ -790,7 +790,7 @@ namespace AccessibleArena.Core.Services
                 // Build label with quantity and card name
                 string label = $"{deckCard.Quantity}x {cardName}";
 
-                LogDebug($"[{NavigatorId}] Adding deck list card {cardNum}: {label}");
+                Log.Nav(NavigatorId, $"Adding deck list card {cardNum}: {label}");
 
                 // Add as navigable element
                 AddElement(cardObj, label);
@@ -813,7 +813,7 @@ namespace AccessibleArena.Core.Services
             if (sideboardCards.Count == 0)
                 return;
 
-            LogDebug($"[{NavigatorId}] Found {sideboardCards.Count} sideboard card(s)");
+            Log.Nav(NavigatorId, $"Found {sideboardCards.Count} sideboard card(s)");
 
             int cardNum = 1;
             foreach (var sideCard in sideboardCards)
@@ -830,7 +830,7 @@ namespace AccessibleArena.Core.Services
 
                 string label = $"{sideCard.Quantity}x {cardName}";
 
-                LogDebug($"[{NavigatorId}] Adding sideboard card {cardNum}: {label}");
+                Log.Nav(NavigatorId, $"Adding sideboard card {cardNum}: {label}");
 
                 AddElement(cardObj, label);
                 addedObjects.Add(cardObj);
@@ -856,17 +856,17 @@ namespace AccessibleArena.Core.Services
             if (normalDeckCards.Count > 0)
                 return;
 
-            LogDebug($"[{NavigatorId}] Normal deck list empty, checking for read-only column view...");
+            Log.Nav(NavigatorId, $"Normal deck list empty, checking for read-only column view...");
 
             var readOnlyCards = DeckCardProvider.GetReadOnlyDeckCards();
             if (readOnlyCards.Count == 0)
             {
-                LogDebug($"[{NavigatorId}] No read-only deck cards found");
+                Log.Nav(NavigatorId, $"No read-only deck cards found");
                 return;
             }
 
             _isDeckBuilderReadOnly = true;
-            LogDebug($"[{NavigatorId}] Found {readOnlyCards.Count} read-only deck card(s)");
+            Log.Nav(NavigatorId, $"Found {readOnlyCards.Count} read-only deck card(s)");
 
             int cardNum = 1;
             foreach (var deckCard in readOnlyCards)
@@ -885,7 +885,7 @@ namespace AccessibleArena.Core.Services
                 // Build label with quantity and card name
                 string label = $"{deckCard.Quantity}x {cardName}";
 
-                LogDebug($"[{NavigatorId}] Adding read-only deck card {cardNum}: {label}");
+                Log.Nav(NavigatorId, $"Adding read-only deck card {cardNum}: {label}");
 
                 AddElement(cardObj, label);
                 addedObjects.Add(cardObj);
@@ -943,7 +943,7 @@ namespace AccessibleArena.Core.Services
                 _groupedNavigator.UpdateElementLabel(ElementGroup.DeckBuilderInfo, i, $"{label}: {text}");
             }
 
-            LogDebug($"[{NavigatorId}] Refreshed {infoItems.Count} deck info labels");
+            Log.Nav(NavigatorId, $"Refreshed {infoItems.Count} deck info labels");
         }
 
         /// <summary>
@@ -966,7 +966,7 @@ namespace AccessibleArena.Core.Services
         {
             _deckInfoRows = DeckInfoProvider.GetDeckInfoRows();
             _deckInfoEntryIndex = 0;
-            LogDebug($"[{NavigatorId}] Initialized DeckInfo sub-nav: {_deckInfoRows.Count} rows");
+            Log.Nav(NavigatorId, $"Initialized DeckInfo sub-nav: {_deckInfoRows.Count} rows");
         }
 
         /// <summary>

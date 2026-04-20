@@ -34,7 +34,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool CloseSocialPanel()
         {
-            LogDebug($"[{NavigatorId}] Closing Social panel");
+            Log.Nav(NavigatorId, $"Closing Social panel");
             var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
             if (socialPanel == null) return TryGenericBackButton();
 
@@ -45,7 +45,7 @@ namespace AccessibleArena.Core.Services
             if (minimizeMethod == null) return TryGenericBackButton();
 
             minimizeMethod.Invoke(socialUI, null);
-            LogDebug($"[{NavigatorId}] Called SocialUI.Minimize()");
+            Log.Nav(NavigatorId, $"Called SocialUI.Minimize()");
             _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
             ReportPanelClosed(socialPanel);
             TriggerRescan();
@@ -57,12 +57,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ToggleFriendsPanel()
         {
-            LogDebug($"[{NavigatorId}] ToggleFriendsPanel called");
+            Log.Nav(NavigatorId, $"ToggleFriendsPanel called");
 
             var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
             if (socialPanel == null)
             {
-                LogDebug($"[{NavigatorId}] Social UI panel not found");
+                Log.Nav(NavigatorId, $"Social UI panel not found");
                 return;
             }
 
@@ -70,12 +70,12 @@ namespace AccessibleArena.Core.Services
             var socialUI = socialPanel.GetComponent("SocialUI");
             if (socialUI == null)
             {
-                LogDebug($"[{NavigatorId}] SocialUI component not found");
+                Log.Nav(NavigatorId, $"SocialUI component not found");
                 return;
             }
 
             bool isOpen = IsSocialPanelOpen();
-            LogDebug($"[{NavigatorId}] Toggling Friends panel (isOpen: {isOpen})");
+            Log.Nav(NavigatorId, $"Toggling Friends panel (isOpen: {isOpen})");
 
             try
             {
@@ -87,7 +87,7 @@ namespace AccessibleArena.Core.Services
                     if (closeMethod != null)
                     {
                         closeMethod.Invoke(socialUI, null);
-                        LogDebug($"[{NavigatorId}] Called SocialUI.Minimize()");
+                        Log.Nav(NavigatorId, $"Called SocialUI.Minimize()");
                         ReportPanelClosed(socialPanel);
                         TriggerRescan();
                     }
@@ -100,7 +100,7 @@ namespace AccessibleArena.Core.Services
                     if (showMethod != null)
                     {
                         showMethod.Invoke(socialUI, null);
-                        LogDebug($"[{NavigatorId}] Called SocialUI.ShowSocialEntitiesList()");
+                        Log.Nav(NavigatorId, $"Called SocialUI.ShowSocialEntitiesList()");
                         ReportPanelOpened("Social", socialPanel, PanelDetectionMethod.Reflection);
                         TriggerRescan();
                     }
@@ -455,7 +455,7 @@ namespace AccessibleArena.Core.Services
             if (!element.HasValue || element.Value.GameObject == null) return;
 
             _friendActions = FriendInfoProvider.GetFriendActions(element.Value.GameObject);
-            LogDebug($"[{NavigatorId}] Friend actions: {_friendActions?.Count ?? 0} for {element.Value.Label}");
+            Log.Nav(NavigatorId, $"Friend actions: {_friendActions?.Count ?? 0} for {element.Value.Label}");
         }
 
         /// <summary>

@@ -3,6 +3,7 @@ using AccessibleArena.Core.Models;
 using System;
 using System.Collections.Generic;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -21,7 +22,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            LogDebug($"[{NavigatorId}] Mail letter selected: {letterId}");
+            Log.Nav(NavigatorId, $"Mail letter selected: {letterId}");
 
             // Track that we're now in the mail detail view
             _isInMailDetailView = true;
@@ -40,7 +41,7 @@ namespace AccessibleArena.Core.Services
             // Extract mail content from UI (includes actual GameObjects)
             _mailContentParts = UITextExtractor.GetMailContentParts();
 
-            LogDebug($"[{NavigatorId}] Mail content - Title: '{_mailContentParts.Title}' (obj: {_mailContentParts.TitleObject?.name}), Date: '{_mailContentParts.Date}', Body length: {_mailContentParts.Body?.Length ?? 0}");
+            Log.Nav(NavigatorId, $"Mail content - Title: '{_mailContentParts.Title}' (obj: {_mailContentParts.TitleObject?.name}), Date: '{_mailContentParts.Date}', Body length: {_mailContentParts.Body?.Length ?? 0}");
 
             if (!_mailContentParts.HasContent)
                 return;
@@ -79,7 +80,7 @@ namespace AccessibleArena.Core.Services
             if (mailFieldElements.Count > 0)
             {
                 _elements.InsertRange(0, mailFieldElements);
-                LogDebug($"[{NavigatorId}] Added {mailFieldElements.Count} mail content fields as navigable elements");
+                Log.Nav(NavigatorId, $"Added {mailFieldElements.Count} mail content fields as navigable elements");
             }
         }
 
@@ -104,7 +105,7 @@ namespace AccessibleArena.Core.Services
                 return CloseMailDetailView();
             }
 
-            LogDebug($"[{NavigatorId}] Closing Mailbox panel");
+            Log.Nav(NavigatorId, $"Closing Mailbox panel");
 
             // Find NavBarController and invoke HideInboxIfActive()
             var navBar = GameObject.Find("NavBar_Desktop_16x9(Clone)");
@@ -121,7 +122,7 @@ namespace AccessibleArena.Core.Services
                         {
                             try
                             {
-                                LogDebug($"[{NavigatorId}] Invoking NavBarController.HideInboxIfActive()");
+                                Log.Nav(NavigatorId, $"Invoking NavBarController.HideInboxIfActive()");
                                 method.Invoke(mb, null);
                                 _announcer.Announce(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                                 TriggerRescan();
@@ -129,7 +130,7 @@ namespace AccessibleArena.Core.Services
                             }
                             catch (System.Exception ex)
                             {
-                                LogDebug($"[{NavigatorId}] HideInboxIfActive() error: {ex.Message}");
+                                Log.Nav(NavigatorId, $"HideInboxIfActive() error: {ex.Message}");
                             }
                         }
                         break;
@@ -159,7 +160,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool CloseMailDetailView()
         {
-            LogDebug($"[{NavigatorId}] Closing mail detail view");
+            Log.Nav(NavigatorId, $"Closing mail detail view");
 
             // Find ContentControllerPlayerInbox and invoke CloseCurrentLetter()
             var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
@@ -176,7 +177,7 @@ namespace AccessibleArena.Core.Services
                         {
                             try
                             {
-                                LogDebug($"[{NavigatorId}] Invoking ContentControllerPlayerInbox.CloseCurrentLetter()");
+                                Log.Nav(NavigatorId, $"Invoking ContentControllerPlayerInbox.CloseCurrentLetter()");
                                 method.Invoke(mb, null);
                                 _isInMailDetailView = false;
                                 ResetMailFieldNavigation();
@@ -186,7 +187,7 @@ namespace AccessibleArena.Core.Services
                             }
                             catch (System.Exception ex)
                             {
-                                LogDebug($"[{NavigatorId}] CloseCurrentLetter() error: {ex.Message}");
+                                Log.Nav(NavigatorId, $"CloseCurrentLetter() error: {ex.Message}");
                             }
                         }
                         break;

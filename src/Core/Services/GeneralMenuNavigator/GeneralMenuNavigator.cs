@@ -113,11 +113,6 @@ namespace AccessibleArena.Core.Services
 
         #region State Fields
 
-        /// <summary>
-        /// Enable verbose debug logging. Set to false to reduce log noise in production.
-        /// </summary>
-        private static readonly bool DebugLogging = false;
-
         protected string _currentScene;
         protected string _detectedMenuType;
         private bool _hasLoggedUIOnce;
@@ -158,15 +153,6 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Helper Methods
-
-        /// <summary>
-        /// Log a debug message only if DebugLogging is enabled.
-        /// </summary>
-        private void LogDebug(string message)
-        {
-            if (DebugLogging)
-                MelonLogger.Msg(message);
-        }
 
         /// <summary>
         /// Get all active CustomButton GameObjects in the scene.
@@ -306,14 +292,14 @@ namespace AccessibleArena.Core.Services
             // But DO rescan when something closes and falls back to SocialUI (e.g., popup closes)
             if (oldPanel?.Name?.Contains("SocialUI") == true)
             {
-                LogDebug($"[{NavigatorId}] Ignoring SocialUI as source of change");
+                Log.Nav(NavigatorId, $"Ignoring SocialUI as source of change");
                 return;
             }
 
             // Ignore Settings panel changes - handled by SettingsMenuNavigator
             if (oldPanel?.Name?.Contains("SettingsMenu") == true || newPanel?.Name?.Contains("SettingsMenu") == true)
             {
-                LogDebug($"[{NavigatorId}] Ignoring SettingsMenu panel change");
+                Log.Nav(NavigatorId, $"Ignoring SettingsMenu panel change");
                 return;
             }
 
@@ -328,13 +314,13 @@ namespace AccessibleArena.Core.Services
             {
                 if (_isInMailDetailView)
                 {
-                    LogDebug($"[{NavigatorId}] Mailbox closed - resetting mail detail view state");
+                    Log.Nav(NavigatorId, $"Mailbox closed - resetting mail detail view state");
                     _isInMailDetailView = false;
                     ResetMailFieldNavigation();
                 }
             }
 
-            LogDebug($"[{NavigatorId}] PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
+            Log.Nav(NavigatorId, $"PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
 
             TriggerRescan();
         }
@@ -420,26 +406,26 @@ namespace AccessibleArena.Core.Services
             {
                 if (!_screenDetector.IsSocialPanelOpen())
                 {
-                    LogDebug($"[{NavigatorId}] Ignoring SocialUI event - Friends panel not open (just corner icon)");
+                    Log.Nav(NavigatorId, $"Ignoring SocialUI event - Friends panel not open (just corner icon)");
                     return;
                 }
-                LogDebug($"[{NavigatorId}] SocialUI event with Friends panel open - allowing rescan");
+                Log.Nav(NavigatorId, $"SocialUI event with Friends panel open - allowing rescan");
             }
 
             // Ignore Settings panel - handled by SettingsMenuNavigator
             if (panel?.Name?.Contains("SettingsMenu") == true)
             {
-                LogDebug($"[{NavigatorId}] Ignoring SettingsMenu panel opened");
+                Log.Nav(NavigatorId, $"Ignoring SettingsMenu panel opened");
                 return;
             }
 
-            LogDebug($"[{NavigatorId}] PanelStateManager panel opened: {panel?.Name ?? "none"}");
+            Log.Nav(NavigatorId, $"PanelStateManager panel opened: {panel?.Name ?? "none"}");
 
             // Auto-expand blade for Color Challenge menu
             if (panel?.Name?.Contains("CampaignGraph") == true)
             {
                 _bladeAutoExpandDelay = BladeAutoExpandDelay;
-                LogDebug($"[{NavigatorId}] Scheduling blade auto-expand for Color Challenge");
+                Log.Nav(NavigatorId, $"Scheduling blade auto-expand for Color Challenge");
             }
 
             TriggerRescan();
@@ -718,14 +704,14 @@ namespace AccessibleArena.Core.Services
             // Deactivate if settings menu is open - let SettingsMenuNavigator handle it
             if (IsSettingsMenuOpen())
             {
-                LogDebug($"[{NavigatorId}] Settings menu detected - deactivating to let SettingsMenuNavigator take over");
+                Log.Nav(NavigatorId, $"Settings menu detected - deactivating to let SettingsMenuNavigator take over");
                 return false;
             }
 
             // Deactivate if NPE rewards popup becomes active - let NPERewardNavigator handle it
             if (_screenDetector.IsNPERewardsScreenActive())
             {
-                LogDebug($"[{NavigatorId}] NPE rewards screen detected - deactivating to let NPERewardNavigator take over");
+                Log.Nav(NavigatorId, $"NPE rewards screen detected - deactivating to let NPERewardNavigator take over");
                 return false;
             }
 
@@ -765,7 +751,7 @@ namespace AccessibleArena.Core.Services
 
                 if (_pendingPageRescanFrames == 0)
                 {
-                    LogDebug($"[{NavigatorId}] Executing delayed page rescan");
+                    Log.Nav(NavigatorId, $"Executing delayed page rescan");
                     PerformRescan();
                 }
             }
@@ -840,7 +826,7 @@ namespace AccessibleArena.Core.Services
             // F4: Toggle Friends panel
             if (Input.GetKeyDown(KeyCode.F4))
             {
-                LogDebug($"[{NavigatorId}] F4 pressed - toggling Friends panel");
+                Log.Nav(NavigatorId, $"F4 pressed - toggling Friends panel");
                 ToggleFriendsPanel();
                 return true;
             }
@@ -900,13 +886,13 @@ namespace AccessibleArena.Core.Services
             {
                 if (InputManager.IsKeyConsumed(KeyCode.Backspace))
                 {
-                    LogDebug($"[{NavigatorId}] Backspace pressed but already consumed - skipping");
+                    Log.Nav(NavigatorId, $"Backspace pressed but already consumed - skipping");
                     return true; // Key was handled elsewhere
                 }
 
                 if (UIFocusTracker.IsAnyInputFieldFocused())
                 {
-                    LogDebug($"[{NavigatorId}] Backspace pressed but input field focused - passing through");
+                    Log.Nav(NavigatorId, $"Backspace pressed but input field focused - passing through");
                     return false; // Let it pass through to the input field
                 }
 
@@ -952,7 +938,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (UIFocusTracker.IsAnyInputFieldFocused())
                 {
-                    LogDebug($"[{NavigatorId}] Escape pressed while input field focused - deactivating field");
+                    Log.Nav(NavigatorId, $"Escape pressed while input field focused - deactivating field");
                     UIFocusTracker.DeactivateFocusedInputField();
                     _announcer.Announce(Models.Strings.ExitedInputField, Models.AnnouncementPriority.Normal);
                     return true;
@@ -1084,7 +1070,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (IsMailContentButtonWithNoText(obj))
                 {
-                    LogDebug($"[{NavigatorId}] Filtering mail button with no text: {obj.name}");
+                    Log.Nav(NavigatorId, $"Filtering mail button with no text: {obj.name}");
                     return false;
                 }
             }
@@ -1096,7 +1082,7 @@ namespace AccessibleArena.Core.Services
             // Check: must be inside Blade_ListItem AND inside actual PlayBlade container
             if (IsInsideBladeListItem(obj) && IsInsidePlayBladeContainer(obj))
             {
-                LogDebug($"[{NavigatorId}] Blade_ListItem bypass for PlayBlade: {obj.name}");
+                Log.Nav(NavigatorId, $"Blade_ListItem bypass for PlayBlade: {obj.name}");
                 return true;
             }
 
@@ -1373,7 +1359,7 @@ namespace AccessibleArena.Core.Services
             int currentCount = CountActiveCustomButtons();
             if (currentCount != _lastNPEButtonCount)
             {
-                LogDebug($"[{NavigatorId}] NPE button count changed: {_lastNPEButtonCount} -> {currentCount}, triggering rescan");
+                Log.Nav(NavigatorId, $"NPE button count changed: {_lastNPEButtonCount} -> {currentCount}, triggering rescan");
                 _lastNPEButtonCount = currentCount;
                 TriggerRescan();
             }
@@ -1500,7 +1486,7 @@ namespace AccessibleArena.Core.Services
             // Skip rescan while popup is active - base popup mode owns discovery
             if (IsInPopupMode)
             {
-                LogDebug($"[{NavigatorId}] Skipping rescan - popup active");
+                Log.Nav(NavigatorId, $"Skipping rescan - popup active");
                 return;
             }
 
@@ -1512,7 +1498,7 @@ namespace AccessibleArena.Core.Services
 
             // Detect active controller BEFORE discovering elements so filtering works correctly
             DetectActiveContentController();
-            LogDebug($"[{NavigatorId}] Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
+            Log.Nav(NavigatorId, $"Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
 
             // Remember the navigator's current selection before clearing
             GameObject previousSelection = null;
@@ -1553,7 +1539,7 @@ namespace AccessibleArena.Core.Services
                     if (_elements[i].GameObject == previousSelection)
                     {
                         _currentIndex = i;
-                        LogDebug($"[{NavigatorId}] Preserved selection at index {i}: {previousSelection.name}");
+                        Log.Nav(NavigatorId, $"Preserved selection at index {i}: {previousSelection.name}");
                         break;
                     }
                 }
@@ -1666,7 +1652,7 @@ namespace AccessibleArena.Core.Services
             // Determine menu type based on what we find
             _detectedMenuType = DetectMenuType();
 
-            LogDebug($"[{NavigatorId}] Detected menu: {_detectedMenuType} with {customButtonCount} CustomButtons");
+            Log.Nav(NavigatorId, $"Detected menu: {_detectedMenuType} with {customButtonCount} CustomButtons");
             return true;
         }
 
@@ -1737,22 +1723,22 @@ namespace AccessibleArena.Core.Services
                 _groupedNavigationEnabled = false;
 
             // Debug: Dump DeckFolder hierarchy on DeckManager screen
-            if (DebugLogging && _activeContentController == "DeckManagerController")
+            if (Log.LogNavigation && _activeContentController == "DeckManagerController")
             {
-                LogDebug($"[{NavigatorId}] === DECK FOLDER HIERARCHY ===");
+                Log.Nav(NavigatorId, $"=== DECK FOLDER HIERARCHY ===");
                 var deckFolders = GameObject.FindObjectsOfType<Transform>()
                     .Where(t => t.name.Contains("DeckFolder_Base"))
                     .ToArray();
-                LogDebug($"[{NavigatorId}] Found {deckFolders.Length} DeckFolder_Base instances");
+                Log.Nav(NavigatorId, $"Found {deckFolders.Length} DeckFolder_Base instances");
                 foreach (var folder in deckFolders)
                 {
                     if (folder.gameObject.activeInHierarchy)
                     {
-                        LogDebug($"[{NavigatorId}] DeckFolder: {folder.name} (active)");
+                        Log.Nav(NavigatorId, $"DeckFolder: {folder.name} (active)");
                         LogHierarchy(folder, "  ", 5);
                     }
                 }
-                LogDebug($"[{NavigatorId}] === END DECK FOLDER HIERARCHY ===");
+                Log.Nav(NavigatorId, $"=== END DECK FOLDER HIERARCHY ===");
             }
 
             var addedObjects = new HashSet<GameObject>();
@@ -1767,11 +1753,11 @@ namespace AccessibleArena.Core.Services
             // Log panel filter state
             if (_foregroundPanel != null)
             {
-                LogDebug($"[{NavigatorId}] Filtering to panel: {_foregroundPanel.name}");
+                Log.Nav(NavigatorId, $"Filtering to panel: {_foregroundPanel.name}");
             }
             else if (_activeControllerGameObject != null)
             {
-                LogDebug($"[{NavigatorId}] Filtering to controller: {_activeContentController}");
+                Log.Nav(NavigatorId, $"Filtering to controller: {_activeContentController}");
             }
 
             // Helper to process and classify a UI element
@@ -2138,7 +2124,7 @@ namespace AccessibleArena.Core.Services
 
                         if (attachedActions.Count > 0)
                         {
-                            LogDebug($"[{NavigatorId}] Deck '{announcement}' has {attachedActions.Count} attached actions");
+                            Log.Nav(NavigatorId, $"Deck '{announcement}' has {attachedActions.Count} attached actions");
                         }
                     }
                 }
@@ -2187,7 +2173,7 @@ namespace AccessibleArena.Core.Services
                 AddBoosterCarouselElement();
             }
 
-            LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
+            Log.Nav(NavigatorId, $"Discovered {_elements.Count} navigable elements");
 
             // Enrich color button labels before grouping (so grouped navigator gets enriched labels)
             if (_activeContentController == T.CampaignGraphContentController)
@@ -2964,7 +2950,7 @@ namespace AccessibleArena.Core.Services
                         if (_challengeHelper.IsActive)
                         {
                             _groupedNavigator.RequestChallengeMainEntry();
-                            LogDebug($"[{NavigatorId}] Challenge folder exit - requesting ChallengeMain entry");
+                            Log.Nav(NavigatorId, $"Challenge folder exit - requesting ChallengeMain entry");
                             _suppressRescanAnnouncement = true;
                             TriggerRescan();
                         }
@@ -2972,7 +2958,7 @@ namespace AccessibleArena.Core.Services
                         else if (wasPlayBladeContext)
                         {
                             _groupedNavigator.RequestFoldersEntry(folderName);
-                            LogDebug($"[{NavigatorId}] PlayBlade folder exit - requesting folders list entry (restore to: {folderName})");
+                            Log.Nav(NavigatorId, $"PlayBlade folder exit - requesting folders list entry (restore to: {folderName})");
                             _suppressRescanAnnouncement = true;
                             TriggerRescan();
                         }
@@ -3092,7 +3078,7 @@ namespace AccessibleArena.Core.Services
             // Deck list card activated (removing card from deck) - trigger rescan to update both lists
             if (elementGroup == ElementGroup.DeckBuilderDeckList)
             {
-                LogDebug($"[{NavigatorId}] Deck list card activated - scheduling rescan to update lists");
+                Log.Nav(NavigatorId, $"Deck list card activated - scheduling rescan to update lists");
                 // _deckCountBeforeActivation already captured before UIActivator.Activate above
                 _announceDeckCountOnRescan = true;
                 TriggerRescan();
@@ -3118,12 +3104,12 @@ namespace AccessibleArena.Core.Services
                 bool isLoginPanel = _foregroundPanel != null && _foregroundPanel.name.StartsWith("Panel -");
                 if (!isLoginPanel)
                 {
-                    LogDebug($"[{NavigatorId}] Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
+                    Log.Nav(NavigatorId, $"Toggle activated - forcing rescan in {RescanDelaySeconds}s (bypassing debounce)");
                     TriggerRescan();
                 }
                 else
                 {
-                    LogDebug($"[{NavigatorId}] Toggle activated on Login panel - skipping rescan");
+                    Log.Nav(NavigatorId, $"Toggle activated on Login panel - skipping rescan");
                 }
                 return true;
             }
@@ -3132,7 +3118,7 @@ namespace AccessibleArena.Core.Services
             // The UI might change (e.g., Send button appearing) when entering an input field
             if (isInputField)
             {
-                LogDebug($"[{NavigatorId}] Input field activated - scheduling rescan");
+                Log.Nav(NavigatorId, $"Input field activated - scheduling rescan");
                 TriggerRescan();
                 return true;
             }
@@ -3141,7 +3127,7 @@ namespace AccessibleArena.Core.Services
             // (needed when focus goes to Blocker element instead of dropdown items)
             if (isDropdown)
             {
-                LogDebug($"[{NavigatorId}] Dropdown activated ({element.name})");
+                Log.Nav(NavigatorId, $"Dropdown activated ({element.name})");
                 UIFocusTracker.EnterDropdownEditMode(element);
                 return true;
             }
@@ -3151,7 +3137,7 @@ namespace AccessibleArena.Core.Services
             // No cooldown needed - alpha state comparison will detect when popup closes
             if (isPopupButton)
             {
-                LogDebug($"[{NavigatorId}] Popup button activated ({element.name})");
+                Log.Nav(NavigatorId, $"Popup button activated ({element.name})");
                 // Unified detector will detect popup close via alpha change
                 return true;
             }
@@ -3161,7 +3147,7 @@ namespace AccessibleArena.Core.Services
             // Packet selection: confirm button or any activation rebuilds GOs asynchronously
             if (_activeContentController == "PacketSelectContentController")
             {
-                LogDebug($"[{NavigatorId}] Packet selection activation - scheduling rescan");
+                Log.Nav(NavigatorId, $"Packet selection activation - scheduling rescan");
                 TriggerRescan();
             }
 
@@ -3284,7 +3270,7 @@ namespace AccessibleArena.Core.Services
             var trackSummaries = EventAccessor.GetAllTrackSummaries();
             if (trackSummaries == null || trackSummaries.Count == 0)
             {
-                LogDebug($"[{NavigatorId}] No Color Challenge track summaries available");
+                Log.Nav(NavigatorId, $"No Color Challenge track summaries available");
                 return;
             }
 
@@ -3324,7 +3310,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void AutoExpandBlade()
         {
-            LogDebug($"[{NavigatorId}] Attempting blade auto-expand");
+            Log.Nav(NavigatorId, $"Attempting blade auto-expand");
 
             // Find the blade expand button (Btn_BladeIsClosed or its arrow child)
             var bladeButton = GetActiveCustomButtons()
@@ -3332,7 +3318,7 @@ namespace AccessibleArena.Core.Services
 
             if (bladeButton != null)
             {
-                LogDebug($"[{NavigatorId}] Auto-expanding blade via {bladeButton.name}");
+                Log.Nav(NavigatorId, $"Auto-expanding blade via {bladeButton.name}");
                 _announcer.Announce(Models.Strings.OpeningColorChallenges, Models.AnnouncementPriority.High);
                 UIActivator.Activate(bladeButton);
 
@@ -3341,7 +3327,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                LogDebug($"[{NavigatorId}] Could not find blade expand button");
+                Log.Nav(NavigatorId, $"Could not find blade expand button");
             }
         }
 

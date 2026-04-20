@@ -5,6 +5,7 @@ using AccessibleArena.Core.Services.ElementGrouping;
 using AccessibleArena.Core.Services.PanelDetection;
 using System.Linq;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -18,7 +19,7 @@ namespace AccessibleArena.Core.Services
         {
             // First check if an overlay is active using the new OverlayDetector
             var activeOverlay = _overlayDetector.GetActiveOverlay();
-            LogDebug($"[{NavigatorId}] Backspace: activeOverlay = {activeOverlay?.ToString() ?? "none"}");
+            Log.Nav(NavigatorId, $"Backspace: activeOverlay = {activeOverlay?.ToString() ?? "none"}");
 
             if (activeOverlay != null)
             {
@@ -48,7 +49,7 @@ namespace AccessibleArena.Core.Services
 
             // No overlay - check content panel layer
             var layer = GetCurrentForeground();
-            LogDebug($"[{NavigatorId}] Backspace: layer = {layer}");
+            Log.Nav(NavigatorId, $"Backspace: layer = {layer}");
 
             return layer switch
             {
@@ -67,7 +68,7 @@ namespace AccessibleArena.Core.Services
         {
             // Refresh content controller detection to ensure we have current state
             DetectActiveContentController();
-            LogDebug($"[{NavigatorId}] HandleContentPanelBack: controller = {_activeContentController ?? "null"}");
+            Log.Nav(NavigatorId, $"HandleContentPanelBack: controller = {_activeContentController ?? "null"}");
 
             // Special case: Color Challenge (CampaignGraph) has two levels
             // - Blade collapsed (specific color selected) → expand blade to return to color list
@@ -89,7 +90,7 @@ namespace AccessibleArena.Core.Services
                 var dismissButton = FindDismissButtonInPanel(_activeControllerGameObject);
                 if (dismissButton != null)
                 {
-                    LogDebug($"[{NavigatorId}] Found dismiss button in content panel: {dismissButton.name}");
+                    Log.Nav(NavigatorId, $"Found dismiss button in content panel: {dismissButton.name}");
                     _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                     UIActivator.Activate(dismissButton);
                     TriggerRescan();
@@ -100,7 +101,7 @@ namespace AccessibleArena.Core.Services
             // Content panels (Store, Collection, BoosterChamber, etc.) don't have back buttons.
             // Navigate to Home instead. Don't use FindGenericBackButton() here as it finds
             // buttons from unrelated panels (e.g., FullscreenZFBrowserCanvas).
-            LogDebug($"[{NavigatorId}] No dismiss button in content panel, navigating to Home");
+            Log.Nav(NavigatorId, $"No dismiss button in content panel, navigating to Home");
             return NavigateToHome();
         }
 
@@ -119,13 +120,13 @@ namespace AccessibleArena.Core.Services
             if (bladeButton != null)
             {
                 // Blade is collapsed (a color is selected) — re-expand to show color list
-                LogDebug($"[{NavigatorId}] CampaignGraph back: blade collapsed, re-expanding color list");
+                Log.Nav(NavigatorId, $"CampaignGraph back: blade collapsed, re-expanding color list");
                 AutoExpandBlade();
                 return true;
             }
 
             // Blade is expanded (color list visible) — exit Color Challenge
-            LogDebug($"[{NavigatorId}] CampaignGraph back: blade expanded, navigating Home");
+            Log.Nav(NavigatorId, $"CampaignGraph back: blade expanded, navigating Home");
             _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
             return NavigateToHome();
         }
@@ -167,14 +168,14 @@ namespace AccessibleArena.Core.Services
             var backButton = FindGenericBackButton();
             if (backButton != null)
             {
-                LogDebug($"[{NavigatorId}] Found back button: {backButton.name}");
+                Log.Nav(NavigatorId, $"Found back button: {backButton.name}");
                 _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
                 UIActivator.Activate(backButton);
                 TriggerRescan();
                 return true;
             }
 
-            LogDebug($"[{NavigatorId}] At top level, no back action");
+            Log.Nav(NavigatorId, $"At top level, no back action");
             return false;
         }
 
@@ -183,7 +184,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HandleNPEBack()
         {
-            LogDebug($"[{NavigatorId}] Handling NPE back");
+            Log.Nav(NavigatorId, $"Handling NPE back");
             return TryGenericBackButton();
         }
 
@@ -288,7 +289,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool ClosePlayBlade()
         {
-            LogDebug($"[{NavigatorId}] Attempting to close PlayBlade");
+            Log.Nav(NavigatorId, $"Attempting to close PlayBlade");
 
             // Challenge screen: click Leave button but DON'T clear state immediately.
             // The game shows a confirmation dialog first. If user confirms, the game
@@ -299,7 +300,7 @@ namespace AccessibleArena.Core.Services
                 var leaveButton = GameObject.Find("MainButton_Leave");
                 if (leaveButton != null && leaveButton.activeInHierarchy)
                 {
-                    LogDebug($"[{NavigatorId}] Found MainButton_Leave, activating (awaiting confirmation)");
+                    Log.Nav(NavigatorId, $"Found MainButton_Leave, activating (awaiting confirmation)");
                     _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                     UIActivator.Activate(leaveButton);
                     // If user cancels the confirmation, rescan will consume this and re-enter ChallengeMain.
@@ -312,7 +313,7 @@ namespace AccessibleArena.Core.Services
             var bladeIsOpenButton = GameObject.Find("Btn_BladeIsOpen");
             if (bladeIsOpenButton != null && bladeIsOpenButton.activeInHierarchy)
             {
-                LogDebug($"[{NavigatorId}] Found Btn_BladeIsOpen, activating");
+                Log.Nav(NavigatorId, $"Found Btn_BladeIsOpen, activating");
                 _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                 UIActivator.Activate(bladeIsOpenButton);
                 ClearBladeStateAndRescan();
@@ -322,14 +323,14 @@ namespace AccessibleArena.Core.Services
             var dismissButton = GameObject.Find("Blade_DismissButton");
             if (dismissButton != null && dismissButton.activeInHierarchy)
             {
-                LogDebug($"[{NavigatorId}] Found Blade_DismissButton, activating");
+                Log.Nav(NavigatorId, $"Found Blade_DismissButton, activating");
                 _announcer.Announce(Models.Strings.ClosingPlayBlade, Models.AnnouncementPriority.High);
                 UIActivator.Activate(dismissButton);
                 ClearBladeStateAndRescan();
                 return true;
             }
 
-            LogDebug($"[{NavigatorId}] ClosePlayBlade called but no close button found - check foreground detection");
+            Log.Nav(NavigatorId, $"ClosePlayBlade called but no close button found - check foreground detection");
             return false;
         }
 
@@ -338,7 +339,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ClearBladeStateAndRescan()
         {
-            LogDebug($"[{NavigatorId}] Clearing blade state for immediate Home navigation");
+            Log.Nav(NavigatorId, $"Clearing blade state for immediate Home navigation");
             _playBladeHelper.OnPlayBladeClosed();
             if (_challengeHelper.IsActive)
                 _challengeHelper.OnChallengeClosed();

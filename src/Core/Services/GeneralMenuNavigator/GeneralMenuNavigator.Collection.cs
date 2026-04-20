@@ -2,6 +2,7 @@ using UnityEngine;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.ElementGrouping;
 using System.Collections.Generic;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -21,7 +22,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool ActivateCollectionPageButton(bool next)
         {
-            LogDebug($"[{NavigatorId}] Collection page navigation: {(next ? "Next" : "Previous")}");
+            Log.Nav(NavigatorId, $"Collection page navigation: {(next ? "Next" : "Previous")}");
 
             // Try direct CardPoolHolder API access
             var poolHolder = CardPoolAccessor.FindCardPoolHolder();
@@ -29,7 +30,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (CardPoolAccessor.IsScrolling())
                 {
-                    LogDebug($"[{NavigatorId}] Page scroll animation still in progress, ignoring");
+                    Log.Nav(NavigatorId, $"Page scroll animation still in progress, ignoring");
                     return true; // Consume input but don't scroll
                 }
 
@@ -64,7 +65,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Fallback to old button-search method
-            LogDebug($"[{NavigatorId}] CardPoolAccessor unavailable, falling back to button search");
+            Log.Nav(NavigatorId, $"CardPoolAccessor unavailable, falling back to button search");
             return ActivateCollectionPageButtonFallback(next);
         }
 
@@ -129,7 +130,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            LogDebug($"[{NavigatorId}] No '{targetLabel}' page button found (fallback)");
+            Log.Nav(NavigatorId, $"No '{targetLabel}' page button found (fallback)");
             return false;
         }
 
@@ -202,7 +203,7 @@ namespace AccessibleArena.Core.Services
                     label = filterGroup.Value.Elements[index].Label ?? "Filter";
                 }
 
-                LogDebug($"[{NavigatorId}] Activating filter {index + 1}: {label}");
+                Log.Nav(NavigatorId, $"Activating filter {index + 1}: {label}");
 
                 // Activate the filter
                 var result = UIActivator.Activate(filterElement);
@@ -251,7 +252,7 @@ namespace AccessibleArena.Core.Services
         {
             _packetBlocks = EventAccessor.GetPacketInfoBlocks(element);
             _packetBlockIndex = 0;
-            LogDebug($"[{NavigatorId}] Packet blocks: {_packetBlocks?.Count ?? 0}");
+            Log.Nav(NavigatorId, $"Packet blocks: {_packetBlocks?.Count ?? 0}");
         }
 
         /// <summary>

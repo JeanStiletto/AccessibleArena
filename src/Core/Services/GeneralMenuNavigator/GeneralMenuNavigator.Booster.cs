@@ -3,6 +3,7 @@ using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.ElementGrouping;
 using System.Collections.Generic;
 using System.Linq;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -72,7 +73,7 @@ namespace AccessibleArena.Core.Services
             };
 
             AddElement(currentPack, label, carouselInfo);
-            LogDebug($"[{NavigatorId}] Added booster carousel: {label}");
+            Log.Nav(NavigatorId, $"Added booster carousel: {label}");
         }
 
         /// <summary>
