@@ -4,6 +4,7 @@ using MelonLoader;
 using UnityEngine;
 using AccessibleArena.Patches;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.PanelDetection
 {
@@ -27,7 +28,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
         {
             if (_initialized)
             {
-                MelonLogger.Warning($"[{DetectorId}] Already initialized");
+                Log.Warn("{DetectorId}", $"Already initialized");
                 return;
             }
 
@@ -37,7 +38,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             PanelStatePatch.OnPanelStateChanged += OnHarmonyPanelStateChanged;
 
             _initialized = true;
-            MelonLogger.Msg($"[{DetectorId}] Initialized, subscribed to PanelStatePatch events");
+            Log.Msg("{DetectorId}", $"Initialized, subscribed to PanelStatePatch events");
         }
 
         public void Update()
@@ -50,7 +51,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
         public void Reset()
         {
             _controllerToGameObject.Clear();
-            MelonLogger.Msg($"[{DetectorId}] Reset");
+            Log.Msg("{DetectorId}", $"Reset");
         }
 
         #region Panel Ownership (Stage 5.3)
@@ -104,7 +105,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 GameObject gameObject = GetGameObjectForController(controller);
                 if (gameObject == null)
                 {
-                    MelonLogger.Msg($"[{DetectorId}] Could not find GameObject for {typeName}, skipping");
+                    Log.Msg("{DetectorId}", $"Could not find GameObject for {typeName}, skipping");
                     return;
                 }
 
@@ -130,7 +131,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                         {
                             // Generic PlayBlade detected via GameObject name (e.g., CampaignGraph blade)
                             _stateManager.SetPlayBladeState(1);
-                            MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=1 from generic PlayBlade");
+                            Log.Msg("{DetectorId}", $"Set PlayBladeState=1 from generic PlayBlade");
                         }
                         else
                         {
@@ -147,7 +148,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                         if (bladeState > 0)
                         {
                             _stateManager.SetPlayBladeState(bladeState);
-                            MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState={bladeState} from content view: {contentView}");
+                            Log.Msg("{DetectorId}", $"Set PlayBladeState={bladeState} from content view: {contentView}");
                         }
                     }
                     else if (typeName == "EventBlade")
@@ -156,11 +157,11 @@ namespace AccessibleArena.Core.Services.PanelDetection
                         // This fires when the play blade opens from home screen objectives
                         // (e.g., Sparked Rank achievement). Treat it as PlayBlade state 1.
                         _stateManager.SetPlayBladeState(1);
-                        MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=1 from EventBlade");
+                        Log.Msg("{DetectorId}", $"Set PlayBladeState=1 from EventBlade");
                     }
 
                     _stateManager.ReportPanelOpened(panelInfo);
-                    MelonLogger.Msg($"[{DetectorId}] Reported panel opened: {typeName}");
+                    Log.Msg("{DetectorId}", $"Reported panel opened: {typeName}");
                 }
                 else
                 {
@@ -171,30 +172,30 @@ namespace AccessibleArena.Core.Services.PanelDetection
                         if (statePart == "Hidden" || statePart == "Generic" || ParsePlayBladeState(statePart) == 0)
                         {
                             _stateManager.SetPlayBladeState(0);
-                            MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=0 from PlayBlade closing: {statePart}");
+                            Log.Msg("{DetectorId}", $"Set PlayBladeState=0 from PlayBlade closing: {statePart}");
                         }
                     }
                     else if (typeName.StartsWith("Blade:"))
                     {
                         // BladeContentView hiding - blade is closing
                         _stateManager.SetPlayBladeState(0);
-                        MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=0 from content view closing: {typeName}");
+                        Log.Msg("{DetectorId}", $"Set PlayBladeState=0 from content view closing: {typeName}");
                     }
                     else if (typeName == "EventBlade")
                     {
                         // HomePageContentController.IsEventBladeActive = false
                         _stateManager.SetPlayBladeState(0);
-                        MelonLogger.Msg($"[{DetectorId}] Set PlayBladeState=0 from EventBlade closing");
+                        Log.Msg("{DetectorId}", $"Set PlayBladeState=0 from EventBlade closing");
                     }
 
                     // Report panel closed
                     _stateManager.ReportPanelClosed(gameObject);
-                    MelonLogger.Msg($"[{DetectorId}] Reported panel closed: {typeName}");
+                    Log.Msg("{DetectorId}", $"Reported panel closed: {typeName}");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{DetectorId}] Error handling panel state change: {ex.Message}");
+                Log.Warn("{DetectorId}", $"Error handling panel state change: {ex.Message}");
             }
         }
 

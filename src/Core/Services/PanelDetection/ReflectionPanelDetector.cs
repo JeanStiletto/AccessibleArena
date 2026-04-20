@@ -5,6 +5,7 @@ using System.Reflection;
 using MelonLoader;
 using UnityEngine;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.PanelDetection
 {
@@ -64,13 +65,13 @@ namespace AccessibleArena.Core.Services.PanelDetection
         {
             if (_initialized)
             {
-                MelonLogger.Warning($"[{DetectorId}] Already initialized");
+                Log.Warn("{DetectorId}", $"Already initialized");
                 return;
             }
 
             _stateManager = stateManager;
             _initialized = true;
-            MelonLogger.Msg($"[{DetectorId}] Initialized");
+            Log.Msg("{DetectorId}", $"Initialized");
         }
 
         public void Update()
@@ -89,7 +90,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
         {
             _trackedPanels.Clear();
             _frameCounter = 0;
-            MelonLogger.Msg($"[{DetectorId}] Reset");
+            Log.Msg("{DetectorId}", $"Reset");
         }
 
         #region Panel Ownership (Stage 5.3)
@@ -259,7 +260,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[{DetectorId}] Failed to read IsOpen on {type.Name}: {ex.Message}");
+                    Log.Warn("{DetectorId}", $"Failed to read IsOpen on {type.Name}: {ex.Message}");
                     return false;
                 }
             }
@@ -279,7 +280,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Warning($"[{DetectorId}] Failed to call IsOpen() on {type.Name}: {ex.Message}");
+                    Log.Warn("{DetectorId}", $"Failed to call IsOpen() on {type.Name}: {ex.Message}");
                     return false;
                 }
             }
@@ -323,7 +324,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
             var panelInfo = new PanelInfo(cleanName, panelType, obj, PanelDetectionMethod.Reflection);
             _stateManager.ReportPanelOpened(panelInfo);
-            MelonLogger.Msg($"[{DetectorId}] Reported panel opened: {panelId}");
+            Log.Msg("{DetectorId}", $"Reported panel opened: {panelId}");
         }
 
         private void ReportPanelClosed(string panelId)
@@ -336,7 +337,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             }
 
             _stateManager.ReportPanelClosedByName(cleanName);
-            MelonLogger.Msg($"[{DetectorId}] Reported panel closed: {panelId}");
+            Log.Msg("{DetectorId}", $"Reported panel closed: {panelId}");
         }
     }
 }

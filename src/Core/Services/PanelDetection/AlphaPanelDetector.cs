@@ -4,6 +4,7 @@ using System.Linq;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.PanelDetection
 {
@@ -49,13 +50,13 @@ namespace AccessibleArena.Core.Services.PanelDetection
         {
             if (_initialized)
             {
-                MelonLogger.Warning($"[{DetectorId}] Already initialized");
+                Log.Warn("{DetectorId}", $"Already initialized");
                 return;
             }
 
             _stateManager = stateManager;
             _initialized = true;
-            MelonLogger.Msg($"[{DetectorId}] Initialized");
+            Log.Msg("{DetectorId}", $"Initialized");
         }
 
         public void Update()
@@ -82,7 +83,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             _knownPanels.Clear();
             _announcedPanels.Clear();
             _frameCounter = 0;
-            MelonLogger.Msg($"[{DetectorId}] Reset");
+            Log.Msg("{DetectorId}", $"Reset");
         }
 
         /// <summary>
@@ -102,7 +103,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 if (kvp.Value.Name == panelName && kvp.Value.WasVisible)
                 {
                     kvp.Value.WasVisible = false;
-                    MelonLogger.Msg($"[{DetectorId}] Reset tracking for: {panelName}");
+                    Log.Msg("{DetectorId}", $"Reset tracking for: {panelName}");
                 }
             }
         }
@@ -201,7 +202,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                     WasVisible = false
                 };
 
-                MelonLogger.Msg($"[{DetectorId}] Registered popup: {go.name}");
+                Log.Msg("{DetectorId}", $"Registered popup: {go.name}");
             }
         }
 
@@ -258,13 +259,13 @@ namespace AccessibleArena.Core.Services.PanelDetection
             );
 
             _stateManager.ReportPanelOpened(panelInfo);
-            MelonLogger.Msg($"[{DetectorId}] Reported popup opened: {panel.Name}");
+            Log.Msg("{DetectorId}", $"Reported popup opened: {panel.Name}");
         }
 
         private void ReportPanelClosed(TrackedPanel panel)
         {
             _stateManager.ReportPanelClosed(panel.GameObject);
-            MelonLogger.Msg($"[{DetectorId}] Reported popup closed: {panel.Name}");
+            Log.Msg("{DetectorId}", $"Reported popup closed: {panel.Name}");
         }
 
         private bool IsTrackedPanel(string name)
@@ -330,7 +331,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 // Report as closed if it was visible - don't silently remove
                 if (panel.WasVisible)
                 {
-                    MelonLogger.Msg($"[{DetectorId}] Popup destroyed while visible, reporting closed: {panel.Name}");
+                    Log.Msg("{DetectorId}", $"Popup destroyed while visible, reporting closed: {panel.Name}");
                     _stateManager.ReportPanelClosedByName(panel.Name);
                     _announcedPanels.Remove(panel.Name);
                 }

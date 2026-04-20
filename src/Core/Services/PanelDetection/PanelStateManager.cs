@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 using AccessibleArena.Core.Services;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.PanelDetection
 {
@@ -130,7 +131,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
         {
             if (!IsSceneLoading) return;
             IsSceneLoading = false;
-            MelonLogger.Msg("[PanelStateManager] Scene loading gate cleared externally");
+            Log.Msg("PanelStateManager", "Scene loading gate cleared externally");
         }
 
         #endregion
@@ -158,7 +159,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             _alphaDetector = new AlphaPanelDetector();
             _alphaDetector.Initialize(this);
 
-            MelonLogger.Msg("[PanelStateManager] Initialized with 3 detectors");
+            Log.Msg("PanelStateManager", "Initialized with 3 detectors");
         }
 
         /// <summary>
@@ -189,14 +190,14 @@ namespace AccessibleArena.Core.Services.PanelDetection
         {
             if (panel == null || !panel.IsValid)
             {
-                MelonLogger.Msg($"[PanelStateManager] Ignoring invalid panel");
+                Log.Msg("PanelStateManager", $"Ignoring invalid panel");
                 return false;
             }
 
             // Check if this panel should be ignored
             if (PanelInfo.ShouldIgnorePanel(panel.Name))
             {
-                MelonLogger.Msg($"[PanelStateManager] Ignoring panel (in ignore list): {panel.Name}");
+                Log.Msg("PanelStateManager", $"Ignoring panel (in ignore list): {panel.Name}");
                 return false;
             }
 
@@ -204,7 +205,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             // Don't track them - they'd block real popups from becoming active.
             if (BaseNavigator.IsDecorativePanel(panel.Name))
             {
-                MelonLogger.Msg($"[PanelStateManager] Skipping decorative panel (not tracked): {panel.Name}");
+                Log.Msg("PanelStateManager", $"Skipping decorative panel (not tracked): {panel.Name}");
                 return false;
             }
 
@@ -212,7 +213,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             var existing = _panelStack.Find(p => p.GameObject == panel.GameObject);
             if (existing != null)
             {
-                MelonLogger.Msg($"[PanelStateManager] Panel already tracked: {panel.Name}");
+                Log.Msg("PanelStateManager", $"Panel already tracked: {panel.Name}");
                 return false;
             }
 
@@ -220,7 +221,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             float currentTime = Time.realtimeSinceStartup;
             if (currentTime - _lastChangeTime < DebounceSeconds)
             {
-                MelonLogger.Msg($"[PanelStateManager] Debounced: {panel.Name}");
+                Log.Msg("PanelStateManager", $"Debounced: {panel.Name}");
                 // Still add to stack, just don't fire event
                 AddToStack(panel);
                 return false;
@@ -230,14 +231,14 @@ namespace AccessibleArena.Core.Services.PanelDetection
             if (IsSceneLoading && panel.Type != PanelType.Popup)
             {
                 IsSceneLoading = false;
-                MelonLogger.Msg($"[PanelStateManager] Scene loading complete (first panel: {panel.Name})");
+                Log.Msg("PanelStateManager", $"Scene loading complete (first panel: {panel.Name})");
             }
 
             // Add to stack and update active panel
             AddToStack(panel);
             _lastChangeTime = currentTime;
 
-            MelonLogger.Msg($"[PanelStateManager] Panel opened: {panel}");
+            Log.Msg("PanelStateManager", $"Panel opened: {panel}");
 
             // Fire event for any panel open (triggers rescan even for non-filtering panels)
             OnAnyPanelOpened?.Invoke(panel);
@@ -270,7 +271,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             _panelStack.Remove(panel);
             _announcedPanels.Remove(panel.Name);
 
-            MelonLogger.Msg($"[PanelStateManager] Panel closed: {panel.Name}");
+            Log.Msg("PanelStateManager", $"Panel closed: {panel.Name}");
 
             // Update active panel
             UpdateActivePanel();
@@ -308,7 +309,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             var oldState = PlayBladeState;
             PlayBladeState = state;
 
-            MelonLogger.Msg($"[PanelStateManager] PlayBlade state: {oldState} -> {state}");
+            Log.Msg("PanelStateManager", $"PlayBlade state: {oldState} -> {state}");
 
             OnPlayBladeStateChanged?.Invoke(state);
 
@@ -343,7 +344,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             // during a page transition without BladeContentView.Hide firing.
             if (hadBladePanels && !_panelStack.Exists(p => p.Type == PanelType.Blade && p.IsValid))
             {
-                MelonLogger.Msg($"[PanelStateManager] Resetting stale PlayBladeState (was {PlayBladeState}) - blade panel destroyed");
+                Log.Msg("PanelStateManager", $"Resetting stale PlayBladeState (was {PlayBladeState}) - blade panel destroyed");
                 SetPlayBladeState(0);
             }
 
@@ -364,7 +365,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             {
                 ActivePanel = newActive;
 
-                MelonLogger.Msg($"[PanelStateManager] Active panel: {oldActive?.Name ?? "none"} -> {newActive?.Name ?? "none"}");
+                Log.Msg("PanelStateManager", $"Active panel: {oldActive?.Name ?? "none"} -> {newActive?.Name ?? "none"}");
 
                 // Fire event
                 OnPanelChanged?.Invoke(oldActive, newActive);
@@ -384,7 +385,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
             // Check if active panel is still valid
             if (ActivePanel != null && !ActivePanel.IsValid)
             {
-                MelonLogger.Msg($"[PanelStateManager] Active panel became invalid, clearing");
+                Log.Msg("PanelStateManager", $"Active panel became invalid, clearing");
                 ReportPanelClosed(ActivePanel.GameObject);
             }
 
@@ -431,7 +432,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
         /// </summary>
         public void Reset()
         {
-            MelonLogger.Msg("[PanelStateManager] Reset");
+            Log.Msg("PanelStateManager", "Reset");
 
             // Reset all detectors
             _harmonyDetector?.Reset();
@@ -476,7 +477,7 @@ namespace AccessibleArena.Core.Services.PanelDetection
                 if (!_panelStack[i].IsValid)
                 {
                     var removed = _panelStack[i];
-                    MelonLogger.Msg($"[PanelStateManager] Removing invalid panel: {removed.Name}");
+                    Log.Msg("PanelStateManager", $"Removing invalid panel: {removed.Name}");
 
                     // Reset AlphaDetector tracking so it can re-detect if still visible
                     if (removed.DetectedBy == PanelDetectionMethod.Alpha)
