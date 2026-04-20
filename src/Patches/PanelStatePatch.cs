@@ -84,6 +84,95 @@ namespace AccessibleArena.Patches
             }
         }
 
+        /// <summary>
+        /// Wires a Harmony postfix by name onto <paramref name="method"/>, logs success under
+        /// <paramref name="label"/>, and swallows/logs reflection errors so one broken patch
+        /// can't abort the rest of Initialize().
+        /// </summary>
+        private static void TryPatchPostfix(HarmonyLib.Harmony harmony, MethodBase method, string postfixName, string label)
+        {
+            if (method == null) return;
+            try
+            {
+                var postfix = typeof(PanelStatePatch).GetMethod(postfixName, BindingFlags.Static | BindingFlags.Public);
+                harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched {label}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Failed to patch {label}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Same as <see cref="TryPatchPostfix"/> but wires both a prefix and a postfix.
+        /// </summary>
+        private static void TryPatchPrefixPostfix(HarmonyLib.Harmony harmony, MethodBase method, string prefixName, string postfixName, string label)
+        {
+            if (method == null) return;
+            try
+            {
+                var prefix = typeof(PanelStatePatch).GetMethod(prefixName, BindingFlags.Static | BindingFlags.Public);
+                var postfix = typeof(PanelStatePatch).GetMethod(postfixName, BindingFlags.Static | BindingFlags.Public);
+                harmony.Patch(method, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
+                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched {label}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Failed to patch {label}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Same as <see cref="TryPatchPostfix"/> but wires only a prefix.
+        /// </summary>
+        private static void TryPatchPrefix(HarmonyLib.Harmony harmony, MethodBase method, string prefixName, string label)
+        {
+            if (method == null) return;
+            try
+            {
+                var prefix = typeof(PanelStatePatch).GetMethod(prefixName, BindingFlags.Static | BindingFlags.Public);
+                harmony.Patch(method, prefix: new HarmonyMethod(prefix));
+                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched {label}");
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Failed to patch {label}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Fires <see cref="OnPanelStateChanged"/> with debug logging, guarded by a try/catch so a
+        /// subscriber exception can't leak back into the patched game method.
+        /// </summary>
+        private static void FirePanelStateChange(object instance, bool isOpen, string name, string logPrefix)
+        {
+            try
+            {
+                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"{logPrefix} (isOpen: {isOpen})");
+                OnPanelStateChanged?.Invoke(instance, isOpen, name);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"[PanelStatePatch] Error firing {logPrefix}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the Tab key is held, in which case the caller should skip the
+        /// patched SocialUI method. Our mod uses Tab for navigation — we never want Tab to
+        /// open, close, or toggle the friends panel / chat window.
+        /// </summary>
+        private static bool ShouldBlockSocialUITabToggle(string whatWasBlocked)
+        {
+            if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+            {
+                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked {whatWasBlocked} (Tab pressed)");
+                return true;
+            }
+            return false;
+        }
+
         private static void PatchNavContentController(HarmonyLib.Harmony harmony)
         {
             var controllerType = FindType(T.NavContentControllerFQ);
@@ -104,75 +193,23 @@ namespace AccessibleArena.Patches
             // Log available methods/properties for debugging
             LogTypeMembers(controllerType);
 
-            // NavContentController uses BeginOpen/FinishOpen/BeginClose/FinishClose lifecycle methods
-            // FinishOpen/FinishClose are best - they fire after animations complete
+            // NavContentController uses BeginOpen/FinishOpen/BeginClose/FinishClose lifecycle methods.
+            // FinishOpen/FinishClose fire after animations complete; BeginOpen/BeginClose fire earlier
+            // for callers that need pre-animation notification; IsOpen setter is a backup.
+            var finishOpen = controllerType.GetMethod("FinishOpen", AllInstanceFlags);
+            if (finishOpen == null) MelonLogger.Warning("[PanelStatePatch] Could not find NavContentController.FinishOpen()");
+            TryPatchPostfix(harmony, finishOpen, nameof(ShowPostfix), "NavContentController.FinishOpen()");
 
-            // Patch FinishOpen - called when panel finishes opening
-            var finishOpenMethod = controllerType.GetMethod("FinishOpen",
-                AllInstanceFlags);
+            var finishClose = controllerType.GetMethod("FinishClose", AllInstanceFlags);
+            if (finishClose == null) MelonLogger.Warning("[PanelStatePatch] Could not find NavContentController.FinishClose()");
+            TryPatchPostfix(harmony, finishClose, nameof(HidePostfix), "NavContentController.FinishClose()");
 
-            if (finishOpenMethod != null)
-            {
-                var postfix = typeof(PanelStatePatch).GetMethod(nameof(ShowPostfix),
-                    BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(finishOpenMethod, postfix: new HarmonyMethod(postfix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched NavContentController.FinishOpen()");
-            }
-            else
-            {
-                MelonLogger.Warning("[PanelStatePatch] Could not find NavContentController.FinishOpen()");
-            }
-
-            // Patch FinishClose - called when panel finishes closing
-            var finishCloseMethod = controllerType.GetMethod("FinishClose",
-                AllInstanceFlags);
-
-            if (finishCloseMethod != null)
-            {
-                var postfix = typeof(PanelStatePatch).GetMethod(nameof(HidePostfix),
-                    BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(finishCloseMethod, postfix: new HarmonyMethod(postfix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched NavContentController.FinishClose()");
-            }
-            else
-            {
-                MelonLogger.Warning("[PanelStatePatch] Could not find NavContentController.FinishClose()");
-            }
-
-            // Also patch BeginOpen/BeginClose for earlier notification
-            var beginOpenMethod = controllerType.GetMethod("BeginOpen",
-                AllInstanceFlags);
-
-            if (beginOpenMethod != null)
-            {
-                var postfix = typeof(PanelStatePatch).GetMethod(nameof(BeginOpenPostfix),
-                    BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(beginOpenMethod, postfix: new HarmonyMethod(postfix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched NavContentController.BeginOpen()");
-            }
-
-            var beginCloseMethod = controllerType.GetMethod("BeginClose",
-                AllInstanceFlags);
-
-            if (beginCloseMethod != null)
-            {
-                var postfix = typeof(PanelStatePatch).GetMethod(nameof(BeginClosePostfix),
-                    BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(beginCloseMethod, postfix: new HarmonyMethod(postfix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched NavContentController.BeginClose()");
-            }
-
-            // Keep IsOpen setter patch as backup
-            var isOpenSetter = controllerType.GetProperty("IsOpen",
-                AllInstanceFlags)?.GetSetMethod(true);
-
-            if (isOpenSetter != null)
-            {
-                var postfix = typeof(PanelStatePatch).GetMethod(nameof(IsOpenSetterPostfix),
-                    BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(isOpenSetter, postfix: new HarmonyMethod(postfix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched NavContentController.IsOpen setter");
-            }
+            TryPatchPostfix(harmony, controllerType.GetMethod("BeginOpen", AllInstanceFlags),
+                nameof(BeginOpenPostfix), "NavContentController.BeginOpen()");
+            TryPatchPostfix(harmony, controllerType.GetMethod("BeginClose", AllInstanceFlags),
+                nameof(BeginClosePostfix), "NavContentController.BeginClose()");
+            TryPatchPostfix(harmony, controllerType.GetProperty("IsOpen", AllInstanceFlags)?.GetSetMethod(true),
+                nameof(IsOpenSetterPostfix), "NavContentController.IsOpen setter");
         }
 
         /// <summary>
@@ -247,80 +284,23 @@ namespace AccessibleArena.Patches
             // Log all methods to discover correct signatures
             LogTypeMembers(settingsType);
 
-            // Try various Show/Open methods - search without parameter constraint first
-            var showMethods = settingsType.GetMethods(AllInstanceFlags)
-                .Where(m => m.Name == "Show" || m.Name == "Open" || m.Name == "FinishOpen" || m.Name == "BeginOpen")
-                .ToArray();
-
-            foreach (var method in showMethods)
+            // Patch every Show/Open/FinishOpen/BeginOpen overload we can find - the class has
+            // multiple entrypoints and we want to catch them all without guessing parameter lists.
+            foreach (var method in settingsType.GetMethods(AllInstanceFlags)
+                .Where(m => m.Name == "Show" || m.Name == "Open" || m.Name == "FinishOpen" || m.Name == "BeginOpen"))
             {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SettingsShowPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SettingsMenu.{method.Name}()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SettingsMenu.{method.Name}: {ex.Message}");
-                }
+                TryPatchPostfix(harmony, method, nameof(SettingsShowPostfix), $"SettingsMenu.{method.Name}()");
+            }
+            foreach (var method in settingsType.GetMethods(AllInstanceFlags)
+                .Where(m => m.Name == "Hide" || m.Name == "Close" || m.Name == "FinishClose" || m.Name == "BeginClose"))
+            {
+                TryPatchPostfix(harmony, method, nameof(SettingsHidePostfix), $"SettingsMenu.{method.Name}()");
             }
 
-            // Try various Hide/Close methods
-            var hideMethods = settingsType.GetMethods(AllInstanceFlags)
-                .Where(m => m.Name == "Hide" || m.Name == "Close" || m.Name == "FinishClose" || m.Name == "BeginClose")
-                .ToArray();
-
-            foreach (var method in hideMethods)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SettingsHidePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SettingsMenu.{method.Name}()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SettingsMenu.{method.Name}: {ex.Message}");
-                }
-            }
-
-            // Also try IsOpen/IsMainPanelActive setters
-            var isOpenSetter = settingsType.GetProperty("IsOpen",
-                AllInstanceFlags)?.GetSetMethod(true);
-            if (isOpenSetter != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SettingsIsOpenPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(isOpenSetter, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SettingsMenu.IsOpen setter");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SettingsMenu.IsOpen setter: {ex.Message}");
-                }
-            }
-
-            var isMainPanelActiveSetter = settingsType.GetProperty("IsMainPanelActive",
-                AllInstanceFlags)?.GetSetMethod(true);
-            if (isMainPanelActiveSetter != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SettingsMainPanelPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(isMainPanelActiveSetter, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SettingsMenu.IsMainPanelActive setter");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SettingsMenu.IsMainPanelActive setter: {ex.Message}");
-                }
-            }
+            TryPatchPostfix(harmony, settingsType.GetProperty("IsOpen", AllInstanceFlags)?.GetSetMethod(true),
+                nameof(SettingsIsOpenPostfix), "SettingsMenu.IsOpen setter");
+            TryPatchPostfix(harmony, settingsType.GetProperty("IsMainPanelActive", AllInstanceFlags)?.GetSetMethod(true),
+                nameof(SettingsMainPanelPostfix), "SettingsMenu.IsMainPanelActive setter");
         }
 
         private static void PatchDeckSelectController(HarmonyLib.Harmony harmony)
@@ -338,67 +318,18 @@ namespace AccessibleArena.Patches
             // Log available methods/properties for debugging
             LogTypeMembers(deckBladeType);
 
-            // Find all Show methods (may have parameters like Show(EventContext, DeckFormat, Action))
-            var showMethods = deckBladeType.GetMethods(AllInstanceFlags)
-                .Where(m => m.Name == "Show")
-                .ToArray();
-
-            foreach (var method in showMethods)
+            foreach (var method in deckBladeType.GetMethods(AllInstanceFlags).Where(m => m.Name == "Show"))
             {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(DeckSelectShowPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                    var paramStr = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched DeckSelectBlade.Show({paramStr})");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch DeckSelectBlade.Show: {ex.Message}");
-                }
+                var paramStr = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
+                TryPatchPostfix(harmony, method, nameof(DeckSelectShowPostfix), $"DeckSelectBlade.Show({paramStr})");
             }
 
-            // Patch the Hide method
-            var hideMethod = deckBladeType.GetMethod("Hide",
-                AllInstanceFlags);
+            var hide = deckBladeType.GetMethod("Hide", AllInstanceFlags);
+            if (hide == null) MelonLogger.Warning("[PanelStatePatch] Could not find Hide method on DeckSelectBlade");
+            TryPatchPostfix(harmony, hide, nameof(DeckSelectHidePostfix), "DeckSelectBlade.Hide()");
 
-            if (hideMethod != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(DeckSelectHidePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(hideMethod, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched DeckSelectBlade.Hide()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch DeckSelectBlade.Hide: {ex.Message}");
-                }
-            }
-            else
-            {
-                MelonLogger.Warning("[PanelStatePatch] Could not find Hide method on DeckSelectBlade");
-            }
-
-            // Also patch IsShowing setter if available
-            var isShowingSetter = deckBladeType.GetProperty("IsShowing",
-                AllInstanceFlags)?.GetSetMethod(true);
-            if (isShowingSetter != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(DeckSelectIsShowingPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(isShowingSetter, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched DeckSelectBlade.IsShowing setter");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch DeckSelectBlade.IsShowing setter: {ex.Message}");
-                }
-            }
+            TryPatchPostfix(harmony, deckBladeType.GetProperty("IsShowing", AllInstanceFlags)?.GetSetMethod(true),
+                nameof(DeckSelectIsShowingPostfix), "DeckSelectBlade.IsShowing setter");
         }
 
         private static void PatchPlayBladeController(HarmonyLib.Harmony harmony)
@@ -412,31 +343,14 @@ namespace AccessibleArena.Patches
 
             DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found PlayBladeController: {playBladeType.FullName}");
 
-            // Patch PlayBladeVisualState setter - this changes when play blade opens/closes
-            var visualStateSetter = playBladeType.GetProperty("PlayBladeVisualState",
-                AllInstanceFlags)?.GetSetMethod(true);
-
-            if (visualStateSetter != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(PlayBladeVisualStatePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(visualStateSetter, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched PlayBladeController.PlayBladeVisualState setter");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch PlayBladeController.PlayBladeVisualState setter: {ex.Message}");
-                }
-            }
-            else
-            {
+            // PlayBladeVisualState changes when play blade opens/closes. IsDeckSelected is get-only
+            // (delegates to _activeBladeWidget.IsDeckSelected) - no patch needed, deck selection
+            // is handled via DeckView.OnDeckClick().
+            var visualStateSetter = playBladeType.GetProperty("PlayBladeVisualState", AllInstanceFlags)?.GetSetMethod(true);
+            if (visualStateSetter == null)
                 MelonLogger.Warning("[PanelStatePatch] Could not find PlayBladeController.PlayBladeVisualState setter");
-            }
-
-            // IsDeckSelected is GET-ONLY (delegates to _activeBladeWidget.IsDeckSelected, no setter).
-            // No patch possible or needed - deck selection is handled via DeckView.OnDeckClick().
+            TryPatchPostfix(harmony, visualStateSetter, nameof(PlayBladeVisualStatePostfix),
+                "PlayBladeController.PlayBladeVisualState setter");
         }
 
         private static void PatchHomePageBladeStates(HarmonyLib.Harmony harmony)
@@ -450,51 +364,17 @@ namespace AccessibleArena.Patches
 
             DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found HomePageContentController: {homePageType.FullName}");
 
-            // Patch IsEventBladeActive setter
-            var isEventBladeActiveSetter = homePageType.GetProperty("IsEventBladeActive",
-                AllInstanceFlags)?.GetSetMethod(true);
-
-            if (isEventBladeActiveSetter != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(IsEventBladeActivePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(isEventBladeActiveSetter, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched HomePageContentController.IsEventBladeActive setter");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch HomePageContentController.IsEventBladeActive setter: {ex.Message}");
-                }
-            }
-            else
-            {
+            var eventSetter = homePageType.GetProperty("IsEventBladeActive", AllInstanceFlags)?.GetSetMethod(true);
+            if (eventSetter == null)
                 MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.IsEventBladeActive setter");
-            }
+            TryPatchPostfix(harmony, eventSetter, nameof(IsEventBladeActivePostfix),
+                "HomePageContentController.IsEventBladeActive setter");
 
-            // Patch IsDirectChallengeBladeActive setter
-            var isDirectChallengeBladeActiveSetter = homePageType.GetProperty("IsDirectChallengeBladeActive",
-                AllInstanceFlags)?.GetSetMethod(true);
-
-            if (isDirectChallengeBladeActiveSetter != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(IsDirectChallengeBladeActivePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(isDirectChallengeBladeActiveSetter, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched HomePageContentController.IsDirectChallengeBladeActive setter");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch HomePageContentController.IsDirectChallengeBladeActive setter: {ex.Message}");
-                }
-            }
-            else
-            {
+            var directSetter = homePageType.GetProperty("IsDirectChallengeBladeActive", AllInstanceFlags)?.GetSetMethod(true);
+            if (directSetter == null)
                 MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.IsDirectChallengeBladeActive setter");
-            }
+            TryPatchPostfix(harmony, directSetter, nameof(IsDirectChallengeBladeActivePostfix),
+                "HomePageContentController.IsDirectChallengeBladeActive setter");
         }
 
         private static void PatchJoinMatchMaking(HarmonyLib.Harmony harmony)
@@ -506,26 +386,14 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            var joinMethod = homePageType.GetMethod("JoinMatchMaking",
-                PrivateInstance);
-
+            var joinMethod = homePageType.GetMethod("JoinMatchMaking", PrivateInstance);
             if (joinMethod == null)
             {
                 MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.JoinMatchMaking method");
                 return;
             }
-
-            try
-            {
-                var prefix = typeof(PanelStatePatch).GetMethod(nameof(JoinMatchMakingPrefix),
-                    BindingFlags.Static | BindingFlags.Public);
-                harmony.Patch(joinMethod, prefix: new HarmonyMethod(prefix));
-                MelonLogger.Msg("[PanelStatePatch] Patched HomePageContentController.JoinMatchMaking for bot match interception");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Failed to patch JoinMatchMaking: {ex.Message}");
-            }
+            TryPatchPrefix(harmony, joinMethod, nameof(JoinMatchMakingPrefix),
+                "HomePageContentController.JoinMatchMaking (bot-match interception)");
         }
 
         /// <summary>
@@ -555,42 +423,10 @@ namespace AccessibleArena.Patches
             if (bladeContentViewType != null)
             {
                 DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found BladeContentView: {bladeContentViewType.FullName}");
-
-                var showMethod = bladeContentViewType.GetMethod("Show",
-                    AllInstanceFlags);
-
-                if (showMethod != null)
-                {
-                    try
-                    {
-                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(BladeContentViewShowPostfix),
-                            BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(showMethod, postfix: new HarmonyMethod(postfix));
-                        DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched BladeContentView.Show()");
-                    }
-                    catch (Exception ex)
-                    {
-                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch BladeContentView.Show: {ex.Message}");
-                    }
-                }
-
-                var hideMethod = bladeContentViewType.GetMethod("Hide",
-                    AllInstanceFlags);
-
-                if (hideMethod != null)
-                {
-                    try
-                    {
-                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(BladeContentViewHidePostfix),
-                            BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(hideMethod, postfix: new HarmonyMethod(postfix));
-                        DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched BladeContentView.Hide()");
-                    }
-                    catch (Exception ex)
-                    {
-                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch BladeContentView.Hide: {ex.Message}");
-                    }
-                }
+                TryPatchPostfix(harmony, bladeContentViewType.GetMethod("Show", AllInstanceFlags),
+                    nameof(BladeContentViewShowPostfix), "BladeContentView.Show()");
+                TryPatchPostfix(harmony, bladeContentViewType.GetMethod("Hide", AllInstanceFlags),
+                    nameof(BladeContentViewHidePostfix), "BladeContentView.Hide()");
             }
             else
             {
@@ -598,51 +434,14 @@ namespace AccessibleArena.Patches
             }
 
             // Also try to patch EventBladeContentView directly (has Show/Hide)
-            var eventBladeType = FindType(T.EventBladeContentViewFQ);
-            if (eventBladeType == null)
-            {
-                eventBladeType = FindType(T.EventBladeContentView);
-            }
-
+            var eventBladeType = FindType(T.EventBladeContentViewFQ) ?? FindType(T.EventBladeContentView);
             if (eventBladeType != null)
             {
                 DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found EventBladeContentView: {eventBladeType.FullName}");
-
-                var showMethod = eventBladeType.GetMethod("Show",
-                    AllInstanceFlags);
-
-                if (showMethod != null)
-                {
-                    try
-                    {
-                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(EventBladeShowPostfix),
-                            BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(showMethod, postfix: new HarmonyMethod(postfix));
-                        DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched EventBladeContentView.Show()");
-                    }
-                    catch (Exception ex)
-                    {
-                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch EventBladeContentView.Show: {ex.Message}");
-                    }
-                }
-
-                var hideMethod = eventBladeType.GetMethod("Hide",
-                    AllInstanceFlags);
-
-                if (hideMethod != null)
-                {
-                    try
-                    {
-                        var postfix = typeof(PanelStatePatch).GetMethod(nameof(EventBladeHidePostfix),
-                            BindingFlags.Static | BindingFlags.Public);
-                        harmony.Patch(hideMethod, postfix: new HarmonyMethod(postfix));
-                        DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched EventBladeContentView.Hide()");
-                    }
-                    catch (Exception ex)
-                    {
-                        MelonLogger.Warning($"[PanelStatePatch] Failed to patch EventBladeContentView.Hide: {ex.Message}");
-                    }
-                }
+                TryPatchPostfix(harmony, eventBladeType.GetMethod("Show", AllInstanceFlags),
+                    nameof(EventBladeShowPostfix), "EventBladeContentView.Show()");
+                TryPatchPostfix(harmony, eventBladeType.GetMethod("Hide", AllInstanceFlags),
+                    nameof(EventBladeHidePostfix), "EventBladeContentView.Hide()");
             }
             else
             {
@@ -661,130 +460,21 @@ namespace AccessibleArena.Patches
 
             DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found SocialUI: {socialUIType.FullName}");
 
-            // Patch ShowSocialEntitiesList - called when friends list opens
-            // Use both prefix (to block Tab-triggered opens) and postfix (for notifications)
-            var showMethod = socialUIType.GetMethod("ShowSocialEntitiesList",
-                AllInstanceFlags);
+            // Show/close methods: prefix blocks Tab-triggered calls, postfix fires panel-state event.
+            TryPatchPrefixPostfix(harmony, socialUIType.GetMethod("ShowSocialEntitiesList", AllInstanceFlags),
+                nameof(SocialUIShowPrefix), nameof(SocialUIShowPostfix), "SocialUI.ShowSocialEntitiesList()");
+            TryPatchPrefixPostfix(harmony, socialUIType.GetMethod("CloseFriendsWidget", AllInstanceFlags),
+                nameof(SocialUIClosePrefix), nameof(SocialUIHidePostfix), "SocialUI.CloseFriendsWidget()");
+            TryPatchPrefixPostfix(harmony, socialUIType.GetMethod("Minimize", AllInstanceFlags),
+                nameof(SocialUIClosePrefix), nameof(SocialUIHidePostfix), "SocialUI.Minimize()");
+            TryPatchPrefixPostfix(harmony, socialUIType.GetMethod("SetVisible", AllInstanceFlags),
+                nameof(SocialUISetVisiblePrefix), nameof(SocialUISetVisiblePostfix), "SocialUI.SetVisible()");
 
-            if (showMethod != null)
-            {
-                try
-                {
-                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIShowPrefix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIShowPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(showMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SocialUI.ShowSocialEntitiesList()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.ShowSocialEntitiesList: {ex.Message}");
-                }
-            }
-
-            // Patch CloseFriendsWidget - called when friends list closes
-            // Add prefix to block closing when Tab is pressed (our mod uses Tab for navigation)
-            var closeMethod = socialUIType.GetMethod("CloseFriendsWidget",
-                AllInstanceFlags);
-
-            if (closeMethod != null)
-            {
-                try
-                {
-                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIClosePrefix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIHidePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(closeMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SocialUI.CloseFriendsWidget()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.CloseFriendsWidget: {ex.Message}");
-                }
-            }
-
-            // Also patch Minimize - another way to close
-            // Add prefix to block minimizing when Tab is pressed
-            var minimizeMethod = socialUIType.GetMethod("Minimize",
-                AllInstanceFlags);
-
-            if (minimizeMethod != null)
-            {
-                try
-                {
-                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIClosePrefix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIHidePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(minimizeMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SocialUI.Minimize()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.Minimize: {ex.Message}");
-                }
-            }
-
-            // Patch SetVisible - general visibility control (with Tab blocking)
-            var setVisibleMethod = socialUIType.GetMethod("SetVisible",
-                AllInstanceFlags);
-
-            if (setVisibleMethod != null)
-            {
-                try
-                {
-                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUISetVisiblePrefix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(SocialUISetVisiblePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(setVisibleMethod, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SocialUI.SetVisible()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.SetVisible: {ex.Message}");
-                }
-            }
-
-            // Patch HandleKeyDown - block Tab from toggling social panel
-            var handleKeyDownMethod = socialUIType.GetMethod("HandleKeyDown",
-                AllInstanceFlags);
-
-            if (handleKeyDownMethod != null)
-            {
-                try
-                {
-                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIHandleKeyDownPrefix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(handleKeyDownMethod, prefix: new HarmonyMethod(prefix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SocialUI.HandleKeyDown()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.HandleKeyDown: {ex.Message}");
-                }
-            }
-
-            // Patch ShowChatWindow - block Tab from opening chat via ANY code path.
-            // Multiple callers invoke ShowChatWindow: OnNext() (action system), Show() (focus gain),
-            // and potentially others. Patching the chokepoint catches them all.
-            var showChatMethod = socialUIType.GetMethod("ShowChatWindow", AllInstanceFlags);
-            if (showChatMethod != null)
-            {
-                try
-                {
-                    var prefix = typeof(PanelStatePatch).GetMethod(nameof(SocialUIShowChatWindowPrefix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(showChatMethod, prefix: new HarmonyMethod(prefix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched SocialUI.ShowChatWindow()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch SocialUI.ShowChatWindow: {ex.Message}");
-                }
-            }
+            // Prefix-only patches: block Tab from toggling social panel / opening chat via any code path.
+            TryPatchPrefix(harmony, socialUIType.GetMethod("HandleKeyDown", AllInstanceFlags),
+                nameof(SocialUIHandleKeyDownPrefix), "SocialUI.HandleKeyDown()");
+            TryPatchPrefix(harmony, socialUIType.GetMethod("ShowChatWindow", AllInstanceFlags),
+                nameof(SocialUIShowChatWindowPrefix), "SocialUI.ShowChatWindow()");
         }
 
         private static void PatchMailboxController(HarmonyLib.Harmony harmony)
@@ -800,49 +490,13 @@ namespace AccessibleArena.Patches
 
             DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found NavBarController for mailbox: {navBarType.FullName}");
 
-            // Patch MailboxButton_OnClick - called when mailbox opens
-            var openMethod = navBarType.GetMethod("MailboxButton_OnClick",
-                AllInstanceFlags);
-            if (openMethod != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(MailboxOpenPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(openMethod, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched NavBarController.MailboxButton_OnClick()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch NavBarController.MailboxButton_OnClick: {ex.Message}");
-                }
-            }
-            else
-            {
-                MelonLogger.Warning("[PanelStatePatch] NavBarController.MailboxButton_OnClick not found");
-            }
+            var openMethod = navBarType.GetMethod("MailboxButton_OnClick", AllInstanceFlags);
+            if (openMethod == null) MelonLogger.Warning("[PanelStatePatch] NavBarController.MailboxButton_OnClick not found");
+            TryPatchPostfix(harmony, openMethod, nameof(MailboxOpenPostfix), "NavBarController.MailboxButton_OnClick()");
 
-            // Patch HideInboxIfActive - called when mailbox closes
-            var closeMethod = navBarType.GetMethod("HideInboxIfActive",
-                AllInstanceFlags);
-            if (closeMethod != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(MailboxClosePostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(closeMethod, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched NavBarController.HideInboxIfActive()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch NavBarController.HideInboxIfActive: {ex.Message}");
-                }
-            }
-            else
-            {
-                MelonLogger.Warning("[PanelStatePatch] NavBarController.HideInboxIfActive not found");
-            }
+            var closeMethod = navBarType.GetMethod("HideInboxIfActive", AllInstanceFlags);
+            if (closeMethod == null) MelonLogger.Warning("[PanelStatePatch] NavBarController.HideInboxIfActive not found");
+            TryPatchPostfix(harmony, closeMethod, nameof(MailboxClosePostfix), "NavBarController.HideInboxIfActive()");
 
             // Patch ContentControllerPlayerInbox.OnLetterSelected - called when a mail is opened
             PatchMailLetterSelected(harmony);
@@ -859,55 +513,18 @@ namespace AccessibleArena.Patches
 
             DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found ContentControllerPlayerInbox: {inboxType.FullName}");
 
-            // OnLetterSelected(PlayerInboxBladeItemDisplay selectedLetter, Boolean isRead, Guid selectedLetterId)
-            var onLetterSelectedMethod = inboxType.GetMethod("OnLetterSelected",
-                AllInstanceFlags);
-
-            if (onLetterSelectedMethod != null)
-            {
-                try
-                {
-                    var postfix = typeof(PanelStatePatch).GetMethod(nameof(MailLetterSelectedPostfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(onLetterSelectedMethod, postfix: new HarmonyMethod(postfix));
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched ContentControllerPlayerInbox.OnLetterSelected()");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Warning($"[PanelStatePatch] Failed to patch OnLetterSelected: {ex.Message}");
-                }
-            }
-            else
-            {
+            var onLetterSelectedMethod = inboxType.GetMethod("OnLetterSelected", AllInstanceFlags);
+            if (onLetterSelectedMethod == null)
                 MelonLogger.Warning("[PanelStatePatch] ContentControllerPlayerInbox.OnLetterSelected not found");
-            }
+            TryPatchPostfix(harmony, onLetterSelectedMethod, nameof(MailLetterSelectedPostfix),
+                "ContentControllerPlayerInbox.OnLetterSelected()");
         }
 
         public static void MailboxOpenPostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Mailbox opened via NavBarController.MailboxButton_OnClick");
-                OnPanelStateChanged?.Invoke(__instance, true, "Mailbox");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in MailboxOpenPostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, true, "Mailbox", "Mailbox opened");
 
         public static void MailboxClosePostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Mailbox closed via NavBarController.HideInboxIfActive");
-                OnPanelStateChanged?.Invoke(__instance, false, "Mailbox");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in MailboxClosePostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, false, "Mailbox", "Mailbox closed");
 
         /// <summary>
         /// Postfix for ContentControllerPlayerInbox.OnLetterSelected
@@ -1074,56 +691,16 @@ namespace AccessibleArena.Patches
         }
 
         public static void SettingsShowPostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"SettingsMenu Show");
-                OnPanelStateChanged?.Invoke(__instance, true, "SettingsMenu");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in SettingsShowPostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, true, "SettingsMenu", "SettingsMenu Show");
 
         public static void SettingsHidePostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"SettingsMenu Hide");
-                OnPanelStateChanged?.Invoke(__instance, false, "SettingsMenu");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in SettingsHidePostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, false, "SettingsMenu", "SettingsMenu Hide");
 
         public static void DeckSelectShowPostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"DeckSelectBlade Show");
-                OnPanelStateChanged?.Invoke(__instance, true, "DeckSelectBlade");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in DeckSelectShowPostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, true, "DeckSelectBlade", "DeckSelectBlade Show");
 
         public static void DeckSelectHidePostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"DeckSelectBlade Hide");
-                OnPanelStateChanged?.Invoke(__instance, false, "DeckSelectBlade");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in DeckSelectHidePostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, false, "DeckSelectBlade", "DeckSelectBlade Hide");
 
         public static void BeginOpenPostfix(object __instance)
         {
@@ -1169,262 +746,103 @@ namespace AccessibleArena.Patches
         }
 
         public static void SettingsIsOpenPostfix(object __instance, bool value)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"SettingsMenu IsOpen = {value}");
-                OnPanelStateChanged?.Invoke(__instance, value, "SettingsMenu");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in SettingsIsOpenPostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, value, "SettingsMenu", "SettingsMenu IsOpen");
 
+        // IsMainPanelActive toggles on submenu navigation within SettingsMenu — we route it under
+        // a separate event name so consumers can distinguish a full open/close from a sub-panel swap.
         public static void SettingsMainPanelPostfix(object __instance, bool value)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"SettingsMenu IsMainPanelActive = {value}");
-                // IsMainPanelActive changing means submenu navigation
-                OnPanelStateChanged?.Invoke(__instance, value, "SettingsMenu:MainPanel");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in SettingsMainPanelPostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, value, "SettingsMenu:MainPanel", "SettingsMenu IsMainPanelActive");
 
         public static void DeckSelectIsShowingPostfix(object __instance, bool value)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"DeckSelectBlade IsShowing = {value}");
-                OnPanelStateChanged?.Invoke(__instance, value, "DeckSelectBlade");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in DeckSelectIsShowingPostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, value, "DeckSelectBlade", "DeckSelectBlade IsShowing");
 
         public static void PlayBladeVisualStatePostfix(object __instance, object value)
         {
-            try
-            {
-                // value is PlayBladeVisualStates enum (Hidden=0, Events=1, DirectChallenge=2, FriendChallenge=3)
-                var stateValue = Convert.ToInt32(value);
-                var stateName = value?.ToString() ?? "Unknown";
-                bool isOpen = stateValue != 0; // 0 = Hidden
+            // value is PlayBladeVisualStates enum (Hidden=0, Events=1, DirectChallenge=2, FriendChallenge=3)
+            int stateValue;
+            try { stateValue = Convert.ToInt32(value); }
+            catch (Exception ex) { MelonLogger.Warning($"[PanelStatePatch] PlayBladeVisualState convert failed: {ex.Message}"); return; }
 
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"PlayBladeController.PlayBladeVisualState = {stateName} (isOpen: {isOpen})");
-                OnPanelStateChanged?.Invoke(__instance, isOpen, $"PlayBlade:{stateName}");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in PlayBladeVisualStatePostfix: {ex.Message}");
-            }
+            var stateName = value?.ToString() ?? "Unknown";
+            FirePanelStateChange(__instance, stateValue != 0, $"PlayBlade:{stateName}",
+                $"PlayBladeController.PlayBladeVisualState = {stateName}");
         }
-
 
         public static void IsEventBladeActivePostfix(object __instance, bool value)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"HomePageContentController.IsEventBladeActive = {value}");
-                OnPanelStateChanged?.Invoke(__instance, value, "EventBlade");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in IsEventBladeActivePostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, value, "EventBlade", "HomePageContentController.IsEventBladeActive");
 
         public static void IsDirectChallengeBladeActivePostfix(object __instance, bool value)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"HomePageContentController.IsDirectChallengeBladeActive = {value}");
-                OnPanelStateChanged?.Invoke(__instance, value, "DirectChallengeBlade");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in IsDirectChallengeBladeActivePostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, value, "DirectChallengeBlade",
+                "HomePageContentController.IsDirectChallengeBladeActive");
 
         public static void BladeContentViewShowPostfix(object __instance)
         {
-            try
-            {
-                var typeName = __instance?.GetType().Name ?? "Unknown";
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"BladeContentView.Show: {typeName}");
-                OnPanelStateChanged?.Invoke(__instance, true, $"Blade:{typeName}");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in BladeContentViewShowPostfix: {ex.Message}");
-            }
+            var typeName = __instance?.GetType().Name ?? "Unknown";
+            FirePanelStateChange(__instance, true, $"Blade:{typeName}", $"BladeContentView.Show: {typeName}");
         }
 
         public static void BladeContentViewHidePostfix(object __instance)
         {
-            try
-            {
-                var typeName = __instance?.GetType().Name ?? "Unknown";
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"BladeContentView.Hide: {typeName}");
-                OnPanelStateChanged?.Invoke(__instance, false, $"Blade:{typeName}");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in BladeContentViewHidePostfix: {ex.Message}");
-            }
+            var typeName = __instance?.GetType().Name ?? "Unknown";
+            FirePanelStateChange(__instance, false, $"Blade:{typeName}", $"BladeContentView.Hide: {typeName}");
         }
 
         public static void EventBladeShowPostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"EventBladeContentView.Show");
-                OnPanelStateChanged?.Invoke(__instance, true, "EventBladeContentView");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in EventBladeShowPostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, true, "EventBladeContentView", "EventBladeContentView.Show");
 
         public static void EventBladeHidePostfix(object __instance)
-        {
-            try
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"EventBladeContentView.Hide");
-                OnPanelStateChanged?.Invoke(__instance, false, "EventBladeContentView");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in EventBladeHidePostfix: {ex.Message}");
-            }
-        }
+            => FirePanelStateChange(__instance, false, "EventBladeContentView", "EventBladeContentView.Hide");
 
         /// <summary>
-        /// Prefix for SocialUI.ShowSocialEntitiesList - blocks opening if Tab key is pressed.
-        /// This prevents Tab from toggling the friends panel (our mod uses Tab for navigation).
+        /// Prefix for SocialUI.ShowSocialEntitiesList — blocks opening while Tab is held.
+        /// Our mod uses Tab for navigation; we never want Tab to toggle the friends panel.
         /// </summary>
         public static bool SocialUIShowPrefix(object __instance)
-        {
-            // Block if Tab is currently pressed - this means the game is trying to open
-            // the social panel via Tab, which we want to prevent
-            if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked SocialUI.ShowSocialEntitiesList (Tab pressed)");
-                return false; // Skip the original method
-            }
-            return true; // Allow the method to run
-        }
+            => !ShouldBlockSocialUITabToggle("SocialUI.ShowSocialEntitiesList");
 
         public static void SocialUIShowPostfix(object __instance)
         {
-            try
-            {
-                // Skip if Tab is pressed - means prefix blocked the call but Harmony still runs postfix
-                if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
-                {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Skipping SocialUI.ShowSocialEntitiesList postfix (Tab pressed)");
-                    return;
-                }
-
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"SocialUI.ShowSocialEntitiesList");
-                OnPanelStateChanged?.Invoke(__instance, true, "SocialUI");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in SocialUIShowPostfix: {ex.Message}");
-            }
+            if (ShouldBlockSocialUITabToggle("SocialUI.ShowSocialEntitiesList postfix")) return;
+            FirePanelStateChange(__instance, true, "SocialUI", "SocialUI.ShowSocialEntitiesList");
         }
 
         public static void SocialUIHidePostfix(object __instance)
         {
-            try
-            {
-                // Skip notification if Tab is pressed - prefix should have blocked the call
-                if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
-                {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Skipping SocialUI Hide postfix (Tab pressed)");
-                    return;
-                }
-
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"SocialUI Hide");
-                OnPanelStateChanged?.Invoke(__instance, false, "SocialUI");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in SocialUIHidePostfix: {ex.Message}");
-            }
+            if (ShouldBlockSocialUITabToggle("SocialUI Hide postfix")) return;
+            FirePanelStateChange(__instance, false, "SocialUI", "SocialUI Hide");
         }
 
         /// <summary>
-        /// Prefix for SocialUI.CloseFriendsWidget and Minimize - blocks closing if Tab key is pressed.
-        /// Our mod uses Tab for navigation within the Friends panel, so we don't want Tab to close it.
+        /// Prefix for SocialUI.CloseFriendsWidget / Minimize — blocks closing while Tab is held.
+        /// Our mod uses Tab for navigation within the Friends panel, so Tab must not close it.
         /// </summary>
         public static bool SocialUIClosePrefix(object __instance)
-        {
-            // Block if Tab is pressed - our mod uses Tab for navigation, not closing
-            if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked SocialUI close (Tab pressed)");
-                return false; // Skip the original method
-            }
-            return true; // Allow the method to run
-        }
+            => !ShouldBlockSocialUITabToggle("SocialUI close");
 
         /// <summary>
-        /// Prefix for SocialUI.SetVisible - blocks showing if Tab key is pressed.
+        /// Prefix for SocialUI.SetVisible — blocks Show-while-Tab-held but always allows Hide.
         /// </summary>
         public static bool SocialUISetVisiblePrefix(object __instance, bool visible)
-        {
-            // Block if Tab is pressed and trying to show the panel
-            if (visible && UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked SocialUI.SetVisible(true) (Tab pressed)");
-                return false; // Skip the original method
-            }
-            return true;
-        }
+            => !(visible && ShouldBlockSocialUITabToggle("SocialUI.SetVisible(true)"));
 
         public static void SocialUISetVisiblePostfix(object __instance, bool visible)
         {
-            try
-            {
-                // Skip if Tab is pressed and trying to show - means prefix blocked the call
-                if (visible && UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
-                {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Skipping SocialUI.SetVisible postfix (Tab pressed)");
-                    return;
-                }
-
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"SocialUI.SetVisible({visible})");
-                OnPanelStateChanged?.Invoke(__instance, visible, "SocialUI");
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[PanelStatePatch] Error in SocialUISetVisiblePostfix: {ex.Message}");
-            }
+            if (visible && ShouldBlockSocialUITabToggle("SocialUI.SetVisible postfix")) return;
+            FirePanelStateChange(__instance, visible, "SocialUI", $"SocialUI.SetVisible({visible})");
         }
 
         /// <summary>
-        /// Prefix for SocialUI.HandleKeyDown - blocks Tab from toggling the social panel.
+        /// Prefix for SocialUI.HandleKeyDown — blocks Tab from toggling the social panel.
         /// Our mod uses Tab for navigation, so we don't want it to open/close the friends panel.
         /// </summary>
         public static bool SocialUIHandleKeyDownPrefix(object __instance, UnityEngine.KeyCode curr)
         {
-            // Block Tab key - our mod handles Tab for navigation
             if (curr == UnityEngine.KeyCode.Tab)
             {
                 DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked Tab from SocialUI.HandleKeyDown");
-                return false; // Skip the original method
+                return false;
             }
-            return true; // Let other keys through
+            return true;
         }
 
         /// <summary>
@@ -1433,13 +851,6 @@ namespace AccessibleArena.Patches
         /// etc.). Patching the chokepoint catches all Tab-triggered chat opens.
         /// </summary>
         public static bool SocialUIShowChatWindowPrefix()
-        {
-            if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
-            {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked ShowChatWindow (Tab pressed)");
-                return false;
-            }
-            return true;
-        }
+            => !ShouldBlockSocialUITabToggle("ShowChatWindow");
     }
 }
