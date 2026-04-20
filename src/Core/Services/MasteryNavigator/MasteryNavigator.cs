@@ -4,6 +4,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.PanelDetection;
 using System;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -263,7 +264,7 @@ namespace AccessibleArena.Core.Services
                 if (modalOpen && !_wasModalOpen)
                 {
                     _wasModalOpen = true;
-                    MelonLogger.Msg("[Mastery] Confirmation modal opened");
+                    Log.Msg("Mastery", "Confirmation modal opened");
                     _isConfirmationModalActive = true;
                     _confirmationModalMb = GetConfirmationModalMb();
                     DiscoverConfirmationModalElements();
@@ -275,7 +276,7 @@ namespace AccessibleArena.Core.Services
                     _wasModalOpen = false;
                     if (_isConfirmationModalActive)
                     {
-                        MelonLogger.Msg("[Mastery] Confirmation modal closed");
+                        Log.Msg("Mastery", "Confirmation modal closed");
                         _isConfirmationModalActive = false;
                         _modalElements.Clear();
                         _confirmationModalMb = null;

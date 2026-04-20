@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -123,7 +124,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _prizeWallReflectionInitialized = true;
-            MelonLogger.Msg($"[Mastery] PrizeWall reflection cached. Currency={_prizeWallCurrencyField != null}, " +
+            Log.Msg("Mastery", $"PrizeWall reflection cached. Currency={_prizeWallCurrencyField != null}, " +
                 $"BackButton={_prizeWallBackButtonField != null}, " +
                 $"Contents={_prizeWallContentsField != null}, " +
                 $"Layout={_prizeWallLayoutGroupField != null}, " +
@@ -152,7 +153,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _storeItemReflectionInitialized = true;
-            MelonLogger.Msg($"[Mastery] StoreItemBase reflection cached. PurchaseButton={_purchaseButtonType != null}, " +
+            Log.Msg("Mastery", $"StoreItemBase reflection cached. PurchaseButton={_purchaseButtonType != null}, " +
                 $"PbButton={_pbButtonField != null}");
         }
 
@@ -186,7 +187,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Mastery] Error reading sphere count: {ex.Message}");
+                    Log.Msg("Mastery", $"Error reading sphere count: {ex.Message}");
                 }
             }
 
@@ -281,7 +282,7 @@ namespace AccessibleArena.Core.Services
                 AddElement(_prizeWallGameObject ?? _prizeWallController.gameObject, "PrizeWall");
             }
 
-            MelonLogger.Msg($"[Mastery] PrizeWall: {_prizeWallItems.Count} items (incl. status), spheres={_sphereCount}, " +
+            Log.Msg("Mastery", $"PrizeWall: {_prizeWallItems.Count} items (incl. status), spheres={_sphereCount}, " +
                 $"backButton={_prizeWallBackButton != null}, modal={_confirmationModalGameObject != null}");
         }
 

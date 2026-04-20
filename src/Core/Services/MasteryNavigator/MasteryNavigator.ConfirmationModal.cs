@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -69,7 +70,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _modalReflectionCached = true;
-            MelonLogger.Msg($"[Mastery] ConfirmationModal reflection cached. Type={_confirmationModalType != null}, " +
+            Log.Msg("Mastery", $"ConfirmationModal reflection cached. Type={_confirmationModalType != null}, " +
                 $"Close={_modalCloseMethod != null}, PbButton={_modalPbButtonField != null}");
         }
 
@@ -179,7 +180,7 @@ namespace AccessibleArena.Core.Services
             // Phase 3: Cancel option (virtual element with null GameObject)
             _modalElements.Add((null, Strings.PopupCancel));
 
-            MelonLogger.Msg($"[Mastery] Found {_modalElements.Count} confirmation modal elements");
+            Log.Msg("Mastery", $"Found {_modalElements.Count} confirmation modal elements");
         }
 
         private void AnnounceConfirmationModal()
@@ -257,7 +258,7 @@ namespace AccessibleArena.Core.Services
                 if (_modalElementIndex >= 0 && _modalElementIndex < _modalElements.Count)
                 {
                     var elem = _modalElements[_modalElementIndex];
-                    MelonLogger.Msg($"[Mastery] Activating modal element: {elem.label}");
+                    Log.Msg("Mastery", $"Activating modal element: {elem.label}");
                     if (elem.obj == null && _modalElementIndex == _modalElements.Count - 1)
                     {
                         // Last element with null obj = synthetic cancel option
@@ -307,18 +308,18 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    MelonLogger.Msg("[Mastery] Closing confirmation modal via Close()");
+                    Log.Msg("Mastery", "Closing confirmation modal via Close()");
                     _modalCloseMethod.Invoke(_confirmationModalMb, null);
                     _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Mastery] Error calling Close(): {ex.Message}");
+                    Log.Msg("Mastery", $"Error calling Close(): {ex.Message}");
                 }
             }
 
-            MelonLogger.Msg("[Mastery] Could not close confirmation modal");
+            Log.Msg("Mastery", "Could not close confirmation modal");
         }
 
         #endregion

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -282,7 +283,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _reflectionInitialized = true;
-            MelonLogger.Msg($"[Mastery] Reflection cached. View={_viewType != null}, " +
+            Log.Msg("Mastery", $"Reflection cached. View={_viewType != null}, " +
                 $"Level={_trackLevelType != null}, RewardData={_rewardDisplayType != null}, " +
                 $"LocString={_mtgaLocStringType != null}, Languages={_languagesType != null}, " +
                 $"PageLevels={_pageLevelsType != null}, " +
@@ -302,7 +303,7 @@ namespace AccessibleArena.Core.Services
             var view = GetActiveView();
             if (view == null)
             {
-                MelonLogger.Msg("[Mastery] No active view found");
+                Log.Msg("Mastery", "No active view found");
                 return;
             }
 
@@ -313,7 +314,7 @@ namespace AccessibleArena.Core.Services
             var levelsObj = _levelsField?.GetValue(view);
             if (levelsObj == null)
             {
-                MelonLogger.Msg("[Mastery] No levels data found");
+                Log.Msg("Mastery", "No levels data found");
                 return;
             }
             var levelsList = levelsObj as IList;
@@ -339,14 +340,14 @@ namespace AccessibleArena.Core.Services
                         if (!string.IsNullOrEmpty(trackName))
                         {
                             curLevelIndex = (int)_getCurrentLevelIndexMethod.Invoke(provider, new object[] { trackName });
-                            MelonLogger.Msg($"[Mastery] Data provider: curLevelIndex={curLevelIndex}, trackName={trackName}");
+                            Log.Msg("Mastery", $"Data provider: curLevelIndex={curLevelIndex}, trackName={trackName}");
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Mastery] Error getting current level from provider: {ex.Message}");
+                Log.Msg("Mastery", $"Error getting current level from provider: {ex.Message}");
             }
 
             for (int i = 0; i < levelsList.Count; i++)
@@ -377,7 +378,7 @@ namespace AccessibleArena.Core.Services
             if (_currentPlayerLevel < 0)
                 _currentPlayerLevel = _levelData.Count - 1;
 
-            MelonLogger.Msg($"[Mastery] Built {_levelData.Count} levels, current={_currentPlayerLevel}, " +
+            Log.Msg("Mastery", $"Built {_levelData.Count} levels, current={_currentPlayerLevel}, " +
                 $"curLevelIdx={curLevelIndex}, track={_trackTitle}");
         }
 
@@ -406,7 +407,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Mastery] Error reading level data: {ex.Message}");
+                Log.Msg("Mastery", $"Error reading level data: {ex.Message}");
             }
 
             // Determine completion status from data provider's current level index
@@ -454,7 +455,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Mastery] Error reading reward tiers at index {listIndex}: {ex.Message}");
+                    Log.Msg("Mastery", $"Error reading reward tiers at index {listIndex}: {ex.Message}");
                 }
             }
 
@@ -516,7 +517,7 @@ namespace AccessibleArena.Core.Services
                 catch { /* Reflection may fail on different game versions */ }
             }
 
-            MelonLogger.Msg($"[Mastery] Found {_actionButtons.Count} action buttons");
+            Log.Msg("Mastery", $"Found {_actionButtons.Count} action buttons");
         }
 
         private void TryAddButton(MonoBehaviour view, FieldInfo field, string label)
@@ -607,7 +608,7 @@ namespace AccessibleArena.Core.Services
             if (_currentPlayerLevel >= 0)
                 _currentPlayerLevel++;
 
-            MelonLogger.Msg($"[Mastery] Inserted status item with {tiers.Count} tiers ({_actionButtons.Count} buttons)");
+            Log.Msg("Mastery", $"Inserted status item with {tiers.Count} tiers ({_actionButtons.Count} buttons)");
         }
 
         #endregion
@@ -641,7 +642,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Mastery] Error resolving loc string: {ex.Message}");
+                Log.Msg("Mastery", $"Error resolving loc string: {ex.Message}");
                 return null;
             }
         }
@@ -898,7 +899,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Mastery] Error syncing page: {ex.Message}");
+                Log.Msg("Mastery", $"Error syncing page: {ex.Message}");
             }
         }
 
