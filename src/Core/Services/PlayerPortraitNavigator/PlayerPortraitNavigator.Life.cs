@@ -154,7 +154,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Warning($"[PlayerPortrait] Error getting life totals: {ex.Message}");
+                Log.Warn("PlayerPortrait", $"Error getting life totals: {ex.Message}");
             }
 
             return (localLife, opponentLife);
@@ -309,7 +309,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PlayerPortrait] Failed to initialize entity reflection: {ex.Message}");
+                Log.Warn("PlayerPortrait", $"Failed to initialize entity reflection: {ex.Message}");
             }
         }
 

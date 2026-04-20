@@ -248,16 +248,16 @@ namespace AccessibleArena.Core.Services
 
                 if (_ltwActiveTimerField == null || _ltwTimeRunningField == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] Could not find _activeTimer or _timeRunning on LowTimeWarning");
+                    Log.Warn("PlayerPortrait", "Could not find _activeTimer or _timeRunning on LowTimeWarning");
                     return;
                 }
 
                 _ltwReflectionInitialized = true;
-                MelonLogger.Msg("[PlayerPortrait] LowTimeWarning reflection initialized");
+                Log.Msg("PlayerPortrait", "LowTimeWarning reflection initialized");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[PlayerPortrait] Failed to initialize LowTimeWarning reflection: {ex.Message}");
+                Log.Error("PlayerPortrait", $"Failed to initialize LowTimeWarning reflection: {ex.Message}");
             }
         }
 
@@ -277,12 +277,12 @@ namespace AccessibleArena.Core.Services
                 if (_remainingTimeProp != null && _runningField != null)
                 {
                     _mtgTimerReflectionInitialized = true;
-                    MelonLogger.Msg("[PlayerPortrait] MtgTimer reflection initialized from LowTimeWarning field type");
+                    Log.Msg("PlayerPortrait", "MtgTimer reflection initialized from LowTimeWarning field type");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PlayerPortrait] Failed to init MtgTimer from LTW: {ex.Message}");
+                Log.Warn("PlayerPortrait", $"Failed to init MtgTimer from LTW: {ex.Message}");
             }
         }
 
@@ -302,7 +302,7 @@ namespace AccessibleArena.Core.Services
 
                 if (_matchTimerField == null || _timeRunningField == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] Could not find _matchTimer or _timeRunning fields on MatchTimer");
+                    Log.Warn("PlayerPortrait", "Could not find _matchTimer or _timeRunning fields on MatchTimer");
                     return;
                 }
 
@@ -313,16 +313,16 @@ namespace AccessibleArena.Core.Services
 
                 if (_remainingTimeProp == null || _runningField == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] Could not find RemainingTime/Running on MtgTimer");
+                    Log.Warn("PlayerPortrait", "Could not find RemainingTime/Running on MtgTimer");
                     return;
                 }
 
                 _mtgTimerReflectionInitialized = true;
-                MelonLogger.Msg("[PlayerPortrait] MtgTimer reflection initialized");
+                Log.Msg("PlayerPortrait", "MtgTimer reflection initialized");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[PlayerPortrait] Failed to initialize MtgTimer reflection: {ex.Message}");
+                Log.Error("PlayerPortrait", $"Failed to initialize MtgTimer reflection: {ex.Message}");
             }
         }
 
@@ -409,7 +409,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PlayerPortrait] Error subscribing to LowTimeWarning: {ex.Message}");
+                Log.Warn("PlayerPortrait", $"Error subscribing to LowTimeWarning: {ex.Message}");
             }
         }
 

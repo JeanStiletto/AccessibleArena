@@ -361,14 +361,14 @@ namespace AccessibleArena.Core.Services
                 _matchManagerProp = gmType.GetProperty("MatchManager", PublicInstance);
                 if (_matchManagerProp == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] Could not find MatchManager property on GameManager");
+                    Log.Warn("PlayerPortrait", "Could not find MatchManager property on GameManager");
                     return;
                 }
 
                 var matchManager = _matchManagerProp.GetValue(gameManager);
                 if (matchManager == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] MatchManager is null");
+                    Log.Warn("PlayerPortrait", "MatchManager is null");
                     return;
                 }
 
@@ -378,7 +378,7 @@ namespace AccessibleArena.Core.Services
 
                 if (_localPlayerInfoProp == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] Could not find LocalPlayerInfo property on MatchManager");
+                    Log.Warn("PlayerPortrait", "Could not find LocalPlayerInfo property on MatchManager");
                     return;
                 }
 
@@ -386,7 +386,7 @@ namespace AccessibleArena.Core.Services
                 var playerInfo = _localPlayerInfoProp.GetValue(matchManager);
                 if (playerInfo == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] LocalPlayerInfo is null");
+                    Log.Warn("PlayerPortrait", "LocalPlayerInfo is null");
                     return;
                 }
 
@@ -403,27 +403,27 @@ namespace AccessibleArena.Core.Services
                     var rcProp = piType.GetProperty("RankingClass", allBindings);
                     if (rcProp != null)
                     {
-                        MelonLogger.Msg("[PlayerPortrait] RankingClass is a property, not a field - logging all members for debugging");
+                        Log.Msg("PlayerPortrait", "RankingClass is a property, not a field - logging all members for debugging");
                     }
-                    MelonLogger.Warning("[PlayerPortrait] Could not find RankingClass field on player info type " + piType.Name);
+                    Log.Warn("PlayerPortrait", "Could not find RankingClass field on player info type " + piType.Name);
                     // Log available fields for debugging
                     foreach (var f in piType.GetFields(allBindings))
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]   Field: {f.Name} ({f.FieldType.Name})");
+                        Log.Msg("PlayerPortrait", $"  Field: {f.Name} ({f.FieldType.Name})");
                     }
                     foreach (var p in piType.GetProperties(allBindings))
                     {
-                        MelonLogger.Msg($"[PlayerPortrait]   Property: {p.Name} ({p.PropertyType.Name})");
+                        Log.Msg("PlayerPortrait", $"  Property: {p.Name} ({p.PropertyType.Name})");
                     }
                     return;
                 }
 
                 _rankReflectionInitialized = true;
-                MelonLogger.Msg($"[PlayerPortrait] Rank reflection initialized: RankingClass={_rankingClassField.FieldType.Name}, RankingTier={_rankingTierField?.FieldType.Name ?? "null"}");
+                Log.Msg("PlayerPortrait", $"Rank reflection initialized: RankingClass={_rankingClassField.FieldType.Name}, RankingTier={_rankingTierField?.FieldType.Name ?? "null"}");
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Error($"[PlayerPortrait] Failed to initialize rank reflection: {ex.Message}");
+                Log.Error("PlayerPortrait", $"Failed to initialize rank reflection: {ex.Message}");
             }
         }
     }

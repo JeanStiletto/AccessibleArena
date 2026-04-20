@@ -294,23 +294,23 @@ namespace AccessibleArena.Core.Services
                 _isLocalPlayerProp = avatarType.GetProperty("IsLocalPlayer", PublicInstance);
                 if (_isLocalPlayerProp == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] Could not find IsLocalPlayer property on DuelScene_AvatarView");
+                    Log.Warn("PlayerPortrait", "Could not find IsLocalPlayer property on DuelScene_AvatarView");
                     return;
                 }
 
                 _portraitButtonField = avatarType.GetField("PortraitButton", PrivateInstance);
                 if (_portraitButtonField == null)
                 {
-                    MelonLogger.Warning("[PlayerPortrait] Could not find PortraitButton field on DuelScene_AvatarView");
+                    Log.Warn("PlayerPortrait", "Could not find PortraitButton field on DuelScene_AvatarView");
                     return;
                 }
 
                 _avatarReflectionInitialized = true;
-                MelonLogger.Msg($"[PlayerPortrait] Avatar reflection initialized: PortraitButton={_portraitButtonField.FieldType.Name}");
+                Log.Msg("PlayerPortrait", $"Avatar reflection initialized: PortraitButton={_portraitButtonField.FieldType.Name}");
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Error($"[PlayerPortrait] Failed to initialize avatar reflection: {ex.Message}");
+                Log.Error("PlayerPortrait", $"Failed to initialize avatar reflection: {ex.Message}");
             }
         }
 
