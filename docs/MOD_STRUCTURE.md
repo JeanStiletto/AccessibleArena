@@ -40,7 +40,7 @@
         RecentPlayAccessor.cs    - Reflection wrapper for LastPlayedBladeContentView (Recent tab tiles)
         InputFieldEditHelper.cs  - Shared input field edit mode logic (used by BaseNavigator for both menu and popup input fields)
         LetterSearchHandler.cs   - Buffered letter-key navigation (A-Z jump with same-letter cycling, used by BaseNavigator)
-        MenuDebugHelper.cs       - UI investigation utilities (DumpGameObjectDetails, LogTooltipTriggerDetails)
+        MenuDebugHelper.cs       - UI investigation utilities (DumpUIHierarchy, DumpCardDetails, LogTooltipTriggerDetails, F11/F12 dumps)
 
         # Central Services (held by main mod)
         AnnouncementService.cs   - Speech output management

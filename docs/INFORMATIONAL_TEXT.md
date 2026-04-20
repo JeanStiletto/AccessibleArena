@@ -173,13 +173,12 @@ ObjectiveGraphics (CustomButton)
 
 4. **NPE overlay conflict:** Elements with "NPE" in path were being classified as NPE overlay. Fixed by excluding "Objective_NPE" from NPE check.
 
-5. **Debug helper pattern:** `MenuDebugHelper.DumpGameObjectDetails()` is useful for investigating unknown UI structures.
+5. **Debug helper pattern:** `MenuDebugHelper` (DumpUIHierarchy, DumpChallengeBlade, etc.) is useful for investigating unknown UI structures.
 
 **Files Modified:**
 - `src/Core/Services/UITextExtractor.cs` - Added `TryGetObjectiveText()` method
 - `src/Core/Services/ElementGrouping/ElementGroupAssigner.cs` - NPE exclusion for Objective_NPE
 - `src/Core/Services/ElementGrouping/GroupedNavigator.cs` - Objectives subgroup handling
-- `src/Core/Services/MenuDebugHelper.cs` - Added `DumpGameObjectDetails()` debug utility
 
 ---
 

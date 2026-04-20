@@ -326,7 +326,7 @@ src/Core/Services/ElementGrouping/
 src/Core/Services/
   DeckInfoProvider.cs             - Reflection-based deck statistics (card count, mana curve, types)
   UITextExtractor.cs              - Text extraction including TryGetObjectiveText() for objectives
-  MenuDebugHelper.cs              - Debug utilities including DumpGameObjectDetails()
+  MenuDebugHelper.cs              - Debug utilities (UI hierarchy dumps, card/workflow inspection)
 ```
 
 ---

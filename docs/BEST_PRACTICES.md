@@ -2324,52 +2324,6 @@ public static bool LogFocusTracking = true; // Enable for focus debugging
 
 `MenuDebugHelper` (`src/Core/Services/MenuDebugHelper.cs`) provides reusable methods for investigating unknown UI elements. Use these instead of writing ad-hoc debug logging.
 
-**DumpGameObjectDetails(tag, obj, maxDepth)** - Comprehensive element investigation
-```csharp
-// Dump full hierarchy of an unknown UI element
-MenuDebugHelper.DumpGameObjectDetails("MyTag", someGameObject, 3);
-
-// Output in log:
-// [MyTag] === DUMP: ObjectiveGraphics ===
-// [MyTag] Path: Home/SafeArea/ObjectivesLayout/Objective_Base(Clone)/ObjectiveGraphics
-// [MyTag] Active: True
-// [MyTag] [0] ObjectiveGraphics (RectTransform, CanvasRenderer, CustomButton)
-// [MyTag]   [1] TextLine Text='Quest description' [Localize]
-// [MyTag]     [2] Text_Description Text=(empty)
-// [MyTag]   [1] Circle Text='500'
-// [MyTag]   [1] Text_GoalProgress Text='14/20'
-// [MyTag] === END DUMP ===
-```
-
-**What it logs for each element:**
-- Object name, active state, full path
-- All components (except Transform)
-- Text content from TMP_Text or Text components (shows "(empty)" if text is empty string)
-- `[Localize]` marker if element has Localize component (may have localized text)
-- `[Tooltip]` marker if element has TooltipTrigger component
-- `[INACTIVE]` marker for inactive elements
-- Recursively logs children up to maxDepth (default: 3)
-
-**When to use:**
-- Investigating unknown UI elements to find where text content lives
-- Understanding element hierarchy before writing extraction code
-- Finding tooltip or localization components
-- Debugging why text extraction returns unexpected results
-
-**Example workflow (objectives investigation):**
-```csharp
-// 1. Add temporary debug call in navigator
-if (buttonObj.name == "ObjectiveGraphics" && buttonObj.transform.parent.name.Contains("SparkRank"))
-{
-    MenuDebugHelper.DumpGameObjectDetails(NavigatorId, buttonObj, 4);
-}
-
-// 2. Build, deploy, run game, check log
-// 3. Find the element structure (TextLine, Circle, Text_GoalProgress, etc.)
-// 4. Write proper extraction code in UITextExtractor
-// 5. Remove debug call
-```
-
 **LogTooltipTriggerDetails(tag, tooltipTrigger)** - Tooltip content extraction
 ```csharp
 // Log tooltip content from a TooltipTrigger component

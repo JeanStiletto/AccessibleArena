@@ -27,8 +27,6 @@ Lines: 1474
 - public static void LogHierarchy(string tag, Transform parent, string indent, int maxDepth) (line 548)
 - public static string GetGameObjectPath(GameObject obj) (line 566)
 - public static string GetFullPath(Transform t) (line 585)
-- public static void DumpGameObjectDetails(string tag, GameObject obj, int maxDepth = 3) (line 599)
-- private static void DumpGameObjectDetailsRecursive(string tag, GameObject obj, int depth, int maxDepth) (line 616)
 - public static void DumpCardDetails(string tag, GameObject cardObj, IAnnouncementService announcer) (line 701)
 - public static void DumpBoosterPackDetails(string tag, GameObject packObj, IAnnouncementService announcer) (line 803)
 - private static void DumpObjectProperties(string tag, object obj, string indent) (line 997)
