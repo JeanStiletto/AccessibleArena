@@ -2136,13 +2136,13 @@ namespace AccessibleArena.Core.Services
                 if (deckMainButtons.Contains(obj))
                 {
                     // Check if deck is selected and add to announcement
-                    if (UIActivator.IsDeckSelected(obj))
+                    if (CardTileActivator.IsDeckSelected(obj))
                     {
                         announcement += $", {Models.Strings.DeckSelected}";
                     }
 
                     // Append short invalid status (Level 1)
-                    string invalidStatus = UIActivator.GetDeckInvalidStatus(obj);
+                    string invalidStatus = CardTileActivator.GetDeckInvalidStatus(obj);
                     if (!string.IsNullOrEmpty(invalidStatus))
                     {
                         announcement += $", {invalidStatus}";
@@ -2157,7 +2157,7 @@ namespace AccessibleArena.Core.Services
                         attachedActions = BuildDeckAttachedActions(deckToolbarButtons, renameButton);
 
                         // Insert detailed tooltip as first virtual info item (Level 2)
-                        string invalidTooltip = UIActivator.GetDeckInvalidTooltip(obj);
+                        string invalidTooltip = CardTileActivator.GetDeckInvalidTooltip(obj);
                         if (!string.IsNullOrEmpty(invalidTooltip))
                         {
                             attachedActions.Insert(0, new AttachedAction { Label = invalidTooltip, TargetButton = null });
@@ -3044,13 +3044,13 @@ namespace AccessibleArena.Core.Services
             // Recent tab decks: skip PlayBlade helper (it would request folders entry, but
             // Recent tab has no folders — we handle auto-play directly below)
             bool isRecentTabDeck = elementGroup == ElementGroup.PlayBladeContent
-                && RecentPlayAccessor.IsActive && UIActivator.IsDeckEntry(element);
+                && RecentPlayAccessor.IsActive && CardTileActivator.IsDeckEntry(element);
             var playBladeResult = (isRecentTabDeck || _challengeHelper.IsActive)
                 ? PlayBladeResult.NotHandled
                 : _playBladeHelper.HandleEnter(element, elementGroup);
 
             // Track Bot-Match mode selection for JoinMatchMaking patch
-            if (elementGroup == ElementGroup.PlayBladeContent && !UIActivator.IsDeckEntry(element))
+            if (elementGroup == ElementGroup.PlayBladeContent && !CardTileActivator.IsDeckEntry(element))
             {
                 var text = UITextExtractor.GetText(element);
                 PlayBladeNavigationHelper.SetBotMatchMode(
@@ -3086,7 +3086,7 @@ namespace AccessibleArena.Core.Services
             // Brawl deck builder: activating the commander empty slot toggles the Commanders
             // filter, which changes the collection card pool. Rescan so the collection group
             // picks up the newly filtered cards instead of showing stale entries.
-            if (element.name == "CustomButton - EmptySlot" && UIActivator.IsInCommanderContainer(element))
+            if (element.name == "CustomButton - EmptySlot" && CardTileActivator.IsInCommanderContainer(element))
             {
                 TriggerRescan();
             }
@@ -3098,7 +3098,7 @@ namespace AccessibleArena.Core.Services
             // Skip if HandleEnter already handled this (e.g., deck display in ContextDisplay
             // which opens the deck selector rather than selecting a deck)
             if (challengeResult == PlayBladeResult.NotHandled &&
-                _challengeHelper.IsActive && UIActivator.IsDeckEntry(element))
+                _challengeHelper.IsActive && CardTileActivator.IsDeckEntry(element))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Challenge deck selected - returning to ChallengeMain");
                 _challengeHelper.HandleDeckSelected();
@@ -3111,7 +3111,7 @@ namespace AccessibleArena.Core.Services
             // LastPlayed to FindMatch), so IsDeckEntry(element) would fail. Use isRecentTabDeck
             // (captured before Activate) as an alternate entry condition.
             if (!_challengeHelper.IsActive &&
-                (isRecentTabDeck || (_playBladeHelper.IsActive && UIActivator.IsDeckEntry(element))))
+                (isRecentTabDeck || (_playBladeHelper.IsActive && CardTileActivator.IsDeckEntry(element))))
             {
                 AutoPressPlayButtonInPlayBlade();
             }

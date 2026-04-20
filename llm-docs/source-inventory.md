@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 138 (excluding obj/ and bin/)
+Total src files: 139 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 95,102
+Total src LOC: 94,674
 Total test LOC: 1,303
-Combined LOC: 96,405
-Large files (over 2000 lines): 6 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), and UITextExtractor (2760→548, 5 new partials)
+Combined LOC: 95,977
+Large files (over 2000 lines): 5 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), and UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed)
 
 ---
 
@@ -83,6 +83,7 @@ Large files (over 2000 lines): 6 after splits of GeneralMenuNavigator (6148→34
 - **CardPoolAccessor.cs** (379 lines) — Reflection wrapper for CardPoolHolder (collection page navigation in deck builder).
 - **CardStateProvider.cs** (1088 lines) — Attachment, combat state, targeting, and card categorization helpers.
 - **CardTextProvider.cs** (614 lines) — Localized ability text, flavor text, and artist name lookups via game providers.
+- **CardTileActivator.cs** (483 lines) — Deck-builder / collection card-tile domain: IsCollectionCard, IsDeckEntry, IsDeckSelected, GetDeckInvalidStatus/Tooltip, TryActivateCollectionCard, TrySelectDeck + commander-filter reflection cache. Extracted from UIActivator as its own concern (tile identification vs generic element activation).
 - **ChatMessageWatcher.cs** (317 lines) — Polls ChatManager for new messages and announces them when no chat navigator is open.
 - **ChatNavigator.cs** (856 lines) — Navigator for the chat window; message list, input field, and send button.
 - **ChooseXNavigator.cs** (505 lines) — Detects and navigates the ChooseX popup (X-cost spells, die rolls).
@@ -156,7 +157,7 @@ Large files (over 2000 lines): 6 after splits of GeneralMenuNavigator (6148→34
   - **StoreNavigator.Utility.cs** (174 lines) — Utility elements (payment, redeem code, drop rates, pack progress): discovery, AddPackProgressElement, AddUtilityElement, ActivateUtilityElement (Steam / pack-progress special cases).
   - **StoreNavigator.ConfirmationModal.cs** (312 lines) — Purchase confirmation modal: open check, GameObject lookup, element discovery (with synthetic Cancel), announcement, input handling, MoveModalElement, Dismiss via native Close().
   - **StoreNavigator.Details.cs** (499 lines) — Item details view: has-details + tooltip checks, OpenDetailsView, tooltip description extraction, card-entry extraction from precon decks and bundle card views, input handling (delegates to ExtendedInfoNavigator), card + block navigation, CloseDetailsView.
-- **UIActivator.cs** (2745 lines) [LARGE] — Centralized UI activation: click buttons, toggle checkboxes, focus fields, play cards.
+- **UIActivator.cs** (1834 lines) — Centralized generic-UI activation: Activate dispatcher, CustomButton click, pointer-click simulation (with/without explicit position), hover/spinner-next simulation, card two-click play, NavBar mailbox / NPE reward / UpdatePolicies / SystemMessage / PopupManager dismissal paths, targeting-mode detection, `ActivationResult` / `ActivationType`. Deck-tile logic split out to CardTileActivator.cs.
 - **UIElementClassifier.cs** (1857 lines) — Classifies UI elements by role and navigability for screen reader labeling.
 - **UIFocusTracker.cs** (798 lines) — Polls EventSystem each frame for focus changes and announces them via screen reader.
 - **UITextExtractor/** (subfolder; `public static partial class` lives across 6 files, namespace stays `AccessibleArena.Core.Services`)

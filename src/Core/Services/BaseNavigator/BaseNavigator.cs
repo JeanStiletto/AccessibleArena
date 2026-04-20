@@ -1289,7 +1289,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Check if this is a collection card in deck builder - left click adds to deck or opens craft popup
-            if (UIActivator.IsCollectionCard(element))
+            if (CardTileActivator.IsCollectionCard(element))
             {
                 MelonLogger.Msg($"[{NavigatorId}] Collection card detected - activating");
                 var collectionResult = UIActivator.Activate(element);

@@ -81,7 +81,7 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (in progress — 6/12 done)
+- [ ] large-file-handling.md  (in progress — 7/12 done)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
@@ -130,13 +130,35 @@ didn't need it. Build: 0/0, tests: 105/105. **User note: 7-file output
 count across splits 1-5 was coincidence, not convention — split count is
 chosen per file to match natural cohesion.**
 
+Split 7/12: **UIActivator.cs** (2745 → 1834 lines, -33%) via REAL class
+extraction (not partial) plus 468 lines of dead-code removal:
+- Extracted **CardTileActivator.cs** (483 lines, new standalone class at
+  `src/Core/Services/CardTileActivator.cs`, sits flat next to CardDetector
+  etc.) — handles deck/collection card-tile identification + activation
+  (IsCollectionCard, IsDeckEntry, TrySelectDeck, GetDeckInvalidStatus,
+  etc.). Call sites updated in BaseNavigator + GeneralMenuNavigator + 7
+  internal calls inside UIActivator.Activate().
+- Deleted 343 lines of truly dead diagnostic code in UIActivator
+  (DebugInspectNavMailButton, InspectUnityEvent, InspectDelegate,
+  DebugInspectDeckView — all grep-confirmed zero callers).
+- Deleted 3 more dead methods in CardTileActivator after extraction
+  (FindMetaCardView, TryOpenCardViewerDirectly, FindCustomButtonInHierarchy
+  — also zero callers; TryActivateCollectionCard goes through
+  UIActivator.SimulatePointerClick instead).
+- `UIActivator.IsCustomButton` promoted from private → internal so
+  CardTileActivator can call it without duplication.
+- UIActivator now below 2000 lines → exits the [LARGE] category.
+Build: 0/0, tests: 105/105. **Approach note: for remaining candidates,
+evaluate first whether real class extraction (separate concerns) would
+be better than partial split. For coherent single-concern files, the
+[LARGE] tag may be acceptable and "leave alone" is a valid choice.**
+
 Subfolder convention (established 2026-04-20): when splitting a class into
 partials, group all of them in a `src/Core/Services/<ClassName>/` subfolder.
 Namespace stays `AccessibleArena.Core.Services` (not updated to match path,
 to avoid ripple changes at consumer sites).
 
 Remaining candidates (still >2000 lines):
-- [ ] UIActivator.cs       (2745)
 - [ ] CardModelProvider.cs (2374)
 - [ ] WebBrowserAccessibility.cs (2236)
 - [ ] MasteryNavigator.cs  (2174)
