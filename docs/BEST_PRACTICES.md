@@ -503,10 +503,9 @@ UIActivator.PlayCardViaTwoClick(card, (success, message) =>
 Uses double-click + center click approach (see `docs/CARD_PLAY_IMPLEMENTATION.md`).
 
 ### UITextExtractor
-Extracts text and detects element types:
+Extracts text:
 ```csharp
 string text = UITextExtractor.GetText(element);
-string type = UITextExtractor.GetElementType(element); // "button", "card", etc.
 ```
 
 **Button Text Extraction (use for buttons):**
@@ -531,9 +530,6 @@ When no text is found via TMP_Text, siblings, or other extractors, `GetText()` t
 - `Nav_Settings` (image-only) -> "Optionen anpassen" (from tooltip)
 - `Nav_Learn` (image-only) -> "Kodex des Multiversums" (from tooltip)
 - `Nav_Coins` (has text "28,025") -> tooltip never reached (text already found)
-
-**Element Type Fallback:**
-`GetElementType()` returns "item" when no specific type is detected. This is the default fallback - check for it if you need to handle unknown elements specially.
 
 ### CardDetector
 Card detection utilities (cached for performance). Delegates to CardModelProvider for model access and CardStateProvider/DeckCardProvider for categorization and deck cards:

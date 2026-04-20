@@ -431,42 +431,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets the type of UI element for additional context.
-        /// </summary>
-        public static string GetElementType(GameObject gameObject)
-        {
-            if (gameObject == null)
-                return "unknown";
-
-            // Check for card first (before button, since cards may have button-like components)
-            if (CardDetector.IsCard(gameObject))
-                return "card";
-
-            if (gameObject.GetComponent<Button>() != null)
-                return "button";
-
-            if (gameObject.GetComponent<TMP_InputField>() != null || gameObject.GetComponent<InputField>() != null)
-                return "text field";
-
-            if (gameObject.GetComponent<Toggle>() != null)
-                return "checkbox";
-
-            if (gameObject.GetComponent<TMP_Dropdown>() != null || gameObject.GetComponent<Dropdown>() != null)
-                return "dropdown";
-
-            if (gameObject.GetComponent<Slider>() != null)
-                return "slider";
-
-            if (gameObject.GetComponent<Scrollbar>() != null)
-                return "scrollbar";
-
-            if (gameObject.GetComponent<Selectable>() != null)
-                return "control";
-
-            return "item";
-        }
-
-        /// <summary>
         /// Cleans text by removing rich text tags, zero-width spaces, and normalizing whitespace.
         /// </summary>
         public static string CleanText(string text)
