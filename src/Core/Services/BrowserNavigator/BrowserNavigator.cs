@@ -2185,16 +2185,7 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
-        /// <summary>
-        /// Clears Unity EventSystem selection to prevent scaffold buttons from
-        /// stealing focus when the mod handles arrow/tab keys.
-        /// </summary>
-        private void ClearEventSystemSelection()
-        {
-            var es = EventSystem.current;
-            if (es != null && es.currentSelectedGameObject != null)
-                es.SetSelectedGameObject(null);
-        }
+        private void ClearEventSystemSelection() => global::AccessibleArena.Core.Services.ZoneNavigator.ClearFocus("BrowserNavigator");
 
         #region External Access
 

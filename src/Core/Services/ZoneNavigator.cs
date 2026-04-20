@@ -144,6 +144,12 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Convenience alias for SetFocusedGameObject(null, caller). Prefer this over a direct
+        /// EventSystem.SetSelectedGameObject(null) so focus changes are logged consistently.
+        /// </summary>
+        public static void ClearFocus(string caller) => SetFocusedGameObject(null, caller);
+
+        /// <summary>
         /// Sets the current zone without full navigation (used by BattlefieldNavigator, TargetNavigator, etc).
         /// Tracks which navigator set the zone for debugging race conditions.
         /// </summary>
@@ -976,14 +982,7 @@ namespace AccessibleArena.Core.Services
             return _zones[_currentZone].Cards.Count > 0;
         }
 
-        private void ClearEventSystemSelection()
-        {
-            var eventSystem = EventSystem.current;
-            if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
-            {
-                SetFocusedGameObject(null, "ZoneNavigator.Clear");
-            }
-        }
+        private void ClearEventSystemSelection() => ClearFocus("ZoneNavigator.Clear");
 
         /// <summary>
         /// Navigates to a library zone. Announces total count (from DuelAnnouncer's event-driven tracking).

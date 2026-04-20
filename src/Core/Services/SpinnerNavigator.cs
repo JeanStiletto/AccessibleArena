@@ -505,18 +505,7 @@ namespace AccessibleArena.Core.Services
             return 0;
         }
 
-        /// <summary>
-        /// Clears EventSystem selection to prevent Unity's built-in navigation from
-        /// moving focus to background buttons (e.g. SettingsButton) when arrow keys are pressed.
-        /// </summary>
-        private void ClearEventSystemSelection()
-        {
-            var eventSystem = EventSystem.current;
-            if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
-            {
-                eventSystem.SetSelectedGameObject(null);
-            }
-        }
+        private void ClearEventSystemSelection() => ZoneNavigator.ClearFocus("SpinnerNavigator");
 
         private static void InitializeReflection()
         {

@@ -749,17 +749,7 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        /// <summary>
-        /// Clears the EventSystem selection to prevent UI conflicts.
-        /// </summary>
-        private void ClearEventSystemSelection()
-        {
-            var eventSystem = EventSystem.current;
-            if (eventSystem != null && eventSystem.currentSelectedGameObject != null)
-            {
-                ZoneNavigator.SetFocusedGameObject(null, "BattlefieldNavigator.Clear");
-            }
-        }
+        private void ClearEventSystemSelection() => ZoneNavigator.ClearFocus("BattlefieldNavigator.Clear");
 
         /// <summary>
         /// Builds a land summary for the given land row: total count + untapped lands grouped by name.
