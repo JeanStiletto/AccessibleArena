@@ -187,282 +187,141 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns the first public instance method on <paramref name="providerType"/> that returns
+        /// string and takes a uint as its first parameter. Optional <paramref name="nameFilter"/>
+        /// further narrows the search (e.g. to localization-style method names). Skips
+        /// <see cref="object"/>-declared methods.
+        /// </summary>
+        private static MethodInfo FindStringFromUintMethod(Type providerType, Predicate<MethodInfo> nameFilter = null)
+        {
+            foreach (var m in providerType.GetMethods(PublicInstance))
+            {
+                if (m.DeclaringType == typeof(object)) continue;
+                if (m.ReturnType != typeof(string)) continue;
+                if (nameFilter != null && !nameFilter(m)) continue;
+                var ps = m.GetParameters();
+                if (ps.Length >= 1 && ps[0].ParameterType == typeof(uint))
+                    return m;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Walks scene MonoBehaviours looking for a <c>CardDatabase</c> property and invokes
+        /// <paramref name="extractor"/> on each one found. First pass: the GameManager (duel
+        /// scene). Second pass: any Card*/Wrapper*/Manager* with a CardDatabase (meta scenes),
+        /// wrapped in try/catch because those types are version-sensitive. Returns the first
+        /// non-null extractor result, or null if nothing matched.
+        /// </summary>
+        private static (object provider, MethodInfo method)? SearchCardDatabaseProviders(
+            string label,
+            Func<object, (object, MethodInfo)?> extractor)
+        {
+            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Searching for {label}...");
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                if (mb.GetType().Name != T.GameManager) continue;
+                var cardDb = mb.GetType().GetProperty("CardDatabase")?.GetValue(mb);
+                if (cardDb != null)
+                {
+                    var r = extractor(cardDb);
+                    if (r.HasValue) return r;
+                }
+                break;
+            }
+
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                var typeName = mb.GetType().Name;
+                if (!(typeName.Contains("Card") || typeName.Contains("Wrapper") || typeName.Contains("Manager")))
+                    continue;
+                try
+                {
+                    var cardDb = mb.GetType().GetProperty("CardDatabase")?.GetValue(mb);
+                    if (cardDb != null)
+                    {
+                        var r = extractor(cardDb);
+                        if (r.HasValue) return r;
+                    }
+                }
+                catch { /* CardDatabase reflection is version-sensitive */ }
+            }
+
+            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"No {label} found");
+            return null;
+        }
+
+        /// <summary>
+        /// Scans <paramref name="cardDb"/> for properties matching <paramref name="propFilter"/>
+        /// and returns the first (provider, method) pair where the provider exposes a
+        /// string(uint, ...) method passing <paramref name="methodFilter"/>.
+        /// </summary>
+        private static (object, MethodInfo)? ExtractProviderFromCardDb(
+            object cardDb,
+            Predicate<PropertyInfo> propFilter,
+            Predicate<MethodInfo> methodFilter,
+            string logLabel)
+        {
+            foreach (var prop in cardDb.GetType().GetProperties(PublicInstance))
+            {
+                if (!propFilter(prop)) continue;
+                var provider = prop.GetValue(cardDb);
+                if (provider == null) continue;
+                var m = FindStringFromUintMethod(provider.GetType(), methodFilter);
+                if (m != null)
+                {
+                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using {prop.Name}.{m.Name} for {logLabel} lookup");
+                    return (provider, m);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Searches for the ability text provider in the game.
         /// </summary>
         private static void FindAbilityTextProvider()
         {
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Searching for ability text provider...");
-
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            var result = SearchCardDatabaseProviders("ability text provider", cardDb =>
+                ExtractProviderFromCardDb(
+                    cardDb,
+                    p => p.Name.Contains("Text") || p.Name.Contains("Ability"),
+                    methodFilter: null,
+                    logLabel: "ability text"));
+            if (result.HasValue)
             {
-                var type = mb.GetType();
-                if (type.Name == T.GameManager)
-                {
-                    var cardDbProp = type.GetProperty("CardDatabase");
-                    if (cardDbProp != null)
-                    {
-                        var cardDb = cardDbProp.GetValue(mb);
-                        if (cardDb != null)
-                        {
-                            var cardDbType = cardDb.GetType();
-
-                            foreach (var prop in cardDbType.GetProperties(PublicInstance))
-                            {
-                                if (prop.Name.Contains("Text") || prop.Name.Contains("Ability"))
-                                {
-                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"CardDatabase.{prop.Name} ({prop.PropertyType.Name})");
-
-                                    var provider = prop.GetValue(cardDb);
-                                    if (provider != null)
-                                    {
-                                        var providerType = provider.GetType();
-                                        foreach (var m in providerType.GetMethods(PublicInstance))
-                                        {
-                                            if (m.DeclaringType == typeof(object)) continue;
-                                            var paramStr = string.Join(", ", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"  {m.Name}({paramStr}) -> {m.ReturnType.Name}");
-
-                                            if (m.ReturnType == typeof(string))
-                                            {
-                                                var mParams = m.GetParameters();
-                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
-                                                {
-                                                    _abilityTextProvider = provider;
-                                                    _getAbilityTextMethod = m;
-                                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using {prop.Name}.{m.Name} for ability text lookup");
-                                                    return;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
+                _abilityTextProvider = result.Value.provider;
+                _getAbilityTextMethod = result.Value.method;
             }
-
-            // Search for other components that might have CardDatabase (Meta scenes)
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null) continue;
-                var type = mb.GetType();
-                string typeName = type.Name;
-
-                if (typeName.Contains("Card") || typeName.Contains("Wrapper") || typeName.Contains("Manager"))
-                {
-                    var cardDbProp = type.GetProperty("CardDatabase");
-                    if (cardDbProp != null)
-                    {
-                        try
-                        {
-                            var cardDb = cardDbProp.GetValue(mb);
-                            if (cardDb != null)
-                            {
-                                var cardDbType = cardDb.GetType();
-
-                                foreach (var prop in cardDbType.GetProperties(PublicInstance))
-                                {
-                                    if (prop.Name.Contains("Text") || prop.Name.Contains("Ability"))
-                                    {
-                                        var provider = prop.GetValue(cardDb);
-                                        if (provider != null)
-                                        {
-                                            var providerType = provider.GetType();
-                                            foreach (var m in providerType.GetMethods(PublicInstance))
-                                            {
-                                                if (m.DeclaringType == typeof(object)) continue;
-                                                if (m.ReturnType == typeof(string))
-                                                {
-                                                    var mParams = m.GetParameters();
-                                                    if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
-                                                    {
-                                                        _abilityTextProvider = provider;
-                                                        _getAbilityTextMethod = m;
-                                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using {typeName}.CardDatabase.{prop.Name}.{m.Name} for ability text lookup");
-                                                        return;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        catch { /* CardDatabase reflection may fail on different game versions */ }
-                    }
-                }
-            }
-
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"No ability text provider found");
         }
 
         /// <summary>
-        /// Searches for the flavor text provider in the game.
-        /// FlavorTextId is a localization key looked up via GreLocProvider or ClientLocProvider.
+        /// Searches for the flavor text provider. FlavorTextId is a localization key looked up
+        /// via GreLocProvider (preferred) or ClientLocProvider (fallback). GreLocProvider has
+        /// many string(uint)-returning methods, so the extra name filter narrows to the
+        /// localization-style methods (GetString / GetText / Get / *Loc*).
         /// </summary>
         private static void FindFlavorTextProvider()
         {
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Searching for flavor text provider...");
-
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            var result = SearchCardDatabaseProviders("flavor text provider", cardDb =>
+                ExtractProviderFromCardDb(
+                    cardDb,
+                    p => p.Name == "GreLocProvider",
+                    methodFilter: m => m.Name == "GetString" || m.Name == "GetText" || m.Name == "Get" || m.Name.Contains("Loc"),
+                    logLabel: "flavor text (GreLocProvider)")
+                ?? ExtractProviderFromCardDb(
+                    cardDb,
+                    p => p.Name == "ClientLocProvider",
+                    methodFilter: null,
+                    logLabel: "flavor text (ClientLocProvider)"));
+            if (result.HasValue)
             {
-                var type = mb.GetType();
-                if (type.Name == T.GameManager)
-                {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Found GameManager, looking for CardDatabase...");
-                    var cardDbProp = type.GetProperty("CardDatabase");
-                    if (cardDbProp != null)
-                    {
-                        var cardDb = cardDbProp.GetValue(mb);
-                        if (cardDb != null)
-                        {
-                            var cardDbType = cardDb.GetType();
-
-                            var greLocProp = cardDbType.GetProperty("GreLocProvider");
-                            if (greLocProp != null)
-                            {
-                                var greLocProvider = greLocProp.GetValue(cardDb);
-                                if (greLocProvider != null)
-                                {
-                                    var providerType = greLocProvider.GetType();
-                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Found GreLocProvider: {providerType.FullName}");
-
-                                    foreach (var m in providerType.GetMethods(PublicInstance))
-                                    {
-                                        if (m.DeclaringType == typeof(object)) continue;
-                                        var paramStr = string.Join(", ", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"  GreLocProvider.{m.Name}({paramStr}) -> {m.ReturnType.Name}");
-
-                                        if (m.ReturnType == typeof(string) &&
-                                            (m.Name == "GetString" || m.Name == "GetText" || m.Name == "Get" || m.Name.Contains("Loc")))
-                                        {
-                                            var mParams = m.GetParameters();
-                                            if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
-                                            {
-                                                _flavorTextProvider = greLocProvider;
-                                                _getFlavorTextMethod = m;
-                                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using GreLocProvider.{m.Name} for flavor text lookup");
-                                                return;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            var clientLocProp = cardDbType.GetProperty("ClientLocProvider");
-                            if (clientLocProp != null)
-                            {
-                                var clientLocProvider = clientLocProp.GetValue(cardDb);
-                                if (clientLocProvider != null)
-                                {
-                                    var providerType = clientLocProvider.GetType();
-                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Found ClientLocProvider: {providerType.FullName}");
-
-                                    foreach (var m in providerType.GetMethods(PublicInstance))
-                                    {
-                                        if (m.DeclaringType == typeof(object)) continue;
-                                        var paramStr = string.Join(", ", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"  ClientLocProvider.{m.Name}({paramStr}) -> {m.ReturnType.Name}");
-
-                                        if (m.ReturnType == typeof(string))
-                                        {
-                                            var mParams = m.GetParameters();
-                                            if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
-                                            {
-                                                _flavorTextProvider = clientLocProvider;
-                                                _getFlavorTextMethod = m;
-                                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using ClientLocProvider.{m.Name} for flavor text lookup");
-                                                return;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
+                _flavorTextProvider = result.Value.provider;
+                _getFlavorTextMethod = result.Value.method;
             }
-
-            // Search for other components that might have CardDatabase (Meta scenes)
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null) continue;
-                var type = mb.GetType();
-                string typeName = type.Name;
-
-                if (typeName.Contains("Card") || typeName.Contains("Wrapper") || typeName.Contains("Manager"))
-                {
-                    var cardDbProp = type.GetProperty("CardDatabase");
-                    if (cardDbProp != null)
-                    {
-                        try
-                        {
-                            var cardDb = cardDbProp.GetValue(mb);
-                            if (cardDb != null)
-                            {
-                                var cardDbType = cardDb.GetType();
-
-                                var greLocProp = cardDbType.GetProperty("GreLocProvider");
-                                if (greLocProp != null)
-                                {
-                                    var greLocProvider = greLocProp.GetValue(cardDb);
-                                    if (greLocProvider != null)
-                                    {
-                                        var providerType = greLocProvider.GetType();
-                                        foreach (var m in providerType.GetMethods(PublicInstance))
-                                        {
-                                            if (m.DeclaringType == typeof(object)) continue;
-                                            if (m.ReturnType == typeof(string) &&
-                                                (m.Name == "GetString" || m.Name == "GetText" || m.Name == "Get" || m.Name.Contains("Loc")))
-                                            {
-                                                var mParams = m.GetParameters();
-                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
-                                                {
-                                                    _flavorTextProvider = greLocProvider;
-                                                    _getFlavorTextMethod = m;
-                                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using {typeName}.CardDatabase.GreLocProvider.{m.Name} for flavor text lookup");
-                                                    return;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                var clientLocProp = cardDbType.GetProperty("ClientLocProvider");
-                                if (clientLocProp != null)
-                                {
-                                    var clientLocProvider = clientLocProp.GetValue(cardDb);
-                                    if (clientLocProvider != null)
-                                    {
-                                        var providerType = clientLocProvider.GetType();
-                                        foreach (var m in providerType.GetMethods(PublicInstance))
-                                        {
-                                            if (m.DeclaringType == typeof(object)) continue;
-                                            if (m.ReturnType == typeof(string))
-                                            {
-                                                var mParams = m.GetParameters();
-                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
-                                                {
-                                                    _flavorTextProvider = clientLocProvider;
-                                                    _getFlavorTextMethod = m;
-                                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using {typeName}.CardDatabase.ClientLocProvider.{m.Name} for flavor text lookup");
-                                                    return;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        catch { /* Flavor text provider reflection may fail on different game versions */ }
-                    }
-                }
-            }
-
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"No flavor text provider found");
         }
 
         /// <summary>
@@ -470,57 +329,17 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static void FindArtistProvider()
         {
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Searching for artist provider...");
-
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            var result = SearchCardDatabaseProviders("artist provider", cardDb =>
+                ExtractProviderFromCardDb(
+                    cardDb,
+                    p => p.Name.Contains("Artist"),
+                    methodFilter: null,
+                    logLabel: "artist"));
+            if (result.HasValue)
             {
-                var type = mb.GetType();
-                if (type.Name == T.GameManager)
-                {
-                    var cardDbProp = type.GetProperty("CardDatabase");
-                    if (cardDbProp != null)
-                    {
-                        var cardDb = cardDbProp.GetValue(mb);
-                        if (cardDb != null)
-                        {
-                            var cardDbType = cardDb.GetType();
-
-                            foreach (var prop in cardDbType.GetProperties(PublicInstance))
-                            {
-                                if (prop.Name.Contains("Artist"))
-                                {
-                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"CardDatabase.{prop.Name} ({prop.PropertyType.Name})");
-
-                                    var provider = prop.GetValue(cardDb);
-                                    if (provider != null)
-                                    {
-                                        var providerType = provider.GetType();
-                                        foreach (var m in providerType.GetMethods(PublicInstance))
-                                        {
-                                            if (m.DeclaringType == typeof(object)) continue;
-
-                                            if (m.ReturnType == typeof(string))
-                                            {
-                                                var mParams = m.GetParameters();
-                                                if (mParams.Length >= 1 && mParams[0].ParameterType == typeof(uint))
-                                                {
-                                                    _artistProvider = provider;
-                                                    _getArtistMethod = m;
-                                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using {prop.Name}.{m.Name} for artist lookup");
-                                                    return;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
+                _artistProvider = result.Value.provider;
+                _getArtistMethod = result.Value.method;
             }
-
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"No artist provider found");
         }
 
         /// <summary>
