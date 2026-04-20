@@ -19,8 +19,6 @@ namespace AccessibleArena.Core.Services
 
         // Track the last resolving card for damage correlation
         private string _lastResolvingCardName = null;
-        private uint _lastResolvingInstanceId = 0;
-        private bool _lastResolvingIsAbility = false;
 
         /// <summary>
         /// Tracks if a library manipulation browser (scry, surveil, etc.) is active.
@@ -32,7 +30,6 @@ namespace AccessibleArena.Core.Services
         /// Info about the current library manipulation effect.
         /// </summary>
         public string CurrentEffectType { get; private set; }
-        public int CurrentEffectCount { get; private set; }
 
         /// <summary>
         /// Returns true if a spell resolved or a permanent entered battlefield within the last specified milliseconds.
@@ -165,7 +162,6 @@ namespace AccessibleArena.Core.Services
         {
             IsLibraryBrowserActive = false;
             CurrentEffectType = null;
-            CurrentEffectCount = 0;
         }
 
         private string HandleResolutionStarted(object uxEvent)
@@ -205,8 +201,6 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(cardName))
                 {
                     _lastResolvingCardName = cardName;
-                    _lastResolvingInstanceId = instigatorInstanceId;
-                    _lastResolvingIsAbility = isAbility;
                     DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Resolution started: {cardName} (InstanceId: {instigatorInstanceId}, isAbility: {isAbility})");
                 }
 
@@ -245,8 +239,6 @@ namespace AccessibleArena.Core.Services
 
                 // Clear resolution tracking data now that the resolution is complete
                 _lastResolvingCardName = null;
-                _lastResolvingInstanceId = 0;
-                _lastResolvingIsAbility = false;
 
                 // Delay so the resolve announcement arrives after the cast/trigger
                 // announcement (which waits 3 frames for the stack holder to populate).

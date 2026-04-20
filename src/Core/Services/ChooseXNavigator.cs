@@ -38,7 +38,6 @@ namespace AccessibleArena.Core.Services
         private bool _hasAnnounced;
         private bool _hasFocus; // Whether ChooseX has input focus (vs zone navigation)
         private MonoBehaviour _viewInstance;
-        private string _lastAnnouncedValue;
         private uint? _maxValue;
 
         // Polling interval
@@ -215,7 +214,6 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _hasFocus = true;
             _hasAnnounced = false;
-            _lastAnnouncedValue = null;
             _maxValue = FindMaxValue();
 
             // Deactivate card info navigator so Up/Down controls the spinner, not card blocks
@@ -230,7 +228,6 @@ namespace AccessibleArena.Core.Services
             _hasFocus = false;
             _hasAnnounced = false;
             _viewInstance = null;
-            _lastAnnouncedValue = null;
             _maxValue = null;
             MelonLogger.Msg("[ChooseXNavigator] Exited ChooseX mode");
         }
@@ -250,7 +247,6 @@ namespace AccessibleArena.Core.Services
                 : Strings.ChooseXEntry(labelText);
 
             _announcer.AnnounceInterrupt(entryText + rangeInfo);
-            _lastAnnouncedValue = labelText;
         }
 
         private void AnnounceCurrentValue()
@@ -259,7 +255,6 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(labelText))
             {
                 _announcer.AnnounceInterrupt(labelText);
-                _lastAnnouncedValue = labelText;
             }
         }
 
@@ -296,7 +291,6 @@ namespace AccessibleArena.Core.Services
                     }
 
                     _announcer.AnnounceInterrupt(newLabel + suffix);
-                    _lastAnnouncedValue = newLabel;
                 }
             }
             catch (Exception ex)

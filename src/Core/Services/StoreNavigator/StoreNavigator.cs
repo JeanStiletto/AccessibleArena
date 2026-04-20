@@ -26,13 +26,6 @@ namespace AccessibleArena.Core.Services
         private const float TabLoadCheckInterval = 0.1f;
         private const int PacksTabFieldIndex = 2; // _packsTab is at index 2 in TabFieldNames
 
-        // Target children in PackProgressMeter that contain actual progress data
-        private static readonly string[] PackProgressTextNames = new[]
-        {
-            "Text_GoalNumber",   // e.g. "0/10"
-            "Text_Title",        // e.g. "Kaufe 10 weitere ... um einen Goldenen Booster zu erhalten."
-        };
-
         #endregion
 
         #region Navigator Identity
@@ -122,7 +115,6 @@ namespace AccessibleArena.Core.Services
         // Cached reflection members
         private Type _controllerType;
         private FieldInfo _itemDisplayQueueField;
-        private FieldInfo _readyToShowField;
         private FieldInfo _currentTabField;
         private FieldInfo _confirmationModalField;
         private PropertyInfo _isOpenProp;
@@ -152,12 +144,7 @@ namespace AccessibleArena.Core.Services
 
         // Tab class
         private Type _tabType;
-        private FieldInfo _tabTextField;          // _text (Localize)
         private MethodInfo _tabOnClickedMethod;   // OnClicked()
-
-        // StoreItem properties
-        private Type _storeItemType;
-        private PropertyInfo _storeItemIdProp;
 
         // Controller utility methods
         private MethodInfo _onButtonPaymentSetupMethod;
@@ -183,7 +170,6 @@ namespace AccessibleArena.Core.Services
         private PropertyInfo _cardDataForTileQuantityProp; // CardDataForTile.Quantity
         private Type _cardDataType;
         private PropertyInfo _cardDataGrpIdProp;        // CardData.GrpId
-        private PropertyInfo _cardDataTitleIdProp;      // CardData.TitleId
         private PropertyInfo _cardDataManaTextProp;     // CardData.OldSchoolManaText
         // TooltipTrigger -> LocalizedString
         private Type _localizedStringType;
@@ -439,7 +425,6 @@ namespace AccessibleArena.Core.Services
 
             // Controller fields
             _itemDisplayQueueField = controllerType.GetField("_itemDisplayQueue", flags);
-            _readyToShowField = controllerType.GetField("_readyToShow", flags);
             _currentTabField = controllerType.GetField("_currentTab", flags);
             _confirmationModalField = controllerType.GetField("_confirmationModal", flags);
             _storeTabTypeLookupField = controllerType.GetField("_storeTabTypeLookup", flags);
@@ -480,7 +465,6 @@ namespace AccessibleArena.Core.Services
             if (_currentTabField != null)
             {
                 _tabType = _currentTabField.FieldType;
-                _tabTextField = _tabType.GetField("_text", flags);
                 _tabOnClickedMethod = _tabType.GetMethod("OnClicked", PublicInstance);
             }
 
@@ -504,13 +488,6 @@ namespace AccessibleArena.Core.Services
                     _pbButtonField = _purchaseButtonType.GetField("Button", flags);
                     _pbContainerField = _purchaseButtonType.GetField("ButtonContainer", flags);
                 }
-            }
-
-            // StoreItem type
-            if (_storeItemField != null)
-            {
-                _storeItemType = _storeItemField.FieldType;
-                _storeItemIdProp = _storeItemType.GetProperty("Id", PublicInstance);
             }
 
             // StoreConfirmationModal type
@@ -569,8 +546,6 @@ namespace AccessibleArena.Core.Services
             if (_cardDataType != null)
             {
                 _cardDataGrpIdProp = _cardDataType.GetProperty("GrpId",
-                    PublicInstance);
-                _cardDataTitleIdProp = _cardDataType.GetProperty("TitleId",
                     PublicInstance);
                 _cardDataManaTextProp = _cardDataType.GetProperty("OldSchoolManaText",
                     PublicInstance);

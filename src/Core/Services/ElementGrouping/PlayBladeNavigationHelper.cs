@@ -231,7 +231,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// <summary>
         /// Called when PlayBlade opens. Sets context and requests tabs entry.
         /// </summary>
-        public void OnPlayBladeOpened(string bladeViewName)
+        public void OnPlayBladeOpened()
         {
             _groupedNavigator.SetPlayBladeContext(true);
             _groupedNavigator.RequestPlayBladeTabsEntry();
@@ -247,10 +247,5 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             SetBotMatchMode(false);
             MelonLogger.Msg($"[PlayBladeHelper] Blade closed, cleared context");
         }
-
-        /// <summary>
-        /// Reset - no-op since we derive state from GroupedNavigator.
-        /// </summary>
-        public void Reset() { }
     }
 }

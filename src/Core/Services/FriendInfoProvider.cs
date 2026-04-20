@@ -68,10 +68,8 @@ namespace AccessibleArena.Core.Services
             public FieldInfo ButtonRemoveBlock;  // BlockTile: _buttonRemoveBlock (Button)
             public FieldInfo ButtonAddFriend;    // IncomingChallengeRequestTile: _buttonAddFriend (Button)
             public FieldInfo CallbackOpenChat;   // Action<SocialEntity>
-            public FieldInfo CallbackRemoveBlock; // BlockTile: Callback_RemoveBlock (Action<Block>)
             public PropertyInfo FriendProp;      // FriendTile: Friend (SocialEntity)
             public PropertyInfo InviteProp;      // InviteOutgoingTile/InviteIncomingTile: Invite
-            public PropertyInfo BlockProp;       // BlockTile: Block
 
             // Challenge tile fields
             public FieldInfo SenderName;         // IncomingChallengeRequestTile: _senderName (TMP_Text)
@@ -413,10 +411,8 @@ namespace AccessibleArena.Core.Services
                 ButtonRemoveBlock = type.GetField("_buttonRemoveBlock", flags),
                 ButtonAddFriend = type.GetField("_buttonAddFriend", flags),
                 CallbackOpenChat = type.GetField("Callback_OpenChat", flags),
-                CallbackRemoveBlock = type.GetField("Callback_RemoveBlock", flags),
                 FriendProp = type.GetProperty("Friend", flags),
                 InviteProp = type.GetProperty("Invite", flags),
-                BlockProp = type.GetProperty("Block", flags),
                 SenderName = type.GetField("_senderName", flags),
                 TitleText = type.GetField("_titleText", flags),
                 OpenChallengeButton = type.GetField("_openChallengeScreenButton", flags)

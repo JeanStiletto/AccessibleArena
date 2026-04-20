@@ -20,7 +20,6 @@ namespace AccessibleArena.Core.Services
         private int _currentEmoteIndex = 0;
 
         // Avatar reflection cache (for emote wheel via PortraitButton)
-        private static System.Type _avatarViewType;
         private static PropertyInfo _isLocalPlayerProp;
         private static FieldInfo _portraitButtonField;
         private static bool _avatarReflectionInitialized;
@@ -291,8 +290,6 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                _avatarViewType = avatarType;
-
                 _isLocalPlayerProp = avatarType.GetProperty("IsLocalPlayer", PublicInstance);
                 if (_isLocalPlayerProp == null)
                 {

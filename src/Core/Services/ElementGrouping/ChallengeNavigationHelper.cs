@@ -32,7 +32,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private static FieldInfo _playerNameField;
         private static FieldInfo _noPlayerField;
         private static FieldInfo _playerInvitedField;
-        private static PropertyInfo _playerIdProp;
 
         // Blade widget reflection for status text and settings lock
         private static FieldInfo _challengeStatusTextField;
@@ -940,7 +939,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 _playerNameField = _playerDisplayType.GetField("_playerName", flags);
                 _noPlayerField = _playerDisplayType.GetField("_noPlayer", flags);
                 _playerInvitedField = _playerDisplayType.GetField("_playerInvited", flags);
-                _playerIdProp = _playerDisplayType.GetProperty("PlayerId", PublicInstance);
             }
 
             if (_bladeWidgetType != null)

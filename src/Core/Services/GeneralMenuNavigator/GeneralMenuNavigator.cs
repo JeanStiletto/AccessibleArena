@@ -365,7 +365,7 @@ namespace AccessibleArena.Core.Services
             if (isPlayBladeNowActive && !helperIsActive)
             {
                 MelonLogger.Msg($"[{NavigatorId}] PlayBlade became active - initializing helper");
-                _playBladeHelper.OnPlayBladeOpened("PlayBlade");
+                _playBladeHelper.OnPlayBladeOpened();
             }
             else if (!isPlayBladeNowActive && helperIsActive)
             {

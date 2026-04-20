@@ -35,7 +35,6 @@ namespace AccessibleArena.Core.Services
         private static PropertyInfo _maxSelectionsProp;
         private static PropertyInfo _allSelectionsCompleteProp;
         private static PropertyInfo _currentSelectionProp;
-        private static Type _providerType;
         private static bool _providerReflectionInitialized;
 
         // ManaProducedData reflection cache
@@ -508,9 +507,6 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Find the IManaSelectorProvider interface
-                _providerType = providerInstanceType;
-
                 // Try interface members first, then direct type
                 // ValidSelectionCount property
                 _validSelectionsCountProp = FindProperty(providerInstanceType, "ValidSelectionCount");
