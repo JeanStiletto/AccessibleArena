@@ -45,6 +45,14 @@ namespace AccessibleArena.Core.Constants
         public const string LearnToPlayControllerV2 = "LearnToPlayControllerV2";
         public const string DeckManagerController = "DeckManagerController";
         public const string DraftContentController = "DraftContentController";
+        public const string ProgressionTracksContentController = "ProgressionTracksContentController";
+        public const string ContentControllerStoreCarousel = "ContentController_StoreCarousel";
+        public const string WrapperDeckBuilder = "WrapperDeckBuilder";
+        public const string BoosterChamberController = "BoosterChamberController";
+        public const string AchievementsContentController = "AchievementsContentController";
+        public const string MasteryContentController = "MasteryContentController";
+        public const string PackOpeningController = "PackOpeningController";
+        public const string ConstructedDeckSelectController = "ConstructedDeckSelectController";
 
         // --- Color Challenge Types ---
         public const string CampaignGraphTrackModule = "CampaignGraphTrackModule";

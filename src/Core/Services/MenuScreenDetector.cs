@@ -21,20 +21,20 @@ namespace AccessibleArena.Core.Services
         {
             T.HomePageContentController,
             T.DeckManagerController,
-            "ProfileContentController",
-            "ContentController_StoreCarousel",
-            "MasteryContentController",
-            "AchievementsContentController",
+            T.ProfileContentController,
+            T.ContentControllerStoreCarousel,
+            T.MasteryContentController,
+            T.AchievementsContentController,
             T.LearnToPlayControllerV2,
-            "PackOpeningController",
-            "CampaignGraphContentController",
-            "WrapperDeckBuilder",
-            "ConstructedDeckSelectController",
+            T.PackOpeningController,
+            T.CampaignGraphContentController,
+            T.WrapperDeckBuilder,
+            T.ConstructedDeckSelectController,
             T.EventPageContentController,
-            "ProgressionTracksContentController",
+            T.ProgressionTracksContentController,
             T.PacketSelectContentController,
-            "DraftContentController",
-            "BoosterChamberController"
+            T.DraftContentController,
+            T.BoosterChamberController
         };
 
         // Settings submenu panel names
@@ -339,7 +339,7 @@ namespace AccessibleArena.Core.Services
             System.Func<GameObject, string> getGameObjectPath = null)
         {
             // Check for CampaignGraph content controller being open
-            if (_activeContentController == "CampaignGraphContentController")
+            if (_activeContentController == T.CampaignGraphContentController)
                 return true;
 
             // Also check for Color Challenge buttons directly if functions provided
@@ -366,22 +366,22 @@ namespace AccessibleArena.Core.Services
             {
                 T.HomePageContentController => Strings.ScreenHome,
                 T.DeckManagerController => Strings.ScreenDecks,
-                "ProfileContentController" => Strings.ScreenProfile,
-                "ContentController_StoreCarousel" => Strings.ScreenStore,
-                "MasteryContentController" => Strings.ScreenMastery,
-                "AchievementsContentController" => Strings.ScreenAchievements,
+                T.ProfileContentController => Strings.ScreenProfile,
+                T.ContentControllerStoreCarousel => Strings.ScreenStore,
+                T.MasteryContentController => Strings.ScreenMastery,
+                T.AchievementsContentController => Strings.ScreenAchievements,
                 T.LearnToPlayControllerV2 => Strings.ScreenCodex,
-                "PackOpeningController" => Strings.ScreenPackOpening,
-                "CampaignGraphContentController" => Strings.ScreenColorChallenge,
-                "WrapperDeckBuilder" => Strings.ScreenDeckBuilder,
-                "ConstructedDeckSelectController" => Strings.ScreenDeckSelection,
+                T.PackOpeningController => Strings.ScreenPackOpening,
+                T.CampaignGraphContentController => Strings.ScreenColorChallenge,
+                T.WrapperDeckBuilder => Strings.ScreenDeckBuilder,
+                T.ConstructedDeckSelectController => Strings.ScreenDeckSelection,
                 T.EventPageContentController => Strings.ScreenEvent,
                 T.PacketSelectContentController => Strings.ScreenPacketSelect,
-                "DraftContentController" => Strings.ScreenDraft,
+                T.DraftContentController => Strings.ScreenDraft,
                 "RewardsOverlay" => Strings.ScreenRewards,
-                "BoosterChamberController" => Strings.ScreenPacks,
+                T.BoosterChamberController => Strings.ScreenPacks,
                 "NPERewards" => Strings.ScreenCardUnlocked,
-                "ProgressionTracksContentController" => Strings.ScreenMastery,
+                T.ProgressionTracksContentController => Strings.ScreenMastery,
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
             };
         }

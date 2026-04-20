@@ -897,7 +897,7 @@ namespace AccessibleArena.Core.Services
             Component chamberController = null;
             foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
             {
-                if (mb != null && mb.GetType().Name == "BoosterChamberController")
+                if (mb != null && mb.GetType().Name == T.BoosterChamberController)
                 {
                     chamberController = mb;
                     break;
@@ -979,7 +979,7 @@ namespace AccessibleArena.Core.Services
             Component chamberController = null;
             foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
             {
-                if (mb != null && mb.GetType().Name == "BoosterChamberController")
+                if (mb != null && mb.GetType().Name == T.BoosterChamberController)
                 {
                     chamberController = mb;
                     break;
@@ -1077,7 +1077,7 @@ namespace AccessibleArena.Core.Services
             Component chamberController = null;
             foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
             {
-                if (mb != null && mb.GetType().Name == "BoosterChamberController")
+                if (mb != null && mb.GetType().Name == T.BoosterChamberController)
                 {
                     chamberController = mb;
                     break;

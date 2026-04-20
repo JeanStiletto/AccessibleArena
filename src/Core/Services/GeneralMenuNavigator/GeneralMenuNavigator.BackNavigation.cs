@@ -83,13 +83,13 @@ namespace AccessibleArena.Core.Services
             // Special case: Color Challenge (CampaignGraph) has two levels
             // - Blade collapsed (specific color selected) → expand blade to return to color list
             // - Blade expanded (color list visible) → navigate Home
-            if (_activeContentController == "CampaignGraphContentController")
+            if (_activeContentController == T.CampaignGraphContentController)
             {
                 return HandleCampaignGraphBack();
             }
 
             // Special case: Deck Builder uses MainButton (Fertig/Done) to exit
-            if (_activeContentController == "WrapperDeckBuilder")
+            if (_activeContentController == T.WrapperDeckBuilder)
             {
                 return HandleDeckBuilderBack();
             }

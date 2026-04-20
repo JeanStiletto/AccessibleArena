@@ -408,7 +408,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void OnDeckBuilderCardCountCapture()
         {
-            if (_activeContentController == "WrapperDeckBuilder")
+            if (_activeContentController == T.WrapperDeckBuilder)
             {
                 _deckCountBeforeActivation = DeckInfoProvider.GetCardCountText();
             }
@@ -420,7 +420,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void OnDeckBuilderCardActivated()
         {
-            if (_activeContentController == "WrapperDeckBuilder")
+            if (_activeContentController == T.WrapperDeckBuilder)
             {
                 LogDebug($"[{NavigatorId}] Deck builder card activated - scheduling rescan to update lists");
                 // _deckCountBeforeActivation already captured by OnDeckBuilderCardCountCapture
@@ -590,7 +590,7 @@ namespace AccessibleArena.Core.Services
         private void FindPoolHolderCards(HashSet<GameObject> addedObjects)
         {
             // Only active in deck builder
-            if (_activeContentController != "WrapperDeckBuilder")
+            if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
             LogDebug($"[{NavigatorId}] Deck Builder detected, searching for collection cards via CardPoolAccessor...");
@@ -721,7 +721,7 @@ namespace AccessibleArena.Core.Services
             MelonLogger.Msg($"[{NavigatorId}] FindCommanderCards: activeCC={_activeContentController}");
 
             // Only active in deck builder
-            if (_activeContentController != "WrapperDeckBuilder")
+            if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
             var commanderCards = DeckCardProvider.GetCommanderCards();
@@ -766,7 +766,7 @@ namespace AccessibleArena.Core.Services
         private void FindDeckListCards(HashSet<GameObject> addedObjects)
         {
             // Only active in deck builder
-            if (_activeContentController != "WrapperDeckBuilder")
+            if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
             LogDebug($"[{NavigatorId}] Deck Builder detected, searching for deck list cards...");
@@ -815,7 +815,7 @@ namespace AccessibleArena.Core.Services
         private void FindSideboardCards(HashSet<GameObject> addedObjects)
         {
             // Only active in deck builder
-            if (_activeContentController != "WrapperDeckBuilder")
+            if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
             var sideboardCards = DeckCardProvider.GetSideboardCards();
@@ -854,7 +854,7 @@ namespace AccessibleArena.Core.Services
         private void FindReadOnlyDeckCards(HashSet<GameObject> addedObjects)
         {
             // Only active in deck builder
-            if (_activeContentController != "WrapperDeckBuilder")
+            if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
             // Reset flag each scan - will be re-set if read-only cards found

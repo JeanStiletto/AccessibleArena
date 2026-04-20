@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -280,7 +281,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "ContentController_StoreCarousel")
+                if (mb.GetType().Name == T.ContentControllerStoreCarousel)
                 {
                     return mb;
                 }

@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -228,7 +229,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name == "AchievementsContentController")
+                if (mb.GetType().Name == T.AchievementsContentController)
                     return mb;
             }
 
@@ -245,7 +246,7 @@ namespace AccessibleArena.Core.Services
 
             var flags = AllInstanceFlags;
 
-            _isOpenProp = FindType("AchievementsContentController")
+            _isOpenProp = FindType(T.AchievementsContentController)
                 ?.GetProperty("IsOpen", flags | BindingFlags.FlattenHierarchy);
 
             _achievementCardType = FindType("AchievementCard");

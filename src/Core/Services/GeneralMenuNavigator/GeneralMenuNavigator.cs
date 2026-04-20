@@ -506,7 +506,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // ReadOnly deck builder gets distinct screen name
-                if (_isDeckBuilderReadOnly && _activeContentController == "WrapperDeckBuilder")
+                if (_isDeckBuilderReadOnly && _activeContentController == T.WrapperDeckBuilder)
                     return Strings.ScreenDeckBuilderReadOnly;
 
                 // Event page: append event title (e.g., "Event: Jump In")
@@ -653,7 +653,7 @@ namespace AccessibleArena.Core.Services
             DiscoverElements();
 
             // Inject virtual groups/elements based on context
-            if (_activeContentController == "WrapperDeckBuilder")
+            if (_activeContentController == T.WrapperDeckBuilder)
             {
                 InjectDeckInfoGroup();
             }
@@ -853,7 +853,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // F11: Dump booster pack details (when in BoosterChamber)
-            if (Input.GetKeyDown(KeyCode.F11) && _activeContentController == "BoosterChamberController")
+            if (Input.GetKeyDown(KeyCode.F11) && _activeContentController == T.BoosterChamberController)
             {
                 GameObject currentElement = null;
                 if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
@@ -1008,7 +1008,7 @@ namespace AccessibleArena.Core.Services
             // Page Up/Down: Navigate collection pages (activate Previous/Next buttons)
             if (Input.GetKeyDown(KeyCode.PageUp) || Input.GetKeyDown(KeyCode.PageDown))
             {
-                if (_activeContentController == "WrapperDeckBuilder")
+                if (_activeContentController == T.WrapperDeckBuilder)
                 {
                     bool isPageDown = Input.GetKeyDown(KeyCode.PageDown);
                     if (ActivateCollectionPageButton(isPageDown))
@@ -1018,7 +1018,7 @@ namespace AccessibleArena.Core.Services
 
             // Number keys 1-0: Activate filter options in deck builder
             // 1-9 = options 1-9, 0 = option 10
-            if (_activeContentController == "WrapperDeckBuilder" && _groupedNavigationEnabled && _groupedNavigator.IsActive)
+            if (_activeContentController == T.WrapperDeckBuilder && _groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 int filterIndex = -1;
                 if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) filterIndex = 0;
@@ -1136,7 +1136,7 @@ namespace AccessibleArena.Core.Services
 
             // Special case: Color Challenge - content page with embedded blade layout
             // Allow blade content (color buttons) and main buttons, but filter blade state buttons
-            if (_activeContentController == "CampaignGraphContentController")
+            if (_activeContentController == T.CampaignGraphContentController)
             {
                 // Filter blade state buttons - internal chrome, not user actions
                 if (obj.name.StartsWith("Btn_Blade"))
@@ -1150,7 +1150,7 @@ namespace AccessibleArena.Core.Services
 
             // Allow Nav_WildCard in deck builder and booster screens so blind users can check wildcard counts
             if (obj.name == "Nav_WildCard" &&
-                (_activeContentController == "WrapperDeckBuilder" || _activeContentController == "BoosterChamberController"))
+                (_activeContentController == T.WrapperDeckBuilder || _activeContentController == T.BoosterChamberController))
                 return true;
 
             // Normal content panel: only show its elements
@@ -1563,7 +1563,7 @@ namespace AccessibleArena.Core.Services
             DiscoverElements();
 
             // Inject virtual groups/elements based on context
-            if (_activeContentController == "WrapperDeckBuilder")
+            if (_activeContentController == T.WrapperDeckBuilder)
             {
                 InjectDeckInfoGroup();
             }
@@ -1590,7 +1590,7 @@ namespace AccessibleArena.Core.Services
             _detectedMenuType = DetectMenuType();
 
             // When a card was added/removed, announce just the card count if it changed
-            if (_announceDeckCountOnRescan && _activeContentController == "WrapperDeckBuilder")
+            if (_announceDeckCountOnRescan && _activeContentController == T.WrapperDeckBuilder)
             {
                 _announceDeckCountOnRescan = false;
                 _deckCountBeforeActivation = null;
@@ -1637,11 +1637,11 @@ namespace AccessibleArena.Core.Services
 
             // Don't activate when Store content controller is active - let StoreNavigator handle it
             // Refresh detection to ensure we have current state
-            if (DetectActiveContentController() == "ContentController_StoreCarousel")
+            if (DetectActiveContentController() == T.ContentControllerStoreCarousel)
                 return false;
 
             // Don't activate when Mastery/Rewards screen is active - let MasteryNavigator handle it
-            if (DetectActiveContentController() == "ProgressionTracksContentController")
+            if (DetectActiveContentController() == T.ProgressionTracksContentController)
                 return false;
 
             // Don't activate when Codex/LearnToPlay is active - let CodexNavigator handle it
@@ -1649,7 +1649,7 @@ namespace AccessibleArena.Core.Services
                 return false;
 
             // Don't activate when Achievements screen is active - let AchievementsNavigator handle it
-            if (DetectActiveContentController() == "AchievementsContentController")
+            if (DetectActiveContentController() == T.AchievementsContentController)
                 return false;
 
             // Don't activate when game loading panel overlay is showing (e.g. after scene transition)
@@ -1760,7 +1760,7 @@ namespace AccessibleArena.Core.Services
             DetectActiveContentController();
 
             // Disable grouped navigation for BoosterChamber - flat list is better for pack carousel
-            if (_activeContentController == "BoosterChamberController")
+            if (_activeContentController == T.BoosterChamberController)
                 _groupedNavigationEnabled = false;
 
             // Debug: Dump DeckFolder hierarchy on DeckManager screen
@@ -1787,7 +1787,7 @@ namespace AccessibleArena.Core.Services
 
             // Reset booster carousel state
             _boosterPackHitboxes.Clear();
-            _isBoosterCarouselActive = _activeContentController == "BoosterChamberController";
+            _isBoosterCarouselActive = _activeContentController == T.BoosterChamberController;
             if (!_isBoosterCarouselActive)
                 _boosterCarouselIndex = 0;
 
@@ -2006,7 +2006,7 @@ namespace AccessibleArena.Core.Services
             // so the final loop doesn't add them with generic labels.
             // FindCommanderCards() (called after the loop) adds them back with proper labels.
             // Also remove from addedObjects so FindCommanderCards can re-add them.
-            if (_activeContentController == "WrapperDeckBuilder")
+            if (_activeContentController == T.WrapperDeckBuilder)
             {
                 var commanderCards = DeckCardProvider.GetCommanderCards();
                 foreach (var cmdCard in commanderCards)
@@ -2217,7 +2217,7 @@ namespace AccessibleArena.Core.Services
             LogDebug($"[{NavigatorId}] Discovered {_elements.Count} navigable elements");
 
             // Enrich color button labels before grouping (so grouped navigator gets enriched labels)
-            if (_activeContentController == "CampaignGraphContentController")
+            if (_activeContentController == T.CampaignGraphContentController)
             {
                 EnrichColorChallengeLabels();
             }
@@ -2303,7 +2303,7 @@ namespace AccessibleArena.Core.Services
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);
 
         public override string GetTutorialHint() =>
-            _activeContentController == "WrapperDeckBuilder"
+            _activeContentController == T.WrapperDeckBuilder
                 ? LocaleManager.Instance.Get("DeckBuilderHint")
                 : LocaleManager.Instance.Get("NavigateHint");
 
@@ -2319,7 +2319,7 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 string groupAnnouncement = _groupedNavigator.GetActivationAnnouncement(menuName);
-                if (_activeContentController == "WrapperDeckBuilder")
+                if (_activeContentController == T.WrapperDeckBuilder)
                     return Models.Strings.WithHint(groupAnnouncement, "DeckBuilderHint");
                 return groupAnnouncement;
             }
@@ -2370,7 +2370,7 @@ namespace AccessibleArena.Core.Services
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
                 bool isTabPressed = Input.GetKey(KeyCode.Tab);
-                if (_activeContentController == "WrapperDeckBuilder" && isTabPressed)
+                if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
                 {
                     if (_groupedNavigator.CycleToNextGroup(DeckBuilderCycleGroups))
                     {
@@ -2444,7 +2444,7 @@ namespace AccessibleArena.Core.Services
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
                 bool isTabPressed = Input.GetKey(KeyCode.Tab);
-                if (_activeContentController == "WrapperDeckBuilder" && isTabPressed)
+                if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
                 {
                     if (_groupedNavigator.CycleToPreviousGroup(DeckBuilderCycleGroups))
                     {
@@ -3078,7 +3078,7 @@ namespace AccessibleArena.Core.Services
 
             // Color Challenge: activating a color button changes the track, so rescan
             // to refresh info blocks and deck name
-            if (_activeContentController == "CampaignGraphContentController")
+            if (_activeContentController == T.CampaignGraphContentController)
             {
                 TriggerRescan();
             }

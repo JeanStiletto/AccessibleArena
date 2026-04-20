@@ -7,6 +7,7 @@ using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -1147,7 +1148,7 @@ namespace AccessibleArena.Core.Services
 
             foreach (var comp in holder.GetComponents<Component>())
             {
-                if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                if (comp != null && comp.GetType().Name == T.CardBrowserCardHolder)
                 {
                     return comp;
                 }

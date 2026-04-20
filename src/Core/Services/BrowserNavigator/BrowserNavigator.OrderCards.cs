@@ -115,7 +115,7 @@ namespace AccessibleArena.Core.Services
             Component holderComp = null;
             foreach (var comp in defaultHolder.GetComponents<Component>())
             {
-                if (comp != null && comp.GetType().Name == "CardBrowserCardHolder")
+                if (comp != null && comp.GetType().Name == T.CardBrowserCardHolder)
                 {
                     holderComp = comp;
                     break;

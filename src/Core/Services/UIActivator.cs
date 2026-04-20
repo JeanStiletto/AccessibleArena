@@ -1530,7 +1530,7 @@ namespace AccessibleArena.Core.Services
             // Look for WrapperDeckBuilder component in the scene
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
-                if (mb != null && mb.GetType().Name == "WrapperDeckBuilder")
+                if (mb != null && mb.GetType().Name == T.WrapperDeckBuilder)
                 {
                     return mb;
                 }
