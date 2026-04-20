@@ -32,80 +32,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void Open(GameObject card)
         {
-            _items.Clear();
-
-            // Keywords: get first so we can filter keyword-only rules lines
-            var keywords = ExtendedCardInfoProvider.GetKeywordDescriptions(card);
-
-            // Build set of keyword names (text before ": ") to skip from rules lines.
-            // Both keyword headers and rules line text come from the same game localization,
-            // so exact match is robust across all languages.
-            var keywordNames = new HashSet<string>();
-            foreach (var kw in keywords)
-            {
-                int colonIdx = kw.IndexOf(": ");
-                if (colonIdx > 0)
-                    keywordNames.Add(kw.Substring(0, colonIdx));
-            }
-
-            // Rules lines: individual ability entries for multi-ability cards (planeswalkers, sagas, classes)
-            // Skip keyword-only lines (e.g., "Flying") since they appear in keyword descriptions below
-            var cardInfo = CardModelProvider.ExtractCardInfoFromModel(card);
-            if (cardInfo.HasValue && cardInfo.Value.RulesLines != null && cardInfo.Value.RulesLines.Count > 1)
-            {
-                foreach (var line in cardInfo.Value.RulesLines)
-                {
-                    if (!keywordNames.Contains(line))
-                        _items.Add(line);
-                }
-            }
-
-            // Linked face: split into individual field entries
-            var linkedFace = ExtendedCardInfoProvider.GetLinkedFaceInfo(card);
-            if (linkedFace.HasValue)
-            {
-                var (label, faceInfo) = linkedFace.Value;
-                if (!string.IsNullOrEmpty(faceInfo.Name))
-                    _items.Add($"{label}: {faceInfo.Name}");
-                if (!string.IsNullOrEmpty(faceInfo.ManaCost))
-                    _items.Add($"{Strings.CardInfoManaCost}: {faceInfo.ManaCost}");
-                if (!string.IsNullOrEmpty(faceInfo.TypeLine))
-                    _items.Add($"{Strings.CardInfoType}: {faceInfo.TypeLine}");
-                if (!string.IsNullOrEmpty(faceInfo.PowerToughness))
-                    _items.Add($"{Strings.CardInfoPowerToughness}: {faceInfo.PowerToughness}");
-                if (!string.IsNullOrEmpty(faceInfo.RulesText))
-                    _items.Add($"{Strings.CardInfoRules}: {faceInfo.RulesText}");
-            }
-
-            // Token info: name, type, rules, P/T per linked token
-            var tokenInfos = ExtendedCardInfoProvider.GetLinkedTokenInfos(card);
-            foreach (var tokenInfo in tokenInfos)
-            {
-                if (!string.IsNullOrEmpty(tokenInfo.Name))
-                    _items.Add($"{Strings.LinkedToken}: {tokenInfo.Name}");
-                if (!string.IsNullOrEmpty(tokenInfo.TypeLine))
-                    _items.Add($"{Strings.CardInfoType}: {tokenInfo.TypeLine}");
-                if (!string.IsNullOrEmpty(tokenInfo.RulesText))
-                    _items.Add($"{Strings.CardInfoRules}: {tokenInfo.RulesText}");
-                if (!string.IsNullOrEmpty(tokenInfo.PowerToughness))
-                    _items.Add($"{Strings.CardInfoPowerToughness}: {tokenInfo.PowerToughness}");
-            }
-
-            // Keywords: each "Header: Details" from GetKeywordDescriptions is one entry
-            _items.AddRange(keywords);
-
-            if (_items.Count == 0)
-            {
-                _announcer.AnnounceInterrupt(Strings.NoExtendedCardInfo);
-                return;
-            }
-
-            _isActive = true;
-            _currentIndex = 0;
-
-            MelonLogger.Msg($"[ExtendedInfo] Opened with {_items.Count} items");
-
-            AnnounceCurrentItem();
+            BuildAndOpen(
+                ExtendedCardInfoProvider.GetKeywordDescriptions(card),
+                CardModelProvider.ExtractCardInfoFromModel(card),
+                ExtendedCardInfoProvider.GetLinkedFaceInfo(card),
+                ExtendedCardInfoProvider.GetLinkedTokenInfos(card),
+                logSuffix: "");
         }
 
         /// <summary>
@@ -120,10 +52,31 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            BuildAndOpen(
+                ExtendedCardInfoProvider.GetKeywordDescriptions(grpId),
+                CardModelProvider.GetCardInfoFromGrpId(grpId),
+                ExtendedCardInfoProvider.GetLinkedFaceInfo(grpId),
+                ExtendedCardInfoProvider.GetLinkedTokenInfos(grpId),
+                logSuffix: $" for GrpId {grpId}");
+        }
+
+        /// <summary>
+        /// Shared item-list build for both Open overloads. Assembles rules lines, linked-face
+        /// fields, linked-token fields, then keyword descriptions, deduping keywords against
+        /// rules lines (covers the PAPA-fallback path where GetKeywordDescriptions returns raw
+        /// ability texts that overlap with RulesLines). Announces and early-returns if empty.
+        /// </summary>
+        private void BuildAndOpen(
+            List<string> keywords,
+            CardInfo? cardInfo,
+            (string label, CardInfo faceInfo)? linkedFace,
+            List<CardInfo> tokenInfos,
+            string logSuffix)
+        {
             _items.Clear();
 
-            var keywords = ExtendedCardInfoProvider.GetKeywordDescriptions(grpId);
-
+            // Keyword headers ("Flying" before the ": ") filter out bare-keyword rules lines;
+            // full keyword entries ("Flying: ...") filter out duplicate PAPA-fallback lines.
             var keywordNames = new HashSet<string>();
             foreach (var kw in keywords)
             {
@@ -131,11 +84,8 @@ namespace AccessibleArena.Core.Services
                 if (colonIdx > 0)
                     keywordNames.Add(kw.Substring(0, colonIdx));
             }
-
-            // Build set of keyword texts to avoid duplicating them as rules lines
             var keywordTexts = new HashSet<string>(keywords);
 
-            var cardInfo = CardModelProvider.GetCardInfoFromGrpId(grpId);
             if (cardInfo.HasValue && cardInfo.Value.RulesLines != null && cardInfo.Value.RulesLines.Count > 1)
             {
                 foreach (var line in cardInfo.Value.RulesLines)
@@ -145,7 +95,6 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            var linkedFace = ExtendedCardInfoProvider.GetLinkedFaceInfo(grpId);
             if (linkedFace.HasValue)
             {
                 var (label, faceInfo) = linkedFace.Value;
@@ -161,7 +110,6 @@ namespace AccessibleArena.Core.Services
                     _items.Add($"{Strings.CardInfoRules}: {faceInfo.RulesText}");
             }
 
-            var tokenInfos = ExtendedCardInfoProvider.GetLinkedTokenInfos(grpId);
             foreach (var tokenInfo in tokenInfos)
             {
                 if (!string.IsNullOrEmpty(tokenInfo.Name))
@@ -174,9 +122,6 @@ namespace AccessibleArena.Core.Services
                     _items.Add($"{Strings.CardInfoPowerToughness}: {tokenInfo.PowerToughness}");
             }
 
-            // Add keywords, skipping any that are already present as rules lines
-            // (happens when PAPA keyword provider is unavailable and GetKeywordDescriptions
-            // falls back to raw ability texts, which overlap with RulesLines)
             var existing = new HashSet<string>(_items);
             foreach (var kw in keywords)
             {
@@ -193,7 +138,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _currentIndex = 0;
 
-            MelonLogger.Msg($"[ExtendedInfo] Opened with {_items.Count} items for GrpId {grpId}");
+            MelonLogger.Msg($"[ExtendedInfo] Opened with {_items.Count} items{logSuffix}");
 
             AnnounceCurrentItem();
         }
