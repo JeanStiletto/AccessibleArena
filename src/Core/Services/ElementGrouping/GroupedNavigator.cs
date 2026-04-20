@@ -119,12 +119,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private int _pendingPlayBladeContentEntryIndex = -1;
 
         /// <summary>
-        /// When true, auto-enter first folder group after next OrganizeIntoGroups.
-        /// Set when a play mode (Ranked/Play/Brawl) is activated.
-        /// </summary>
-        private bool _pendingFirstFolderEntry = false;
-
-        /// <summary>
         /// When true, auto-enter PlayBladeFolders group after next OrganizeIntoGroups.
         /// Set when a play mode is activated in PlayBlade context.
         /// </summary>
@@ -389,18 +383,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Request auto-entry into first folder group after next rescan.
-        /// Call when a play mode is activated (Ranked/Play/Brawl).
-        /// </summary>
-        public void RequestFirstFolderEntry()
-        {
-            _pendingFirstFolderEntry = true;
-            _pendingPlayBladeContentEntry = false;
-            _pendingPlayBladeTabsEntry = false;
-            MelonLogger.Msg("[GroupedNavigator] Requested first folder auto-entry");
-        }
-
-        /// <summary>
         /// Request auto-entry into PlayBladeFolders group after next rescan.
         /// Call when a play mode is activated in PlayBlade context.
         /// </summary>
@@ -408,7 +390,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             _pendingFoldersEntry = true;
             _pendingFoldersEntryRestoreFolder = restoreToFolder;
-            _pendingFirstFolderEntry = false;
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
             MelonLogger.Msg($"[GroupedNavigator] Requested PlayBladeFolders auto-entry{(restoreToFolder != null ? $" (restore to: {restoreToFolder})" : "")}");
@@ -422,7 +403,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             _pendingSpecificFolderEntry = folderName;
             _pendingFoldersEntry = false;
-            _pendingFirstFolderEntry = false;
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
             MelonLogger.Msg($"[GroupedNavigator] Requested specific folder auto-entry: {folderName}");
@@ -1059,25 +1039,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
             }
 
-            // Check for pending first folder entry (set when a play mode is activated)
-            if (_pendingFirstFolderEntry)
-            {
-                _pendingFirstFolderEntry = false;
-                // Find first folder group and auto-enter it
-                for (int i = 0; i < _groups.Count; i++)
-                {
-                    if (_groups[i].IsFolderGroup && _groups[i].Count > 0)
-                    {
-                        _currentGroupIndex = i;
-                        _navigationLevel = NavigationLevel.InsideGroup;
-                        _currentElementIndex = 0;
-                        autoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered folder '{_groups[i].DisplayName}' with {_groups[i].Count} items");
-                        break;
-                    }
-                }
-            }
-
             // Check for pending PlayBladeFolders entry (set when a play mode is activated in PlayBlade)
             if (_pendingFoldersEntry)
             {
@@ -1518,30 +1479,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Auto-enter single-item groups or the Primary group.
-        /// </summary>
-        private void AutoEnterIfSingleItem()
-        {
-            if (_currentGroupIndex < 0 || _currentGroupIndex >= _groups.Count)
-                return;
-
-            var group = _groups[_currentGroupIndex];
-
-            // Auto-enter if single item in group
-            if (group.Count == 1)
-            {
-                _navigationLevel = NavigationLevel.InsideGroup;
-                _currentElementIndex = 0;
-            }
-            // Auto-enter Primary group (user likely wants the main action)
-            else if (group.Group == ElementGroup.Primary)
-            {
-                _navigationLevel = NavigationLevel.InsideGroup;
-                _currentElementIndex = 0;
-            }
-        }
-
-        /// <summary>
         /// Move to next item (group or element depending on level).
         /// </summary>
         /// <returns>True if moved, false if at end.</returns>
@@ -1879,81 +1816,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Filter groups to only show those for a specific overlay.
-        /// Call when an overlay is detected.
-        /// </summary>
-        public void FilterToOverlay(ElementGroup overlayGroup)
-        {
-            _groups = _groups.Where(g => g.Group == overlayGroup).ToList();
-
-            if (_groups.Count > 0)
-            {
-                _currentGroupIndex = 0;
-                AutoEnterIfSingleItem();
-            }
-            else
-            {
-                _currentGroupIndex = -1;
-                _currentElementIndex = -1;
-                _navigationLevel = NavigationLevel.GroupList;
-            }
-        }
-
-        /// <summary>
-        /// Check if any group contains elements (for validation).
-        /// </summary>
-        public bool HasElements => _groups.Any(g => g.Count > 0);
-
-        /// <summary>
-        /// Get all elements flattened (for compatibility with existing code).
-        /// </summary>
-        public IEnumerable<GroupedElement> GetAllElements()
-        {
-            return _groups.SelectMany(g => g.Elements);
-        }
-
-        /// <summary>
-        /// Jump to a specific group by ElementGroup type.
-        /// Sets navigation to group level at the specified group.
-        /// </summary>
-        /// <returns>True if group was found and jumped to, false otherwise.</returns>
-        public bool JumpToGroup(ElementGroup groupType)
-        {
-            for (int i = 0; i < _groups.Count; i++)
-            {
-                if (_groups[i].Group == groupType)
-                {
-                    _currentGroupIndex = i;
-                    _navigationLevel = NavigationLevel.GroupList;
-                    _currentElementIndex = -1;
-                    MelonLogger.Msg($"[GroupedNavigator] Jumped to group: {_groups[i].DisplayName}");
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Jump to a specific group and enter it (inside group level).
-        /// </summary>
-        /// <returns>True if group was found and entered, false otherwise.</returns>
-        public bool JumpToGroupAndEnter(ElementGroup groupType)
-        {
-            for (int i = 0; i < _groups.Count; i++)
-            {
-                if (_groups[i].Group == groupType && _groups[i].Count > 0)
-                {
-                    _currentGroupIndex = i;
-                    _navigationLevel = NavigationLevel.InsideGroup;
-                    _currentElementIndex = 0;
-                    MelonLogger.Msg($"[GroupedNavigator] Jumped and entered group: {_groups[i].DisplayName}");
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
         /// Jump to a specific group by index. Sets navigation to group level.
         /// </summary>
         public bool JumpToGroupByIndex(int index)
@@ -2031,14 +1893,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             var group = GetGroupByType(groupType);
             return group?.Count ?? 0;
-        }
-
-        /// <summary>
-        /// Get all groups of a specific type (there may be multiple, e.g., folders).
-        /// </summary>
-        public IEnumerable<ElementGroupInfo> GetAllGroupsOfType(ElementGroup groupType)
-        {
-            return _groups.Where(g => g.Group == groupType);
         }
 
         /// <summary>
