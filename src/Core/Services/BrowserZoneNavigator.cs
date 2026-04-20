@@ -8,6 +8,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -93,7 +94,7 @@ namespace AccessibleArena.Core.Services
                 MelonCoroutines.Start(RefreshAfterActivation());
             }
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Activated for {_browserType}");
+            Log.Msg("BrowserZoneNavigator", $"Activated for {_browserType}");
         }
 
         /// <summary>
@@ -113,7 +114,7 @@ namespace AccessibleArena.Core.Services
             // Reset mulligan count when London phase ends
             if (BrowserDetector.IsLondonBrowser(_browserType))
             {
-                MelonLogger.Msg($"[BrowserZoneNavigator] London phase complete, resetting mulligan count");
+                Log.Msg("BrowserZoneNavigator", $"London phase complete, resetting mulligan count");
                 _mulliganCount = 0;
             }
 
@@ -124,7 +125,7 @@ namespace AccessibleArena.Core.Services
             _topCards.Clear();
             _bottomCards.Clear();
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Deactivated");
+            Log.Msg("BrowserZoneNavigator", $"Deactivated");
         }
 
         /// <summary>
@@ -133,7 +134,7 @@ namespace AccessibleArena.Core.Services
         public void IncrementMulliganCount()
         {
             _mulliganCount++;
-            MelonLogger.Msg($"[BrowserZoneNavigator] Mulligan taken, count now: {_mulliganCount}");
+            Log.Msg("BrowserZoneNavigator", $"Mulligan taken, count now: {_mulliganCount}");
         }
 
         /// <summary>
@@ -142,7 +143,7 @@ namespace AccessibleArena.Core.Services
         public void ResetMulliganState()
         {
             _mulliganCount = 0;
-            MelonLogger.Msg("[BrowserZoneNavigator] Mulligan state reset for new game");
+            Log.Msg("BrowserZoneNavigator", "Mulligan state reset for new game");
         }
 
         /// <summary>
@@ -151,7 +152,7 @@ namespace AccessibleArena.Core.Services
         public void RestoreMulliganCount(int count)
         {
             _mulliganCount = count;
-            MelonLogger.Msg($"[BrowserZoneNavigator] Mulligan count restored to {count} after rescan");
+            Log.Msg("BrowserZoneNavigator", $"Mulligan count restored to {count} after rescan");
         }
 
         #endregion
@@ -252,7 +253,7 @@ namespace AccessibleArena.Core.Services
                 cardNav?.PrepareForCard(firstCard, ZoneType.Library);
             }
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Entered zone: {zoneName}, {currentList.Count} cards");
+            Log.Msg("BrowserZoneNavigator", $"Entered zone: {zoneName}, {currentList.Count} cards");
         }
 
         /// <summary>
@@ -390,7 +391,7 @@ namespace AccessibleArena.Core.Services
             var card = currentList[_cardIndex];
             var cardName = CardDetector.GetCardName(card);
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Activating card: {cardName} in {_browserType}");
+            Log.Msg("BrowserZoneNavigator", $"Activating card: {cardName} in {_browserType}");
 
             bool success = TryActivateCardViaDragSimulation(card, cardName);
 
@@ -539,7 +540,7 @@ namespace AccessibleArena.Core.Services
             _topCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
             _bottomCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed Surveil lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
+            Log.Msg("BrowserZoneNavigator", $"Refreshed Surveil lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
         }
 
         /// <summary>
@@ -555,7 +556,7 @@ namespace AccessibleArena.Core.Services
             var browser = GetBrowserController();
             if (browser == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] Browser controller not found for Split refresh");
+                Log.Warn("BrowserZoneNavigator", "Browser controller not found for Split refresh");
                 return;
             }
 
@@ -589,7 +590,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed Split lists - Pile1: {_topCards.Count}, Pile2: {_bottomCards.Count}");
+            Log.Msg("BrowserZoneNavigator", $"Refreshed Split lists - Pile1: {_topCards.Count}, Pile2: {_bottomCards.Count}");
         }
 
         /// <summary>
@@ -605,14 +606,14 @@ namespace AccessibleArena.Core.Services
             var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
             if (defaultHolder == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] Default holder not found for Scry refresh");
+                Log.Warn("BrowserZoneNavigator", "Default holder not found for Scry refresh");
                 return;
             }
 
             var holderComp = GetCardBrowserHolderComponent(defaultHolder);
             if (holderComp == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] CardBrowserCardHolder not found for Scry refresh");
+                Log.Warn("BrowserZoneNavigator", "CardBrowserCardHolder not found for Scry refresh");
                 return;
             }
 
@@ -623,7 +624,7 @@ namespace AccessibleArena.Core.Services
 
             if (cardViewsList == null || cardViewsList.Count == 0)
             {
-                MelonLogger.Msg("[BrowserZoneNavigator] Scry CardViews list empty");
+                Log.Msg("BrowserZoneNavigator", "Scry CardViews list empty");
                 return;
             }
 
@@ -666,7 +667,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed Scry lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
+            Log.Msg("BrowserZoneNavigator", $"Refreshed Scry lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
         }
 
         /// <summary>
@@ -690,7 +691,7 @@ namespace AccessibleArena.Core.Services
                     var handCards = getHandCardsMethod.Invoke(londonBrowser, null) as System.Collections.IList;
                     if (handCards != null)
                     {
-                        MelonLogger.Msg($"[BrowserZoneNavigator] GetHandCards returned {handCards.Count} items");
+                        Log.Msg("BrowserZoneNavigator", $"GetHandCards returned {handCards.Count} items");
                         foreach (var cardCDC in handCards)
                         {
                             if (cardCDC is Component comp && comp.gameObject != null)
@@ -705,7 +706,7 @@ namespace AccessibleArena.Core.Services
                                     string modelZone = CardStateProvider.GetCardZoneTypeName(go);
                                     if (!string.IsNullOrEmpty(modelZone) && modelZone != "Hand")
                                     {
-                                        MelonLogger.Msg($"[BrowserZoneNavigator] Skipping {cardName} from London hand - actual zone: {modelZone}");
+                                        Log.Msg("BrowserZoneNavigator", $"Skipping {cardName} from London hand - actual zone: {modelZone}");
                                         continue;
                                     }
                                     _topCards.Add(go);
@@ -723,7 +724,7 @@ namespace AccessibleArena.Core.Services
                     var libraryCards = getLibraryCardsMethod.Invoke(londonBrowser, null) as System.Collections.IList;
                     if (libraryCards != null)
                     {
-                        MelonLogger.Msg($"[BrowserZoneNavigator] GetLibraryCards returned {libraryCards.Count} items");
+                        Log.Msg("BrowserZoneNavigator", $"GetLibraryCards returned {libraryCards.Count} items");
                         foreach (var cardCDC in libraryCards)
                         {
                             if (cardCDC is Component comp && comp.gameObject != null)
@@ -741,11 +742,11 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                MelonLogger.Msg($"[BrowserZoneNavigator] Refreshed London lists - Hand: {_topCards.Count}, Library: {_bottomCards.Count}");
+                Log.Msg("BrowserZoneNavigator", $"Refreshed London lists - Hand: {_topCards.Count}, Library: {_bottomCards.Count}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserZoneNavigator] Error refreshing London card lists: {ex.Message}");
+                Log.Warn("BrowserZoneNavigator", $"Error refreshing London card lists: {ex.Message}");
             }
         }
 
@@ -760,14 +761,14 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool TryActivateCardViaDragSimulation(GameObject card, string cardName)
         {
-            MelonLogger.Msg($"[BrowserZoneNavigator] Attempting card move for: {cardName} (browser: {_browserType})");
+            Log.Msg("BrowserZoneNavigator", $"Attempting card move for: {cardName} (browser: {_browserType})");
 
             try
             {
                 var cardCDC = CardDetector.GetDuelSceneCDC(card);
                 if (cardCDC == null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] DuelScene_CDC component not found on card");
+                    Log.Warn("BrowserZoneNavigator", "DuelScene_CDC component not found on card");
                     return false;
                 }
 
@@ -783,7 +784,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserZoneNavigator] Error in TryActivateCardViaDragSimulation: {ex.Message}");
+                Log.Error("BrowserZoneNavigator", $"Error in TryActivateCardViaDragSimulation: {ex.Message}");
                 return false;
             }
         }
@@ -798,7 +799,7 @@ namespace AccessibleArena.Core.Services
             bool positioned = PositionCardAtTargetZone(browser, card, cardCDC);
             if (!positioned)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] Could not position card at target zone");
+                Log.Warn("BrowserZoneNavigator", "Could not position card at target zone");
                 return false;
             }
 
@@ -806,7 +807,7 @@ namespace AccessibleArena.Core.Services
             var handleDragMethod = browserType.GetMethod("HandleDrag", PublicInstance);
             if (handleDragMethod == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] HandleDrag method not found");
+                Log.Warn("BrowserZoneNavigator", "HandleDrag method not found");
                 return false;
             }
             handleDragMethod.Invoke(browser, new object[] { cardCDC });
@@ -814,12 +815,12 @@ namespace AccessibleArena.Core.Services
             var onDragReleaseMethod = browserType.GetMethod("OnDragRelease", PublicInstance);
             if (onDragReleaseMethod == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] OnDragRelease method not found");
+                Log.Warn("BrowserZoneNavigator", "OnDragRelease method not found");
                 return false;
             }
             onDragReleaseMethod.Invoke(browser, new object[] { cardCDC });
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Card moved successfully via drag simulation");
+            Log.Msg("BrowserZoneNavigator", $"Card moved successfully via drag simulation");
             return true;
         }
 
@@ -832,19 +833,19 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool TryActivateViaScryReorder(GameObject card, string cardName, Component cardCDC)
         {
-            MelonLogger.Msg($"[BrowserZoneNavigator] Using Scry reorder for: {cardName}");
+            Log.Msg("BrowserZoneNavigator", $"Using Scry reorder for: {cardName}");
 
             var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
             if (defaultHolder == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] Default holder not found for Scry reorder");
+                Log.Warn("BrowserZoneNavigator", "Default holder not found for Scry reorder");
                 return false;
             }
 
             var holderComp = GetCardBrowserHolderComponent(defaultHolder);
             if (holderComp == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] CardBrowserCardHolder not found for Scry reorder");
+                Log.Warn("BrowserZoneNavigator", "CardBrowserCardHolder not found for Scry reorder");
                 return false;
             }
 
@@ -853,14 +854,14 @@ namespace AccessibleArena.Core.Services
                 PublicInstance | BindingFlags.FlattenHierarchy);
             if (cardViewsProp == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] CardViews property not found");
+                Log.Warn("BrowserZoneNavigator", "CardViews property not found");
                 return false;
             }
 
             var cardViewsList = cardViewsProp.GetValue(holderComp) as System.Collections.IList;
             if (cardViewsList == null || cardViewsList.Count == 0)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] CardViews list is null or empty");
+                Log.Warn("BrowserZoneNavigator", "CardViews list is null or empty");
                 return false;
             }
 
@@ -897,24 +898,24 @@ namespace AccessibleArena.Core.Services
 
             if (cardIndex == -1)
             {
-                MelonLogger.Warning($"[BrowserZoneNavigator] Card not found in holder CardViews for Scry reorder");
+                Log.Warn("BrowserZoneNavigator", $"Card not found in holder CardViews for Scry reorder");
                 return false;
             }
 
             if (placeholderIndex == -1)
             {
-                MelonLogger.Warning($"[BrowserZoneNavigator] Placeholder not found in holder CardViews for Scry reorder");
+                Log.Warn("BrowserZoneNavigator", $"Placeholder not found in holder CardViews for Scry reorder");
                 return false;
             }
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Scry reorder: cardIndex={cardIndex}, placeholderIndex={placeholderIndex}");
+            Log.Msg("BrowserZoneNavigator", $"Scry reorder: cardIndex={cardIndex}, placeholderIndex={placeholderIndex}");
 
             // ShiftCards moves card to placeholder position, pushing placeholder aside
             var shiftMethod = holderComp.GetType().GetMethod("ShiftCards",
                 PublicInstance);
             if (shiftMethod == null)
             {
-                MelonLogger.Warning("[BrowserZoneNavigator] ShiftCards method not found");
+                Log.Warn("BrowserZoneNavigator", "ShiftCards method not found");
                 return false;
             }
 
@@ -924,7 +925,7 @@ namespace AccessibleArena.Core.Services
             // on the current browser (accessible via GameManager.BrowserManager.CurrentBrowser)
             SyncBrowserCardViews(cardCDC);
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Card reordered successfully via Scry mechanism");
+            Log.Msg("BrowserZoneNavigator", $"Card reordered successfully via Scry mechanism");
             return true;
         }
 
@@ -950,7 +951,7 @@ namespace AccessibleArena.Core.Services
 
                 if (gameManager == null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] GameManager not found for browser sync");
+                    Log.Warn("BrowserZoneNavigator", "GameManager not found for browser sync");
                     return;
                 }
 
@@ -959,7 +960,7 @@ namespace AccessibleArena.Core.Services
                 var browserManager = bmProp?.GetValue(gameManager);
                 if (browserManager == null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] BrowserManager not found");
+                    Log.Warn("BrowserZoneNavigator", "BrowserManager not found");
                     return;
                 }
 
@@ -968,7 +969,7 @@ namespace AccessibleArena.Core.Services
                 var currentBrowser = currentBrowserProp?.GetValue(browserManager);
                 if (currentBrowser == null)
                 {
-                    MelonLogger.Warning("[BrowserZoneNavigator] CurrentBrowser not found");
+                    Log.Warn("BrowserZoneNavigator", "CurrentBrowser not found");
                     return;
                 }
 
@@ -978,12 +979,12 @@ namespace AccessibleArena.Core.Services
                 if (onDragRelease != null)
                 {
                     onDragRelease.Invoke(currentBrowser, new object[] { cardCDC });
-                    MelonLogger.Msg("[BrowserZoneNavigator] Browser cardViews synced via OnDragRelease");
+                    Log.Msg("BrowserZoneNavigator", "Browser cardViews synced via OnDragRelease");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserZoneNavigator] Error syncing browser: {ex.Message}");
+                Log.Warn("BrowserZoneNavigator", $"Error syncing browser: {ex.Message}");
             }
         }
 
@@ -1007,7 +1008,7 @@ namespace AccessibleArena.Core.Services
                 var targetPosProp = browserType.GetProperty(targetPropName, PublicInstance);
                 if (targetPosProp == null)
                 {
-                    MelonLogger.Warning($"[BrowserZoneNavigator] {targetPropName} property not found on LondonBrowser");
+                    Log.Warn("BrowserZoneNavigator", $"{targetPropName} property not found on LondonBrowser");
                     return false;
                 }
 
@@ -1039,7 +1040,7 @@ namespace AccessibleArena.Core.Services
                 var centerField = browserType.GetField(targetFieldName, PrivateInstance);
                 if (centerField == null)
                 {
-                    MelonLogger.Warning($"[BrowserZoneNavigator] {targetFieldName} field not found on browser");
+                    Log.Warn("BrowserZoneNavigator", $"{targetFieldName} field not found on browser");
                     return false;
                 }
 
@@ -1055,7 +1056,7 @@ namespace AccessibleArena.Core.Services
                         card.transform.position = worldPos;
                         return true;
                     }
-                    MelonLogger.Warning("[BrowserZoneNavigator] Default holder not found for Split positioning");
+                    Log.Warn("BrowserZoneNavigator", "Default holder not found for Split positioning");
                     return false;
                 }
 
@@ -1082,7 +1083,7 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
 
-                MelonLogger.Warning("[BrowserZoneNavigator] Could not determine world position for target zone");
+                Log.Warn("BrowserZoneNavigator", "Could not determine world position for target zone");
                 return false;
             }
         }
@@ -1175,7 +1176,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserZoneNavigator] Failed to read RequiredPutbackCount: {ex.Message}");
+                Log.Warn("BrowserZoneNavigator", $"Failed to read RequiredPutbackCount: {ex.Message}");
             }
             return 0;
         }
@@ -1318,7 +1319,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserZoneNavigator] Error detecting London card zone: {ex.Message}");
+                Log.Warn("BrowserZoneNavigator", $"Error detecting London card zone: {ex.Message}");
             }
 
             return BrowserZoneType.None;
@@ -1339,11 +1340,11 @@ namespace AccessibleArena.Core.Services
 
             if (cardZone == BrowserZoneType.None)
             {
-                MelonLogger.Warning($"[BrowserZoneNavigator] Could not detect zone for card: {cardName}");
+                Log.Warn("BrowserZoneNavigator", $"Could not detect zone for card: {cardName}");
                 return false;
             }
 
-            MelonLogger.Msg($"[BrowserZoneNavigator] Generic activation for {cardName}, detected zone: {cardZone}");
+            Log.Msg("BrowserZoneNavigator", $"Generic activation for {cardName}, detected zone: {cardZone}");
 
             // Temporarily set the current zone so activation methods work correctly
             var previousZone = _currentZone;
