@@ -39,7 +39,6 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _ltwActiveTimerField; // LowTimeWarning._activeTimer (MtgTimer)
         private static FieldInfo _ltwTimeRunningField; // LowTimeWarning._timeRunning (float)
         private static FieldInfo _ltwTimeoutPipsField; // LowTimeWarning._timeoutPips (List<TimeoutPip>)
-        private static FieldInfo _ltwIsVisibleField; // LowTimeWarning._isVisible (bool)
         private static bool _ltwReflectionInitialized;
 
         private void DiscoverTimerElements()
@@ -79,64 +78,6 @@ namespace AccessibleArena.Core.Services
                 DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Timer_Opponent for timeouts");
         }
 
-        private string GetTimerText(GameObject timerObj)
-        {
-            // Find TextMeshProUGUI child named "Text"
-            var textChild = timerObj.transform.Find("Text");
-            if (textChild != null)
-            {
-                var tmp = textChild.GetComponent<TextMeshProUGUI>();
-                if (tmp != null)
-                {
-                    return tmp.text;
-                }
-            }
-
-            // Fallback: search all TMP children
-            var tmpComponents = timerObj.GetComponentsInChildren<TextMeshProUGUI>();
-            foreach (var tmp in tmpComponents)
-            {
-                if (tmp.gameObject.name == "Text")
-                {
-                    return tmp.text;
-                }
-            }
-
-            return null;
-        }
-
-        private string FormatTimerText(string timerText)
-        {
-            // Timer is in format "MM:SS" - make it more readable
-            if (string.IsNullOrEmpty(timerText)) return timerText;
-
-            var parts = timerText.Split(':');
-            if (parts.Length == 2)
-            {
-                if (int.TryParse(parts[0], out int minutes) && int.TryParse(parts[1], out int seconds))
-                {
-                    if (minutes == 0 && seconds == 0)
-                    {
-                        return "no time";
-                    }
-                    else if (minutes == 0)
-                    {
-                        return $"{seconds} seconds";
-                    }
-                    else if (seconds == 0)
-                    {
-                        return $"{minutes} minutes";
-                    }
-                    else
-                    {
-                        return $"{minutes} minutes {seconds} seconds";
-                    }
-                }
-            }
-
-            return timerText;
-        }
-
         private int GetTimeoutCount(string playerType)
         {
             // Find the TimeoutDisplay for this player
@@ -159,41 +100,6 @@ namespace AccessibleArena.Core.Services
             }
 
             return -1;
-        }
-
-        private string GetMatchTimerInfo(MonoBehaviour matchTimer)
-        {
-            // Try to get additional properties from MatchTimer component
-            var type = matchTimer.GetType();
-
-            // Look for useful properties
-            var timeRemaining = GetProperty<float>(type, matchTimer, "TimeRemaining");
-            var isLowTime = GetProperty<bool>(type, matchTimer, "IsLowTime");
-            var isWarning = GetProperty<bool>(type, matchTimer, "IsWarning");
-
-            var info = new System.Collections.Generic.List<string>();
-
-            if (isLowTime || isWarning)
-            {
-                info.Add("low time warning");
-            }
-
-            return string.Join(", ", info);
-        }
-
-        private T GetProperty<T>(System.Type type, object obj, string propName)
-        {
-            try
-            {
-                var prop = type.GetProperty(propName);
-                if (prop != null)
-                {
-                    return (T)prop.GetValue(obj);
-                }
-            }
-            catch { /* Property may not exist or may throw on different game versions */ }
-
-            return default;
         }
 
         /// <summary>
@@ -338,7 +244,6 @@ namespace AccessibleArena.Core.Services
                 _ltwActiveTimerField = ltwType.GetField("_activeTimer", PrivateInstance);
                 _ltwTimeRunningField = ltwType.GetField("_timeRunning", PrivateInstance);
                 _ltwTimeoutPipsField = ltwType.GetField("_timeoutPips", PrivateInstance);
-                _ltwIsVisibleField = ltwType.GetField("_isVisible", PrivateInstance);
 
                 if (_ltwActiveTimerField == null || _ltwTimeRunningField == null)
                 {
