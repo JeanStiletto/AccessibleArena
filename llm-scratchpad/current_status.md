@@ -81,7 +81,7 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (in progress — 8/12 done)
+- [ ] large-file-handling.md  (in progress — 9/12 done)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
@@ -181,13 +181,33 @@ extraction (not partial) of mana-text formatting helpers:
   reflection + card-info extraction as one coherent unit.
 Build: 0/0, tests: 105/105.
 
+Split 9/12: **WebBrowserAccessibility.cs** (2236 → 1758 lines, -21%) via REAL
+class extraction of JS source constants + static script builders:
+- Extracted **WebBrowserScripts.cs** (488 lines, new `internal static class`
+  at `src/Core/Services/WebBrowserScripts.cs`, sits flat next to
+  WebBrowserAccessibility) — 5 JS const strings (ExtractionScript,
+  FindElementFunc, InstallMutationObserverScript, PollMutationScript,
+  DetectCrossOriginIframesScript) + 8 static `XxxScript(...)` builders
+  (Click, Focus, GetBoundingBox, SelectAll, ReadValue, AppendText,
+  Backspace, Submit). All visibility bumped private → internal.
+- The entire `#region JavaScript` ... `#endregion` block was a clean
+  boundary — mechanical lift-and-shift, no coupling to instance state.
+- 13 call sites in WebBrowserAccessibility prefixed with
+  `WebBrowserScripts.` (all via `_browser.EvalJSCSP(WebBrowserScripts.Xxx`).
+- WebBrowserAccessibility.cs now below 2000 → exits [LARGE] category.
+Build: 0/0, tests: 105/105. **Honesty note:** file still has cleanup
+smells (parallel HandleEditModeInput/HandlePassthroughEditModeInput
+strategy pair, ~30 instance fields including a static reflection cache,
+hand-rolled timer state machine). Those are high-level-cleanup.md
+territory, not large-file-handling. The JS extraction is orthogonal
+and survives any later restructuring.
+
 Remaining candidates (still >2000 lines):
 - [ ] CardModelProvider.cs (2051) — above 2000 but now coherent; may be "leave alone"
-- [ ] WebBrowserAccessibility.cs (2236)
-- [ ] MasteryNavigator.cs  (2174)
-- [ ] GroupedNavigator.cs  (2167)
+- [ ] BrowserNavigator.cs (2220) — already split in round 2, core partial stayed [LARGE]
+- [ ] MasteryNavigator.cs (2174)
+- [ ] GroupedNavigator.cs (2167)
 - [ ] PlayerPortraitNavigator.cs (2151)
-- [ ] BrowserNavigator.cs (2220) — already split in round, core partial stayed [LARGE]
 
 ## Scratchpad Files
 - `current_status.md` — this file

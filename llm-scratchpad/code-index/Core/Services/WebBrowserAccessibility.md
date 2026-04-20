@@ -1,9 +1,10 @@
 # WebBrowserAccessibility.cs
 Path: src/Core/Services/WebBrowserAccessibility.cs
-Lines: 2236
+Lines: 1758
 
 ## Top-level comments
 - Provides full keyboard navigation and screen reader support for embedded Chromium (ZFBrowser) popups. Extracts page elements via JavaScript, presents them as a navigable list, and supports clicking buttons, typing into fields, etc. Used by StoreNavigator when a payment popup opens.
+- **JS payloads** live in `WebBrowserScripts` (extracted 2026-04-20, split 9/12). All calls use `_browser.EvalJSCSP(WebBrowserScripts.XxxScript(...))`.
 
 ## public class WebBrowserAccessibility (line 23)
 
@@ -56,100 +57,86 @@ Lines: 2236
 ### Nested types
 - private struct WebElement (line 92) — see below
 
-### JavaScript source constants (string literals)
-- private const string ExtractionScript (line 113) — Note: IIFE-ready; scans main doc + same-origin iframes
-- private const string FindElementFunc (line 302) — Note: helper to find element by data-aa-idx across main doc + iframes
-- private const string InstallMutationObserverScript (line 536) — Note: idempotent; observes body + same-origin iframe bodies
-- private const string PollMutationScript (line 561)
-- private const string DetectCrossOriginIframesScript (line 568)
-
-### Static helpers (script builders)
-- private static string ClickScript(int index) (line 318)
-- private static string FocusScript(int index) (line 324)
-- private static string GetBoundingBoxScript(int index) (line 332) — Note: returns CSV "cx,cy,vw,vh" in CSS pixels, walks iframe offsets
-- private static string SelectAllScript(int index) (line 355)
-- private static string ReadValueScript(int index) (line 361)
-- private static string AppendTextScript(int index, string text) (line 373) — Note: tries execCommand, keyboard events, then native value setter with React tracker reset
-- private static string BackspaceScript(int index) (line 467)
-- private static string SubmitScript(int index) (line 514)
+### JavaScript (extracted to WebBrowserScripts, split 9/12)
+All JS source constants and static script builders now live in `WebBrowserScripts.cs`. See `code-index/Core/Services/WebBrowserScripts.cs.md`.
 
 ### Properties
-- public bool IsActive => _isActive (line 588)
+- public bool IsActive => _isActive (line 110)
 
 ### Methods (public API)
-- public void Activate(GameObject panel, IAnnouncementService announcer, string contextLabel = null) (line 594) — Note: also unsubscribes previous onLoad handler, blocks Escape via KeyboardManagerPatch
-- public void Deactivate() (line 663) — Note: re-enables browser input forwarder, clears EventSystem selection, releases Escape block
-- public void Update() (line 711) — Note: also flushes _pendingPostClickType, handles extraction timeout and MutationObserver polling
-- public void HandleInput() (line 784) — Note: routes to loading/cooldown/edit/navigation branches
-- private bool IsClickOnCooldown() (line 837)
-- private void StartClickCooldown(float seconds) (line 842)
+- public void Activate(GameObject panel, IAnnouncementService announcer, string contextLabel = null) (line 116) — Note: also unsubscribes previous onLoad handler, blocks Escape via KeyboardManagerPatch
+- public void Deactivate() (line 185) — Note: re-enables browser input forwarder, clears EventSystem selection, releases Escape block
+- public void Update() (line 233) — Note: also flushes _pendingPostClickType, handles extraction timeout and MutationObserver polling
+- public void HandleInput() (line 306) — Note: routes to loading/cooldown/edit/navigation branches
+- private bool IsClickOnCooldown() (line 359)
+- private void StartClickCooldown(float seconds) (line 364)
 
 ### Methods (navigation input)
-- private void HandleNavigationOnlyInput() (line 855) — Note: allows navigation keys but consumes activation keys during click cooldown
-- private void HandleNavigationInput() (line 880)
+- private void HandleNavigationOnlyInput() (line 377) — Note: allows navigation keys but consumes activation keys during click cooldown
+- private void HandleNavigationInput() (line 402)
 
 ### Methods (edit mode input)
-- private void HandleEditModeInput() (line 959) — Note: delegates to passthrough variant when _passthroughMode is set
-- private void HandlePassthroughEditModeInput() (line 1135) — Note: intercepts only control keys; printable chars flow through Unity→CEF
-- private void ExitEditMode() (line 1199) — Note: deselects browser GameObject from EventSystem
-- private void ResetEditSessionOnPageChange() (line 1220) — Note: same cleanup as ExitEditMode but framed as page-change reset
+- private void HandleEditModeInput() (line 481) — Note: delegates to passthrough variant when _passthroughMode is set
+- private void HandlePassthroughEditModeInput() (line 657) — Note: intercepts only control keys; printable chars flow through Unity→CEF
+- private void ExitEditMode() (line 721) — Note: deselects browser GameObject from EventSystem
+- private void ResetEditSessionOnPageChange() (line 742) — Note: same cleanup as ExitEditMode but framed as page-change reset
 
 ### Fields (continued — cached reflection)
-- private static FieldInfo _browserIdField (line 1235) — Note: cached handle for Browser.browserId
+- private static FieldInfo _browserIdField (line 757) — Note: cached handle for Browser.browserId
 
 ### Methods (native input)
-- private int GetBrowserId() (line 1237) — Note: lazily initializes _browserIdField via reflection
-- private void FireNativeMouseClick(float nx, float ny) (line 1256) — Note: calls BrowserNative.zfb_mouseMove / zfb_mouseButton
-- private void SimulateNativeClickThenType(WebElement elem, string chars) (line 1275) — Note: defers TypeText by one frame via _pendingPostClickType
+- private int GetBrowserId() (line 759) — Note: lazily initializes _browserIdField via reflection
+- private void FireNativeMouseClick(float nx, float ny) (line 778) — Note: calls BrowserNative.zfb_mouseMove / zfb_mouseButton
+- private void SimulateNativeClickThenType(WebElement elem, string chars) (line 797) — Note: defers TypeText by one frame via _pendingPostClickType
 
 ### Fields (continued)
-- private string _pendingPostClickType (line 1303) — Note: flushed on next Update() tick after native click
+- private string _pendingPostClickType (line 825) — Note: flushed on next Update() tick after native click
 
 ### Methods (bbox parsing + field reading)
-- private static bool TryParseBBox(string csv, out float nx, out float ny) (line 1305)
-- private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0, int cursorJump = int.MinValue) (line 1322) — Note: announces cached character at cursor; password fields announce star only
+- private static bool TryParseBBox(string csv, out float nx, out float ny) (line 827)
+- private void RefreshAndReadFieldValue(bool readFull, int cursorDelta = 0, int cursorJump = int.MinValue) (line 844) — Note: announces cached character at cursor; password fields announce star only
 
 ### Methods (element extraction)
-- private void ExtractElements() (line 1389)
-- private void OnElementsExtracted(JSONNode result) (line 1412) — Note: also deduplicates text/heading, appends Back-to-Arena, manages empty/captcha/mutation-observer branches
-- private void OnExtractionError(Exception ex) (line 1571)
-- private string ComputeContentFingerprint() (line 1582)
+- private void ExtractElements() (line 911)
+- private void OnElementsExtracted(JSONNode result) (line 934) — Note: also deduplicates text/heading, appends Back-to-Arena, manages empty/captcha/mutation-observer branches
+- private void OnExtractionError(Exception ex) (line 1093)
+- private string ComputeContentFingerprint() (line 1104)
 
 ### Methods (MutationObserver)
-- private void InstallMutationObserver() (line 1601)
-- private void PollMutationObserver() (line 1623) — Note: triggers CheckForCaptcha when DOM stable but no interactive elements found
+- private void InstallMutationObserver() (line 1123)
+- private void PollMutationObserver() (line 1145) — Note: triggers CheckForCaptcha when DOM stable but no interactive elements found
 
 ### Methods (page load handling)
-- private void OnPageLoad(JSONNode loadData) (line 1665) — Note: short-circuits if captcha already detected; calls IsCaptchaUrl / IsLoginFailureUrl before resetting state
-- private void ScheduleRescan(float delay) (line 1726)
+- private void OnPageLoad(JSONNode loadData) (line 1187) — Note: short-circuits if captcha already detected; calls IsCaptchaUrl / IsLoginFailureUrl before resetting state
+- private void ScheduleRescan(float delay) (line 1248)
 
 ### Methods (element navigation)
-- private void MoveElement(int direction) (line 1736) — Note: announces BeginningOfList / EndOfList at boundaries
-- private void TabNavigate(int direction) (line 1761) — Note: auto-enters edit mode on landing on a textbox
-- private void AnnounceCurrentElement() (line 1775) — Note: for textboxes, re-reads value from JS and updates cached _elements[idx]
-- private string FormatElementAnnouncement(WebElement elem, int index, int total) (line 1814)
-- private string FormatRole(WebElement elem) (line 1854)
+- private void MoveElement(int direction) (line 1258) — Note: announces BeginningOfList / EndOfList at boundaries
+- private void TabNavigate(int direction) (line 1283) — Note: auto-enters edit mode on landing on a textbox
+- private void AnnounceCurrentElement() (line 1297) — Note: for textboxes, re-reads value from JS and updates cached _elements[idx]
+- private string FormatElementAnnouncement(WebElement elem, int index, int total) (line 1336)
+- private string FormatRole(WebElement elem) (line 1376)
 
 ### Methods (element activation)
-- private void ActivateCurrentElement() (line 1880) — Note: dispatches by role, starts cooldown, schedules rescans, installs MutationObserver with post-click timeout
-- private void EnterEditMode(WebElement elem) (line 1938) — Note: selects passthrough for password and PayPal login email/text/tel fields
-- private void ClickElement(WebElement elem) (line 1990)
+- private void ActivateCurrentElement() (line 1402) — Note: dispatches by role, starts cooldown, schedules rescans, installs MutationObserver with post-click timeout
+- private void EnterEditMode(WebElement elem) (line 1460) — Note: selects passthrough for password and PayPal login email/text/tel fields
+- private void ClickElement(WebElement elem) (line 1512)
 
 ### Methods (CAPTCHA detection)
-- private static bool IsCaptchaUrl(string url) (line 2021)
-- private static bool IsLoginFailureUrl(string url) (line 2040) — Note: matches PayPal base64 "adsddcaptcha" param and stepup+failedBecause combos
-- private static bool IsPayPalLoginPage(string url) (line 2064) — Note: narrowly scoped to /signin, /agreements/approve, /webapps/hermes, /checkoutweb paths on paypal.com
-- private void CheckForCaptcha() (line 2075) — Note: combines URL heuristics with cross-origin iframe vendor scan
+- private static bool IsCaptchaUrl(string url) (line 1543)
+- private static bool IsLoginFailureUrl(string url) (line 1562) — Note: matches PayPal base64 "adsddcaptcha" param and stepup+failedBecause combos
+- private static bool IsPayPalLoginPage(string url) (line 1586) — Note: narrowly scoped to /signin, /agreements/approve, /webapps/hermes, /checkoutweb paths on paypal.com
+- private void CheckForCaptcha() (line 1597) — Note: combines URL heuristics with cross-origin iframe vendor scan
 
 ### Fields (continued)
-- private static readonly string[] UserFacingCaptchaTokens (line 2146) — Note: recaptcha, hcaptcha, arkoselabs, funcaptcha, challenges.cloudflare.com, turnstile, ddc.paypal.com/captcha
+- private static readonly string[] UserFacingCaptchaTokens (line 1668) — Note: recaptcha, hcaptcha, arkoselabs, funcaptcha, challenges.cloudflare.com, turnstile, ddc.paypal.com/captcha
 
 ### Methods (continued)
-- private static bool ContainsUserFacingCaptchaVendor(string iframeJson) (line 2157)
+- private static bool ContainsUserFacingCaptchaVendor(string iframeJson) (line 1679)
 
 ### Methods (back to arena)
-- private void FindBackToArenaButton(GameObject panel) (line 2172) — Note: matches on name/label containing back/close/return/arena, falls back to first non-browser Button
-- private void ClickBackToArena() (line 2219)
+- private void FindBackToArenaButton(GameObject panel) (line 1694) — Note: matches on name/label containing back/close/return/arena, falls back to first non-browser Button
+- private void ClickBackToArena() (line 1741)
 
 ## private struct WebElement (line 92) — nested in WebBrowserAccessibility
 

@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 140 (excluding obj/ and bin/)
+Total src files: 141 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 94,690
+Total src LOC: 94,700
 Total test LOC: 1,303
-Combined LOC: 95,993
-Large files (over 2000 lines): 7 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed), and CardModelProvider (2374→2051 + 339 new ManaTextFormatter.cs — real class extraction of pure mana-text helpers).
+Combined LOC: 96,003
+Large files (over 2000 lines): 6 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed), CardModelProvider (2374→2051 + 339 new ManaTextFormatter.cs — real class extraction of pure mana-text helpers), and WebBrowserAccessibility (2236→1758 + 488 new WebBrowserScripts.cs — real class extraction of JS source constants + script builders, drops out of LARGE).
 
 ---
 
@@ -169,7 +169,8 @@ Large files (over 2000 lines): 7 after splits of GeneralMenuNavigator (6148→34
   - **UITextExtractor.Widgets.cs** (478 lines) — Generic UI widget text extractors: GetButtonText, GetInputFieldLabel, TryGetInputFieldLabel, both GetInputFieldText overloads (TMP + Unity, password-masked), GetToggleText, both GetDropdownText overloads, FormatDropdownText, GetScrollbarText, GetSliderText, GetPopupBodyText.
   - **UITextExtractor.Social.cs** (343 lines) — Friends panel + mailbox: TryGetFriendsWidgetLabel, TryGetMailboxItemTitle, GetMailContentParts, GetMailContentText + nested `public struct MailContentParts`.
 - **UpdateChecker.cs** (354 lines) — Checks GitHub for mod updates on startup; F5 triggers download and relaunch.
-- **WebBrowserAccessibility.cs** (2236 lines) [LARGE] — Full keyboard navigation for embedded Chromium (ZFBrowser) popups via JavaScript.
+- **WebBrowserAccessibility.cs** (1758 lines) — Full keyboard navigation for embedded Chromium (ZFBrowser) popups. JS payloads extracted to WebBrowserScripts (split 9/12).
+- **WebBrowserScripts.cs** (488 lines) — JavaScript source constants + static script builders (ExtractionScript, ClickScript, AppendTextScript, InstallMutationObserverScript, etc.) extracted from WebBrowserAccessibility. No instance state; pure JS authoring.
 - **ZoneNavigator.cs** (1214 lines) — Navigates duel zones (Hand, Graveyard, Exile, Stack, Command Zone) with zone-owner priority.
 
 ---
