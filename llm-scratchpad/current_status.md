@@ -81,10 +81,10 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (in progress — 9/12 done)
-- [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
-- [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
-- [ ] high-level-cleanup.md
+- [x] large-file-handling.md  (12/12 done 2026-04-20; see split details below)
+- [x] input-handling.md          (pre-marked; no redesign warranted)
+- [x] string-builder.md          (pre-marked; not a string-builder mod)
+- [x] high-level-cleanup.md  (Q1–Q4 + M1–M4 done 2026-04-20; see section below)
 - [ ] low-level-cleanup.md
 - [ ] finalization.md
 
@@ -285,6 +285,38 @@ Remaining [LARGE] files:
 - [ ] CardModelProvider.cs (2051) — above 2000 but now coherent; may be "leave alone"
 - [ ] BrowserNavigator.cs (2220) — already split in round 2, core partial stayed [LARGE]
 - [ ] GroupedNavigator.cs (2167) — left alone (split 11 user decision)
+
+## High-Level Cleanup (2026-04-20) — Done
+
+All 8 items (Q1–Q4 quick wins, M1–M4 medium items) completed. Each landed
+as a single commit. Build 0/0, test suite grew from 105 → 124 (all green).
+
+- **Q1** `refactor(constants)`: centralized hardcoded controller type-name
+  strings into `GameTypeNames` (e.g. `T.CustomButton`, `T.DuelSceneCDC`).
+- **Q2** `refactor(focus)`: extracted `ZoneNavigator.ClearEventSystemSelection`
+  helper. Property-name-shadowing bug fixed via `global::` qualifier.
+- **Q3** `refactor(patches)`: UXEventQueuePatch 100th-event log lines now
+  gated behind `DebugConfig.LogIf(LogPatches, ...)`.
+- **Q4** `refactor(card-state)`: collapsed 7 per-type accessors in
+  `CardStateProvider` into two generics (`GetValueFromInstance<T>` and
+  `GetListFromInstance<T>`).
+- **M1** `docs(browser-nav)`: added a clarifier comment on
+  `_currentHighlightMethod` (scene-permanent, MethodInfo bound to type
+  not instance — intentionally not reset in OnSceneChanged).
+- **M2** `test(navigator-manager)`: 16 new NSubstitute-based tests covering
+  priority-descending sort, preemption, self-deactivation, OnSceneChanged
+  notification, RequestActivation failure-rollback.
+- **M3** `test(locales)`: 3 audits catching en.json↔code drift and
+  locale↔locale drift. Test-found cleanup: 6 dead keys removed,
+  13 player-zone/dungeon keys back-filled into 10 locales. Follow-up
+  commit replaced the English placeholders with real translations (WotC
+  official MTG terms: Monarch, Day/Night, City's Blessing, Dungeon, Speed).
+- **M4** `docs`: `_pending*` producer/consumer/lifetime block on
+  `GroupedNavigator`; scope boundary on `UIActivator` vs `CardTileActivator`;
+  3-step "how to add a Strings key" workflow on `Strings.cs`.
+
+Branch state: `claude-mod-cleanup-round2` has 26 commits ahead of main;
+working tree clean. Ready to merge or proceed to `low-level-cleanup.md`.
 
 ## Scratchpad Files
 - `current_status.md` — this file
