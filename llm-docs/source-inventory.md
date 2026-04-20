@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 144 (excluding obj/ and bin/)
+Total src files: 160 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 94,797
+Total src LOC: 95,093
 Total test LOC: 1,303
-Combined LOC: 96,100
-Large files (over 2000 lines): 5 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed), CardModelProvider (2374→2051 + 339 new ManaTextFormatter.cs — real class extraction of pure mana-text helpers), WebBrowserAccessibility (2236→1758 + 488 new WebBrowserScripts.cs — real class extraction of JS source constants + script builders, drops out of LARGE), and MasteryNavigator (2174→322 core + 1080 Levels + 543 PrizeWall + 326 ConfirmationModal — 3 new partials in `MasteryNavigator/` subfolder, drops out of LARGE).
+Combined LOC: 96,396
+Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed), CardModelProvider (2374→2051 + 339 new ManaTextFormatter.cs — real class extraction of pure mana-text helpers), WebBrowserAccessibility (2236→1758 + 488 new WebBrowserScripts.cs — real class extraction of JS source constants + script builders, drops out of LARGE), MasteryNavigator (2174→322 core + 1080 Levels + 543 PrizeWall + 326 ConfirmationModal — 3 new partials in `MasteryNavigator/` subfolder, drops out of LARGE), and PlayerPortraitNavigator (2151→335 core + 429 Properties + 371 Emotes + 543 Life + 540 Timer — 4 new partials in `PlayerPortraitNavigator/` subfolder, drops out of LARGE).
 
 ---
 
@@ -141,7 +141,12 @@ Large files (over 2000 lines): 5 after splits of GeneralMenuNavigator (6148→34
 - **NPETutorialTextProvider.cs** (203 lines) — Maps NPE tutorial reminder keys to keyboard-focused replacement hint texts.
 - **OverlayNavigator.cs** (494 lines) — Navigator for modal overlays (What's New, announcements, reward popups).
 - **PhaseSkipGuard.cs** (204 lines) — Guards against accidental pass-priority when untapped lands exist in main phase.
-- **PlayerPortraitNavigator.cs** (2151 lines) [LARGE] — V-key zone for player info, property cycling, and emote sending during duels.
+- **PlayerPortraitNavigator/** (subfolder; class lives across 5 partial files, namespace stays `AccessibleArena.Core.Services`)
+  - **PlayerPortraitNavigator.cs** (335 lines) — Core partial: state machine, zone entry/exit, focus management, top-level input routing.
+  - **PlayerPortraitNavigator.Properties.cs** (429 lines) — PlayerProperty enum + cycling, IsPropertyVisible filtering, rank lookup, matchup text, username extraction, rank reflection cache.
+  - **PlayerPortraitNavigator.Emotes.cs** (371 lines) — Emote wheel opening/closing, EmoteView discovery, per-emote announcement + selection, avatar reflection for PortraitButton.
+  - **PlayerPortraitNavigator.Life.cs** (543 lines) — Life totals, counter suffix, player effects (designations/abilities/dungeon), MtgPlayer lookup, MtgEntity/MtgPlayer reflection cache.
+  - **PlayerPortraitNavigator.Timer.cs** (540 lines) — Match clock + rope timer reads, timeout pips, LowTimeWarning UnityEvent subscription, MtgTimer + LowTimeWarning reflection caches.
 - **PreBattleNavigator.cs** (189 lines) — Navigator for the pre-game VS screen Continue/Cancel prompt (PreGameScene).
 - **PriorityController.cs** (586 lines) — Reflection wrapper for full-control toggle and phase-stop toggles via AutoRespManager.
 - **ProfileNavigator.cs** (1889 lines) — Navigator for the Profile screen (username, rank, cosmetic sub-panels).

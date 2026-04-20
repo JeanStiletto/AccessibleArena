@@ -234,11 +234,57 @@ changes needed). Localization helpers stay in Levels (only consumer).
 Mechanical split — no behavior changes. Build: 0/0, tests: 105/105.
 MasteryNavigator now out of [LARGE] (largest partial 1080 < 1500).
 
-Remaining candidates (still >2000 lines):
+Split 11/12 decision: **GroupedNavigator.cs** (2167 lines) — left alone per
+user direction. Single-mode class with tightly-coupled state (_groups,
+_currentGroupIndex, _currentElementIndex, _navigationLevel, subgroup
+tracking); partial splits would be cosmetic only. 8% over threshold.
+
+Split 12/12: **PlayerPortraitNavigator.cs** (2151 → 335 core + 429 Properties
++ 371 Emotes + 543 Life + 540 Timer lines) via partial split into a
+`src/Core/Services/PlayerPortraitNavigator/` subfolder:
+- **PlayerPortraitNavigator.cs** (335, core) — NavigationState state machine
+  (Inactive/PlayerNavigation/EmoteNavigation), Activate/Deactivate,
+  OnFocusChanged + IsPlayerZoneElement, HandleInput top-level router,
+  EnterPlayerInfoZone/ExitPlayerInfoZone focus management,
+  FindPlayerZoneFocusElement (uses FindAvatarView from Emotes),
+  HandlePlayerNavigation.
+- **PlayerPortraitNavigator.Properties.cs** (429) — PlayerProperty enum
+  (Life/Effects/Timer/Timeouts/Wins/Rank) + PropertyCount, GetPropertyValue
+  dispatch, IsPropertyVisible + HasEffectsContent filtering,
+  FindNextVisibleProperty, GetWinCount (stub=0), GetPlayerRank (handles
+  Mythic placement + tier-based ranks), GetMatchupText, GetPlayerUsername,
+  rank reflection cache + InitializeRankReflection.
+- **PlayerPortraitNavigator.Emotes.cs** (371) — _emoteButtons + avatar
+  reflection cache. HandleEmoteNavigation (modal, blocks all keys),
+  OpenEmoteWheel / CloseEmoteWheel, DiscoverEmoteButtons +
+  SearchForEmoteButtons (recursion depth-5), ExtractEmoteName variants,
+  SelectCurrentEmote (UIActivator.SimulatePointerClick),
+  InitializeAvatarReflection, FindAvatarView, TriggerEmoteMenu.
+- **PlayerPortraitNavigator.Life.cs** (543) — MtgEntity/MtgPlayer reflection
+  cache (Counters/Designations/Abilities/DungeonState). AnnounceLifeTotals
+  (L key), BuildLifeWithCounters, GetLifeTotals + GetPlayerLife (via
+  GameManager → CurrentGameState/LatestGameState → LocalPlayer/Opponent),
+  GetMtgPlayer, InitializeEntityReflection (walks base type hierarchy for
+  MtgEntity fields), GetPlayerCounters + FormatCountersForLife,
+  GetPlayerEffects (designations + abilities + dungeon), FormatDesignation.
+- **PlayerPortraitNavigator.Timer.cs** (540) — Timer element cache +
+  LowTimeWarning subscription state + MtgTimer and LowTimeWarning
+  reflection caches. DiscoverTimerElements, GetTimerText/FormatTimerText,
+  GetTimeoutCount, GetMatchTimerInfo, GetProperty<T> generic helper
+  (type param T shadows the `using T = GameTypeNames` alias in method body
+  — legal but worth noting), AnnounceTimer (E/Shift+E entry),
+  GetTimerFromModel (MatchTimer path), GetRopeTimerFromModel (LTW path),
+  InitializeLtwReflection / InitializeMtgTimerFromLtw / InitializeMtgTimerReflection
+  (LTW fallback for casual Brawl), FormatSecondsToReadable,
+  Subscribe/UnsubscribeLowTimeWarnings (UnityEvent<bool> listeners).
+Partials share private state by virtue of being one class. Mechanical split
+— no behavior changes. Build: 0/0, tests: 105/105.
+PlayerPortraitNavigator now out of [LARGE] (largest partial 543 < 1500).
+
+Remaining [LARGE] files:
 - [ ] CardModelProvider.cs (2051) — above 2000 but now coherent; may be "leave alone"
 - [ ] BrowserNavigator.cs (2220) — already split in round 2, core partial stayed [LARGE]
-- [ ] GroupedNavigator.cs (2167)
-- [ ] PlayerPortraitNavigator.cs (2151)
+- [ ] GroupedNavigator.cs (2167) — left alone (split 11 user decision)
 
 ## Scratchpad Files
 - `current_status.md` — this file
