@@ -5,6 +5,7 @@ using MelonLoader;
 using AccessibleArena.Core.Services;
 using static AccessibleArena.Core.Constants.SceneNames;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Patches
 {
@@ -156,7 +157,7 @@ namespace AccessibleArena.Patches
                 // through a path that bypasses both EventSystem and Input.GetKeyDown.
                 if (key == KeyCode.Space && PhaseSkipGuard.ShouldBlock())
                 {
-                    MelonLogger.Msg("[KeyboardManagerPatch] Blocked Space — PhaseSkipGuard active");
+                    Log.Msg("KeyboardManagerPatch", "Blocked Space — PhaseSkipGuard active");
                     return true;
                 }
             }
@@ -188,7 +189,7 @@ namespace AccessibleArena.Patches
                 // Only log occasionally to avoid spam
                 if (Time.frameCount % 60 == 0 || key != KeyCode.Return)
                 {
-                    MelonLogger.Msg($"[KeyboardManagerPatch] Blocked {key} from game (scene: {_cachedSceneName})");
+                    Log.Msg("KeyboardManagerPatch", $"Blocked {key} from game (scene: {_cachedSceneName})");
                 }
                 return false; // Skip the original method - don't publish to game
             }

@@ -50,23 +50,23 @@ namespace AccessibleArena.Patches
 
                 if (uxEventQueueType == null)
                 {
-                    MelonLogger.Warning("[UXEventQueuePatch] Could not find UXEventQueue type - duel announcements disabled");
+                    Log.Warn("UXEventQueuePatch", "Could not find UXEventQueue type - duel announcements disabled");
                     return;
                 }
 
                 if (uxEventType == null)
                 {
-                    MelonLogger.Warning("[UXEventQueuePatch] Could not find UXEvent type - duel announcements disabled");
+                    Log.Warn("UXEventQueuePatch", "Could not find UXEvent type - duel announcements disabled");
                     return;
                 }
 
-                MelonLogger.Msg("[UXEventQueuePatch] Found UXEventQueue and UXEvent types");
+                Log.Msg("UXEventQueuePatch", "Found UXEventQueue and UXEvent types");
 
                 // Create Harmony instance
                 var harmony = new HarmonyLib.Harmony("com.accessibility.mtga.uxeventpatch");
 
                 // List all methods on UXEventQueue for debugging
-                MelonLogger.Msg("[UXEventQueuePatch] Available methods on UXEventQueue:");
+                Log.Msg("UXEventQueuePatch", "Available methods on UXEventQueue:");
                 foreach (var m in uxEventQueueType.GetMethods(AllInstanceFlags))
                 {
                     MelonLogger.Msg($"  - {m.Name}({string.Join(", ", Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name))})");
@@ -84,11 +84,11 @@ namespace AccessibleArena.Patches
                     var postfixSingle = typeof(UXEventQueuePatch).GetMethod(nameof(EnqueuePendingSinglePostfix),
                         BindingFlags.Static | BindingFlags.Public);
                     harmony.Patch(singleEventMethod, postfix: new HarmonyMethod(postfixSingle));
-                    MelonLogger.Msg($"[UXEventQueuePatch] Patched single-event EnqueuePending");
+                    Log.Msg("UXEventQueuePatch", $"Patched single-event EnqueuePending");
                 }
                 else
                 {
-                    MelonLogger.Warning("[UXEventQueuePatch] Could not find single-event EnqueuePending");
+                    Log.Warn("UXEventQueuePatch", "Could not find single-event EnqueuePending");
                 }
 
                 // Patch the multi-event EnqueuePending method (IEnumerable<UXEvent>)
@@ -104,11 +104,11 @@ namespace AccessibleArena.Patches
                     var postfixMulti = typeof(UXEventQueuePatch).GetMethod(nameof(EnqueuePendingMultiPostfix),
                         BindingFlags.Static | BindingFlags.Public);
                     harmony.Patch(multiEventMethod, postfix: new HarmonyMethod(postfixMulti));
-                    MelonLogger.Msg($"[UXEventQueuePatch] Patched multi-event EnqueuePending");
+                    Log.Msg("UXEventQueuePatch", $"Patched multi-event EnqueuePending");
                 }
                 else
                 {
-                    MelonLogger.Warning("[UXEventQueuePatch] Could not find multi-event EnqueuePending");
+                    Log.Warn("UXEventQueuePatch", "Could not find multi-event EnqueuePending");
                 }
 
                 // Patch NPE event Execute() methods — these fire at the correct time
@@ -116,11 +116,11 @@ namespace AccessibleArena.Patches
                 PatchNPEExecuteMethods(harmony);
 
                 _patchApplied = true;
-                MelonLogger.Msg("[UXEventQueuePatch] Harmony patches applied successfully");
+                Log.Msg("UXEventQueuePatch", "Harmony patches applied successfully");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[UXEventQueuePatch] Initialization error: {ex}");
+                Log.Error("UXEventQueuePatch", $"Initialization error: {ex}");
             }
         }
 
@@ -147,14 +147,14 @@ namespace AccessibleArena.Patches
                 var type = FindType(typeName);
                 if (type == null)
                 {
-                    MelonLogger.Warning($"[UXEventQueuePatch] Could not find NPE type: {typeName}");
+                    Log.Warn("UXEventQueuePatch", $"Could not find NPE type: {typeName}");
                     continue;
                 }
 
                 var executeMethod = type.GetMethod("Execute", PublicInstance);
                 if (executeMethod == null || executeMethod.DeclaringType != type)
                 {
-                    MelonLogger.Warning($"[UXEventQueuePatch] Could not find Execute() on {type.Name}");
+                    Log.Warn("UXEventQueuePatch", $"Could not find Execute() on {type.Name}");
                     continue;
                 }
 
@@ -162,7 +162,7 @@ namespace AccessibleArena.Patches
                 patchCount++;
             }
 
-            MelonLogger.Msg($"[UXEventQueuePatch] Patched {patchCount} NPE Execute() methods");
+            Log.Msg("UXEventQueuePatch", $"Patched {patchCount} NPE Execute() methods");
         }
 
         /// <summary>
@@ -179,7 +179,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[UXEventQueuePatch] Error processing NPE execute: {ex.Message}");
+                Log.Warn("UXEventQueuePatch", $"Error processing NPE execute: {ex.Message}");
             }
         }
 
@@ -210,7 +210,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[UXEventQueuePatch] Error processing single event: {ex.Message}");
+                Log.Warn("UXEventQueuePatch", $"Error processing single event: {ex.Message}");
             }
         }
 
@@ -250,7 +250,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[UXEventQueuePatch] Error processing multi event: {ex.Message}");
+                Log.Warn("UXEventQueuePatch", $"Error processing multi event: {ex.Message}");
             }
         }
     }

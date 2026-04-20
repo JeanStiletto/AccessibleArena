@@ -3,6 +3,7 @@ using MelonLoader;
 using System;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Patches
 {
@@ -30,7 +31,7 @@ namespace AccessibleArena.Patches
                 var gameManagerType = FindType("GameManager");
                 if (gameManagerType == null)
                 {
-                    MelonLogger.Warning("[TimerPatch] Could not find GameManager type - timeout announcements disabled");
+                    Log.Warn("TimerPatch", "Could not find GameManager type - timeout announcements disabled");
                     return;
                 }
 
@@ -38,7 +39,7 @@ namespace AccessibleArena.Patches
                 var targetMethod = gameManagerType.GetMethod("Update_TimerNotification", PrivateInstance);
                 if (targetMethod == null)
                 {
-                    MelonLogger.Warning("[TimerPatch] Could not find Update_TimerNotification method - timeout announcements disabled");
+                    Log.Warn("TimerPatch", "Could not find Update_TimerNotification method - timeout announcements disabled");
                     return;
                 }
 
@@ -52,7 +53,7 @@ namespace AccessibleArena.Patches
 
                 if (_triggeredByLocalField == null || _timeoutCountField == null)
                 {
-                    MelonLogger.Warning("[TimerPatch] Could not find TimeoutNotification fields - timeout announcements disabled");
+                    Log.Warn("TimerPatch", "Could not find TimeoutNotification fields - timeout announcements disabled");
                     return;
                 }
 
@@ -63,11 +64,11 @@ namespace AccessibleArena.Patches
                 harmony.Patch(targetMethod, postfix: new HarmonyMethod(postfix));
 
                 _patchApplied = true;
-                MelonLogger.Msg("[TimerPatch] Harmony patch applied successfully");
+                Log.Msg("TimerPatch", "Harmony patch applied successfully");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[TimerPatch] Initialization error: {ex}");
+                Log.Error("TimerPatch", $"Initialization error: {ex}");
             }
         }
 
@@ -84,14 +85,14 @@ namespace AccessibleArena.Patches
                 bool isLocal = (bool)_triggeredByLocalField.GetValue(__0);
                 uint timeoutCount = (uint)_timeoutCountField.GetValue(__0);
 
-                MelonLogger.Msg($"[TimerPatch] Timeout: isLocal={isLocal}, remainingTimeouts={timeoutCount}");
+                Log.Msg("TimerPatch", $"Timeout: isLocal={isLocal}, remainingTimeouts={timeoutCount}");
 
                 var announcer = Core.Services.DuelAnnouncer.Instance;
                 announcer?.OnTimerTimeout(isLocal, timeoutCount);
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[TimerPatch] Error processing timeout notification: {ex.Message}");
+                Log.Warn("TimerPatch", $"Error processing timeout notification: {ex.Message}");
             }
         }
     }

@@ -9,6 +9,7 @@ using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Patches
 {
@@ -50,16 +51,16 @@ namespace AccessibleArena.Patches
                     var prefix = typeof(EventSystemPatch).GetMethod(nameof(NewInputHandlerOnAccept_Prefix),
                         BindingFlags.Static | BindingFlags.Public);
                     harmony.Patch(onAcceptMethod, prefix: new HarmonyMethod(prefix));
-                    MelonLogger.Msg("[EventSystemPatch] Patched NewInputHandler.OnAccept()");
+                    Log.Msg("EventSystemPatch", "Patched NewInputHandler.OnAccept()");
                 }
                 else
                 {
-                    MelonLogger.Warning("[EventSystemPatch] Could not find NewInputHandler.OnAccept method");
+                    Log.Warn("EventSystemPatch", "Could not find NewInputHandler.OnAccept method");
                 }
             }
             else
             {
-                MelonLogger.Warning("[EventSystemPatch] Could not find NewInputHandler type");
+                Log.Warn("EventSystemPatch", "Could not find NewInputHandler type");
             }
 
             // Patch NewInputHandler.OnNext/OnPrevious to block the game's Tab/Shift+Tab
@@ -74,7 +75,7 @@ namespace AccessibleArena.Patches
                     var prefix = typeof(EventSystemPatch).GetMethod(nameof(NewInputHandlerOnNextPrevious_Prefix),
                         BindingFlags.Static | BindingFlags.Public);
                     harmony.Patch(onNextMethod, prefix: new HarmonyMethod(prefix));
-                    MelonLogger.Msg("[EventSystemPatch] Patched NewInputHandler.OnNext()");
+                    Log.Msg("EventSystemPatch", "Patched NewInputHandler.OnNext()");
                 }
 
                 var onPreviousMethod = newInputType.GetMethod("OnPrevious", PublicInstance);
@@ -83,7 +84,7 @@ namespace AccessibleArena.Patches
                     var prefix = typeof(EventSystemPatch).GetMethod(nameof(NewInputHandlerOnNextPrevious_Prefix),
                         BindingFlags.Static | BindingFlags.Public);
                     harmony.Patch(onPreviousMethod, prefix: new HarmonyMethod(prefix));
-                    MelonLogger.Msg("[EventSystemPatch] Patched NewInputHandler.OnPrevious()");
+                    Log.Msg("EventSystemPatch", "Patched NewInputHandler.OnPrevious()");
                 }
             }
 
@@ -98,7 +99,7 @@ namespace AccessibleArena.Patches
                     var prefix = typeof(EventSystemPatch).GetMethod(nameof(SubmitRegistrationDiagnostic_Prefix),
                         BindingFlags.Static | BindingFlags.Public);
                     harmony.Patch(submitMethod, prefix: new HarmonyMethod(prefix));
-                    MelonLogger.Msg("[EventSystemPatch] Patched RegistrationPanel.OnButton_SubmitRegistration() (diagnostic)");
+                    Log.Msg("EventSystemPatch", "Patched RegistrationPanel.OnButton_SubmitRegistration() (diagnostic)");
                 }
             }
         }
@@ -140,8 +141,8 @@ namespace AccessibleArena.Patches
         /// </summary>
         public static void SubmitRegistrationDiagnostic_Prefix()
         {
-            MelonLogger.Msg("[EventSystemPatch] >>> OnButton_SubmitRegistration CALLED <<<");
-            MelonLogger.Msg($"[EventSystemPatch] Stack: {System.Environment.StackTrace}");
+            Log.Msg("EventSystemPatch", ">>> OnButton_SubmitRegistration CALLED <<<");
+            Log.Msg("EventSystemPatch", $"Stack: {System.Environment.StackTrace}");
 
             // Start a coroutine that waits and then announces guidance if the game
             // hasn't auto-advanced (ConnectToFrontDoor returns 403 with MelonLoader present).
@@ -167,7 +168,7 @@ namespace AccessibleArena.Patches
             string message = LocaleManager.Instance?.Get("RegistrationSubmitted")
                 ?? "Registration submitted. Please check your email to activate your account, then press Backspace to return to the login screen.";
 
-            MelonLogger.Msg($"[EventSystemPatch] Registration did not auto-advance, announcing guidance");
+            Log.Msg("EventSystemPatch", $"Registration did not auto-advance, announcing guidance");
             announcer.Announce(message, AnnouncementPriority.High);
         }
 
@@ -269,7 +270,7 @@ namespace AccessibleArena.Patches
             // MTGA from auto-clicking Continue (or other auto-advanced elements)
             if (DropdownStateManager.ShouldBlockSubmit())
             {
-                MelonLogger.Msg("[EventSystemPatch] BLOCKED Submit - post-dropdown selection window");
+                Log.Msg("EventSystemPatch", "BLOCKED Submit - post-dropdown selection window");
                 return false;
             }
 
@@ -290,7 +291,7 @@ namespace AccessibleArena.Patches
             {
                 if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
                 {
-                    MelonLogger.Msg($"[EventSystemPatch] BLOCKED Input.GetKeyDown({key}) - on toggle/dropdown, setting EnterPressedWhileBlocked");
+                    Log.Msg("EventSystemPatch", $"BLOCKED Input.GetKeyDown({key}) - on toggle/dropdown, setting EnterPressedWhileBlocked");
                     InputManager.EnterPressedWhileBlocked = true;
                     __result = false;
                 }

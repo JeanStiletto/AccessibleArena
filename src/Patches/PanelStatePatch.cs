@@ -81,7 +81,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[PanelStatePatch] Initialization error: {ex}");
+                Log.Error("PanelStatePatch", $"Initialization error: {ex}");
             }
         }
 
@@ -101,7 +101,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Failed to patch {label}: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Failed to patch {label}: {ex.Message}");
             }
         }
 
@@ -120,7 +120,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Failed to patch {label}: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Failed to patch {label}: {ex.Message}");
             }
         }
 
@@ -138,7 +138,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Failed to patch {label}: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Failed to patch {label}: {ex.Message}");
             }
         }
 
@@ -155,7 +155,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Error firing {logPrefix}: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Error firing {logPrefix}: {ex.Message}");
             }
         }
 
@@ -185,7 +185,7 @@ namespace AccessibleArena.Patches
 
             if (controllerType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find NavContentController type");
+                Log.Warn("PanelStatePatch", "Could not find NavContentController type");
                 return;
             }
 
@@ -198,11 +198,11 @@ namespace AccessibleArena.Patches
             // FinishOpen/FinishClose fire after animations complete; BeginOpen/BeginClose fire earlier
             // for callers that need pre-animation notification; IsOpen setter is a backup.
             var finishOpen = controllerType.GetMethod("FinishOpen", AllInstanceFlags);
-            if (finishOpen == null) MelonLogger.Warning("[PanelStatePatch] Could not find NavContentController.FinishOpen()");
+            if (finishOpen == null) Log.Warn("PanelStatePatch", "Could not find NavContentController.FinishOpen()");
             TryPatchPostfix(harmony, finishOpen, nameof(ShowPostfix), "NavContentController.FinishOpen()");
 
             var finishClose = controllerType.GetMethod("FinishClose", AllInstanceFlags);
-            if (finishClose == null) MelonLogger.Warning("[PanelStatePatch] Could not find NavContentController.FinishClose()");
+            if (finishClose == null) Log.Warn("PanelStatePatch", "Could not find NavContentController.FinishClose()");
             TryPatchPostfix(harmony, finishClose, nameof(HidePostfix), "NavContentController.FinishClose()");
 
             TryPatchPostfix(harmony, controllerType.GetMethod("BeginOpen", AllInstanceFlags),
@@ -276,7 +276,7 @@ namespace AccessibleArena.Patches
 
             if (settingsType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find SettingsMenu type");
+                Log.Warn("PanelStatePatch", "Could not find SettingsMenu type");
                 return;
             }
 
@@ -310,7 +310,7 @@ namespace AccessibleArena.Patches
             var deckBladeType = FindType(T.DeckSelectBlade);
             if (deckBladeType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find DeckSelectBlade type");
+                Log.Warn("PanelStatePatch", "Could not find DeckSelectBlade type");
                 return;
             }
 
@@ -326,7 +326,7 @@ namespace AccessibleArena.Patches
             }
 
             var hide = deckBladeType.GetMethod("Hide", AllInstanceFlags);
-            if (hide == null) MelonLogger.Warning("[PanelStatePatch] Could not find Hide method on DeckSelectBlade");
+            if (hide == null) Log.Warn("PanelStatePatch", "Could not find Hide method on DeckSelectBlade");
             TryPatchPostfix(harmony, hide, nameof(DeckSelectHidePostfix), "DeckSelectBlade.Hide()");
 
             TryPatchPostfix(harmony, deckBladeType.GetProperty("IsShowing", AllInstanceFlags)?.GetSetMethod(true),
@@ -338,7 +338,7 @@ namespace AccessibleArena.Patches
             var playBladeType = FindType(T.PlayBladeController);
             if (playBladeType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find PlayBladeController type");
+                Log.Warn("PanelStatePatch", "Could not find PlayBladeController type");
                 return;
             }
 
@@ -349,7 +349,7 @@ namespace AccessibleArena.Patches
             // is handled via DeckView.OnDeckClick().
             var visualStateSetter = playBladeType.GetProperty("PlayBladeVisualState", AllInstanceFlags)?.GetSetMethod(true);
             if (visualStateSetter == null)
-                MelonLogger.Warning("[PanelStatePatch] Could not find PlayBladeController.PlayBladeVisualState setter");
+                Log.Warn("PanelStatePatch", "Could not find PlayBladeController.PlayBladeVisualState setter");
             TryPatchPostfix(harmony, visualStateSetter, nameof(PlayBladeVisualStatePostfix),
                 "PlayBladeController.PlayBladeVisualState setter");
         }
@@ -359,7 +359,7 @@ namespace AccessibleArena.Patches
             var homePageType = FindType(T.HomePageContentController);
             if (homePageType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController type");
+                Log.Warn("PanelStatePatch", "Could not find HomePageContentController type");
                 return;
             }
 
@@ -367,13 +367,13 @@ namespace AccessibleArena.Patches
 
             var eventSetter = homePageType.GetProperty("IsEventBladeActive", AllInstanceFlags)?.GetSetMethod(true);
             if (eventSetter == null)
-                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.IsEventBladeActive setter");
+                Log.Warn("PanelStatePatch", "Could not find HomePageContentController.IsEventBladeActive setter");
             TryPatchPostfix(harmony, eventSetter, nameof(IsEventBladeActivePostfix),
                 "HomePageContentController.IsEventBladeActive setter");
 
             var directSetter = homePageType.GetProperty("IsDirectChallengeBladeActive", AllInstanceFlags)?.GetSetMethod(true);
             if (directSetter == null)
-                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.IsDirectChallengeBladeActive setter");
+                Log.Warn("PanelStatePatch", "Could not find HomePageContentController.IsDirectChallengeBladeActive setter");
             TryPatchPostfix(harmony, directSetter, nameof(IsDirectChallengeBladeActivePostfix),
                 "HomePageContentController.IsDirectChallengeBladeActive setter");
         }
@@ -383,14 +383,14 @@ namespace AccessibleArena.Patches
             var homePageType = FindType(T.HomePageContentController);
             if (homePageType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController for JoinMatchMaking patch");
+                Log.Warn("PanelStatePatch", "Could not find HomePageContentController for JoinMatchMaking patch");
                 return;
             }
 
             var joinMethod = homePageType.GetMethod("JoinMatchMaking", PrivateInstance);
             if (joinMethod == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find HomePageContentController.JoinMatchMaking method");
+                Log.Warn("PanelStatePatch", "Could not find HomePageContentController.JoinMatchMaking method");
                 return;
             }
             TryPatchPrefix(harmony, joinMethod, nameof(JoinMatchMakingPrefix),
@@ -406,7 +406,7 @@ namespace AccessibleArena.Patches
         {
             if (PlayBladeNavigationHelper.IsBotMatchMode)
             {
-                MelonLogger.Msg($"[PanelStatePatch] Bot Match mode active, replacing '{internalEventName}' with 'AIBotMatch'");
+                Log.Msg("PanelStatePatch", $"Bot Match mode active, replacing '{internalEventName}' with 'AIBotMatch'");
                 internalEventName = "AIBotMatch";
                 PlayBladeNavigationHelper.SetBotMatchMode(false);
             }
@@ -431,7 +431,7 @@ namespace AccessibleArena.Patches
             }
             else
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find BladeContentView type");
+                Log.Warn("PanelStatePatch", "Could not find BladeContentView type");
             }
 
             // Also try to patch EventBladeContentView directly (has Show/Hide)
@@ -446,7 +446,7 @@ namespace AccessibleArena.Patches
             }
             else
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find EventBladeContentView type");
+                Log.Warn("PanelStatePatch", "Could not find EventBladeContentView type");
             }
         }
 
@@ -455,7 +455,7 @@ namespace AccessibleArena.Patches
             var socialUIType = FindType(T.SocialUI);
             if (socialUIType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find SocialUI type");
+                Log.Warn("PanelStatePatch", "Could not find SocialUI type");
                 return;
             }
 
@@ -485,18 +485,18 @@ namespace AccessibleArena.Patches
             var navBarType = FindType(T.NavBarController);
             if (navBarType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find NavBarController type for mailbox patching");
+                Log.Warn("PanelStatePatch", "Could not find NavBarController type for mailbox patching");
                 return;
             }
 
             Log.Patch("PanelStatePatch", $"Found NavBarController for mailbox: {navBarType.FullName}");
 
             var openMethod = navBarType.GetMethod("MailboxButton_OnClick", AllInstanceFlags);
-            if (openMethod == null) MelonLogger.Warning("[PanelStatePatch] NavBarController.MailboxButton_OnClick not found");
+            if (openMethod == null) Log.Warn("PanelStatePatch", "NavBarController.MailboxButton_OnClick not found");
             TryPatchPostfix(harmony, openMethod, nameof(MailboxOpenPostfix), "NavBarController.MailboxButton_OnClick()");
 
             var closeMethod = navBarType.GetMethod("HideInboxIfActive", AllInstanceFlags);
-            if (closeMethod == null) MelonLogger.Warning("[PanelStatePatch] NavBarController.HideInboxIfActive not found");
+            if (closeMethod == null) Log.Warn("PanelStatePatch", "NavBarController.HideInboxIfActive not found");
             TryPatchPostfix(harmony, closeMethod, nameof(MailboxClosePostfix), "NavBarController.HideInboxIfActive()");
 
             // Patch ContentControllerPlayerInbox.OnLetterSelected - called when a mail is opened
@@ -508,7 +508,7 @@ namespace AccessibleArena.Patches
             var inboxType = FindType(T.ContentControllerPlayerInboxFQ);
             if (inboxType == null)
             {
-                MelonLogger.Warning("[PanelStatePatch] Could not find ContentControllerPlayerInbox type");
+                Log.Warn("PanelStatePatch", "Could not find ContentControllerPlayerInbox type");
                 return;
             }
 
@@ -516,7 +516,7 @@ namespace AccessibleArena.Patches
 
             var onLetterSelectedMethod = inboxType.GetMethod("OnLetterSelected", AllInstanceFlags);
             if (onLetterSelectedMethod == null)
-                MelonLogger.Warning("[PanelStatePatch] ContentControllerPlayerInbox.OnLetterSelected not found");
+                Log.Warn("PanelStatePatch", "ContentControllerPlayerInbox.OnLetterSelected not found");
             TryPatchPostfix(harmony, onLetterSelectedMethod, nameof(MailLetterSelectedPostfix),
                 "ContentControllerPlayerInbox.OnLetterSelected()");
         }
@@ -586,12 +586,12 @@ namespace AccessibleArena.Patches
                         }
                         else
                         {
-                            MelonLogger.Warning("[PanelStatePatch] viewModel is null");
+                            Log.Warn("PanelStatePatch", "viewModel is null");
                         }
                     }
                     else
                     {
-                        MelonLogger.Warning($"[PanelStatePatch] _clientBladeItemViewModel field not found on {selectedLetterType.Name}");
+                        Log.Warn("PanelStatePatch", $"_clientBladeItemViewModel field not found on {selectedLetterType.Name}");
                     }
                 }
 
@@ -599,7 +599,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Error in MailLetterSelectedPostfix: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Error in MailLetterSelectedPostfix: {ex.Message}");
             }
         }
 
@@ -645,7 +645,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Error in ShowPostfix: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Error in ShowPostfix: {ex.Message}");
             }
         }
 
@@ -666,7 +666,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Error in HidePostfix: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Error in HidePostfix: {ex.Message}");
             }
         }
 
@@ -687,7 +687,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Error in IsOpenSetterPostfix: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Error in IsOpenSetterPostfix: {ex.Message}");
             }
         }
 
@@ -720,7 +720,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Error in BeginOpenPostfix: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Error in BeginOpenPostfix: {ex.Message}");
             }
         }
 
@@ -742,7 +742,7 @@ namespace AccessibleArena.Patches
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[PanelStatePatch] Error in BeginClosePostfix: {ex.Message}");
+                Log.Warn("PanelStatePatch", $"Error in BeginClosePostfix: {ex.Message}");
             }
         }
 
@@ -762,7 +762,7 @@ namespace AccessibleArena.Patches
             // value is PlayBladeVisualStates enum (Hidden=0, Events=1, DirectChallenge=2, FriendChallenge=3)
             int stateValue;
             try { stateValue = Convert.ToInt32(value); }
-            catch (Exception ex) { MelonLogger.Warning($"[PanelStatePatch] PlayBladeVisualState convert failed: {ex.Message}"); return; }
+            catch (Exception ex) { Log.Warn("PanelStatePatch", $"PlayBladeVisualState convert failed: {ex.Message}"); return; }
 
             var stateName = value?.ToString() ?? "Unknown";
             FirePanelStateChange(__instance, stateValue != 0, $"PlayBlade:{stateName}",
