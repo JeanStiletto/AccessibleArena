@@ -81,7 +81,7 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (in progress — 5/12 done)
+- [ ] large-file-handling.md  (in progress — 6/12 done)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
@@ -119,13 +119,23 @@ Tabs 309, Items 296, SetFilter 230, Utility 174), moved into
 `src/Core/Services/StoreNavigator/` subfolder. Core keeps `: BaseNavigator`;
 feature partials are plain `public partial class`. Build: 0/0, tests: 105/105.
 
+Split 6/12: **UITextExtractor.cs** (2760 → 548 lines, -80%) via partial
+class split into 5 topical files (ContextLabels 729, Objectives 546,
+Widgets 478, Social 343, Localization 170), moved into
+`src/Core/Services/UITextExtractor/` subfolder. Class is
+`public static partial class` (static kept on all partials). Deck-specific
+methods were folded into ContextLabels (not a separate partial — only 2
+small methods) to avoid forcing the 6-partial convention onto a class that
+didn't need it. Build: 0/0, tests: 105/105. **User note: 7-file output
+count across splits 1-5 was coincidence, not convention — split count is
+chosen per file to match natural cohesion.**
+
 Subfolder convention (established 2026-04-20): when splitting a class into
 partials, group all of them in a `src/Core/Services/<ClassName>/` subfolder.
 Namespace stays `AccessibleArena.Core.Services` (not updated to match path,
 to avoid ripple changes at consumer sites).
 
 Remaining candidates (still >2000 lines):
-- [ ] UITextExtractor.cs   (2760)
 - [ ] UIActivator.cs       (2745)
 - [ ] CardModelProvider.cs (2374)
 - [ ] WebBrowserAccessibility.cs (2236)

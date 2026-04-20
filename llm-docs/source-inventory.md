@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 133 (excluding obj/ and bin/)
+Total src files: 138 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 95,048
+Total src LOC: 95,102
 Total test LOC: 1,303
-Combined LOC: 96,351
-Large files (over 2000 lines): 7 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), and StoreNavigator (2773→1062, 6 new partials)
+Combined LOC: 96,405
+Large files (over 2000 lines): 6 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), and UITextExtractor (2760→548, 5 new partials)
 
 ---
 
@@ -159,7 +159,13 @@ Large files (over 2000 lines): 7 after splits of GeneralMenuNavigator (6148→34
 - **UIActivator.cs** (2745 lines) [LARGE] — Centralized UI activation: click buttons, toggle checkboxes, focus fields, play cards.
 - **UIElementClassifier.cs** (1857 lines) — Classifies UI elements by role and navigability for screen reader labeling.
 - **UIFocusTracker.cs** (798 lines) — Polls EventSystem each frame for focus changes and announces them via screen reader.
-- **UITextExtractor.cs** (2760 lines) [LARGE] — Extracts readable text from Unity GameObjects; checks UI components in priority order.
+- **UITextExtractor/** (subfolder; `public static partial class` lives across 6 files, namespace stays `AccessibleArena.Core.Services`)
+  - **UITextExtractor.cs** (548 lines) — Core partial: class shell, FallbackLabels dictionary, rich-text regex, StripRichText, HasActualText, GetText dispatcher (priority-ordered router through all specialized extractors), GetLabelOverride, TryGetSiblingLabel, TryGetTooltipText / TryGetTooltipTextFromObject, GetParentPath, GetElementType, CleanText, FindChildRecursive, IsInsideButtonContainer, CleanObjectName.
+  - **UITextExtractor.Localization.cs** (170 lines) — Localize reflection (`Wotc.Mtga.Loc.Localize`) + game loc provider: TryGetLocalizeText, ResolveLocKey, EnsureLocReflectionCached, GetLocalizedSetName, MapSetCodeToName.
+  - **UITextExtractor.ContextLabels.cs** (729 lines) — Context-specific label extractors: TryGetCurrencyLabel, GetWildcardTooltipText, TryGetNavTokenLabel, TryGetDeckName, TryGetBoosterPackName, TryGetPlayModeTabText, TryGetEventTileLabel, TryGetPacketLabel, TryGetDeckManagerButtonText, TryGetStoreItemLabel, IsPriceText.
+  - **UITextExtractor.Objectives.cs** (546 lines) — Objective / quest / NPE extractors: TryGetObjectiveText, TryGetWildcardProgressText, TryGetNPEObjectiveText, GetNPEObjectiveStatus (animator state/bool fallback), TryGetObjectiveBubblePopupText.
+  - **UITextExtractor.Widgets.cs** (478 lines) — Generic UI widget text extractors: GetButtonText, GetInputFieldLabel, TryGetInputFieldLabel, both GetInputFieldText overloads (TMP + Unity, password-masked), GetToggleText, both GetDropdownText overloads, FormatDropdownText, GetScrollbarText, GetSliderText, GetPopupBodyText.
+  - **UITextExtractor.Social.cs** (343 lines) — Friends panel + mailbox: TryGetFriendsWidgetLabel, TryGetMailboxItemTitle, GetMailContentParts, GetMailContentText + nested `public struct MailContentParts`.
 - **UpdateChecker.cs** (354 lines) — Checks GitHub for mod updates on startup; F5 triggers download and relaunch.
 - **WebBrowserAccessibility.cs** (2236 lines) [LARGE] — Full keyboard navigation for embedded Chromium (ZFBrowser) popups via JavaScript.
 - **ZoneNavigator.cs** (1214 lines) — Navigates duel zones (Hand, Graveyard, Exile, Stack, Command Zone) with zone-owner priority.
