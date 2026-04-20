@@ -367,6 +367,58 @@ Medium items (M1–M5) — reflection consolidation and topical extraction:
 Branch state: `claude-mod-cleanup-round2` now at 40+ commits ahead of main;
 working tree clean. Ready to merge or proceed to `finalization.md`.
 
+## Round 3 — AI-Bloat Audit (ongoing, 2026-04-21)
+
+New ad-hoc prompt `prompts/ai-bloat-audit.md` added to the upstream repo —
+targets AI-authored bloat patterns: dead public method + helper cascades,
+stale reflection init, near-duplicate methods, tiny single-method partials,
+wrapper indirection, defensive checks for impossible conditions.
+
+Done before this session (ad-hoc commits):
+- **5dc1398** MenuDebugHelper — dropped unused `DumpGameObjectDetails` pair.
+- **2de03e0** EventAccessor — dropped dead Color Challenge methods,
+  deduped `Find*Controller` into `FindCachedController` helper.
+- **12f1ca4** Folded single-method partials back into parents
+  (BaseNavigator.Chat, BrowserNavigator.Reflection).
+
+Audit run 2026-04-21 — subagents swept Accessors, CardModelProvider /
+CardStateProvider / CardTextProvider / ExtendedCardInfoProvider,
+GroupedNavigator, all 8 partial-class subfolders (BaseNavigator,
+BrowserNavigator, DuelAnnouncer, GeneralMenuNavigator, StoreNavigator,
+UITextExtractor, MasteryNavigator, PlayerPortraitNavigator), plus
+WebBrowserAccessibility, UIActivator, CardTileActivator, AdvancedFilters,
+Draft, PreBattle, ExtendedInfo, Overlay, Sideboard, DeckInfoProvider,
+DeckCardProvider, SettingsMenuNavigator, UIElementClassifier.
+
+Raw subagent findings validated via grep; dropped:
+- UIElementClassifier `HasMainButtonComponent` / `IsCustomButtonInteractable`
+  / `IsCarouselElement` — all have real internal callers
+  (UIElementClassifier.cs:424, 640, 842, 844).
+- DeckCardProvider `GetDeckListCardInfo` / `GetSideboardCardInfo` — called
+  by their own Is* wrappers + other methods.
+
+Items landed this session:
+- **c0638e8** RecentPlayAccessor — dropped dead `GetIsInProgress` (38 lines).
+- **07d1117** GroupedNavigator — dropped 7 dead public methods +
+  `_pendingFirstFolderEntry` field + reader branch (lines 1062-1079) +
+  `AutoEnterIfSingleItem` (only caller was dead `FilterToOverlay`).
+  146 lines total.
+
+Items deferred (open design questions):
+- BrowserDetector `EnableDebugForBrowser` / `DisableDebugForBrowser` /
+  `DisableAllDebug` — zero static callers but documented in CLAUDE.md as
+  a developer instrumentation API meant for manual invocation from console
+  or debugger. User decides whether to keep as documented API or drop as
+  YAGNI. 15 lines if removed.
+
+Files audited and flagged as clean (no material bloat):
+CardPoolAccessor, CardModelProvider, CardStateProvider, CardTextProvider,
+ExtendedCardInfoProvider, all 8 partial-class subfolders,
+WebBrowserAccessibility, AdvancedFiltersNavigator, UIActivator,
+CardTileActivator, DraftNavigator, PreBattleNavigator,
+ExtendedInfoNavigator, OverlayNavigator, SideboardNavigator,
+DeckInfoProvider, SettingsMenuNavigator.
+
 ## Scratchpad Files
 - `current_status.md` — this file
 - `code-index/` — one markdown-per-source-file index built 2026-04-19.
