@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 127 (excluding obj/ and bin/)
+Total src files: 133 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 94,939
+Total src LOC: 95,048
 Total test LOC: 1,303
-Combined LOC: 96,242
-Large files (over 2000 lines): 8 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), and DuelAnnouncer (3245→788, 6 new partials)
+Combined LOC: 96,351
+Large files (over 2000 lines): 7 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), and StoreNavigator (2773→1062, 6 new partials)
 
 ---
 
@@ -148,7 +148,14 @@ Large files (over 2000 lines): 8 after splits of GeneralMenuNavigator (6148→34
 - **SideboardNavigator.cs** (1039 lines) — Navigator for the Bo3 sideboard screen (C=pool, D=deck, zone-based swap).
 - **SpinnerNavigator.cs** (580 lines) — Detects and navigates SpinnerAnimated counter-distribution widgets in duels.
 - **SteamOverlayBlocker.cs** (157 lines) — Detects Steam overlay and warns user to disable it to prevent Shift+Tab conflicts.
-- **StoreNavigator.cs** (2773 lines) [LARGE] — Two-level Store navigator (tabs then items) with purchase option support.
+- **StoreNavigator/** (subfolder; class lives across 7 partial files, namespace stays `AccessibleArena.Core.Services`)
+  - **StoreNavigator.cs** (1062 lines) — Core partial: class shell, nested types (NavigationLevel / DetailCardEntry / TabInfo / ItemInfo / PurchaseOption), all fields, reflection cache, DetectScreen / FindStoreController, panel/popup/web-browser/BattlePass detection, DiscoverElements + PopulateLevelElements, lifecycle (OnActivated / OnDeactivating / OnSceneChanged), announcements, Update loop, input dispatch (HandleEarlyInput / HandleCustomInput / OnElementActivated), Move/MoveFirst/MoveLast, HandleBackFromStore. Keeps `: BaseNavigator`.
+  - **StoreNavigator.Tabs.cs** (309 lines) — Tab discovery, active-tab lookup, tab activation + load polling, loading-complete handling, tab announcement, ReturnToTabs, IsPacksTab.
+  - **StoreNavigator.Items.cs** (296 lines) — Store-item discovery, item info / label / description extraction, purchase option extraction, purchase-option cycling and activation, item + option formatting.
+  - **StoreNavigator.SetFilter.cs** (230 lines) — Set filter discovery, name lookup, filter-level input handling, cycle/select, enter-items-from-filter, return-to-filter, announcement.
+  - **StoreNavigator.Utility.cs** (174 lines) — Utility elements (payment, redeem code, drop rates, pack progress): discovery, AddPackProgressElement, AddUtilityElement, ActivateUtilityElement (Steam / pack-progress special cases).
+  - **StoreNavigator.ConfirmationModal.cs** (312 lines) — Purchase confirmation modal: open check, GameObject lookup, element discovery (with synthetic Cancel), announcement, input handling, MoveModalElement, Dismiss via native Close().
+  - **StoreNavigator.Details.cs** (499 lines) — Item details view: has-details + tooltip checks, OpenDetailsView, tooltip description extraction, card-entry extraction from precon decks and bundle card views, input handling (delegates to ExtendedInfoNavigator), card + block navigation, CloseDetailsView.
 - **UIActivator.cs** (2745 lines) [LARGE] — Centralized UI activation: click buttons, toggle checkboxes, focus fields, play cards.
 - **UIElementClassifier.cs** (1857 lines) — Classifies UI elements by role and navigability for screen reader labeling.
 - **UIFocusTracker.cs** (798 lines) — Polls EventSystem each frame for focus changes and announces them via screen reader.

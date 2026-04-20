@@ -1,0 +1,152 @@
+# StoreNavigator.cs
+Path: src/Core/Services/StoreNavigator/StoreNavigator.cs
+Lines: 1062
+
+## Top-level comments
+- File-level XML summary: "Standalone navigator for the MTGA Store screen. Two-level navigation: tabs (Up/Down) and items (Up/Down with Left/Right for purchase options). Accesses ContentController_StoreCarousel via reflection for tab state, loading detection, and item data."
+- Core partial. Feature partials (Tabs, Items, SetFilter, Utility, ConfirmationModal, Details) extend this class.
+
+## public partial class StoreNavigator : BaseNavigator (line 20)
+
+### Nested Types
+- private enum NavigationLevel (line 49)
+- private struct DetailCardEntry (line 92)
+- private struct TabInfo (line 211)
+- private struct ItemInfo (line 220)
+- private struct PurchaseOption (line 230)
+
+### Fields
+- private const int StorePriority (line 24)
+- private const float TabLoadCheckInterval (line 25)
+- private const int PacksTabFieldIndex (line 26) — _packsTab is at index 2 in TabFieldNames
+- private static readonly string[] PackProgressTextNames (line 29, static)
+- private NavigationLevel _navLevel (line 56)
+- private int _currentPurchaseOptionIndex (line 57)
+- private bool _waitingForTabLoad (line 58)
+- private float _loadCheckTimer (line 59)
+- private List<object> _setFilterModels (line 62)
+- private int _currentSetFilterIndex (line 63)
+- private MonoBehaviour _setFilterTogglesComponent (line 64)
+- private bool _waitingForSetChange (line 65) — true when waiting for set change reload
+- private bool _wasConfirmationModalOpen (line 68) — tracks modal transitions
+- private bool _isConfirmationModalActive (line 69)
+- private MonoBehaviour _confirmationModalMb (line 70) — reference for calling Close()
+- private List<(GameObject obj, string label)> _modalElements (line 72)
+- private int _modalElementIndex (line 73)
+- private readonly WebBrowserAccessibility _webBrowser (line 76)
+- private bool _isWebBrowserActive (line 77)
+- private GameObject _pendingBattlePassPopup (line 80)
+- private float _battlePassPopupTimer (line 81)
+- private const float BattlePassPopupMaxWait (line 82)
+- private bool _isDetailsViewActive (line 85)
+- private string _detailsDescription (line 86) — tooltip description, re-read with D
+- private List<DetailCardEntry> _detailsCards (line 87)
+- private int _detailsCardIndex (line 88)
+- private List<CardInfoBlock> _detailsCardBlocks (line 89)
+- private int _detailsBlockIndex (line 90)
+- private MonoBehaviour _controller (line 105)
+- private GameObject _controllerGameObject (line 106)
+- private static readonly string[] TabFieldNames (line 109, static)
+- private static readonly string[] TabDisplayNames (line 115, static)
+- private Type _controllerType (line 122)
+- private FieldInfo _itemDisplayQueueField (line 123)
+- private FieldInfo _readyToShowField (line 124)
+- private FieldInfo _currentTabField (line 125)
+- private FieldInfo _confirmationModalField (line 126)
+- private PropertyInfo _isOpenProp (line 127)
+- private PropertyInfo _isReadyToShowProp (line 128)
+- private FieldInfo[] _tabFields (line 129)
+- private FieldInfo _storeTabTypeLookupField (line 130)
+- private FieldInfo _paymentInfoButtonField (line 133)
+- private FieldInfo _redeemCodeInputField (line 134)
+- private FieldInfo _dropRatesLinkField (line 135)
+- private Type _storeItemBaseType (line 138)
+- private FieldInfo _storeItemField (line 139)
+- private FieldInfo _blueButtonField (line 140)
+- private FieldInfo _orangeButtonField (line 141)
+- private FieldInfo _clearButtonField (line 142)
+- private FieldInfo _greenButtonField (line 143)
+- private FieldInfo _descriptionField (line 144)
+- private FieldInfo _tooltipTriggerField (line 145)
+- private Type _purchaseButtonType (line 148)
+- private FieldInfo _pbButtonField (line 149)
+- private FieldInfo _pbContainerField (line 150)
+- private Type _tabType (line 153)
+- private FieldInfo _tabTextField (line 154)
+- private MethodInfo _tabOnClickedMethod (line 155)
+- private Type _storeItemType (line 158)
+- private PropertyInfo _storeItemIdProp (line 159)
+- private MethodInfo _onButtonPaymentSetupMethod (line 162)
+- private FieldInfo _setFiltersComponentField (line 165)
+- private Type _setFilterTogglesType (line 166)
+- private FieldInfo _setFilterListField (line 167)
+- private PropertyInfo _selectedIndexProp (line 168)
+- private MethodInfo _onValueSelectedMethod (line 169)
+- private Type _setFilterModelType (line 170)
+- private FieldInfo _setSymbolField (line 171)
+- private Type _storeItemDisplayType (line 174)
+- private Type _storeDisplayPreconDeckType (line 175)
+- private Type _storeDisplayCardViewBundleType (line 176)
+- private FieldInfo _itemDisplayField (line 177)
+- private PropertyInfo _preconCardDataProp (line 178)
+- private PropertyInfo _bundleCardViewsProp (line 179)
+- private Type _cardDataForTileType (line 180)
+- private PropertyInfo _cardDataForTileCardProp (line 181)
+- private PropertyInfo _cardDataForTileQuantityProp (line 182)
+- private Type _cardDataType (line 183)
+- private PropertyInfo _cardDataGrpIdProp (line 184)
+- private PropertyInfo _cardDataTitleIdProp (line 185)
+- private PropertyInfo _cardDataManaTextProp (line 186)
+- private Type _localizedStringType (line 188)
+- private FieldInfo _locStringField (line 189)
+- private FieldInfo _locStringMTermField (line 190)
+- private MethodInfo _locStringToStringMethod (line 191)
+- private Type _confirmationModalType (line 194)
+- private static readonly string[] ModalPurchaseButtonFields (line 195, static)
+- private FieldInfo[] _modalButtonFields (line 199)
+- private Type _modalPurchaseButtonType (line 200)
+- private FieldInfo _modalPbButtonField (line 201)
+- private FieldInfo _modalPbLabelField (line 202)
+- private MethodInfo _modalCloseMethod (line 203)
+- private bool _reflectionInitialized (line 205)
+- private readonly List<TabInfo> _tabs (line 237)
+- private readonly List<ItemInfo> _items (line 238)
+
+### Properties
+- public override string NavigatorId => "Store" (line 39)
+- public override string ScreenName => Strings.ScreenStore (line 40)
+- public override int Priority => StorePriority (line 41)
+- protected override bool SupportsCardNavigation => false (line 42)
+- protected override bool AcceptSpaceKey => true (line 43)
+
+### Methods
+- public StoreNavigator(IAnnouncementService announcer) : base(announcer) (line 244)
+- protected override bool DetectScreen() (line 252)
+- private MonoBehaviour FindStoreController() (line 269) — uses cached reference when still active
+- private bool IsControllerOpenAndReady(MonoBehaviour controller) (line 292)
+- private void OnPanelChanged(PanelInfo oldPanel, PanelInfo newPanel) (line 324) — detects web browser panels on top of store
+- protected override bool IsPopupExcluded(PanelInfo panel) (line 346) — excludes web browser + ConfirmationModal from base popup mode
+- protected override void OnPopupClosed() (line 354)
+- protected override void OnPopupDetected(PanelInfo panel) (line 369) — delays popup mode for BattlePassPurchaseConfirmation content
+- private static bool HasBattlePassConfirmation(GameObject go) (line 382, static)
+- private static bool IsBattlePassContentReady(GameObject popup) (line 397, static) — walks SettingsPopup > Group - Vertical > Middle > CenterMenu
+- private static bool IsWebBrowserPanel(PanelInfo panel) (line 417, static)
+- private void EnsureReflectionCached(Type controllerType) (line 428) — one-time caching of all controller/item/modal/setfilter/display reflection members
+- protected override void DiscoverElements() (line 602) — branches to SetFilter / Items / Tabs level discovery based on active tab
+- private void PopulateLevelElements() (line 648) — clears _elements and populates for current NavigationLevel
+- private bool IsPacksTab(TabInfo tab) (line 697)
+- protected override void OnActivated() (line 703) — subscribes to PanelStateManager.OnPanelChanged
+- protected override void OnDeactivating() (line 723)
+- public override void OnSceneChanged(string sceneName) (line 751) — clears cached controller + reflection flag
+- public override string GetTutorialHint() (line 765)
+- protected override string GetActivationAnnouncement() (line 770)
+- protected override string GetElementAnnouncement(int index) (line 793)
+- public override void Update() (line 810) — handles modal transitions, BattlePass popup delay, web browser, loading state
+- protected override bool ValidateElements() (line 919)
+- protected override bool HandleEarlyInput() (line 932) — routes to web browser / confirmation modal / details view / set filter handlers
+- protected override bool HandleCustomInput() (line 967) — Left/Right purchase option cycling + Backspace back navigation
+- protected override bool OnElementActivated(int index, GameObject element) (line 1009)
+- protected override void Move(int direction) (line 1028) — resets purchase option index at Items level
+- protected override void MoveFirst() (line 1035)
+- protected override void MoveLast() (line 1042)
+- private void HandleBackFromStore() (line 1053) — navigates home and deactivates
