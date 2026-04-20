@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
 {
@@ -53,7 +54,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (IsBotMatchMode != value)
             {
                 IsBotMatchMode = value;
-                MelonLogger.Msg($"[PlayBladeHelper] Bot Match mode: {value}");
+                Log.Msg("PlayBladeHelper", $"Bot Match mode: {value}");
             }
         }
 
@@ -71,7 +72,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (elementGroup == ElementGroup.PlayBladeTabs)
             {
                 _groupedNavigator.RequestPlayBladeContentEntry();
-                MelonLogger.Msg($"[PlayBladeHelper] Tab activated -> requesting content entry");
+                Log.Msg("PlayBladeHelper", $"Tab activated -> requesting content entry");
                 // No rescan needed here - blade Hide/Show will trigger it
                 return PlayBladeResult.Handled;
             }
@@ -81,7 +82,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (elementGroup == ElementGroup.PlayBladeContent)
             {
                 _groupedNavigator.RequestFoldersEntry();
-                MelonLogger.Msg($"[PlayBladeHelper] Mode activated -> requesting folders list entry");
+                Log.Msg("PlayBladeHelper", $"Mode activated -> requesting folders list entry");
                 // Rescan needed since mode selection doesn't cause panel changes
                 return PlayBladeResult.RescanNeeded;
             }
@@ -109,7 +110,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 // Real tab (FindMatch is active) → direct click
                 UIActivator.Activate(element.GameObject);
                 _groupedNavigator.RequestPlayBladeContentEntry();
-                MelonLogger.Msg($"[PlayBladeHelper] Queue type '{queueType}' activated directly");
+                Log.Msg("PlayBladeHelper", $"Queue type '{queueType}' activated directly");
                 return PlayBladeResult.RescanNeeded;
             }
             else
@@ -120,11 +121,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (findMatchTab != null)
                 {
                     UIActivator.Activate(findMatchTab);
-                    MelonLogger.Msg($"[PlayBladeHelper] Queue type '{queueType}' pending, clicking FindMatch tab");
+                    Log.Msg("PlayBladeHelper", $"Queue type '{queueType}' pending, clicking FindMatch tab");
                 }
                 else
                 {
-                    MelonLogger.Warning($"[PlayBladeHelper] Queue type '{queueType}' pending but FindMatch tab not found!");
+                    Log.Warn("PlayBladeHelper", $"Queue type '{queueType}' pending but FindMatch tab not found!");
                 }
                 return PlayBladeResult.Handled; // blade switch triggers automatic rescan
             }
@@ -176,20 +177,20 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 {
                     // Was inside Folders list -> go back to content (play modes)
                     _groupedNavigator.RequestPlayBladeContentEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited folders list, going to content");
+                    Log.Msg("PlayBladeHelper", $"Backspace: exited folders list, going to content");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeContent)
                 {
                     // Was in content (play modes) -> go back to tabs
                     _groupedNavigator.RequestPlayBladeTabsEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited content, going to tabs");
+                    Log.Msg("PlayBladeHelper", $"Backspace: exited content, going to tabs");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeTabs)
                 {
                     // Was in tabs -> close the blade
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: exited tabs, closing blade");
+                    Log.Msg("PlayBladeHelper", $"Backspace: exited tabs, closing blade");
                     return PlayBladeResult.CloseBlade;
                 }
             }
@@ -200,27 +201,27 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 {
                     // At folder group level -> go to folders list
                     _groupedNavigator.RequestFoldersEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at folder group level, going to folders list");
+                    Log.Msg("PlayBladeHelper", $"Backspace: at folder group level, going to folders list");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeFolders)
                 {
                     // At folders list level -> go to content (play modes)
                     _groupedNavigator.RequestPlayBladeContentEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at folders list level, going to content");
+                    Log.Msg("PlayBladeHelper", $"Backspace: at folders list level, going to content");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeContent)
                 {
                     // At content group level -> go to tabs
                     _groupedNavigator.RequestPlayBladeTabsEntry();
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at content group level, going to tabs");
+                    Log.Msg("PlayBladeHelper", $"Backspace: at content group level, going to tabs");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeTabs)
                 {
                     // At tabs group level -> close the blade
-                    MelonLogger.Msg($"[PlayBladeHelper] Backspace: at tabs group level, closing blade");
+                    Log.Msg("PlayBladeHelper", $"Backspace: at tabs group level, closing blade");
                     return PlayBladeResult.CloseBlade;
                 }
             }
@@ -235,7 +236,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             _groupedNavigator.SetPlayBladeContext(true);
             _groupedNavigator.RequestPlayBladeTabsEntry();
-            MelonLogger.Msg($"[PlayBladeHelper] Blade opened, set context and requesting tabs entry");
+            Log.Msg("PlayBladeHelper", $"Blade opened, set context and requesting tabs entry");
         }
 
         /// <summary>
@@ -245,7 +246,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             _groupedNavigator.SetPlayBladeContext(false);
             SetBotMatchMode(false);
-            MelonLogger.Msg($"[PlayBladeHelper] Blade closed, cleared context");
+            Log.Msg("PlayBladeHelper", $"Blade closed, cleared context");
         }
     }
 }

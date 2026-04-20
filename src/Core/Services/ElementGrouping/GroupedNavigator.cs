@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
 {
@@ -349,13 +350,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Don't override content entry - it means a tab was just clicked
             if (_pendingPlayBladeContentEntry)
             {
-                MelonLogger.Msg("[GroupedNavigator] Skipping PlayBladeTabs entry - content entry already pending");
+                Log.Msg("GroupedNavigator", "Skipping PlayBladeTabs entry - content entry already pending");
                 return;
             }
             _pendingPlayBladeTabsEntry = true;
             // Restore position to last queue type tab if available
             _pendingPlayBladeTabsEntryIndex = _lastQueueTypeTabIndex >= 0 ? _lastQueueTypeTabIndex : -1;
-            MelonLogger.Msg($"[GroupedNavigator] Requested PlayBladeTabs auto-entry (index: {_pendingPlayBladeTabsEntryIndex})");
+            Log.Msg("GroupedNavigator", $"Requested PlayBladeTabs auto-entry (index: {_pendingPlayBladeTabsEntryIndex})");
         }
 
         /// <summary>
@@ -367,7 +368,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeContentEntry = true;
             _pendingPlayBladeContentEntryIndex = -1; // Start at 0
             _pendingPlayBladeTabsEntry = false; // Clear tabs flag
-            MelonLogger.Msg("[GroupedNavigator] Requested PlayBladeContent auto-entry");
+            Log.Msg("GroupedNavigator", "Requested PlayBladeContent auto-entry");
         }
 
         /// <summary>
@@ -379,7 +380,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeContentEntry = true;
             _pendingPlayBladeContentEntryIndex = elementIndex;
             _pendingPlayBladeTabsEntry = false;
-            MelonLogger.Msg($"[GroupedNavigator] Requested PlayBladeContent auto-entry at index {elementIndex}");
+            Log.Msg("GroupedNavigator", $"Requested PlayBladeContent auto-entry at index {elementIndex}");
         }
 
         /// <summary>
@@ -392,7 +393,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingFoldersEntryRestoreFolder = restoreToFolder;
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
-            MelonLogger.Msg($"[GroupedNavigator] Requested PlayBladeFolders auto-entry{(restoreToFolder != null ? $" (restore to: {restoreToFolder})" : "")}");
+            Log.Msg("GroupedNavigator", $"Requested PlayBladeFolders auto-entry{(restoreToFolder != null ? $" (restore to: {restoreToFolder})" : "")}");
         }
 
         /// <summary>
@@ -405,7 +406,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingFoldersEntry = false;
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
-            MelonLogger.Msg($"[GroupedNavigator] Requested specific folder auto-entry: {folderName}");
+            Log.Msg("GroupedNavigator", $"Requested specific folder auto-entry: {folderName}");
         }
 
         /// <summary>
@@ -415,7 +416,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void SetPendingQueueTypeActivation(string queueType)
         {
             _pendingQueueTypeActivation = queueType;
-            MelonLogger.Msg($"[GroupedNavigator] Set pending queue type activation: {queueType}");
+            Log.Msg("GroupedNavigator", $"Set pending queue type activation: {queueType}");
         }
 
         /// <summary>
@@ -434,7 +435,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public void StoreLastQueueTypeTabIndex()
         {
             _lastQueueTypeTabIndex = _currentElementIndex;
-            MelonLogger.Msg($"[GroupedNavigator] Stored last queue type tab index: {_lastQueueTypeTabIndex}");
+            Log.Msg("GroupedNavigator", $"Stored last queue type tab index: {_lastQueueTypeTabIndex}");
         }
 
         /// <summary>
@@ -452,11 +453,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 // Clear group restore so stale state doesn't overwrite auto-entries on reopen.
                 ClearPendingGroupRestore();
-                MelonLogger.Msg($"[GroupedNavigator] PlayBlade context set to: {isActive} - cleared group restore");
+                Log.Msg("GroupedNavigator", $"PlayBlade context set to: {isActive} - cleared group restore");
             }
             else
             {
-                MelonLogger.Msg($"[GroupedNavigator] PlayBlade context set to: {isActive}");
+                Log.Msg("GroupedNavigator", $"PlayBlade context set to: {isActive}");
             }
         }
 
@@ -483,11 +484,11 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 _pendingChallengeMainEntry = false;
                 _pendingChallengeMainEntryIndex = -1;
                 ClearPendingGroupRestore();
-                MelonLogger.Msg($"[GroupedNavigator] Challenge context set to: {isActive} - cleared pending state");
+                Log.Msg("GroupedNavigator", $"Challenge context set to: {isActive} - cleared pending state");
             }
             else
             {
-                MelonLogger.Msg($"[GroupedNavigator] Challenge context set to: {isActive}");
+                Log.Msg("GroupedNavigator", $"Challenge context set to: {isActive}");
             }
         }
 
@@ -502,7 +503,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeTabsEntry = false;
             _pendingPlayBladeContentEntry = false;
             _pendingFoldersEntry = false;
-            MelonLogger.Msg("[GroupedNavigator] Requested ChallengeMain auto-entry");
+            Log.Msg("GroupedNavigator", "Requested ChallengeMain auto-entry");
         }
 
         /// <summary>
@@ -516,7 +517,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeTabsEntry = false;
             _pendingPlayBladeContentEntry = false;
             _pendingFoldersEntry = false;
-            MelonLogger.Msg($"[GroupedNavigator] Requested ChallengeMain auto-entry at index {elementIndex}");
+            Log.Msg("GroupedNavigator", $"Requested ChallengeMain auto-entry at index {elementIndex}");
         }
 
         /// <summary>
@@ -549,7 +550,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 string subgroupInfo = _currentSubgroup.HasValue
                     ? $", subgroup: {_currentSubgroup.Value}, subgroupIndex: {_pendingSubgroupElementIndexRestore}"
                     : "";
-                MelonLogger.Msg($"[GroupedNavigator] Saved group for restore: {_pendingGroupRestore} ('{_pendingGroupRestoreDisplayName}'), level: {_pendingLevelRestore}, elementIndex: {_pendingElementIndexRestore}{subgroupInfo}");
+                Log.Msg("GroupedNavigator", $"Saved group for restore: {_pendingGroupRestore} ('{_pendingGroupRestoreDisplayName}'), level: {_pendingLevelRestore}, elementIndex: {_pendingElementIndexRestore}{subgroupInfo}");
             }
             else
             {
@@ -632,7 +633,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     {
                         folderToggles[folderName] = obj;
                         folderDecks[folderName] = new List<GroupedElement>();
-                        MelonLogger.Msg($"[GroupedNavigator] Found folder toggle: {folderName}");
+                        Log.Msg("GroupedNavigator", $"Found folder toggle: {folderName}");
                     }
                     continue; // Don't add folder toggles as navigable elements
                 }
@@ -694,7 +695,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 _subgroupElements[ElementGroup.Objectives] = new List<GroupedElement>(objectivesElements);
                 nonFolderElements.Remove(ElementGroup.Objectives);
-                MelonLogger.Msg($"[GroupedNavigator] Stored {objectivesElements.Count} objectives as subgroup");
+                Log.Msg("GroupedNavigator", $"Stored {objectivesElements.Count} objectives as subgroup");
             }
 
             // Build ordered group list
@@ -855,7 +856,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         FolderToggle = null,
                         IsStandaloneElement = false
                     });
-                    MelonLogger.Msg($"[GroupedNavigator] Created PlayBladeFolders group with {folderSelectors.Count} folders");
+                    Log.Msg("GroupedNavigator", $"Created PlayBladeFolders group with {folderSelectors.Count} folders");
                 }
 
                 // Also create individual folder groups (hidden at top level, but needed for folder entry)
@@ -875,7 +876,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         FolderToggle = toggle,
                         IsStandaloneElement = false
                     });
-                    MelonLogger.Msg($"[GroupedNavigator] Created folder group: {folderName} with {deckList.Count} decks");
+                    Log.Msg("GroupedNavigator", $"Created folder group: {folderName} with {deckList.Count} decks");
                 }
             }
             else
@@ -901,7 +902,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         IsStandaloneElement = false
                     });
 
-                    MelonLogger.Msg($"[GroupedNavigator] Created folder group: {folderName} with {deckList.Count} decks (toggle: {(toggle != null ? "found" : "none")})");
+                    Log.Msg("GroupedNavigator", $"Created folder group: {folderName} with {deckList.Count} decks (toggle: {(toggle != null ? "found" : "none")})");
                 }
             }
 
@@ -937,7 +938,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _navigationLevel = NavigationLevel.InsideGroup;
                         _currentElementIndex = 0;
                         autoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered pending folder: {_pendingFolderEntry} with {_groups[i].Count} items");
+                        Log.Msg("GroupedNavigator", $"Auto-entered pending folder: {_pendingFolderEntry} with {_groups[i].Count} items");
                         break;
                     }
                 }
@@ -961,7 +962,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         int maxIdx = _groups[i].Count - 1;
                         _currentElementIndex = (restoreIndex >= 0 && restoreIndex <= maxIdx) ? restoreIndex : 0;
                         autoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeTabs with {_groups[i].Count} items at index {_currentElementIndex}");
+                        Log.Msg("GroupedNavigator", $"Auto-entered PlayBladeTabs with {_groups[i].Count} items at index {_currentElementIndex}");
                         break;
                     }
                 }
@@ -984,7 +985,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         int maxIdx = _groups[i].Count - 1;
                         _currentElementIndex = (requestedIndex >= 0 && requestedIndex <= maxIdx) ? requestedIndex : 0;
                         autoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeContent with {_groups[i].Count} items at index {_currentElementIndex}");
+                        Log.Msg("GroupedNavigator", $"Auto-entered PlayBladeContent with {_groups[i].Count} items at index {_currentElementIndex}");
                         break;
                     }
                 }
@@ -1006,7 +1007,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         int maxIdx = _groups[i].Count - 1;
                         _currentElementIndex = (requestedIndex >= 0 && requestedIndex <= maxIdx) ? requestedIndex : 0;
                         autoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered ChallengeMain with {_groups[i].Count} items at index {_currentElementIndex}");
+                        Log.Msg("GroupedNavigator", $"Auto-entered ChallengeMain with {_groups[i].Count} items at index {_currentElementIndex}");
                         break;
                     }
                 }
@@ -1031,7 +1032,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                             _pendingPlayBladeContentEntry = true;
                             _lastQueueTypeTabIndex = j;
                             NeedsFollowUpRescan = true;
-                            MelonLogger.Msg($"[GroupedNavigator] Pending queue type '{queueType}' found at index {j}, clicked and requesting content entry");
+                            Log.Msg("GroupedNavigator", $"Pending queue type '{queueType}' found at index {j}, clicked and requesting content entry");
                             break;
                         }
                     }
@@ -1068,20 +1069,20 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                                     }
                                 }
                             }
-                            MelonLogger.Msg($"[GroupedNavigator] Auto-entered PlayBladeFolders with {_groups[i].Count} folders at index {_currentElementIndex}");
+                            Log.Msg("GroupedNavigator", $"Auto-entered PlayBladeFolders with {_groups[i].Count} folders at index {_currentElementIndex}");
                             foundFolders = true;
                             autoEntryPerformed = true;
                         }
                         else
                         {
-                            MelonLogger.Msg($"[GroupedNavigator] PlayBladeFolders group exists but is empty - cannot auto-enter");
+                            Log.Msg("GroupedNavigator", $"PlayBladeFolders group exists but is empty - cannot auto-enter");
                         }
                         break;
                     }
                 }
                 if (!foundFolders)
                 {
-                    MelonLogger.Msg($"[GroupedNavigator] PlayBladeFolders group not found - pending folders entry ignored");
+                    Log.Msg("GroupedNavigator", $"PlayBladeFolders group not found - pending folders entry ignored");
                 }
             }
 
@@ -1099,7 +1100,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _navigationLevel = NavigationLevel.InsideGroup;
                         _currentElementIndex = 0;
                         autoEntryPerformed = true;
-                        MelonLogger.Msg($"[GroupedNavigator] Auto-entered specific folder '{folderName}' with {_groups[i].Count} items");
+                        Log.Msg("GroupedNavigator", $"Auto-entered specific folder '{folderName}' with {_groups[i].Count} items");
                         break;
                     }
                 }
@@ -1114,7 +1115,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (!isPopupRestore && (_isPlayBladeContext || autoEntryPerformed))
                 {
                     // Clear stale restore state - auto-entries take precedence
-                    MelonLogger.Msg($"[GroupedNavigator] Skipping group restore (was: {_pendingGroupRestore.Value}, autoEntry={autoEntryPerformed}, playBlade={_isPlayBladeContext})");
+                    Log.Msg("GroupedNavigator", $"Skipping group restore (was: {_pendingGroupRestore.Value}, autoEntry={autoEntryPerformed}, playBlade={_isPlayBladeContext})");
                     ClearPendingGroupRestore();
                 }
                 else
@@ -1164,7 +1165,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                                 _currentElementIndex = subgroupElementIndexToRestore >= 0
                                     ? Math.Min(subgroupElementIndexToRestore, subMax)
                                     : 0;
-                                MelonLogger.Msg($"[GroupedNavigator] Restored into subgroup '{subgroupToRestore.Value}' at index {_currentElementIndex} (requested {subgroupElementIndexToRestore}, max {subMax})");
+                                Log.Msg("GroupedNavigator", $"Restored into subgroup '{subgroupToRestore.Value}' at index {_currentElementIndex} (requested {subgroupElementIndexToRestore}, max {subMax})");
                             }
                             else
                             {
@@ -1178,23 +1179,23 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                                 {
                                     _currentElementIndex = 0;
                                 }
-                                MelonLogger.Msg($"[GroupedNavigator] Restored into group '{_groups[i].DisplayName}' at index {_currentElementIndex} (requested {elementIndexToRestore}, max {maxIndex})");
+                                Log.Msg("GroupedNavigator", $"Restored into group '{_groups[i].DisplayName}' at index {_currentElementIndex} (requested {elementIndexToRestore}, max {maxIndex})");
                             }
                         }
                         else
                         {
                             _navigationLevel = NavigationLevel.GroupList;
-                            MelonLogger.Msg($"[GroupedNavigator] Restored to group list at '{_groups[i].DisplayName}'");
+                            Log.Msg("GroupedNavigator", $"Restored to group list at '{_groups[i].DisplayName}'");
                         }
                     }
                     else
                     {
-                        MelonLogger.Msg($"[GroupedNavigator] Could not restore group {groupToRestore} - not found after rescan");
+                        Log.Msg("GroupedNavigator", $"Could not restore group {groupToRestore} - not found after rescan");
                     }
                 }
             }
 
-            MelonLogger.Msg($"[GroupedNavigator] Organized into {_groups.Count} groups");
+            Log.Msg("GroupedNavigator", $"Organized into {_groups.Count} groups");
             foreach (var g in _groups)
             {
                 string folderInfo = g.IsFolderGroup ? " (folder)" : "";
@@ -1262,7 +1263,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         elem.SubgroupType = ElementGroup.PlayBladeContent;
                         elem.FolderName = queueType;
                         updatedElements[j] = elem;
-                        MelonLogger.Msg($"[GroupedNavigator] Marked real queue tab '{elem.Label}' as subgroup entry (FolderName={queueType})");
+                        Log.Msg("GroupedNavigator", $"Marked real queue tab '{elem.Label}' as subgroup entry (FolderName={queueType})");
                     }
                 }
 
@@ -1313,7 +1314,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 // Update the group
                 tabsGroup.Elements = updatedElements;
                 _groups[tabsGroupIdx] = tabsGroup;
-                MelonLogger.Msg($"[GroupedNavigator] Injected 3 virtual queue type entries at index {insertIdx}");
+                Log.Msg("GroupedNavigator", $"Injected 3 virtual queue type entries at index {insertIdx}");
             }
         }
 
@@ -1379,7 +1380,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (rt.gameObject.name.Contains("Blade_Tab_Nav") &&
                     rt.gameObject.name.Contains("FindMatch"))
                 {
-                    MelonLogger.Msg($"[GroupedNavigator] Found FindMatch tab: {rt.gameObject.name}");
+                    Log.Msg("GroupedNavigator", $"Found FindMatch tab: {rt.gameObject.name}");
                     return rt.gameObject;
                 }
             }
@@ -1416,7 +1417,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     if (_groups[i].Group == insertAfter.Value)
                     {
                         _groups.Insert(i + 1, groupInfo);
-                        MelonLogger.Msg($"[GroupedNavigator] Added virtual group '{group.GetDisplayName()}' with {elements.Count} items after {insertAfter.Value.GetDisplayName()}");
+                        Log.Msg("GroupedNavigator", $"Added virtual group '{group.GetDisplayName()}' with {elements.Count} items after {insertAfter.Value.GetDisplayName()}");
                         return;
                     }
                 }
@@ -1424,7 +1425,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Fallback: append at end
             _groups.Add(groupInfo);
-            MelonLogger.Msg($"[GroupedNavigator] Added virtual group '{group.GetDisplayName()}' with {elements.Count} items at end");
+            Log.Msg("GroupedNavigator", $"Added virtual group '{group.GetDisplayName()}' with {elements.Count} items at end");
         }
 
         /// <summary>
@@ -1558,7 +1559,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (group.IsFolderGroup)
             {
                 _pendingFolderEntry = group.DisplayName;
-                MelonLogger.Msg($"[GroupedNavigator] Set pending folder entry: {_pendingFolderEntry}");
+                Log.Msg("GroupedNavigator", $"Set pending folder entry: {_pendingFolderEntry}");
             }
 
             // Allow entering even if currently empty - folder toggle activation
@@ -1624,7 +1625,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _currentSubgroup = subgroupType;
             _currentElementIndex = 0;
 
-            MelonLogger.Msg($"[GroupedNavigator] Entered subgroup: {subgroupType.GetDisplayName()} with {subgroupElements.Count} items");
+            Log.Msg("GroupedNavigator", $"Entered subgroup: {subgroupType.GetDisplayName()} with {subgroupElements.Count} items");
             return true;
         }
 
@@ -1637,7 +1638,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (!_currentSubgroup.HasValue)
                 return false;
 
-            MelonLogger.Msg($"[GroupedNavigator] Exiting subgroup: {_currentSubgroup.Value.GetDisplayName()}");
+            Log.Msg("GroupedNavigator", $"Exiting subgroup: {_currentSubgroup.Value.GetDisplayName()}");
 
             // Restore parent group state
             _currentGroupIndex = _subgroupParentIndex;
@@ -1697,12 +1698,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 string firstLabel = firstElem.HasValue
                     ? BaseNavigator.RefreshElementLabel(firstElem.Value.GameObject, firstElem.Value.Label, firstElem.Value.Role)
                     : "";
-                MelonLogger.Msg($"[GroupedNavigator] Screen '{screenName}': 1 group '{group.DisplayName}', {Strings.ItemCount(group.Count)}");
+                Log.Msg("GroupedNavigator", $"Screen '{screenName}': 1 group '{group.DisplayName}', {Strings.ItemCount(group.Count)}");
                 return Strings.ItemPositionOf(1, group.Count, firstLabel);
             }
 
             string currentAnnouncement = GetCurrentAnnouncement();
-            MelonLogger.Msg($"[GroupedNavigator] Screen '{screenName}': {Strings.GroupCount(_groups.Count)}, current='{currentAnnouncement}'");
+            Log.Msg("GroupedNavigator", $"Screen '{screenName}': {Strings.GroupCount(_groups.Count)}, current='{currentAnnouncement}'");
             return $"{screenName}. {currentAnnouncement}";
         }
 
@@ -1789,7 +1790,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 return BaseNavigator.RefreshElementLabel(elem.GameObject, elem.Label, elem.Role);
             }
 
-            MelonLogger.Msg($"[GroupedNavigator] Group '{group.DisplayName}': {Strings.ItemCount(group.Count)}");
+            Log.Msg("GroupedNavigator", $"Group '{group.DisplayName}': {Strings.ItemCount(group.Count)}");
             if (group.Group.IsFriendSectionGroup())
                 return $"{group.DisplayName} {group.Count}";
             return group.DisplayName;
@@ -1935,7 +1936,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _navigationLevel = NavigationLevel.InsideGroup;
             _currentElementIndex = 0;
 
-            MelonLogger.Msg($"[GroupedNavigator] Cycled to {direction} group and entered: {_groups[_currentGroupIndex].DisplayName}");
+            Log.Msg("GroupedNavigator", $"Cycled to {direction} group and entered: {_groups[_currentGroupIndex].DisplayName}");
             return true;
         }
 

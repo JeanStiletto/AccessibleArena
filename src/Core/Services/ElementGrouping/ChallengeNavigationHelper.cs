@@ -6,6 +6,7 @@ using MelonLoader;
 using TMPro;
 using UnityEngine;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
 {
@@ -91,7 +92,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (element != null && IsDeckSelectionButton(element))
                 {
                     _groupedNavigator.RequestFoldersEntry();
-                    MelonLogger.Msg("[ChallengeHelper] Select Deck activated -> requesting folders entry");
+                    Log.Msg("ChallengeHelper", "Select Deck activated -> requesting folders entry");
                     return PlayBladeResult.RescanNeeded;
                 }
             }
@@ -136,13 +137,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     // Close the DeckSelectBlade properly so the challenge display reactivates
                     CloseDeckSelectBlade();
                     _groupedNavigator.RequestChallengeMainEntry();
-                    MelonLogger.Msg("[ChallengeHelper] Backspace: exited folders, going to ChallengeMain");
+                    Log.Msg("ChallengeHelper", "Backspace: exited folders, going to ChallengeMain");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.ChallengeMain)
                 {
                     // Was inside ChallengeMain -> close the challenge blade
-                    MelonLogger.Msg("[ChallengeHelper] Backspace: exited ChallengeMain, closing blade");
+                    Log.Msg("ChallengeHelper", "Backspace: exited ChallengeMain, closing blade");
                     return PlayBladeResult.CloseBlade;
                 }
             }
@@ -155,13 +156,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     // Close the DeckSelectBlade properly so the challenge display reactivates
                     CloseDeckSelectBlade();
                     _groupedNavigator.RequestChallengeMainEntry();
-                    MelonLogger.Msg("[ChallengeHelper] Backspace: at folder level, going to ChallengeMain");
+                    Log.Msg("ChallengeHelper", "Backspace: at folder level, going to ChallengeMain");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.ChallengeMain)
                 {
                     // At ChallengeMain level -> close the challenge blade
-                    MelonLogger.Msg("[ChallengeHelper] Backspace: at ChallengeMain level, closing blade");
+                    Log.Msg("ChallengeHelper", "Backspace: at ChallengeMain level, closing blade");
                     return PlayBladeResult.CloseBlade;
                 }
             }
@@ -181,7 +182,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // Initialize polling state silently
             InitializePollingState();
 
-            MelonLogger.Msg("[ChallengeHelper] Challenge opened, set context and requesting ChallengeMain entry");
+            Log.Msg("ChallengeHelper", "Challenge opened, set context and requesting ChallengeMain entry");
         }
 
         /// <summary>
@@ -194,7 +195,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _opponentElementIndex = -1;
             _mainButtonElementIndex = -1;
             _statusElementIndex = -1;
-            MelonLogger.Msg("[ChallengeHelper] Challenge closed, cleared context");
+            Log.Msg("ChallengeHelper", "Challenge closed, cleared context");
         }
 
         /// <summary>
@@ -209,7 +210,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // We must call HideDeckSelector() to reactivate it so Leave/Invite buttons appear.
             CloseDeckSelectBlade();
             _groupedNavigator.RequestChallengeMainEntry();
-            MelonLogger.Msg("[ChallengeHelper] Deck selected, closing blade and requesting ChallengeMain entry");
+            Log.Msg("ChallengeHelper", "Deck selected, closing blade and requesting ChallengeMain entry");
         }
 
         /// <summary>
@@ -342,7 +343,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error getting challenge status text: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error getting challenge status text: {ex.Message}");
                 return null;
             }
         }
@@ -415,7 +416,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error getting tournament params: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error getting tournament params: {ex.Message}");
                 return null;
             }
         }
@@ -442,7 +443,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Polling error: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Polling error: {ex.Message}");
             }
         }
 
@@ -475,7 +476,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error initializing polling state: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error initializing polling state: {ex.Message}");
                 _lastEnemyState = EnemyState.NotInvited;
                 _lastEnemyName = null;
                 _lastLocalStatus = null;
@@ -503,12 +504,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 {
                     string name = !string.IsNullOrEmpty(currentName) ? currentName : Models.Strings.ChallengeOpponent;
                     _announcer.Announce(Models.Strings.ChallengeOpponentJoined(name), Models.AnnouncementPriority.High);
-                    MelonLogger.Msg($"[ChallengeHelper] Opponent joined: {name}");
+                    Log.Msg("ChallengeHelper", $"Opponent joined: {name}");
                 }
                 else if (_lastEnemyState == EnemyState.Joined && currentState != EnemyState.Joined)
                 {
                     _announcer.Announce(Models.Strings.ChallengeOpponentLeft, Models.AnnouncementPriority.High);
-                    MelonLogger.Msg("[ChallengeHelper] Opponent left");
+                    Log.Msg("ChallengeHelper", "Opponent left");
                 }
 
                 _lastEnemyState = currentState;
@@ -526,20 +527,20 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (isCountdown && !wasCountdown)
                 {
                     _announcer.Announce(Models.Strings.ChallengeMatchStarting, Models.AnnouncementPriority.High);
-                    MelonLogger.Msg("[ChallengeHelper] Match countdown started");
+                    Log.Msg("ChallengeHelper", "Match countdown started");
                     _wasCountdownActive = true;
                 }
                 else if (!isCountdown && wasCountdown)
                 {
                     _announcer.Announce(Models.Strings.ChallengeCountdownCancelled, Models.AnnouncementPriority.High);
-                    MelonLogger.Msg("[ChallengeHelper] Countdown cancelled");
+                    Log.Msg("ChallengeHelper", "Countdown cancelled");
                     _wasCountdownActive = false;
                 }
                 else if (!isCountdown)
                 {
                     // Normal status text change (e.g., "Select a deck" -> "Waiting for opponent")
                     _announcer.Announce(currentStatusText, Models.AnnouncementPriority.Normal);
-                    MelonLogger.Msg($"[ChallengeHelper] Status text changed: {currentStatusText}");
+                    Log.Msg("ChallengeHelper", $"Status text changed: {currentStatusText}");
                 }
 
                 _lastStatusText = currentStatusText;
@@ -666,7 +667,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error getting local player name: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error getting local player name: {ex.Message}");
                 return null;
             }
         }
@@ -688,7 +689,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error getting local player status: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error getting local player status: {ex.Message}");
                 return null;
             }
         }
@@ -740,14 +741,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     if (_hideDeckSelectorMethod != null)
                     {
                         _hideDeckSelectorMethod.Invoke(controller, null);
-                        MelonLogger.Msg("[ChallengeHelper] Closed DeckSelectBlade via PlayBladeController.HideDeckSelector");
+                        Log.Msg("ChallengeHelper", "Closed DeckSelectBlade via PlayBladeController.HideDeckSelector");
                     }
                     break;
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error closing DeckSelectBlade: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error closing DeckSelectBlade: {ex.Message}");
             }
         }
 
@@ -795,7 +796,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error getting player status: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error getting player status: {ex.Message}");
                 return null;
             }
         }
@@ -846,7 +847,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[ChallengeHelper] Error getting opponent status label: {ex.Message}");
+                Log.Msg("ChallengeHelper", $"Error getting opponent status label: {ex.Message}");
                 return $"{Models.Strings.ChallengeOpponent}: {Models.Strings.ChallengeNotInvited}";
             }
         }
@@ -955,7 +956,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     _isChallengeSettingsLockedField = _bladeWidgetType.GetField("_isChallengeSettingsLocked", flags);
             }
 
-            MelonLogger.Msg($"[ChallengeHelper] Reflection init: display={_challengeDisplayType != null}, " +
+            Log.Msg("ChallengeHelper", $"Reflection init: display={_challengeDisplayType != null}, " +
                 $"player={_playerDisplayType != null}, widget={_bladeWidgetType != null}, " +
                 $"statusField={_challengeStatusTextField != null}, " +
                 $"lockProp={_isChallengeSettingsLockedProp != null}, lockField={_isChallengeSettingsLockedField != null}");
