@@ -6,7 +6,7 @@ Total test files: 11 (8 test files + 3 stubs, excluding obj/)
 Total src LOC: 94,939
 Total test LOC: 1,303
 Combined LOC: 96,242
-Large files (over 2000 lines): 10 after splits of GeneralMenuNavigator (6148→3427, 6 new partials) and BrowserNavigator (4528→2220, 6 new partials)
+Large files (over 2000 lines): 9 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), and BaseNavigator (4085→1600, 6 new partials)
 
 ---
 
@@ -57,7 +57,14 @@ Large files (over 2000 lines): 10 after splits of GeneralMenuNavigator (6148→3
 - **AdvancedFiltersNavigator.cs** (798 lines) — Grid navigator for the Advanced Filters popup in Collection/Deck Builder.
 - **AnnouncementService.cs** (124 lines) — Routes text to IScreenReaderOutput with priority queuing and history.
 - **AssetPrepNavigator.cs** (390 lines) — Low-priority navigator for the first-install asset download screen.
-- **BaseNavigator.cs** (4085 lines) [LARGE] — Abstract base for all screen navigators; Tab/Enter, element management, input fields, dropdowns.
+- **BaseNavigator/** (subfolder; class lives across 7 partial files, namespace stays `AccessibleArena.Core.Services`)
+  - **BaseNavigator.cs** (1600 lines) — Core abstract partial: ctor/lifecycle, Update, TryActivate, Deactivate, HandleInput dispatch, Move/letter nav, SyncIndex, AddElement overloads, AddTextBlock/Button/Toggle/InputField, Find/Navigate helpers, RefreshElementLabel, AttachedAction/NavigableElement/CarouselInfo structs. Keeps `: IScreenNavigator`.
+  - **BaseNavigator.Popup.cs** (1438 lines) — Popup detection, enter/exit, input handling, element discovery (text/title/input/dropdown/stepper/button), cancel-button finders, popup mode state.
+  - **BaseNavigator.Dropdowns.cs** (388 lines) — Dropdown navigation + selection, silent value set, display-value readout, close routines, DropdownKind enum (TMP/Legacy/Custom).
+  - **BaseNavigator.Carousel.cs** (262 lines) — Carousel/slider/stepper arrow handling, attached-action cycling, spinner rescan, stepper value announcement.
+  - **BaseNavigator.ChallengeInvite.cs** (216 lines) — Challenge invite popup: tile discovery, player-name/toggle lookup, recent-players dropdown, toggle label refresh.
+  - **BaseNavigator.InputFields.cs** (215 lines) — Input-field edit mode enter/exit/force-exit, search-rescan scheduling, TrackInputFieldState, field navigation.
+  - **BaseNavigator.Chat.cs** (98 lines) — OpenChat (F4) with static reflection cache for ShowChatWindow.
 - **BattlefieldNavigator.cs** (847 lines) — Navigates battlefield by 6 rows (your/enemy lands, creatures, non-creatures).
 - **BoosterOpenNavigator.cs** (1494 lines) — Navigates the booster pack reveal card list after opening a pack.
 - **BrowserDetector.cs** (806 lines) — Detects active in-duel browser type (Scry, London/Surveil, SelectCards, generic).
