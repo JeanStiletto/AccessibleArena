@@ -329,7 +329,6 @@ namespace AccessibleArena.Core.Services
                 {
                     LogDebug($"[{NavigatorId}] Mailbox closed - resetting mail detail view state");
                     _isInMailDetailView = false;
-                    _currentMailLetterId = Guid.Empty;
                     ResetMailFieldNavigation();
                 }
             }
@@ -1362,33 +1361,6 @@ namespace AccessibleArena.Core.Services
             }
 
             MelonLogger.Msg($"[{NavigatorId}] PlayBlade Play button not found for auto-press");
-        }
-
-        /// <summary>
-        /// Check if element is inside the NPE (New Player Experience) overlay UI.
-        /// This includes Sparky dialogue, reward chests, and other tutorial elements.
-        /// </summary>
-        private static bool IsInsideNPEOverlay(GameObject obj)
-        {
-            if (obj == null) return false;
-
-            Transform current = obj.transform;
-            while (current != null)
-            {
-                string name = current.gameObject.name;
-
-                // NPE containers and elements
-                if (name.Contains("NPE") ||
-                    name.Contains("StitcherSparky") ||
-                    name.Contains("Sparky"))
-                {
-                    return true;
-                }
-
-                current = current.parent;
-            }
-
-            return false;
         }
 
         /// <summary>

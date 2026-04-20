@@ -23,7 +23,6 @@ namespace AccessibleArena.Core.Services
     {
         // Mail detail view tracking
         private bool _isInMailDetailView;
-        private Guid _currentMailLetterId;
 
         // Mail content field navigation
         private UITextExtractor.MailContentParts _mailContentParts;
@@ -39,7 +38,6 @@ namespace AccessibleArena.Core.Services
 
             // Track that we're now in the mail detail view
             _isInMailDetailView = true;
-            _currentMailLetterId = letterId;
 
             // Trigger rescan to discover mail content fields and buttons
             // The mail content fields will be added during element discovery
@@ -194,7 +192,6 @@ namespace AccessibleArena.Core.Services
                                 LogDebug($"[{NavigatorId}] Invoking ContentControllerPlayerInbox.CloseCurrentLetter()");
                                 method.Invoke(mb, null);
                                 _isInMailDetailView = false;
-                                _currentMailLetterId = Guid.Empty;
                                 ResetMailFieldNavigation();
                                 _announcer.Announce(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
                                 TriggerRescan();
@@ -212,27 +209,8 @@ namespace AccessibleArena.Core.Services
 
             // Fallback: reset flag anyway and try generic back
             _isInMailDetailView = false;
-            _currentMailLetterId = Guid.Empty;
             ResetMailFieldNavigation();
             return TryGenericBackButton();
-        }
-
-        /// <summary>
-        /// Check if element is inside the Mailbox panel.
-        /// </summary>
-        private static bool IsInsideMailboxPanel(GameObject obj)
-        {
-            if (obj == null) return false;
-
-            Transform current = obj.transform;
-            while (current != null)
-            {
-                if (current.name.Contains("Mailbox") || current.name.Contains("PlayerInbox"))
-                    return true;
-                current = current.parent;
-            }
-
-            return false;
         }
 
         /// <summary>

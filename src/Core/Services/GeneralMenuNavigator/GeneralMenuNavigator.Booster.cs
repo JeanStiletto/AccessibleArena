@@ -179,24 +179,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Open the currently selected booster pack.
-        /// </summary>
-        /// <returns>True if a pack was opened</returns>
-        private bool OpenSelectedBoosterPack()
-        {
-            if (!_isBoosterCarouselActive || _boosterPackHitboxes.Count == 0)
-                return false;
-
-            var currentPack = _boosterPackHitboxes[_boosterCarouselIndex];
-
-            // Click the pack to open it (should already be centered)
-            UIActivator.Activate(currentPack);
-
-            LogDebug($"[{NavigatorId}] Opening booster pack at index {_boosterCarouselIndex}");
-            return true;
-        }
-
-        /// <summary>
         /// Override carousel arrow handling to support grouped navigation and booster carousel.
         /// In grouped navigation mode, _currentIndex may be out of sync with GroupedNavigator's
         /// current element. We sync it here before delegating to base for carousel/stepper handling.
