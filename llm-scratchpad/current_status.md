@@ -85,7 +85,7 @@ False alarms verified:
 - [x] input-handling.md          (pre-marked; no redesign warranted)
 - [x] string-builder.md          (pre-marked; not a string-builder mod)
 - [x] high-level-cleanup.md  (Q1–Q4 + M1–M4 done 2026-04-20; see section below)
-- [ ] low-level-cleanup.md
+- [x] low-level-cleanup.md  (Q1–Q10 + M1–M5 done 2026-04-20; see section below)
 - [ ] finalization.md
 
 ## Large-File-Handling Progress (2026-04-20)
@@ -317,6 +317,55 @@ as a single commit. Build 0/0, test suite grew from 105 → 124 (all green).
 
 Branch state: `claude-mod-cleanup-round2` has 26 commits ahead of main;
 working tree clean. Ready to merge or proceed to `low-level-cleanup.md`.
+
+## Low-Level Cleanup (2026-04-20) — Done
+
+All 15 items (Q1–Q10 quick wins, M1–M5 medium items) completed. Each
+landed as a single commit. Build 0/0, tests 122/122.
+
+Quick wins (Q1–Q10) — primarily dead-code removal and tiny-scope cleanups:
+- **Q1** `refactor(ui-text)`: removed three dead public `UITextExtractor`
+  methods (grep-confirmed zero callers).
+- **Q2** `refactor(cleanup)`: removed dead navigator helper methods across
+  several navigators.
+- **Q3** `refactor(cleanup)`: removed dead card/deck accessor methods.
+- **Q4** `refactor(general-nav)`: dropped dead helpers plus a write-only
+  mail-letter id field.
+- **Q5** `refactor`: dropped write-only fields and the unused `Reset`
+  helper across navigators.
+- **Q6** `refactor(player-portrait-timer)`: dropped dead timer helpers.
+- **Q7** `refactor`: removed dead Tolk/Debug/Locale helpers.
+- **Q8** `refactor(partials)`: trimmed inherited `using` directives across
+  the 24 partial-class files produced by round-2 splits.
+- **Q9** `refactor`: removed stranded `// DEPRECATED` comments still
+  referencing classes that had been deleted.
+- **Q10** `refactor(browser-nav)`: extracted `TryGetCurrentBrowser` helper
+  (duplicate fetch pattern consolidated).
+
+Medium items (M1–M5) — reflection consolidation and topical extraction:
+- **M1** `refactor(panel-state-patch)`: extracted Harmony wire-up and the
+  `FirePanelStateChange` event helper. Kept dual-dispatch postfixes
+  untouched (their secondary PlayBlade-name dispatch doesn't map to the
+  single helper — noted in commit message).
+- **M2** `refactor(panel-state-patch)`: extracted SocialUI Tab-block
+  prefix/postfix pattern via `ShouldBlockSocialUITabToggle`. File
+  shrank 1023 → 217 lines.
+- **M3** `refactor(grouped-navigator)`: consolidated restore/cycle helpers
+  (`ComputeCyclableGroupIndices`, `CycleGroup`), routed 5
+  pending-restore-clearing sites through `ClearPendingGroupRestore()`,
+  dropped dead `JumpToGroupByName`/`GetGroupByName`/`FindGroups` API.
+- **M4** `refactor(card-text-provider)`: deduped `Find*Provider`
+  reflection walks via `FindStringFromUintMethod`,
+  `SearchCardDatabaseProviders`, `ExtractProviderFromCardDb`. File
+  shrank 294 lines.
+- **M5** `refactor(extended-info-navigator)`: collapsed `Open(GameObject)`
+  and `Open(uint)` into thin dispatchers over shared `BuildAndOpen`.
+  Normalized rules-line dedupe + keyword-dedupe across both paths
+  (PAPA-fallback concern applies to both since `GetKeywordDescriptions`
+  delegates GameObject→grpId).
+
+Branch state: `claude-mod-cleanup-round2` now at 40+ commits ahead of main;
+working tree clean. Ready to merge or proceed to `finalization.md`.
 
 ## Scratchpad Files
 - `current_status.md` — this file
