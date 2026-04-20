@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -107,7 +108,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Error toggling Friends panel: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Error toggling Friends panel: {ex.Message}");
             }
         }
 
@@ -136,7 +137,7 @@ namespace AccessibleArena.Core.Services
             var socialPanel = GameObject.Find("SocialUI_V2_Desktop_16x9(Clone)");
             if (socialPanel == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Social tile scan: social panel not found");
+                Log.Msg("{NavigatorId}", $"Social tile scan: social panel not found");
                 return;
             }
 
@@ -166,7 +167,7 @@ namespace AccessibleArena.Core.Services
                 var tileObj = mb.gameObject;
                 if (!tileObj.activeInHierarchy)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Social tile scan: {typeName} '{tileObj.name}' is INACTIVE");
+                    Log.Msg("{NavigatorId}", $"Social tile scan: {typeName} '{tileObj.name}' is INACTIVE");
                     continue;
                 }
 
@@ -223,10 +224,10 @@ namespace AccessibleArena.Core.Services
                 added++;
 
                 string parentPath = getParentPath(clickable);
-                MelonLogger.Msg($"[{NavigatorId}] Social tile fallback: {typeName} -> {clickable.name}, label='{label}', path={parentPath}");
+                Log.Msg("{NavigatorId}", $"Social tile fallback: {typeName} -> {clickable.name}, label='{label}', path={parentPath}");
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Social tile scan: {scanned} tiles found, {added} new entries added");
+            Log.Msg("{NavigatorId}", $"Social tile scan: {scanned} tiles found, {added} new entries added");
 
             // Step 3: Find the StatusButton (local player profile) and register it
             // The StatusButton is a CustomButton showing the player's display name.
@@ -245,7 +246,7 @@ namespace AccessibleArena.Core.Services
                         ? $"{fullName}, {statusText}"
                         : fullName;
                     _groupAssigner.SetProfileButtonId(statusButtonGO.GetInstanceID());
-                    MelonLogger.Msg($"[{NavigatorId}] Profile button registered: {statusButtonGO.name} (ID:{statusButtonGO.GetInstanceID()}), label='{_profileLabel}'");
+                    Log.Msg("{NavigatorId}", $"Profile button registered: {statusButtonGO.name} (ID:{statusButtonGO.GetInstanceID()}), label='{_profileLabel}'");
                 }
             }
         }
@@ -270,7 +271,7 @@ namespace AccessibleArena.Core.Services
 
             if (widget == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] FriendsWidget not found in social panel");
+                Log.Msg("{NavigatorId}", $"FriendsWidget not found in social panel");
                 return;
             }
 
@@ -293,7 +294,7 @@ namespace AccessibleArena.Core.Services
                     if (!isOpen)
                     {
                         isOpenField.SetValue(header, true);
-                        MelonLogger.Msg($"[{NavigatorId}] Opened social section: {sectionName}");
+                        Log.Msg("{NavigatorId}", $"Opened social section: {sectionName}");
                     }
                 }
             }
@@ -371,7 +372,7 @@ namespace AccessibleArena.Core.Services
                             }
                             catch (Exception ex)
                             {
-                                MelonLogger.Warning($"[{NavigatorId}] Failed to set RemoveBlock callback: {ex.Message}");
+                                Log.Warn("{NavigatorId}", $"Failed to set RemoveBlock callback: {ex.Message}");
                             }
                         }
                     }
@@ -393,11 +394,11 @@ namespace AccessibleArena.Core.Services
                 }
 
                 if (created > 0 || blocks.Count > 0)
-                    MelonLogger.Msg($"[{NavigatorId}] Blocked tiles: {blocks.Count} blocked users, {created} new tiles created, {activeTiles.Count} total");
+                    Log.Msg("{NavigatorId}", $"Blocked tiles: {blocks.Count} blocked users, {created} new tiles created, {activeTiles.Count} total");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Error ensuring blocked tiles: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Error ensuring blocked tiles: {ex.Message}");
             }
         }
 
@@ -421,12 +422,12 @@ namespace AccessibleArena.Core.Services
                 if (updateMethod != null)
                 {
                     updateMethod.Invoke(widget, null);
-                    MelonLogger.Msg($"[{NavigatorId}] Called UpdateChallengeList to ensure challenge tiles");
+                    Log.Msg("{NavigatorId}", $"Called UpdateChallengeList to ensure challenge tiles");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[{NavigatorId}] Error ensuring challenge tiles: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Error ensuring challenge tiles: {ex.Message}");
             }
         }
 

@@ -16,6 +16,7 @@ using static AccessibleArena.Core.Utils.ReflectionUtils;
 using static AccessibleArena.Core.Constants.SceneNames;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -351,7 +352,7 @@ namespace AccessibleArena.Core.Services
                 // If PlayBlade helper was active for regular blade, close it
                 if (_playBladeHelper.IsActive)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] CheckPlayBlade({source}): Challenge state {bladeState} - closing PlayBlade helper");
+                    Log.Msg("{NavigatorId}", $"CheckPlayBlade({source}): Challenge state {bladeState} - closing PlayBlade helper");
                     _playBladeHelper.OnPlayBladeClosed();
                 }
                 return; // Challenge handled by CheckAndInitChallengeHelper
@@ -360,16 +361,16 @@ namespace AccessibleArena.Core.Services
             bool isPlayBladeNowActive = PanelStateManager.Instance?.IsPlayBladeActive == true;
             bool helperIsActive = _playBladeHelper.IsActive;
 
-            MelonLogger.Msg($"[{NavigatorId}] CheckPlayBlade({source}): IsPlayBladeActive={isPlayBladeNowActive}, HelperIsActive={helperIsActive}");
+            Log.Msg("{NavigatorId}", $"CheckPlayBlade({source}): IsPlayBladeActive={isPlayBladeNowActive}, HelperIsActive={helperIsActive}");
 
             if (isPlayBladeNowActive && !helperIsActive)
             {
-                MelonLogger.Msg($"[{NavigatorId}] PlayBlade became active - initializing helper");
+                Log.Msg("{NavigatorId}", $"PlayBlade became active - initializing helper");
                 _playBladeHelper.OnPlayBladeOpened();
             }
             else if (!isPlayBladeNowActive && helperIsActive)
             {
-                MelonLogger.Msg($"[{NavigatorId}] PlayBlade became inactive - resetting helper");
+                Log.Msg("{NavigatorId}", $"PlayBlade became inactive - resetting helper");
                 _playBladeHelper.OnPlayBladeClosed();
             }
         }
@@ -386,7 +387,7 @@ namespace AccessibleArena.Core.Services
 
             if (isChallengeNow && !helperIsActive)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Challenge screen became active (state={bladeState}) - initializing helper ({source})");
+                Log.Msg("{NavigatorId}", $"Challenge screen became active (state={bladeState}) - initializing helper ({source})");
                 _challengeHelper.OnChallengeOpened();
                 // Rescan so EnhanceButtonLabel can apply challenge-specific labels.
                 // The initial scan may have run before the challenge context was set.
@@ -394,7 +395,7 @@ namespace AccessibleArena.Core.Services
             }
             else if (!isChallengeNow && helperIsActive)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Challenge screen became inactive - closing helper ({source})");
+                Log.Msg("{NavigatorId}", $"Challenge screen became inactive - closing helper ({source})");
                 _challengeHelper.OnChallengeClosed();
             }
         }
@@ -453,7 +454,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] PlayBladeStateChanged: state={state}");
+            Log.Msg("{NavigatorId}", $"PlayBladeStateChanged: state={state}");
             CheckAndInitPlayBladeHelper("BladeStateChanged");
             CheckAndInitChallengeHelper("BladeStateChanged");
 
@@ -672,7 +673,7 @@ namespace AccessibleArena.Core.Services
             {
                 int newPoolCount = _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderCollection)
                                + _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderSideboard);
-                MelonLogger.Msg($"[{NavigatorId}] Search rescan pool: {oldPoolCount} -> {newPoolCount} cards");
+                Log.Msg("{NavigatorId}", $"Search rescan pool: {oldPoolCount} -> {newPoolCount} cards");
 
                 // If we suppressed the navigation announcement, now announce current position
                 if (needsPositionAnnouncement)
@@ -700,7 +701,7 @@ namespace AccessibleArena.Core.Services
             else
             {
                 // Fallback for non-grouped contexts: use total element count
-                MelonLogger.Msg($"[{NavigatorId}] Search rescan (non-grouped): {_elements.Count} elements");
+                Log.Msg("{NavigatorId}", $"Search rescan (non-grouped): {_elements.Count} elements");
                 if (_elements.Count == 0)
                 {
                     _announcer.AnnounceInterrupt("No search results");
@@ -795,7 +796,7 @@ namespace AccessibleArena.Core.Services
             var currentOverlay = _overlayDetector.GetActiveOverlay();
             if (currentOverlay != _lastKnownOverlay)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Overlay changed: {_lastKnownOverlay?.ToString() ?? "none"} -> {currentOverlay?.ToString() ?? "none"}");
+                Log.Msg("{NavigatorId}", $"Overlay changed: {_lastKnownOverlay?.ToString() ?? "none"} -> {currentOverlay?.ToString() ?? "none"}");
                 _lastKnownOverlay = currentOverlay;
 
                 // When the overlay changes to a PlayBlade state, also initialize the play blade helper.
@@ -1354,13 +1355,13 @@ namespace AccessibleArena.Core.Services
 
                 if (!hasMainButtonComponent)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Auto-pressing Play button after deck selection");
+                    Log.Msg("{NavigatorId}", $"Auto-pressing Play button after deck selection");
                     UIActivator.Activate(t.gameObject);
                     return;
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] PlayBlade Play button not found for auto-press");
+            Log.Msg("{NavigatorId}", $"PlayBlade Play button not found for auto-press");
         }
 
         /// <summary>
@@ -1465,7 +1466,7 @@ namespace AccessibleArena.Core.Services
             // the group state is restored by auto-entry or SaveCurrentGroupForRestore
             if (_elements.Count != oldCount)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Spinner rescan: {oldCount} -> {_elements.Count} elements");
+                Log.Msg("{NavigatorId}", $"Spinner rescan: {oldCount} -> {_elements.Count} elements");
                 if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
                 {
                     string posAnnouncement = Models.Strings.ItemPositionOf(
@@ -1807,9 +1808,9 @@ namespace AccessibleArena.Core.Services
                 if (!ShouldShowElement(obj))
                 {
                     if (isObjective)
-                        MelonLogger.Msg($"[{NavigatorId}] Objective filtered by ShouldShowElement: {obj.name}");
+                        Log.Msg("{NavigatorId}", $"Objective filtered by ShouldShowElement: {obj.name}");
                     if (isBladeListItem)
-                        MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem filtered by ShouldShowElement: {obj.name}, path={GetParentPath(obj)}");
+                        Log.Msg("{NavigatorId}", $"Blade_ListItem filtered by ShouldShowElement: {obj.name}, path={GetParentPath(obj)}");
                     return;
                 }
 
@@ -1835,15 +1836,15 @@ namespace AccessibleArena.Core.Services
                     discoveredElements.Add((obj, classification, sortOrder));
                     addedObjects.Add(obj);
                     if (isBladeListItem)
-                        MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem ADDED: {obj.name}, label={classification.Label}");
+                        Log.Msg("{NavigatorId}", $"Blade_ListItem ADDED: {obj.name}, label={classification.Label}");
                 }
                 else if (isObjective)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Objective not navigable: {obj.name}, IsNavigable={classification.IsNavigable}, ShouldAnnounce={classification.ShouldAnnounce}");
+                    Log.Msg("{NavigatorId}", $"Objective not navigable: {obj.name}, IsNavigable={classification.IsNavigable}, ShouldAnnounce={classification.ShouldAnnounce}");
                 }
                 else if (isBladeListItem)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem not navigable: {obj.name}, IsNavigable={classification.IsNavigable}, ShouldAnnounce={classification.ShouldAnnounce}");
+                    Log.Msg("{NavigatorId}", $"Blade_ListItem not navigable: {obj.name}, IsNavigable={classification.IsNavigable}, ShouldAnnounce={classification.ShouldAnnounce}");
                 }
             }
 
@@ -1872,12 +1873,12 @@ namespace AccessibleArena.Core.Services
                 if (buttonObj.name == "ObjectiveGraphics")
                 {
                     objGraphicsCount++;
-                    MelonLogger.Msg($"[{NavigatorId}] Processing ObjectiveGraphics #{objGraphicsCount}: parent={buttonObj.transform.parent?.name}");
+                    Log.Msg("{NavigatorId}", $"Processing ObjectiveGraphics #{objGraphicsCount}: parent={buttonObj.transform.parent?.name}");
                 }
 
                 TryAddElement(buttonObj);
             }
-            MelonLogger.Msg($"[{NavigatorId}] Processed {objCount} CustomButtons, {objGraphicsCount} ObjectiveGraphics");
+            Log.Msg("{NavigatorId}", $"Processed {objCount} CustomButtons, {objGraphicsCount} ObjectiveGraphics");
 
             // Find standard Unity UI elements
             foreach (var btn in GameObject.FindObjectsOfType<Button>())
@@ -2003,7 +2004,7 @@ namespace AccessibleArena.Core.Services
             if (RecentPlayAccessor.IsActive)
             {
                 int tileCount = RecentPlayAccessor.GetTileCount();
-                MelonLogger.Msg($"[{NavigatorId}] Recent tab active with {tileCount} tiles");
+                Log.Msg("{NavigatorId}", $"Recent tab active with {tileCount} tiles");
                 foreach (var (obj, classification, _) in discoveredElements)
                 {
                     int tileIdx = RecentPlayAccessor.FindTileIndexForElement(obj);
@@ -2030,7 +2031,7 @@ namespace AccessibleArena.Core.Services
                         recentTilePlayButtons.Add(obj2);
                     }
                 }
-                MelonLogger.Msg($"[{NavigatorId}] Recent tab: {recentDeckEventTitles.Count} deck-event mappings, {recentTilePlayButtons.Count} play buttons to hide");
+                Log.Msg("{NavigatorId}", $"Recent tab: {recentDeckEventTitles.Count} deck-event mappings, {recentTilePlayButtons.Count} play buttons to hide");
 
                 // Reverse sort order for recently played decks (most recent first)
                 if (recentDeckEventTitles.Count > 1)
@@ -2053,19 +2054,19 @@ namespace AccessibleArena.Core.Services
             }
 
             // Sort by position and add elements with proper labels
-            MelonLogger.Msg($"[{NavigatorId}] Processing {discoveredElements.Count} discovered elements for final addition");
+            Log.Msg("{NavigatorId}", $"Processing {discoveredElements.Count} discovered elements for final addition");
             foreach (var (obj, classification, _) in discoveredElements.OrderBy(x => x.sortOrder))
             {
                 // Debug: trace Blade_ListItem elements through final addition
                 bool isBladeListItem = obj.transform.parent?.name.Contains("Blade_ListItem") == true;
                 if (isBladeListItem)
-                    MelonLogger.Msg($"[{NavigatorId}] Final loop Blade_ListItem: {obj.name}, label={classification.Label}, obj null={obj == null}, active={obj?.activeInHierarchy}");
+                    Log.Msg("{NavigatorId}", $"Final loop Blade_ListItem: {obj.name}, label={classification.Label}, obj null={obj == null}, active={obj?.activeInHierarchy}");
 
                 // Skip deck elements that aren't the main UI button (TextBox, duplicates, etc.)
                 if (deckElementsToSkip.Contains(obj))
                 {
                     if (isBladeListItem)
-                        MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem SKIPPED by deckElementsToSkip!");
+                        Log.Msg("{NavigatorId}", $"Blade_ListItem SKIPPED by deckElementsToSkip!");
                     continue;
                 }
 
@@ -2143,10 +2144,10 @@ namespace AccessibleArena.Core.Services
                 }
 
                 if (isBladeListItem)
-                    MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem calling AddElement: announcement={announcement}");
+                    Log.Msg("{NavigatorId}", $"Blade_ListItem calling AddElement: announcement={announcement}");
                 AddElement(obj, announcement, carouselInfo, null, attachedActions, classification.Role);
                 if (isBladeListItem)
-                    MelonLogger.Msg($"[{NavigatorId}] Blade_ListItem AddElement returned, _elements.Count={_elements.Count}");
+                    Log.Msg("{NavigatorId}", $"Blade_ListItem AddElement returned, _elements.Count={_elements.Count}");
             }
 
             // Find NPE reward cards (displayed cards on reward screens)
@@ -2203,7 +2204,7 @@ namespace AccessibleArena.Core.Services
                 // Queue type activation may have clicked a real tab — need another rescan
                 if (_groupedNavigator.NeedsFollowUpRescan)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Follow-up rescan needed after queue type activation");
+                    Log.Msg("{NavigatorId}", $"Follow-up rescan needed after queue type activation");
                     TriggerRescan();
                     return;
                 }
@@ -2296,7 +2297,7 @@ namespace AccessibleArena.Core.Services
                 return groupAnnouncement;
             }
 
-            MelonLogger.Msg($"[MenuNavigator] Screen '{menuName}': {Models.Strings.ItemCount(_elements.Count)}");
+            Log.Msg("MenuNavigator", $"Screen '{menuName}': {Models.Strings.ItemCount(_elements.Count)}");
             return menuName;
         }
 
@@ -2765,11 +2766,11 @@ namespace AccessibleArena.Core.Services
                     if (deckCards.Count == 0 && _isDeckBuilderReadOnly)
                     {
                         var roCards = DeckCardProvider.GetReadOnlyDeckCards();
-                        MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList (read-only) - refreshed {roCards.Count} deck cards");
+                        Log.Msg("{NavigatorId}", $"Entering DeckBuilderDeckList (read-only) - refreshed {roCards.Count} deck cards");
                     }
                     else
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Entering DeckBuilderDeckList - refreshed {deckCards.Count} deck cards");
+                        Log.Msg("{NavigatorId}", $"Entering DeckBuilderDeckList - refreshed {deckCards.Count} deck cards");
                     }
                 }
 
@@ -2895,7 +2896,7 @@ namespace AccessibleArena.Core.Services
                             if (toggle != null && !toggle.isOn)
                             {
                                 // Folder was expanded but Unity toggled it OFF - toggle back ON
-                                MelonLogger.Msg($"[{NavigatorId}] Folder toggle was OFF after Enter, re-toggling to expand");
+                                Log.Msg("{NavigatorId}", $"Folder toggle was OFF after Enter, re-toggling to expand");
                                 UIActivator.Activate(currentElement.Value.GameObject);
                             }
 
@@ -3072,7 +3073,7 @@ namespace AccessibleArena.Core.Services
             if (challengeResult == PlayBladeResult.NotHandled &&
                 _challengeHelper.IsActive && CardTileActivator.IsDeckEntry(element))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Challenge deck selected - returning to ChallengeMain");
+                Log.Msg("{NavigatorId}", $"Challenge deck selected - returning to ChallengeMain");
                 _challengeHelper.HandleDeckSelected();
                 TriggerRescan();
                 return true;
@@ -3236,10 +3237,10 @@ namespace AccessibleArena.Core.Services
             var blocks = EventAccessor.GetEventPageInfoBlocks();
             if (blocks == null || blocks.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] EventAccessor returned no info blocks");
+                Log.Msg("{NavigatorId}", $"EventAccessor returned no info blocks");
                 return;
             }
-            MelonLogger.Msg($"[{NavigatorId}] Injecting {blocks.Count} event info elements");
+            Log.Msg("{NavigatorId}", $"Injecting {blocks.Count} event info elements");
 
             // Insert each block as a standalone virtual element after the previous one.
             // First block appends at end, subsequent blocks insert after the last EventInfo.
@@ -3310,7 +3311,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] EnrichColorChallengeLabels: enriched {enriched} of {_elements.Count} elements");
+            Log.Msg("{NavigatorId}", $"EnrichColorChallengeLabels: enriched {enriched} of {_elements.Count} elements");
         }
 
         #endregion

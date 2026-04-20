@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -141,7 +142,7 @@ namespace AccessibleArena.Core.Services
 
             if (mainButtonsContainer == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] DeckManager MainButtons container not found");
+                Log.Msg("{NavigatorId}", $"DeckManager MainButtons container not found");
                 return result;
             }
 
@@ -175,7 +176,7 @@ namespace AccessibleArena.Core.Services
             }
 
             if (result.AllDeckSpecificButtons.Count > 0)
-                MelonLogger.Msg($"[{NavigatorId}] DeckManager: {result.AllDeckSpecificButtons.Count} deck-specific buttons hidden from navigation");
+                Log.Msg("{NavigatorId}", $"DeckManager: {result.AllDeckSpecificButtons.Count} deck-specific buttons hidden from navigation");
 
             return result;
         }
@@ -259,7 +260,7 @@ namespace AccessibleArena.Core.Services
                 if (inputField != null)
                 {
                     string currentName = inputField.text;
-                    MelonLogger.Msg($"[{NavigatorId}] Rename: entering edit mode on {inputField.gameObject.name}, current name: '{currentName}'");
+                    Log.Msg("{NavigatorId}", $"Rename: entering edit mode on {inputField.gameObject.name}, current name: '{currentName}'");
                     _isInRenameMode = true;
                     EnterInputFieldEditModeDirectly(inputField.gameObject,
                         $"Renaming {currentName}. Type new name, Enter to confirm, Escape to cancel.");
@@ -708,14 +709,14 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void FindCommanderCards(HashSet<GameObject> addedObjects)
         {
-            MelonLogger.Msg($"[{NavigatorId}] FindCommanderCards: activeCC={_activeContentController}");
+            Log.Msg("{NavigatorId}", $"FindCommanderCards: activeCC={_activeContentController}");
 
             // Only active in deck builder
             if (_activeContentController != T.WrapperDeckBuilder)
                 return;
 
             var commanderCards = DeckCardProvider.GetCommanderCards();
-            MelonLogger.Msg($"[{NavigatorId}] FindCommanderCards: {commanderCards.Count} commander card(s)");
+            Log.Msg("{NavigatorId}", $"FindCommanderCards: {commanderCards.Count} commander card(s)");
             if (commanderCards.Count == 0)
                 return;
 
@@ -725,7 +726,7 @@ namespace AccessibleArena.Core.Services
 
                 // Use TileButton as the navigable element (same as regular deck list cards)
                 var tileBtn = cmdCard.TileButton;
-                MelonLogger.Msg($"[{NavigatorId}] FindCommanderCards: TileBtn={tileBtn?.name}, inAddedObjects={addedObjects.Contains(tileBtn)}");
+                Log.Msg("{NavigatorId}", $"FindCommanderCards: TileBtn={tileBtn?.name}, inAddedObjects={addedObjects.Contains(tileBtn)}");
                 if (tileBtn == null || addedObjects.Contains(tileBtn))
                     continue;
 
@@ -904,10 +905,10 @@ namespace AccessibleArena.Core.Services
             var infoItems = DeckInfoProvider.GetDeckInfoElements();
             if (infoItems == null || infoItems.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] DeckInfoProvider returned no info elements");
+                Log.Msg("{NavigatorId}", $"DeckInfoProvider returned no info elements");
                 return;
             }
-            MelonLogger.Msg($"[{NavigatorId}] Injecting {infoItems.Count} deck info elements");
+            Log.Msg("{NavigatorId}", $"Injecting {infoItems.Count} deck info elements");
 
             var virtualElements = new List<GroupedElement>();
             foreach (var (label, text) in infoItems)
