@@ -81,12 +81,32 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (next)
+- [ ] large-file-handling.md  (in progress — 1/12 done)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
 - [ ] low-level-cleanup.md
 - [ ] finalization.md
+
+## Large-File-Handling Progress (2026-04-20)
+
+Split 1/12: **GeneralMenuNavigator.cs** (6148 → 3427 lines, -44%) via partial
+class split into 6 topical files (Mail 299, Booster 262, Social 553,
+DeckBuilder 1063, BackNavigation 361, Collection 318). Build: 0/0, tests:
+105/105. User smoke-tested and confirmed working.
+
+Remaining candidates (still >2000 lines):
+- [ ] BrowserNavigator.cs  (4528)
+- [ ] BaseNavigator.cs     (4085)
+- [ ] DuelAnnouncer.cs     (3245)
+- [ ] StoreNavigator.cs    (2773)
+- [ ] UITextExtractor.cs   (2760)
+- [ ] UIActivator.cs       (2745)
+- [ ] CardModelProvider.cs (2374)
+- [ ] WebBrowserAccessibility.cs (2236)
+- [ ] MasteryNavigator.cs  (2174)
+- [ ] GroupedNavigator.cs  (2167)
+- [ ] PlayerPortraitNavigator.cs (2151)
 
 ## Scratchpad Files
 - `current_status.md` — this file

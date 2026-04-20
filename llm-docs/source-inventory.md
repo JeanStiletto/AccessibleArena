@@ -1,12 +1,12 @@
 # Source File Inventory
 
-Generated: 2026-04-19
-Total src files: 115 (excluding obj/ and bin/)
+Generated: 2026-04-20 (updated after large-file-handling split round 2)
+Total src files: 121 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 94,716
+Total src LOC: 94,851
 Total test LOC: 1,303
-Combined LOC: 96,019
-Large files (over 2000 lines): 12
+Combined LOC: 96,154
+Large files (over 2000 lines): 11 (GeneralMenuNavigator reduced from 6148 to 3427 via partial-class split into 6 topical files)
 
 ---
 
@@ -89,7 +89,14 @@ Large files (over 2000 lines): 12
 - **ExtendedInfoNavigator.cs** (326 lines) — Modal navigator for keyword and linked-face info (I key, Up/Down, Backspace to close).
 - **FriendInfoProvider.cs** (651 lines) — Reads friend tile data (name, status, actions) from social panel tiles via reflection.
 - **GameLogNavigator.cs** (178 lines) — Modal navigator for duel announcement history (O key, Up/Down, Backspace to close).
-- **GeneralMenuNavigator.cs** (6148 lines) [LARGE] — General-purpose CustomButton navigator; fallback for all unhandled menu screens.
+- **GeneralMenuNavigator/** (subfolder; class lives across 7 partial files, namespace stays `AccessibleArena.Core.Services`)
+  - **GeneralMenuNavigator.cs** (3427 lines) [LARGE] — Core partial: scene/foreground detection, discovery, move nav, grouped enter/backspace.
+  - **GeneralMenuNavigator.Mail.cs** (299 lines) — Mail letter open + field navigation, close mailbox/detail-view.
+  - **GeneralMenuNavigator.Booster.cs** (262 lines) — Booster-pack carousel element + left/right/open handling.
+  - **GeneralMenuNavigator.Social.cs** (553 lines) — Friends panel (open/close, tile discovery, blocked/challenge tiles, friend action sub-nav).
+  - **GeneralMenuNavigator.DeckBuilder.cs** (1063 lines) — Deck builder back, toolbar actions, card-finding (pool/commander/deck/sideboard/NPE/read-only), rename mode, deck-info sub-nav.
+  - **GeneralMenuNavigator.BackNavigation.cs** (361 lines) — Backspace routing (content panel, campaign graph, NPE, play-blade, generic fallback).
+  - **GeneralMenuNavigator.Collection.cs** (318 lines) — Collection-page button activation + packet-block sub-nav.
 - **HelpNavigator.cs** (306 lines) — Modal navigator for keybind help items (F1, Up/Down, Backspace to close).
 - **HotHighlightNavigator.cs** (1484 lines) — Unified navigator for HotHighlight-based selection (targets, discard, highlights).
 - **InputFieldEditHelper.cs** (582 lines) — Shared input-field edit-mode logic (TMP_InputField, legacy, key routing, character announce).
