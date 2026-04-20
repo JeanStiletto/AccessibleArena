@@ -70,29 +70,6 @@ namespace AccessibleArena.Tests
         }
 
         [Test]
-        public void DisableAll_SubsequentLogIsNoOp()
-        {
-            DebugConfig.DisableAll();
-            DebugConfig.Log("T", "should not be stored");
-            Assert.AreEqual(0, DebugConfig.GetRecentEntries(5).Length);
-        }
-
-        [Test]
-        public void EnableAll_SetsAllCategoryFlagsTrue()
-        {
-            DebugConfig.DisableAll();
-            DebugConfig.EnableAll();
-            Assert.IsTrue(DebugConfig.DebugEnabled);
-            Assert.IsTrue(DebugConfig.LogNavigation);
-            Assert.IsTrue(DebugConfig.LogPanelDetection);
-            Assert.IsTrue(DebugConfig.LogFocusTracking);
-            Assert.IsTrue(DebugConfig.LogCardInfo);
-            Assert.IsTrue(DebugConfig.LogActivation);
-            Assert.IsTrue(DebugConfig.LogAnnouncements);
-            Assert.IsTrue(DebugConfig.LogPatches);
-        }
-
-        [Test]
         public void EntryFormat_IsTagBracketedPlusMessage()
         {
             DebugConfig.Log("Navigator", "moved to index 3");

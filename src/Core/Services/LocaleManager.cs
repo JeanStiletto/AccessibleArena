@@ -18,9 +18,6 @@ namespace AccessibleArena.Core.Services
         private Dictionary<string, string> _fallbackStrings = new Dictionary<string, string>();
         private string _activeLanguage = "en";
 
-        /// <summary>Fired when the active language changes.</summary>
-        public event Action OnLanguageChanged;
-
         private static readonly string LangDir = Path.Combine("UserData", "AccessibleArena", "lang");
 
         // Plural rules per language family
@@ -68,13 +65,12 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Switch to a different language. Reloads strings and fires OnLanguageChanged.
+        /// Switch to a different language. Reloads strings.
         /// </summary>
         public void SetLanguage(string code)
         {
             if (code == _activeLanguage) return;
             LoadLanguage(code);
-            OnLanguageChanged?.Invoke();
         }
 
         /// <summary>

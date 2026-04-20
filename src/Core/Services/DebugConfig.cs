@@ -93,29 +93,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Enable all debug logging (for development/debugging sessions).
-        /// </summary>
-        public static void EnableAll()
-        {
-            DebugEnabled = true;
-            LogNavigation = true;
-            LogPanelDetection = true;
-            LogFocusTracking = true;
-            LogCardInfo = true;
-            LogActivation = true;
-            LogAnnouncements = true;
-            LogPatches = true;
-        }
-
-        /// <summary>
-        /// Disable all debug logging (for release/performance).
-        /// </summary>
-        public static void DisableAll()
-        {
-            DebugEnabled = false;
-        }
-
-        /// <summary>
         /// Reset all state to defaults. Used in unit tests to prevent state bleed between tests.
         /// </summary>
         internal static void Reset()

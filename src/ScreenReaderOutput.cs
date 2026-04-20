@@ -30,12 +30,6 @@ namespace AccessibleArena
 
         [DllImport("Tolk.dll", CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool Tolk_Speak(
-            [MarshalAs(UnmanagedType.LPWStr)] string text,
-            [MarshalAs(UnmanagedType.Bool)] bool interrupt);
-
-        [DllImport("Tolk.dll", CallingConvention = CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool Tolk_Silence();
 
         [DllImport("Tolk.dll", CallingConvention = CallingConvention.Cdecl)]
@@ -77,11 +71,6 @@ namespace AccessibleArena
                 return;
 
             Tolk_Output(text, interrupt);
-        }
-
-        public static void SpeakInterrupt(string text)
-        {
-            Speak(text, true);
         }
 
         public static void Silence()
