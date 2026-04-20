@@ -1,6 +1,6 @@
 # EventAccessor.cs
 Path: src/Core/Services/EventAccessor.cs
-Lines: 1516
+Lines: 1052
 
 ## Top-level comments
 - Provides reflection-based access to event tiles, event page, packet selection, and Color Challenge campaign graph. Enriches accessibility labels with event status, progress, and packet info. Follows the same pattern as RecentPlayAccessor.
@@ -34,42 +34,34 @@ Lines: 1516
 ### Methods
 - public static string GetEventTileLabel(GameObject element) (line 63) — Note: walks parent chain to PlayBladeEventTile, reads title + ranked/bo3/progress pips
 - private static void InitTileReflection(Type type) (line 112)
-- private static string ReadTileTitle(MonoBehaviour tile) (line 130)
-- private static bool IsRectTransformActive(MonoBehaviour tile, FieldInfo field) (line 145)
-- private static bool IsImageActive(MonoBehaviour tile, FieldInfo field) (line 153)
-- private static string ReadProgressFromPips(MonoBehaviour tile) (line 164) — Note: counts pips with active "Fill" child to compute filled/total progress
-- public static string GetEventPageTitle() (line 199) — Note: tries EventUXInfo.PublicEventName first, falls back to EventInfo.InternalEventName
-- public static string GetEventPageSummary() (line 253) — Note: reads CurrentWins/MaxWins for wins/losses summary
-- private static MonoBehaviour FindEventPageController() (line 287)
-- private static void InitEventPageReflection(Type type) (line 319)
-- private static object GetPlayerEvent(MonoBehaviour controller) (line 335) — Note: lazily initializes PlayerEvent field and EventInfo/EventUXInfo properties
-- public static List<CardInfoBlock> GetEventPageInfoBlocks() (line 367) — Note: scans TMP_Text children, filters out buttons/objectives, splits on newlines
-- private static bool IsInsideComponent(Transform child, Transform stopAt, string typeName) (line 431)
-- private static bool IsInsideNamedParent(Transform child, Transform stopAt, string nameSubstring) (line 450)
-- private static bool IsRedundantTitle(string blockText, string eventTitle) (line 467) — Note: filters short blocks that look like the event name (<=4 words and share 1/3 words with title)
-- public static string GetPacketLabel(GameObject element) (line 505) — Note: walks parent chain to JumpStartPacket, returns "{name} ({colors})"
-- public static List<CardInfoBlock> GetPacketInfoBlocks(GameObject element) (line 543) — Note: includes name, colors, featured card info from LandGrpId, and description text
-- private static uint GetPacketLandGrpId(MonoBehaviour packet) (line 634)
-- public static bool IsInsideJumpStartPacket(GameObject element) (line 695)
-- public static GameObject GetJumpStartPacketRoot(GameObject element) (line 707) — Note: used to sort packet elements by tile position rather than child offset
-- public static bool ClickPacket(GameObject element) (line 719) — Note: invokes PacketInput.OnClick since UIActivator's pointer simulation doesn't reach CustomTouchButton on JumpStartPacket GO
-- public static string GetPacketScreenSummary() (line 768) — Note: "Packet 1 of 2" via SubmissionCount()
-- private static MonoBehaviour FindPacketController() (line 818)
-- private static void InitPacketReflection(Type type) (line 849)
-- private static void InitJumpStartReflection(Type type) (line 867)
-- private static string ReadPacketDisplayName(MonoBehaviour packet) (line 882)
-- private static string GetPacketColorInfo(MonoBehaviour packet) (line 900) — Note: looks up via controller's _packetToId dictionary and _currentState.GetDetailsById
-- private static string TranslateManaColors(string[] rawColors) (line 954) — Note: translates W/U/B/R/G/C to localized color names
-- public static Dictionary<string, string> GetAllTrackSummaries() (line 986) — Note: progress summaries for all Color Challenge tracks, keyed by localized color name
-- private static string MapToLocalizedColor(string colorKey) (line 1065)
-- public static List<CardInfoBlock> GetCampaignGraphInfoBlocks() (line 1085) — Note: reads ObjectiveBubbles when track module visible, falls back to strategy data otherwise
-- private static Dictionary<string, object> BuildNodeMap(MonoBehaviour controller) (line 1146)
-- private static string ReadBubbleInfo(MonoBehaviour bubble, object matchNode = null) (line 1184) — Note: reads roman numeral, Animator bools (Locked/Completed/Selected), reward popup, and enriches with match node data
-- private static string ReadRewardDisplayText(object reward) (line 1318)
-- private static string ReadLocalizeText(FieldInfo field, MonoBehaviour owner) (line 1360)
-- private static bool IsPlaceholderText(string text) (line 1374) — Note: filters developer template text like "character max)", "short sentences go here"
-- private static List<CardInfoBlock> GetCampaignGraphInfoFromStrategy() (line 1388) — Note: fallback when track module not visible; reads track-level summary
-- private static MonoBehaviour FindCampaignGraphController() (line 1438)
-- private static void InitCampaignGraphReflection(Type type) (line 1469)
-- private static MonoBehaviour FindParentComponent(GameObject element, string typeName) (line 1488)
-- public static void ClearCache() (line 1506) — Note: call on scene changes
+- private static bool IsRectTransformActive(MonoBehaviour tile, FieldInfo field) (line 130)
+- private static bool IsImageActive(MonoBehaviour tile, FieldInfo field) (line 138)
+- private static string ReadProgressFromPips(MonoBehaviour tile) (line 149) — Note: counts pips with active "Fill" child to compute filled/total progress
+- public static string GetEventPageTitle() (line 184) — Note: tries EventUXInfo.PublicEventName first, falls back to EventInfo.InternalEventName
+- private static MonoBehaviour FindEventPageController() (line 235) — Note: thin wrapper over FindCachedController
+- private static void InitEventPageReflection(Type type) (line 238)
+- private static object GetPlayerEvent(MonoBehaviour controller) (line 254) — Note: lazily initializes PlayerEvent field and EventInfo/EventUXInfo properties
+- public static List<CardInfoBlock> GetEventPageInfoBlocks() (line 286) — Note: scans TMP_Text children, filters out buttons/objectives, splits on newlines
+- private static bool IsInsideComponent(Transform child, Transform stopAt, string typeName) — in the EventPage region
+- private static bool IsInsideNamedParent(Transform child, Transform stopAt, string nameSubstring) — in the EventPage region
+- private static bool IsRedundantTitle(string blockText, string eventTitle) — Note: filters short blocks that look like the event name
+- public static string GetPacketLabel(GameObject element) — Note: walks parent chain to JumpStartPacket, returns "{name} ({colors})"
+- public static List<CardInfoBlock> GetPacketInfoBlocks(GameObject element) — Note: includes name, colors, featured card info from LandGrpId, and description text
+- private static uint GetPacketLandGrpId(MonoBehaviour packet)
+- public static bool IsInsideJumpStartPacket(GameObject element)
+- public static GameObject GetJumpStartPacketRoot(GameObject element) — Note: used to sort packet elements by tile position rather than child offset
+- public static bool ClickPacket(GameObject element) (line 638) — Note: invokes PacketInput.OnClick since UIActivator's pointer simulation doesn't reach CustomTouchButton on JumpStartPacket GO
+- public static string GetPacketScreenSummary() (line 687) — Note: "Packet 1 of 2" via SubmissionCount()
+- private static MonoBehaviour FindPacketController() (line 737) — Note: thin wrapper over FindCachedController
+- private static void InitPacketReflection(Type type) (line 740)
+- private static void InitJumpStartReflection(Type type) (line 758)
+- private static string GetPacketColorInfo(MonoBehaviour packet) (line 774) — Note: looks up via controller's _packetToId dictionary and _currentState.GetDetailsById
+- private static string TranslateManaColors(string[] rawColors) (line 828) — Note: translates W/U/B/R/G/C to localized color names
+- public static Dictionary<string, string> GetAllTrackSummaries() (line 859) — Note: progress summaries for all Color Challenge tracks, keyed by localized color name
+- private static string MapToLocalizedColor(string colorKey) (line 938)
+- private static string ReadLocalizeText(FieldInfo field, MonoBehaviour owner) (line 955) — Note: shared helper used by tile title, packet display name, and popup title/desc readers
+- private static MonoBehaviour FindCampaignGraphController() (line 966) — Note: thin wrapper over FindCachedController
+- private static void InitCampaignGraphReflection(Type type) (line 969)
+- private static MonoBehaviour FindCachedController(ref MonoBehaviour cache, string typeName, Action<Type> initReflection) (line 992) — Note: shared caching scene-scan helper; dedups the three FindXxxController methods
+- private static MonoBehaviour FindParentComponent(GameObject element, string typeName) (line 1025)
+- public static void ClearCache() (line 1043) — Note: call on scene changes

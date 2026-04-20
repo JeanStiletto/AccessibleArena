@@ -27,9 +27,6 @@ When a user activates an event tile, the game opens `EventPageContentController`
 - `_currentEventContext` -> `PlayerEvent` (public **field**, not property) -> `EventUXInfo.PublicEventName` (preferred, localized)
 - Fallback: `EventInfo.InternalEventName` (underscore-separated, cleaned up)
 
-**Event summary:** `EventAccessor.GetEventPageSummary()` reads:
-- `PlayerEvent.CurrentWins` / `PlayerEvent.MaxWins` -> "{wins}/{maxWins} wins"
-
 ### Event Page Info Navigation (Up/Down)
 
 Event page description text is navigable via Up/Down arrows as virtual info items.
