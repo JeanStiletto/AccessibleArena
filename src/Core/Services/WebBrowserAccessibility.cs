@@ -9,6 +9,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Patches;
 using ZenFulcrum.EmbeddedBrowser;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -147,7 +148,7 @@ namespace AccessibleArena.Core.Services
             _browser = panel.GetComponentInChildren<Browser>(true);
             if (_browser == null)
             {
-                MelonLogger.Msg("[WebBrowser] No Browser component found in panel");
+                Log.Msg("WebBrowser", "No Browser component found in panel");
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_NoBrowserFound);
                 _isActive = false;
                 return;
@@ -166,7 +167,7 @@ namespace AccessibleArena.Core.Services
             // Subscribe to page load events
             _browser.onLoad += OnPageLoad;
 
-            MelonLogger.Msg($"[WebBrowser] Activated. Browser URL: {_browser.Url}, IsLoaded: {_browser.IsLoaded}");
+            Log.Msg("WebBrowser", $"Activated. Browser URL: {_browser.Url}, IsLoaded: {_browser.IsLoaded}");
 
             if (_browser.IsLoaded)
             {
@@ -223,7 +224,7 @@ namespace AccessibleArena.Core.Services
             // Release Escape blocking
             KeyboardManagerPatch.BlockEscape = false;
 
-            MelonLogger.Msg("[WebBrowser] Deactivated");
+            Log.Msg("WebBrowser", "Deactivated");
         }
 
         /// <summary>
@@ -251,18 +252,18 @@ namespace AccessibleArena.Core.Services
                 try
                 {
                     _browser.TypeText(queued);
-                    MelonLogger.Msg($"[WebBrowser] TypeText (post-click): ***");
+                    Log.Msg("WebBrowser", $"TypeText (post-click): ***");
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[WebBrowser] Post-click TypeText error: {ex.Message}");
+                    Log.Msg("WebBrowser", $"Post-click TypeText error: {ex.Message}");
                 }
             }
 
             // Extraction timeout — if Promise never resolved, reset and retry
             if (_isLoading && Time.realtimeSinceStartup - _extractionStartTime > 5f)
             {
-                MelonLogger.Msg("[WebBrowser] Extraction timed out, resetting");
+                Log.Msg("WebBrowser", "Extraction timed out, resetting");
                 _isLoading = false;
                 ScheduleRescan(1.0f);
             }
@@ -518,7 +519,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var elem = _elements[_currentIndex];
                     _browser.EvalJSCSP(WebBrowserScripts.SubmitScript(elem.Index))
-                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] Submit error: {ex.Message}"));
+                        .Catch(ex => Log.Msg("WebBrowser", $"Submit error: {ex.Message}"));
                 }
                 ExitEditMode();
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_Submitted);
@@ -566,7 +567,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var elem = _elements[_currentIndex];
                     _browser.EvalJSCSP(WebBrowserScripts.SelectAllScript(elem.Index))
-                        .Catch(ex => MelonLogger.Msg($"[WebBrowser] SelectAll error: {ex.Message}"));
+                        .Catch(ex => Log.Msg("WebBrowser", $"SelectAll error: {ex.Message}"));
                     _announcer.AnnounceInterrupt(Strings.AllSelected);
                 }
                 return;
@@ -582,7 +583,7 @@ namespace AccessibleArena.Core.Services
                     if (_useNativeInput)
                     {
                         _browser.PressKey(KeyCode.Backspace);
-                        MelonLogger.Msg($"[WebBrowser] Backspace (native) in element {elem.Index}: {elem.Text}");
+                        Log.Msg("WebBrowser", $"Backspace (native) in element {elem.Index}: {elem.Text}");
                     }
                     else
                     {
@@ -593,7 +594,7 @@ namespace AccessibleArena.Core.Services
                                 if (val == "not_found")
                                     _announcer.AnnounceInterrupt(Strings.WebBrowser_FieldNotFound);
                             })
-                            .Catch(ex => MelonLogger.Msg($"[WebBrowser] Backspace error: {ex.Message}"));
+                            .Catch(ex => Log.Msg("WebBrowser", $"Backspace error: {ex.Message}"));
                     }
                 }
                 return;
@@ -620,22 +621,22 @@ namespace AccessibleArena.Core.Services
                     {
                         // Native CEF input — sends isTrusted keyboard events
                         _browser.TypeText(chars);
-                        MelonLogger.Msg($"[WebBrowser] TypeText (native): {(elem.InputType == "password" ? "***" : chars)}");
+                        Log.Msg("WebBrowser", $"TypeText (native): {(elem.InputType == "password" ? "***" : chars)}");
                     }
                     else
                     {
-                        MelonLogger.Msg($"[WebBrowser] Typing '{chars}' into element {elem.Index}: {elem.Text}");
+                        Log.Msg("WebBrowser", $"Typing '{chars}' into element {elem.Index}: {elem.Text}");
                         _browser.EvalJSCSP(WebBrowserScripts.AppendTextScript(elem.Index, chars))
                             .Then(result =>
                             {
                                 string res = (string)result;
-                                MelonLogger.Msg($"[WebBrowser] TypeText result: {res}");
+                                Log.Msg("WebBrowser", $"TypeText result: {res}");
                                 // Detect JS input failure: execCommand reports success but value is empty
                                 // This happens on sites like PayPal that reject non-trusted events
                                 if (res != null && res.StartsWith("execCommand:") && res == "execCommand:"
                                     || res != null && res == "all_failed:")
                                 {
-                                    MelonLogger.Msg($"[WebBrowser] JS input failed, switching to native CEF input");
+                                    Log.Msg("WebBrowser", $"JS input failed, switching to native CEF input");
                                     _useNativeInput = true;
                                     // Simulate a native mouse click on the field first — gives CEF top-level
                                     // focus to the correct iframe so TypeText's trusted keyboard events
@@ -643,7 +644,7 @@ namespace AccessibleArena.Core.Services
                                     SimulateNativeClickThenType(elem, chars);
                                 }
                             })
-                            .Catch(ex => MelonLogger.Msg($"[WebBrowser] TypeText error: {ex.Message}"));
+                            .Catch(ex => Log.Msg("WebBrowser", $"TypeText error: {ex.Message}"));
                     }
                 }
             }
@@ -784,11 +785,11 @@ namespace AccessibleArena.Core.Services
                 BrowserNative.zfb_mouseMove(id, nx, ny);
                 BrowserNative.zfb_mouseButton(id, BrowserNative.MouseButton.MBT_LEFT, true, 1);
                 BrowserNative.zfb_mouseButton(id, BrowserNative.MouseButton.MBT_LEFT, false, 1);
-                MelonLogger.Msg($"[WebBrowser] Native click fired at ({nx:F3}, {ny:F3})");
+                Log.Msg("WebBrowser", $"Native click fired at ({nx:F3}, {ny:F3})");
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[WebBrowser] Native click failed: {ex.Message}");
+                Log.Msg("WebBrowser", $"Native click failed: {ex.Message}");
             }
         }
 
@@ -800,10 +801,10 @@ namespace AccessibleArena.Core.Services
                 .Then(result =>
                 {
                     string s = (string)result;
-                    MelonLogger.Msg($"[WebBrowser] BBox raw CSV: '{s}'");
+                    Log.Msg("WebBrowser", $"BBox raw CSV: '{s}'");
                     if (!TryParseBBox(s, out float nx, out float ny))
                     {
-                        MelonLogger.Msg($"[WebBrowser] BBox lookup failed ('{s}') — sending TypeText without native click");
+                        Log.Msg("WebBrowser", $"BBox lookup failed ('{s}') — sending TypeText without native click");
                         _browser.TypeText(chars);
                         return;
                     }
@@ -814,7 +815,7 @@ namespace AccessibleArena.Core.Services
                 })
                 .Catch(ex =>
                 {
-                    MelonLogger.Msg($"[WebBrowser] BBox error: {ex.Message} — sending TypeText without native click");
+                    Log.Msg("WebBrowser", $"BBox error: {ex.Message} — sending TypeText without native click");
                     _browser.TypeText(chars);
                 });
         }
@@ -900,7 +901,7 @@ namespace AccessibleArena.Core.Services
                 })
                 .Catch(ex =>
                 {
-                    MelonLogger.Msg($"[WebBrowser] Error reading field value: {ex.Message}");
+                    Log.Msg("WebBrowser", $"Error reading field value: {ex.Message}");
                 });
         }
 
@@ -912,19 +913,19 @@ namespace AccessibleArena.Core.Services
         {
             if (_browser == null || !_browser.IsReady)
             {
-                MelonLogger.Msg("[WebBrowser] Cannot extract - browser not ready");
+                Log.Msg("WebBrowser", "Cannot extract - browser not ready");
                 return;
             }
 
             if (_isLoading)
             {
-                MelonLogger.Msg("[WebBrowser] Extraction already in progress, skipping");
+                Log.Msg("WebBrowser", "Extraction already in progress, skipping");
                 return;
             }
 
             _isLoading = true;
             _extractionStartTime = Time.realtimeSinceStartup;
-            MelonLogger.Msg("[WebBrowser] Extracting page elements...");
+            Log.Msg("WebBrowser", "Extracting page elements...");
 
             _browser.EvalJSCSP(WebBrowserScripts.ExtractionScript)
                 .Then(result => OnElementsExtracted(result))
@@ -938,7 +939,7 @@ namespace AccessibleArena.Core.Services
 
             if (result == null || result.Type != JSONNode.NodeType.Array)
             {
-                MelonLogger.Msg($"[WebBrowser] Extraction returned non-array: {result?.Type}");
+                Log.Msg("WebBrowser", $"Extraction returned non-array: {result?.Type}");
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_CouldNotRead);
                 return;
             }
@@ -1006,7 +1007,7 @@ namespace AccessibleArena.Core.Services
             }
             _hasInteractiveElements = foundInteractive;
 
-            MelonLogger.Msg($"[WebBrowser] Extracted {_elements.Count} elements ({webElementCount} from page, interactive={foundInteractive})");
+            Log.Msg("WebBrowser", $"Extracted {_elements.Count} elements ({webElementCount} from page, interactive={foundInteractive})");
 
             // Layer 1: No web elements at all — iframes may still be loading
             if (webElementCount == 0 && !_pendingRescan)
@@ -1029,7 +1030,7 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
-                MelonLogger.Msg("[WebBrowser] No web elements found, scheduling rescan for iframe content");
+                Log.Msg("WebBrowser", "No web elements found, scheduling rescan for iframe content");
                 ScheduleRescan(_captchaCheckCompleted ? 4.0f : 1.5f);  // back off once probe is done
                 if (!_emptyLoadingAnnounced)
                 {
@@ -1047,7 +1048,7 @@ namespace AccessibleArena.Core.Services
             // Install MutationObserver to detect when they appear.
             if (!foundInteractive && !_mutationObserverActive)
             {
-                MelonLogger.Msg("[WebBrowser] No interactive elements found, installing MutationObserver to watch for dynamic content");
+                Log.Msg("WebBrowser", "No interactive elements found, installing MutationObserver to watch for dynamic content");
                 _mutationCurrentTimeout = MutationStableTimeout;
                 InstallMutationObserver();
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_ContextLoading(_contextLabel));
@@ -1060,14 +1061,14 @@ namespace AccessibleArena.Core.Services
             // If neither count nor content changed, this is a silent rescan — don't re-announce
             if (webElementCount == _lastWebElementCount && fingerprint == _lastContentFingerprint)
             {
-                MelonLogger.Msg("[WebBrowser] Element count unchanged, silent rescan");
+                Log.Msg("WebBrowser", "Element count unchanged, silent rescan");
                 return;
             }
 
             bool contentChangedOnly = webElementCount == _lastWebElementCount && fingerprint != _lastContentFingerprint;
             if (contentChangedOnly)
             {
-                MelonLogger.Msg("[WebBrowser] Element count unchanged but content changed (AJAX update detected)");
+                Log.Msg("WebBrowser", "Element count unchanged but content changed (AJAX update detected)");
             }
 
             _lastWebElementCount = webElementCount;
@@ -1076,7 +1077,7 @@ namespace AccessibleArena.Core.Services
             // If we now have interactive elements, stop the MutationObserver
             if (foundInteractive && _mutationObserverActive)
             {
-                MelonLogger.Msg("[WebBrowser] Interactive elements found, stopping MutationObserver");
+                Log.Msg("WebBrowser", "Interactive elements found, stopping MutationObserver");
                 _mutationObserverActive = false;
             }
 
@@ -1093,7 +1094,7 @@ namespace AccessibleArena.Core.Services
         private void OnExtractionError(Exception ex)
         {
             _isLoading = false;
-            MelonLogger.Msg($"[WebBrowser] Extraction error: {ex.Message}");
+            Log.Msg("WebBrowser", $"Extraction error: {ex.Message}");
             _announcer.AnnounceInterrupt(Strings.WebBrowser_CouldNotRead);
         }
 
@@ -1130,11 +1131,11 @@ namespace AccessibleArena.Core.Services
                     _mutationObserverActive = true;
                     _mutationPollTimer = MutationPollInterval;
                     _mutationStableTime = 0;
-                    MelonLogger.Msg("[WebBrowser] MutationObserver installed");
+                    Log.Msg("WebBrowser", "MutationObserver installed");
                 })
                 .Catch(ex =>
                 {
-                    MelonLogger.Msg($"[WebBrowser] MutationObserver install error: {ex.Message}");
+                    Log.Msg("WebBrowser", $"MutationObserver install error: {ex.Message}");
                 });
         }
 
@@ -1155,7 +1156,7 @@ namespace AccessibleArena.Core.Services
                     if (changed)
                     {
                         _mutationStableTime = 0;
-                        MelonLogger.Msg("[WebBrowser] DOM changed, re-extracting");
+                        Log.Msg("WebBrowser", "DOM changed, re-extracting");
                         ExtractElements();
                     }
                     else
@@ -1163,7 +1164,7 @@ namespace AccessibleArena.Core.Services
                         _mutationStableTime += MutationPollInterval;
                         if (_mutationStableTime >= _mutationCurrentTimeout)
                         {
-                            MelonLogger.Msg("[WebBrowser] DOM stable, stopping MutationObserver polling");
+                            Log.Msg("WebBrowser", "DOM stable, stopping MutationObserver polling");
                             _mutationObserverActive = false;
 
                             // If we still have no interactive elements after timeout, warn user
@@ -1176,7 +1177,7 @@ namespace AccessibleArena.Core.Services
                 })
                 .Catch(ex =>
                 {
-                    MelonLogger.Msg($"[WebBrowser] MutationObserver poll error: {ex.Message}");
+                    Log.Msg("WebBrowser", $"MutationObserver poll error: {ex.Message}");
                 });
         }
 
@@ -1186,7 +1187,7 @@ namespace AccessibleArena.Core.Services
 
         private void OnPageLoad(JSONNode loadData)
         {
-            MelonLogger.Msg($"[WebBrowser] Page loaded: {_browser?.Url}");
+            Log.Msg("WebBrowser", $"Page loaded: {_browser?.Url}");
 
             if (!_isActive) return;
 
@@ -1195,7 +1196,7 @@ namespace AccessibleArena.Core.Services
             // without this short-circuit the warning would spam on every reload.
             if (_captchaDetected)
             {
-                MelonLogger.Msg("[WebBrowser] CAPTCHA already detected, ignoring redirect page load");
+                Log.Msg("WebBrowser", "CAPTCHA already detected, ignoring redirect page load");
                 return;
             }
 
@@ -1206,7 +1207,7 @@ namespace AccessibleArena.Core.Services
             string url = _browser?.Url ?? "";
             if (IsCaptchaUrl(url))
             {
-                MelonLogger.Msg("[WebBrowser] CAPTCHA/security URL detected on page load, announcing warning");
+                Log.Msg("WebBrowser", "CAPTCHA/security URL detected on page load, announcing warning");
                 _captchaDetected = true;
                 _pendingRescan = false;
                 _secondRescanTimer = 0;
@@ -1223,7 +1224,7 @@ namespace AccessibleArena.Core.Services
                 // login page rather than showing a visual CAPTCHA. Announce a retry
                 // hint but let the normal page-load flow continue so the user can
                 // re-enter the password.
-                MelonLogger.Msg("[WebBrowser] Login failure URL detected, announcing retry hint");
+                Log.Msg("WebBrowser", "Login failure URL detected, announcing retry hint");
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_LoginFailed);
             }
 
@@ -1412,7 +1413,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            MelonLogger.Msg($"[WebBrowser] Activating element {elem.Index}: {elem.Text} ({elem.Role})");
+            Log.Msg("WebBrowser", $"Activating element {elem.Index}: {elem.Text} ({elem.Role})");
 
             switch (elem.Role)
             {
@@ -1489,7 +1490,7 @@ namespace AccessibleArena.Core.Services
                         es.SetSelectedGameObject(_browserInputForwarder.gameObject);
                 }
                 string reason = isPasswordField ? "password" : "paypal-login-text";
-                MelonLogger.Msg($"[WebBrowser] Passthrough edit mode ({reason}): element {elem.Index} ({elem.Text})");
+                Log.Msg("WebBrowser", $"Passthrough edit mode ({reason}): element {elem.Index} ({elem.Text})");
             }
             else
             {
@@ -1501,7 +1502,7 @@ namespace AccessibleArena.Core.Services
 
             // Focus the element in the browser (works for both modes)
             _browser.EvalJSCSP(WebBrowserScripts.FocusScript(elem.Index))
-                .Catch(ex => MelonLogger.Msg($"[WebBrowser] Focus error: {ex.Message}"));
+                .Catch(ex => Log.Msg("WebBrowser", $"Focus error: {ex.Message}"));
 
             // Use the real role label (RolePasswordField / RoleEmailField / RoleNumberField / TextField)
             // so passthrough on email still announces "E-Mail-Feld", not "Passwortfeld".
@@ -1517,18 +1518,18 @@ namespace AccessibleArena.Core.Services
                     string res = (string)result;
                     if (res == "not_found")
                     {
-                        MelonLogger.Msg($"[WebBrowser] Element {elem.Index} not found for click");
+                        Log.Msg("WebBrowser", $"Element {elem.Index} not found for click");
                         _announcer.AnnounceInterrupt(Strings.WebBrowser_ElementNotFound);
                         ScheduleRescan(0.2f);
                     }
                     else
                     {
-                        MelonLogger.Msg($"[WebBrowser] Clicked element {elem.Index}: {elem.Text}");
+                        Log.Msg("WebBrowser", $"Clicked element {elem.Index}: {elem.Text}");
                     }
                 })
                 .Catch(ex =>
                 {
-                    MelonLogger.Msg($"[WebBrowser] Click error: {ex.Message}");
+                    Log.Msg("WebBrowser", $"Click error: {ex.Message}");
                 });
         }
 
@@ -1596,7 +1597,7 @@ namespace AccessibleArena.Core.Services
 
         private void CheckForCaptcha()
         {
-            MelonLogger.Msg("[WebBrowser] Checking for CAPTCHA / security verification...");
+            Log.Msg("WebBrowser", "Checking for CAPTCHA / security verification...");
 
             // Check the URL for known security step-up patterns
             string url = _browser?.Url?.ToLowerInvariant() ?? "";
@@ -1614,20 +1615,20 @@ namespace AccessibleArena.Core.Services
                     string json = (string)result ?? "";
                     bool hasUserFacingCaptchaIframe = ContainsUserFacingCaptchaVendor(json);
 
-                    MelonLogger.Msg($"[WebBrowser] CAPTCHA check: urlSuspicious={urlSuspicious}, vendorIframe={hasUserFacingCaptchaIframe}, details={json}");
+                    Log.Msg("WebBrowser", $"CAPTCHA check: urlSuspicious={urlSuspicious}, vendorIframe={hasUserFacingCaptchaIframe}, details={json}");
 
                     _captchaCheckCompleted = true;
                     if (urlSuspicious || hasUserFacingCaptchaIframe)
                     {
                         _captchaDetected = true;
-                        MelonLogger.Msg("[WebBrowser] CAPTCHA detected! Stopping rescan loop.");
+                        Log.Msg("WebBrowser", "CAPTCHA detected! Stopping rescan loop.");
                         _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
                     }
                     else
                     {
                         // Not a CAPTCHA — back off to a slow poll and let the
                         // MutationObserver / next OnPageLoad pick up real content.
-                        MelonLogger.Msg("[WebBrowser] No CAPTCHA indicators found, backing off rescan loop");
+                        Log.Msg("WebBrowser", "No CAPTCHA indicators found, backing off rescan loop");
                         ScheduleRescan(4.0f);
                         if (!_emptyLoadingAnnounced)
                         {
@@ -1638,7 +1639,7 @@ namespace AccessibleArena.Core.Services
                 })
                 .Catch(ex =>
                 {
-                    MelonLogger.Msg($"[WebBrowser] CAPTCHA detection error: {ex.Message}");
+                    Log.Msg("WebBrowser", $"CAPTCHA detection error: {ex.Message}");
                     _captchaCheckCompleted = true;
                     // If the URL alone was suspicious, still warn
                     if (urlSuspicious)
@@ -1716,7 +1717,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _backToArenaButton = btn.gameObject;
                     _backToArenaLabel = !string.IsNullOrEmpty(label) ? label : btn.gameObject.name;
-                    MelonLogger.Msg($"[WebBrowser] Found Back to Arena button: {btn.gameObject.name}, label: {_backToArenaLabel}");
+                    Log.Msg("WebBrowser", $"Found Back to Arena button: {btn.gameObject.name}, label: {_backToArenaLabel}");
                     break;
                 }
             }
@@ -1732,7 +1733,7 @@ namespace AccessibleArena.Core.Services
                     _backToArenaButton = btn.gameObject;
                     string label = UITextExtractor.GetText(btn.gameObject) ?? "";
                     _backToArenaLabel = !string.IsNullOrEmpty(label) ? label : btn.gameObject.name;
-                    MelonLogger.Msg($"[WebBrowser] Using fallback Back button: {btn.gameObject.name}, label: {_backToArenaLabel}");
+                    Log.Msg("WebBrowser", $"Using fallback Back button: {btn.gameObject.name}, label: {_backToArenaLabel}");
                     break;
                 }
             }
@@ -1742,13 +1743,13 @@ namespace AccessibleArena.Core.Services
         {
             if (_backToArenaButton != null)
             {
-                MelonLogger.Msg("[WebBrowser] Clicking Back to Arena");
+                Log.Msg("WebBrowser", "Clicking Back to Arena");
                 _announcer.AnnounceInterrupt(_backToArenaLabel ?? Strings.WebBrowser_PaymentPage);
                 UIActivator.Activate(_backToArenaButton);
             }
             else
             {
-                MelonLogger.Msg("[WebBrowser] No Back to Arena button found");
+                Log.Msg("WebBrowser", "No Back to Arena button found");
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_NoBackButton);
             }
         }
