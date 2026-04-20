@@ -81,7 +81,7 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (in progress — 3/12 done)
+- [ ] large-file-handling.md  (in progress — 4/12 done)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
@@ -108,13 +108,17 @@ ChallengeInvite 216, InputFields 215, Chat 98), moved into
 `: IScreenNavigator`; feature partials are plain `public partial class`.
 Build: 0/0, tests: 105/105.
 
+Split 4/12: **DuelAnnouncer.cs** (3245 → 788 lines, -76%) via partial
+class split into 6 topical files (Zones 644, Combat 554, Resolution 478,
+NPE 444, PhaseTurn 242, Commander 198), moved into
+`src/Core/Services/DuelAnnouncer/` subfolder. Build: 0/0, tests: 105/105.
+
 Subfolder convention (established 2026-04-20): when splitting a class into
 partials, group all of them in a `src/Core/Services/<ClassName>/` subfolder.
 Namespace stays `AccessibleArena.Core.Services` (not updated to match path,
 to avoid ripple changes at consumer sites).
 
 Remaining candidates (still >2000 lines):
-- [ ] DuelAnnouncer.cs     (3245)
 - [ ] StoreNavigator.cs    (2773)
 - [ ] UITextExtractor.cs   (2760)
 - [ ] UIActivator.cs       (2745)

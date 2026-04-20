@@ -6,7 +6,7 @@ Total test files: 11 (8 test files + 3 stubs, excluding obj/)
 Total src LOC: 94,939
 Total test LOC: 1,303
 Combined LOC: 96,242
-Large files (over 2000 lines): 9 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), and BaseNavigator (4085→1600, 6 new partials)
+Large files (over 2000 lines): 8 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), and DuelAnnouncer (3245→788, 6 new partials)
 
 ---
 
@@ -94,7 +94,14 @@ Large files (over 2000 lines): 9 after splits of GeneralMenuNavigator (6148→34
 - **DraftNavigator.cs** (1067 lines) — Navigator for draft pack picking (DraftPackHolder, Enter to select, Space to confirm).
 - **DropdownEditHelper.cs** (241 lines) — Thin wrapper for dropdown edit-mode state; routes keys to BaseNavigator dropdown methods.
 - **DropdownStateManager.cs** (497 lines) — Unified source of truth for dropdown open/close state and value-change suppression.
-- **DuelAnnouncer.cs** (3245 lines) [LARGE] — Announces all duel events (draws, plays, damage, life, phase, targeting) from UXEventQueue.
+- **DuelAnnouncer/** (subfolder; class lives across 7 partial files, namespace stays `AccessibleArena.Core.Services`)
+  - **DuelAnnouncer.cs** (788 lines) — Core partial: singleton, lifecycle, OnGameEvent dispatch, event classification, small builders (Reveal/Counters/GameEnd), mana pool, reflection helpers, counts accessors.
+  - **DuelAnnouncer.Zones.cs** (644 lines) — Zone transfer events: HandleUpdateZoneEvent, HandleZoneTransferGroup, ProcessBattlefield/Graveyard/Exile/Hand entries, attach resolution, land detection.
+  - **DuelAnnouncer.Combat.cs** (554 lines) — Combat + damage: attacker declarations, damage chain extraction, DamageInfo nested class, P/T lookup, CombatFrame, CardModelUpdate.
+  - **DuelAnnouncer.Resolution.cs** (478 lines) — Spell/ability resolution: started/ended, library browser, countered, cast announcements, delayed coroutine announcements.
+  - **DuelAnnouncer.NPE.cs** (444 lines) — NPE tutorial: dialog/reminder/tooltip/warning handlers, hover simulation, NPE director reflection.
+  - **DuelAnnouncer.PhaseTurn.cs** (242 lines) — Phase/step/turn tracking, life changes, phase debounce.
+  - **DuelAnnouncer.Commander.cs** (198 lines) — Commander format: grpId/info/name getters, commander reflection cache, match manager traversal.
 - **DuelChatNavigator.cs** (949 lines) — Sub-navigator for in-duel chat (F4 toggle, preserves zone/card state in DuelNavigator).
 - **DuelHolderCache.cs** (46 lines) — Static cache for duel card-holder GameObjects to avoid repeated scene scans.
 - **DuelNavigator.cs** (909 lines) — Top-level duel navigator; delegates to ZoneNavigator, combat, browser, mana picker, etc.
