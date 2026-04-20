@@ -1,17 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 using TMPro;
 using MelonLoader;
-using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
-using AccessibleArena.Core.Services.PanelDetection;
-using AccessibleArena.Core.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 

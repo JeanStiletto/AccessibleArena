@@ -1,21 +1,8 @@
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using TMPro;
-using MelonLoader;
-using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
-using AccessibleArena.Core.Services.PanelDetection;
-using AccessibleArena.Core.Services.ElementGrouping;
-using AccessibleArena.Patches;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
-using static AccessibleArena.Core.Constants.SceneNames;
-using SceneNames = AccessibleArena.Core.Constants.SceneNames;
-using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
