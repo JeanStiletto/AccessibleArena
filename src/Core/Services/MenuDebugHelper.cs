@@ -411,7 +411,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static void DumpChallengeBlade(string tag, IAnnouncementService announcer)
         {
-            MelonLogger.Msg($"[{tag}] === CHALLENGE BLADE DEEP DUMP ===");
+            Log.Msg("{tag}", $"=== CHALLENGE BLADE DEEP DUMP ===");
 
             // Find UnifiedChallengeBladeWidget by type name
             GameObject bladeWidget = null;
@@ -426,18 +426,18 @@ namespace AccessibleArena.Core.Services
 
             if (bladeWidget == null)
             {
-                MelonLogger.Msg($"[{tag}] UnifiedChallengeBladeWidget not found or not active");
-                MelonLogger.Msg($"[{tag}] === END CHALLENGE BLADE DUMP ===");
+                Log.Msg("{tag}", $"UnifiedChallengeBladeWidget not found or not active");
+                Log.Msg("{tag}", $"=== END CHALLENGE BLADE DUMP ===");
                 announcer?.Announce("Challenge blade not found", Models.AnnouncementPriority.High);
                 return;
             }
 
-            MelonLogger.Msg($"[{tag}] Found: {bladeWidget.name} [{bladeWidget.GetType().Name}]");
+            Log.Msg("{tag}", $"Found: {bladeWidget.name} [{bladeWidget.GetType().Name}]");
 
             // Also dump the parent up to Popout canvas for context
             var parent = bladeWidget.transform.parent;
             if (parent != null)
-                MelonLogger.Msg($"[{tag}] Parent: {parent.name}");
+                Log.Msg("{tag}", $"Parent: {parent.name}");
 
             // Deep recursive dump - no depth limit
             DumpDeepChildren(tag, bladeWidget, 1);
@@ -446,7 +446,7 @@ namespace AccessibleArena.Core.Services
             var containerButtons = GameObject.Find("Container_Buttons");
             if (containerButtons != null)
             {
-                MelonLogger.Msg($"[{tag}] --- Container_Buttons ---");
+                Log.Msg("{tag}", $"--- Container_Buttons ---");
                 DumpDeepChildren(tag, containerButtons, 1);
             }
 
@@ -454,11 +454,11 @@ namespace AccessibleArena.Core.Services
             var challengesContainer = GameObject.Find("UnifiedChallengesCONTAINER");
             if (challengesContainer != null)
             {
-                MelonLogger.Msg($"[{tag}] --- UnifiedChallengesCONTAINER ---");
+                Log.Msg("{tag}", $"--- UnifiedChallengesCONTAINER ---");
                 DumpDeepChildren(tag, challengesContainer, 1);
             }
 
-            MelonLogger.Msg($"[{tag}] === END CHALLENGE BLADE DUMP ===");
+            Log.Msg("{tag}", $"=== END CHALLENGE BLADE DUMP ===");
             announcer?.Announce("Challenge blade dump complete", Models.AnnouncementPriority.High);
         }
 
@@ -506,7 +506,7 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                MelonLogger.Msg($"[{tag}] {indent}{child.name}{componentsStr}{activeStr}{textInfo}");
+                Log.Msg("{tag}", $"{indent}{child.name}{componentsStr}{activeStr}{textInfo}");
 
                 // Recurse into children
                 DumpDeepChildren(tag, child.gameObject, depth + 1);
@@ -537,7 +537,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 string componentsStr = componentNames.Count > 0 ? $" [{string.Join(", ", componentNames)}]" : "";
-                MelonLogger.Msg($"[{tag}] {indent}{child.name}{componentsStr}");
+                Log.Msg("{tag}", $"{indent}{child.name}{componentsStr}");
 
                 DumpGameObjectChildren(tag, child.gameObject, currentDepth + 1, maxDepth);
             }
@@ -601,34 +601,34 @@ namespace AccessibleArena.Core.Services
         {
             if (cardObj == null)
             {
-                MelonLogger.Msg($"[{tag}] DumpCardDetails: No card object provided");
+                Log.Msg("{tag}", $"DumpCardDetails: No card object provided");
                 announcer?.Announce("No card to inspect.", Models.AnnouncementPriority.High);
                 return;
             }
 
-            MelonLogger.Msg($"[{tag}] ===========================================");
-            MelonLogger.Msg($"[{tag}] === F11 DEBUG: CARD DETAILS DUMP ===");
-            MelonLogger.Msg($"[{tag}] ===========================================");
-            MelonLogger.Msg($"[{tag}] Card object: {cardObj.name}");
-            MelonLogger.Msg($"[{tag}] Full path: {GetFullPath(cardObj.transform)}");
-            MelonLogger.Msg($"[{tag}] Active: {cardObj.activeInHierarchy}");
-            MelonLogger.Msg($"[{tag}] InstanceID: {cardObj.GetInstanceID()}");
+            Log.Msg("{tag}", $"===========================================");
+            Log.Msg("{tag}", $"=== F11 DEBUG: CARD DETAILS DUMP ===");
+            Log.Msg("{tag}", $"===========================================");
+            Log.Msg("{tag}", $"Card object: {cardObj.name}");
+            Log.Msg("{tag}", $"Full path: {GetFullPath(cardObj.transform)}");
+            Log.Msg("{tag}", $"Active: {cardObj.activeInHierarchy}");
+            Log.Msg("{tag}", $"InstanceID: {cardObj.GetInstanceID()}");
 
             // Dump all components on the card root
-            MelonLogger.Msg($"[{tag}] === Components on root ===");
+            Log.Msg("{tag}", $"=== Components on root ===");
             foreach (var comp in cardObj.GetComponents<Component>())
             {
                 if (comp == null) continue;
-                MelonLogger.Msg($"[{tag}]   {comp.GetType().FullName}");
+                Log.Msg("{tag}", $"  {comp.GetType().FullName}");
             }
 
             // Dump all TMP_Text elements
-            MelonLogger.Msg($"[{tag}] === TMP_Text elements (includeInactive=true) ===");
+            Log.Msg("{tag}", $"=== TMP_Text elements (includeInactive=true) ===");
             var texts = cardObj.GetComponentsInChildren<TMP_Text>(true);
-            MelonLogger.Msg($"[{tag}] Found {texts.Length} TMP_Text components");
+            Log.Msg("{tag}", $"Found {texts.Length} TMP_Text components");
             if (texts.Length == 0)
             {
-                MelonLogger.Msg($"[{tag}]   (none found)");
+                Log.Msg("{tag}", $"  (none found)");
             }
             foreach (var text in texts)
             {
@@ -655,12 +655,12 @@ namespace AccessibleArena.Core.Services
                     marker = " *** VAULT RELEVANT ***";
                 }
 
-                MelonLogger.Msg($"[{tag}]   [{(isActive ? "ON" : "OFF")}] '{objName}' (parent: {parentChain}){marker}");
-                MelonLogger.Msg($"[{tag}]       Content: '{rawContent}'");
+                Log.Msg("{tag}", $"  [{(isActive ? "ON" : "OFF")}] '{objName}' (parent: {parentChain}){marker}");
+                Log.Msg("{tag}", $"      Content: '{rawContent}'");
             }
 
             // Dump key MonoBehaviour components that might indicate card type
-            MelonLogger.Msg($"[{tag}] === Card-related MonoBehaviours ===");
+            Log.Msg("{tag}", $"=== Card-related MonoBehaviours ===");
             var monoBehaviours = cardObj.GetComponentsInChildren<MonoBehaviour>(true);
             string[] cardPatterns = { "Card", "Meta", "CDC", "Booster", "View", "Display" };
             foreach (var mb in monoBehaviours)
@@ -678,17 +678,17 @@ namespace AccessibleArena.Core.Services
                 }
                 if (isRelevant)
                 {
-                    MelonLogger.Msg($"[{tag}]   {typeName} on {mb.gameObject.name}");
+                    Log.Msg("{tag}", $"  {typeName} on {mb.gameObject.name}");
                 }
             }
 
             // Dump immediate children hierarchy (2 levels deep)
-            MelonLogger.Msg($"[{tag}] === Child hierarchy (2 levels) ===");
+            Log.Msg("{tag}", $"=== Child hierarchy (2 levels) ===");
             DumpGameObjectChildren(tag, cardObj, 1, 2);
 
-            MelonLogger.Msg($"[{tag}] ===========================================");
-            MelonLogger.Msg($"[{tag}] === END CARD DETAILS DUMP ===");
-            MelonLogger.Msg($"[{tag}] ===========================================");
+            Log.Msg("{tag}", $"===========================================");
+            Log.Msg("{tag}", $"=== END CARD DETAILS DUMP ===");
+            Log.Msg("{tag}", $"===========================================");
             announcer?.Announce(Models.Strings.CardDetailsDumped, Models.AnnouncementPriority.High);
         }
 
@@ -708,11 +708,11 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            MelonLogger.Msg($"[{tag}] =================================");
-            MelonLogger.Msg($"[{tag}] === BOOSTER PACK INVESTIGATION ===");
-            MelonLogger.Msg($"[{tag}] =================================");
-            MelonLogger.Msg($"[{tag}] Starting object: {packObj.name}");
-            MelonLogger.Msg($"[{tag}] Full path: {GetFullPath(packObj.transform)}");
+            Log.Msg("{tag}", $"=================================");
+            Log.Msg("{tag}", $"=== BOOSTER PACK INVESTIGATION ===");
+            Log.Msg("{tag}", $"=================================");
+            Log.Msg("{tag}", $"Starting object: {packObj.name}");
+            Log.Msg("{tag}", $"Full path: {GetFullPath(packObj.transform)}");
 
             // Walk up to find CarouselBooster parent
             Transform current = packObj.transform;
@@ -721,12 +721,12 @@ namespace AccessibleArena.Core.Services
 
             while (current != null && maxLevels > 0)
             {
-                MelonLogger.Msg($"[{tag}] Checking parent: {current.name}");
+                Log.Msg("{tag}", $"Checking parent: {current.name}");
 
                 if (current.name.Contains("CarouselBooster"))
                 {
                     carouselBooster = current;
-                    MelonLogger.Msg($"[{tag}] >>> Found CarouselBooster: {current.name}");
+                    Log.Msg("{tag}", $">>> Found CarouselBooster: {current.name}");
                     break;
                 }
 
@@ -735,7 +735,7 @@ namespace AccessibleArena.Core.Services
                 foreach (var c in comps)
                 {
                     if (c == null || c is Transform) continue;
-                    MelonLogger.Msg($"[{tag}]   - Component: {c.GetType().Name}");
+                    Log.Msg("{tag}", $"  - Component: {c.GetType().Name}");
                 }
 
                 current = current.parent;
@@ -744,24 +744,24 @@ namespace AccessibleArena.Core.Services
 
             if (carouselBooster == null)
             {
-                MelonLogger.Msg($"[{tag}] Could not find CarouselBooster parent!");
+                Log.Msg("{tag}", $"Could not find CarouselBooster parent!");
                 announcer?.Announce(Models.Strings.CouldNotFindPackParent, Models.AnnouncementPriority.High);
                 return;
             }
 
             // Dump ALL components on CarouselBooster
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] === CarouselBooster Components ===");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"=== CarouselBooster Components ===");
             var allComponents = carouselBooster.GetComponents<Component>();
             foreach (var comp in allComponents)
             {
                 if (comp == null || comp is Transform) continue;
-                MelonLogger.Msg($"[{tag}] Component: {comp.GetType().FullName}");
+                Log.Msg("{tag}", $"Component: {comp.GetType().FullName}");
             }
 
             // Look for data-holding MonoBehaviours and dump their fields/properties
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] === MonoBehaviour Details (searching for set/product data) ===");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"=== MonoBehaviour Details (searching for set/product data) ===");
             var flags = AllInstanceFlags;
 
             var allMbs = carouselBooster.GetComponentsInChildren<MonoBehaviour>(true);
@@ -784,8 +784,8 @@ namespace AccessibleArena.Core.Services
 
                 if (!isRelevant) continue;
 
-                MelonLogger.Msg($"[{tag}] ");
-                MelonLogger.Msg($"[{tag}] >>> {typeName} on {mb.gameObject.name} <<<");
+                Log.Msg("{tag}", $"");
+                Log.Msg("{tag}", $">>> {typeName} on {mb.gameObject.name} <<<");
 
                 // Dump all fields
                 var fields = mb.GetType().GetFields(flags);
@@ -807,7 +807,7 @@ namespace AccessibleArena.Core.Services
                                             field.Name.ToLower().Contains("pack");
 
                         string marker = isInteresting ? " *** INTERESTING ***" : "";
-                        MelonLogger.Msg($"[{tag}]   Field: {field.Name} ({field.FieldType.Name}) = {valStr}{marker}");
+                        Log.Msg("{tag}", $"  Field: {field.Name} ({field.FieldType.Name}) = {valStr}{marker}");
 
                         // If it's an object, try to dump its properties too
                         if (val != null && isInteresting && !field.FieldType.IsPrimitive && field.FieldType != typeof(string))
@@ -817,7 +817,7 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (System.Exception ex)
                     {
-                        MelonLogger.Msg($"[{tag}]   Field: {field.Name} = <error: {ex.Message}>");
+                        Log.Msg("{tag}", $"  Field: {field.Name} = <error: {ex.Message}>");
                     }
                 }
 
@@ -843,7 +843,7 @@ namespace AccessibleArena.Core.Services
                                             prop.Name.ToLower().Contains("pack");
 
                         string marker = isInteresting ? " *** INTERESTING ***" : "";
-                        MelonLogger.Msg($"[{tag}]   Property: {prop.Name} ({prop.PropertyType.Name}) = {valStr}{marker}");
+                        Log.Msg("{tag}", $"  Property: {prop.Name} ({prop.PropertyType.Name}) = {valStr}{marker}");
 
                         // If it's an object, try to dump its properties too
                         if (val != null && isInteresting && !prop.PropertyType.IsPrimitive && prop.PropertyType != typeof(string))
@@ -853,39 +853,39 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (System.Exception ex)
                     {
-                        MelonLogger.Msg($"[{tag}]   Property: {prop.Name} = <error: {ex.Message}>");
+                        Log.Msg("{tag}", $"  Property: {prop.Name} = <error: {ex.Message}>");
                     }
                 }
             }
 
             // Also check for LocalizedString components that might have the set name
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] === TMP_Text Elements ===");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"=== TMP_Text Elements ===");
             var texts = carouselBooster.GetComponentsInChildren<TMP_Text>(true);
             foreach (var text in texts)
             {
                 if (text == null) continue;
                 string content = text.text ?? "(null)";
                 bool isActive = text.gameObject.activeInHierarchy;
-                MelonLogger.Msg($"[{tag}]   [{(isActive ? "ON" : "OFF")}] {text.gameObject.name}: '{content}'");
+                Log.Msg("{tag}", $"  [{(isActive ? "ON" : "OFF")}] {text.gameObject.name}: '{content}'");
 
                 // Check for Localize component
                 var localize = text.GetComponent<MonoBehaviour>();
                 if (localize != null && localize.GetType().Name == "Localize")
                 {
-                    MelonLogger.Msg($"[{tag}]     [Has Localize component]");
+                    Log.Msg("{tag}", $"    [Has Localize component]");
                 }
             }
 
             // Dump child hierarchy
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] === Child Hierarchy (3 levels) ===");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"=== Child Hierarchy (3 levels) ===");
             DumpGameObjectChildren(tag, carouselBooster.gameObject, 0, 3);
 
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] =================================");
-            MelonLogger.Msg($"[{tag}] === END BOOSTER PACK INVESTIGATION ===");
-            MelonLogger.Msg($"[{tag}] =================================");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"=================================");
+            Log.Msg("{tag}", $"=== END BOOSTER PACK INVESTIGATION ===");
+            Log.Msg("{tag}", $"=================================");
 
             announcer?.Announce(Models.Strings.PackDetailsDumped, Models.AnnouncementPriority.High);
         }
@@ -911,7 +911,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var val = prop.GetValue(obj);
                     string valStr = FormatValueForLog(val);
-                    MelonLogger.Msg($"[{tag}] {indent}.{prop.Name} = {valStr}");
+                    Log.Msg("{tag}", $"{indent}.{prop.Name} = {valStr}");
                 }
                 catch { /* Some properties throw on access; skip for debug dump */ }
             }
@@ -926,7 +926,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var val = field.GetValue(obj);
                     string valStr = FormatValueForLog(val);
-                    MelonLogger.Msg($"[{tag}] {indent}.{field.Name} = {valStr}");
+                    Log.Msg("{tag}", $"{indent}.{field.Name} = {valStr}");
                 }
                 catch { /* Some fields throw on access; skip for debug dump */ }
             }
@@ -940,15 +940,15 @@ namespace AccessibleArena.Core.Services
         {
             var flags = AllInstanceFlags;
 
-            MelonLogger.Msg($"[{tag}] ╔══════════════════════════════════════════════════════════════╗");
-            MelonLogger.Msg($"[{tag}] ║       COMPREHENSIVE WORKFLOW SYSTEM DEBUG DUMP              ║");
-            MelonLogger.Msg($"[{tag}] ╚══════════════════════════════════════════════════════════════╝");
+            Log.Msg("{tag}", $"╔══════════════════════════════════════════════════════════════╗");
+            Log.Msg("{tag}", $"║       COMPREHENSIVE WORKFLOW SYSTEM DEBUG DUMP              ║");
+            Log.Msg("{tag}", $"╚══════════════════════════════════════════════════════════════╝");
 
             // ═══════════════════════════════════════════════════════════════
             // SECTION 1: GameManager and WorkflowController
             // ═══════════════════════════════════════════════════════════════
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ══════ SECTION 1: GameManager & WorkflowController ══════");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"══════ SECTION 1: GameManager & WorkflowController ══════");
 
             MonoBehaviour gameManager = null;
             object workflowController = null;
@@ -965,11 +965,11 @@ namespace AccessibleArena.Core.Services
 
             if (gameManager != null)
             {
-                MelonLogger.Msg($"[{tag}] GameManager: FOUND on '{gameManager.gameObject.name}'");
-                MelonLogger.Msg($"[{tag}]   Type: {gameManager.GetType().FullName}");
+                Log.Msg("{tag}", $"GameManager: FOUND on '{gameManager.gameObject.name}'");
+                Log.Msg("{tag}", $"  Type: {gameManager.GetType().FullName}");
 
                 // Dump ALL properties that might be workflow-related
-                MelonLogger.Msg($"[{tag}]   --- Workflow-related properties ---");
+                Log.Msg("{tag}", $"  --- Workflow-related properties ---");
                 foreach (var prop in gameManager.GetType().GetProperties(flags))
                 {
                     string propName = prop.Name.ToLower();
@@ -980,7 +980,7 @@ namespace AccessibleArena.Core.Services
                         try
                         {
                             var val = prop.GetValue(gameManager);
-                            MelonLogger.Msg($"[{tag}]   Property: {prop.Name} ({prop.PropertyType.Name}) = {val?.GetType()?.FullName ?? "null"}");
+                            Log.Msg("{tag}", $"  Property: {prop.Name} ({prop.PropertyType.Name}) = {val?.GetType()?.FullName ?? "null"}");
 
                             if (prop.Name == "WorkflowController" && val != null)
                                 workflowController = val;
@@ -989,13 +989,13 @@ namespace AccessibleArena.Core.Services
                         }
                         catch (Exception ex)
                         {
-                            MelonLogger.Msg($"[{tag}]   Property: {prop.Name} = [error: {ex.Message}]");
+                            Log.Msg("{tag}", $"  Property: {prop.Name} = [error: {ex.Message}]");
                         }
                     }
                 }
 
                 // Also check fields
-                MelonLogger.Msg($"[{tag}]   --- Workflow-related fields ---");
+                Log.Msg("{tag}", $"  --- Workflow-related fields ---");
                 foreach (var field in gameManager.GetType().GetFields(flags))
                 {
                     string fieldName = field.Name.ToLower();
@@ -1006,44 +1006,44 @@ namespace AccessibleArena.Core.Services
                         try
                         {
                             var val = field.GetValue(gameManager);
-                            MelonLogger.Msg($"[{tag}]   Field: {field.Name} ({field.FieldType.Name}) = {val?.GetType()?.FullName ?? "null"}");
+                            Log.Msg("{tag}", $"  Field: {field.Name} ({field.FieldType.Name}) = {val?.GetType()?.FullName ?? "null"}");
 
                             if (field.Name.Contains("WorkflowController") && val != null)
                                 workflowController = val;
                         }
                         catch (Exception ex)
                         {
-                            MelonLogger.Msg($"[{tag}]   Field: {field.Name} = [error: {ex.Message}]");
+                            Log.Msg("{tag}", $"  Field: {field.Name} = [error: {ex.Message}]");
                         }
                     }
                 }
             }
             else
             {
-                MelonLogger.Msg($"[{tag}] GameManager: NOT FOUND");
+                Log.Msg("{tag}", $"GameManager: NOT FOUND");
             }
 
             // ═══════════════════════════════════════════════════════════════
             // SECTION 2: WorkflowController deep inspection
             // ═══════════════════════════════════════════════════════════════
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ══════ SECTION 2: WorkflowController Deep Inspection ══════");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"══════ SECTION 2: WorkflowController Deep Inspection ══════");
 
             if (workflowController != null)
             {
                 var wcType = workflowController.GetType();
-                MelonLogger.Msg($"[{tag}] WorkflowController type: {wcType.FullName}");
-                MelonLogger.Msg($"[{tag}] Base type: {wcType.BaseType?.FullName ?? "none"}");
+                Log.Msg("{tag}", $"WorkflowController type: {wcType.FullName}");
+                Log.Msg("{tag}", $"Base type: {wcType.BaseType?.FullName ?? "none"}");
 
                 // List ALL interfaces
                 var interfaces = wcType.GetInterfaces();
                 if (interfaces.Length > 0)
                 {
-                    MelonLogger.Msg($"[{tag}]   Interfaces: {string.Join(", ", interfaces.Select(i => i.Name))}");
+                    Log.Msg("{tag}", $"  Interfaces: {string.Join(", ", interfaces.Select(i => i.Name))}");
                 }
 
                 // ALL properties
-                MelonLogger.Msg($"[{tag}]   --- ALL Properties ---");
+                Log.Msg("{tag}", $"  --- ALL Properties ---");
                 foreach (var prop in wcType.GetProperties(flags))
                 {
                     try
@@ -1053,19 +1053,19 @@ namespace AccessibleArena.Core.Services
                         if (val is bool b) valStr = b.ToString();
                         if (val is int i) valStr = i.ToString();
                         if (val is string s) valStr = $"\"{s}\"";
-                        MelonLogger.Msg($"[{tag}]   {prop.Name} ({prop.PropertyType.Name}) = {valStr}");
+                        Log.Msg("{tag}", $"  {prop.Name} ({prop.PropertyType.Name}) = {valStr}");
 
                         if (prop.Name.Contains("Current") && val != null)
                             currentInteraction = val;
                     }
                     catch (Exception ex)
                     {
-                        MelonLogger.Msg($"[{tag}]   {prop.Name} = [error: {ex.Message}]");
+                        Log.Msg("{tag}", $"  {prop.Name} = [error: {ex.Message}]");
                     }
                 }
 
                 // ALL fields
-                MelonLogger.Msg($"[{tag}]   --- ALL Fields ---");
+                Log.Msg("{tag}", $"  --- ALL Fields ---");
                 foreach (var field in wcType.GetFields(flags))
                 {
                     try
@@ -1074,19 +1074,19 @@ namespace AccessibleArena.Core.Services
                         string valStr = val?.GetType()?.Name ?? "null";
                         if (val is bool b) valStr = b.ToString();
                         if (val is int i) valStr = i.ToString();
-                        MelonLogger.Msg($"[{tag}]   {field.Name} ({field.FieldType.Name}) = {valStr}");
+                        Log.Msg("{tag}", $"  {field.Name} ({field.FieldType.Name}) = {valStr}");
 
                         if (field.Name.Contains("current") || field.Name.Contains("Current"))
                             if (val != null) currentInteraction = val;
                     }
                     catch (Exception ex)
                     {
-                        MelonLogger.Msg($"[{tag}]   {field.Name} = [error: {ex.Message}]");
+                        Log.Msg("{tag}", $"  {field.Name} = [error: {ex.Message}]");
                     }
                 }
 
                 // Key methods
-                MelonLogger.Msg($"[{tag}]   --- Submit/Execute Methods ---");
+                Log.Msg("{tag}", $"  --- Submit/Execute Methods ---");
                 foreach (var method in wcType.GetMethods(flags))
                 {
                     string mName = method.Name.ToLower();
@@ -1094,70 +1094,70 @@ namespace AccessibleArena.Core.Services
                         mName.Contains("accept") || mName.Contains("complete") || mName.Contains("select"))
                     {
                         var paramStr = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                        MelonLogger.Msg($"[{tag}]   {method.Name}({paramStr})");
+                        Log.Msg("{tag}", $"  {method.Name}({paramStr})");
                     }
                 }
             }
             else
             {
-                MelonLogger.Msg($"[{tag}] WorkflowController: NOT FOUND (not on GameManager)");
+                Log.Msg("{tag}", $"WorkflowController: NOT FOUND (not on GameManager)");
             }
 
             // ═══════════════════════════════════════════════════════════════
             // SECTION 3: Current Interaction/Workflow
             // ═══════════════════════════════════════════════════════════════
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ══════ SECTION 3: Active Workflow/Interaction ══════");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"══════ SECTION 3: Active Workflow/Interaction ══════");
 
             if (currentInteraction != null)
             {
                 var ciType = currentInteraction.GetType();
-                MelonLogger.Msg($"[{tag}] CurrentInteraction: {ciType.FullName}");
-                MelonLogger.Msg($"[{tag}] Base types: {GetTypeHierarchy(ciType)}");
+                Log.Msg("{tag}", $"CurrentInteraction: {ciType.FullName}");
+                Log.Msg("{tag}", $"Base types: {GetTypeHierarchy(ciType)}");
 
                 // Check for _request field (used by AutoTapActionsWorkflow)
-                MelonLogger.Msg($"[{tag}]   --- Looking for _request field ---");
+                Log.Msg("{tag}", $"  --- Looking for _request field ---");
                 var requestField = ciType.GetField("_request", flags);
                 if (requestField != null)
                 {
                     var request = requestField.GetValue(currentInteraction);
-                    MelonLogger.Msg($"[{tag}]   _request: {request?.GetType()?.FullName ?? "null"}");
+                    Log.Msg("{tag}", $"  _request: {request?.GetType()?.FullName ?? "null"}");
 
                     if (request != null)
                     {
                         // Dump request object
                         var reqType = request.GetType();
-                        MelonLogger.Msg($"[{tag}]     --- Request methods ---");
+                        Log.Msg("{tag}", $"    --- Request methods ---");
                         foreach (var method in reqType.GetMethods(flags))
                         {
                             string mName = method.Name.ToLower();
                             if (mName.Contains("submit") || mName.Contains("cancel") || mName.Contains("solution"))
                             {
                                 var paramStr = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
-                                MelonLogger.Msg($"[{tag}]     {method.Name}({paramStr})");
+                                Log.Msg("{tag}", $"    {method.Name}({paramStr})");
                             }
                         }
                     }
                 }
                 else
                 {
-                    MelonLogger.Msg($"[{tag}]   _request: NOT FOUND");
+                    Log.Msg("{tag}", $"  _request: NOT FOUND");
                 }
 
                 // All fields on the workflow
-                MelonLogger.Msg($"[{tag}]   --- Workflow fields ---");
+                Log.Msg("{tag}", $"  --- Workflow fields ---");
                 foreach (var field in ciType.GetFields(flags))
                 {
                     try
                     {
                         var val = field.GetValue(currentInteraction);
-                        MelonLogger.Msg($"[{tag}]   {field.Name} ({field.FieldType.Name}) = {FormatValueForLog(val)}");
+                        Log.Msg("{tag}", $"  {field.Name} ({field.FieldType.Name}) = {FormatValueForLog(val)}");
                     }
                     catch { /* Some fields throw on access; skip for debug dump */ }
                 }
 
                 // All methods
-                MelonLogger.Msg($"[{tag}]   --- Workflow methods ---");
+                Log.Msg("{tag}", $"  --- Workflow methods ---");
                 foreach (var method in ciType.GetMethods(flags))
                 {
                     string mName = method.Name.ToLower();
@@ -1166,20 +1166,20 @@ namespace AccessibleArena.Core.Services
                         mName.Contains("solution") || mName.Contains("close") || mName.Contains("open"))
                     {
                         var paramStr = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
-                        MelonLogger.Msg($"[{tag}]   {method.Name}({paramStr})");
+                        Log.Msg("{tag}", $"  {method.Name}({paramStr})");
                     }
                 }
             }
             else
             {
-                MelonLogger.Msg($"[{tag}] CurrentInteraction: NULL (no active workflow)");
+                Log.Msg("{tag}", $"CurrentInteraction: NULL (no active workflow)");
             }
 
             // ═══════════════════════════════════════════════════════════════
             // SECTION 4: Scene search for workflow-related objects
             // ═══════════════════════════════════════════════════════════════
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ══════ SECTION 4: Scene Search (Workflow/AutoTap objects) ══════");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"══════ SECTION 4: Scene Search (Workflow/AutoTap objects) ══════");
 
             var allMonoBehaviours = GameObject.FindObjectsOfType<MonoBehaviour>();
             string[] searchPatterns = { "Workflow", "AutoTap", "Interaction", "ManaPayment", "ActionSource" };
@@ -1189,10 +1189,10 @@ namespace AccessibleArena.Core.Services
                 var matches = allMonoBehaviours.Where(mb => mb != null && mb.GetType().Name.Contains(pattern)).ToList();
                 if (matches.Count > 0)
                 {
-                    MelonLogger.Msg($"[{tag}]   '{pattern}' matches ({matches.Count}):");
+                    Log.Msg("{tag}", $"  '{pattern}' matches ({matches.Count}):");
                     foreach (var mb in matches.Take(5))
                     {
-                        MelonLogger.Msg($"[{tag}]     - {mb.GetType().Name} on '{mb.gameObject.name}'");
+                        Log.Msg("{tag}", $"    - {mb.GetType().Name} on '{mb.gameObject.name}'");
                     }
                 }
             }
@@ -1200,8 +1200,8 @@ namespace AccessibleArena.Core.Services
             // ═══════════════════════════════════════════════════════════════
             // SECTION 5: WorkflowBrowser UI structure
             // ═══════════════════════════════════════════════════════════════
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ══════ SECTION 5: WorkflowBrowser UI Structure ══════");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"══════ SECTION 5: WorkflowBrowser UI Structure ══════");
 
             if (workflowBrowser == null)
             {
@@ -1218,12 +1218,12 @@ namespace AccessibleArena.Core.Services
 
             if (workflowBrowser != null)
             {
-                MelonLogger.Msg($"[{tag}] WorkflowBrowser: {workflowBrowser.name}");
-                MelonLogger.Msg($"[{tag}]   Path: {GetFullPath(workflowBrowser.transform)}");
-                MelonLogger.Msg($"[{tag}]   Text: '{UITextExtractor.GetText(workflowBrowser)}'");
+                Log.Msg("{tag}", $"WorkflowBrowser: {workflowBrowser.name}");
+                Log.Msg("{tag}", $"  Path: {GetFullPath(workflowBrowser.transform)}");
+                Log.Msg("{tag}", $"  Text: '{UITextExtractor.GetText(workflowBrowser)}'");
 
                 // Siblings (same parent level)
-                MelonLogger.Msg($"[{tag}]   --- Siblings ---");
+                Log.Msg("{tag}", $"  --- Siblings ---");
                 var parent = workflowBrowser.transform.parent;
                 if (parent != null)
                 {
@@ -1242,39 +1242,39 @@ namespace AccessibleArena.Core.Services
                         clickInfo += hasButton ? " [BUTTON]" : "";
 
                         string sibText = UITextExtractor.GetText(sibling.gameObject);
-                        MelonLogger.Msg($"[{tag}]     {sibling.name}{clickInfo}: [{string.Join(", ", compNames)}] text='{sibText}'");
+                        Log.Msg("{tag}", $"    {sibling.name}{clickInfo}: [{string.Join(", ", compNames)}] text='{sibText}'");
                     }
                 }
             }
             else
             {
-                MelonLogger.Msg($"[{tag}] WorkflowBrowser: NOT FOUND in scene");
+                Log.Msg("{tag}", $"WorkflowBrowser: NOT FOUND in scene");
             }
 
             // ═══════════════════════════════════════════════════════════════
             // SECTION 6: PromptButtons detailed inspection
             // ═══════════════════════════════════════════════════════════════
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ══════ SECTION 6: PromptButtons Detailed Inspection ══════");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"══════ SECTION 6: PromptButtons Detailed Inspection ══════");
 
             var promptButtons = GameObject.FindObjectsOfType<Selectable>()
                 .Where(s => s != null && s.gameObject.activeInHierarchy && s.gameObject.name.Contains("PromptButton"))
                 .ToList();
 
-            MelonLogger.Msg($"[{tag}] Found {promptButtons.Count} PromptButtons");
+            Log.Msg("{tag}", $"Found {promptButtons.Count} PromptButtons");
             foreach (var btn in promptButtons)
             {
-                MelonLogger.Msg($"[{tag}]   Button: {btn.gameObject.name}");
-                MelonLogger.Msg($"[{tag}]     Text: '{UITextExtractor.GetText(btn.gameObject)}'");
-                MelonLogger.Msg($"[{tag}]     Interactable: {btn.interactable}");
-                MelonLogger.Msg($"[{tag}]     Path: {GetGameObjectPath(btn.gameObject)}");
+                Log.Msg("{tag}", $"  Button: {btn.gameObject.name}");
+                Log.Msg("{tag}", $"    Text: '{UITextExtractor.GetText(btn.gameObject)}'");
+                Log.Msg("{tag}", $"    Interactable: {btn.interactable}");
+                Log.Msg("{tag}", $"    Path: {GetGameObjectPath(btn.gameObject)}");
 
                 // Check for Button component and its onClick
                 var button = btn as Button;
                 if (button != null)
                 {
                     int listenerCount = button.onClick.GetPersistentEventCount();
-                    MelonLogger.Msg($"[{tag}]     onClick persistent listeners: {listenerCount}");
+                    Log.Msg("{tag}", $"    onClick persistent listeners: {listenerCount}");
 
                     // Try to get non-persistent listeners count via reflection
                     try
@@ -1289,7 +1289,7 @@ namespace AccessibleArena.Core.Services
                                 if (countProp != null)
                                 {
                                     var count = countProp.GetValue(calls);
-                                    MelonLogger.Msg($"[{tag}]     onClick runtime listeners (m_Calls.Count): {count}");
+                                    Log.Msg("{tag}", $"    onClick runtime listeners (m_Calls.Count): {count}");
                                 }
                             }
                         }
@@ -1304,7 +1304,7 @@ namespace AccessibleArena.Core.Services
                     var mbType = mb.GetType();
                     if (mbType.Name == "Button" || mbType.Namespace?.StartsWith("UnityEngine") == true) continue;
 
-                    MelonLogger.Msg($"[{tag}]     MonoBehaviour: {mbType.Name}");
+                    Log.Msg("{tag}", $"    MonoBehaviour: {mbType.Name}");
                     foreach (var field in mbType.GetFields(flags))
                     {
                         string fName = field.Name.ToLower();
@@ -1314,7 +1314,7 @@ namespace AccessibleArena.Core.Services
                             try
                             {
                                 var val = field.GetValue(mb);
-                                MelonLogger.Msg($"[{tag}]       {field.Name} ({field.FieldType.Name}) = {FormatValueForLog(val)}");
+                                Log.Msg("{tag}", $"      {field.Name} ({field.FieldType.Name}) = {FormatValueForLog(val)}");
                             }
                             catch { /* Callback field may throw on access; skip for debug dump */ }
                         }
@@ -1325,14 +1325,14 @@ namespace AccessibleArena.Core.Services
             // ═══════════════════════════════════════════════════════════════
             // SECTION 7: UnderStack area (where WorkflowBrowser lives)
             // ═══════════════════════════════════════════════════════════════
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ══════ SECTION 7: UnderStack Area Objects ══════");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"══════ SECTION 7: UnderStack Area Objects ══════");
 
             var underStackObjects = GameObject.FindObjectsOfType<GameObject>()
                 .Where(go => go != null && go.activeInHierarchy && GetFullPath(go.transform).Contains("UnderStack"))
                 .ToList();
 
-            MelonLogger.Msg($"[{tag}] Found {underStackObjects.Count} active objects under UnderStack");
+            Log.Msg("{tag}", $"Found {underStackObjects.Count} active objects under UnderStack");
             foreach (var go in underStackObjects.Take(20))
             {
                 var comps = go.GetComponents<Component>()
@@ -1345,14 +1345,14 @@ namespace AccessibleArena.Core.Services
                 string goText = UITextExtractor.GetText(go);
                 if (!string.IsNullOrEmpty(goText) || comps.Count > 0 || hasClickHandler)
                 {
-                    MelonLogger.Msg($"[{tag}]   {go.name}{clickInfo}: [{string.Join(", ", comps)}] text='{goText}'");
+                    Log.Msg("{tag}", $"  {go.name}{clickInfo}: [{string.Join(", ", comps)}] text='{goText}'");
                 }
             }
 
-            MelonLogger.Msg($"[{tag}] ");
-            MelonLogger.Msg($"[{tag}] ╔══════════════════════════════════════════════════════════════╗");
-            MelonLogger.Msg($"[{tag}] ║              END WORKFLOW SYSTEM DEBUG DUMP                 ║");
-            MelonLogger.Msg($"[{tag}] ╚══════════════════════════════════════════════════════════════╝");
+            Log.Msg("{tag}", $"");
+            Log.Msg("{tag}", $"╔══════════════════════════════════════════════════════════════╗");
+            Log.Msg("{tag}", $"║              END WORKFLOW SYSTEM DEBUG DUMP                 ║");
+            Log.Msg("{tag}", $"╚══════════════════════════════════════════════════════════════╝");
         }
 
         /// <summary>
