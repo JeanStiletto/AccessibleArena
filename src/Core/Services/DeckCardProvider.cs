@@ -55,18 +55,6 @@ namespace AccessibleArena.Core.Services
             _cachedSideboardFrame = -1;
         }
 
-        private static string GetTransformPath(Transform t)
-        {
-            if (t == null) return "null";
-            var path = t.name;
-            while (t.parent != null)
-            {
-                t = t.parent;
-                path = t.name + "/" + path;
-            }
-            return path;
-        }
-
         /// <summary>
         /// Gets all cards from the MainDeck_MetaCardHolder with their GrpIds and quantities.
         /// Uses caching to avoid repeated reflection calls within the same frame.

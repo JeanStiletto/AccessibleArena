@@ -1194,13 +1194,6 @@ namespace AccessibleArena.Core.Services
             if (buttonInfo == null)
                 return false;
 
-            // COMMENTED OUT: "Targeting mode" concept removed - we just check for Submit button with number
-            // The distinction between targeting and selection wasn't useful since:
-            // - Game handles targeting cancel via its own undo
-            // - Battlefield HotHighlight can be activated abilities, not just spell targets
-            // if (CardDetector.HasValidTargetsOnBattlefield())
-            //     return false;
-
             return true;
         }
 

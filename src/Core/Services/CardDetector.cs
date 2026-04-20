@@ -14,7 +14,7 @@ namespace AccessibleArena.Core.Services
     /// Static utility for detecting card GameObjects and basic card operations.
     /// For card data extraction and model access, use CardModelProvider directly.
     ///
-    /// Detection: IsCard, GetCardRoot, HasValidTargetsOnBattlefield
+    /// Detection: IsCard, GetCardRoot
     /// Model access: Delegated to CardModelProvider (pass-through methods provided for compatibility)
     /// </summary>
     public static class CardDetector
@@ -134,49 +134,6 @@ namespace AccessibleArena.Core.Services
             }
 
             return bestCandidate;
-        }
-
-        /// <summary>
-        /// Checks if any valid targets have HotHighlight (indicating targeting mode).
-        /// Scans battlefield, stack, AND player portraits for "any target" spells like Shock.
-        /// </summary>
-        public static bool HasValidTargetsOnBattlefield()
-        {
-            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
-            {
-                if (go == null || !go.activeInHierarchy)
-                    continue;
-
-                string name = go.name;
-
-                // Check if it's on the battlefield or stack
-                Transform current = go.transform;
-                bool inTargetZone = false;
-                while (current != null)
-                {
-                    if (current.name.Contains("BattlefieldCardHolder") || current.name.Contains("StackCardHolder"))
-                    {
-                        inTargetZone = true;
-                        break;
-                    }
-                    current = current.parent;
-                }
-
-                // Also check player portrait areas (for "any target" spells)
-                bool isPlayerArea = name.Contains("MatchTimer") ||
-                                    (name.Contains("Player") && (name.Contains("Portrait") || name.Contains("Avatar")));
-
-                if (!inTargetZone && !isPlayerArea)
-                    continue;
-
-                // Check for HotHighlight child (indicates valid target)
-                if (HasHotHighlight(go))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>

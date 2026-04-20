@@ -24,10 +24,8 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _pagesField;              // _pages (List<Page>)
         private static FieldInfo _currentPageField;        // _currentPage (int)
         private static FieldInfo _isScrollingField;        // _isScrolling (bool)
-        private static FieldInfo _cardDisplayInfosField;   // _cardDisplayInfos (protected)
         private static MethodInfo _scrollNextMethod;       // ScrollNext() (private)
         private static MethodInfo _scrollPreviousMethod;   // ScrollPrevious() (private)
-        private static PropertyInfo _pageSizeProperty;     // PageSize (private)
         private static PropertyInfo _pageCountProperty;    // PageCount (private)
 
         // Cached reflection members for nested Page class
@@ -122,16 +120,11 @@ namespace AccessibleArena.Core.Services
                 _currentPageField = type.GetField("_currentPage", PrivateInstance);
                 _isScrollingField = type.GetField("_isScrolling", PrivateInstance);
 
-                // _cardDisplayInfos is protected, declared on CardPoolHolder itself
-                _cardDisplayInfosField = type.GetField("_cardDisplayInfos",
-                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-
                 // Private methods
                 _scrollNextMethod = type.GetMethod("ScrollNext", PrivateInstance);
                 _scrollPreviousMethod = type.GetMethod("ScrollPrevious", PrivateInstance);
 
                 // Private properties
-                _pageSizeProperty = type.GetProperty("PageSize", PrivateInstance);
                 _pageCountProperty = type.GetProperty("PageCount", PrivateInstance);
 
                 // Nested Page class
@@ -145,9 +138,9 @@ namespace AccessibleArena.Core.Services
 
                 MelonLogger.Msg($"[CardPoolAccessor] Reflection init on {type.Name}: " +
                     $"_pages={_pagesField != null}, _currentPage={_currentPageField != null}, " +
-                    $"_isScrolling={_isScrollingField != null}, _cardDisplayInfos={_cardDisplayInfosField != null}, " +
+                    $"_isScrolling={_isScrollingField != null}, " +
                     $"ScrollNext={_scrollNextMethod != null}, ScrollPrev={_scrollPreviousMethod != null}, " +
-                    $"PageSize={_pageSizeProperty != null}, PageCount={_pageCountProperty != null}, " +
+                    $"PageCount={_pageCountProperty != null}, " +
                     $"PageType={_pageType != null}, CardViews={_pageCardViewsField != null}");
             }
             catch (Exception ex)
@@ -293,24 +286,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Get the number of cards per page.
-        /// </summary>
-        public static int GetPageSize()
-        {
-            if (_cachedPoolHolder == null || _pageSizeProperty == null)
-                return 0;
-
-            try
-            {
-                return (int)_pageSizeProperty.GetValue(_cachedPoolHolder);
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        /// <summary>
         /// Check if a scroll animation is in progress.
         /// </summary>
         public static bool IsScrolling()
@@ -325,37 +300,6 @@ namespace AccessibleArena.Core.Services
             catch
             {
                 return false;
-            }
-        }
-
-        /// <summary>
-        /// Get the total number of cards in the filtered collection.
-        /// </summary>
-        public static int GetTotalCardCount()
-        {
-            if (_cachedPoolHolder == null || _cardDisplayInfosField == null)
-                return 0;
-
-            try
-            {
-                var displayInfos = _cardDisplayInfosField.GetValue(_cachedPoolHolder);
-                if (displayInfos == null)
-                    return 0;
-
-                // IReadOnlyList has Count property
-                var countProp = displayInfos.GetType().GetProperty("Count");
-                if (countProp != null)
-                    return (int)countProp.GetValue(displayInfos);
-
-                // Fallback: try ICollection
-                if (displayInfos is ICollection collection)
-                    return collection.Count;
-
-                return 0;
-            }
-            catch
-            {
-                return 0;
             }
         }
 
