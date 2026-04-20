@@ -211,17 +211,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Get info from a specific field, with optional fallback.
-        /// Used by BaseNavigator which may fall back to the current navigated element.
-        /// </summary>
-        public FieldInfo GetEditingFieldInfo(GameObject fallback)
-        {
-            var result = GetFieldInfoFrom(_editingField, allowUnfocused: true);
-            if (result.IsValid) return result;
-            return GetFieldInfoFrom(fallback, allowUnfocused: true);
-        }
-
-        /// <summary>
         /// Get info from a specific GameObject. Supports TMP_InputField and legacy InputField.
         /// </summary>
         /// <param name="fieldObj">The field to query</param>
@@ -258,15 +247,6 @@ namespace AccessibleArena.Core.Services
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Scan scene for any focused input field (handles mouse-clicked fields).
-        /// Tries the editing field first, then does a scene-wide scan.
-        /// </summary>
-        public FieldInfo ScanForAnyFocusedField()
-        {
-            return ScanForAnyFocusedField(null);
         }
 
         /// <summary>

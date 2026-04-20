@@ -504,15 +504,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Exit dropdown edit mode. Delegates to DropdownStateManager.
-        /// Returns the name of the element that now has focus (so navigator can sync its index).
-        /// </summary>
-        public static string ExitDropdownEditMode()
-        {
-            return DropdownStateManager.OnDropdownClosed();
-        }
-
-        /// <summary>
         /// Check if a GameObject is a dropdown item (inside an open dropdown list).
         /// Dropdown items have names starting with "Item " followed by index.
         /// </summary>

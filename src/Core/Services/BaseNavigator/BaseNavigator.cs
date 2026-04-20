@@ -126,7 +126,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Populate _elements with navigable items.
         /// Called after DetectScreen() returns true.
-        /// Use helper methods: AddElement(), AddButton(), AddToggle(), AddInputField()
+        /// Use helper methods: AddElement(), AddButton()
         /// </summary>
         protected abstract void DiscoverElements();
 
@@ -1489,21 +1489,6 @@ namespace AccessibleArena.Core.Services
             AddElement(buttonObj, BuildLabel(label, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button), default, null, null, UIElementClassifier.ElementRole.Button);
         }
 
-        /// <summary>Add a toggle with label (state is added dynamically)</summary>
-        protected void AddToggle(Toggle toggle, string label)
-        {
-            if (toggle == null) return;
-            // State is added dynamically in GetElementAnnouncement
-            AddElement(toggle.gameObject, label);
-        }
-
-        /// <summary>Add an input field</summary>
-        protected void AddInputField(GameObject inputObj, string fieldName)
-        {
-            if (inputObj == null) return;
-            AddElement(inputObj, $"{fieldName}, text field");
-        }
-
         /// <summary>Find child by name recursively</summary>
         protected GameObject FindChildByName(Transform parent, string name)
         {
@@ -1522,23 +1507,6 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
-        }
-
-        /// <summary>Find child by path (e.g., "Parent/Child/Grandchild")</summary>
-        protected GameObject FindChildByPath(Transform parent, string path)
-        {
-            if (parent == null || string.IsNullOrEmpty(path)) return null;
-
-            var parts = path.Split('/');
-            Transform current = parent;
-
-            foreach (var part in parts)
-            {
-                current = current.Find(part);
-                if (current == null) return null;
-            }
-
-            return current.gameObject;
         }
 
         /// <summary>

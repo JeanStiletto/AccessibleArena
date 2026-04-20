@@ -566,21 +566,6 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private void CloseChat()
-        {
-            if (_socialUI == null || _closeChatMethod == null) return;
-
-            try
-            {
-                _closeChatMethod.Invoke(_socialUI, null);
-                _announcer.AnnounceInterrupt(Strings.ChatClosed);
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning($"[Chat] Failed to close chat: {ex.Message}");
-            }
-        }
-
         private void CloseChatSilent()
         {
             if (_socialUI == null || _closeChatMethod == null) return;
