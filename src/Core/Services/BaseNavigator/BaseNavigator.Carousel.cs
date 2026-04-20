@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using MelonLoader;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -64,7 +65,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Activate the nav control (carousel nav button or stepper increment/decrement)
-            MelonLogger.Msg($"[{NavigatorId}] Arrow nav {(isNext ? "next/increment" : "previous/decrement")}: {control.name}");
+            Log.Msg("{NavigatorId}", $"Arrow nav {(isNext ? "next/increment" : "previous/decrement")}: {control.name}");
             if (info.UseHoverActivation)
             {
                 UIActivator.SimulateHover(control, isNext);
@@ -144,7 +145,7 @@ namespace AccessibleArena.Core.Services
                 announcement = action.Label;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Action cycle: index {_currentActionIndex}, announcing: {announcement}");
+            Log.Msg("{NavigatorId}", $"Action cycle: index {_currentActionIndex}, announcing: {announcement}");
             _announcer.AnnounceInterrupt(announcement);
             return true;
         }
@@ -188,7 +189,7 @@ namespace AccessibleArena.Core.Services
             // Only announce if element count changed
             if (_elements.Count != oldCount)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Spinner rescan: {oldCount} -> {_elements.Count} elements");
+                Log.Msg("{NavigatorId}", $"Spinner rescan: {oldCount} -> {_elements.Count} elements");
                 string posAnnouncement = Strings.ItemPositionOf(_currentIndex + 1, _elements.Count, _elements[_currentIndex].Label);
                 _announcer.Announce(posAnnouncement, AnnouncementPriority.Normal);
             }
@@ -213,7 +214,7 @@ namespace AccessibleArena.Core.Services
                     var updated = _elements[_currentIndex];
                     updated.Label = newLabel;
                     _elements[_currentIndex] = updated;
-                    MelonLogger.Msg($"[{NavigatorId}] Stepper value (ReadLabel): {newLabel}");
+                    Log.Msg("{NavigatorId}", $"Stepper value (ReadLabel): {newLabel}");
                     _announcer.AnnounceInterrupt(newLabel);
                 }
                 return;
@@ -237,12 +238,12 @@ namespace AccessibleArena.Core.Services
                     var slider = classification.SliderComponent;
                     float range = slider.maxValue - slider.minValue;
                     int percent = range > 0 ? Mathf.RoundToInt((slider.value - slider.minValue) / range * 100) : 0;
-                    MelonLogger.Msg($"[{NavigatorId}] Slider value: {percent}%");
+                    Log.Msg("{NavigatorId}", $"Slider value: {percent}%");
                     _announcer.AnnounceInterrupt(Strings.Percent(percent));
                 }
                 else
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Stepper value updated: {classification.Label}");
+                    Log.Msg("{NavigatorId}", $"Stepper value updated: {classification.Label}");
                     _announcer.Announce(classification.Label, AnnouncementPriority.High);
                 }
             }

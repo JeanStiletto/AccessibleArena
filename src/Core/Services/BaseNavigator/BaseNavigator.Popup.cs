@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -48,7 +49,7 @@ namespace AccessibleArena.Core.Services
                 var activePanel = PanelStateManager.Instance.ActivePanel;
                 if (activePanel != null && !_isInPopupMode && !IsPopupExcluded(activePanel) && IsPopupPanel(activePanel))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup already active on subscribe: {activePanel.Name}");
+                    Log.Msg("{NavigatorId}", $"Popup already active on subscribe: {activePanel.Name}");
                     OnPopupDetected(activePanel);
                 }
             }
@@ -74,14 +75,14 @@ namespace AccessibleArena.Core.Services
             {
                 if (!_isInPopupMode)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup detected: {newPanel.Name}");
+                    Log.Msg("{NavigatorId}", $"Popup detected: {newPanel.Name}");
                     OnPopupDetected(newPanel);
                 }
             }
             else if (_isInPopupMode)
             {
                 // Popup closed: active panel reverted to the underlying panel (or null)
-                MelonLogger.Msg($"[{NavigatorId}] Popup closed");
+                Log.Msg("{NavigatorId}", $"Popup closed");
                 ExitPopupMode();
                 OnPopupClosed();
             }
@@ -109,7 +110,7 @@ namespace AccessibleArena.Core.Services
         {
             if (popup == null) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] Entering popup mode: {popup.name}");
+            Log.Msg("{NavigatorId}", $"Entering popup mode: {popup.name}");
 
             // Deactivate card info navigator so Up/Down navigates popup items, not card blocks
             AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
@@ -137,7 +138,7 @@ namespace AccessibleArena.Core.Services
             // Discover popup elements
             DiscoverPopupElements(popup);
 
-            MelonLogger.Msg($"[{NavigatorId}] Popup mode: {_elements.Count} items discovered");
+            Log.Msg("{NavigatorId}", $"Popup mode: {_elements.Count} items discovered");
 
             // Auto-focus first actionable item (input field, dropdown, or button), otherwise first item
             int firstActionable = _elements.FindIndex(e =>
@@ -157,7 +158,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isInPopupMode) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] Exiting popup mode");
+            Log.Msg("{NavigatorId}", $"Exiting popup mode");
             ClearPopupModeState();
         }
 
@@ -220,7 +221,7 @@ namespace AccessibleArena.Core.Services
                 if (_elements[i].GameObject == null &&
                     _elements[i].Role != UIElementClassifier.ElementRole.TextBlock)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup element destroyed, re-discovering (chained popup)");
+                    Log.Msg("{NavigatorId}", $"Popup element destroyed, re-discovering (chained popup)");
                     _elements.Clear();
                     _currentIndex = -1;
                     DiscoverPopupElements(_popupGameObject);
@@ -255,14 +256,14 @@ namespace AccessibleArena.Core.Services
             var cancelButton = FindPopupCancelButton(_popupGameObject);
             if (cancelButton != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup: clicking cancel button: {cancelButton.name}");
+                Log.Msg("{NavigatorId}", $"Popup: clicking cancel button: {cancelButton.name}");
                 _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
 
                 // Try invoking CustomButton.OnClick directly first - bypasses CanvasGroup
                 // interactable checks that block pointer simulation during popup animations
                 if (TryInvokeCustomButtonOnClick(cancelButton))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup: dismissed via CustomButton.OnClick.Invoke()");
+                    Log.Msg("{NavigatorId}", $"Popup: dismissed via CustomButton.OnClick.Invoke()");
                     return;
                 }
 
@@ -275,7 +276,7 @@ namespace AccessibleArena.Core.Services
             // Call Close() directly via reflection - it destroys the GO and fires Callback_OnClose.
             if (TryCloseFriendInvitePanel(_popupGameObject))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup: dismissed FriendInvitePanel via Close()");
+                Log.Msg("{NavigatorId}", $"Popup: dismissed FriendInvitePanel via Close()");
                 _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
                 ExitPopupMode();
                 OnPopupClosed();
@@ -288,18 +289,18 @@ namespace AccessibleArena.Core.Services
             var dismissOverlay = FindDismissOverlay(_popupGameObject);
             if (dismissOverlay != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup: clicking dismiss overlay: {dismissOverlay.name}");
+                Log.Msg("{NavigatorId}", $"Popup: clicking dismiss overlay: {dismissOverlay.name}");
                 _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
                 UIActivator.Activate(dismissOverlay);
                 return;
             }
 
             // Level 3: SystemMessageView.OnBack(null)
-            MelonLogger.Msg($"[{NavigatorId}] Popup: no cancel button or dismiss overlay found, trying OnBack()");
+            Log.Msg("{NavigatorId}", $"Popup: no cancel button or dismiss overlay found, trying OnBack()");
             var systemMessageView = FindSystemMessageViewInPopup(_popupGameObject);
             if (systemMessageView != null && TryInvokeOnBack(systemMessageView))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup: dismissed via OnBack()");
+                Log.Msg("{NavigatorId}", $"Popup: dismissed via OnBack()");
                 _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
                 ExitPopupMode();
                 OnPopupClosed();
@@ -307,7 +308,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Level 4: SetActive(false) fallback
-            MelonLogger.Warning($"[{NavigatorId}] Popup: using SetActive(false) fallback");
+            Log.Warn("{NavigatorId}", $"Popup: using SetActive(false) fallback");
             _popupGameObject.SetActive(false);
             _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
             ExitPopupMode();
@@ -457,7 +458,7 @@ namespace AccessibleArena.Core.Services
 
             if (elem.GameObject != null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Popup: activating: {elem.Label}");
+                Log.Msg("{NavigatorId}", $"Popup: activating: {elem.Label}");
                 _announcer?.AnnounceInterrupt(Strings.Activating(elem.Label));
                 // Use CustomButton.Click() directly — popup buttons are keyboard-navigated
                 // and SimulatePointerClick fails on first press because _mouseOver is false.
@@ -622,7 +623,7 @@ namespace AccessibleArena.Core.Services
 
                     seenTexts.Add(trimmed);
                     AddTextBlock(trimmed);
-                    MelonLogger.Msg($"[{NavigatorId}] Popup: text block: {trimmed}");
+                    Log.Msg("{NavigatorId}", $"Popup: text block: {trimmed}");
                 }
             }
 
@@ -636,7 +637,7 @@ namespace AccessibleArena.Core.Services
                     {
                         string combined = $"{label}: {text}";
                         AddTextBlock(combined);
-                        MelonLogger.Msg($"[{NavigatorId}] Popup: deck info: {combined}");
+                        Log.Msg("{NavigatorId}", $"Popup: deck info: {combined}");
                     }
                 }
             }
@@ -670,7 +671,7 @@ namespace AccessibleArena.Core.Services
 
                 seenTexts.Add(trimmed);
                 titleTexts.Add(trimmed);
-                MelonLogger.Msg($"[{NavigatorId}] Popup: title text: {trimmed}");
+                Log.Msg("{NavigatorId}", $"Popup: title text: {trimmed}");
             }
 
             // Insert title texts at the beginning so they're navigated first
@@ -708,7 +709,7 @@ namespace AccessibleArena.Core.Services
                     Label = label,
                     Role = UIElementClassifier.ElementRole.TextField
                 });
-                MelonLogger.Msg($"[{NavigatorId}] Popup: input field: {label}");
+                Log.Msg("{NavigatorId}", $"Popup: input field: {label}");
             }
         }
 
@@ -761,7 +762,7 @@ namespace AccessibleArena.Core.Services
                     Label = label,
                     Role = UIElementClassifier.ElementRole.Dropdown
                 });
-                MelonLogger.Msg($"[{NavigatorId}] Popup: dropdown: {label}");
+                Log.Msg("{NavigatorId}", $"Popup: dropdown: {label}");
             }
         }
 
@@ -829,12 +830,12 @@ namespace AccessibleArena.Core.Services
             {
                 if (IsDismissOverlay(obj))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup: skipping dismiss overlay: {obj.name}");
+                    Log.Msg("{NavigatorId}", $"Popup: skipping dismiss overlay: {obj.name}");
                     continue;
                 }
                 if (!seenLabels.Add(label))
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup: skipping duplicate button: {label}");
+                    Log.Msg("{NavigatorId}", $"Popup: skipping duplicate button: {label}");
                     continue;
                 }
 
@@ -844,7 +845,7 @@ namespace AccessibleArena.Core.Services
                     Label = label,
                     Role = UIElementClassifier.ElementRole.Button
                 });
-                MelonLogger.Msg($"[{NavigatorId}] Popup: button: {label}");
+                Log.Msg("{NavigatorId}", $"Popup: button: {label}");
             }
         }
 
@@ -861,7 +862,7 @@ namespace AccessibleArena.Core.Services
             int removed = _elements.RemoveAll(e =>
                 e.Role == UIElementClassifier.ElementRole.TextBlock && buttonLabels.Contains(e.Label));
             if (removed > 0)
-                MelonLogger.Msg($"[{NavigatorId}] Popup: removed {removed} text blocks duplicating button labels");
+                Log.Msg("{NavigatorId}", $"Popup: removed {removed} text blocks duplicating button labels");
         }
 
         /// <summary>
@@ -963,12 +964,12 @@ namespace AccessibleArena.Core.Services
                             OnIncrement = () =>
                             {
                                 try { increaseMethod.Invoke(mb, null); }
-                                catch (Exception ex) { MelonLogger.Warning($"[{NavigatorId}] Craft increment failed: {ex.Message}"); }
+                                catch (Exception ex) { Log.Warn("{NavigatorId}", $"Craft increment failed: {ex.Message}"); }
                             },
                             OnDecrement = () =>
                             {
                                 try { decreaseMethod.Invoke(mb, null); }
-                                catch (Exception ex) { MelonLogger.Warning($"[{NavigatorId}] Craft decrement failed: {ex.Message}"); }
+                                catch (Exception ex) { Log.Warn("{NavigatorId}", $"Craft decrement failed: {ex.Message}"); }
                             },
                             ReadLabel = () =>
                             {
@@ -978,7 +979,7 @@ namespace AccessibleArena.Core.Services
                         }
                     });
 
-                    MelonLogger.Msg($"[{NavigatorId}] Popup: craft stepper: {countText}, owned: {ownedCount}");
+                    Log.Msg("{NavigatorId}", $"Popup: craft stepper: {countText}, owned: {ownedCount}");
                 }
                 else if (pipObjects.Count > 0)
                 {
@@ -1002,7 +1003,7 @@ namespace AccessibleArena.Core.Services
                         Role = UIElementClassifier.ElementRole.TextBlock
                     });
 
-                    MelonLogger.Msg($"[{NavigatorId}] Popup: owned: {ownedCount} (no stepper)");
+                    Log.Msg("{NavigatorId}", $"Popup: owned: {ownedCount} (no stepper)");
                 }
 
                 break;
@@ -1236,7 +1237,7 @@ namespace AccessibleArena.Core.Services
 
                 if (field.GetValue(mb) is MonoBehaviour cancelMb && cancelMb != null && cancelMb.gameObject != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Popup: found _cancelButton via reflection on {mb.GetType().Name}");
+                    Log.Msg("{NavigatorId}", $"Popup: found _cancelButton via reflection on {mb.GetType().Name}");
                     return cancelMb.gameObject;
                 }
             }
@@ -1282,10 +1283,10 @@ namespace AccessibleArena.Core.Services
 
                 if (field.GetValue(mb) is MonoBehaviour buttonMb && buttonMb != null)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Found {fieldName} via reflection on {mb.GetType().Name}");
+                    Log.Msg("{NavigatorId}", $"Found {fieldName} via reflection on {mb.GetType().Name}");
                     if (TryInvokeCustomButtonOnClick(buttonMb.gameObject))
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Invoked {fieldName}.OnClick successfully");
+                        Log.Msg("{NavigatorId}", $"Invoked {fieldName}.OnClick successfully");
                         return true;
                     }
                 }
@@ -1413,13 +1414,13 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Popup: invoking {type.Name}.OnBack(null)");
+                        Log.Msg("{NavigatorId}", $"Popup: invoking {type.Name}.OnBack(null)");
                         method.Invoke(component, new object[] { null });
                         return true;
                     }
                     catch (Exception ex)
                     {
-                        MelonLogger.Warning($"[{NavigatorId}] Popup: OnBack error: {ex.InnerException?.Message ?? ex.Message}");
+                        Log.Warn("{NavigatorId}", $"Popup: OnBack error: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
             }

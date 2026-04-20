@@ -7,6 +7,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -44,7 +45,7 @@ namespace AccessibleArena.Core.Services
 
                 // Auto-opened dropdown (arrow navigation triggered MTGA's OnSelect).
                 // Close it and return - next frame normal navigation will proceed.
-                MelonLogger.Msg($"[{NavigatorId}] Closing auto-opened dropdown (not user-initiated)");
+                Log.Msg("{NavigatorId}", $"Closing auto-opened dropdown (not user-initiated)");
                 var dropdown = DropdownStateManager.ActiveDropdown;
                 if (dropdown != null)
                     CloseDropdownOnElement(dropdown);
@@ -132,14 +133,14 @@ namespace AccessibleArena.Core.Services
 
             if (itemIndex < 0)
             {
-                MelonLogger.Msg($"[{callerId}] Could not parse dropdown item index from: {itemName}");
+                Log.Msg("{callerId}", $"Could not parse dropdown item index from: {itemName}");
                 return;
             }
 
             var activeDropdown = DropdownStateManager.ActiveDropdown;
             if (activeDropdown == null)
             {
-                MelonLogger.Msg($"[{callerId}] No active dropdown to select item on");
+                Log.Msg("{callerId}", $"No active dropdown to select item on");
                 return;
             }
 
@@ -149,7 +150,7 @@ namespace AccessibleArena.Core.Services
             if (SetDropdownValueSilent(activeDropdown, itemIndex))
             {
                 DropdownStateManager.OnDropdownItemSelected(itemIndex);
-                MelonLogger.Msg($"[{callerId}] Selected dropdown item {itemIndex}");
+                Log.Msg("{callerId}", $"Selected dropdown item {itemIndex}");
             }
         }
 
@@ -351,7 +352,7 @@ namespace AccessibleArena.Core.Services
                 var (kind, comp) = ResolveDropdown(activeDropdown);
                 if (kind != DropdownKind.None && HideDropdownComponent(kind, comp))
                 {
-                    MelonLogger.Msg($"[{callerId}] Closing {kind} dropdown via ActiveDropdown reference");
+                    Log.Msg("{callerId}", $"Closing {kind} dropdown via ActiveDropdown reference");
                     DropdownStateManager.OnDropdownClosed();
                     if (!silent) announcer?.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
@@ -365,7 +366,7 @@ namespace AccessibleArena.Core.Services
                 var (kind, comp) = ResolveDropdown(transform.gameObject);
                 if (kind != DropdownKind.None && HideDropdownComponent(kind, comp))
                 {
-                    MelonLogger.Msg($"[{callerId}] Closing {kind} dropdown via hierarchy walk");
+                    Log.Msg("{callerId}", $"Closing {kind} dropdown via hierarchy walk");
                     DropdownStateManager.OnDropdownClosed();
                     if (!silent) announcer?.Announce(Strings.DropdownClosed, AnnouncementPriority.Normal);
                     return;
@@ -374,7 +375,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Couldn't find dropdown - just exit edit mode
-            MelonLogger.Msg($"[{callerId}] Could not find dropdown to close, exiting edit mode");
+            Log.Msg("{callerId}", $"Could not find dropdown to close, exiting edit mode");
             DropdownStateManager.OnDropdownClosed();
         }
     }

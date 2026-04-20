@@ -4,6 +4,7 @@ using MelonLoader;
 using AccessibleArena.Core.Models;
 using System;
 using System.Reflection;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -49,14 +50,14 @@ namespace AccessibleArena.Core.Services
             // If this was a search field, schedule delayed rescan
             if (wasSearchField)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Exited search field - scheduling delayed rescan");
+                Log.Msg("{NavigatorId}", $"Exited search field - scheduling delayed rescan");
                 ScheduleSearchRescan();
 
                 // If navigating away (Tab), suppress announcement until rescan completes
                 if (suppressNextAnnouncement)
                 {
                     _suppressNavigationAnnouncement = true;
-                    MelonLogger.Msg($"[{NavigatorId}] Suppressing navigation announcement until rescan");
+                    Log.Msg("{NavigatorId}", $"Suppressing navigation announcement until rescan");
                 }
             }
 
@@ -189,7 +190,7 @@ namespace AccessibleArena.Core.Services
             if (tmpInput != null && tmpInput.isFocused)
             {
                 tmpInput.DeactivateInputField();
-                MelonLogger.Msg($"[{NavigatorId}] Deactivated auto-focused TMP_InputField: {element.name}");
+                Log.Msg("{NavigatorId}", $"Deactivated auto-focused TMP_InputField: {element.name}");
                 return;
             }
 
@@ -198,7 +199,7 @@ namespace AccessibleArena.Core.Services
             if (legacyInput != null && legacyInput.isFocused)
             {
                 legacyInput.DeactivateInputField();
-                MelonLogger.Msg($"[{NavigatorId}] Deactivated auto-focused InputField: {element.name}");
+                Log.Msg("{NavigatorId}", $"Deactivated auto-focused InputField: {element.name}");
             }
         }
     }

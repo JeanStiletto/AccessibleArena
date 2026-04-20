@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -51,7 +52,7 @@ namespace AccessibleArena.Core.Services
                     Label = headingText,
                     Role = UIElementClassifier.ElementRole.TextBlock
                 });
-                MelonLogger.Msg($"[{NavigatorId}] Popup: invited section heading: {headingText}");
+                Log.Msg("{NavigatorId}", $"Popup: invited section heading: {headingText}");
                 if (headingObj != null)
                     skipTransforms.Add(headingObj.transform);
             }
@@ -64,7 +65,7 @@ namespace AccessibleArena.Core.Services
                     Label = label,
                     Role = UIElementClassifier.ElementRole.TextBlock
                 });
-                MelonLogger.Msg($"[{NavigatorId}] Popup: invited entry: {label}");
+                Log.Msg("{NavigatorId}", $"Popup: invited entry: {label}");
             }
 
             // Pass 2: Friend tiles (toggleable)
@@ -95,7 +96,7 @@ namespace AccessibleArena.Core.Services
                     Label = label,
                     Role = UIElementClassifier.ElementRole.Toggle
                 });
-                MelonLogger.Msg($"[{NavigatorId}] Popup: friend tile: {label}");
+                Log.Msg("{NavigatorId}", $"Popup: friend tile: {label}");
             }
         }
 

@@ -384,7 +384,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] ForceRescan triggered");
+            Log.Msg("{NavigatorId}", $"ForceRescan triggered");
 
             // Clear and rediscover elements
             _elements.Clear();
@@ -395,7 +395,7 @@ namespace AccessibleArena.Core.Services
             if (_elements.Count > 0)
             {
                 _currentIndex = 0;
-                MelonLogger.Msg($"[{NavigatorId}] Rescan found {_elements.Count} elements");
+                Log.Msg("{NavigatorId}", $"Rescan found {_elements.Count} elements");
 
                 // Update EventSystem selection to match our current element
                 UpdateEventSystemSelection();
@@ -404,7 +404,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                MelonLogger.Msg($"[{NavigatorId}] Rescan found no elements");
+                Log.Msg("{NavigatorId}", $"Rescan found no elements");
             }
         }
 
@@ -428,7 +428,7 @@ namespace AccessibleArena.Core.Services
             if (_elements.Count > 0)
             {
                 _currentIndex = 0;
-                MelonLogger.Msg($"[{NavigatorId}] Search rescan: {oldCount} -> {_elements.Count} elements");
+                Log.Msg("{NavigatorId}", $"Search rescan: {oldCount} -> {_elements.Count} elements");
 
                 // Update EventSystem selection
                 UpdateEventSystemSelection();
@@ -441,7 +441,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                MelonLogger.Msg($"[{NavigatorId}] Search rescan found no elements");
+                Log.Msg("{NavigatorId}", $"Search rescan found no elements");
                 _announcer.AnnounceInterrupt(Strings.NoSearchResults);
             }
         }
@@ -475,7 +475,7 @@ namespace AccessibleArena.Core.Services
                 _pendingSearchRescanFrames--;
                 if (_pendingSearchRescanFrames == 0)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Executing delayed search rescan");
+                    Log.Msg("{NavigatorId}", $"Executing delayed search rescan");
                     ForceRescanAfterSearch();
                 }
             }
@@ -529,7 +529,7 @@ namespace AccessibleArena.Core.Services
 
             if (_elements.Count == 0)
             {
-                MelonLogger.Msg($"[{NavigatorId}] DetectScreen passed but no elements found");
+                Log.Msg("{NavigatorId}", $"DetectScreen passed but no elements found");
                 return;
             }
 
@@ -537,7 +537,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _currentIndex = 0;
 
-            MelonLogger.Msg($"[{NavigatorId}] Activated with {_elements.Count} elements");
+            Log.Msg("{NavigatorId}", $"Activated with {_elements.Count} elements");
 
             OnActivated();
 
@@ -579,7 +579,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
-            MelonLogger.Msg($"[{NavigatorId}] Deactivating");
+            Log.Msg("{NavigatorId}", $"Deactivating");
 
             // Clean up popup mode if active
             if (_isInPopupMode)
@@ -627,7 +627,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_currentIndex != i)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Synced index {_currentIndex} -> {i} ({focusedName})");
+                        Log.Msg("{NavigatorId}", $"Synced index {_currentIndex} -> {i} ({focusedName})");
                         _currentIndex = i;
                     }
                     AnnounceCurrentElement();
@@ -635,7 +635,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Could not sync to focused element: {focusedName}");
+            Log.Msg("{NavigatorId}", $"Could not sync to focused element: {focusedName}");
         }
 
         /// <summary>
@@ -652,7 +652,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (_currentIndex != i)
                     {
-                        MelonLogger.Msg($"[{NavigatorId}] Synced index {_currentIndex} -> {i} ({element.name})");
+                        Log.Msg("{NavigatorId}", $"Synced index {_currentIndex} -> {i} ({element.name})");
                         _currentIndex = i;
                     }
                     return;
@@ -936,7 +936,7 @@ namespace AccessibleArena.Core.Services
             var element = _elements[_currentIndex];
             if (element.AlternateActionObject != null && element.AlternateActionObject.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Activating alternate action: {element.AlternateActionObject.name}");
+                Log.Msg("{NavigatorId}", $"Activating alternate action: {element.AlternateActionObject.name}");
                 UIActivator.Activate(element.AlternateActionObject);
             }
             else
@@ -1163,7 +1163,7 @@ namespace AccessibleArena.Core.Services
             bool closed = HideDropdownComponent(kind, component);
             if (closed)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Closed auto-opened {kind} dropdown: {element.name}");
+                Log.Msg("{NavigatorId}", $"Closed auto-opened {kind} dropdown: {element.name}");
                 // Suppress dropdown re-entry - the dropdown's IsExpanded property may not
                 // update immediately after Hide(), so DropdownStateManager prevents re-entry
                 // until the dropdown actually closes.
@@ -1252,7 +1252,7 @@ namespace AccessibleArena.Core.Services
                 var action = navElement.AttachedActions[_currentActionIndex - 1];
                 if (action.TargetButton != null && action.TargetButton.activeInHierarchy)
                 {
-                    MelonLogger.Msg($"[{NavigatorId}] Activating attached action: {action.Label} -> {action.TargetButton.name}");
+                    Log.Msg("{NavigatorId}", $"Activating attached action: {action.Label} -> {action.TargetButton.name}");
                     if (!HandleAttachedAction(action))
                     {
                         var actionResult = UIActivator.Activate(action.TargetButton);
@@ -1275,7 +1275,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Activating: {element.name} (ID:{element.GetInstanceID()}, Label:{navElement.Label})");
+            Log.Msg("{NavigatorId}", $"Activating: {element.name} (ID:{element.GetInstanceID()}, Label:{navElement.Label})");
 
             // Capture deck count BEFORE any activation path clicks the element.
             // Game updates count synchronously during click, so this must happen first.
@@ -1291,7 +1291,7 @@ namespace AccessibleArena.Core.Services
             // Check if this is a collection card in deck builder - left click adds to deck or opens craft popup
             if (CardTileActivator.IsCollectionCard(element))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Collection card detected - activating");
+                Log.Msg("{NavigatorId}", $"Collection card detected - activating");
                 var collectionResult = UIActivator.Activate(element);
                 _announcer.Announce(collectionResult.Message, AnnouncementPriority.Normal);
                 // Trigger rescan to update card count. If craft popup opens instead,
@@ -1400,7 +1400,7 @@ namespace AccessibleArena.Core.Services
             }
 
             bool isCard = CardDetector.IsCard(element);
-            MelonLogger.Msg($"[{NavigatorId}] UpdateCardNavigation: element={element.name}, IsCard={isCard}");
+            Log.Msg("{NavigatorId}", $"UpdateCardNavigation: element={element.name}, IsCard={isCard}");
             if (isCard)
             {
                 bool hidden = IsCurrentCardHidden(element);
@@ -1449,7 +1449,7 @@ namespace AccessibleArena.Core.Services
             int instanceId = element.GetInstanceID();
             if (_elements.Any(e => e.GameObject != null && e.GameObject.GetInstanceID() == instanceId))
             {
-                MelonLogger.Msg($"[{NavigatorId}] Duplicate skipped (ID:{instanceId}): {label}");
+                Log.Msg("{NavigatorId}", $"Duplicate skipped (ID:{instanceId}): {label}");
                 return;
             }
 
@@ -1465,7 +1465,7 @@ namespace AccessibleArena.Core.Services
 
             string altInfo = alternateAction != null ? $" [Alt: {alternateAction.name}]" : "";
             string actionsInfo = attachedActions != null && attachedActions.Count > 0 ? $" [Actions: {attachedActions.Count}]" : "";
-            MelonLogger.Msg($"[{NavigatorId}] Added (ID:{instanceId}): {label}{altInfo}{actionsInfo}");
+            Log.Msg("{NavigatorId}", $"Added (ID:{instanceId}): {label}{altInfo}{actionsInfo}");
         }
 
         /// <summary>Add a read-only text block (null GameObject, TextBlock role)</summary>
@@ -1520,7 +1520,7 @@ namespace AccessibleArena.Core.Services
 
             if (navBar == null)
             {
-                MelonLogger.Msg($"[{NavigatorId}] NavBar not found for Home navigation");
+                Log.Msg("{NavigatorId}", $"NavBar not found for Home navigation");
                 _announcer.Announce(Models.Strings.CannotNavigateHome, Models.AnnouncementPriority.High);
                 return false;
             }
@@ -1532,12 +1532,12 @@ namespace AccessibleArena.Core.Services
 
             if (homeButton == null || !homeButton.activeInHierarchy)
             {
-                MelonLogger.Msg($"[{NavigatorId}] Home button not found or inactive");
+                Log.Msg("{NavigatorId}", $"Home button not found or inactive");
                 _announcer.Announce(Models.Strings.HomeNotAvailable, Models.AnnouncementPriority.High);
                 return false;
             }
 
-            MelonLogger.Msg($"[{NavigatorId}] Navigating to Home");
+            Log.Msg("{NavigatorId}", $"Navigating to Home");
             _announcer.Announce(Models.Strings.ReturningHome, Models.AnnouncementPriority.High);
             UIActivator.Activate(homeButton);
             return true;
@@ -1634,7 +1634,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BaseNavigator] OpenChat failed: {ex.Message}");
+                Log.Warn("BaseNavigator", $"OpenChat failed: {ex.Message}");
                 _announcer.AnnounceInterrupt(Strings.ChatUnavailable);
             }
         }
