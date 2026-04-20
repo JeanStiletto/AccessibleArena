@@ -5,6 +5,20 @@ namespace AccessibleArena.Core.Models
     /// <summary>
     /// Centralized storage for all user-facing announcement strings.
     /// All strings are resolved through LocaleManager for localization.
+    ///
+    /// Adding a new user-facing string — workflow (3 files, always in this order):
+    ///   1. Add the key + English value to <c>locales/en.json</c>. The key is the
+    ///      identifier consumers will see (e.g. "duel.handZone.summary").
+    ///   2. Add a corresponding entry to every other locale JSON under
+    ///      <c>locales/</c> (de.json, etc.). Missing translations silently fall
+    ///      back to English at runtime, but fail the locale-alignment test.
+    ///   3. Expose a typed accessor in this class — a property for parameterless
+    ///      strings, a method for formatted ones. Route through <c>L.Get(key)</c>
+    ///      or <c>L.Format(key, args)</c> so callers never pass raw keys.
+    ///
+    /// Callers should use the typed members on <c>Strings.*</c> exclusively.
+    /// Raw <c>LocaleManager</c> access elsewhere in the codebase is a smell and
+    /// will be flagged by the StringsLocaleAlignment test.
     /// </summary>
     public static class Strings
     {

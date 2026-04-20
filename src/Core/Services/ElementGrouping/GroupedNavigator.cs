@@ -80,6 +80,25 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private int _currentElementIndex = -1;
         private NavigationLevel _navigationLevel = NavigationLevel.GroupList;
 
+        // ---------------------------------------------------------------------
+        // _pending* flags — one-shot auto-entry / restore hints.
+        //
+        // Invariant for every _pending* field below:
+        //   1. Producer: a public Request*() method (or an external helper) sets the
+        //      flag to indicate "on the next rescan, auto-enter X" or
+        //      "after rebuilding groups, restore cursor to Y".
+        //   2. Consumer: the flag is read and CLEARED inside OrganizeIntoGroups
+        //      (or its post-processing loop). The consumer is the only site
+        //      that resets the flag — do not clear it from anywhere else.
+        //   3. Lifetime: strictly one rescan. If the requested state is no
+        //      longer reachable (e.g. the target group doesn't exist after
+        //      rebuild), the consumer still clears the flag so it doesn't
+        //      leak into a later rescan.
+        //
+        // Keep new _pending* fields in this block and document their specific
+        // producer/consumer pair in the individual XML-doc, same as below.
+        // ---------------------------------------------------------------------
+
         /// <summary>
         /// Folder name to auto-enter after a rescan. Set when entering a folder group,
         /// checked and cleared by OrganizeIntoGroups after rebuilding.

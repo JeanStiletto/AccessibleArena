@@ -13,9 +13,16 @@ using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
-    /// Centralized UI activation utilities.
+    /// Centralized UI activation utilities for GENERIC UI elements.
     /// Handles clicking buttons, toggling checkboxes, focusing input fields,
-    /// and playing cards from hand.
+    /// and playing cards from the duel hand.
+    ///
+    /// Scope: any Unity GameObject with a CustomButton / Toggle / TMP_Dropdown
+    /// / TMP_InputField / EventTrigger — i.e. UI that is not specifically a
+    /// card tile in the collection/deck-builder.
+    ///
+    /// For card-tile activation (collection grid, commander/companion/partner
+    /// slots, deck-list entries) use <see cref="CardTileActivator"/> instead.
     /// </summary>
     public static class UIActivator
     {

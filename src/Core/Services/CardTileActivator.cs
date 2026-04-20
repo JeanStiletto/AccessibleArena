@@ -7,8 +7,13 @@ namespace AccessibleArena.Core.Services
 {
     /// <summary>
     /// Specialized activation utilities for collection cards, commander/companion/partner
-    /// slot tiles, and deck entries in the deck builder. Extracted from UIActivator to keep
-    /// that file focused on generic UI activation.
+    /// slot tiles, and deck entries in the deck builder.
+    ///
+    /// Scope: card TILES only (screens that show card art + name + quantity, not
+    /// playable duel cards). For generic buttons/toggles/inputs, use
+    /// <see cref="UIActivator"/>. For playing cards out of the duel hand, that
+    /// lives on UIActivator (see UIActivator.PlayCard*) because it's keyed on
+    /// hand-zone CDCs rather than collection tiles.
     /// </summary>
     public static class CardTileActivator
     {
