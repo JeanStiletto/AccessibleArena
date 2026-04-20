@@ -470,11 +470,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // and are needed for the brief close/open cycle that happens during tab switching
             if (!isActive)
             {
-                // Only clear the group restore - it causes stale state to overwrite auto-entries
-                _pendingGroupRestore = null;
-                _pendingGroupRestoreDisplayName = null;
-                _pendingLevelRestore = NavigationLevel.GroupList;
-                _pendingElementIndexRestore = -1;
+                // Clear group restore so stale state doesn't overwrite auto-entries on reopen.
+                ClearPendingGroupRestore();
                 MelonLogger.Msg($"[GroupedNavigator] PlayBlade context set to: {isActive} - cleared group restore");
             }
             else
@@ -505,10 +502,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             {
                 _pendingChallengeMainEntry = false;
                 _pendingChallengeMainEntryIndex = -1;
-                _pendingGroupRestore = null;
-                _pendingGroupRestoreDisplayName = null;
-                _pendingLevelRestore = NavigationLevel.GroupList;
-                _pendingElementIndexRestore = -1;
+                ClearPendingGroupRestore();
                 MelonLogger.Msg($"[GroupedNavigator] Challenge context set to: {isActive} - cleared pending state");
             }
             else
@@ -579,12 +573,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             }
             else
             {
-                _pendingGroupRestore = null;
-                _pendingGroupRestoreDisplayName = null;
-                _pendingLevelRestore = NavigationLevel.GroupList;
-                _pendingElementIndexRestore = -1;
-                _pendingSubgroupRestore = null;
-                _pendingSubgroupElementIndexRestore = -1;
+                ClearPendingGroupRestore();
             }
         }
 
@@ -1165,12 +1154,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 {
                     // Clear stale restore state - auto-entries take precedence
                     MelonLogger.Msg($"[GroupedNavigator] Skipping group restore (was: {_pendingGroupRestore.Value}, autoEntry={autoEntryPerformed}, playBlade={_isPlayBladeContext})");
-                    _pendingGroupRestore = null;
-                    _pendingGroupRestoreDisplayName = null;
-                    _pendingLevelRestore = NavigationLevel.GroupList;
-                    _pendingElementIndexRestore = -1;
-                    _pendingSubgroupRestore = null;
-                    _pendingSubgroupElementIndexRestore = -1;
+                    ClearPendingGroupRestore();
                 }
                 else
                 {
@@ -1180,12 +1164,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     var elementIndexToRestore = _pendingElementIndexRestore;
                     var subgroupToRestore = _pendingSubgroupRestore;
                     var subgroupElementIndexToRestore = _pendingSubgroupElementIndexRestore;
-                    _pendingGroupRestore = null;
-                    _pendingGroupRestoreDisplayName = null;
-                    _pendingLevelRestore = NavigationLevel.GroupList;
-                    _pendingElementIndexRestore = -1;
-                    _pendingSubgroupRestore = null;
-                    _pendingSubgroupElementIndexRestore = -1;
+                    ClearPendingGroupRestore();
 
                     // Find the group to restore by exact type + display name match.
                     // Display name must match to avoid landing on a same-typed group from a
@@ -1955,27 +1934,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Jump to a specific group by display name.
-        /// Sets navigation to group level at the specified group.
-        /// </summary>
-        /// <returns>True if group was found and jumped to, false otherwise.</returns>
-        public bool JumpToGroupByName(string displayName)
-        {
-            for (int i = 0; i < _groups.Count; i++)
-            {
-                if (_groups[i].DisplayName == displayName)
-                {
-                    _currentGroupIndex = i;
-                    _navigationLevel = NavigationLevel.GroupList;
-                    _currentElementIndex = -1;
-                    MelonLogger.Msg($"[GroupedNavigator] Jumped to group by name: {displayName}");
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
         /// Jump to a specific group and enter it (inside group level).
         /// </summary>
         /// <returns>True if group was found and entered, false otherwise.</returns>
@@ -2053,14 +2011,6 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Get group info by display name.
-        /// </summary>
-        public ElementGroupInfo? GetGroupByName(string displayName)
-        {
-            return _groups.FirstOrDefault(g => g.DisplayName == displayName);
-        }
-
-        /// <summary>
         /// Get element at index from a specific group.
         /// </summary>
         /// <returns>The element's GameObject, or null if not found.</returns>
@@ -2092,11 +2042,47 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Find groups matching a predicate.
+        /// Returns indices of groups whose type is in <paramref name="allowedGroups"/> and that
+        /// are eligible for Tab cycling: not a standalone element, and either multi-element or
+        /// a deck-builder card group (collection / sideboard / deck list — those are always
+        /// cyclable so Tab can reach e.g. a single filtered collection card).
         /// </summary>
-        public IEnumerable<ElementGroupInfo> FindGroups(System.Func<ElementGroupInfo, bool> predicate)
+        private List<int> ComputeCyclableGroupIndices(ElementGroup[] allowedGroups)
         {
-            return _groups.Where(predicate);
+            var indices = new List<int>();
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (System.Array.IndexOf(allowedGroups, _groups[i].Group) >= 0 &&
+                    !_groups[i].IsStandaloneElement &&
+                    (_groups[i].Count > 1 || _groups[i].Group.IsDeckBuilderCardGroup()))
+                    indices.Add(i);
+            }
+            return indices;
+        }
+
+        /// <summary>
+        /// Moves <see cref="_currentGroupIndex"/> to the next/previous cyclable group from
+        /// <paramref name="allowedGroups"/>, wraps around, and auto-enters. Returns false when
+        /// no cyclable groups match.
+        /// </summary>
+        private bool CycleGroup(ElementGroup[] allowedGroups, int step, string direction)
+        {
+            if (allowedGroups == null || allowedGroups.Length == 0)
+                return false;
+
+            var allowedIndices = ComputeCyclableGroupIndices(allowedGroups);
+            if (allowedIndices.Count == 0)
+                return false;
+
+            int currentAllowedIndex = allowedIndices.IndexOf(_currentGroupIndex);
+            int nextAllowedIndex = ((currentAllowedIndex + step) % allowedIndices.Count + allowedIndices.Count) % allowedIndices.Count;
+            _currentGroupIndex = allowedIndices[nextAllowedIndex];
+
+            _navigationLevel = NavigationLevel.InsideGroup;
+            _currentElementIndex = 0;
+
+            MelonLogger.Msg($"[GroupedNavigator] Cycled to {direction} group and entered: {_groups[_currentGroupIndex].DisplayName}");
+            return true;
         }
 
         /// <summary>
@@ -2104,83 +2090,15 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Skips standalone elements (only cycles between actual groups).
         /// Auto-enters the group after cycling.
         /// </summary>
-        /// <returns>True if moved to a new group, false if no valid groups found.</returns>
         public bool CycleToNextGroup(params ElementGroup[] allowedGroups)
-        {
-            if (allowedGroups == null || allowedGroups.Length == 0)
-                return false;
-
-            // Find indices of all allowed groups (skip standalone elements)
-            // Deck builder card groups (collection, sideboard, deck list) are always included
-            // even with a single item, so Tab can reach e.g. a single filtered collection card.
-            var allowedIndices = new List<int>();
-            for (int i = 0; i < _groups.Count; i++)
-            {
-                if (System.Array.IndexOf(allowedGroups, _groups[i].Group) >= 0 &&
-                    !_groups[i].IsStandaloneElement &&
-                    (_groups[i].Count > 1 || _groups[i].Group.IsDeckBuilderCardGroup()))
-                    allowedIndices.Add(i);
-            }
-
-            if (allowedIndices.Count == 0)
-                return false;
-
-            // Find current position in allowed groups
-            int currentAllowedIndex = allowedIndices.IndexOf(_currentGroupIndex);
-
-            // Move to next allowed group (wrap around)
-            int nextAllowedIndex = (currentAllowedIndex + 1) % allowedIndices.Count;
-            _currentGroupIndex = allowedIndices[nextAllowedIndex];
-
-            // Auto-enter the group
-            _navigationLevel = NavigationLevel.InsideGroup;
-            _currentElementIndex = 0;
-
-            MelonLogger.Msg($"[GroupedNavigator] Cycled to next group and entered: {_groups[_currentGroupIndex].DisplayName}");
-            return true;
-        }
+            => CycleGroup(allowedGroups, +1, "next");
 
         /// <summary>
         /// Cycle to the previous group from a list of allowed group types.
         /// Skips standalone elements (only cycles between actual groups).
         /// Auto-enters the group after cycling.
         /// </summary>
-        /// <returns>True if moved to a new group, false if no valid groups found.</returns>
         public bool CycleToPreviousGroup(params ElementGroup[] allowedGroups)
-        {
-            if (allowedGroups == null || allowedGroups.Length == 0)
-                return false;
-
-            // Find indices of all allowed groups (skip standalone elements)
-            // Deck builder card groups (collection, sideboard, deck list) are always included
-            // even with a single item, so Tab can reach e.g. a single filtered collection card.
-            var allowedIndices = new List<int>();
-            for (int i = 0; i < _groups.Count; i++)
-            {
-                if (System.Array.IndexOf(allowedGroups, _groups[i].Group) >= 0 &&
-                    !_groups[i].IsStandaloneElement &&
-                    (_groups[i].Count > 1 || _groups[i].Group.IsDeckBuilderCardGroup()))
-                    allowedIndices.Add(i);
-            }
-
-            if (allowedIndices.Count == 0)
-                return false;
-
-            // Find current position in allowed groups
-            int currentAllowedIndex = allowedIndices.IndexOf(_currentGroupIndex);
-
-            // Move to previous allowed group (wrap around)
-            int prevAllowedIndex = currentAllowedIndex <= 0
-                ? allowedIndices.Count - 1
-                : currentAllowedIndex - 1;
-            _currentGroupIndex = allowedIndices[prevAllowedIndex];
-
-            // Auto-enter the group
-            _navigationLevel = NavigationLevel.InsideGroup;
-            _currentElementIndex = 0;
-
-            MelonLogger.Msg($"[GroupedNavigator] Cycled to previous group and entered: {_groups[_currentGroupIndex].DisplayName}");
-            return true;
-        }
+            => CycleGroup(allowedGroups, -1, "previous");
     }
 }
